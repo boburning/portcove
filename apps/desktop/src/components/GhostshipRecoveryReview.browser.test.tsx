@@ -81,7 +81,9 @@ it("reviews compound consequences separately from ordinary restore and binds the
     "Ordinary restore",
   ])
     expect(document.body.textContent?.toLowerCase()).toContain(text.toLowerCase());
-  await expect.poll(() => document.activeElement?.textContent).toBe("Cancel");
+  await expect
+    .poll(() => document.activeElement?.textContent)
+    .toBe("Review Ghostship legacy recovery");
   await click("Recover legacy installation and data");
   expect(apply).toHaveBeenCalledExactlyOnceWith(backup, plan.plan_sha256);
   expect(ordinary).not.toHaveBeenCalled();
@@ -177,7 +179,9 @@ it("reviews legacy recovery in the current language with exact paths", async () 
     await root.rerender(
       <GhostshipRecoveryReview backup={backup} generation={7} apply={vi.fn()} close={vi.fn()} />,
     );
-    await expect.poll(() => document.activeElement?.textContent).toBe("إلغاء");
+    await expect
+      .poll(() => document.activeElement?.textContent)
+      .toBe("مراجعة استرداد Ghostship القديم");
     expect(document.body.textContent).toContain("مراجعة استرداد Ghostship القديم");
     expect(document.body.textContent).toContain(backup.path);
     expect(document.body.textContent).toContain("library/retained2");

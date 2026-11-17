@@ -657,6 +657,7 @@ impl PortcoveService {
         let result: Result<BackupRecord> = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "backup")?;
+            crate::profile_file_preservation::require_idle(&self.library, port_id)?;
             // An interrupted retention prune must not block a player's own backup.
             self.resume_pending_backup_deletions(port_id);
             self.require_completed_backup_deletion(port_id)?;
@@ -1391,6 +1392,7 @@ impl PortcoveService {
     ) -> Result<BackupActionPreview> {
         self.catalog.port(port_id)?;
         if action == BackupAction::Restore {
+            crate::profile_file_preservation::require_idle(&self.library, port_id)?;
             self.require_completed_restore(port_id)?;
             // Read-only: a deletion the restore itself finishes under its port lock
             // does not stop the review; any other one still does.
@@ -1607,6 +1609,7 @@ impl PortcoveService {
         let result = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "restore-backup")?;
+            crate::profile_file_preservation::require_idle(&self.library, port_id)?;
             self.require_completed_restore(port_id)?;
             // An interrupted retention prune must not block restoring saves.
             self.resume_pending_backup_deletions(port_id);

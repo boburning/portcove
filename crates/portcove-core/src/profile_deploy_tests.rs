@@ -2552,3 +2552,213 @@ fn local_mod_review_binds_exact_bytes_and_reports_asset_overlap() {
     assert_eq!(installed.revision, reviewed.expected_revision + 1);
     assert_eq!(installed.packages.len(), 2);
 }
+
+#[test]
+fn unmanaged_mod_file_preservation_rechecks_bytes_and_keeps_each_copy() {
+    let w = world();
+    let mods = user(&w).join("mods");
+    fs::create_dir_all(mods.join("manual-folder")).unwrap();
+    let file = mods.join("outside.o2r");
+    let other = mods.join("other.txt");
+    fs::write(&file, b"unreviewed bytes").unwrap();
+    fs::write(&other, b"other file").unwrap();
+    let plan = w
+        .service
+        .inspect_mod_file("starship", "outside.o2r")
+        .unwrap();
+    assert!(plan.restore.is_none());
+    assert!(
+        w.service
+            .inspect_mod_file("starship", "manual-folder")
+            .is_err()
+    );
+    assert!(
+        w.service
+            .inspect_mod_file("starship", "../outside.o2r")
+            .is_err()
+    );
+    fs::write(&file, b"changed before apply").unwrap();
+    let error = w
+        .service
+        .preserve_mod_file("starship", "outside.o2r", &plan.plan_sha256)
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Conflict);
+    assert_eq!(fs::read(&file).unwrap(), b"changed before apply");
+    let revised = w
+        .service
+        .inspect_mod_file("starship", "outside.o2r")
+        .unwrap();
+    let result = w
+        .service
+        .preserve_mod_file("starship", "outside.o2r", &revised.plan_sha256)
+        .unwrap();
+    assert!(!file.exists());
+    assert_eq!(
+        fs::read(&result.preserved_path).unwrap(),
+        b"changed before apply"
+    );
+    assert_eq!(fs::read(&other).unwrap(), b"other file");
+    assert!(mods.join("manual-folder").is_dir());
+
+    fs::write(&file, b"changed before apply").unwrap();
+    let duplicate = w
+        .service
+        .inspect_mod_file("starship", "outside.o2r")
+        .unwrap();
+    assert_ne!(duplicate.plan_sha256, revised.plan_sha256);
+    let second = w
+        .service
+        .preserve_mod_file("starship", "outside.o2r", &duplicate.plan_sha256)
+        .unwrap();
+    assert_ne!(result.preserved_path, second.preserved_path);
+    assert_eq!(
+        fs::read(&second.preserved_path).unwrap(),
+        b"changed before apply"
+    );
+    assert_eq!(
+        fs::read(&result.preserved_path).unwrap(),
+        b"changed before apply"
+    );
+    assert_eq!(revision(&w, &w.default), 1);
+}
+
+#[test]
+fn changed_owned_mod_file_is_preserved_before_exact_restoration_after_interruption() {
+    let w = world();
+    let package = archive(&w.scratch, "hd.o2r", &[("objects/link.bin", b"original")]);
+    let deployed = w
+        .service
+        .install_mod_package("starship", &w.default, &package, 1)
+        .unwrap();
+    assert!(w.service.inspect_mod_file("starship", "hd.o2r").is_err());
+    let saves = user(&w).join("saves");
+    fs::create_dir_all(&saves).unwrap();
+    let progress = saves.join("current.sav");
+    fs::write(&progress, b"older backed-up progress").unwrap();
+    let backup = w.service.create_backup("starship").unwrap();
+    let backup_action = crate::BackupAction::Restore;
+    let backup_review = w
+        .service
+        .preview_backup_action("starship", &backup.id, backup_action)
+        .unwrap();
+    let backup_approval = w
+        .service
+        .authorize_backup_action(
+            "starship",
+            &backup.id,
+            backup_action,
+            &backup_review.preview_sha256,
+        )
+        .unwrap();
+    fs::write(&progress, b"newer progress").unwrap();
+    let layout = w.service.deploy_layout("starship").unwrap();
+    let live = layout.mods().join("hd.o2r");
+    fs::write(&live, b"locally edited").unwrap();
+    let plan = w.service.inspect_mod_file("starship", "hd.o2r").unwrap();
+    assert_eq!(
+        plan.restore.as_ref().unwrap().sha256,
+        deployed.packages[0].sha256
+    );
+    let pending = layout.store().join("file-preservation.json");
+    let kept = layout
+        .store()
+        .join("preserved")
+        .join(&plan.plan_sha256)
+        .join("hd.o2r");
+    fs::create_dir_all(kept.parent().unwrap()).unwrap();
+    crate::durability::write_bytes_atomically(&pending, &serde_json::to_vec(&plan).unwrap(), false)
+        .unwrap();
+    mark_restore_pending(&layout).unwrap();
+    crate::durability::rename_noreplace(&live, &kept).unwrap();
+    assert!(!live.exists());
+    assert!(
+        w.service
+            .observe_live_mods("starship")
+            .unwrap()
+            .pending_preservation
+            .is_some()
+    );
+
+    let blocked_restore = w
+        .service
+        .restore_backup("starship", &backup.id, &backup_approval.token)
+        .unwrap_err();
+    assert_eq!(blocked_restore.code, crate::ErrorCode::Conflict);
+    assert_eq!(blocked_restore.details["plan_sha256"], plan.plan_sha256);
+    assert_eq!(fs::read(&progress).unwrap(), b"newer progress");
+    let recovery = w
+        .service
+        .plan_profile_recovery("starship", &w.default, 1)
+        .unwrap();
+    assert!(recovery.holds.iter().any(|hold| {
+        hold.code == crate::ErrorCode::Conflict
+            && hold.details.get("plan_sha256") == Some(&plan.plan_sha256)
+    }));
+    assert!(
+        w.service
+            .apply_profile_recovery("starship", &w.default, 1, &recovery.plan_sha256)
+            .is_err()
+    );
+    assert!(!live.exists());
+
+    fs::write(&live, b"independent file after interruption").unwrap();
+    let blocked = w
+        .service
+        .preserve_mod_file("starship", "hd.o2r", &plan.plan_sha256)
+        .unwrap_err();
+    assert_eq!(blocked.code, crate::ErrorCode::Conflict);
+    assert_eq!(
+        fs::read(&live).unwrap(),
+        b"independent file after interruption"
+    );
+    assert_eq!(fs::read(&kept).unwrap(), b"locally edited");
+    assert!(pending.exists());
+
+    fs::remove_file(&live).unwrap();
+    let _guard = w
+        .service
+        .library()
+        .try_lock_port("starship", "test-launch-preflight")
+        .unwrap();
+    w.service
+        .prepare_native_mod_list_locked("starship")
+        .unwrap();
+    assert_eq!(fs::read(&progress).unwrap(), b"newer progress");
+    assert!(!pending.exists());
+    assert_eq!(fs::read(&live).unwrap(), fs::read(&package).unwrap());
+    assert_eq!(fs::read(&kept).unwrap(), b"locally edited");
+    assert!(restore_pending(&user(&w)));
+    assert_eq!(revision(&w, &w.default), deployed.revision);
+}
+
+#[test]
+fn mod_file_preservation_holds_case_only_alias_of_an_enabled_package() {
+    let w = world();
+    let package = archive(&w.scratch, "hd.o2r", &[("objects/link.bin", b"original")]);
+    w.service
+        .install_mod_package("starship", &w.default, &package, 1)
+        .unwrap();
+    let mods = user(&w).join("mods");
+    let temporary_name = mods.join("renaming.o2r");
+    // An intermediate name makes the case-only rename observable on Windows.
+    fs::rename(mods.join("hd.o2r"), &temporary_name).unwrap();
+    fs::rename(&temporary_name, mods.join("HD.O2R")).unwrap();
+
+    let error = w
+        .service
+        .inspect_mod_file("starship", "HD.O2R")
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Conflict);
+    assert_eq!(error.details["recorded_name"], "hd.o2r");
+    assert_eq!(
+        fs::read(mods.join("HD.O2R")).unwrap(),
+        fs::read(package).unwrap()
+    );
+    assert!(
+        w.service
+            .observe_live_mods("starship")
+            .unwrap()
+            .pending_preservation
+            .is_none()
+    );
+}

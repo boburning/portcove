@@ -127,6 +127,10 @@ impl PortcoveService {
             }
         };
 
+        check(crate::profile_file_preservation::require_idle(
+            &self.library,
+            port_id,
+        ));
         check(self.require_offered_profile_recovery(
             connection,
             port_id,

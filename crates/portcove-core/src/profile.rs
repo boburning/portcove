@@ -504,6 +504,7 @@ impl PortcoveService {
         mut next: ProfileRevision,
         original_changed: bool,
     ) -> Result<ProfileRevision> {
+        crate::profile_file_preservation::require_idle(&self.library, port_id)?;
         let profile_id = &current.profile_id;
         let previous = self.current_retained_reference(port_id, profile_id)?;
         next.profile_id = profile_id.clone();
