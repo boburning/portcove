@@ -254,12 +254,89 @@ pub(crate) async fn inspect_mod_recipe(
 }
 
 #[tauri::command]
+pub(crate) async fn acquire_mod_recipe_package(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    native_id: String,
+    plan: RecipeImportPlan,
+) -> DesktopResult<RecipeImportPlan> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            require_recipe_port(&port_id, &plan.recipe)?;
+            let current =
+                service.plan_recipe_import_with_acquisitions(&plan.recipe, &plan.acquisitions)?;
+            if current.plan_sha256 != plan.plan_sha256
+                || !current.provider_checks.contains(&native_id)
+            {
+                return Err(PortcoveError::conflict(
+                    "recipe inputs changed; inspect the recipe again",
+                )
+                .into());
+            }
+            let acquisition = service
+                .plan_recipe_acquisition(&plan.recipe, &profile_id, &native_id, &plan.acquisitions)
+                .await?;
+            let mut acquisitions = plan.acquisitions;
+            acquisitions.push(acquisition);
+            match service.plan_recipe_import_with_acquisitions(&plan.recipe, &acquisitions) {
+                Ok(review) => Ok(review),
+                Err(error) => {
+                    if let Some((acquisition, earlier)) = acquisitions.split_last()
+                        && !earlier.iter().any(|item| {
+                            item.provider_plan.plan_sha256 == acquisition.provider_plan.plan_sha256
+                        })
+                    {
+                        let _ = service.discard_recipe_acquisition(acquisition);
+                    }
+                    Err(error.into())
+                }
+            }
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn discard_mod_recipe_review(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    plan: RecipeImportPlan,
+) -> DesktopResult<()> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        require_recipe_port(&port_id, &plan.recipe)?;
+        for acquisition in &plan.acquisitions {
+            if acquisition.provider_plan.port_id != port_id
+                || acquisition.recipe_identity_sha256 != plan.recipe.identity_sha256
+            {
+                return Err(PortcoveError::conflict(
+                    "staging belongs to a different recipe review",
+                )
+                .into());
+            }
+        }
+        for acquisition in &plan.acquisitions {
+            service.discard_recipe_acquisition(acquisition)?;
+        }
+        Ok(())
+    })
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn apply_mod_recipe(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     port_id: String,
     display_name: String,
     plan: RecipeImportPlan,
+    allow_code: bool,
 ) -> DesktopResult<Profile> {
     let state = state.inner().clone();
     blocking_worker(move || {
@@ -268,7 +345,11 @@ pub(crate) async fn apply_mod_recipe(
         if !plan.can_apply {
             return Err(PortcoveError::conflict("this recipe still needs exact inputs").into());
         }
-        let authorization = service.authorize_recipe_import(&plan, &display_name)?;
+        let authorization = if allow_code {
+            service.authorize_recipe_import_allowing_code(&plan, &display_name)?
+        } else {
+            service.authorize_recipe_import(&plan, &display_name)?
+        };
         service
             .apply_recipe_import(&plan, &display_name, &authorization.token)
             .map_err(Into::into)

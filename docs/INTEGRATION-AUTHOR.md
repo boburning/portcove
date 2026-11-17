@@ -285,6 +285,10 @@ unsupported required capabilities and unknown execution/ownership semantics
 remain refused. API or template negotiation alone grants no admission or operation
 authority.
 
+API 99 adds exact original and typed settings review for recipes, and commands
+to check or discard private acquisition. Use the fresh plan digest and applicable
+target-local permission to apply. Event schema remains 3.
+
 API 98 exposes `profile inspect-mod-file` and `profile preserve-mod-file`.
 Use the exact plan digest to preserve one unmanaged or edited mod file.
 Playnite continues using Core’s existing lifecycle commands.

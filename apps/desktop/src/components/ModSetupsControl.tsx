@@ -27,6 +27,7 @@ type Props = {
   portId: string;
   generation: number;
   busy: boolean;
+  openGameFiles?: (() => void) | undefined;
 };
 
 /** Thin view of Core-owned mod setups; Core decides support, locks and recovery. */
@@ -155,7 +156,7 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
   };
 }
 
-function BoundModSetupsControl({ portId, generation, busy }: Props) {
+function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Props) {
   const { t } = useAppTranslation("gameSettings");
   const {
     view,
@@ -609,6 +610,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
         </>
       )}
       <ModRecipeControl
+        openGameFiles={openGameFiles}
         portId={portId}
         profileId={selected?.profile.id}
         generation={generation}

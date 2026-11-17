@@ -1318,12 +1318,15 @@ export default interface Resources {
         "using": "Now using {{name}}."
       },
       "recipe": {
+        "allowCode": "I allow the exact packages below to run mod code.",
+        "checkProvider": "Check provider for {{name}}",
         "close": "Close review",
         "details": "Recipe inputs and details",
         "disabled": "{{name}} is off",
         "enabled": "{{name}} is on",
         "export": "Export setup recipe…",
         "fileType": "Portcove setup recipe",
+        "gameFiles": "Open Game files",
         "held": "This recipe needs the files listed below before it can be imported.",
         "identity": "Recipe SHA-256",
         "import": "Create setup from recipe",
@@ -1331,12 +1334,16 @@ export default interface Resources {
         "name": "Name for the new setup",
         "openPicker": "Open setup recipe…",
         "order": "Load order for {{domain}}",
+        "originalNeeded": "Add or relink the matching original game file from your own copy, then review the recipe again.",
         "packages": "Mods in the recipe",
         "platform": "Platform {{platform}}",
+        "providerSetupNeeded": "Create or select a setup to check the exact files with the provider.",
         "ready": "The exact files are available. The new setup starts with fresh progress.",
         "review": "Recipe review",
         "savePicker": "Save setup recipe",
-        "saved": "Setup recipe saved."
+        "saved": "Setup recipe saved.",
+        "setting": "{{option}} in {{mod}}",
+        "settings": "Mod settings"
       },
       "recovery": {
         "applied": "Recovered the setup and kept its current progress.",

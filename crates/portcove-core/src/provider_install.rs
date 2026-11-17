@@ -123,23 +123,26 @@ pub struct ProviderInstallPlan {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ProviderInstallMode {
+pub(crate) enum ProviderInstallMode<'a> {
     Reviewed,
     Automatic,
+    Recipe { identity: &'a str, byte_budget: u64 },
 }
 
-impl ProviderInstallMode {
+impl ProviderInstallMode<'_> {
     fn staging_root(self, layout: &Layout) -> PathBuf {
-        layout.store().join(match self {
-            Self::Reviewed => "staged",
-            Self::Automatic => "automatic-staged",
-        })
+        let store = layout.store();
+        match self {
+            Self::Reviewed => store.join("staged"),
+            Self::Automatic => store.join("automatic-staged"),
+            Self::Recipe { identity, .. } => store.join("recipe-staged").join(identity),
+        }
     }
 
     pub(crate) fn staging(self, layout: &Layout, digest: &str) -> PathBuf {
         match self {
             Self::Reviewed => layout.staged(digest),
-            Self::Automatic => self.staging_root(layout).join(digest),
+            Self::Automatic | Self::Recipe { .. } => self.staging_root(layout).join(digest),
         }
     }
 }
@@ -321,14 +324,14 @@ fn retained_dependencies(
     Ok(reviewed.into_values().cloned().collect())
 }
 
-struct ReviewedMember<'a> {
-    provider: &'a ProviderPackageRef,
-    requirements: Vec<ProviderRequirement>,
+pub(crate) struct ReviewedMember<'a> {
+    pub(crate) provider: &'a ProviderPackageRef,
+    pub(crate) requirements: Vec<ProviderRequirement>,
 }
 
 /// Validate that every reviewed native member belongs to exactly one wrapper,
 /// with all exact prerequisites earlier in the same reviewed closure.
-fn wrapper_members<'a>(
+pub(crate) fn wrapper_members<'a>(
     plan: &'a ProviderInstallPlan,
     retained: &[ProviderRequirement],
 ) -> Result<BTreeMap<&'a str, ReviewedMember<'a>>> {
@@ -479,12 +482,16 @@ impl PortcoveService {
         profile_id: &str,
         project_id: &str,
         file_id: &str,
-        mode: ProviderInstallMode,
+        mode: ProviderInstallMode<'_>,
     ) -> Result<ProviderInstallPlan> {
         let layout = self.deploy_layout(port_id)?;
         let extensions = adapter_extensions(port_id).unwrap_or(&[]);
         let current = profile::current_revision(&self.library.connection()?, port_id, profile_id)?;
-        self.profile_loader_binding(&current.build, current.loader.as_ref(), true)?;
+        // Staging a recipe input does not choose the setup that will run it.
+        // The complete recipe review verifies its own exact runtime.
+        if !matches!(mode, ProviderInstallMode::Recipe { .. }) {
+            self.profile_loader_binding(&current.build, current.loader.as_ref(), true)?;
+        }
 
         let projects = match client {
             ProviderClient::Thunderstore { client, community } => {
@@ -555,6 +562,10 @@ impl PortcoveService {
         let mut source_indices = Vec::new();
         let mut wrappers = Vec::new();
         let mut ignored = 0usize;
+        let mut combined_budget = match mode {
+            ProviderInstallMode::Recipe { byte_budget, .. } => byte_budget,
+            _ => u64::MAX,
+        };
         let mut download_budget = MAX_DOWNLOAD_BYTES;
         let mut extraction_budget = MAX_EXTRACTED_BYTES;
         for (index, (project, file)) in projects.iter().enumerate() {
@@ -575,18 +586,25 @@ impl PortcoveService {
             fs::create_dir(&directory)?;
             let download = directory.join("download.bin");
             let (download_sha256, download_size) = client
-                .download(&project.project_id, file, &download, download_budget)
+                .download(
+                    &project.project_id,
+                    file,
+                    &download,
+                    download_budget.min(combined_budget),
+                )
                 .await?;
             download_budget -= download_size;
+            combined_budget -= download_size;
             let members_dir = directory.join("members");
             fs::create_dir(&members_dir)?;
             let paths = if direct {
-                extraction_budget =
-                    extraction_budget
-                        .checked_sub(download_size)
-                        .ok_or_else(|| {
-                            PortcoveError::unsupported("the package set exceeds its size limit")
-                        })?;
+                if download_size > extraction_budget.min(combined_budget) {
+                    return Err(PortcoveError::unsupported(
+                        "the package set exceeds its size limit",
+                    ));
+                }
+                extraction_budget -= download_size;
+                combined_budget -= download_size;
                 if member_paths.len() == MAX_MEMBERS {
                     return Err(PortcoveError::unsupported(
                         "the package set has too many members",
@@ -600,13 +618,14 @@ impl PortcoveService {
                     &download,
                     &members_dir,
                     extensions,
-                    extraction_budget,
+                    extraction_budget.min(combined_budget),
                     MAX_MEMBERS - member_paths.len(),
                     projects.len(),
                     matches!(client, ProviderClient::Thunderstore { .. })
                         .then_some((project.project_id.as_str(), file)),
                 )?;
                 extraction_budget -= extracted.extracted_bytes;
+                combined_budget -= extracted.extracted_bytes;
                 ignored += extracted.ignored;
                 extracted.files
             };
@@ -716,11 +735,11 @@ impl PortcoveService {
 
         // Conflicts are reported against what the profile has enabled now.
         let mut existing_assets = Vec::new();
-        for package in current
-            .packages
-            .iter()
-            .filter(|package| compares_assets && package.enabled)
-        {
+        for package in current.packages.iter().filter(|package| {
+            compares_assets
+                && package.enabled
+                && !matches!(mode, ProviderInstallMode::Recipe { .. })
+        }) {
             let stored = layout.package(&package.sha256, &package.native_id);
             if let Ok(inspection) = inspect_asset_archive(&stored) {
                 existing_assets.push((package.native_id.clone(), inspection.asset_paths));
@@ -751,10 +770,11 @@ impl PortcoveService {
             .packages
             .iter()
             .filter(|package| {
-                members.iter().any(|m| {
-                    same(m, &package.native_id)
-                        && (m.sha256 != package.sha256 || m.file_name != package.native_id)
-                })
+                !matches!(mode, ProviderInstallMode::Recipe { .. })
+                    && members.iter().any(|m| {
+                        same(m, &package.native_id)
+                            && (m.sha256 != package.sha256 || m.file_name != package.native_id)
+                    })
             })
             .map(|package| package.native_id.clone())
             .collect::<Vec<_>>();
@@ -810,7 +830,7 @@ impl PortcoveService {
             plan_sha256: String::new(),
         };
         let reviewed = wrapper_members(&plan, &retained)?;
-        if !reviewed.is_empty() {
+        if !matches!(mode, ProviderInstallMode::Recipe { .. }) && !reviewed.is_empty() {
             for installed in &current.packages {
                 if !plan
                     .members
@@ -888,7 +908,7 @@ impl PortcoveService {
                 )?;
             }
         }
-        if !recomp_members.is_empty() {
+        if !recomp_members.is_empty() && !matches!(mode, ProviderInstallMode::Recipe { .. }) {
             let _guard = self
                 .library
                 .try_read_lock_port(port_id, "plan-provider-recomp")?;
@@ -917,6 +937,17 @@ impl PortcoveService {
         }
         plan.plan_sha256 = digest(&plan)?;
 
+        let _recipe_lock = if matches!(mode, ProviderInstallMode::Recipe { .. }) {
+            Some(
+                self.library
+                    .try_lock_port(port_id, "stage-recipe-provider-file")?,
+            )
+        } else {
+            None
+        };
+        if matches!(mode, ProviderInstallMode::Recipe { .. }) {
+            self.prune_staged(&layout.store().join("recipe-staged"));
+        }
         let staging_root = mode.staging_root(&layout);
         self.prune_staged(&staging_root);
         fs::create_dir_all(&staging_root)?;
@@ -1035,7 +1066,7 @@ impl PortcoveService {
         &self,
         plan: &ProviderInstallPlan,
         token: &str,
-        mode: ProviderInstallMode,
+        mode: ProviderInstallMode<'_>,
     ) -> Result<ProfileRevision> {
         let layout = self.deploy_layout(&plan.port_id)?;
         // A plan is caller-supplied data: re-establish what planning established.
@@ -1201,7 +1232,7 @@ impl PortcoveService {
     pub(crate) fn discard_provider_install_in_mode(
         &self,
         plan: &ProviderInstallPlan,
-        mode: ProviderInstallMode,
+        mode: ProviderInstallMode<'_>,
     ) -> Result<()> {
         // The plan is caller-supplied: its digest names a directory only when it
         // is the digest of the plan itself.
