@@ -164,6 +164,8 @@ function LibraryChoicePrompt({
           <ArtworkFrame
             element={element}
             display={display}
+            portId={first.id}
+            visible={visible}
             identityArtwork
             className="card-art collection-art"
           />

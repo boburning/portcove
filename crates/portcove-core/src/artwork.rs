@@ -397,6 +397,13 @@ impl PortcoveService {
     fn referenced_remote_originals(&self) -> Result<BTreeSet<String>> {
         fn add(referenced: &mut BTreeSet<String>, listing: &crate::PortListing) {
             referenced.extend(listing.artwork.iter().map(|art| art.image_sha256.clone()));
+            referenced.extend(
+                listing
+                    .collection_covers
+                    .iter()
+                    .flatten()
+                    .map(|art| art.image_sha256.clone()),
+            );
             referenced.extend(listing.media.iter().map(|asset| asset.sha256.clone()));
         }
         let mut referenced = BTreeSet::new();
@@ -1140,6 +1147,51 @@ impl PortcoveService {
         crate::artwork_store::write_choice(&transaction, port_id, slot, expected_revision, None)?;
         transaction.commit()?;
         self.artwork_for_listing(&port, slot)
+    }
+
+    /// Retrieve an admitted collection member only while the player keeps the default cover.
+    pub fn collection_cover_thumbnail(
+        &self,
+        port_id: &str,
+        expected_sha256: &str,
+        expected_revision: u64,
+    ) -> Result<ArtworkThumbnail> {
+        crate::artwork_store::validate_hash(expected_sha256)?;
+        let listing = self.artwork_port(port_id)?;
+        let cover = listing
+            .collection_covers
+            .as_ref()
+            .and_then(|covers| {
+                covers
+                    .iter()
+                    .find(|cover| cover.image_sha256 == expected_sha256)
+            })
+            .ok_or_else(|| {
+                PortcoveError::not_found("this listing has no matching collection cover")
+            })?;
+        listing.validate()?;
+        let require_default = || {
+            let connection = self.library().connection()?;
+            let current = crate::artwork_store::require_revision(
+                &connection,
+                port_id,
+                ArtworkSlot::Cover,
+                expected_revision,
+            )?;
+            if current.asset_sha256.is_some() {
+                return Err(PortcoveError::conflict("the artwork choice changed"));
+            }
+            Ok(())
+        };
+        require_default()?;
+        let mut thumbnail = igdb_thumbnail(self.library(), cover, expected_revision, |original| {
+            let _guard = self.library().try_lock_artwork()?;
+            require_default()?;
+            self.publish_igdb_original(cover, original)
+        })?;
+        require_default()?;
+        thumbnail.asset_sha256 = cover.image_sha256.clone();
+        Ok(thumbnail)
     }
 
     /// Retrieve the companion only for the current, unmodified primary cover.

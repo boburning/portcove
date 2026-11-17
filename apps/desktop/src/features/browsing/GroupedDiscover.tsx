@@ -514,6 +514,8 @@ function DiscoverGameCardView({
         <ArtworkFrame
           element={artworkElement}
           display={artwork}
+          portId={first.id}
+          visible={visible}
           companion={companion}
           identityArtwork
           className="collection-art"

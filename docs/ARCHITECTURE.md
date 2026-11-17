@@ -737,6 +737,15 @@ specifies request bounds, version semantics, and independent trust checks.
 
 ## Local artwork ownership
 
+Core validates bounded constituent-game `collection_covers` and resolves each requested
+member from the current or retained listing, with the expected digest and local Cover
+choice revision. Any explicit local choice suppresses the collection. Tauri delegates
+through the existing generation guard and remote-thumbnail worker pool. React fits the
+available covers using the shared artwork cache, visibility subscriptions and remote
+request queue; catalog changes invalidate every member's display identity. Reference
+retention and exact-image withdrawal include collection members. This creates no durable
+choice, image store or destination-export authority.
+
 The optional destination-artwork handoff (schema 4) is also Core-owned. Read-only
 CLI adapters export exact library/port/revision/asset bindings, accepted provenance
 and explicit static-role availability. Validated durable local Cover originals

@@ -1,5 +1,5 @@
 {
-  "format_version": 10,
+  "format_version": 11,
   "listings": [
     {
       "id": "shipwright",
@@ -12581,8 +12581,8 @@
     },
     {
       "id": "andreyvelsk-com-mobilerpgpack-phone",
-      "name": "Doom-engine games (exact offered game scope unresolved) / Mobile RPG Pack (andreyvelsk)",
-      "summary": "Explore Doom-engine games (exact offered game scope unresolved) / Mobile RPG Pack (andreyvelsk) and follow the upstream project for requirements, downloads and setup.",
+      "name": "Doom / Doom II — UZDoom (andreyvelsk)",
+      "summary": "Follow the AYN Thor UZDoom setup for your own Doom or Doom II game data.",
       "project_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone",
       "issue_number": 1848,
       "listed_at": "2026-10-23",
@@ -12593,7 +12593,7 @@
         "steps": [
           {
             "title": "Finish setup in the upstream Android app",
-            "instruction": "This fork’s published APK is for Android, specifically the AYN Thor dual-screen UZDoom route. Install this fork’s APK on the Android device, open its launcher deliberately, and select your own compatible Doom-family IWAD/content through the UZDoom setup. Other engines named in the inherited parent README have been excluded from this fork; do not prepare Doom RPG, Wolfenstein RPG or another parent engine for this APK."
+            "instruction": "This fork’s published APK is for Android, specifically the AYN Thor dual-screen UZDoom route. Install this fork’s APK on the Android device, open its launcher deliberately, and select your own Doom or Doom II IWAD through the UZDoom setup. Other engines named in the inherited parent README have been excluded from this fork; do not prepare Doom RPG, Wolfenstein RPG or another parent engine for this APK."
           },
           {
             "title": "Keep your data when changing versions",
@@ -12603,7 +12603,25 @@
         "warnings": [],
         "help_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/blob/2.9.1-ds.1.0.2/README.md"
       },
-      "release_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/releases"
+      "release_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/releases",
+      "collection_covers": [
+        {
+          "game_id": 673,
+          "cover_id": 268663,
+          "image_id": "co5rav",
+          "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+          "game_slug": "doom",
+          "match_kind": "underlying-game"
+        },
+        {
+          "game_id": 312,
+          "cover_id": 303937,
+          "image_id": "co6iip",
+          "image_sha256": "9aaabe14844aa0f4152bc03a571c5e8f327dfa173469a2fd9e8cfc302e6fe6db",
+          "game_slug": "doom-ii-hell-on-earth",
+          "match_kind": "underlying-game"
+        }
+      ]
     },
     {
       "id": "andyvand-opentyrian2000",
@@ -20862,7 +20880,41 @@
           "Upstream testing varies by title and platform. Check the notes for the package you choose."
         ],
         "help_url": "https://github.com/CrownParkComputing/Xbox360-Native-Ports/releases"
-      }
+      },
+      "collection_covers": [
+        {
+          "game_id": 2626,
+          "cover_id": 123757,
+          "image_id": "co2nhp",
+          "image_sha256": "17ffbbf892889f90f17cfaa50f67d03cd57f79f856b895555ba9fb8c6a607b92",
+          "game_slug": "burnout-revenge",
+          "match_kind": "underlying-game"
+        },
+        {
+          "game_id": 201644,
+          "cover_id": 294814,
+          "image_id": "co6bha",
+          "image_sha256": "256235d63a2dd949cd655e0b28d59f000e2f52f048107669f8cb0e7259d4939d",
+          "game_slug": "banjo-kazooie--1",
+          "match_kind": "underlying-game"
+        },
+        {
+          "game_id": 15756,
+          "cover_id": 288708,
+          "image_id": "co66ro",
+          "image_sha256": "7b8b36781520e5bd98d507f2db8fae975b07fd34ae5d78ce921800d8bc1411d5",
+          "game_slug": "geometry-wars-retro-evolved",
+          "match_kind": "underlying-game"
+        },
+        {
+          "game_id": 84308,
+          "cover_id": 133079,
+          "image_id": "co2uon",
+          "image_sha256": "4f9137fedf281cd967f35616a9d94263c3235fd843bd797293825c057c4d44ea",
+          "game_slug": "rez-hd",
+          "match_kind": "underlying-game"
+        }
+      ]
     },
     {
       "id": "crusader-no-remorse-sebsebseb1982-sdl-port",

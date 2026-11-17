@@ -1554,6 +1554,29 @@ independently. Discover's Covers layout shows both full images when the primary
 is the current catalog default and the companion loads. A missing companion
 leaves the primary visible. The usual local cover choice takes precedence.
 
+A multi-game project's authored `listing.collection_covers` holds up to four distinct
+IGDB constituent-game mappings, independently reviewed and content-validated. It is
+exclusive with individual `artwork`, `companion_cover` and authored regional-cover
+selection. This display metadata keeps the project's identity and setup requirements.
+Discover, Library and Details fit every complete image: pairs share the existing paired
+layout and larger sets use a two-column grid. Explicit local Cover choices replace the
+whole collection, including when that local image is unavailable. Partial network or
+render failures leave the other images visible.
+
+Initial selections normally contain two or four covers. A confirmed exact-image Gone
+observation removes only its member everywhere in the proposal, including outside the
+selected workset; one survivor remains valid and an empty collection is omitted.
+Outages and changed bytes retain the reviewed pins with retry/review evidence. Ordinary
+preparation reuses accepted members; explicit or due refresh rechecks every member's
+bytes and preserves separate refresh clocks and per-title checkpoint identity. Changed
+project identity or collection mappings require reviewed source facts before reuse.
+Collection originals use the existing bounded IGDB cache and reference retention;
+retained registrations keep their admitted descriptive mappings when a directory entry
+is removed. Listing format 11 and retained-listing envelope 4 provide the strict-reader
+fences. Older directory exports omit only the inert collection field. Collection images
+carry the same display-only rights as individual IGDB covers and provide no Steam-export
+bytes or runtime qualification.
+
 The [2026-09-30 identity receipt](archive/2026-09-30-igdb-catalog-cover-identities.json)
 records the catalog-wide preparation, accepted port and original identities, and
 port-specific exceptions. It is dated evidence, not another scheduling tracker.

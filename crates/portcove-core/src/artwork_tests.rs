@@ -2833,6 +2833,102 @@ fn companion_cover_requires_current_default_and_uses_the_verified_igdb_cache() {
 }
 
 #[test]
+fn collection_members_obey_local_choice_and_retain_registered_identity_after_directory_removal() {
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let id = "collection-fixture";
+    let first_bytes = coloured_jpeg([180, 30, 30]);
+    let second_bytes = coloured_jpeg([30, 30, 180]);
+    let first = retention_mapping("collectionfirst", &first_bytes);
+    let mut second = retention_mapping("collectionsecond", &second_bytes);
+    second.game_id += 1;
+    second.cover_id += 1;
+    let directory = crate::CatalogListingDocument::from_json(&serde_json::json!({
+        "format_version": 11, "listings": [{"id": id, "name": "Collection fixture", "summary": "A descriptive project with two games.", "project_url": "https://example.invalid/collection", "collection_covers": [first, second]}]
+    }).to_string()).unwrap();
+    service.replace_catalog_for_test(
+        retention_catalog(&[])
+            .with_listing_document(directory)
+            .unwrap(),
+    );
+    published_cover(&service, &first, || Ok(first_bytes)).unwrap();
+    published_cover(&service, &second, || Ok(second_bytes)).unwrap();
+    for cover in [&first, &second] {
+        let shown = service
+            .collection_cover_thumbnail(id, &cover.image_sha256, 0)
+            .unwrap();
+        assert_eq!(shown.asset_sha256, cover.image_sha256);
+        assert!(!shown.png.is_empty());
+    }
+    assert_eq!(
+        service
+            .collection_cover_thumbnail(id, &"f".repeat(64), 0)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound
+    );
+    let local = image_file(temporary.path(), "local.png", image::ImageFormat::Png);
+    let selected = service
+        .import_artwork(id, ArtworkSlot::Cover, &local, 0)
+        .unwrap();
+    for revision in [0, selected.choice.revision] {
+        assert_eq!(
+            service
+                .collection_cover_thumbnail(id, &first.image_sha256, revision)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Conflict
+        );
+    }
+    let reset = service
+        .reset_artwork(id, ArtworkSlot::Cover, selected.choice.revision)
+        .unwrap();
+    let working = temporary.path().join("user-owned-game");
+    fs::create_dir(&working).unwrap();
+    let executable = crate::test_fixture::build_probe(&working);
+    let preview = service
+        .preview_user_selected_runtime(id, &executable, &working, &[])
+        .unwrap();
+    let consent = service
+        .authorize_user_selected_runtime(id, &executable, &working, &[], &preview.preview_sha256)
+        .unwrap();
+    service
+        .register_user_selected_runtime(id, &executable, &working, &[], &consent.token)
+        .unwrap();
+    service.replace_catalog_for_test(retention_catalog(&[]));
+    for cover in [&first, &second] {
+        assert!(
+            service
+                .referenced_remote_originals()
+                .unwrap()
+                .contains(&cover.image_sha256)
+        );
+        assert!(cached_original(&service, cover));
+        assert!(
+            !service
+                .collection_cover_thumbnail(id, &cover.image_sha256, reset.choice.revision)
+                .unwrap()
+                .png
+                .is_empty()
+        );
+    }
+    service.replace_catalog_for_test(retention_catalog(&[(id, None)]));
+    assert_eq!(
+        service
+            .collection_cover_thumbnail(id, &first.image_sha256, reset.choice.revision)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound
+    );
+    assert!(
+        !service
+            .referenced_remote_originals()
+            .unwrap()
+            .contains(&first.image_sha256)
+    );
+}
+
+#[test]
 fn signed_cover_correction_and_withdrawal_retire_unreferenced_cached_originals() {
     let temporary = tempfile::tempdir().unwrap();
     let mut service =

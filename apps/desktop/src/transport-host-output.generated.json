@@ -9739,6 +9739,16 @@
               "null"
             ]
           },
+          "collection_covers": {
+            "description": "Display samples of a project's constituent games. Requires listing format 11.",
+            "items": {
+              "$ref": "#/$defs/IgdbArtwork"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "compatibility": {
             "description": "Inert optional advisory envelope. Invalid/future content is unavailable as advice,\nnever an acquisition restriction or an operation grant. Requires listing format 7."
           },
@@ -22707,6 +22717,16 @@
               "null"
             ]
           },
+          "collection_covers": {
+            "description": "Display samples of a project's constituent games. Requires listing format 11.",
+            "items": {
+              "$ref": "#/$defs/IgdbArtwork"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "compatibility": {
             "description": "Inert optional advisory envelope. Invalid/future content is unavailable as advice,\nnever an acquisition restriction or an operation grant. Requires listing format 7."
           },
@@ -22941,6 +22961,16 @@
               {
                 "type": "null"
               }
+            ]
+          },
+          "collection_covers": {
+            "description": "Reviewed constituent-game covers for a multi-game project. Display only.",
+            "items": {
+              "$ref": "#/$defs/IgdbArtwork"
+            },
+            "type": [
+              "array",
+              "null"
             ]
           },
           "companion_cover": {

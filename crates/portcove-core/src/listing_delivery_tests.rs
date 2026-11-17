@@ -423,8 +423,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
     let original = library.listing_delivery_status().unwrap().target_sha256;
     let (catalog, _) = library.load_catalog().unwrap();
-    // The embedded base now carries funding links, so the combined directory is format 10.
-    assert_eq!(catalog.listing_document().format_version, 10);
+    // Embedded cover collections require format 11 in the combined directory.
+    assert_eq!(catalog.listing_document().format_version, 11);
     assert_eq!(
         catalog
             .listing("new-unmanaged-port")
@@ -445,8 +445,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     );
     assert!(catalog.port("new-unmanaged-port").is_err());
     candidate["revision"] = json!(2);
-    // The next unknown format; 10 is now the funding-link format this reader accepts.
-    candidate["directory"]["format_version"] = json!(11);
+    // The next unknown format follows the accepted cover-collection format 11.
+    candidate["directory"]["format_version"] = json!(12);
     let next_root = publish(&fixture, &key, 2, &candidate).await;
     assert!(refresh(&library, &fixture, &next_root).await.is_err());
     assert_eq!(
@@ -496,7 +496,7 @@ async fn a_delivered_format_nine_directory_replaces_its_own_records_over_funded_
     let replaced = catalog.listing("severed-chains").unwrap();
     assert_eq!(replaced.summary, "Corrected descriptive summary.");
     assert!(replaced.funding_urls.is_none());
-    // Bundled records the snapshot omits keep their links, so the combined directory is 10.
+    // Omitted bundled records keep their metadata, including format-11 collections.
     assert!(
         catalog
             .listing("ambermoon-ambermoon-net")
@@ -504,7 +504,7 @@ async fn a_delivered_format_nine_directory_replaces_its_own_records_over_funded_
             .funding_urls
             .is_some()
     );
-    assert_eq!(catalog.listing_document().format_version, 10);
+    assert_eq!(catalog.listing_document().format_version, 11);
 
     // A delivered format-10 snapshot carries links for this reader.
     candidate["revision"] = json!(2);
