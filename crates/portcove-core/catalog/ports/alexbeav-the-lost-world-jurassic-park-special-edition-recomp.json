@@ -5,6 +5,14 @@
     "name": "The Lost World: Jurassic Park Special Edition / Alexbeav PSXRecomp",
     "summary": "Play The Lost World: Jurassic Park Special Edition with a native player built from your matching original disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp",
+    "artwork": {
+      "game_id": 19536,
+      "cover_id": 139080,
+      "image_id": "co2zbc",
+      "image_sha256": "14d38899ee8ceb666c85362dd055a4ad70216d7a67e66d287a8958504a0e46ea",
+      "game_slug": "the-lost-world-jurassic-park--1",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 483,
     "listed_at": "2026-10-23",
     "platforms": ["macos-x86-64", "macos-aarch64"],

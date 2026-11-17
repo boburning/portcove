@@ -5,6 +5,14 @@
     "name": "Tomb Raider I-III / TRX (LostArtefacts)",
     "summary": "Set up Tomb Raider I–III with TRX and the original files for the games you own.",
     "project_url": "https://github.com/LostArtefacts/TRX",
+    "artwork": {
+      "game_id": 154439,
+      "cover_id": 163597,
+      "image_id": "co3i8d",
+      "image_sha256": "8953c916fdd82cf8b5f0049f31f22571ffd938762ff69b18a3b2f2ffc95d47e4",
+      "game_slug": "tomb-raider-1-plus-2-plus-3",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 1898,
     "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
