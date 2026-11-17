@@ -1,4 +1,12 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { desktopApi } from "../api";
 import { pickSourcePath } from "../file-picker";
 import { useAppTranslation } from "../localization";
@@ -14,7 +22,11 @@ type Props = {
   disabled: boolean;
   perform: (action: () => Promise<unknown>, success: string) => Promise<boolean>;
   setWorking: (working: boolean) => void;
+  focusReturn: RefObject<HTMLHeadingElement | null>;
 };
+
+const focusableDisabledStyle =
+  "aria-disabled:pointer-events-none aria-disabled:border-pc-border aria-disabled:bg-pc-surface-muted aria-disabled:text-pc-muted-foreground aria-disabled:opacity-70 aria-disabled:shadow-none";
 
 export function ModSetupOriginalControl({
   target,
@@ -22,12 +34,16 @@ export function ModSetupOriginalControl({
   disabled,
   perform,
   setWorking,
+  focusReturn,
 }: Props) {
   const { t } = useAppTranslation("gameSettings");
   const [review, setReview] = useState<ModSetupOriginalReview>();
   const [chosen, setChosen] = useState("");
   const [error, setError] = useState<string>();
+  const [reading, setReading] = useState(false);
   const headingId = useId();
+  const sectionRef = useRef<HTMLElement>(null);
+  const reviewButton = useRef<HTMLButtonElement>(null);
   const alive = useRef(true);
   useEffect(() => {
     alive.current = true;
@@ -35,6 +51,25 @@ export function ModSetupOriginalControl({
       alive.current = false;
     };
   }, []);
+  useLayoutEffect(() => {
+    const section = sectionRef.current;
+    const fallback = focusReturn.current;
+    if (!section || !fallback) return;
+    const { ownerDocument } = section;
+    return () => {
+      if (!section.contains(ownerDocument.activeElement)) return;
+      // The revision or page may be gone. Wait for React to finish replacing it.
+      queueMicrotask(() => {
+        if (
+          !section.isConnected &&
+          fallback.isConnected &&
+          ownerDocument.activeElement === ownerDocument.body
+        ) {
+          fallback.focus();
+        }
+      });
+    };
+  }, [focusReturn]);
   const availability = {
     changed: t("mods.original.status.changed"),
     missing: t("mods.original.status.missing"),
@@ -60,6 +95,7 @@ export function ModSetupOriginalControl({
   }, [review, t]);
 
   async function read() {
+    setReading(true);
     setWorking(true);
     setError(undefined);
     setReview(undefined);
@@ -70,8 +106,20 @@ export function ModSetupOriginalControl({
     } catch (failure) {
       if (alive.current) setError(errorText(failure));
     } finally {
+      if (alive.current) setReading(false);
       setWorking(false);
     }
+  }
+
+  function finishReview() {
+    if (!alive.current) return;
+    const section = sectionRef.current;
+    const active = section?.ownerDocument.activeElement;
+    if (active && active !== reviewButton.current && section?.contains(active)) {
+      focusReturn.current?.focus();
+    }
+    setReview(undefined);
+    setChosen("");
   }
 
   async function relink(review: ModSetupOriginalReview) {
@@ -80,11 +128,11 @@ export function ModSetupOriginalControl({
     try {
       const path = await pickSourcePath(review.source_profile, review.current_path ?? "", "game");
       if (path && alive.current) {
-        await perform(
+        const saved = await perform(
           () => desktopApi.relinkModSetupOriginal(target, path),
           t("mods.original.relinked"),
         );
-        if (alive.current) setReview(undefined);
+        if (saved) finishReview();
       }
     } catch (failure) {
       if (alive.current) setError(errorText(failure));
@@ -94,24 +142,21 @@ export function ModSetupOriginalControl({
   }
 
   async function select(instanceId: string) {
-    await perform(
+    const saved = await perform(
       () => desktopApi.selectModSetupOriginal(target, instanceId),
       t("mods.original.selected"),
     );
-    if (alive.current) {
-      setReview(undefined);
-      setChosen("");
-    }
+    if (saved) finishReview();
   }
 
   return (
-    <section aria-labelledby={headingId} className="grid gap-2">
+    <section ref={sectionRef} aria-labelledby={headingId} className="grid gap-2">
       <h5 id={headingId} className="text-sm font-semibold">
         {t("mods.original.heading")}
       </h5>
       <p className="text-sm">{availability}</p>
       {error && <p role="alert">{error}</p>}
-      {review ? (
+      {review && (
         <>
           {review.current_path && (
             <p className="text-sm break-all">
@@ -138,7 +183,9 @@ export function ModSetupOriginalControl({
               <ActionRow>
                 <Button
                   variant="outline"
+                  className={focusableDisabledStyle}
                   disabled={disabled || !chosen}
+                  focusableWhenDisabled={Boolean(chosen)}
                   onClick={() => chosen && void select(chosen)}
                 >
                   {t("mods.original.use")}
@@ -148,19 +195,31 @@ export function ModSetupOriginalControl({
           ) : (
             <p className="text-sm">{t("mods.original.noAlternatives")}</p>
           )}
-          <ActionRow>
-            <Button variant="outline" disabled={disabled} onClick={() => void relink(review)}>
-              {t("mods.original.relink")}
-            </Button>
-          </ActionRow>
         </>
-      ) : (
-        <ActionRow>
-          <Button variant="outline" disabled={disabled} onClick={() => void read()}>
-            {t("mods.original.review")}
-          </Button>
-        </ActionRow>
       )}
+      <ActionRow>
+        {review && (
+          <Button
+            variant="outline"
+            className={focusableDisabledStyle}
+            disabled={disabled}
+            focusableWhenDisabled
+            onClick={() => void relink(review)}
+          >
+            {t("mods.original.relink")}
+          </Button>
+        )}
+        <Button
+          ref={reviewButton}
+          variant={review ? "ghost" : "outline"}
+          disabled={disabled}
+          aria-busy={reading}
+          focusableWhenDisabled={reading}
+          onClick={() => void read()}
+        >
+          {t("mods.original.review")}
+        </Button>
+      </ActionRow>
     </section>
   );
 }

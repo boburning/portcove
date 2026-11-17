@@ -536,6 +536,8 @@ export function SteamBatchEntryDialog({
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const applyButton = useRef<HTMLButtonElement>(null);
+  const reviewButton = useRef<HTMLButtonElement>(null);
+  const restoreReviewFocus = useRef(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [steamRoot, setSteamRoot] = useState("");
   const [steamUserId, setSteamUserId] = useState("");
@@ -550,6 +552,15 @@ export function SteamBatchEntryDialog({
     const button = applyButton.current;
     if (writeDeclined && button === document.activeElement) focusAndReveal(button);
   }, [writeDeclined]);
+  useLayoutEffect(() => {
+    if (error === undefined || pending || !restoreReviewFocus.current) return;
+    restoreReviewFocus.current = false;
+    const target = reviewButton.current;
+    const active = document.activeElement;
+    if (target && (active === document.body || active === target.closest('[role="dialog"]'))) {
+      focusAndReveal(target);
+    }
+  }, [error, pending]);
   const resetReview = () => {
     setReview(undefined);
     setReviewedSelection(undefined);
@@ -599,6 +610,8 @@ export function SteamBatchEntryDialog({
         setWriteDeclined(true);
       }
     } catch (value) {
+      const button = applyButton.current;
+      restoreReviewFocus.current = button !== null && document.activeElement === button;
       resetReview();
       setError(errorText(value));
     } finally {
@@ -680,6 +693,7 @@ export function SteamBatchEntryDialog({
           </Button>
           {!review && !result && (
             <Button
+              ref={reviewButton}
               data-focusable
               disabled={
                 selectedIds.length < 2 ||

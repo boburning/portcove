@@ -6,7 +6,12 @@ import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { portDefinition } from "../test-fixtures";
-import type { SteamArtworkReview, SteamBatchReview, SteamEntryReview } from "../types";
+import type {
+  PortDefinition,
+  SteamArtworkReview,
+  SteamBatchReview,
+  SteamEntryReview,
+} from "../types";
 import { SteamBatchEntryDialog, SteamEntryDialog } from "./SteamEntry";
 
 const port = portDefinition();
@@ -294,9 +299,8 @@ it("offers owned-shortcut removal after uninstall without offering Add or Repair
   expect(document.body.textContent).toContain("Not required for this removal review");
 });
 
-it("reviews an exact selected batch and applies only its frozen selection", async () => {
-  const second = { ...port, id: "another-port", name: "Another Port" };
-  const batchReview: SteamBatchReview = {
+function batchReviewFor(second: PortDefinition): SteamBatchReview {
+  return {
     schema_version: 1,
     selected_games: [
       { port_id: port.id, display_name: port.name },
@@ -320,6 +324,11 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
     artwork_review_sha256: null,
     recovered_shortcut_change: false,
   };
+}
+
+it("reviews an exact selected batch and applies only its frozen selection", async () => {
+  const second = { ...port, id: "another-port", name: "Another Port" };
+  const batchReview = batchReviewFor(second);
   const preview = vi.spyOn(desktopApi, "previewSteamBatchAdd").mockResolvedValue(batchReview);
   let declineConsent!: () => void;
   const consent = new Promise<null>((resolve) => {
@@ -389,6 +398,43 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
   expect(document.body.textContent).not.toContain(review.shortcuts_path);
   expect(document.body.textContent).not.toContain("Steam shortcut changes were cancelled.");
 });
+
+it.each([true, false])(
+  "hands a failed batch back to its review only with Apply focus (%s)",
+  async (applyOwnsFocus) => {
+    const second = { ...port, id: "another-port", name: "Another Port" };
+    const preview = vi
+      .spyOn(desktopApi, "previewSteamBatchAdd")
+      .mockResolvedValue(batchReviewFor(second));
+    let rejectApply!: (error: Error) => void;
+    const pending = new Promise<never>((_resolve, reject) => {
+      rejectApply = reject;
+    });
+    vi.spyOn(desktopApi, "applySteamBatchAdd").mockReturnValue(pending);
+    await root.rerender(
+      <SteamBatchEntryDialog ports={[port, second]} generation={7} close={vi.fn()} />,
+    );
+    await page.getByRole("checkbox", { name: port.name }).click();
+    await page.getByRole("checkbox", { name: second.name }).click();
+    await input("Steam installation folder", review.steam_root);
+    await input("Steam profile ID", review.steam_user_id);
+    await click("Review selected shortcuts");
+    await page.getByRole("button", { name: "Add or repair selected shortcuts" }).click();
+    await expect.element(page.getByRole("button", { name: "Updating shortcuts…" })).toHaveFocus();
+    const heading = page.getByRole("heading", { name: "Add selected games to Steam" });
+    if (!applyOwnsFocus) (heading.element() as HTMLElement).focus();
+
+    const message = "Steam shortcut review changed. Review the selected shortcuts again.";
+    await act(async () => rejectApply(new Error(message)));
+    await expect.element(page.getByRole("alert")).toHaveTextContent(message);
+    const retry = page.getByRole("button", { name: "Review selected shortcuts" });
+    await expect.element(applyOwnsFocus ? retry : heading).toHaveFocus();
+    if (applyOwnsFocus) await userEvent.keyboard("{Enter}");
+    else await retry.click();
+    expect(preview).toHaveBeenCalledTimes(2);
+    expect(preview.mock.calls[1]).toEqual(preview.mock.calls[0]);
+  },
+);
 
 const artworkReview: SteamArtworkReview = {
   schema_version: 1,

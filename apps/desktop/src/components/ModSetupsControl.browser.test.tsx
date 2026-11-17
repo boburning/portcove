@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
 import type { ModFilePreservationPlan, ModSetupOriginalReview, ModSetupsView } from "../types";
@@ -766,30 +766,33 @@ const originalTarget = {
   requirementId: "sample-rom",
   generation: 7,
 };
+const alternativeInstanceId = "e".repeat(64);
 const originalReview: ModSetupOriginalReview = {
   source_profile: { ...sourceProfile(), id: "sample-rom" },
-  current_instance_id: "current",
+  current_instance_id: "d".repeat(64),
   current_path: "D:/Old/recorded.z64",
   embedded: false,
   instances: [
     {
-      instance_id: "alternative",
+      instance_id: alternativeInstanceId,
       binding: { ...originalBinding, sha256: "c".repeat(64) },
       path: "D:/Other/original.z64",
     },
   ],
 };
 
-function selectedOriginalView() {
+function selectedOriginalView(revision = 1) {
   const inventory = view().inventory;
   const clean = inventory?.profiles.find(({ profile }) => profile.id === "clean");
   if (!inventory || !clean) throw new Error("missing customized setup fixture");
   clean.originals = [{ binding: originalBinding, availability: "missing" }];
+  clean.profile.current_revision = revision;
+  clean.revision.revision = revision;
   return view({
     inventory,
     live: {
       profile_id: "clean",
-      revision: 1,
+      revision,
       unmanaged: [],
       changed_owned: [],
       native_list: { state: "in-sync" },
@@ -825,8 +828,85 @@ it("shows the saved original hold and selects an exact registered alternative", 
   await act(async () => page.getByRole("option", { name: "D:/Other/original.z64" }).click());
   await act(async () => button(host, "Use this original").click());
 
-  expect(select).toHaveBeenCalledWith(originalTarget, "alternative");
+  expect(select).toHaveBeenCalledWith(originalTarget, alternativeInstanceId);
   expect(reread).toHaveBeenCalledTimes(2);
+});
+
+it("keeps the exact original and action focus through a transient refusal and retry", async () => {
+  let rejectSelect!: (failure: Error) => void;
+  const pending = new Promise<undefined>((_, reject) => {
+    rejectSelect = reject;
+  });
+  let resolveRetry!: (value: undefined) => void;
+  const retry = new Promise<undefined>((resolve) => {
+    resolveRetry = resolve;
+  });
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(selectedOriginalView());
+  vi.spyOn(desktopApi, "reviewModSetupOriginal").mockResolvedValue(originalReview);
+  const select = vi
+    .spyOn(desktopApi, "selectModSetupOriginal")
+    .mockReturnValueOnce(pending)
+    .mockReturnValueOnce(retry);
+  const host = await render();
+  const choose = page.getByRole("combobox", { name: /^Other registered originals/ });
+  const use = page.getByRole("button", { name: "Use this original" });
+
+  await act(async () => button(host, "Review original game files").click());
+  await act(async () => choose.click());
+  await act(async () => page.getByRole("option", { name: "D:/Other/original.z64" }).click());
+  await act(async () => use.click());
+  await expect.element(use).toHaveAttribute("aria-disabled", "true");
+  await expect.element(use).toHaveFocus();
+
+  await act(async () =>
+    rejectSelect(new Error("The selected original is temporarily unavailable.")),
+  );
+  await expect
+    .element(page.getByRole("alert"))
+    .toHaveTextContent("The selected original is temporarily unavailable.");
+  await expect
+    .element(choose)
+    .toHaveAccessibleName("Other registered originals D:/Other/original.z64");
+  await expect.element(use).toHaveFocus();
+  await expect.element(use).toBeEnabled();
+  await act(async () => use.click());
+  await act(async () => userEvent.tab());
+  await expect.element(page.getByRole("button", { name: "Find the same original" })).toHaveFocus();
+  await act(async () => resolveRetry(undefined));
+
+  expect(select.mock.calls).toEqual([
+    [originalTarget, alternativeInstanceId],
+    [originalTarget, alternativeInstanceId],
+  ]);
+  await expect.element(choose).not.toBeInTheDocument();
+  await expect.element(page.getByRole("heading", { name: "Setups and mods" })).toHaveFocus();
+});
+
+it("requires another original review when the setup revision changes after a refusal", async () => {
+  vi.spyOn(desktopApi, "modSetups")
+    .mockResolvedValueOnce(selectedOriginalView())
+    .mockResolvedValue(selectedOriginalView(2));
+  const review = vi.spyOn(desktopApi, "reviewModSetupOriginal").mockResolvedValue(originalReview);
+  const select = vi
+    .spyOn(desktopApi, "selectModSetupOriginal")
+    .mockRejectedValueOnce(new Error("This setup changed."));
+  const host = await render();
+  const choose = page.getByRole("combobox", { name: /^Other registered originals/ });
+
+  await act(async () => button(host, "Review original game files").click());
+  await act(async () => choose.click());
+  await act(async () => page.getByRole("option", { name: "D:/Other/original.z64" }).click());
+  await act(async () => page.getByRole("button", { name: "Use this original" }).click());
+  await expect.element(choose).not.toBeInTheDocument();
+  await expect.element(page.getByRole("heading", { name: "Setups and mods" })).toHaveFocus();
+  await act(async () => button(host, "Review original game files").click());
+
+  expect(select).toHaveBeenCalledExactlyOnceWith(originalTarget, alternativeInstanceId);
+  expect(review.mock.calls).toEqual([
+    [originalTarget],
+    [{ ...originalTarget, expectedRevision: 2 }],
+  ]);
+  expect(button(host, "Use this original").disabled).toBe(true);
 });
 
 it("offers verified relinking for the recorded original of an already prepared installation", async () => {
@@ -837,20 +917,35 @@ it("offers verified relinking for the recorded original of an already prepared i
     instances: [],
   });
   const pick = vi.spyOn(picker, "pickSourcePath").mockResolvedValue("D:/Moved/recorded.z64");
-  const relink = vi.spyOn(desktopApi, "relinkModSetupOriginal").mockResolvedValue(undefined);
+  const relink = vi
+    .spyOn(desktopApi, "relinkModSetupOriginal")
+    .mockRejectedValueOnce(new Error("That location is temporarily unavailable."))
+    .mockResolvedValueOnce(undefined);
   const host = await render();
+  const find = page.getByRole("button", { name: "Find the same original" });
 
   await act(async () => button(host, "Review original game files").click());
   expect(host.textContent).toContain("This installation uses game data it already prepared.");
   expect(host.querySelector('[role="combobox"]')).toBeNull();
-  await act(async () => button(host, "Find the same original").click());
+  await act(async () => find.click());
+  await expect
+    .element(page.getByRole("alert"))
+    .toHaveTextContent("That location is temporarily unavailable.");
+  await expect.element(find).toHaveFocus();
+  expect(host.textContent).toContain("D:/Old/recorded.z64");
+  await act(async () => find.click());
 
   expect(pick).toHaveBeenCalledWith(
     originalReview.source_profile,
     originalReview.current_path,
     "game",
   );
-  expect(relink).toHaveBeenCalledWith(originalTarget, "D:/Moved/recorded.z64");
+  expect(relink.mock.calls).toEqual([
+    [originalTarget, "D:/Moved/recorded.z64"],
+    [originalTarget, "D:/Moved/recorded.z64"],
+  ]);
+  await expect.element(find).not.toBeInTheDocument();
+  await expect.element(page.getByRole("heading", { name: "Setups and mods" })).toHaveFocus();
 });
 
 it("reviews an earlier setup, keeps progress, and applies only the eligible exact review", async () => {
@@ -969,15 +1064,18 @@ it("retires an exact recovery offer only after review and refreshes the retained
   const apply = vi.spyOn(desktopApi, "retireModSetupRecoveryBuild").mockResolvedValue(revision);
   await render();
 
-  await page.getByRole("button", { name: "Retained game versions", exact: true }).click();
+  const history = page.getByRole("button", { name: /^(Hide )?retained game versions$/i });
+  await history.click();
   const review = page.getByRole("button", { name: "Review retiring ship-previous.zip (offer 7)" });
   await review.click();
   const dialog = page.getByRole("dialog");
   await expect.element(dialog.getByText("This game changed.", { exact: false })).toBeVisible();
+  await expect.element(dialog.getByRole("heading")).toHaveFocus();
   await expect
     .element(dialog.getByRole("button", { name: "Retire recovery offer" }))
     .not.toBeInTheDocument();
   await dialog.getByRole("button", { name: "Keep recovery offer" }).click();
+  await expect.element(review).toHaveFocus();
   expect(apply).not.toHaveBeenCalled();
 
   await review.click();
@@ -987,6 +1085,7 @@ it("retires an exact recovery offer only after review and refreshes the retained
   expect(apply).toHaveBeenCalledExactlyOnceWith("shipwright", "default", 7, "d".repeat(64), 7);
   await expect.element(page.getByText("Recovery offer retired.")).toBeVisible();
   await expect.element(review).not.toBeInTheDocument();
+  await expect.element(history).toHaveFocus();
   expect(read).toHaveBeenCalledTimes(2);
 });
 
