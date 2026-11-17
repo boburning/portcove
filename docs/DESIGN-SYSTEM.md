@@ -647,7 +647,7 @@ covers use the horizontal portrait-and-identity composition described above.
 Ordinary/tall and compact width rules retain their existing density. Rem-based
 minimums honor whole-interface enlargement. Poster layouts retain the effective
 24px cover-to-title gap and title/project reservations; horizontal covers use
-`--space-3` and let identity determine its height. Unfocused horizontal project labels keep their two-line limit; identity focus reveals the complete label. Port-choice labels wrap as one translated text flow while retaining exact bidirectional names. Artwork uses the raised surface
+`--space-3` and let identity determine its height. Unfocused horizontal project labels retain their existing line limit; identity focus reveals the complete label. Port-choice labels wrap as one translated text flow while retaining exact bidirectional names. Artwork uses the raised surface
 and a quiet translucent border. Chips use 11px/500 type and 7px corners;
 wrapped footer rhythm uses an 8px gap while action controls retain 32px height.
 
