@@ -162,7 +162,7 @@ try {
   [uint32]$windowOwner = 0
   [void][CdogsWindow]::GetWindowThreadProcessId($window,[ref]$windowOwner)
   if ($windowOwner -ne $game.Id) { throw 'Window ownership changed' }
-  foreach ($key in @(@{name='start-highlight';vk=38;wait=900},@{name='continue-menu';vk=13;wait=900},@{name='campaign-intro';vk=13;wait=5000},@{name='players-count';vk=13;wait=3000},@{name='two-players';vk=40;wait=900},@{name='players-select';vk=13;wait=2000},@{name='join-local';vk=88;wait=1500},@{name='accept-local';vk=88;wait=2000},@{name='level-menu';vk=0;wait=3500},@{name='mission-options';vk=13;wait=3500})) {
+  foreach ($key in @(@{name='start-highlight';vk=38;wait=900},@{name='continue-menu';vk=13;wait=900},@{name='campaign-intro';vk=13;wait=5000},@{name='players-count';vk=13;wait=3000},@{name='two-players';vk=40;wait=900},@{name='players-select';vk=13;wait=2000},@{name='join-local';vk=88;wait=1500},@{name='accept-local';vk=88;wait=2000},@{name='level-menu';vk=0;wait=3500},@{name='mission-options';vk=13;wait=3500},@{name='loadout';vk=13;wait=2500},@{name='mission-briefing';vk=88;wait=3000},@{name='mission-start';vk=13;wait=2500},@{name='mission-visible';vk=0;wait=3000})) {
     if ($game.HasExited -or [CdogsWindow]::Created($gameHandle) -ne $boundCreated) { throw 'Owned child identity lost before input' }
     if ($key.vk -ne 0) { [CdogsWindow]::KeyOwned($window,[uint32]$game.Id,[ushort]$key.vk) }
     Start-Sleep -Milliseconds $key.wait
@@ -196,7 +196,7 @@ try {
   if ((Get-FileHash -LiteralPath $seed -Algorithm SHA256).Hash.ToLowerInvariant() -ne $seedSha) { throw 'Original earned-save fixture changed' }
   $state = Get-Content -Raw -LiteralPath $activeSave | ConvertFrom-Json
   if ($state.Version -ne 3 -or $state.Missions.Count -ne 1 -or $state.Missions[0].NextMission -ne 1 -or ($state.Missions[0].MissionsCompleted -join ',') -ne '0' -or $state.Missions[0].Campaign.Path -ne 'missions/most_classified_enemy.cdogscpn') { throw 'Restored progress was lost or changed' }
-  @{source_sha256=$seedSha;output_sha256=(Get-FileHash -LiteralPath $activeSave -Algorithm SHA256).Hash.ToLowerInvariant();source_preserved=$true;next_mission=1;missions_completed=@(0);scope='upstream Windows profile retained Linux-earned progress; visual menu recognition still requires image inspection; no resumed-level claim'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-save-result.json")) -Encoding utf8
+  @{source_sha256=$seedSha;output_sha256=(Get-FileHash -LiteralPath $activeSave -Algorithm SHA256).Hash.ToLowerInvariant();source_preserved=$true;next_mission=1;missions_completed=@(0);scope='upstream Windows profile retained Linux-earned progress; captured menu/mission sequence still requires image inspection; no Windows-earned completion'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-save-result.json")) -Encoding utf8
   $profileFiles = @(Get-ChildItem -LiteralPath $profile -Recurse -Force -File)
   if (-not $profileFiles.Count) { throw 'Native player produced no private profile evidence' }
   @{file_count=$profileFiles.Count; scope='Windows profile retained Linux-earned campaign progress; no Windows completion or resumed-level claim'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-profile-result.json")) -Encoding utf8
@@ -220,7 +220,7 @@ try {
   $afterRemoval = Snapshot-External
   $afterRemoval | Set-Content (Join-Path $native ("$Dataset-external-after-removal.json")) -Encoding utf8
   if ($after.data.external_runtime -or $beforeRemoval -ne $afterRemoval) { throw 'Registration removal altered external files or retained registration' }
-  @{phase='probe-complete-pending-image-inspection'; dataset=$Dataset; exit_code=0; product=$env:PORTCOVE_PRODUCT_SOURCE; controller=$env:PORTCOVE_CONTROLLER_SOURCE; claim='ordinary external Windows C-Dogs player with SDL software renderer and private XDG profile; normal exit and registration-only removal preserve external bytes; screenshot requires inspection; save-menu recognition requires image inspection; no resumed level, Windows-earned progress, audio, retail, physical input or managed maintenance qualification'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-result.json")) -Encoding utf8
+  @{phase='probe-complete-pending-image-inspection'; dataset=$Dataset; exit_code=0; product=$env:PORTCOVE_PRODUCT_SOURCE; controller=$env:PORTCOVE_CONTROLLER_SOURCE; claim='ordinary external Windows C-Dogs player with SDL software renderer and private XDG profile; normal exit and registration-only removal preserve external bytes; screenshot requires inspection; candidate saved-mission resumption requires inspected briefing and active-frame evidence; no Windows-earned mission completion, audio, retail, physical input or managed maintenance qualification'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-result.json")) -Encoding utf8
 
 } catch {
   $failure = $_
