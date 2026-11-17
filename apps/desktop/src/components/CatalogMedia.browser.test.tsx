@@ -270,6 +270,26 @@ it("shows source and edition attribution, navigates previews and returns focus t
   await expect
     .element(page.getByRole("heading", { name: "Owned first scene", exact: true }))
     .toBeVisible();
+  const root = document.documentElement;
+  const previousDirection = root.getAttribute("dir");
+  root.dir = "rtl";
+  try {
+    for (const name of ["Previous", "Next"]) {
+      const action = viewer.getByRole("button", { name, exact: true }).element();
+      expect(getComputedStyle(action.querySelector("svg")!).rotate).toBe("180deg");
+    }
+    await userEvent.keyboard("{ArrowLeft}");
+    await expect
+      .element(viewer.getByRole("heading", { name: "Owned second scene", exact: true }))
+      .toBeVisible();
+    await userEvent.keyboard("{ArrowRight}");
+    await expect
+      .element(viewer.getByRole("heading", { name: "Owned first scene", exact: true }))
+      .toBeVisible();
+  } finally {
+    if (previousDirection === null) root.removeAttribute("dir");
+    else root.dir = previousDirection;
+  }
   await userEvent.keyboard("{Escape}");
   await expect.element(origin).toHaveFocus();
 });
