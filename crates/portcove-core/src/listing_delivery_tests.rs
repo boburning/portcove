@@ -460,7 +460,7 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
             .0
             .listing_document()
             .format_version,
-        10
+        11
     );
 }
 
