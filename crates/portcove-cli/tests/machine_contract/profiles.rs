@@ -5,6 +5,41 @@ use std::{fs, path::Path};
 
 const PORT: &str = "opengoal-jak1";
 
+#[test]
+fn capabilities_advertise_the_public_profile_commands() {
+    let temporary = tempfile::tempdir().unwrap();
+    let capabilities = result(
+        temporary.path(),
+        &["--json", "capabilities"],
+        "capabilities",
+    );
+    assert_eq!(
+        capabilities["schema_version"],
+        portcove_core::API_SCHEMA_VERSION
+    );
+    let commands = capabilities["commands"].as_array().unwrap();
+    for name in [
+        "profile",
+        "profile.list",
+        "profile.create-clean",
+        "profile.original-instances",
+        "profile.select-original",
+        "profile.relink-original",
+        "profile.package-plan",
+        "profile.package-apply",
+        "profile.provider-plan",
+        "profile.provider-apply",
+        "profile.recover-plan",
+        "profile.recover",
+    ] {
+        assert!(
+            commands.iter().any(|command| command == name),
+            "capabilities did not advertise {name}"
+        );
+    }
+    assert!(!commands.iter().any(|command| command == "profile.help"));
+}
+
 fn invoke(root: &Path, arguments: &[&str]) -> Output {
     portcove_tool(
         &root.join("preferences.json"),

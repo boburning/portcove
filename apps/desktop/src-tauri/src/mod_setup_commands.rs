@@ -74,6 +74,24 @@ pub(crate) async fn copy_mod_setup(
 }
 
 #[tauri::command]
+pub(crate) async fn create_clean_mod_setup(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    display_name: String,
+    expected_revision: u64,
+) -> DesktopResult<Profile> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .create_clean_profile(&port_id, &profile_id, &display_name, expected_revision)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn list_mod_setup_revisions(
     state: tauri::State<'_, DesktopState>,
     generation: u64,

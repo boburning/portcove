@@ -69,6 +69,10 @@ copy` may copy supported saves after verifying the source digest and the
 destination installation and revision. Writer schema 65 requires clients that
 honor incomplete setup materialization. The operation-event schema stays 3.
 
+The optional `profile create-clean` command returns the existing `Profile`
+result. Use the advertised `profile.create-clean` capability to discover it.
+Creation uses the existing library writer and operation-event contracts.
+
 API96 adds `profile original-instances`, `profile select-original` and
 `profile relink-original`. A customized setup can select a registered
 original's exact content and storage identity in a new revision. Relinking

@@ -92,6 +92,14 @@
       "unverifiedHeading": "Portcove no lo verifica"
     },
     "busy": "Termina la operación en curso antes de cambiar los mods.",
+    "clean": {
+      "cancel": "Cancelar",
+      "create": "Crear perfil",
+      "created": "Se creó el perfil limpio {{name}} con progreso nuevo.",
+      "description": "Este perfil usa la misma versión del juego y los mismos archivos originales, con progreso nuevo y sin mods añadidos.",
+      "name": "Nombre del perfil limpio",
+      "open": "Crear perfil limpio…"
+    },
     "code": {
       "allow": "Permitir su código y añadir",
       "cancel": "No añadir",

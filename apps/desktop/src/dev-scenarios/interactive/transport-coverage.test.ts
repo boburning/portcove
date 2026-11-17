@@ -30,7 +30,7 @@ const unsupportedByReason: Record<string, string[]> = {
     apply_steam_artwork apply_steam_entry begin_github_device_login
     change_to_managed_runtime clear_host_tool_path
     copy_mod_setup create_backup
-    create_default_mod_setup
+    create_clean_mod_setup create_default_mod_setup
     create_support_bundle delete_backup discard_game_update_acquisition
     download_catalog_package export_library_metadata forget_pending_setup
     import_artwork import_library import_source install_application_update install_port logout_github

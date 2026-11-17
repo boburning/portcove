@@ -344,6 +344,20 @@ export const desktopApi = {
       currentBuild,
       ...(progress && { progress }),
     }),
+  createCleanModSetup: (
+    portId: string,
+    profileId: string,
+    displayName: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetup>("create_clean_mod_setup", {
+      portId,
+      profileId,
+      displayName,
+      expectedRevision,
+      generation,
+    }),
   modSetupRevisions: (portId: string, profileId: string, generation: number) =>
     invoke<import("./types").ModSetupRevision[]>("list_mod_setup_revisions", {
       portId,
