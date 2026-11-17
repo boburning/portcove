@@ -2424,3 +2424,41 @@ void test("competing or edited amendments stop before further candidate writes",
     assert.equal(f.creations, 1);
   }
 });
+
+void test("an amended checkpoint survives receipt response loss and resumes from the exact predecessor", async () => {
+  const f = await partialFixture(2, 1);
+  f.changePrimary();
+  amendmentFor(f, 1);
+  let saved: ReturnType<HostedIntakeCheckpointStore["load"]> = null;
+  f.bridge.durable.checkpoints = () => ({
+    load: () => structuredClone(saved),
+    save(_request, hash, revision, body, previous, slots) {
+      assert.equal(revision, saved?.revision ?? 0);
+      if (saved) assert.equal(previous?.body, saved.receipt_body);
+      saved = {
+        revision: revision + 1,
+        request_sha256: hash,
+        receipt_body: body,
+        previous_receipt_sha256: previous?.hash ?? null,
+        candidates: structuredClone([...slots]),
+      };
+      return revision + 1;
+    },
+  });
+  const publish = f.bridge.persist.bind(f.bridge);
+  f.bridge.persist = async () => {
+    throw new Error("Receipt response unavailable");
+  };
+  await assert.rejects(f.bridge.process(f.request, f.all()), /Receipt response unavailable/u);
+  assert.equal(f.creations, 1);
+  assert(saved);
+  f.bridge.persist = publish;
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+  assert.equal(f.creations, 2);
+  const checkpoint = f.bridge.durable.checkpoints().load(f.request.id);
+  assert(checkpoint);
+  assert.equal(
+    checkpoint.receipt_body,
+    f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"))?.body,
+  );
+});

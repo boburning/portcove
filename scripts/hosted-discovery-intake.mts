@@ -667,7 +667,7 @@ function checkpointSlots(receipt: Receipt) {
     ({ candidate, body_sha256, evidence_sha256, primary, location, amendment }, index) => ({
       ...(location ? { location } : {}),
       ...(amendment ? { amendment } : {}),
-      intent: candidate.intent,
+      ...(candidate.intent ? { intent: candidate.intent } : {}),
       port_key: candidate.port_key,
       body_sha256,
       evidence_sha256,
@@ -1779,7 +1779,12 @@ export class HostedIntakeBridge {
       if (previous && ((d.hold && !resumeHolds && !amended) || (!lineage && isDelivered(d)))) {
         if (isDelivered(d)) {
           if (missingDeliveryProof(d)) throw new Error("Historical delivery lacks a scoped doctor");
-          historical.add(index);
+          if (
+            proposal.schema_version === 2 ||
+            receipt?.plan_encoding === "proposal-bound-v2" ||
+            hasAmendments
+          )
+            historical.add(index);
         }
         plan.push(previous);
         continue;
