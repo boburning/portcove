@@ -2208,6 +2208,22 @@ unchanged. It is not
 large-collection, gameplay, OS DPI, physical
 controller or assistive-technology acceptance.
 
+`native-collection-artwork-presentation` is a standalone Windows opt-in with a
+ten-minute harness budget and the existing identity-bound native review cleanup.
+It uses the normal app and a fresh source-free library. The actual accepted
+catalog supplies the two-member `andreyvelsk-com-mobilerpgpack-phone` and four-member
+`crownpark-xbox360-native-ports-collection` listings, member credits and digests.
+Public thumbnail IPC is bound to the actual library generation and artwork choice
+revision; retained PNG identities are compared with displayed images. Discover,
+detail and credits use settled, contained captures in both themes at 960×640 and
+a four-member compact representative at 430×780. Back must restore the exact
+Discover opener focus. Catalog and artwork choices remain unchanged; no original
+files, runtime installation, catalog replacement or provider credentials are used.
+Public failures retain concrete member failures and any partial/fallback evidence
+and fail complete-collection acceptance. Browser fixtures for Library/Manage remain
+separate evidence; this listing-only native case does not qualify those installed
+surfaces, gameplay or publication. It is absent from routine profiles.
+
 `just desktop-verify --scenario native-saved-folder-hash-resume --require-clean`
 selects one standalone
 Windows journey outside routine profiles. An isolated first-party CLI seeds a
