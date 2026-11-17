@@ -56605,7 +56605,7 @@
         "steps": [
           {
             "title": "Set up the Windows ZIP",
-            "instruction": "Choose the Full ZIP from the official release. Extract it to a writable folder and start srb2win.exe. Keep the PK3 files, models, and DLLs beside the game."
+            "instruction": "Choose the Full ZIP from the official release. Extract it to a writable folder and start the bundled 32-bit srb2win.exe. Keep the PK3 files, models, and DLLs beside the game."
           },
           {
             "title": "Install on Linux",
@@ -56613,7 +56613,7 @@
           },
           {
             "title": "Install the Mac app",
-            "instruction": "Open the official Mac disk image and copy Sonic Robo Blast 2.app to Applications. The app includes both Intel and Apple Silicon executables. Start the copy in Applications."
+            "instruction": "Open the official Mac disk image and copy Sonic Robo Blast 2.app to Applications. The app includes a universal executable for Intel and Apple Silicon. Start the copy in Applications."
           }
         ],
         "warnings": [
