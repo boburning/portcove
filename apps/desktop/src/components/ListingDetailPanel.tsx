@@ -6,7 +6,6 @@ import { SaveGameButton } from "../features/organization/OrganizationControls";
 import { ListingMaintenanceFacts } from "../features/browsing/ListingMaintenanceFacts";
 import type { CatalogEntry } from "../features/browsing/catalog-entry";
 import {
-  availablePlatforms,
   listingActionAssessment,
   listingAvailabilityLabel,
 } from "../features/browsing/catalog-entry";
@@ -76,7 +75,11 @@ function renderListingEvidence(listing: CatalogEntry["listing"]) {
   );
 }
 
-function renderListingRequirements(entry: CatalogEntry) {
+function renderListingRequirements(
+  entry: CatalogEntry,
+  platforms: CatalogEntry["platforms"],
+  registeredPlatform: CatalogEntry["platforms"][number] | undefined,
+) {
   return (
     <dl className="detail-facts">
       <div>
@@ -87,17 +90,27 @@ function renderListingRequirements(entry: CatalogEntry) {
             : "Requirements not specified"}
         </dd>
       </div>
+      {registeredPlatform && (
+        <div>
+          <dt>Recorded installation platforms</dt>
+          <dd>{platformLabel(registeredPlatform)}</dd>
+        </div>
+      )}
       <div>
-        <dt>Runs on</dt>
+        <dt>Upstream project platforms</dt>
         <dd>
-          {availablePlatforms(entry).length
-            ? availablePlatforms(entry).map(platformLabel).join(" · ")
+          {platforms.length
+            ? platforms.map(platformLabel).join(" · ")
             : "Platforms not yet confirmed"}
         </dd>
       </div>
       <div>
         <dt>Installation</dt>
-        <dd>Upstream setup / external registration</dd>
+        <dd>
+          {registeredPlatform
+            ? "Externally maintained installation"
+            : "Upstream setup / external registration"}
+        </dd>
       </div>
       <div>
         <dt>Update channel</dt>
@@ -141,6 +154,7 @@ export function ListingDetailPanel({
   organization?: DetailOrganization | undefined;
 }) {
   const listing = entry.listing;
+  const platforms = listing?.platforms ?? (entry.definition ? [] : entry.platforms);
   const updates = listing && upstreamUpdatesDestination(listing.project_url, listing.release_url);
   const registered = status?.external_runtime;
   const launch = listingActionAssessment(entry.listingStatus, "launch");
@@ -168,6 +182,8 @@ export function ListingDetailPanel({
         <DetailLayout
           backLabel={backLabel}
           port={entry}
+          platforms={registered ? [registered.platform] : []}
+          upstreamPlatforms={platforms.filter((platform) => platform !== registered?.platform)}
           managementSupplement={managementSupplement}
           favoriteControl={
             <>
@@ -188,7 +204,7 @@ export function ListingDetailPanel({
           }
           projectUrl={listing?.project_url}
           openSupport={openSupport}
-          overviewRequirements={renderListingRequirements(entry)}
+          overviewRequirements={renderListingRequirements(entry, platforms, registered?.platform)}
           overviewActions={(reveal) => (
             <div className="detail-journey-links">
               <Button
