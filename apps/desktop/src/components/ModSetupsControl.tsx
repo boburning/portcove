@@ -241,7 +241,12 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
 
   return (
     <section aria-labelledby={headingId} className="grid gap-3">
-      <h3 ref={setupHeading} id={headingId} tabIndex={-1} className="text-base font-semibold">
+      <h3
+        ref={setupHeading}
+        id={headingId}
+        tabIndex={-1}
+        className="scroll-mt-2 text-base font-semibold"
+      >
         {t("mods.heading")}
       </h3>
       <p className="text-sm text-pc-muted-foreground">{t("mods.intro")}</p>
@@ -287,6 +292,7 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
               generation={generation}
               live={view.live}
               disabled={changing}
+              setupHeading={setupHeading}
               setWorking={setWorking}
               perform={perform}
             />
@@ -714,7 +720,11 @@ function ModSetupFeedback({
   const { t } = useAppTranslation("gameSettings");
   return (
     <>
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <p role="alert" className="wrap-anywhere">
+          {error}
+        </p>
+      )}
       {error && !fresh && !working && (
         <ActionRow>
           <Button variant="outline" onClick={reread}>

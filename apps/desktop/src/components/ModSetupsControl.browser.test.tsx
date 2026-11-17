@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -6,6 +6,7 @@ import { desktopApi } from "../api";
 import * as picker from "../file-picker";
 import type { ModFilePreservationPlan, ModSetupOriginalReview, ModSetupsView } from "../types";
 import { sourceProfile } from "../test-fixtures";
+import { ModFilePreservationControl } from "./ModFilePreservationControl";
 import { ModSetupsControl } from "./ModSetupsControl";
 import "../styles/index.css";
 
@@ -1092,14 +1093,101 @@ it("moves a reviewed unmanaged file and gives its preserved location for ordinar
   await act(async () => button(host, "Don’t add").click());
   expect(review.disabled).toBe(false);
   expect(button(host, "Add mod file…").disabled).toBe(true);
-  await act(async () => review.click());
+  const opener = page.getByRole("button", { name: `Review ${fileName}` });
+  await opener.click();
   expect(inspect).toHaveBeenCalledWith("shipwright", fileName, 7);
   expect(preserve).not.toHaveBeenCalled();
-  await act(async () => button(host, "Preserve file").click());
+  await expect.element(page.getByRole("heading", { name: fileName })).toHaveFocus();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect.element(opener).toHaveFocus();
+  await opener.click();
+  await page.getByRole("button", { name: "Preserve file", exact: true }).click();
   expect(preserve).toHaveBeenCalledWith("shipwright", fileName, plan.plan_sha256, 7);
   expect(read).toHaveBeenCalledTimes(3);
   expect(host.textContent).toContain("D:/Library/preserved/hand-added.o2r");
   expect(button(host, "Add mod file…").disabled).toBe(false);
+  await expect
+    .element(page.getByText("For a supported mod, use Add mod file and choose this saved file."))
+    .toHaveFocus();
+});
+
+it("wraps a long file review and clears it when that file leaves the same setup revision", async () => {
+  const fileName = `hand-added-${"x".repeat(112)}.o2r`;
+  const plan: ModFilePreservationPlan = {
+    port_id: "shipwright",
+    profile_id: "default",
+    revision: 3,
+    revision_sha256: "a".repeat(64),
+    file_name: fileName,
+    slot: 0,
+    plan_sha256: "b".repeat(64),
+    observed: { sha256: "c".repeat(64), size: 8 },
+    restore: null,
+  };
+  const inspect = vi.spyOn(desktopApi, "inspectModFile").mockResolvedValue(plan);
+  const host = document.createElement("div");
+  host.style.width = "296px";
+  document.body.append(host);
+  const root = createRoot(host);
+  mounted.push({ root, host });
+  const setupHeading = createRef<HTMLHeadingElement>();
+  const show = (name?: string) =>
+    act(async () =>
+      root.render(
+        <>
+          <h3 ref={setupHeading} tabIndex={-1}>
+            Setups and mods
+          </h3>
+          <button type="button">Separate focus target</button>
+          <ModFilePreservationControl
+            portId="shipwright"
+            generation={7}
+            live={{
+              profile_id: "default",
+              revision: 3,
+              unmanaged: name ? [name] : [],
+              changed_owned: [],
+              native_list: { state: "in-sync" },
+            }}
+            disabled={false}
+            setupHeading={setupHeading}
+            setWorking={vi.fn()}
+            perform={vi.fn()}
+          />
+        </>,
+      ),
+    );
+  await show(fileName);
+  await page.getByRole("button", { name: `Review ${fileName}` }).click();
+  const review = page.getByRole("region", { name: fileName }).element();
+  expect(review.scrollWidth).toBeLessThanOrEqual(host.clientWidth);
+  await show("another-mod.o2r");
+  await expect
+    .element(page.getByRole("button", { name: "Preserve file", exact: true }))
+    .not.toBeInTheDocument();
+  await expect.element(page.getByRole("button", { name: "Review another-mod.o2r" })).toBeVisible();
+  const setupTitle = page.getByRole("heading", { name: "Setups and mods" });
+  await show(fileName);
+  await page.getByRole("button", { name: `Review ${fileName}` }).click();
+  await expect.element(page.getByRole("heading", { name: fileName })).toHaveFocus();
+  await show();
+  await expect.element(setupTitle).toHaveFocus();
+
+  await show(fileName);
+  page
+    .getByRole("button", { name: `Review ${fileName}` })
+    .element()
+    .focus();
+  await show();
+  await expect.element(setupTitle).toHaveFocus();
+
+  await show(fileName);
+  await page.getByRole("button", { name: `Review ${fileName}` }).click();
+  const outside = page.getByRole("button", { name: "Separate focus target" });
+  outside.element().focus();
+  await show();
+  await expect.element(outside).toHaveFocus();
+  expect(inspect).toHaveBeenCalledTimes(3);
 });
 
 it("creates a named clean setup when the current runtime is verified and none is ready", async () => {
