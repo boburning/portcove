@@ -589,6 +589,12 @@ function useWorkspace(props: WorkspaceProps) {
         detailReturn && {
           scrollTop: detailReturn.scrollTop,
           focusOrigin: detailReturn.originKey,
+          collection: {
+            originKey: detailReturn.originKey,
+            portId: detailReturn.returnPortId,
+            groupKey: detailReturn.groupKey,
+            viewportTop: detailReturn.viewportTop,
+          },
         },
       );
     },
@@ -1368,6 +1374,7 @@ function useAppModel(
     setBiosPath(selection.bios?.path ?? "");
   }, [selectedId, selection.bios?.path, setBiosPath]);
   return {
+    queryPending: query !== ui.query,
     entries,
     statusMap,
     queryContext,
@@ -1561,6 +1568,7 @@ function CurrentView({
   if (!data.catalog && data.refreshFailure) return null;
   return (
     <PortBrowser
+      resultsReady={!model.queryPending}
       collectionLayout={collection.value}
       setCollectionLayout={collection.set}
       collectionLayoutFailure={collection.failure}

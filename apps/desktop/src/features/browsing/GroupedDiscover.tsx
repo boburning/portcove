@@ -1,3 +1,4 @@
+import { VirtualDiscoverRows } from "./VirtualDiscoverRows";
 import { useGameComparison } from "../recommendations/use-game-comparison";
 import {
   GameComparisonControls,
@@ -82,6 +83,8 @@ function IdentityChipsContent({
 const idleNativeSourceDrag: NativeSourceDragState = { active: false, pathCount: 0 };
 
 export function GroupedDiscover({
+  resultsReady = true,
+  queryKey = "",
   layout = "covers",
   all,
   onTask,
@@ -94,6 +97,8 @@ export function GroupedDiscover({
   nativeSourceDrag = idleNativeSourceDrag,
   devicePlatform,
 }: {
+  resultsReady?: boolean | undefined;
+  queryKey?: string | undefined;
   /** Known only when Core reports this device; otherwise platforms stay listed. */
   devicePlatform?: PortDefinition["platforms"][number] | undefined;
   layout?: CollectionLayout;
@@ -111,6 +116,7 @@ export function GroupedDiscover({
   const groups = useMemo(() => groupCatalog(all, matching), [all, matching]);
   const descriptionPrefix = useId();
   const [comparisonSelection, setComparison] = useState<GameGroup>();
+  const [comparisonPin, setComparisonPin] = useState<string>();
   const comparison =
     comparisonSelection &&
     groupCatalog(all, all).find((group) =>
@@ -139,6 +145,7 @@ export function GroupedDiscover({
     origin.current = trigger;
     comparisonIntent.current = { active: true };
     leaving.current = false;
+    setComparisonPin(group.id);
     setComparison(group);
   }, []);
   const open = useCallback(
@@ -160,6 +167,7 @@ export function GroupedDiscover({
           data-focusable
           size="icon-sm"
           className={card ? "collection-art-action collection-favorite" : undefined}
+          data-collection-control="favorite"
           title={
             favoriteIds?.has(port.id) ? t("discover.favorite.remove") : t("discover.favorite.add")
           }
@@ -176,16 +184,22 @@ export function GroupedDiscover({
   );
   return (
     <>
-      <section
-        aria-label={t("discover.label")}
-        className={`port-grid discover-grid discover-${layout} collection-${layout} @container/collection grid w-full`}
-        data-focus-group
+      <VirtualDiscoverRows
+        ready={resultsReady}
+        queryKey={queryKey}
+        groups={groups}
+        layout={layout}
+        generation={owner?.generation}
+        comparisonPin={comparisonPin}
+        label={t("discover.label")}
       >
-        {groups.map((group) => (
+        {(group, index) => (
           <DiscoverGameCard
             onTask={onTask}
             key={group.id}
             group={group}
+            position={index + 1}
+            total={groups.length}
             showCompanion={layout === "covers"}
             statuses={statuses}
             descriptionPrefix={descriptionPrefix}
@@ -196,10 +210,13 @@ export function GroupedDiscover({
             open={open}
             compare={compare}
           />
-        ))}
-      </section>
+        )}
+      </VirtualDiscoverRows>
       <Dialog
         open={Boolean(comparison)}
+        onOpenChangeComplete={(open) => {
+          if (!open) setComparisonPin(undefined);
+        }}
         onOpenChange={(open) => {
           if (!open) {
             comparisonIntent.current.active = false;
@@ -421,6 +438,8 @@ const DiscoverGameCard = memo(DiscoverGameCardView, (previous, next) => {
 
 function DiscoverGameCardView({
   group,
+  position,
+  total,
   showCompanion,
   onTask,
   statuses,
@@ -433,6 +452,8 @@ function DiscoverGameCardView({
   compare,
 }: {
   group: GameGroup;
+  position: number;
+  total: number;
   showCompanion: boolean;
   onTask?: ((activityId?: string) => void) | undefined;
   statuses: ReadonlyMap<string, PortStatus>;
@@ -469,6 +490,8 @@ function DiscoverGameCardView({
   const artworkNotice = artworkDisplayNotice(artwork);
   return (
     <article
+      aria-posinset={position}
+      aria-setsize={total}
       key={group.id}
       className={`discover-game relative min-w-0${dropTarget ? " outline-3 outline-offset-2 outline-pc-ring" : ""}`}
       aria-label={
@@ -754,6 +777,7 @@ function DiscoverGameActions({
           data-focusable
           variant="ghost"
           size="sm"
+          data-collection-control="compare-evidence"
           onClick={(event) => compare(group, event.currentTarget)}
         >
           {t("discover.action.why")}
@@ -764,6 +788,7 @@ function DiscoverGameActions({
           data-focusable
           size="sm"
           variant="ghost"
+          data-collection-control="compare-all"
           onClick={(event) => compare(group, event.currentTarget)}
         >
           <GitCompareArrows aria-hidden="true" />

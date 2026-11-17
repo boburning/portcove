@@ -1096,3 +1096,37 @@
     }
   }
 }
+
+/* Bound the DOM by complete visual rows; each row retains the four shared tracks. */
+@layer components {
+  .virtual-discover {
+    position: relative;
+    display: block;
+    overflow-anchor: none;
+  }
+  .virtual-discover-probe {
+    position: absolute;
+    display: grid;
+    inline-size: 100%;
+    block-size: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .virtual-discover-typography {
+    position: absolute;
+    inline-size: 1em;
+    block-size: 1em;
+  }
+  .virtual-discover-row {
+    position: absolute;
+    inset-inline: 0;
+    display: grid;
+    align-items: stretch;
+  }
+  .virtual-discover-row.collection-covers {
+    grid-template-rows: repeat(4, auto);
+  }
+  .virtual-discover-row.collection-rows {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -339,7 +339,9 @@ function usePortBrowser({
   collectionLayout = "covers",
   setCollectionLayout,
   collectionLayoutFailure,
+  resultsReady = true,
 }: {
+  resultsReady?: boolean | undefined;
   collectionLayout?: CollectionLayout;
   setCollectionLayout?: ((layout: CollectionLayout) => void) | undefined;
   collectionLayoutFailure?: "read" | "write" | undefined;
@@ -475,6 +477,7 @@ function usePortBrowser({
       query,
     });
   return {
+    resultsReady,
     favorites,
     organization,
     organizationView,
@@ -721,6 +724,7 @@ function PortBrowserView({
       {<SuggestedOrderHint {...{ model }} />}
       <BrowserFilterRecovery model={model} />
       <BrowserResults
+        resultsReady={model.resultsReady}
         layout={model.collectionLayout}
         query={model.query}
         view={model.view}
@@ -819,6 +823,7 @@ export function SteamBatchLibraryAction({
 }
 
 function BrowserResults({
+  resultsReady,
   organization,
   query,
   restoreAfter,
@@ -843,6 +848,7 @@ function BrowserResults({
   nativeSourceDrag,
   devicePlatform,
 }: {
+  resultsReady: boolean;
   devicePlatform?: PortDefinition["platforms"][number] | undefined;
   organization?: Organization | undefined;
   restoreAfter: (button: HTMLElement, action: () => Promise<boolean>) => Promise<void>;
@@ -869,7 +875,7 @@ function BrowserResults({
 }) {
   if (loading && ports.length === 0) return <LoadingState />;
   if (unavailable && ports.length === 0) return null;
-  if (ports.length === 0)
+  if (ports.length === 0 && resultsReady)
     return (
       <BrowserEmptyState
         view={view}
@@ -885,6 +891,8 @@ function BrowserResults({
   if (view === "catalog")
     return (
       <GroupedDiscover
+        resultsReady={resultsReady}
+        queryKey={query}
         onTask={onTask}
         layout={layout}
         all={allCatalogPorts}
