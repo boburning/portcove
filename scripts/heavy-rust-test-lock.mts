@@ -243,12 +243,22 @@ function readWindowsProcessIdentities(run: WindowsProcessQuery) {
     "  '{0}:{1}' -f $_.ProcessId,$ticks",
     "}",
   ].join("\n");
-  const raw = run("pwsh.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script], {
-    encoding: "utf8",
-    timeout: 15_000,
-    maxBuffer: 256 * 1024,
-    windowsHide: true,
-  });
+  let raw: string;
+  try {
+    raw = run("pwsh.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script], {
+      encoding: "utf8",
+      timeout: 15_000,
+      maxBuffer: 256 * 1024,
+      windowsHide: true,
+    });
+  } catch (error) {
+    throw Object.assign(
+      new Error("Windows process identity snapshot query failed", { cause: error }),
+      {
+        code: "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE",
+      },
+    );
+  }
   const identities = new Map<number, string | null>();
   for (const line of raw.trim().split(/\r?\n/u)) {
     const match = /^([1-9]\d{0,9}):([1-9]\d{0,18}|\?)$/u.exec(line);
@@ -272,7 +282,9 @@ export function passiveProcessIdentityReader(
     identities ??= readWindowsProcessIdentities(run);
     const identity = identities.get(pid);
     if (identity === null)
-      throw new Error(`Windows process ${pid} has no observed creation identity`);
+      throw Object.assign(new Error(`Windows process ${pid} has no observed creation identity`), {
+        code: "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE",
+      });
     return identity ?? null;
   };
 }

@@ -19,6 +19,8 @@ interface WorkerEvent {
 }
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
+import childProcess from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
 import { mkdtemp, mkdir, writeFile, readFile, rm, readdir, copyFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -995,6 +997,90 @@ void test("pending handover queues new payloads without acquiring retirement gua
     assert.deepEqual(await readdir(path.join(root, "queue")), []);
     assert.equal((await observeCapacity({ root })).running.length, 0);
   }
+});
+
+for (const failure of ["query", "creation", "query-recovery"] as const)
+  void test(`waiting diagnostics retain finite admission after Windows ${failure} failure`, async (t) => {
+    const root = await fixture(t);
+    await writeFile(
+      path.join(root, "config.json"),
+      JSON.stringify({ slots: 1, legacyMode: "coordinated" }),
+    );
+    const slot = path.join(root, "slot-0");
+    const original = JSON.stringify({
+      format_version: 1,
+      token: "held-external-fixture",
+      process: { pid: 123, identity: "win32:123:456" },
+      child: null,
+      external: { kind: "owned-fixture" },
+      created_at: new Date().toISOString(),
+    });
+    await writeFile(slot, original);
+    const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+    const messages: string[] = [];
+    let queries = 0;
+    let releaseBlocker: Promise<void> | undefined;
+    t.mock.method(childProcess, "spawnSync", () => ({ status: 0, stdout: "789\n" }));
+    t.mock.method(childProcess, "execFileSync", () => {
+      queries++;
+      if (failure !== "creation")
+        throw Object.assign(new Error("owned diagnostic timeout"), { code: "ETIMEDOUT" });
+      return `${process.pid}:?\n`;
+    });
+    syncBuiltinESMExports();
+    Object.defineProperty(process, "platform", { ...platform, value: "win32" });
+    try {
+      const admission = acquireResourceCapacity(
+        "browser",
+        {},
+        isolated(root, {
+          waitMs: 1_000,
+          pollMs: 5,
+          report: (value) => {
+            messages.push(value);
+            if (
+              failure === "query-recovery" &&
+              value.includes("Waiting for verified process identity")
+            )
+              releaseBlocker = rm(slot);
+          },
+        }),
+      );
+      if (failure === "query-recovery") {
+        const lease = await admission;
+        await releaseBlocker;
+        await lease.release();
+      } else {
+        await assert.rejects(admission, { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" });
+        assert.equal(await readFile(slot, "utf8"), original, "Retain the external reservation");
+      }
+      assert.equal(queries, 1, "The failed diagnostic must use the finite queue retry path");
+      assert.match(
+        messages.join("\n"),
+        /Waiting for verified process identity.*No payload started/u,
+      );
+      assert.deepEqual(await readdir(path.join(root, "queue")), []);
+    } finally {
+      Object.defineProperty(process, "platform", platform);
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+    }
+  });
+
+void test("malformed queue records remain hard failures without acquiring capacity", async (t) => {
+  const root = await fixture(t);
+  await mkdir(path.join(root, "queue"));
+  const historical = path.join(root, "queue", `0000000000000-${randomUUID()}`);
+  await writeFile(historical, "malformed owner");
+  await assert.rejects(
+    acquireResourceCapacity("browser", {}, isolated(root)),
+    /owner is unreadable/u,
+  );
+  assert.equal(await readFile(historical, "utf8"), "malformed owner");
+  assert.deepEqual(
+    (await readdir(root)).filter((name) => /^slot-/u.test(name)),
+    [],
+  );
 });
 
 void test("unavailable process identity waits conservatively and never becomes capacity", async (t) => {
