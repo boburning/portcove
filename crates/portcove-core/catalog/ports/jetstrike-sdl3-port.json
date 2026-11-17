@@ -44,6 +44,14 @@
         }
       ],
       "help_url": "https://github.com/kylofon/jetstrike-sdl3/blob/v0.1.0/README.md"
+    },
+    "artwork": {
+      "game_id": 37108,
+      "cover_id": 597588,
+      "image_id": "coct3o",
+      "image_sha256": "f9808d15b4ddf646fee4967310d941711713ed11fe60df51e6067385df9e5ddc",
+      "game_slug": "jetstrike",
+      "match_kind": "underlying-game"
     }
   },
   "upstream_lineage": {
