@@ -1965,7 +1965,9 @@ function SelectedPortPanel({
             await pickSource?.();
             return;
           }
-          const report = await desktopApi.storeGameInstalls(libraryGeneration).catch(() => null);
+          const report = await desktopApi
+            .storeGameInstalls(libraryGeneration, originalProfile.id)
+            .catch(() => null);
           if (!requests.isCurrent(request)) return;
           const matches = report?.installs.filter(
             (install) => install.original_folder?.profile_id === originalProfile.id,

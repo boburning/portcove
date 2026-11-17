@@ -1159,6 +1159,7 @@ those stores recorded on this computer so you can search one:
 
 ```text
 portcove --library <path> --json source roots stores
+portcove --library <path> --json source roots stores --profile bstone-aliens-of-gold-originals
 portcove --library <path> --json source discover --root "<store game folder>" --profile <profile-id>
 portcove --library <path> --json source roots add "<store game folder>"
 ```
@@ -1168,7 +1169,13 @@ the canonical existing folder `path` and `saved_root_id` when that exact folder
 is already a saved game-file folder. A known store product has an optional
 `product_id`. A reviewed product-to-profile mapping can add an
 `original_folder` with the source profile and candidate path. Desktop offers
-the classic Steam or Windows GOG Dark Forces folder directly in The Force Engine setup.
+the reviewed Steam or Windows GOG original folder directly in compatible setup.
+Use `--profile <profile-id>` to request suggestions for one known source profile.
+For Blake Stone, this selects the Aliens of Gold or Planet Strike child folder
+inside the Steam anthology. Without a selected profile, the anthology has no
+`original_folder` suggestion. The individual Steam and GOG products can suggest
+their corresponding original folder without that context. A different selected
+profile gets no hint, and an unknown profile is refused before store metadata is read.
 The normal source check still validates the original file set.
 `checked_stores` names the stores whose
 metadata this system can read; a store missing from it was not checked, which
