@@ -468,6 +468,8 @@ function addSourceNeed(
   requirements.set(profileId, requirement);
 }
 
+const gameNameCollator = new Intl.Collator("en", { sensitivity: "base" });
+
 export function filterPorts(
   ports: CatalogEntry[],
   statuses: Map<string, PortStatus>,
@@ -513,9 +515,7 @@ export function filterPorts(
             catalogRank(right.port, selectedStatuses.get(right.port.id), context.devicePlatform)
           : catalogSort === "name" || catalogSort === "name-desc"
             ? (catalogSort === "name-desc" ? -1 : 1) *
-              gameTitle(left.port).localeCompare(gameTitle(right.port), "en", {
-                sensitivity: "base",
-              })
+              gameNameCollator.compare(gameTitle(left.port), gameTitle(right.port))
             : catalogSort === "recent"
               ? (selectedStatuses.get(right.port.id)?.last_launched_at ?? 0) -
                 (selectedStatuses.get(left.port.id)?.last_launched_at ?? 0)
