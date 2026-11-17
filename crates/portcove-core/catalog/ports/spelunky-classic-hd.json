@@ -31,11 +31,11 @@
       "references": [
         {
           "title": "Set up Windows N media components",
-          "instruction": "Both Windows editions of the game need Media Foundation. On Windows N, install Microsoft’s Media Feature Pack in Optional features and restart before opening the game."
+          "instruction": "Both Windows builds need Media Foundation. On Windows N, install Microsoft’s Media Feature Pack in Optional features and restart before opening the game."
         },
         {
           "title": "Use a sibling package from the same release",
-          "instruction": "The publisher offers a Windows 11 on Arm ZIP and a native Linux ARM64 ZIP. On Linux ARM64, extract the complete ZIP, keep assets beside SpelunkyClassicHD, and run it from that folder on a system with glibc 2.34 or later, libstdc++ with GLIBCXX_3.4.30, OpenSSL 3, its libcurl.so.4 build, X11, and OpenGL."
+          "instruction": "The publisher offers a Windows 11 on Arm ZIP and a native Linux ARM64 ZIP. On Linux ARM64, extract the complete ZIP, keep assets beside SpelunkyClassicHD, and run it from that folder on a system with glibc 2.34 or later, libstdc++ with GLIBCXX_3.4.30, OpenSSL 3, OpenSSL-backed libcurl.so.4, X11, and OpenGL."
         },
         {
           "title": "Find the Android build",
