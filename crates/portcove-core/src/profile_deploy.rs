@@ -2408,7 +2408,7 @@ impl PortcoveService {
         self.prune_staged(&layout.store().join("staged"));
         let inventory = inventory(port_id)?;
         let has_profiles = !inventory.profiles.is_empty();
-        let held_updates = crate::provider_auto_update::held_updates(&layout, &inventory);
+        let held_updates = crate::provider_auto_update::held_updates(&layout, &inventory, port);
         let current_install_id = profile::active_install_id(&self.library.connection()?, port_id)?;
         Ok(ModSetupsView {
             held_updates,

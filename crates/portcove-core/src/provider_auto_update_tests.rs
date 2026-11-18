@@ -712,6 +712,108 @@ async fn changed_file_facts_reconsider_a_hold_at_the_same_provider_file_id() {
 }
 
 #[test]
+fn scopes_with_shared_provider_coordinates_keep_distinct_updates_and_holds() {
+    let w = world();
+    let mut inventory = w.service.mod_setups(PORT).unwrap().inventory.unwrap();
+    let view = &mut inventory.profiles[0];
+    view.profile.intent.update_policy = ProfileUpdatePolicy::AutomaticEligible;
+    let binding = |community: &str| crate::ModProviderBinding::Thunderstore {
+        community: community.to_owned(),
+    };
+    let make_observation =
+        |native_id: &str, community: &str, state: ProviderUpdateState| ProviderUpdateObservation {
+            native_id: native_id.into(),
+            provider: crate::ProviderPackageRef {
+                binding: Some(binding(community)),
+                provider: "thunderstore".into(),
+                project: "Owner-Shared".into(),
+                file: Some("1.0.0".into()),
+                version: Some("1.0.0".into()),
+            },
+            state,
+            installed_version: Some("1.0.0".into()),
+            observed_version: None,
+            version_changed: false,
+            newer_files: Vec::new(),
+            freshness: None,
+            reason: None,
+        };
+    let withdrawn = make_observation(
+        "old.nrm",
+        "original-community",
+        ProviderUpdateState::Unavailable,
+    );
+    let admitted = make_observation(
+        "new.nrm",
+        "reviewed-community",
+        ProviderUpdateState::NewerFiles,
+    );
+    view.revision.packages = [&withdrawn, &admitted]
+        .into_iter()
+        .map(|observation| crate::ResolvedPackage {
+            native_id: observation.native_id.clone(),
+            native_version: None,
+            provider: Some(observation.provider.clone()),
+            sha256: "a".repeat(64),
+            size: 1,
+            enabled: true,
+            requires: Vec::new(),
+            provider_requires: Vec::new(),
+        })
+        .collect();
+    let mut port = crate::Catalog::embedded()
+        .unwrap()
+        .port("zelda64-recomp")
+        .unwrap()
+        .clone();
+    port.mod_provider_bindings = Some(vec![binding("reviewed-community")]);
+    let candidate = ProviderFileCandidate {
+        file_id: "2.0.0".into(),
+        file_name: "Owner-Shared-2.0.0.zip".into(),
+        size: 1024,
+        added_at: 12,
+        download_url: "https://thunderstore.io/package/download/Owner/Shared/2.0.0/".into(),
+        claimed_md5: None,
+        archived: false,
+        claimed_scan: None,
+        thunderstore_dependencies: None,
+    };
+    let tmp = tempfile::tempdir().unwrap();
+    let layout = Layout::for_user(tmp.path());
+    for observations in [
+        [withdrawn.clone(), admitted.clone()],
+        [admitted.clone(), withdrawn.clone()],
+    ] {
+        let groups = installed_files(&port.id, &view.revision, &observations);
+        assert_eq!(groups.len(), 2);
+        for group in &groups {
+            assert_eq!(group.packages.len(), 1);
+            assert_eq!(group.packages[0].native_id, group.observation.native_id);
+            remember_hold(
+                &layout,
+                hold_key(&view.profile.id, view.revision.revision, group, &candidate),
+                "review this scope",
+            );
+        }
+        assert_eq!(read_holds(&layout).len(), 2);
+        let active = groups
+            .iter()
+            .find(|group| group.observation.state == ProviderUpdateState::NewerFiles)
+            .unwrap();
+        settle_holds(&layout, &view.profile.id, active, None);
+        assert_eq!(read_holds(&layout).len(), 1);
+        remember_hold(
+            &layout,
+            hold_key(&view.profile.id, view.revision.revision, active, &candidate),
+            "review this scope",
+        );
+    }
+    let held = held_updates(&layout, &inventory, &port);
+    assert_eq!(held.len(), 1);
+    assert_eq!(held[0].native_ids, ["new.nrm"]);
+}
+
+#[test]
 fn changed_thunderstore_dependency_coordinates_invalidate_the_exact_file_hold() {
     let candidate = ProviderFileCandidate {
         file_id: "2.0.0".into(),
@@ -748,6 +850,7 @@ fn changed_thunderstore_dependency_coordinates_invalidate_the_exact_file_hold() 
     let installed = InstalledFile {
         project: "Owner-Root".into(),
         file: "1.0.0".into(),
+        binding: None,
         packages: Vec::new(),
         observation: &observation,
     };
