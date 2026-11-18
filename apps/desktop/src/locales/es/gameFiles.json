@@ -122,6 +122,8 @@
       "detail": "Portcove te avisa cuando se puede instalar, y de nuevo solo si cambia su configuración. No se instala nada.",
       "label": "Avisarme cuando esté listo"
     },
+    "readAgain": "Volver a leer",
+    "reading": "Leyendo opciones…",
     "setUpWhenReady": {
       "detail": "Portcove lo instala sin volver a preguntar cuando sus archivos y requisitos están listos. Nunca inicia el juego. Elige otra opción para desactivarlo.",
       "label": "Configurarlo cuando esté listo"

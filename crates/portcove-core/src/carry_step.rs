@@ -5,8 +5,8 @@
 //! only part of the source's files (design section 2, N1):
 //!
 //! 1. **Stage.** Each planned copy is written to a `.portcove-carry-*`
-//!    temporary file beside its destination and hashed against the bytes the
-//!    plan approved. Nothing at a destination path changes.
+//!    temporary file in its nearest existing destination ancestor and hashed
+//!    against the bytes the plan approved. Nothing at a destination path changes.
 //! 2. **Verify.** Every source and destination is hashed again and compared
 //!    with the plan (absent, or the bytes the plan approved replacing).
 //! 3. **Publish.** Only then are the temporary files renamed into place and
@@ -301,6 +301,32 @@ fn create_parents(root: &Path, relative: &str) -> Result<Option<PathBuf>> {
     Ok(Some(directory))
 }
 
+/// Stage on the destination's existing volume without creating its missing
+/// folders. New descendants of that ancestor remain on that volume; an
+/// intervening mount/replacement can only make publication fail, never turn
+/// it into a non-atomic copy fallback.
+fn staging_parent(root: &Path, relative: &str) -> Result<Option<PathBuf>> {
+    let parts = relative.split('/').collect::<Vec<_>>();
+    let mut directory = root.to_path_buf();
+    let mut walked = Vec::new();
+    for part in &parts[..parts.len().saturating_sub(1)] {
+        walked.push(*part);
+        match exact_parents(root, &walked.join("/"), &Listings::default())? {
+            Some(false) => return Ok(None),
+            None => break,
+            Some(true) => {
+                let next = directory.join(part);
+                if !fs::symlink_metadata(&next)?.is_dir() {
+                    return Ok(None);
+                }
+                directory = next;
+            }
+        }
+    }
+    crate::path::refuse_symlink_ancestors(&directory)?;
+    Ok(Some(directory))
+}
+
 /// The sizes inspection found, for the space check and to bound each copy.
 #[derive(Debug, Default)]
 pub(crate) struct Inspected {
@@ -374,7 +400,7 @@ fn at(path: &str) -> impl Fn(CarryStop) -> CarryStop + '_ {
 
 /// Stage and verify every copy, replacement and removal in `plan`, against
 /// the bytes the plan approved. `available` and `total` describe the
-/// target's volume.
+/// target's volume. Missing destination folders are created only during publish.
 pub(crate) fn stage(
     (source_root, target_root): (&Path, &Path),
     plan: &[PlannedPath],
@@ -424,7 +450,7 @@ pub(crate) fn stage(
             .approved_source
             .as_deref()
             .ok_or_else(|| PortcoveError::state("a planned copy has no approved bytes"))?;
-        let Some(parent) = create_parents(target_root, &planned.path)? else {
+        let Some(parent) = staging_parent(target_root, &planned.path)? else {
             staged.changed_targets.push(planned.path.clone());
             continue;
         };
@@ -602,6 +628,16 @@ impl Staged {
         while self.done < self.copies.len() {
             let copy = &self.copies[self.done];
             if !self.unchanged(&copy.path, &copy.destination, copy.seen)? {
+                kept.push(copy.path.clone());
+                let _ = fs::remove_file(&copy.temporary);
+                self.done += 1;
+                continue;
+            }
+            // Missing destination folders are created only after every copy
+            // has staged and verified. A changed parent remains separate.
+            if create_parents(&self.target_root, &copy.path)?.is_none()
+                || !self.unchanged(&copy.path, &copy.destination, copy.seen)?
+            {
                 kept.push(copy.path.clone());
                 let _ = fs::remove_file(&copy.temporary);
                 self.done += 1;

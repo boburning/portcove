@@ -2079,6 +2079,13 @@ that private virtual display; WSLg, physical display/controller and other Linux
 routes remain separate. Missing or unsupported prerequisites are reported; no
 provisioning or fallback qualification is implied.
 
+An ordinary Linux appearance restart retains its captured driver until the
+existing stop action and that exact child's exit have completed. A failed join
+keeps the reference for owned cleanup and refuses the replacement launch. The
+private namespace still owns final descendant closure; a driver exit alone does
+not establish whole-tree quiescence. Selected Linux sessions keep their existing
+namespace stop/join authority and its retirement budget.
+
 For ordinary Linux shipping boundaries, select only
 `native-linux-packaged-webview-boundary` and pass `--package-evidence ABSOLUTE_JSON`.
 The maintained private-X11 route also requires an installed Google Chrome at

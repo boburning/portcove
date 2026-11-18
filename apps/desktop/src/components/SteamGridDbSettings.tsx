@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { desktopApi } from "../api";
 import { useArtworkCache } from "../artwork";
+import { useAppTranslation } from "../localization";
 import type { SteamGridDbKeyStatus, SteamGridDbListingReport } from "../types";
 import { steamGridDbErrorText as errorText } from "./SteamGridDbPicker";
 import { Button } from "./ui/button";
@@ -124,7 +125,11 @@ export function listingSummary(report: SteamGridDbListingReport): string[] {
 }
 
 export function SteamGridDbSettings({ generation }: { generation: number }) {
+  const { t } = useAppTranslation("settings");
   const [status, setStatus] = useState<SteamGridDbKeyStatus>();
+  const [reading, setReading] = useState(true);
+  const [statusFailure, setStatusFailure] = useState<string>();
+  const [statusRequest, setStatusRequest] = useState(0);
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
@@ -138,7 +143,16 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
   const checking = current?.checking ?? false;
   const summary = current?.summary;
   const artwork = useArtworkCache();
-  const mounted = useRef(true);
+  // Key status belongs to the device; image checks remain library-generation bound.
+  // A retired mount cannot publish into its successor, including StrictMode replay.
+  const owner = useRef({ active: true, pending: true });
+  useLayoutEffect(() => {
+    const scope = { active: true, pending: true };
+    owner.current = scope;
+    return () => {
+      scope.active = false;
+    };
+  }, []);
   // Saving or removing replaces the focused control; focus follows the change.
   const keyInput = useRef<HTMLInputElement>(null);
   const removeButton = useRef<HTMLButtonElement>(null);
@@ -149,30 +163,51 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
     (status.configured ? removeButton.current : keyInput.current)?.focus();
   }, [status]);
   useEffect(() => {
-    mounted.current = true;
+    const scope = owner.current;
+    scope.pending = true;
     desktopApi
       .steamGridDbKeyStatus()
-      .then((value) => mounted.current && setStatus(value))
-      .catch((value: unknown) => mounted.current && setError(errorText(value)));
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
+      .then((value) => {
+        if (scope.active) setStatus(value);
+      })
+      .catch((value: unknown) => {
+        if (scope.active) setStatusFailure(errorText(value));
+      })
+      .finally(() => {
+        if (!scope.active) return;
+        scope.pending = false;
+        setReading(false);
+      });
+  }, [statusRequest]);
+  const reread = () => {
+    const scope = owner.current;
+    if (!scope.active || scope.pending) return;
+    scope.pending = true;
+    setReading(true);
+    setStatusFailure(undefined);
+    setStatusRequest((request) => request + 1);
+  };
+  const controlsDisabled = busy || reading || statusFailure !== undefined;
   const run = async (action: () => Promise<SteamGridDbKeyStatus>, done: string) => {
+    const scope = owner.current;
+    if (!scope.active || scope.pending || status === undefined || statusFailure !== undefined)
+      return;
+    scope.pending = true;
     setBusy(true);
     setMessage(undefined);
     setError(undefined);
     try {
       const next = await action();
-      if (!mounted.current) return;
+      if (!scope.active) return;
       focusAfter.current = true;
       setStatus(next);
       setKey("");
       setMessage(done);
     } catch (value) {
-      if (mounted.current) setError(errorText(value));
+      if (scope.active) setError(errorText(value));
     } finally {
-      if (mounted.current) setBusy(false);
+      scope.pending = false;
+      if (scope.active) setBusy(false);
     }
   };
   const check = async () => {
@@ -199,18 +234,26 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
     }
   };
   return (
-    <SettingsRow className="col-span-full" data-focus-group>
+    <SettingsRow
+      className="col-span-full min-w-0 wrap-anywhere"
+      data-focus-group
+      aria-busy={reading || busy}
+    >
       <h2>SteamGridDB artwork</h2>
       <p>
         Find covers and wide images made by the SteamGridDB community. This uses your own free API
         key; Portcove does not provide one.
       </p>
       <p role="status">
-        {status === undefined
-          ? "Checking SteamGridDB setup…"
-          : status.configured
-            ? "Your SteamGridDB API key is saved on this device."
-            : "No SteamGridDB API key is saved."}
+        {reading
+          ? t("steamGridDb.reading")
+          : statusFailure !== undefined
+            ? t("steamGridDb.readFailed")
+            : status?.configured
+              ? "Your SteamGridDB API key is saved on this device."
+              : status
+                ? "No SteamGridDB API key is saved."
+                : t("steamGridDb.readFailed")}
       </p>
       {status && !status.configured && (
         <div className="mt-2">
@@ -222,7 +265,8 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
               ref={keyInput}
               id="steamgriddb-api-key"
               data-focusable
-              className="flex-1"
+              className="min-w-0 flex-1"
+              disabled={controlsDisabled}
               type="password"
               autoComplete="off"
               spellCheck={false}
@@ -233,7 +277,7 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
               data-focusable
               variant="primary"
               size="sm"
-              disabled={busy || !key.trim()}
+              disabled={controlsDisabled || !key.trim()}
               onClick={() =>
                 void run(
                   () => desktopApi.setSteamGridDbKey(key),
@@ -259,7 +303,7 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
           data-focusable
           variant="outline"
           size="sm"
-          disabled={busy}
+          disabled={controlsDisabled}
           onClick={() =>
             void run(
               () => desktopApi.clearSteamGridDbKey(),
@@ -277,7 +321,7 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
             variant="secondary"
             size="sm"
             data-focusable
-            disabled={busy || checking}
+            disabled={controlsDisabled || checking}
             onClick={() => void check()}
           >
             {checking ? "Checking SteamGridDB images…" : "Check SteamGridDB images"}
@@ -299,6 +343,19 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
           )}
         </div>
       )}
+      {(statusFailure !== undefined || statusRequest > 0) && (
+        <Button
+          data-focusable
+          variant="outline"
+          size="sm"
+          disabled={reading || busy}
+          focusableWhenDisabled={reading || busy}
+          aria-busy={reading || busy}
+          onClick={reread}
+        >
+          {t("steamGridDb.readAgain")}
+        </Button>
+      )}
       <p className="text-[length:var(--text-sm)] text-[var(--color-text-muted)]">
         Portcove contacts SteamGridDB only when you use Find on SteamGridDB, or when you choose
         Check SteamGridDB images: to search, list a game's images, show their previews, download the
@@ -308,7 +365,9 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
         Your files, game paths and library stay on this device.
       </p>
       {message && <p role="status">{message}</p>}
-      {(error ?? current?.error) && <p role="alert">{error ?? current?.error}</p>}
+      {(statusFailure ?? error ?? current?.error) && (
+        <p role="alert">{statusFailure ?? error ?? current?.error}</p>
+      )}
     </SettingsRow>
   );
 }

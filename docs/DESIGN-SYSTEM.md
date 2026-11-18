@@ -767,6 +767,14 @@ logo legibility on resize and advance the same fallback chain when necessary. Us
 deliberate contrasting logo stage when necessary without recoloring brand pixels. Expose image
 provenance and rights through the shared credits disclosure.
 
+Paired original covers retain both complete images and their natural proportions
+inside the foreground stage, including the stagger, in portrait cards and short
+wide detail stages. Center shrinkable portrait halves, cap the stagger by the
+available stage height, and constrain each intrinsic image by both width and the
+height left after the stagger. Verify decoded image bounds against the actual
+frame in Library, Discover and details; object-fit alone does not prove that a
+foreground image is contained.
+
 Provide **Change artwork**, **Choose local image**, **Browse SteamGridDB** when
 configured, **Reset to default**, and source/author information. Reset affects
 only the selected slot's explicit choice; unavailable preferred art retains its
@@ -867,6 +875,12 @@ recovery links select the owning category before focusing its relevant control.
 About links to the support report heading in Advanced. Updates explains
 application/game updates and the bundled game catalog; optional custom catalog trust controls
 belong under Advanced. Category selection is ephemeral presentation state.
+SteamGridDB setup distinguishes an active device-status read from a settled
+failure. A failed read offers Check setup again without claiming a saved or
+missing key. Key controls become available only after the read succeeds; retry
+retains its focus, and failed key writes retain the masked input. Device key
+status survives library changes, while image checks remain bound to the current
+library generation. A retired Settings mount cannot publish a delayed read.
 Recovery items expose read-only navigation beside their collapsed recorded
 locations: setup opens the game, missing installations and backup problems open
 Saves and storage, and unfinished operations reveal their exact loaded activity
@@ -1151,6 +1165,13 @@ advanced disclosure. Saves lead with the authoritative backup-coverage result,
 known location and backup actions; exclusions and history stay visible. Manage
 keeps one ownership/path summary and puts future-install choices after its
 regular action rows.
+
+Per-game setup choices distinguish an unread choice, an active read and a settled
+read failure. The initial read shows Reading choices… and leaves unknown choices
+unselected. A failed read clears the busy state, keeps changes unavailable and
+offers Read again. The recovery control retains focus while rereading and after
+success. A later failed reread preserves the last confirmed choice without
+enabling changes; another game or library cannot inherit its pending result.
 
 Activity recovery uses flat linked rows with recorded paths and guidance behind
 each row's disclosure. Recovery observations remain separate from task records;

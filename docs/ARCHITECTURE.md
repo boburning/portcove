@@ -2729,13 +2729,17 @@ records each version's carried or recorded digests and lineage, never bytes.
 A copy in the target is replaced or removed only when it is a recorded,
 unchanged ancestor of the source's file, or Portcove's own interrupted
 placement from that source; every other difference keeps both copies. Paths
-either version declares, the target's package members and folders, generated
-metadata, loader-read names, Portcove metadata, unsafe or short names, case
+the current definition or any retained installation declares, the target's
+package members and folders, generated metadata from both active and target
+versions, loader-read names, Portcove metadata, unsafe or short names, case
 collisions, links and sensitive entries are never carried. Pending rows are
-committed before anything is written; copies are staged beside each
-destination, verified against the plan's approved digests and published only
+committed before anything is written; copies are staged in each destination's
+nearest existing ancestor, without creating missing folders, verified against the plan's approved digests and published only
 when all are staged, each after an unchanged-destination and exact-parent
-check. Too little free space (the larger of 1 GiB and 2% kept) carries nothing
+check. Missing folders are created only during publication, so a planning,
+staging or verification hold leaves no new empty destination folders. A partial
+publication may still leave folders; no directory deletion authority is inferred.
+Too little free space (the larger of 1 GiB and 2% kept) carries nothing
 and the switch goes ahead; a modified active version carries nothing and
 records `source_modified`; a locked or changed file, or a partial earlier carry
 the switch can't finish, holds. The step has no cancellation or progress yet,

@@ -27,7 +27,8 @@ import assert from "node:assert/strict";
 import { planDesktopExecution } from "../../../scripts/desktop-execution-plan.mts";
 import { runOwnedFixtureJourneys } from "./desktop-owned-fixture-journeys.mts";
 import { observeDesktopScenario, recordDesktopCheck } from "./desktop-scenario-outcomes.mts";
-import { spawn } from "node:child_process";
+import { ChildProcess, spawn } from "node:child_process";
+import { once } from "node:events";
 import {
   DesktopNativeAccountSession,
   AccountDriverView,
@@ -623,7 +624,12 @@ async function stopDriver() {
     stopBackupFocusDriver();
     return;
   }
-  if (!driver?.pid || driver.exitCode !== null) return;
+  if (
+    !driver?.pid ||
+    driver.exitCode !== null ||
+    (process.platform === "linux" && driver.signalCode !== null)
+  )
+    return;
   if (historySession) {
     assert.ok(historyInventory, "History cleanup cannot signal without captured driver identity");
     if (!(await historyDriverStillOwned(historyInventory))) return;
@@ -1686,10 +1692,23 @@ async function connect() {
 }
 
 async function requestApplicationShutdown(snapshot: string) {
+  const shutdownDriver = process.platform === "linux" ? required(driver) : undefined;
+  if (shutdownDriver) assert.ok(shutdownDriver instanceof ChildProcess);
   await required(browser).quit();
+  if (shutdownDriver)
+    assert.equal(driver, shutdownDriver, "Restart driver changed during application shutdown");
   browser = undefined;
   const driverStop =
     process.platform === "win32" ? observeNativeSession("StopDriver", snapshot) : undefined;
+  if (shutdownDriver) {
+    const exited =
+      !linuxSelectedSession &&
+      shutdownDriver.exitCode === null &&
+      shutdownDriver.signalCode === null
+        ? once(shutdownDriver, "exit", { signal: AbortSignal.timeout(5_000) })
+        : Promise.resolve();
+    await Promise.all([exited, stopDriver()]);
+  }
   driver = undefined;
   return driverStop;
 }

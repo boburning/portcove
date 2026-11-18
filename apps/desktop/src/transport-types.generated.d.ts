@@ -2618,6 +2618,11 @@ export interface PortPresentation {
    * Cover for the second game in a combined definition's Discover card.
    */
   companion_cover?: IgdbArtwork | null;
+  /**
+   * Optional descriptive implementation methods and dependencies. Malformed or future
+   * content is unavailable as explanation and never changes operation authority.
+   */
+  implementation?: unknown;
   installation_method: InstallationMethod;
   manual_preparation?: string | null;
   manual_setup?: ManualSetupGuide | null;
@@ -3236,6 +3241,11 @@ export interface PortListing {
    */
   funding_urls?: string[] | null;
   id: string;
+  /**
+   * Optional descriptive implementation methods and dependencies. Malformed or future
+   * content is unavailable as explanation and never changes operation authority.
+   */
+  implementation?: unknown;
   issue_number?: number | null;
   /**
    * The UTC date (`YYYY-MM-DD`) this listing was first added to the directory.

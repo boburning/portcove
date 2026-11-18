@@ -32,6 +32,83 @@ mod projection_tests {
     use super::*;
 
     #[test]
+    fn legacy_delivery_preserves_only_same_scope_implementation_descriptions() {
+        let baseline = Catalog::embedded().unwrap();
+        let original = baseline.listing("zelda64-recomp").unwrap();
+        assert!(original.implementation.is_some());
+        let legacy = baseline.listing_document().export_format(11).unwrap();
+        let legacy = legacy
+            .listings
+            .iter()
+            .find(|listing| listing.id == original.id)
+            .unwrap();
+        for case in [
+            "legacy-same-scope",
+            "current-format-omission",
+            "changed-project",
+            "changed-game",
+            "changed-edition",
+            "missing-identity",
+            "new-id",
+        ] {
+            let mut delivered = legacy.clone();
+            delivered.summary = "Updated delivered summary.".into();
+            delivered.download_block_reason = Some("Preserve the delivered prerequisite.".into());
+            match case {
+                "changed-project" => delivered.project_url = "https://example.invalid/other".into(),
+                "changed-game" => {
+                    delivered.original_game.as_mut().unwrap().id = "other-game".into()
+                }
+                "changed-edition" => {
+                    delivered.original_game.as_mut().unwrap().source_editions[0].id =
+                        "other-edition".into();
+                }
+                "missing-identity" => delivered.original_game = None,
+                "new-id" => delivered.id = "separate-implementation".into(),
+                _ => {}
+            }
+            let id = delivered.id.clone();
+            let document = ListingDeliveryDocument {
+                listing_delivery_schema: 1,
+                revision: 1,
+                withdrawn_ids: vec![],
+                directory: CatalogListingDocument {
+                    format_version: if case == "current-format-omission" {
+                        12
+                    } else {
+                        11
+                    },
+                    listings: vec![delivered],
+                },
+            };
+            let document =
+                ListingDeliveryDocument::parse(&serde_json::to_vec(&document).unwrap()).unwrap();
+            let projected = document.project(baseline.clone()).unwrap();
+            let listing = projected.listing(&id).unwrap();
+            assert_eq!(
+                listing.implementation,
+                if case == "legacy-same-scope" {
+                    original.implementation.clone()
+                } else {
+                    None
+                },
+                "{case}"
+            );
+            assert_eq!(listing.summary, "Updated delivered summary.", "{case}");
+            assert_eq!(
+                listing.download_block_reason.as_deref(),
+                Some("Preserve the delivered prerequisite."),
+                "{case}"
+            );
+            assert_eq!(
+                serde_json::to_value(projected.authoritative_document()).unwrap(),
+                serde_json::to_value(baseline.authoritative_document()).unwrap(),
+                "{case}"
+            );
+        }
+    }
+
+    #[test]
     fn restricted_delivery_promotes_a_legacy_directory_without_granting_managed_authority() {
         let document = ListingDeliveryDocument::parse(
             &serde_json::to_vec(&serde_json::json!({
@@ -120,7 +197,20 @@ impl ListingDeliveryDocument {
                 .iter_mut()
                 .find(|current| current.id == listing.id)
             {
-                Some(current) => *current = listing.clone(),
+                Some(current) => {
+                    let mut replacement = listing.clone();
+                    // Older directories cannot express or withdraw format-12
+                    // explanations. Retain only the same project's exact game
+                    // scope; all fields that delivery understands remain its own.
+                    if self.directory.format_version < 12
+                        && replacement.implementation.is_none()
+                        && replacement.project_url == current.project_url
+                        && replacement.original_game == current.original_game
+                    {
+                        replacement.implementation = current.implementation.clone();
+                    }
+                    *current = replacement;
+                }
                 None => directory.listings.push(listing.clone()),
             }
         }
