@@ -433,7 +433,9 @@ void test("advisory workflow executes only trusted base metadata with read permi
     /ref: \$\{\{ github\.event\.pull_request\.base\.sha \|\| github\.event\.repository\.default_branch \}\}/,
   );
   assert.match(workflow, /persist-credentials: false/);
-  const install = workflow.indexOf("run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts --ignore-pnpmfile");
+  const install = workflow.indexOf(
+    "run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts --ignore-pnpmfile",
+  );
   const credential = workflow.indexOf("GH_TOKEN:");
   assert.ok(
     install > 0 && credential > install,
@@ -455,13 +457,20 @@ void test("shared trusted events report conventions without changing closing inv
     "utf8",
   );
   assert.match(workflow, /types: \[opened, edited, synchronize, reopened, ready_for_review\]/);
-  assert.match(workflow, /^permissions:\n  contents: read\n  issues: read\n  pull-requests: read$/m);
+  assert.match(
+    workflow,
+    /^permissions:\n  contents: read\n  issues: read\n  pull-requests: read$/m,
+  );
   assert.match(workflow, /ref: \$\{\{ github\.sha \}\}\n +persist-credentials: false/);
   const inventory = workflow.indexOf("run: node scripts/closing-inventory.mts");
   const advisory = workflow.indexOf("- name: Report advisory PR conventions");
-  assert.ok(inventory > 0 && advisory > inventory);
-  assert.doesNotMatch(workflow.slice(0, advisory), /continue-on-error/);
-  assert.match(workflow.slice(advisory), /continue-on-error: true/);
-  assert.match(workflow.slice(advisory), /timeout-minutes: 3/);
-  assert.match(workflow.slice(advisory), /node scripts\/pr-conventions\.mts --pr "\$PR_NUMBER"/);
+  assert.ok(advisory > 0 && inventory > advisory);
+  const inventoryStep = workflow.indexOf("- name: Compare GitHub");
+  assert.doesNotMatch(workflow.slice(inventoryStep), /continue-on-error/);
+  assert.match(workflow.slice(advisory, inventoryStep), /continue-on-error: true/);
+  assert.match(workflow.slice(advisory, inventoryStep), /timeout-minutes: 3/);
+  assert.match(
+    workflow.slice(advisory, inventoryStep),
+    /node scripts\/pr-conventions\.mts --pr "\$PR_NUMBER"/,
+  );
 });

@@ -9,29 +9,13 @@ const activeStatuses = ["requested", "queued", "pending", "in_progress", "waitin
 
 interface RunRef {
   id: number;
-  pullRequests: number[];
-  displayTitle: string | undefined;
-  headBranch: string | undefined;
-  headRepository: string | undefined;
+  pullRequests: (number | undefined)[];
 }
 
-/** The pull request that supplied the event. */
-export interface PullRequestIdentity {
-  number: number;
-  headRef?: string | undefined;
-  headRepository?: string | undefined;
-}
-
-function belongs(run: RunRef, pull: PullRequestIdentity) {
-  if (run.pullRequests.includes(pull.number)) return true;
-  return (
-    run.pullRequests.length === 0 &&
-    run.displayTitle === `CI for pull request ${pull.number}` &&
-    pull.headRef !== undefined &&
-    pull.headRepository !== undefined &&
-    run.headBranch === pull.headRef &&
-    run.headRepository === pull.headRepository
-  );
+function belongs(run: RunRef, pullRequest: number) {
+  // A head branch can supply multiple PRs. GitHub must identify one PR before
+  // we cancel or rerun anything.
+  return run.pullRequests.length === 1 && run.pullRequests[0] === pullRequest;
 }
 
 function runRefs(value: unknown): RunRef[] {
@@ -40,24 +24,20 @@ function runRefs(value: unknown): RunRef[] {
   return runs.map((run: unknown) => {
     if (!isRecord(run) || typeof run.id !== "number" || !Number.isSafeInteger(run.id))
       throw new Error("Workflow run omitted its integer identity");
-    const pulls = Array.isArray(run.pull_requests) ? run.pull_requests : [];
-    const repository = isRecord(run.head_repository) ? run.head_repository.full_name : undefined;
+    const pulls: readonly unknown[] = Array.isArray(run.pull_requests) ? run.pull_requests : [];
     return {
       id: run.id,
-      pullRequests: pulls.flatMap((pull: unknown) =>
-        isRecord(pull) && typeof pull.number === "number" ? [pull.number] : [],
+      pullRequests: pulls.map((pull) =>
+        isRecord(pull) && typeof pull.number === "number" ? pull.number : undefined,
       ),
-      displayTitle: typeof run.display_title === "string" ? run.display_title : undefined,
-      headBranch: typeof run.head_branch === "string" ? run.head_branch : undefined,
-      headRepository: typeof repository === "string" ? repository : undefined,
     };
   });
 }
 
 /** Run IDs only increase, so runs older than this head's own run are never newer work. */
-export function ownRunId(listing: unknown, pull: PullRequestIdentity): number | undefined {
+export function ownRunId(listing: unknown, pullRequest: number): number | undefined {
   const ids = runRefs(listing)
-    .filter((run) => belongs(run, pull))
+    .filter((run) => belongs(run, pullRequest))
     .map((run) => run.id);
   return ids.length ? Math.max(...ids) : undefined;
 }
@@ -65,11 +45,12 @@ export function ownRunId(listing: unknown, pull: PullRequestIdentity): number | 
 export function supersededRunIds(
   listings: readonly unknown[],
   own: number,
-  pull: PullRequestIdentity,
+  pullRequest: number,
 ): number[] {
   const ids = new Set<number>();
   for (const listing of listings)
-    for (const run of runRefs(listing)) if (run.id < own && belongs(run, pull)) ids.add(run.id);
+    for (const run of runRefs(listing))
+      if (run.id < own && belongs(run, pullRequest)) ids.add(run.id);
   return [...ids].sort((left, right) => left - right);
 }
 
@@ -186,11 +167,6 @@ async function main() {
   const token = process.env.GH_TOKEN ?? "";
   const pullRequest = Number(process.env.PR_NUMBER);
   const headSha = process.env.HEAD_SHA ?? "";
-  const pull: PullRequestIdentity = {
-    number: pullRequest,
-    headRef: process.env.HEAD_REF || undefined,
-    headRepository: process.env.HEAD_REPO || undefined,
-  };
   if (
     !token ||
     !Number.isSafeInteger(pullRequest) ||
@@ -219,7 +195,8 @@ async function main() {
       return { consumeBytes() {}, settle() {} };
     },
   });
-  const branch = pull.headRef ? `&branch=${encodeURIComponent(pull.headRef)}` : "";
+  const headRef = process.env.HEAD_REF;
+  const branch = headRef ? `&branch=${encodeURIComponent(headRef)}` : "";
   const list = async (query: string) =>
     (
       await sdk.request({
@@ -231,7 +208,7 @@ async function main() {
   let own: number | undefined;
   for (let attempt = 0; attempt < 6 && own === undefined; attempt += 1) {
     if (attempt) await new Promise((resolve) => setTimeout(resolve, 5000));
-    own = ownRunId(await list(`head_sha=${headSha}`), pull);
+    own = ownRunId(await list(`head_sha=${headSha}`), pullRequest);
   }
   if (own === undefined) {
     console.log(`No CI run for ${headSha} yet; nothing to supersede`);
@@ -286,7 +263,7 @@ async function main() {
     return;
   }
   const listings = await Promise.all(activeStatuses.map((status) => list(`status=${status}`)));
-  for (const run of supersededRunIds(listings, own, pull)) {
+  for (const run of supersededRunIds(listings, own, pullRequest)) {
     console.log(`Cancelling superseded run ${run}`);
     try {
       await sdk.request({

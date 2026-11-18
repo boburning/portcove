@@ -39,18 +39,17 @@ jobs:
           node-version-file: .node-version
       - name: Install trusted locked metadata dependencies
         run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts --ignore-pnpmfile
-      - name: Compare GitHub's closing inventory with the body keywords
-        id: inventory
-        timeout-minutes: 3
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: node scripts/closing-inventory.mts
       - name: Report advisory PR conventions
-        if: ${{ !cancelled() && (steps.inventory.outcome == 'success' || steps.inventory.outcome == 'failure') }}
         continue-on-error: true
         timeout-minutes: 3
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: node scripts/pr-conventions.mts --pr "$PR_NUMBER"
+      - name: Compare GitHub's closing inventory with the body keywords
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/closing-inventory.mts
