@@ -144,7 +144,12 @@ try {
   foreach($vk in @(67,79,86,69)){Key $vk}
   Capture 'save-name';Key 13;Start-Sleep -Seconds 1;Capture 'saved'
  }else{
-  Key 114;Capture 'load-menu';Key 13;Start-Sleep -Seconds 2;Capture 'loaded'
+  if([IO.Path]::GetFileName($ExpectedPlayer) -eq 'chocolate-hexen.exe'){
+   # Hexen's title screen requires Main -> Game Files -> Load Game; F3 is not active there.
+   Key 27;Capture 'reopen-main-menu';Key 40;Key 40;Capture 'game-files-selection'
+   Key 13;Capture 'game-files-menu';Key 13;Capture 'load-menu';Key 13
+  }else{Key 114;Capture 'load-menu';Key 13}
+  Start-Sleep -Seconds 2;Capture 'loaded'
  }
  Key 121;Capture 'quit-confirmation'
  $gameWindow=$window
