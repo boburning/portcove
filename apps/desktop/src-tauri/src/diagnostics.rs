@@ -247,6 +247,44 @@ mod tests {
     }
 
     #[test]
+    fn late_host_root_recovers_explicit_export_and_folder_location_without_a_writer() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = fs::canonicalize(temporary.path()).unwrap();
+        let expected = root.join("diagnostics");
+        let (release, wait) = std::sync::mpsc::sync_channel(1);
+        let (shared, guard) =
+            portcove_diagnostics::HostDiagnostics::start_in_with_delayed_preparation(
+                &expected,
+                portcove_diagnostics::Surface::Desktop,
+                wait,
+            );
+        assert!(guard.is_none());
+        assert!(shared.bootstrap_timed_out());
+        let host = HostDiagnostics::from_shared(shared);
+        assert!(host.directory().is_err());
+        release.send(()).unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        while host.directory().is_err() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "late host root was not published"
+            );
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        let failure = PortcoveError::state("library unavailable").report();
+        let exported =
+            create_support_bundle(None, Some(&failure), host.directory().unwrap()).unwrap();
+        assert!(exported.path.is_file());
+        assert_eq!(exported.path.parent(), Some(expected.as_path()));
+        assert!(!exported.manifest.library_available);
+        // The visible folder action consumes this same live getter after export.
+        assert_eq!(host.directory().unwrap(), expected);
+        assert!(host.shared.session_directory().is_none());
+        assert!(host.shared.bootstrap_timed_out());
+        assert_eq!(host.shared.health().flush_state, FlushState::Unavailable);
+    }
+
+    #[test]
     fn auth_observation_preserves_results_and_records_only_fixed_safe_fields() {
         let temporary = tempfile::tempdir().unwrap();
         let path = temporary.path().join(LOG_FILE_NAME);

@@ -253,12 +253,41 @@ impl HostDiagnostics {
             surface,
             debug,
             move |session, surface, support_directory| {
-                if !directory.is_absolute() {
-                    return None;
-                }
-                let directory = portcove_core::prepare_support_log_directory(&directory).ok()?;
-                let _ = support_directory.set(directory.clone());
-                Some(Self::prepare_session(directory, session, surface))
+                Self::prepare_in(&directory, session, surface, support_directory)
+            },
+        )
+    }
+
+    fn prepare_in(
+        directory: &Path,
+        session: uuid::Uuid,
+        surface: Surface,
+        support_directory: &OnceLock<PathBuf>,
+    ) -> Option<Prepared> {
+        if !directory.is_absolute() {
+            return None;
+        }
+        let directory = portcove_core::prepare_support_log_directory(directory).ok()?;
+        let _ = support_directory.set(directory.clone());
+        Some(Self::prepare_session(directory, session, surface))
+    }
+
+    /// Owned consumer regression fixture using the ordinary bootstrap deadline.
+    /// The finite gate delays preparation, never prepares a sink outside that deadline.
+    #[cfg(feature = "qualification-fixtures")]
+    #[doc(hidden)]
+    pub fn start_in_with_delayed_preparation(
+        directory: &Path,
+        surface: Surface,
+        release: mpsc::Receiver<()>,
+    ) -> (Self, Option<writer::Guard>) {
+        let directory = directory.to_owned();
+        Self::bootstrap(
+            surface,
+            false,
+            move |session, surface, support_directory| {
+                release.recv_timeout(Duration::from_secs(5)).ok()?;
+                Self::prepare_in(&directory, session, surface, support_directory)
             },
         )
     }
