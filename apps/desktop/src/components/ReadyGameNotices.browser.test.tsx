@@ -298,7 +298,7 @@ it("wraps exact long names and versions without expanding the settings grid", as
   expect(frame.scrollWidth).toBeLessThanOrEqual(frame.clientWidth + 1);
 });
 
-it("keeps an out-of-page notice until its saved choice changes", async () => {
+it("keeps an out-of-page notice until another surface acknowledges its plan", async () => {
   const assess = vi.mocked(desktopApi.assessPortIntents);
   assess.mockResolvedValueOnce({
     ...assessed,
@@ -315,7 +315,15 @@ it("keeps an out-of-page notice until its saved choice changes", async () => {
     .mockResolvedValueOnce([
       { format_version: 1, port_id: "new-game", mode: "notify", updated_at: 1 },
     ])
-    .mockResolvedValue([]);
+    .mockResolvedValue([
+      {
+        format_version: 1,
+        port_id: "new-game",
+        mode: "notify",
+        updated_at: 2,
+        acknowledged_plan_sha256: "a".repeat(64),
+      },
+    ]);
   await root.rerender(<ReadyGameNotices generation={1} ports={ports} />);
   await expect.poll(text).toContain("New Game is ready to install.");
   await act(async () => announceReadyNoticePreferenceChange());

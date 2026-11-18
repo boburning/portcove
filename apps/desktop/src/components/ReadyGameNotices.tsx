@@ -94,7 +94,7 @@ export function ReadyGameNotices({
               ? await desktopApi.portIntents(generation).catch(() => [])
               : [];
           if (scope.current !== current || current.assessment !== call) return;
-          const stillNotifying = new Set(
+          const stillNotifying = new Map(
             saved
               .filter(
                 (intent) =>
@@ -102,7 +102,7 @@ export function ReadyGameNotices({
                   (intent.explicitly_uninstalled_at === undefined ||
                     intent.explicitly_uninstalled_at === null),
               )
-              .map((intent) => intent.port_id),
+              .map((intent) => [intent.port_id, intent]),
           );
           const notices = assessed.assessments
             .flatMap(noticeFor)
@@ -112,11 +112,14 @@ export function ReadyGameNotices({
             if (through < call) current.acknowledgedThrough.delete(key);
           }
           current.notices = [
-            ...earlier.filter(
-              (notice) =>
-                stillNotifying.has(notice.assessment.port_id) &&
+            ...earlier.filter((notice) => {
+              const intent = stillNotifying.get(notice.assessment.port_id);
+              return Boolean(
+                intent &&
+                intent.acknowledged_plan_sha256 !== notice.sha &&
                 current.notices.some((previous) => previous.key === notice.key),
-            ),
+              );
+            }),
             ...notices,
           ];
           rememberRemovedFocus((key) => !current.notices.some((notice) => notice.key === key));
