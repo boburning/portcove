@@ -34,6 +34,7 @@ const ports = Array.from({ length: 201 }, (_, index) => ({
 }));
 const expected = [["library-0", "library-1"], ...ports.slice(2).map((port) => [port.id])];
 const open = vi.fn();
+const organizationCommit = vi.fn(async () => true);
 const pending = new Map();
 const organization: Organization = {
   snapshot: {
@@ -49,7 +50,7 @@ const organization: Organization = {
   busy: false,
   failure: undefined,
   refresh: async () => true,
-  commit: async () => true,
+  commit: organizationCommit,
 };
 let root: Root;
 let host: HTMLDivElement;
@@ -61,19 +62,27 @@ function Fixture({
   query = "",
   ready = true,
   matching = ports,
+  organizationState = "ready",
 }: {
   layout?: CollectionLayout;
   generation?: number;
   query?: string;
   ready?: boolean;
   matching?: typeof ports;
+  organizationState?: "ready" | "busy" | "unavailable";
 } = {}) {
   return (
     <OperationPresentationProvider generation={generation} pending={pending}>
       <main data-focus-region="workspace" style={{ height: 500, overflow: "auto" }}>
         <button id="outside-library">Outside collection</button>
         <PortBrowser
-          organization={organization}
+          organization={
+            organizationState === "unavailable"
+              ? undefined
+              : organizationState === "busy"
+                ? { ...organization, busy: true }
+                : organization
+          }
           view="library"
           ports={matching}
           catalogUniverse={ports}
@@ -109,6 +118,7 @@ beforeEach(async () => {
   document.body.append(host);
   root = createRoot(host);
   open.mockClear();
+  organizationCommit.mockClear();
 });
 afterEach(async () => {
   await act(async () => root.unmount());
@@ -237,9 +247,13 @@ it.each(["covers", "rows"] as const)(
     await expect
       .poll(async () => {
         await frames();
-        return (document.activeElement as HTMLElement)?.dataset.detailOrigin;
+        const active = document.activeElement as HTMLElement;
+        return (
+          active?.dataset.detailOrigin === origin &&
+          Math.abs(active.getBoundingClientRect().top - before) <= 1
+        );
       })
-      .toBe(origin);
+      .toBe(true);
     expect(
       Math.abs(document.activeElement!.getBoundingClientRect().top - before),
     ).toBeLessThanOrEqual(1);
@@ -286,7 +300,12 @@ it.each(["resize", "reorder"] as const)(
       await userEvent.keyboard("{Enter}");
     });
     await expect.element(page.getByRole("menu")).toBeVisible();
-    const first = document.activeElement;
+    const enabled = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].filter(
+      (item) => !item.matches('[aria-disabled="true"],[data-disabled],:disabled'),
+    );
+    expect(enabled.length).toBeGreaterThan(1);
+    await expect.poll(() => document.activeElement).toBe(enabled[0]);
+    const first = enabled[0];
     await act(async () => {
       await userEvent.keyboard("{ArrowDown}");
     });
@@ -296,7 +315,7 @@ it.each(["resize", "reorder"] as const)(
     expect(selected.hasAttribute("data-highlighted")).toBe(true);
     const name = selected.textContent.trim();
     if (transition === "resize") await page.viewport(760, 800);
-    else await draw({ matching: [...ports.slice(150), ...ports.slice(0, 150)] });
+    else await draw({ matching: [ports[0]!, ports[1]!, ports[3]!, ports[2]!, ...ports.slice(4)] });
     await frames();
     await expect.poll(() => trigger.isConnected).toBe(false);
     await expect.element(page.getByRole("menu")).toBeVisible();
@@ -309,6 +328,26 @@ it.each(["resize", "reorder"] as const)(
           : undefined;
       })
       .toBe(name);
+    expect(open).not.toHaveBeenCalled();
+    expect(organizationCommit).not.toHaveBeenCalled();
+    // A newer keyboard choice wins over still-finishing open callbacks.
+    await act(async () => {
+      await userEvent.keyboard("{ArrowDown}");
+    });
+    const newer = document.activeElement as HTMLElement;
+    expect(newer.textContent.trim()).not.toBe(name);
+    const newerName = newer.textContent.trim();
+    await Promise.all(
+      page
+        .getByRole("menu")
+        .element()
+        .getAnimations({ subtree: true })
+        .map((animation) => animation.finished),
+    );
+    await frames();
+    expect((document.activeElement as HTMLElement).textContent.trim()).toBe(newerName);
+    expect((document.activeElement as HTMLElement).hasAttribute("data-highlighted")).toBe(true);
+    expect(open).not.toHaveBeenCalled();
     await act(async () => {
       await userEvent.keyboard("{Escape}");
     });
@@ -318,5 +357,90 @@ it.each(["resize", "reorder"] as const)(
       .toBe(origin);
     expect(document.activeElement).toBe(document.querySelector(`[data-detail-origin="${origin}"]`));
     expect(document.activeElement).not.toBe(trigger);
+  },
+);
+
+it.each(["query", "generation"] as const)(
+  "clears menu continuity when the %s owner changes",
+  async (replacement) => {
+    await draw();
+    const group = await mountLibraryPort("library-2");
+    const origin = "library:card-more:library-2";
+    await act(async () =>
+      group.querySelector<HTMLButtonElement>(`[data-detail-origin="${origin}"]`)!.focus(),
+    );
+    await act(async () => {
+      await userEvent.keyboard("{Enter}");
+    });
+    await expect.element(page.getByRole("menu")).toBeVisible();
+    await act(async () => {
+      await userEvent.keyboard("{ArrowDown}");
+    });
+    await draw(replacement === "query" ? { query: "replacement" } : { generation: 2 });
+    await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
+    // Returning to an earlier owner must not resurrect its canceled popup.
+    await draw();
+    await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
+    const outside = document.querySelector<HTMLButtonElement>("#outside-library")!;
+    await act(async () => outside.focus());
+    await frames();
+    expect(document.activeElement).toBe(outside);
+  },
+);
+
+it.each(["busy", "unavailable"] as const)(
+  "retains normal menu focus and dispatch rules when the remembered action becomes %s",
+  async (organizationState) => {
+    await draw();
+    const group = await mountLibraryPort("library-2");
+    const origin = "library:card-more:library-2";
+    const trigger = group.querySelector<HTMLButtonElement>(`[data-detail-origin="${origin}"]`)!;
+    await act(async () => trigger.focus());
+    await act(async () => {
+      await userEvent.keyboard("{Enter}");
+    });
+    await expect.element(page.getByRole("menu")).toBeVisible();
+    await act(async () => {
+      await userEvent.keyboard("{End}{Home}");
+    });
+    expect((document.activeElement as HTMLElement).dataset.collectionControl).toBe("visibility");
+    await draw({
+      organizationState,
+      matching: [ports[0]!, ports[1]!, ports[3]!, ports[2]!, ...ports.slice(4)],
+    });
+    await expect.poll(() => trigger.isConnected).toBe(false);
+    await expect.element(page.getByRole("menu")).toBeVisible();
+    const unavailable = document.querySelector<HTMLElement>(
+      '[role="menu"] [data-collection-control="visibility"]',
+    );
+    expect(Boolean(unavailable)).toBe(organizationState === "busy");
+    expect(unavailable?.getAttribute("aria-disabled") ?? null).toBe(
+      organizationState === "busy" ? "true" : null,
+    );
+    await expect
+      .poll(() =>
+        organizationState === "busy"
+          ? (document.activeElement as HTMLElement).dataset.collectionControl === "visibility" &&
+            (document.activeElement as HTMLElement).hasAttribute("data-highlighted")
+          : page.getByRole("menu").element().contains(document.activeElement),
+      )
+      .toBe(true);
+    if (organizationState === "busy") {
+      await act(async () => {
+        await userEvent.keyboard("{Enter}");
+      });
+    }
+    expect(organizationCommit).not.toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
+    // Base UI deliberately permits focusing disabled menu items. Its normal End
+    // navigation still reaches the enabled final action in either owner state.
+    await act(async () => {
+      await userEvent.keyboard("{End}");
+    });
+    await expect
+      .poll(() => (document.activeElement as HTMLElement).dataset.collectionControl)
+      .toBe("saves");
+    expect((document.activeElement as HTMLElement).hasAttribute("data-highlighted")).toBe(true);
+    expect(open).not.toHaveBeenCalled();
   },
 );

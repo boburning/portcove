@@ -39,6 +39,9 @@ type LibraryItem = {
 const LibraryMenuContext = createContext<
   | {
       openPortId: string | undefined;
+      highlightedAction: string | undefined;
+      highlight: (portId: string, action: string | undefined) => void;
+      getHighlighted: (portId: string) => string | undefined;
       change: (portId: string, open: boolean) => void;
       complete: (portId: string, open: boolean) => void;
     }
@@ -104,13 +107,34 @@ export function GroupedLibrary({
     currentGeneration.current = generation;
     currentKey.current = key;
   }, [generation, key]);
-  const [menu, setMenu] = useState<{ key: string; openPortId?: string; retainedPortId?: string }>({
+  const [menu, setMenu] = useState<{
+    key: string;
+    openPortId?: string;
+    retainedPortId?: string;
+    highlightedAction?: string | undefined;
+  }>({
     key,
   });
+  // Cancellation is final even if a later search returns to the same text.
+  if (menu.key !== key) setMenu({ key });
   const currentMenu = menu.key === key ? menu : { key };
   const menuOwner = useMemo(
     () => ({
       openPortId: currentMenu.openPortId,
+      highlightedAction: currentMenu.highlightedAction,
+      getHighlighted(portId: string) {
+        return currentKey.current === key && currentMenu.openPortId === portId
+          ? currentMenu.highlightedAction
+          : undefined;
+      },
+      highlight(portId: string, action: string | undefined) {
+        if (currentKey.current !== key) return;
+        setMenu((before) =>
+          before.key === key && before.openPortId === portId && before.highlightedAction !== action
+            ? { ...before, highlightedAction: action }
+            : before,
+        );
+      },
       change(portId: string, open: boolean) {
         if (currentKey.current !== key) return;
         setMenu((before) =>
@@ -130,7 +154,7 @@ export function GroupedLibrary({
         );
       },
     }),
-    [key, currentMenu.openPortId],
+    [key, currentMenu.openPortId, currentMenu.highlightedAction],
   );
   const menuPin = groups.find((group) =>
     group.ports.some((port) => port.id === currentMenu.retainedPortId),

@@ -1206,6 +1206,7 @@ const PortCard = memo(function PortCard({
       )}{" "}
       {favorites && (
         <Menu.Item
+          data-collection-control="favorite"
           disabled={!favorites.ids || favorites.busy}
           className={cn(
             controlFocus,
@@ -2247,14 +2248,46 @@ function PortCardActionMenu({
 >) {
   const menu = useLibraryMenu();
   const trigger = useRef<HTMLButtonElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
+  const restorePending = useRef(Boolean(menu?.openPortId === port.id && menu.highlightedAction));
+  const restoreHighlighted = () => {
+    if (!restorePending.current) return;
+    restorePending.current = false;
+    const action = menu?.getHighlighted(port.id);
+    const target = action
+      ? popup.current?.querySelector<HTMLElement>(
+          `[data-collection-control="${CSS.escape(action)}"]`,
+        )
+      : undefined;
+    if (
+      target &&
+      !target.matches(':disabled,[aria-hidden="true"]') &&
+      !target.closest("[hidden],[inert]") &&
+      target.getClientRects().length &&
+      getComputedStyle(target).visibility !== "hidden"
+    )
+      target.focus({ preventScroll: true });
+  };
   return (
     <Menu.Root
       {...(menu
         ? {
             open: menu.openPortId === port.id,
+            onItemHighlighted: (item: HTMLElement | undefined, details: { reason: string }) => {
+              // Ignore automatic first-item initialization and unmount cleanup;
+              // only the player's keyboard/pointer selection replaces continuity.
+              if (details.reason !== "keyboard" && details.reason !== "pointer") return;
+              // A new explicit selection wins even before the remounted popup's
+              // automatic focus/open-complete callbacks have finished.
+              restorePending.current = false;
+              menu.highlight(port.id, item?.dataset.collectionControl);
+            },
             onOpenChange: (open: boolean) => menu.change(port.id, open),
             onOpenChangeComplete: (open: boolean) => {
-              if (open) return;
+              if (open) {
+                restoreHighlighted();
+                return;
+              }
               requestAnimationFrame(() => {
                 const target = trigger.current;
                 if (target?.isConnected && document.activeElement === target)
@@ -2285,6 +2318,8 @@ function PortCardActionMenu({
       <Menu.Portal>
         <Menu.Positioner side="bottom" align="end" sideOffset={4} className="z-(--layer-floating)">
           <Menu.Popup
+            ref={popup}
+            onFocus={restoreHighlighted}
             data-portcove-focus-scope
             aria-label={`More actions for ${gameIdentityLabel(port)}`}
             className={cn(
@@ -2294,6 +2329,7 @@ function PortCardActionMenu({
           >
             {favoriteMenu}
             <Menu.Item
+              data-collection-control="history"
               className={cn(
                 controlFocus,
                 "flex cursor-default items-center gap-2 rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground [&_svg]:size-4 [&_svg]:shrink-0",
@@ -2313,6 +2349,7 @@ function PortCardActionMenu({
             </Menu.Item>
             {port.release && !status?.external_runtime?.user_selected && (
               <Menu.Item
+                data-collection-control="saves"
                 className={cn(
                   controlFocus,
                   "flex cursor-default items-center gap-2 rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground [&_svg]:size-4 [&_svg]:shrink-0",

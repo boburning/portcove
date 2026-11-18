@@ -418,6 +418,7 @@ export function OrganizationMenuItems({
   return (
     <>
       <Menu.Item
+        data-collection-control="visibility"
         className={itemClass}
         disabled={!snapshot || organization.busy}
         onClick={() =>
@@ -435,6 +436,7 @@ export function OrganizationMenuItems({
           return (
             <Menu.CheckboxItem
               key={id}
+              data-collection-control={`collection:${id}`}
               className={itemClass}
               checked={member}
               disabled={organization.busy}
