@@ -88,7 +88,7 @@ export async function standingSetupScenario(context: BatchContext) {
       assert.equal(initialSources.length, 2);
       assert.deepEqual(
         initialSources.map((source) => source.profile_id).sort(),
-        [...owned.profiles].sort(),
+        owned.profiles.toSorted(),
       );
       for (const [profile, originalPath, beforePath] of [
         [owned.profiles[0], owned.gamePath, owned.gameBefore],
