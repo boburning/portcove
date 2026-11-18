@@ -810,7 +810,7 @@ export default interface Resources {
       "shipped": "Supplied by the new version",
       "sizeUnknown": "Size unknown",
       "skippedCount": "Files left because of low space",
-      "sourceModified": "Files were left with the earlier version because its program files changed.",
+      "sourceModified": "Files were left with the earlier version because its installation had changed.",
       "sourceNotRechecked": "The earlier version is no longer recorded. Its files have not been rechecked.",
       "title": "Files kept during the version switch",
       "toFolder": "Active version folder",

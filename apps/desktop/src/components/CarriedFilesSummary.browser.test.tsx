@@ -120,14 +120,16 @@ it("keeps a small successful copy in details without a notice", async () => {
   await page.getByText("Review the recorded file outcome").click();
   await expect.element(page.getByText("Recorded file count: 1", { exact: true })).toBeVisible();
 });
-it("explains changed source programs without claiming a carry or another integrity check", async () => {
+it("explains a changed installation without claiming a carry or another integrity check", async () => {
   const value = record();
   value.outcome.kept_separately = [];
   value.outcome.source_modified = true;
   await render(<CarriedFilesSummary record={value} />);
   await expect
     .element(
-      page.getByText("Files were left with the earlier version because its program files changed."),
+      page.getByText(
+        "Files were left with the earlier version because its installation had changed.",
+      ),
     )
     .toBeVisible();
   expect(document.querySelectorAll('[role="alert"],button')).toHaveLength(0);

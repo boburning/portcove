@@ -1921,7 +1921,8 @@ fn carried_files(status: &portcove_core::CarriedFilesStatus) -> String {
     }
     if outcome.source_modified {
         lines.push(
-            "  Files were left with the earlier version because its program files changed.".into(),
+            "  Files were left with the earlier version because its installation had changed."
+                .into(),
         );
     }
     if outcome.insufficient_space {
