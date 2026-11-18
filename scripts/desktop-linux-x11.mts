@@ -32,11 +32,19 @@ import {
   parseDesktopHarnessOptions,
   resolveDesktopHarnessSelection,
 } from "./desktop-execution-plan.mts";
+import { desktopHarnessDeadlineMs } from "./desktop-scenarios.mts";
 
 const source = fileURLToPath(import.meta.url);
 const root = fileURLToPath(new URL("../", import.meta.url));
 const scope =
   "Linux GTK/WebKit on ext4 with private authenticated virtual X11; no WSLg, physical display/controller or universal Linux qualification";
+
+export function linuxX11HarnessDeadlineMs(
+  selection: Parameters<typeof desktopHarnessDeadlineMs>[0],
+) {
+  // Let the selected harness finish its own failure capture and positive joins.
+  return Math.max(240_000, desktopHarnessDeadlineMs(selection) + 60_000);
+}
 type NativeLaunch = Awaited<ReturnType<typeof launchLinuxNativeSession>>;
 type DriverExit = Extract<NamespaceEvent, { kind: "driver-exited" }>;
 type Join = Awaited<ReturnType<NativeLaunch["stop"]>> | { outcome: "unknown"; message: string };
@@ -351,7 +359,10 @@ async function virtualDisplay(config: X11Configuration, runtime: string) {
       program.child.stdout.pipe(process.stdout);
       program.child.stderr.pipe(process.stderr);
       await program.ready();
-      receipt.harness_exit = await waitExit(program, 240_000);
+      const selection = resolveDesktopHarnessSelection(
+        parseDesktopHarnessOptions(config.harness_args).values,
+      );
+      receipt.harness_exit = await waitExit(program, linuxX11HarnessDeadlineMs(selection));
       await close(program, "harness_join");
       program = undefined;
       assert.equal(receipt.harness_exit.code, 0);

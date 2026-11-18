@@ -1,6 +1,11 @@
 // Keep the dependency-free PID1 packet controls in the maintained broad Node suite.
 import "../apps/desktop/scripts/desktop-linux-native-session.native.test.mts";
-import { readLinuxX11Configuration, assertQualificationUidMap } from "./desktop-linux-x11.mts";
+import {
+  readLinuxX11Configuration,
+  assertQualificationUidMap,
+  linuxX11HarnessDeadlineMs,
+} from "./desktop-linux-x11.mts";
+import { desktopHarnessDeadlineMs, resolveDesktopSelection } from "./desktop-scenarios.mts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { spawn, spawnSync } from "node:child_process";
@@ -24,6 +29,20 @@ import type { ConsumedInput } from "./retained-evidence.mts";
 import { isRecord } from "./runtime-values.mts";
 import { executionAdmission } from "./retained-evidence.mts";
 const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+void test("private X11 allows the declared large-review budget and cleanup without extending short cases", () => {
+  for (const scenario of [
+    "native-preparation-cancellation",
+    "native-linux-interrupted-preparation",
+    "native-large-discovery-setup-review",
+  ]) {
+    const selection = resolveDesktopSelection({ platform: "linux", scenarios: [scenario] });
+    const inner = desktopHarnessDeadlineMs(selection);
+    const outer = linuxX11HarnessDeadlineMs(selection);
+    assert.ok(outer >= inner + 60_000);
+    assert.equal(outer, scenario === "native-large-discovery-setup-review" ? 660_000 : 240_000);
+  }
+});
 
 void test("media video observations retain verbose UTF-8 bytes outside the bounded control message", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-media-video-"));
