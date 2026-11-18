@@ -30,7 +30,7 @@ struct OwnedProcess {
     let path: String
     let parent: Int32
     let uid: UInt32
-    let cpu: Int32?
+    let bsdFlags: UInt32
 }
 var commands: [(Process, OwnedProcess?)] = []
 func inspect(_ pid: Int32) throws -> OwnedProcess? {
@@ -45,10 +45,7 @@ func inspect(_ pid: Int32) throws -> OwnedProcess? {
     let length = bytes.withUnsafeMutableBytes { proc_pidpath(pid, $0.baseAddress, UInt32($0.count)) }
     try require(length > 0 && length < 4096, "Executable path unavailable")
     let path = URL(fileURLWithPath: String(cString: bytes)).resolvingSymlinksInPath().path
-    var architecture = proc_archinfo()
-    let architectureSize = Int32(MemoryLayout<proc_archinfo>.size)
-    let architectureCount = withUnsafeMutablePointer(to: &architecture) { proc_pidinfo(pid, PROC_PIDARCHINFO, 0, $0, architectureSize) }
-    return OwnedProcess(pid: pid, identity: "macos-start-time:\(info.pbi_start_tvsec):\(info.pbi_start_tvusec)", path: path, parent: Int32(info.pbi_ppid), uid: info.pbi_uid, cpu: architectureCount == architectureSize ? architecture.p_cputype : nil)
+    return OwnedProcess(pid: pid, identity: "macos-start-time:\(info.pbi_start_tvsec):\(info.pbi_start_tvusec)", path: path, parent: Int32(info.pbi_ppid), uid: info.pbi_uid, bsdFlags: info.pbi_flags)
 }
 func live(_ process: OwnedProcess) throws {
     guard let now = try inspect(process.pid) else { throw ProbeFailure(message: "Owned process has exited") }
@@ -125,7 +122,7 @@ func capture(_ name: String, _ process: OwnedProcess) throws {
     try require(wait(command, 10) && command.terminationStatus == 0, "Owned window capture failed")
     let image = try Data(contentsOf: output)
     try require(image.count < 4 * 1024 * 1024 && image.starts(with: [137,80,78,71,13,10,26,10]), "Window capture is not a bounded PNG")
-    try write("\(name)-window", ["pid": process.pid, "identity": process.identity, "cpu_type": process.cpu as Any? ?? NSNull(), "window": window.id, "title": window.title, "width": window.width, "height": window.height, "screenshot_sha256": try digest(output)])
+    try write("\(name)-window", ["pid": process.pid, "identity": process.identity, "bsd_flags": process.bsdFlags, "runtime_cpu_type": NSNull(), "window": window.id, "title": window.title, "width": window.width, "height": window.height, "screenshot_sha256": try digest(output)])
 }
 func key(_ code: CGKeyCode, _ flags: CGEventFlags, _ process: OwnedProcess, _ supervisor: OwnedProcess) throws {
     try live(supervisor)

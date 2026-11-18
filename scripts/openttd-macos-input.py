@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import plistlib
+import platform
 from pathlib import Path, PurePosixPath
 import shutil
 import stat
@@ -68,5 +69,8 @@ global_paths = [home / "Documents/OpenTTD", home / "Library/Application Support/
 assert all(not path.exists() and not path.is_symlink() for path in global_paths), "Existing OpenTTD profile belongs to another owner"
 report = {"archives": records, "root": str(root), "player": str(player), "player_sha256": hashlib.sha256(player.read_bytes()).hexdigest(), "cli": str(cli), "cli_sha256": hashlib.sha256(cli.read_bytes()).hexdigest(), "product_source": "27b0a6e994545e622d67b3bea016d32665224192", "controller_source": os.environ["GITHUB_SHA"], "run": os.environ["GITHUB_RUN_ID"], "attempt": os.environ["GITHUB_RUN_ATTEMPT"], "scope": "Official universal Mac player and free OpenGFX; no retail originals, save upload, signing or runtime injection"}
 report["initially_absent_global_paths"] = list(map(str, global_paths))
+report["os_architecture"] = platform.machine()
+report["os_runtime"] = platform.platform()
+report["process_architecture_scope"] = "Universal package has Intel and Apple Silicon slices; runtime CPU type is not queried because the proposed query is absent from the public hosted SDK."
 Path("openttd-macos-input.json").write_text(json.dumps(report, indent=2))
 (evidence / "inputs.json").write_text(json.dumps(report, indent=2))
