@@ -417,7 +417,11 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
-        format!("Upstream state: {}", upstream_status(port.upstream_status)),
+        format!(
+            "Upstream state: {}",
+            port.declared_upstream_status()
+                .map_or("unrecorded", upstream_status)
+        ),
     ];
     if let Some(profile_id) = port.source_profile.as_deref() {
         lines.push(format!("Game-file profile ID: {}", clean(profile_id)));

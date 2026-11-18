@@ -15,6 +15,76 @@ fn projection() -> Value {
 }
 
 #[test]
+fn indexed_upstream_review_requires_matching_new_schemas() {
+    let mut document = generic_projection();
+    document["catalog"]["ports"][0]["upstream_active_reviewed"] = json!(true);
+    let contract = serde_json::to_vec(&document).unwrap();
+    let mut selected = entry(&document, &contract, 0);
+    assert!(
+        inspect(&selected, &contract)
+            .unwrap_err()
+            .message
+            .contains("schema 2")
+    );
+    selected["definition_schema"] = json!(2);
+    assert!(inspect(&selected, &contract).is_err());
+
+    document["contract_schema"] = json!(2);
+    let contract = serde_json::to_vec(&document).unwrap();
+    let mut selected = entry(&document, &contract, 0);
+    selected["definition_schema"] = json!(2);
+    let projected = inspect(&selected, &contract).unwrap();
+    assert_eq!(
+        projected
+            .catalog()
+            .port("projection-fixture")
+            .unwrap()
+            .declared_upstream_status(),
+        Some(crate::UpstreamStatus::Active)
+    );
+}
+
+#[test]
+fn retained_indexed_selection_uses_current_unrelated_upstream_review() {
+    let legacy = generic_projection();
+    let contract = serde_json::to_vec(&legacy).unwrap();
+    let entry = entry(&legacy, &contract, 0);
+    let mut retained = inspect(&entry, &contract).unwrap().catalog().clone();
+    let mut baseline = legacy["catalog"].clone();
+    baseline["ports"][1]["upstream_active_reviewed"] = json!(true);
+    let baseline = Catalog::from_json(&baseline.to_string()).unwrap();
+    assert!(
+        crate::definition_loader::validate_definition_transition(
+            &baseline,
+            &retained,
+            "projection-fixture"
+        )
+        .is_err()
+    );
+    retained.retain_unrelated_upstream_reviews(&baseline, "projection-fixture");
+    crate::definition_loader::validate_definition_transition(
+        &baseline,
+        &retained,
+        "projection-fixture",
+    )
+    .unwrap();
+    assert_eq!(
+        retained
+            .port("projection-sibling")
+            .unwrap()
+            .declared_upstream_status(),
+        Some(crate::UpstreamStatus::Active)
+    );
+    assert!(
+        retained
+            .port("projection-fixture")
+            .unwrap()
+            .declared_upstream_status()
+            .is_none()
+    );
+}
+
+#[test]
 fn catalog_projection_refuses_embedded_only_patterns_in_sibling_ports() {
     let catalog = Catalog::embedded().unwrap();
     let document = json!({

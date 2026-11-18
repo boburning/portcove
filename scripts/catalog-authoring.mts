@@ -533,6 +533,16 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     if (!isRecord(value.integration)) throw new Error("Integration must be a strict object.");
     const integration = value.integration;
     if (
+      integration.upstream_active_reviewed !== undefined &&
+      (typeof integration.upstream_active_reviewed !== "boolean" ||
+        (integration.upstream_active_reviewed &&
+          integration.upstream_status !== undefined &&
+          integration.upstream_status !== "active"))
+    ) {
+      throw new Error("Invalid reviewed active upstream status.");
+    }
+
+    if (
       listing.download_block_reason !== undefined &&
       (!isRecord(integration.release) || integration.release.provider !== "user-prepared")
     )

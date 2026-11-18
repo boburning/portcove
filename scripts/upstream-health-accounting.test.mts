@@ -68,6 +68,7 @@ void test("reviewed exact metadata and original conditions remain degraded witho
     assert.equal(port.accepted_artifact_obtainability.status, "unknown");
   }
   assert.ok(report.port_health.every((port) => port.lineage.catalog_upstream_status === "active"));
+  assert.ok(report.port_health.every((port) => port.lineage.declared_upstream_status === null));
   assert.ok(!JSON.stringify(report).includes("synthetic-private-value"));
   assert.match(renderRepositoryHealth(report), /provider-reported-pin-present/);
   assert.match(renderRepositoryHealth(report), /reviewed-endpoint-condition/);

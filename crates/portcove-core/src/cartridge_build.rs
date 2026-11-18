@@ -131,6 +131,7 @@ fn execution_projection(port: &PortDefinition) -> Result<serde_json::Value> {
         "automated_tested_platforms",
         "manually_validated_platforms",
         "upstream_status",
+        "upstream_active_reviewed",
         "presentation",
     ] {
         object.remove(key);

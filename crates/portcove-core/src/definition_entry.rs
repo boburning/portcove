@@ -42,6 +42,7 @@ pub struct DefinitionEntryInspection {
     bytes: Vec<u8>,
     namespace: String,
     revision: u64,
+    schema_version: u32,
     port: PortDefinition,
     capabilities: DefinitionCapabilityReport,
     source_contracts: Vec<String>,
@@ -58,6 +59,10 @@ impl DefinitionEntryInspection {
 
     pub fn namespace(&self) -> &str {
         &self.namespace
+    }
+
+    pub(crate) fn schema_version(&self) -> u32 {
+        self.schema_version
     }
 
     pub fn revision(&self) -> u64 {
@@ -144,7 +149,7 @@ impl DefinitionContentIndex {
         self.verify_content(indexed.target(), bytes)?;
         let value: strict_json::UniqueValue = serde_json::from_slice(bytes)?;
         let document: EntryDocument = serde_json::from_value(value.0)?;
-        if document.definition_schema != 1 {
+        if !matches!(document.definition_schema, 1 | 2) {
             return Err(PortcoveError::unsupported(
                 "unsupported definition entry schema",
             ));
@@ -161,6 +166,11 @@ impl DefinitionContentIndex {
         if port.id != document.stable_id || serde_json::to_value(&port)? != document.port {
             return Err(PortcoveError::verification(
                 "entry port identity or complete typed projection is invalid",
+            ));
+        }
+        if port.upstream_active_reviewed && document.definition_schema != 2 {
+            return Err(PortcoveError::unsupported(
+                "a reviewed active project requires indexed definition schema 2",
             ));
         }
         require_indexed_persistence(&port)?;
@@ -716,6 +726,7 @@ impl DefinitionContentIndex {
             bytes: bytes.to_vec(),
             namespace: document.namespace,
             revision: document.revision,
+            schema_version: document.definition_schema,
             port,
             capabilities,
             source_contracts: document.source_contracts,
