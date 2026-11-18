@@ -2,20 +2,35 @@ import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { captureParityState } from "../../test/parity-capture";
+import App from "../App";
+import { desktopApi } from "../api";
+import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { SettingsView } from "./Chrome";
 import type { GithubAuthStatus } from "../types";
 import { initializeLocalization, LocalizationProvider } from "../localization";
 import { LanguageSettings } from "./LanguageSettings";
 
+let transport: ReturnType<typeof installInteractiveTransport> | undefined;
+
 afterEach(async () => {
   await cleanup();
+  transport?.dispose();
+  transport = undefined;
+  document.getElementById("root")?.remove();
+  vi.restoreAllMocks();
+  localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
   initializeLocalization(["en"]);
   await page.viewport(1280, 800);
 });
 
-const connectionCases: Array<{ name: string; status?: GithubAuthStatus; label: string }> = [
-  { name: "unavailable", label: "Connection status unavailable" },
+const connectionCases: Array<{
+  name: string;
+  status?: GithubAuthStatus;
+  label: string;
+  source: string;
+}> = [
+  { name: "unavailable", label: "Connection status unavailable", source: "Unavailable" },
   {
     name: "anonymous",
     status: {
@@ -26,6 +41,7 @@ const connectionCases: Array<{ name: string; status?: GithubAuthStatus; label: s
       device_login_available: true,
     },
     label: "Not signed in",
+    source: "Anonymous",
   },
   {
     name: "connected",
@@ -37,6 +53,7 @@ const connectionCases: Array<{ name: string; status?: GithubAuthStatus; label: s
       device_login_available: true,
     },
     label: "Connected as fixture-player",
+    source: "Operating-system credential store",
   },
   {
     name: "rate-limit",
@@ -48,12 +65,38 @@ const connectionCases: Array<{ name: string; status?: GithubAuthStatus; label: s
       device_login_available: false,
     },
     label: "Not signed in",
+    source: "Anonymous",
+  },
+  {
+    name: "environment-rejected",
+    status: {
+      source: "environment",
+      authenticated: false,
+      login: null,
+      rate_limit: null,
+      device_login_available: false,
+      environment_variable: "GITHUB_TOKEN",
+    },
+    label: "Not signed in",
+    source: "Environment variable (GITHUB_TOKEN)",
+  },
+  {
+    name: "saved-sign-in-rejected",
+    status: {
+      source: "credential_store",
+      authenticated: false,
+      login: null,
+      rate_limit: null,
+      device_login_available: true,
+    },
+    label: "Not signed in",
+    source: "Operating-system credential store",
   },
 ];
 
 it.each(connectionCases)(
   "renders the actual GitHub Settings $name state without credentials",
-  async ({ name, status, label }) => {
+  async ({ name, status, label, source }) => {
     document.documentElement.dataset.theme = "dark";
     await page.viewport(1024, 800);
     const actions = {
@@ -69,7 +112,9 @@ it.each(connectionCases)(
     await page.getByRole("button", { name: "Integrations", exact: true }).click();
     await expect.element(page.getByText(label, { exact: true })).toBeVisible();
     await page.getByText("Connection details", { exact: true }).click();
-    await expect.element(page.getByText("Sign-in source:", { exact: false })).toBeVisible();
+    await expect
+      .element(page.getByText(`Sign-in source: ${source}.`, { exact: true }))
+      .toBeVisible();
     await captureParityState(`github-${name}-synthetic`);
     expect(actions.saveToken).not.toHaveBeenCalled();
     expect(actions.beginDeviceLogin).not.toHaveBeenCalled();
@@ -168,4 +213,45 @@ it("retains the current language after an actual picker save fails", async () =>
     .toHaveTextContent("Couldn't save the language. Your current language is unchanged.");
   expect(save).toHaveBeenCalledExactlyOnceWith("en");
   await captureParityState("language-preference-save-failed-synthetic");
+});
+
+it("contains a long connected account name in actual narrow App Settings", async () => {
+  await page.viewport(320, 844);
+  initializeLocalization(["en"]);
+  const container = document.createElement("div");
+  container.id = "root";
+  document.body.append(container);
+  transport = installInteractiveTransport("library", (message) => {
+    throw new Error(message);
+  });
+  const login = "x".repeat(39);
+  vi.spyOn(desktopApi, "githubAuthStatus").mockResolvedValue({
+    source: "credential_store",
+    authenticated: true,
+    login,
+    rate_limit: { limit: 5000, remaining: 4998, resets_at: 1 },
+    device_login_available: true,
+  });
+  await render(
+    <LocalizationProvider api={desktopApi}>
+      <App />
+    </LocalizationProvider>,
+    { container },
+  );
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Settings categories", exact: true })
+    .getByRole("button", { name: "Integrations", exact: true })
+    .click();
+  document.documentElement.dataset.theme = "light";
+  const identity = page.getByText(`Connected as ${login}`, { exact: true });
+  await expect.element(identity).toBeVisible();
+  identity.element().scrollIntoView({ block: "center", inline: "nearest" });
+  const bounds = identity.element().getBoundingClientRect();
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(innerWidth);
+  expect(bounds.top).toBeGreaterThanOrEqual(0);
+  expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+  await captureParityState("github-connected-long-narrow-synthetic");
 });
