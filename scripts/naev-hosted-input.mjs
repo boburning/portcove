@@ -5,12 +5,11 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-assert.fail("Naev producer is not bound; preparation only, no input or game execution");
 const source = "889ad59f3f2607f8d39b355c85a6edab730b4f9f",
   run = 44383634182,
   attempt = 1,
-  artifact = 0;
-const expectedZip = "0000000000000000000000000000000000000000000000000000000000000000";
+  artifact = 14471676320;
+const expectedZip = "0b2034ff8c814f71db780a8f02db8222a820f35f052b93ff3ec55e71fefbeabb";
 const root = path.join("C:\\pcv", process.env.GITHUB_RUN_ID + "-" + process.env.GITHUB_RUN_ATTEMPT);
 const evidence = path.join(root, "evidence", "desktop-verify", "naev", "native");
 await mkdir(evidence, { recursive: true });
@@ -30,7 +29,7 @@ const meta = await json(api + "/actions/artifacts/" + artifact);
 assert(
   meta.id === artifact &&
     !meta.expired &&
-    meta.size_in_bytes === 0 &&
+    meta.size_in_bytes === 185891465 &&
     meta.digest === "sha256:" + expectedZip &&
     meta.workflow_run.id === run &&
     meta.workflow_run.head_sha === source &&
