@@ -3,7 +3,7 @@
   "listing": {
     "id": "metroid-dread-metroid-dread-recomp",
     "name": "Metroid Dread (Metroid-Dread-Recomp)",
-    "summary": "An early Metroid Dread port translating AArch64 code ahead of time to C, with native Vulkan/OpenGL services. The 0.x previews have setup problems, crashes and hardware limits; a proper 1.0 release is planned. The Windows x64 ZIP launcher bundles GCC/Python and compiles locally on first start, then manages updates and undo. Linux/Steam Deck scripts exist, but exact native Linux build and test coverage are unconfirmed. Use your own Metroid Dread 2.1.0 ExeFS, including main/main.npdm and companions, with complete update-merged RomFS. RomFS alone is insufficient; separate base/update dumps are accepted. No separate keys/firmware input is described after extraction, and region/executable hashes are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "The Windows preview launcher builds Metroid Dread from your own extracted game files for version 2.1.0. It handles later updates and undo. The project reports setup failures and crashes in the previews. Linux and Steam Deck scripts have limited verification.",
     "original_game_title": "Metroid Dread",
     "project_url": "https://github.com/yozander2009-stack/Metroid-Dread-Recomp",
     "platforms": [],
@@ -18,6 +18,26 @@
       "image_sha256": "37c73a03d0d783e2f57efb3a3da627ca1a4f095edf72b0f29dd7fcc005d35789",
       "game_slug": "metroid-dread",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/yozander2009-stack/Metroid-Dread-Recomp",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Use your 2.1.0 ExeFS, including main, main.npdm and companions, and the full update-merged RomFS. The project accepts separate base and update dumps. RomFS by itself is insufficient."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Start with the Windows x64 ZIP. The launcher bundles GCC and Python and compiles on first start. Its setup for extracted files has no separate keys or firmware input."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The 0.x builds have hardware limits. A 1.0 release is planned. Exact native Linux build and test coverage and accepted regional hashes are unconfirmed."
+        }
+      ]
     }
   },
   "upstream_lineage": {

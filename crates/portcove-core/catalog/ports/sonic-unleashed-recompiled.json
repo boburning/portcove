@@ -7,8 +7,13 @@
     "project_url": "https://github.com/hedge-dev/UnleashedRecomp",
     "issue_number": 126,
     "listed_at": "2026-10-23",
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "download_asset_hints": {
+      "windows-x86-64": ["UnleashedRecomp-Windows.zip"],
+      "linux-x86-64": ["UnleashedRecomp-Flatpak.zip"]
+    },
+    "release_url": "https://github.com/hedge-dev/UnleashedRecomp/releases/tag/v1.0.3",
     "setup_url": "https://github.com/hedge-dev/UnleashedRecomp",
     "artwork": {
       "game_id": 333920,
@@ -36,6 +41,16 @@
         {
           "title": "Retain upstream ownership and every effective profile",
           "instruction": "Upstream remains the single engine/data-preparation owner. Preserve the complete creating installation, original base/update/DLC inputs, mods and all effective profiles before deliberate compatible changes. Default Windows settings are in the Roaming AppData UnleashedRecomp directory, with config.toml and save/SYS-DATA; a portable.txt beside the player switches the profile to its executable directory. Hedge Mod Manager can redirect saves, including mlsave or another configured path. Preserve both old/new roots before changing portable mode. A failed Windows known-folder lookup can leave relative profile paths, so preserve the actual effective location. Upstream’s version-replacement guidance is not a Portcove promise of cross-version save or mod compatibility; relink and review any changed selected executable."
+        }
+      ],
+      "references": [
+        {
+          "title": "Install the Linux Flatpak through your system",
+          "instruction": "The Linux x86-64 ZIP contains io.github.hedge_dev.unleashedrecomp.flatpak. Extract and install that bundle with your system’s Flatpak tools. Open it once to supply your original files, then reopen the installed application. The Windows executable registration above is a separate route."
+        },
+        {
+          "title": "Keep your Flatpak data when updating",
+          "instruction": "The game installs its original-file data under ~/.var/app/io.github.hedge_dev.unleashedrecomp/data. Back up that folder and the active save profile. The game normally uses ~/.config/UnleashedRecomp for settings and saves. Keep any different save path chosen by your mod manager. Update with the project’s new Flatpak bundle and keep application data when replacing the old version."
         }
       ],
       "warnings": [

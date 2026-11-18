@@ -675,9 +675,9 @@ identities. It rejects a GitHub repository-ID argument; GitHub keeps its require
 provider report versioning and evidence boundaries are described in the
 [observation contract](UPSTREAM-OBSERVATIONS.md#additional-reviewed-providers).
 
-Alpha 1 and Alpha 2 retain their published unversioned CLI archive names.
-The next-release packaging contract uses `portcove-cli-<version>-<platform>`;
-see the [exact names and transition](RELEASING.md#standalone-cli-integration-artifact).
+Alpha 1 and Alpha 2 used unversioned CLI archive names. Later release assets
+include the version and platform. Check the [download guide](DOWNLOADS.md#published-previews)
+and the asset list for the chosen release.
 Each archive contains one executable named `portcove` (`portcove.exe` on Windows). The CLI runs without
 Portcove Desktop, and Desktop runs without a separately installed CLI. Download
 the archive matching the host operating system and processor from the exact
@@ -1620,9 +1620,9 @@ portcove --library <path> --json library export
 portcove --library <path> --json library export --output <new-file.json>
 ```
 
-Export reads one consistent SQLite snapshot. The versioned metadata document contains source references, managed version identities, active/previous/staged state, per-port preferences, and successful launch history. Application versions, user data, Source Inbox, backups, toolchains, and local artwork are identified as separate content roots; their contents and credentials are not embedded. The lazy `runtime-sources` cache is rebuildable from a registered source and is deliberately excluded from metadata, import, move, and backup content roots. Managed installation paths become relative to the original library root, while source references retain their original paths and identities. Format-1 Alpha 1 metadata without a Source Inbox root remains importable.
+Export reads one consistent SQLite snapshot. The versioned metadata document contains source references, managed version identities, active/previous/staged state, per-port preferences, and successful launch history. Application versions, user data, Source Inbox, backups, toolchains, and local artwork are identified as separate content roots; their contents and credentials are not embedded. The lazy `runtime-sources` cache is rebuildable from a registered source and is deliberately excluded from metadata, import, move, and backup content roots. Export requires every registered installation path to be inside the library root so its path can be saved relative to that root. For custom managed folders on another drive, follow the [manual recovery copy instructions](UPGRADING.md#before-upgrading). Source references retain their original paths and identities. Format-1 Alpha 1 metadata without a Source Inbox root remains importable.
 
-Without `--output`, the document appears in the normal CLI response. With `--output`, core writes a raw metadata document to a new file and returns its path, byte size, and SHA-256. Publication does not replace an existing file. Settings → Library → Export metadata invokes the same operation through a native save dialog.
+Without `--output`, the document appears in the normal CLI response. With `--output`, core writes a raw metadata document to a new file and returns its path, byte size, and SHA-256. Publication does not replace an existing file. In Desktop, open Settings → Library and storage → Recovery copies and library location → Prepare a recovery copy → Export library information. The native save dialog exports the same metadata.
 
 ### Library imports and recovery
 
@@ -2072,6 +2072,14 @@ portcove --library <path> --json paths <port-id>
 ```
 
 The response contains `user_data_root` plus the active, previous, and staged install roots when those versions exist. Back up the complete user-data root: catalog persistence rules may include saves, configuration, controller bindings, mods, generated assets, or upstream-specific portable state. The path remains canonical even before the directory has been populated. Treat install roots as read-only implementation state and never modify SQLite directly.
+
+In human output, `paths` labels the canonical Portcove data folder and also
+shows the active installation's confirmed backup collection folder if known.
+Run `--json backup list <port-id>` for the file rules and backup history.
+An installation you maintain shows its registered folder and program. The game
+can keep saves in a different profile. Use `--json status <port-id>` for the machine-readable
+external registration coordinates and consult the project's setup instructions
+for its save location.
 
 Portcove can also create and enumerate its own immutable snapshots:
 
@@ -3182,9 +3190,10 @@ its exact `--expected-plan` and `--acknowledge-shared-preferences` to
 [ownership and changed-account recovery](reference/managed-regaiden.md). Existing
 prepared registrations retain their non-owning contract. Local saves/settings
 remain managed; the resolved account-wide preferences file is never owned or
-included in backup/restore. The reference client accepts public API77 and requires
-explicit confirmation before transmitting acknowledgment. The current tested reference
-window extends through API87; unknown API88 and unknown consequential semantics are refused.
+included in backup/restore. For API 77, the reference client requires explicit
+confirmation before transmitting the acknowledgment. Check its
+[current compatibility table](../integrations/playnite/README.md#compatibility-and-use)
+before using the client with another CLI.
 
 ### Retired custom source creation
 

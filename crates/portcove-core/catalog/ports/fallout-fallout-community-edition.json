@@ -6,8 +6,15 @@
     "summary": "Use Fallout Community Edition 1.1.0 in your own complete supported Windows game installation. Keep fallout.cfg, original game files, music and every save location. You and upstream manage setup, updates and saved data; Portcove can register and launch the prepared player. Original-game rights and mod or save compatibility are separate requirements.",
     "original_game_title": "Fallout",
     "project_url": "https://github.com/alexbatalov/fallout1-ce",
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "download_asset_hints": {
+      "windows-x86-64": ["fallout-ce-windows-x64.zip"],
+      "linux-x86-64": ["fallout-ce-linux-x64.tar.gz"],
+      "macos-x86-64": ["fallout-ce-macos.dmg"],
+      "macos-aarch64": ["fallout-ce-macos.dmg"]
+    },
+    "release_url": "https://github.com/alexbatalov/fallout1-ce/releases/tag/v1.1.0",
     "setup_url": "https://github.com/alexbatalov/fallout1-ce",
     "artwork": {
       "game_id": 13,
@@ -53,6 +60,14 @@
         {
           "title": "Keep all actual save and data roots",
           "instruction": "Preserve the complete external runtime/original data, fallout.cfg, actual master_patches/data root including SAVEGAME and slot contents, music, mods, screenshots/logs and unknown files. Retain every configured external root and old creating copy; another executable directory alone does not prove save or instance isolation. No arbitrary Fallout mod or cross-version save compatibility is established."
+        },
+        {
+          "title": "Use the upstream Linux or Mac player",
+          "instruction": "The Linux x86-64 tarball contains fallout-ce and needs SDL2. The Mac disk image contains an app for Intel and Apple silicon. Use the tagged project instructions to put the player with your original Fallout data. The featured Portcove registration instructions above are for the prepared Windows player."
+        },
+        {
+          "title": "Use the Android release from the project",
+          "instruction": "The upstream APK includes ARM64, ARMv7, x86 and x86-64 builds. On first launch, choose a folder with your original master.dat, critter.dat and the data folder. Open the same app again to use the imported data. Its release profile is under Android/data/com.alexbatalov.falloutce/files on typical Android devices. Debug builds use a separate profile. Keep the actual profile when updating."
         }
       ]
     }

@@ -153,7 +153,7 @@ can identify its ports. These are read-only clues, not ownership proof by name o
 PID alone. Missing paths, stale identities or unreadable ancestry mean unknown.
 Retain only relevant sanitized diagnostics, not full environment or command dumps.
 Never kill unrelated processes or change global editor, antivirus or storage settings
-automatically. Existing [Rust admission](#rust-test-runner) and native-session guards
+automatically. Existing [Rust admission](../DEVELOPMENT-TOOLS.md#rust-test-runner) and native-session guards
 remain authoritative; separate worktrees keep separate mutable Cargo targets.
 
 The single-local-runner pickup contract uses owning issue/PR evidence and live
