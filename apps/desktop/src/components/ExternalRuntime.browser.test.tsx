@@ -1102,6 +1102,154 @@ it.each(
   },
 );
 
+it.each(["dark", "light"] as const)(
+  "keeps long previous and replacement paths in the compact %s relink review",
+  async (theme) => {
+    const oldTheme = document.documentElement.dataset.theme;
+    const oldViewport = { width: innerWidth, height: innerHeight };
+    const previousPath = String.raw`\\?\C:\Player\External runtime installations\Original release folder\Saved portable game files\Current version`;
+    const replacement = String.raw`\\?\D:\Player\External runtime installations\Moved portable game files\Checked replacement release folder\Current version`;
+    const existing = { ...record, path: previousPath, executable: `${previousPath}\\game.exe` };
+    const entry = { ...portDefinition(), name: "Portcove External Runtime Fixture" };
+    const proposed = {
+      port_id: entry.id,
+      path: replacement,
+      executable: `${replacement}\\game.exe`,
+      version: record.version,
+      archive_sha256: record.archive_sha256,
+      immutable_tree_sha256: record.immutable_tree_sha256,
+      immutable_file_count: 17,
+      preview_sha256: "inner-relink-paths",
+    };
+    vi.mocked(pickInstallFolder).mockResolvedValue(replacement);
+    const preview = vi.spyOn(desktopApi, "previewExternalRuntimeRelink").mockResolvedValue({
+      port_id: entry.id,
+      registration_id: existing.id,
+      previous_path: previousPath,
+      proposed,
+      external_files_will_be_preserved: true,
+      preview_sha256: "outer-relink-paths",
+    });
+    const apply = vi
+      .spyOn(desktopApi, "relinkExternalRuntime")
+      .mockResolvedValue({ ...existing, path: replacement, executable: proposed.executable });
+    const register = vi
+      .spyOn(desktopApi, "registerExternalRuntime")
+      .mockRejectedValue(new Error("Unexpected new registration"));
+    const remove = vi
+      .spyOn(desktopApi, "removeExternalRuntime")
+      .mockRejectedValue(new Error("Unexpected removal"));
+    const ordinaryPreview = vi
+      .spyOn(desktopApi, "previewExternalRuntime")
+      .mockRejectedValue(new Error("Unexpected registration preview"));
+    const changed = vi.fn();
+    const complete = (target: Element, label: string) => {
+      const bounds = target.getBoundingClientRect();
+      requireCompleteCaptureTarget(
+        {
+          target: label,
+          target_count: 1,
+          visible: true,
+          rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+          viewport: { width: innerWidth, height: innerHeight },
+        },
+        label,
+      );
+    };
+    try {
+      await page.viewport(430, 896);
+      document.documentElement.dataset.theme = theme;
+      await root.rerender(
+        <ExternalRuntimeControl
+          port={entry}
+          status={{ ...portStatus(), external_runtime: existing }}
+          generation={9}
+          busy={false}
+          onChanged={changed}
+        />,
+      );
+      await page.getByRole("button", { name: "Change game folder…", exact: true }).click();
+      const dialog = page.getByRole("dialog");
+      await expect.element(dialog).toBeVisible();
+      const cancel = page.getByRole("button", { name: "Cancel", exact: true });
+      await expect.element(cancel).toHaveFocus();
+      await document.fonts.ready;
+      const previous = fixtureValue(
+        [...dialog.element().querySelectorAll("code")].find(
+          (code) => code.textContent === previousPath,
+        ),
+        "Previous folder path",
+      );
+      const previousContext = fixtureValue(previous.parentElement, "Previous folder consequence");
+      previousContext.scrollIntoView({ block: "center" });
+      expectCompleteExternalPath(previous, "Previous folder", previousPath);
+      expect(previousContext.textContent).toBe(
+        `Previous folder: ${previousPath}. Its files stay where they are.`,
+      );
+      complete(previousContext, "whole Previous folder consequence");
+      const consent = page.getByText(
+        "Portcove will save this location and check the required files before each launch. It will not copy, update, back up, or delete the external folder.",
+        { exact: true },
+      );
+      await expect.element(consent).toBeVisible();
+      complete(consent.element(), "whole external ownership disclosure");
+      expect(apply).not.toHaveBeenCalled();
+      expect(changed).not.toHaveBeenCalled();
+      await captureParityState("external-relink-previous-folder");
+
+      const primary = page.getByRole("button", { name: "Change folder", exact: true });
+      primary.element().scrollIntoView({ block: "end" });
+      const metadata = fixtureValue(
+        dialog.element().querySelector('[aria-label="External runtime review"]'),
+        "replacement review metadata",
+      );
+      const codes = [...metadata.querySelectorAll("code")];
+      expect(codes).toHaveLength(2);
+      expectCompleteExternalPath(
+        fixtureValue(
+          codes.find((code) => code.textContent === replacement),
+          "replacement Folder",
+        ),
+        "Folder",
+        replacement,
+      );
+      expectCompleteExternalPath(
+        fixtureValue(
+          codes.find((code) => code.textContent === proposed.executable),
+          "replacement Game program",
+        ),
+        "Game program",
+        proposed.executable,
+      );
+      for (const control of [cancel, primary]) {
+        await expect.element(control).toBeEnabled();
+        complete(control.element(), "whole relink review action");
+      }
+      expect(dialog.element().scrollWidth).toBeLessThanOrEqual(dialog.element().clientWidth);
+      expect(preview).toHaveBeenCalledExactlyOnceWith(entry.id, replacement, 9);
+      expect(apply).not.toHaveBeenCalled();
+      expect(ordinaryPreview).not.toHaveBeenCalled();
+      expect(register).not.toHaveBeenCalled();
+      expect(remove).not.toHaveBeenCalled();
+      await captureParityState("external-relink-replacement-footer");
+      await expect.element(cancel).toHaveFocus();
+      await userEvent.keyboard("{Tab}");
+      await expect.element(primary).toHaveFocus();
+      await userEvent.keyboard("{Enter}");
+      expect(apply).toHaveBeenCalledExactlyOnceWith(entry.id, replacement, "outer-relink-paths", 9);
+      expect(changed).toHaveBeenCalledOnce();
+      expect(ordinaryPreview).not.toHaveBeenCalled();
+      expect(register).not.toHaveBeenCalled();
+      expect(remove).not.toHaveBeenCalled();
+    } finally {
+      await root.rerender(null);
+      if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = oldTheme;
+      await page.viewport(oldViewport.width, oldViewport.height);
+    }
+  },
+);
+
 it("reviews an exact player-owned folder before registering it", async () => {
   vi.mocked(pickInstallFolder).mockResolvedValue(record.path);
   const preview = vi.spyOn(desktopApi, "previewExternalRuntime").mockResolvedValue({
