@@ -12,6 +12,7 @@ import {
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { desktopApi } from "../api";
 import { PortBrowser } from "../components/PortBrowser";
+import * as nativeSourceDrop from "../native-source-drop";
 import {
   discoverGroupForPort,
   inspectLibraryGroups,
@@ -25,6 +26,8 @@ import { initializeLocalization, LocalizationProvider } from "../localization";
 import { portDefinition, portStatus } from "../test-fixtures";
 import type { ExternalRuntimeRecord, PortListing } from "../types";
 import "../styles/index.css";
+
+vi.mock("../native-source-drop", { spy: true });
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
 afterEach(async () => {
@@ -376,6 +379,42 @@ it("plays the distinct duplicate port from details and returns to its filtered r
   await expect
     .poll(() => document.activeElement?.getAttribute("data-detail-origin"))
     .toBe(originId);
+});
+
+it("retires an accepted grouped file drop when Discover becomes empty", async () => {
+  await page.viewport(1366, 768);
+  const snapshot = groupedCollectionSnapshot();
+  snapshot.catalog.ports[0]!.source_profile = "first-fixture-source";
+  snapshot.catalog.ports[1]!.source_profile = "second-fixture-source";
+  vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+  let acceptDrop!: Parameters<typeof nativeSourceDrop.useNativeSourceDrop>[0];
+  vi.spyOn(nativeSourceDrop, "useNativeSourceDrop").mockImplementation((accept) => {
+    acceptDrop = accept;
+    return { active: true, pathCount: 1 };
+  });
+  await mount("dark", "collection", 11);
+  await page.getByRole("button", { name: "Discover", exact: true }).click();
+  const group = await mountDiscoverPort("collection-1");
+  const gameId = group.dataset.sourceDropGameId;
+  expect(gameId).toBe("game:fixture-super-mario-64");
+  await act(async () => acceptDrop({ gameId: gameId!, paths: ["D:/Game.z64"] }));
+  const review = page.getByRole("dialog", { name: "Super Mario 64", exact: true });
+  await expect.element(review).toBeVisible();
+
+  const search = document.querySelector<HTMLInputElement>("#port-search")!;
+  const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+  // Drive the collection query while the modal owns foreground focus.
+  await act(async () => {
+    setValue.call(search, "a query with no fixture matches");
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await expect
+    .poll(() => document.querySelector('[data-virtual-collection="discover"]'))
+    .toBeNull();
+  await expect.element(review).not.toBeInTheDocument();
+  await page.getByRole("textbox", { name: /Search/ }).fill("Super Mario 64");
+  await mountDiscoverPort("collection-1");
+  await expect.element(review).not.toBeInTheDocument();
 });
 
 it("names exact port choices from their visible identity and readiness inside grouped Discover", async () => {

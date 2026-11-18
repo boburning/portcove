@@ -145,7 +145,9 @@ export function GroupedDiscover({
   const [comparisonSelection, setComparison] = useState<GameGroup>();
   const [comparisonPin, setComparisonPin] = useState<string>();
   const dropComparison =
-    pendingGameDrop && groupCatalog(all).find((group) => group.id === pendingGameDrop.gameId);
+    resultsReady && pendingGameDrop
+      ? groups.find((group) => group.id === pendingGameDrop.gameId)
+      : undefined;
   const comparison =
     dropComparison ??
     (comparisonSelection &&
@@ -211,13 +213,14 @@ export function GroupedDiscover({
   // card shows changes.
   const compare = useCallback(
     (group: GameGroup, trigger: HTMLButtonElement) => {
+      if (!resultsReady) return;
       rememberOrigin(group.id, trigger);
       comparisonIntent.current.active = false;
       leaving.current = false;
       setComparisonPin(group.id);
       setComparison(group);
     },
-    [rememberOrigin],
+    [rememberOrigin, resultsReady],
   );
   useLayoutEffect(() => {
     if (handledDrop.current !== pendingGameDrop) {
@@ -323,7 +326,7 @@ export function GroupedDiscover({
             showCompanion={layout === "covers"}
             statuses={statuses}
             descriptionPrefix={descriptionPrefix}
-            nativeSourceDrag={nativeSourceDrag}
+            nativeSourceDrag={resultsReady ? nativeSourceDrag : idleNativeSourceDrag}
             devicePlatform={devicePlatform}
             organization={organization}
             favorite={favorite}

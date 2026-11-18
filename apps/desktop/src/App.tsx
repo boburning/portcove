@@ -470,48 +470,6 @@ function useWorkspace(props: WorkspaceProps) {
     },
     [openIntake],
   );
-  const [groupDrop, setGroupDrop] = useState<{
-    request: { gameId: string; paths: string[] };
-    generation: number;
-    catalog: typeof data.catalog;
-    listings: typeof data.listingCatalog;
-  }>();
-  const pendingGroupDrop =
-    groupDrop?.generation === bootstrap.generation &&
-    groupDrop.catalog === data.catalog &&
-    groupDrop.listings === data.listingCatalog
-      ? groupDrop.request
-      : undefined;
-  const gameSourceDropReview: GameSourceDropReview = {
-    pending: pendingGroupDrop,
-    dismiss: () => setGroupDrop(undefined),
-    select: (drop) => {
-      const port = data.catalog?.ports.find((candidate) => candidate.id === drop.portId);
-      if (
-        !pendingGroupDrop ||
-        !port ||
-        gameGroupId(model.entries.find((entry) => entry.id === port.id) ?? port) !==
-          pendingGroupDrop.gameId ||
-        port.source_profile !== drop.profileId
-      )
-        return;
-      setGroupDrop(undefined);
-      openSourceIntake(drop.portId, drop.profileId, pendingGroupDrop.paths);
-    },
-  };
-  const nativeSourceDrag = useNativeSourceDrop((drop) => {
-    if ("gameId" in drop) {
-      setGroupDrop({
-        request: drop,
-        generation: bootstrap.generation,
-        catalog: data.catalog,
-        listings: data.listingCatalog,
-      });
-    } else {
-      setGroupDrop(undefined);
-      openSourceIntake(drop.portId, drop.profileId, drop.paths);
-    }
-  });
   const selectedPort = data.statuses.some(
     (status) => status.port_id === ui.selectedId && status.external_runtime?.user_selected,
   )
@@ -543,6 +501,61 @@ function useWorkspace(props: WorkspaceProps) {
     libraryKey: bootstrap.library_root,
   });
   const model = useAppModel(data, ui, bootstrap.library_root, gameFileQuery);
+  const [groupDrop, setGroupDrop] = useState<{
+    request: { gameId: string; paths: string[] };
+    generation: number;
+    catalog: typeof data.catalog;
+    query: string;
+    filter: typeof ui.filter;
+    listings: typeof data.listingCatalog;
+  }>();
+  const canReviewGroupedDrop = (gameId: string) =>
+    ui.view === "catalog" &&
+    !model.queryPending &&
+    model.visible.some((entry) => gameGroupId(entry) === gameId);
+  const pendingGroupDrop =
+    groupDrop?.generation === bootstrap.generation &&
+    groupDrop.catalog === data.catalog &&
+    groupDrop.listings === data.listingCatalog &&
+    groupDrop.query === ui.query &&
+    groupDrop.filter === ui.filter &&
+    canReviewGroupedDrop(groupDrop.request.gameId)
+      ? groupDrop.request
+      : undefined;
+  if (groupDrop && !pendingGroupDrop) setGroupDrop(undefined);
+  const gameSourceDropReview: GameSourceDropReview = {
+    pending: pendingGroupDrop,
+    dismiss: () => setGroupDrop(undefined),
+    select: (drop) => {
+      const port = data.catalog?.ports.find((candidate) => candidate.id === drop.portId);
+      if (
+        !pendingGroupDrop ||
+        !port ||
+        gameGroupId(model.entries.find((entry) => entry.id === port.id) ?? port) !==
+          pendingGroupDrop.gameId ||
+        port.source_profile !== drop.profileId
+      )
+        return;
+      setGroupDrop(undefined);
+      openSourceIntake(drop.portId, drop.profileId, pendingGroupDrop.paths);
+    },
+  };
+  const nativeSourceDrag = useNativeSourceDrop((drop) => {
+    if ("gameId" in drop) {
+      if (!canReviewGroupedDrop(drop.gameId)) return;
+      setGroupDrop({
+        request: drop,
+        generation: bootstrap.generation,
+        catalog: data.catalog,
+        listings: data.listingCatalog,
+        query: ui.query,
+        filter: ui.filter,
+      });
+    } else {
+      setGroupDrop(undefined);
+      openSourceIntake(drop.portId, drop.profileId, drop.paths);
+    }
+  });
   const installPlanning = useInstallPlanning(
     model.port?.id,
     model.status?.channel ?? model.port?.channels[0],
