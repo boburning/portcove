@@ -265,7 +265,7 @@ export function GroupedDiscover({
                         )}
                       </header>
                       <ComparisonPortFacts port={port} status={status} single={single} />
-                      <div className="grid min-w-0 gap-2">
+                      <div className="grid min-w-0 content-start gap-2">
                         <ImplementationFacts port={port} />
                         <GameComparisonEvidence
                           comparison={evidence}

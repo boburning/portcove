@@ -838,6 +838,21 @@ it.each([
           expect(bounds.bottom).toBeLessThanOrEqual(cardBounds.bottom);
         }
         expect(card.scrollWidth).toBeLessThanOrEqual(card.clientWidth + 1);
+        const projectDetails = [...card.querySelectorAll("details")].filter((details) =>
+          details
+            .querySelector(":scope > summary")
+            ?.textContent?.startsWith("How this project works"),
+        );
+        for (const details of projectDetails) {
+          // An expanded peer must not stretch a closed disclosure into a blank grid track.
+          const visible = document.createRange();
+          visible.selectNodeContents(details);
+          expect(
+            Math.abs(
+              details.getBoundingClientRect().height - visible.getBoundingClientRect().height,
+            ),
+          ).toBeLessThanOrEqual(1);
+        }
         return { status, footer, statusTop: statusBounds.top, actionTop: firstActionTop };
       });
     const capture = async (state: string) => {

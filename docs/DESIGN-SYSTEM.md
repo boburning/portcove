@@ -89,6 +89,7 @@ Each workspace composes collection/navigation choices, one search/filter/sort/vi
 Comparisons use balanced project cards, side by side where space allows and stacked in compact windows, with aligned setup, file, target, ownership and observation sections. Filtered-out projects retain their own actions and explicit qualification. Unresearched gameplay differences remain unclaimed.
 Optional project metadata and reports share one information row, so omitted or
 expanded evidence cannot overlap or misalign current status and actions.
+Keep that information together at the top of its row when a neighboring project expands.
 
 Identity chips use the v58 decorative Lucide/palette mappings; semantic readiness,
 warning, failure, selection and focus retain their own tokens.
