@@ -153,9 +153,7 @@ it.each([
     expect(notice()?.textContent).toContain("could not confirm");
     await recheck();
     expect(load.mock.calls).toEqual(Array.from({ length: 5 }, () => ["p", "i1", 1]));
-    expect(notice()?.textContent).toContain(
-      "The checked runtimes are installed. Try launching the game again.",
-    );
+    expect(notice()?.querySelector("p")?.textContent).toBe("The checked runtimes are installed.");
     expect(notice()?.querySelector("a")).toBeNull();
     await captureParityState("runtime-recheck-present-action-neutral");
   },
