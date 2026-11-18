@@ -38,6 +38,37 @@ const identity = (id: string) => ({
   ],
 });
 
+void test("future and malformed original identities never claim reviewed editions", async () => {
+  for (const original_game of [
+    { ...identity("game-a"), format_version: 999 },
+    { ...identity("game-a"), source_editions: [{ title: "Invented edition" }] },
+    {
+      ...identity("game-a"),
+      source_editions: [{ id: "edition-a", title: "Invented edition", evidence_urls: [] }],
+    },
+    {
+      ...identity("game-a"),
+      source_editions: [
+        {
+          id: "edition-a",
+          title: "Invented edition",
+          system: "../bad",
+          evidence_urls: ["https://example.org"],
+        },
+      ],
+    },
+  ]) {
+    const projection = fixture([entry("project", { original_game })]);
+    assert.equal(projection.entries[0]!.game_id, null);
+    assert.deepEqual(projection.entries[0]!.editions, []);
+    assert.deepEqual(projection.entries[0]!.identity_evidence, []);
+    const files = await publicCatalogFiles(projection);
+    const page = files.get("projects/project/index.html")!.toString();
+    assert.doesNotMatch(page, /Reviewed source editions|Invented edition/u);
+    assert.match(page, /Source edition identity has not been reviewed/u);
+  }
+});
+
 void test("reviewed game identities group alternatives while title collisions and shared runtimes stay separate", async () => {
   const p = fixture([
     entry("recomp", { original_game_title: "Game", original_game: identity("game-a") }),
@@ -64,7 +95,8 @@ void test("OpenSHC release claim, unknown methods and missing enrichment create 
       release_url: "https://github.com/sourcehold/OpenSHC/releases/tag/latest-sarif",
       implementation: {
         format_version: 1,
-        methods: [{ kind: "future-method", evidence_urls: [] }],
+        methods: [{ kind: "future-method", evidence_urls: ["https://example.org/method"] }],
+        dependencies: [],
       },
     }),
   ]);
@@ -116,6 +148,53 @@ void test("public allowlist strips private state, unsafe links and external mark
   assert.equal(p.entries[0]!.project_url, undefined);
   assert.equal(p.entries[0]!.setup_url, undefined);
   assert.match(all, /Original cartridge dump/u);
+});
+
+void test("unevidenced methods and malformed dependency claims remain unavailable", async () => {
+  const projection = fixture([
+    entry("project", {
+      implementation: {
+        format_version: 1,
+        methods: [
+          { kind: "static-recompilation", evidence_urls: [] },
+          { kind: "source-port", evidence_urls: ["javascript:alert(1)"] },
+        ],
+        dependencies: [
+          {
+            kind: "runtime",
+            name: "Unverified runtime",
+            confidence: "confirmed",
+            project_url: "https://example.org/runtime",
+            evidence_urls: [],
+          },
+          {
+            kind: "runtime",
+            name: "Unknown confidence",
+            confidence: "made-up",
+            project_url: "https://example.org/runtime",
+            evidence_urls: ["https://example.org/source"],
+          },
+          {
+            kind: "runtime",
+            name: "Valid runtime",
+            confidence: "inferred",
+            project_url: "https://example.org/runtime",
+            evidence_urls: ["https://example.org/source"],
+            version_scope: "v1 only",
+          },
+        ],
+      },
+    }),
+  ]);
+  assert.deepEqual(projection.entries[0]!.methods, []);
+  assert.equal(projection.entries[0]!.dependencies.length, 1);
+  const page = (await publicCatalogFiles(projection))
+    .get("projects/project/index.html")!
+    .toString();
+  assert.doesNotMatch(page, /Unverified runtime|Unknown confidence|Static recompilation/u);
+  assert.match(page, /Valid runtime/u);
+  assert.match(page, /inferred/u);
+  assert.match(page, /Applies to: v1 only/u);
 });
 
 void test("public projection validates stable identities, duplicates, UTF-8, bounds and immutable source", () => {
