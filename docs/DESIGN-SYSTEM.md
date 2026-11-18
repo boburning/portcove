@@ -2,6 +2,25 @@
 
 The current whole-product composition and coverage contract is [Integrated UI design](INTEGRATED-UI-DESIGN.md). Reuse the existing control, token, preference and domain-projection owners throughout; task-specific layouts do not introduce a second authority.
 
+## Path values
+
+Opaque file and folder paths use `path-value` or the existing `saved-file-path`
+primitive. They remain selectable, exact and left to right. Break long values
+across available lines without leaving an extended Windows prefix alone above
+the drive or UNC location. Preserve each consumer's existing typography and
+surface; this presentation rule never normalizes or changes a stored path.
+
+## Required-file discovery
+
+The Find required files heading names its dialog without a duplicate category
+kicker; its accessible description remains attached. This surface owns its
+internal rhythm. Keep the required-file choice and game-file-folder actions
+together, separate them from the search-folder/store choices, then separate scan
+results from both groups.
+Preliminary selections keep their warning and unvalidated status beside the
+existing review control; spacing does not alter admission or file actions.
+The groups reflow without horizontal overflow in compact and wide dialogs.
+
 ## Saved-location impact
 
 Saved-location removal uses an inline impact region within Game files. Its
@@ -20,6 +39,10 @@ explicit; the host retains apply authorization and preimage checks.
 
 Library and Discover default independently to Covers; Compact rows uses the same entries and authoritative
 local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover defaults to Title A–Z when no sort is saved and offers Catalog order, Title A–Z, Title Z–A and In library first (#5058 F4; a tested-first shelf waits for a native look at the real catalog). With an observed device target, Catalog order is labeled Library & device to describe the existing deterministic library/device ranking; its explanation remains visible. No subjective recommendation or quality score is implied. Library counts entries, including separate ports for one game; the Discover header counts the cards it shows as games, and port counts stay on each game's comparison (#5058 F3).
+While Library results are loading, its loading surface owns the pending explanation;
+result counts and unavailable-result copy wait for settlement. A settled unread
+result remains unavailable, and a known empty result remains distinct.
+
 Search, named Readiness, independent Favorites and declared filters share the
 retrieval area. Quick views keep their own navigation row above the search/filter
 toolbar and deliberately reflow at narrow or enlarged-text widths; no hidden
@@ -218,6 +241,12 @@ Primary destinations display Library, Discover, Activity and Settings; internal 
 Cards, details and Activity use the same action-presentation selector. Core readiness remains distinct from a temporary local exclusion. Feedback names the action and game/port or library target. Independent failures remain individually dismissible; a successful mutation followed by failed refresh is presented as finished work with unavailable current state, not an instruction to repeat the mutation. Link a specific task only when its exact owned identity exists. Shared progress announces phase changes separately from numeric ticks. Cancellation requested stays pending until authoritative settlement. Invocation-backed polite messages use a status owner that exists empty before work begins, with an atomic action/target message for each invocation. Pending, execution completion, readback and terminal changes update that invocation’s message; simultaneous results do not replace one another. Real failures retain their attributed assertive notices, and visual progress does not duplicate the owned announcement. Browser lifecycle checks do not establish actual screen-reader speech.
 
 Library location-change review and recovery retain Core's typed failure consequences through the shared review-failure presentation. The summary, reported mutation outcome and expandable technical phase/context remain together. An unknown outcome stays unknown; a committed outcome does not invite an automatic repeat. Displaying recovery details grants no additional recovery action or library lease authority.
+
+When a reviewed setup batch settles, refresh the parent workspace from Core before
+the player dismisses its results. Keep the finished batch and its current focus
+mounted during that read. Done dismisses the results; it does not gate the first
+refresh. Refresh failure keeps the reported batch outcomes and the workspace's
+existing refresh feedback, without repeating installation or inventing readiness.
 
 Portcove should feel like development software from an alternate 1997 console studio, rebuilt with current desktop UX and accessibility standards. Nostalgia never outranks clarity. The working interface stays compact, neutral, and technical; personality appears through tactile geometry, restrained color, direct copy, and quick interaction feedback.
 

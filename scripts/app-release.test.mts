@@ -7,6 +7,7 @@ import test from "node:test";
 import { execFileSync } from "node:child_process";
 import {
   addWithdrawn,
+  assertAppReleaseAssets,
   assertNewerThanTags,
   assertVersionUnclaimed,
   buildFeed,
@@ -21,6 +22,7 @@ import {
   publishedReleases,
   quietMentions,
   readWorkspaceVersion,
+  renderAppReleaseDownloadSection,
   replacementCandidates,
   stampVersion,
   tagRelease,
@@ -1005,6 +1007,61 @@ type Workflow = { on: Record<string, unknown>; jobs: Record<string, WorkflowJob>
 const workflowsDirectory = path.join(import.meta.dirname, "..", ".github", "workflows");
 const readWorkflow = async (name: string) =>
   parse(await readFile(path.join(workflowsDirectory, name), "utf8")) as Workflow;
+
+void test("the release requires every desktop bundle, signature and standalone CLI archive", async () => {
+  const version = "0.1.0-preview.7";
+  const names = [
+    "Portcove_0.1.0-preview.7_x64-setup.exe",
+    "Portcove_0.1.0-preview.7_x64-setup.exe.sig",
+    "Portcove_0.1.0-preview.7_amd64.AppImage",
+    "Portcove_0.1.0-preview.7_amd64.AppImage.sig",
+    "Portcove_0.1.0-preview.7_universal.app.tar.gz",
+    "Portcove_0.1.0-preview.7_universal.app.tar.gz.sig",
+    "Portcove_0.1.0-preview.7_universal.dmg",
+    "portcove-cli-0.1.0-preview.7-windows-x86_64.zip",
+    "portcove-cli-0.1.0-preview.7-linux-x86_64.tar.gz",
+    "portcove-cli-0.1.0-preview.7-macos-aarch64.tar.gz",
+    "portcove-cli-0.1.0-preview.7-macos-x86_64.tar.gz",
+    "SHA256SUMS",
+  ];
+  const section = await renderAppReleaseDownloadSection(`nightly-${version}`, version, names);
+  assert.match(section, /Channel: Nightly Preview/u);
+  assert.match(section, /Linux x86-64.*AppImage.*run directly/u);
+  assert.match(section, /Apple Silicon and Intel.*Desktop disk image/u);
+  assert.match(section, /universal\.app\.tar\.gz.*is for the macOS updater/u);
+  assert.match(section, /SHA256SUMS.*nightly-0\.1\.0-preview\.7/u);
+  assert.match(section, /\.\/portcove --json capabilities/u);
+  assert.match(section, /schema_version/u);
+  for (const name of names.filter((name) => !name.endsWith(".sig"))) {
+    assert.ok(section.includes(`/releases/download/nightly-${version}/${name}`));
+  }
+  await assert.rejects(
+    renderAppReleaseDownloadSection("nightly-0.1.0-preview.6", version, names),
+    /tag and version disagree/u,
+  );
+  await assert.rejects(
+    renderAppReleaseDownloadSection(
+      `v${version}`,
+      version,
+      names.filter((name) => !name.includes("cli-")),
+    ),
+    /missing:.*portcove-cli/u,
+  );
+  await assertAppReleaseAssets(version, names);
+  for (const missing of names) {
+    await assert.rejects(
+      assertAppReleaseAssets(
+        version,
+        names.filter((name) => name !== missing),
+      ),
+      (error: Error) => error.message.includes(`missing: ${missing}; unexpected: none`),
+    );
+  }
+  await assert.rejects(
+    assertAppReleaseAssets(version, [...names, "stale.zip"]),
+    /unexpected: stale.zip/u,
+  );
+});
 
 void test("the Linux AppImage build checks its WebKitGTK floor before bundling", async () => {
   const workflow = await readWorkflow("app-release-build.yml");

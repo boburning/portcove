@@ -1921,6 +1921,7 @@ function CollectionResultSummary({
   model: Pick<
     ReturnType<typeof usePortBrowser>,
     | "resultsUnavailable"
+    | "loadingResults"
     | "resultCount"
     | "organizationView"
     | "organization"
@@ -1971,7 +1972,9 @@ function collectionSummary(model: Parameters<typeof CollectionResultSummary>[0][
     ? libraryResultCount(model.visiblePorts.length, model.overview.installed)
     : model.resultCount;
   // The unfiltered library total already appears under the page heading.
-  const showCount = model.view !== "library" || constrainedLibrary || model.resultsUnavailable;
+  const showCount =
+    !model.loadingResults &&
+    (model.view !== "library" || constrainedLibrary || model.resultsUnavailable);
   const hasContext =
     model.organizationView !== "all" ||
     (model.libraryReadiness !== "all" && model.view === "library") ||

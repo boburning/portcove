@@ -52,16 +52,19 @@ jobs:
             target: x86_64-pc-windows-msvc
             rust_targets: x86_64-pc-windows-msvc
             bundles: nsis
+            cli_targets: '{"windows-x86_64":"x86_64-pc-windows-msvc"}'
           - label: linux-x86_64
             os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             rust_targets: x86_64-unknown-linux-gnu
             bundles: appimage
+            cli_targets: '{"linux-x86_64":"x86_64-unknown-linux-gnu"}'
           - label: macos-universal
             os: macos-15
             target: universal-apple-darwin
             rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
             bundles: app,dmg
+            cli_targets: '{"macos-aarch64":"aarch64-apple-darwin","macos-x86_64":"x86_64-apple-darwin"}'
     runs-on: ${{ matrix.os }}
     env:
       VERSION: ${{ inputs.version }}
@@ -109,17 +112,21 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Stamp the release version
         run: node scripts/app-release.mts stamp --version "${{ env.VERSION }}"
-      - name: Build, package and smoke-test the Windows CLI
-        if: runner.os == 'Windows'
+      - name: Build, package and smoke-test the standalone CLI archives
         shell: pwsh
+        env:
+          CLI_TARGETS: ${{ matrix.cli_targets }}
         run: |
-          cargo build --release -p portcove-cli --target ${{ matrix.target }}
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ./scripts/package-cli.ps1 -PlatformLabel "${{ matrix.label }}" -TargetRoot "target/${{ matrix.target }}"
-          $archive = (& node scripts/release-package-policy.mts --platform "${{ matrix.label }}" --interface cli --version $env:VERSION | Out-String).Trim()
-          ./scripts/smoke-test-cli-archive.ps1 -ArchivePath "release-assets/$archive" -PlatformLabel "${{ matrix.label }}" -Version $env:VERSION
+          $targets = ConvertFrom-Json -InputObject $env:CLI_TARGETS -AsHashtable
           New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item "release-assets/$archive" dist/
+          foreach ($platform in $targets.Keys) {
+            $target = $targets[$platform]
+            cargo build --release -p portcove-cli --target $target
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $archive = ./scripts/package-cli.ps1 -PlatformLabel $platform -TargetRoot "target/$target"
+            ./scripts/smoke-test-cli-archive.ps1 -ArchivePath $archive -PlatformLabel $platform -Version $env:VERSION
+            Copy-Item -LiteralPath $archive -Destination dist/
+          }
       - name: Build and sign desktop bundles
         working-directory: apps/desktop
         shell: bash

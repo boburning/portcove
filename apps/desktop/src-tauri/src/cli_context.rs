@@ -58,12 +58,22 @@ pub(crate) fn discover_cli_from_environment() -> Option<PathBuf> {
 pub(crate) fn discover_cli_identity_from_environment() -> Option<CliExecutableIdentity> {
     let current = std::env::current_exe().ok();
     let search = std::env::var_os("PATH").unwrap_or_default();
-    discover_cli(current.as_deref(), std::env::split_paths(&search))
+    let home = if cfg!(unix) {
+        std::env::home_dir()
+    } else {
+        None
+    };
+    discover_cli(
+        current.as_deref(),
+        std::env::split_paths(&search),
+        home.as_deref(),
+    )
 }
 
 fn discover_cli(
     current: Option<&Path>,
     search: impl Iterator<Item = PathBuf>,
+    home: Option<&Path>,
 ) -> Option<CliExecutableIdentity> {
     let name = if cfg!(windows) {
         "portcove.exe"
@@ -75,6 +85,8 @@ fn discover_cli(
         .map(Path::to_path_buf)
         .into_iter()
         .chain(search)
+        // Desktop launched by a file manager may have a different PATH from a shell.
+        .chain(home.map(|directory| directory.join(".local").join("bin")))
         .filter(|directory| directory.is_absolute())
         .map(|directory| directory.join(name))
         .find_map(|candidate| {
@@ -208,16 +220,45 @@ mod tests {
         assert_eq!(
             discover_cli(
                 Some(&desktop),
-                [PathBuf::from("."), search.clone()].into_iter()
+                [PathBuf::from("."), search.clone()].into_iter(),
+                None,
             ),
             Some(inspect_cli(&std::fs::canonicalize(&cli).unwrap()).unwrap())
         );
         std::fs::rename(&cli, sibling.join(name)).unwrap();
         assert_eq!(
-            discover_cli(Some(&desktop), [search].into_iter()),
+            discover_cli(Some(&desktop), [search].into_iter(), None),
             Some(inspect_cli(&std::fs::canonicalize(sibling.join(name)).unwrap()).unwrap())
         );
-        assert!(discover_cli(None, [PathBuf::from("."), PathBuf::new()].into_iter()).is_none());
+        assert!(
+            discover_cli(None, [PathBuf::from("."), PathBuf::new()].into_iter(), None).is_none()
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn finds_the_user_cli_when_desktop_moves_and_its_path_omits_the_bin_directory() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temporary = tempfile::tempdir().unwrap();
+        let home = temporary.path().join("Player Ω");
+        let bin = home.join(".local/bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        let cli = bin.join("portcove");
+        std::fs::write(&cli, compatible_cli_fixture()).unwrap();
+        std::fs::set_permissions(&cli, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let identity = inspect_cli(&cli.canonicalize().unwrap()).unwrap();
+
+        for version in ["previous", "replacement"] {
+            let desktop = temporary.path().join(version).join("portcove-desktop");
+            assert_eq!(
+                discover_cli(Some(&desktop), std::iter::empty(), Some(&home)),
+                Some(identity.clone()),
+            );
+        }
+
+        std::fs::write(&cli, b"an incompatible companion").unwrap();
+        assert!(discover_cli(None, std::iter::empty(), Some(&home)).is_none());
     }
 
     #[test]
@@ -235,14 +276,14 @@ mod tests {
             use std::os::unix::fs::PermissionsExt;
             std::fs::set_permissions(&cli, std::fs::Permissions::from_mode(0o700)).unwrap();
         }
-        assert!(discover_cli(None, [temp.path().to_path_buf()].into_iter()).is_none());
+        assert!(discover_cli(None, [temp.path().to_path_buf()].into_iter(), None).is_none());
 
         std::fs::write(
             &cli,
             b"PORTCOVE_CLI_STEAM_EXEC_IDENTITY_V1|product=0.0.0|capability=exec",
         )
         .unwrap();
-        assert!(discover_cli(None, [temp.path().to_path_buf()].into_iter()).is_none());
+        assert!(discover_cli(None, [temp.path().to_path_buf()].into_iter(), None).is_none());
     }
 
     #[test]
@@ -255,7 +296,7 @@ mod tests {
         });
         std::fs::copy(std::env::current_exe().unwrap(), &renamed_desktop).unwrap();
 
-        assert!(discover_cli(None, [temp.path().to_path_buf()].into_iter()).is_none());
+        assert!(discover_cli(None, [temp.path().to_path_buf()].into_iter(), None).is_none());
         let error = inspect_cli(&renamed_desktop).unwrap_err();
         assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
 
@@ -294,7 +335,7 @@ mod tests {
         );
         std::fs::write(&renamed_desktop, candidates).unwrap();
         assert!(std::fs::metadata(&renamed_desktop).unwrap().len() <= MAX_CLI_BYTES);
-        assert!(discover_cli(None, [temp.path().to_path_buf()].into_iter()).is_none());
+        assert!(discover_cli(None, [temp.path().to_path_buf()].into_iter(), None).is_none());
         let error = inspect_cli(&renamed_desktop).unwrap_err();
         assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
         assert_eq!(
@@ -330,6 +371,6 @@ mod tests {
             error.to_string(),
             "standalone CLI is not a bounded regular file"
         );
-        assert!(discover_cli(None, [temp.path().to_path_buf()].into_iter()).is_none());
+        assert!(discover_cli(None, [temp.path().to_path_buf()].into_iter(), None).is_none());
     }
 }

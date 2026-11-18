@@ -313,13 +313,17 @@ function PreparationFacts({ plan }: { plan: PreparationPlan }) {
         <div>
           <dt className="text-pc-secondary-foreground">{t("preparation.plan.uses")}</dt>
           <dd className="m-0 [user-select:text]">
-            <bdi dir="ltr">{plan.inputs.source.path}</bdi>
+            <bdi dir="ltr" className="path-value">
+              {plan.inputs.source.path}
+            </bdi>
           </dd>
         </div>
         <div>
           <dt className="text-pc-secondary-foreground">{t("preparation.plan.current")}</dt>
           <dd className="m-0 [user-select:text]">
-            <bdi dir="ltr">{plan.inputs.install.path}</bdi>
+            <bdi dir="ltr" className="path-value">
+              {plan.inputs.install.path}
+            </bdi>
             <span className="block text-pc-muted-foreground">
               {t("preparation.plan.destination")}
             </span>
