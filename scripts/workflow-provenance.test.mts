@@ -1972,7 +1972,7 @@ void test("duplicate provenance entries refuse before decoding a second payload"
   assert.throws(() => parseProvenanceArchive(duplicate), /must contain one JSON record/);
 });
 
-void test("Linux continuity publishes an outside-checkout store and lossless bounded private-free reports", async (t) => {
+void test("Linux large review binds source and controller and publishes an outside-checkout store and lossless bounded private-free reports", async (t) => {
   const workflow: unknown = parseYaml(
     readFileSync(
       new URL("../.github/workflows/native-design-compatibility.yml", import.meta.url),
@@ -1980,9 +1980,34 @@ void test("Linux continuity publishes an outside-checkout store and lossless bou
     ),
   );
   const job = record(record(record(workflow).jobs).linux_preparation_continuity);
+  const sourceHead = "e6146c65cc0dfdede1b503244165ca007f97692f";
+  assert.equal(record(job.env).SOURCE_HEAD, sourceHead);
+  assert.equal(record(job.env).CONTROLLER_HEAD, "${{ github.sha }}");
+  assert.equal(job["timeout-minutes"], 90);
   assert.ok(!Object.hasOwn(record(job.env), "PORTCOVE_RETAINED_EVIDENCE_DIR"));
   assert.ok(Array.isArray(job.steps));
   const steps: unknown[] = job.steps;
+  const build = record(
+    required(
+      steps.find(
+        (value) =>
+          record(value).name === "Build fresh qualification application, CLI and owned probe",
+      ),
+    ),
+  );
+  assert.match(
+    text(build.run),
+    /cargo build --locked -p portcove-desktop --features tauri\/custom-protocol,qualification-fixtures/u,
+  );
+  assert.match(
+    text(build.run),
+    /cargo build --locked -p portcove-cli --features qualification-fixtures/u,
+  );
+  const checkoutStep = record(
+    required(steps.find((value) => text(record(value).uses).startsWith("actions/checkout@"))),
+  );
+  assert.equal(record(checkoutStep.with).ref, "${{ env.SOURCE_HEAD }}");
+  assert.equal(record(checkoutStep.with)["persist-credentials"], false);
   const nodeSetup = record(
     required(steps.find((value) => text(record(value).uses).startsWith("actions/setup-node@"))),
   );
@@ -2015,12 +2040,14 @@ void test("Linux continuity publishes an outside-checkout store and lossless bou
     RUNNER_TEMP: runnerTemporary,
     GITHUB_ENV: environmentFile,
     GITHUB_SHA: "a".repeat(40),
+    CONTROLLER_HEAD: "a".repeat(40),
+    SOURCE_HEAD: sourceHead,
   };
   const stubbedEnvironment = [
     "import cp from 'node:child_process';",
     "import {syncBuiltinESMExports} from 'node:module';",
     "cp.execFileSync=(command,args)=>{",
-    " if(command==='git')return args.includes('--porcelain')?'':'a'.repeat(40);",
+    " if(command==='git')return args.includes('--porcelain')?'':process.env.SOURCE_HEAD;",
     " if(['uname','pnpm','rustc'].includes(command))return 'fixture version';",
     " throw new Error('Unexpected environment command'); };",
     "syncBuiltinESMExports();",
@@ -2045,19 +2072,63 @@ void test("Linux continuity publishes an outside-checkout store and lossless bou
     "PORTCOVE_RETAINED_EVIDENCE_DIR=" + retained + "\n",
   );
   assert.ok(path.relative(checkout, retained).startsWith(".." + path.sep));
-  const root = path.join(checkout, "work/linux-preparation-continuity");
+  const root = path.join(checkout, "work/linux-large-setup-review");
   assert.equal(
     record(JSON.parse(readFileSync(path.join(root, "host.json"), "utf8"))).retained_evidence,
     retained,
   );
+  const host = record(JSON.parse(readFileSync(path.join(root, "host.json"), "utf8")));
+  assert.equal(host.revision, sourceHead);
+  assert.equal(host.controller, environment.GITHUB_SHA);
+  const configurationProgram = extract("Prepare the exact private-X11 review selection");
+  const configured = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "--eval",
+      [
+        "import fs from 'node:fs';",
+        "import path from 'node:path';",
+        "fs.realpathSync=(file)=>path.resolve(String(file));",
+        "await import('data:text/javascript,'+encodeURIComponent(" +
+          JSON.stringify(configurationProgram) +
+          "));",
+      ].join("\n"),
+    ],
+    {
+      cwd: checkout,
+      env: { ...environment, CARGO_TARGET_DIR: path.join(runnerTemporary, "application-target") },
+      encoding: "utf8",
+      timeout: 15_000,
+    },
+  );
+  assert.equal(configured.status, 0, configured.stderr);
+  const selected = record(
+    JSON.parse(readFileSync(path.join(root, "large-review-config.json"), "utf8")),
+  );
+  assert.equal(selected.stage, "harness");
+  assert.equal(selected.output_root, root);
+  assert.ok(Array.isArray(selected.harness_args));
+  assert.deepEqual(selected.harness_args.slice(-2), [
+    "--scenario",
+    "native-large-discovery-setup-review",
+  ]);
+  const execution = record(
+    required(
+      steps.find(
+        (value) => record(value).name === "Observe the exact retained-page review and cancellation",
+      ),
+    ),
+  );
+  assert.equal(execution["timeout-minutes"], 15);
   const fixture: Record<string, string> = {
     "driver-help.txt": "exact driver inventory\n",
-    "cancellation/report.json": '{"result":"cancelled"}\n',
-    "cancellation/screenshot.png": "unit fixture image bytes",
-    "interruption/report.json": '{"result":"recovered"}\n',
+    "large-review/report.json": '{"result":"review-cancelled"}\n',
+    "large-review/screenshot.png": "unit fixture image bytes",
+    "cancellation/report.json": '{"unselected":"must not publish"}\n',
     "private-x11-abc123/preflight.json": '{"identity":"owned"}\n',
     "private-x11-abc123/outer-join.json": '{"closed":true}\n',
-    "cancellation/library/private.json": "private library bytes",
+    "large-review/library/private.json": "private library bytes",
     "private-x11-abc123/xdg_config_home/private.json": "private profile bytes",
     "private-x11-abc123/private-authority": "private cookie",
     "retained.exe": "binary payload",
@@ -2090,11 +2161,11 @@ void test("Linux continuity publishes an outside-checkout store and lossless bou
       .map((value: unknown) => text(record(value).original).split(path.sep).join("/"))
       .sort(),
     [
-      "cancellation/report.json",
-      "cancellation/screenshot.png",
       "driver-help.txt",
       "host.json",
-      "interruption/report.json",
+      "large-review-config.json",
+      "large-review/report.json",
+      "large-review/screenshot.png",
       "private-x11-abc123/outer-join.json",
       "private-x11-abc123/preflight.json",
     ],

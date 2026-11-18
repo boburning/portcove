@@ -277,13 +277,17 @@ jobs:
 
   linux_preparation_continuity:
     if: ${{ inputs.operation == 'linux-preparation-continuity' && inputs.runner == 'ubuntu-22.04' && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}
+    name: Linux large setup review
     runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    timeout-minutes: 90
     env:
+      SOURCE_HEAD: e6146c65cc0dfdede1b503244165ca007f97692f
+      CONTROLLER_HEAD: ${{ github.sha }}
       CARGO_TARGET_DIR: ${{ github.workspace }}/work/slice3-native-${{ github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.SOURCE_HEAD }}
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
@@ -303,14 +307,16 @@ jobs:
           import assert from 'node:assert/strict';
           const read = (command, args) => execFileSync(command, args, { encoding: 'utf8' }).trim();
           const revision = read('git', ['rev-parse', 'HEAD']);
-          assert.equal(revision, process.env.GITHUB_SHA);
+          assert.equal(revision, process.env.SOURCE_HEAD);
+          assert.match(revision, /^[a-f0-9]{40}$/);
+          assert.equal(process.env.CONTROLLER_HEAD, process.env.GITHUB_SHA);
           assert.equal(read('git', ['status', '--porcelain']), '');
           assert.ok(process.env.RUNNER_TEMP && path.isAbsolute(process.env.RUNNER_TEMP));
           const retained = path.join(process.env.RUNNER_TEMP, 'slice3-native-retained');
           fs.appendFileSync(process.env.GITHUB_ENV, 'PORTCOVE_RETAINED_EVIDENCE_DIR=' + retained + '\n');
-          fs.mkdirSync('work/linux-preparation-continuity', { recursive: true });
-          fs.writeFileSync('work/linux-preparation-continuity/host.json', JSON.stringify({
-            revision, runner: 'ubuntu-22.04', platform: process.platform,
+          fs.mkdirSync('work/linux-large-setup-review', { recursive: true });
+          fs.writeFileSync('work/linux-large-setup-review/host.json', JSON.stringify({
+            revision, controller: process.env.CONTROLLER_HEAD, runner: 'ubuntu-22.04', platform: process.platform,
             architecture: process.arch, kernel: read('uname', ['-r']),
             retained_evidence: retained,
             image_os: process.env.ImageOS, image_version: process.env.ImageVersion,
@@ -328,33 +334,32 @@ jobs:
             --root "$RUNNER_TEMP/slice3-native-driver" \
             --target-dir "$RUNNER_TEMP/slice3-native-driver-target"
           "$RUNNER_TEMP/slice3-native-driver/bin/tauri-driver" --help \
-            > work/linux-preparation-continuity/driver-help.txt
+            > work/linux-large-setup-review/driver-help.txt
           cargo install --list --root "$RUNNER_TEMP/slice3-native-driver" \
-            > work/linux-preparation-continuity/driver-installation.txt
+            > work/linux-large-setup-review/driver-installation.txt
           dpkg-query --show --showformat='${Package} ${Version} ${Architecture}\n' \
             libwebkit2gtk-4.1-0 webkit2gtk-driver xvfb x11-xkb-utils \
-            > work/linux-preparation-continuity/native-packages.txt
+            > work/linux-large-setup-review/native-packages.txt
       - run: pnpm install --frozen-lockfile
-      - name: Build fresh ordinary application, CLI and owned probe
+      - name: Build fresh qualification application, CLI and owned probe
         run: |
           test ! -e "$CARGO_TARGET_DIR"
           pnpm build
           node scripts/run-rust-tests.mts --guard-command \
-            cargo build --locked -p portcove-desktop --features tauri/custom-protocol
-          node scripts/run-rust-tests.mts --guard-command cargo build --locked -p portcove-cli
+            cargo build --locked -p portcove-desktop --features tauri/custom-protocol,qualification-fixtures
+          node scripts/run-rust-tests.mts --guard-command cargo build --locked -p portcove-cli --features qualification-fixtures
           rustc --edition=2024 --crate-name portcove_host_tool_fixture \
             crates/portcove-core/src/testdata/host_tool_probe.rs.txt \
             -o "$RUNNER_TEMP/slice3-native-owned-probe"
-      - name: Prepare the two exact private-X11 selections
+      - name: Prepare the exact private-X11 review selection
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           import path from 'node:path';
-          const output = path.resolve('work/linux-preparation-continuity');
+          const output = path.resolve('work/linux-large-setup-review');
           fs.mkdirSync(output, { recursive: true });
           for (const [name, scenario] of [
-            ['cancellation', 'native-preparation-cancellation'],
-            ['interruption', 'native-linux-interrupted-preparation'],
+            ['large-review', 'native-large-discovery-setup-review'],
           ]) {
             const config = {
               format_version: 1, stage: 'harness',
@@ -373,11 +378,10 @@ jobs:
             fs.writeFileSync(path.join(output, `${name}-config.json`), JSON.stringify(config, null, 2) + '\n', { flag: 'wx' });
           }
           NODE
-      - name: Observe reload, actual cancellation and forced namespace recovery
-        timeout-minutes: 10
+      - name: Observe the exact retained-page review and cancellation
+        timeout-minutes: 15
         run: |
-          node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-preparation-continuity/cancellation-config.json"
-          node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-preparation-continuity/interruption-config.json"
+          node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-large-setup-review/large-review-config.json"
       - name: Retain bounded Linux reports and images in ordinary job logs
         if: always()
         run: |
@@ -387,15 +391,15 @@ jobs:
           import assert from 'node:assert/strict';
           import { createHash } from 'node:crypto';
           import { encodeBackupEvidence } from './scripts/native-backup-evidence.mts';
-          const root = path.resolve('work/linux-preparation-continuity');
+          const root = path.resolve('work/linux-large-setup-review');
           assert.ok(fs.lstatSync(root).isDirectory() && !fs.lstatSync(root).isSymbolicLink(), 'Report root must be an owned directory');
-          const encoded = path.resolve('work/linux-continuity-encoded');
+          const encoded = path.resolve('work/linux-large-review-encoded');
           assert.ok(!fs.existsSync(encoded), 'Never overwrite collected evidence');
           const native = path.join(encoded, 'desktop-verify', 'slice3', 'native');
           fs.mkdirSync(native, { recursive: true, mode: 0o700 });
           const directories = [root];
           for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-            if (entry.name === 'cancellation' || entry.name === 'interruption' || /^private-x11-[a-zA-Z0-9]+$/.test(entry.name)) {
+            if (entry.name === 'large-review' || /^private-x11-[a-zA-Z0-9]+$/.test(entry.name)) {
               assert.ok(entry.isDirectory() && !entry.isSymbolicLink(), 'Report root must be an owned directory');
               directories.push(path.join(root, entry.name));
             }
