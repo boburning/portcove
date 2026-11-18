@@ -19902,7 +19902,7 @@ fn main() {
 
     #[cfg(windows)]
     #[test]
-    fn chocolate_refused_profiles_preserve_prepared_data_before_first_spawn() {
+    fn chocolate_refused_deployment_preserves_prepared_data_before_first_spawn() {
         const ID: &str = "chocolate-doom-family";
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
@@ -19941,13 +19941,14 @@ fn main() {
             .map(|name| fs::read(root.join(name)).unwrap())
             .collect();
         assert!(!root.join(LAUNCH_MARKER).exists());
-        let error = service.ensure_default_profile(ID).unwrap_err();
+        // Default metadata does not grant a deployment contract or permission
+        // to replace prepared data. Test activation of that real profile.
+        let profile = service.ensure_default_profile(ID).unwrap();
+        assert!(profile.is_default);
+        assert_eq!(profile.port_id, ID);
+        let error = service.activate_profile(ID, &profile.id).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Unsupported);
         assert!(error.message.contains("no reviewed mod package contract"));
-        let error = service
-            .activate_profile(ID, "unreviewed-profile")
-            .unwrap_err();
-        assert_eq!(error.code, crate::ErrorCode::Unsupported);
         assert!(!crate::profile_deploy::restore_pending(
             &library.user_dir(ID)
         ));
