@@ -217,6 +217,8 @@ it.each([
     });
     const retry = deferred<PortIntent[]>();
     const diagnostic = `Could not read setup choices at C:\\Synthetic\\${"x".repeat(200)}\\choices.json`;
+    const recordedFailure = `Controlled earlier setup failure: C:\\Synthetic\\${"y".repeat(200)}\\{{count}}.json`;
+    const recoveredMode = theme === "dark" ? "set_up_when_ready" : "notify";
     const read = vi
       .spyOn(desktopApi, "portIntents")
       .mockRejectedValueOnce(new Error(diagnostic))
@@ -255,7 +257,7 @@ it.each([
       .toBeEnabled();
     const button = page.getByRole("button", { name: "Read again", exact: true });
     const recovery = button.element();
-    recovery.scrollIntoView({ block: "center", inline: "nearest" });
+    field.scrollIntoView({ block: "center", inline: "nearest" });
     await expect.element(page.getByRole("alert")).toHaveTextContent(diagnostic);
     await expect.element(choices()).toHaveAttribute("aria-busy", "false");
     await expectContainedRecovery(recovery);
@@ -264,11 +266,21 @@ it.each([
     await expect.element(choices()).toHaveAttribute("aria-busy", "true");
     await expectContainedRecovery(recovery);
     await captureParityState("setup-intent-read-retrying");
-    await act(async () => retry.resolve([intent("details-ready")]));
+    await act(async () =>
+      retry.resolve([{ ...intent("details-ready", recoveredMode), failure: recordedFailure }]),
+    );
     await expect.element(choices()).toHaveAttribute("aria-busy", "false");
     await expect
-      .element(page.getByRole("radio", { name: "Tell me when it's ready", exact: true }))
+      .element(
+        page.getByRole("radio", {
+          name: theme === "dark" ? "Set it up when it's ready" : "Tell me when it's ready",
+          exact: true,
+        }),
+      )
       .toBeChecked();
+    await expect
+      .element(page.elementLocator(field).getByText(recordedFailure, { exact: true }))
+      .toBeVisible();
     expect(read.mock.calls).toEqual([[1], [1]]);
     await expect.element(page.elementLocator(button.element())).toHaveFocus();
     await expectContainedRecovery(recovery);

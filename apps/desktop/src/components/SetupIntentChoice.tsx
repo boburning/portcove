@@ -118,7 +118,7 @@ function BoundSetupIntentChoice({ portId, generation, installed = false }: Props
   };
 
   return (
-    <fieldset className="mt-6 grid min-w-0 gap-2 text-sm" aria-busy={busy || reading}>
+    <fieldset className="mt-6 grid min-w-0 gap-2 text-sm wrap-anywhere" aria-busy={busy || reading}>
       <legend className="text-base">{t("intent.legend")}</legend>
       {choices
         .map((mode) => ({ mode, ...choiceCopy(t, mode) }))
@@ -167,11 +167,7 @@ function BoundSetupIntentChoice({ portId, generation, installed = false }: Props
           />
         </p>
       )}
-      {error && (
-        <p role="alert" className="wrap-anywhere">
-          {error}
-        </p>
-      )}
+      {error && <p role="alert">{error}</p>}
       {(readFailed || readRequest > 0) && (
         <Button
           data-focusable
