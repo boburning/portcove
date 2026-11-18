@@ -131,6 +131,21 @@ impl PortcoveService {
         exclusions
             .generated_metadata
             .extend(source_exclusions.generated_metadata);
+        // Excluding a current declaration is conservative: it grants neither
+        // mutability nor migration rights to an older installed contract.
+        let platform = Platform::current()?;
+        if let Ok(current) = self.catalog.port(&active.port_id)
+            && current.platforms.contains(&platform)
+        {
+            let (_, current_exclusions) =
+                InstallQualification::from_port(current, platform)?.carry_exclusions(target)?;
+            exclusions
+                .declared_paths
+                .extend(current_exclusions.declared_paths);
+            exclusions
+                .declared_patterns
+                .extend(current_exclusions.declared_patterns);
+        }
         for retained in self.library.installs_for_port(&active.port_id)? {
             if retained.id == active.id || retained.id == target.id {
                 continue;

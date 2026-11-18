@@ -26,13 +26,37 @@ async fn carry_respects_other_retained_declarations_for_new_files_and_recorded_r
         .as_array_mut()
         .unwrap()
         .push(serde_json::json!({"prefix":"hold_", "suffix":".txt"}));
-    service.replace_catalog_for_test(Catalog::from_json(&declared.to_string()).unwrap());
+    // Create this historical contract independently. Requesting it as a live
+    // transition would correctly refuse the changed persistence declarations.
+    let retained_library = Library::open(temporary.path().join("historical-library")).unwrap();
+    let mut historical = build_service(retained_library.clone(), provider.clone());
+    historical.replace_catalog_for_test(Catalog::from_json(&declared.to_string()).unwrap());
     *provider.0.lock().unwrap() = server.release("v3", 3);
-    let retained = service
-        .install(ID, None, None, None, false, |_| {})
+    let mut retained = historical
+        .install(ID, None, None, None, true, |_| {})
         .await
         .unwrap();
-    service.replace_catalog_for_test(catalog());
+    let relative = retained
+        .path
+        .strip_prefix(retained_library.versions_dir())
+        .unwrap();
+    let retained_path = library.versions_dir().join(relative);
+    drop(historical);
+    drop(retained_library);
+    fs::create_dir_all(retained_path.parent().unwrap()).unwrap();
+    fs::rename(&retained.path, &retained_path).unwrap();
+    retained.path = retained_path;
+    library.register_install(&retained, false).unwrap();
+    let mut current = serde_json::to_value(catalog().authoritative_document()).unwrap();
+    current["ports"][0]["persistent_paths"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!("current-only"));
+    current["ports"][0]["persistent_file_patterns"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({"prefix":"now_", "suffix":".txt"}));
+    service.replace_catalog_for_test(Catalog::from_json(&current.to_string()).unwrap());
     assert_ne!(retained.id, active.id);
     assert_ne!(retained.id, target.id);
     assert_eq!(library.installs_for_port(ID).unwrap().len(), 3);
@@ -45,6 +69,17 @@ async fn carry_respects_other_retained_declarations_for_new_files_and_recorded_r
     )
     .unwrap();
     fs::write(active.path.join("notes.txt"), b"ordinary unknown data").unwrap();
+    fs::create_dir_all(active.path.join("current-only")).unwrap();
+    fs::write(
+        active.path.join("current-only/fresh.txt"),
+        b"current declared path",
+    )
+    .unwrap();
+    fs::write(
+        active.path.join("now_profile.txt"),
+        b"current declared pattern",
+    )
+    .unwrap();
     fs::create_dir_all(target.path.join("legacy")).unwrap();
     let old = b"recorded player data";
     fs::write(target.path.join("legacy/removed.txt"), old).unwrap();
@@ -82,6 +117,8 @@ async fn carry_respects_other_retained_declarations_for_new_files_and_recorded_r
     assert!(outcome.removed.is_empty());
     assert!(!target.path.join("legacy/fresh.txt").exists());
     assert!(!target.path.join("hold_profile.txt").exists());
+    assert!(!target.path.join("current-only/fresh.txt").exists());
+    assert!(!target.path.join("now_profile.txt").exists());
     assert_eq!(
         fs::read(target.path.join("legacy/removed.txt")).unwrap(),
         old
