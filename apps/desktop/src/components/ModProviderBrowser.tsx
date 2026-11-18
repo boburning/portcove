@@ -77,7 +77,12 @@ export function ModProviderBrowser(props: Props) {
   const [plan, setPlan] = useState<ProviderInstallPlan>();
   const [working, setWorking] = useState<string>();
   // Core failure text stays verbatim; the app's own follow-up is rendered live.
-  const [error, setError] = useState<{ text: string; reviewAgain?: boolean; projectId?: string }>();
+  const [error, setError] = useState<{
+    text: string;
+    reviewAgain?: boolean;
+    projectId?: string;
+    browseUrl?: string;
+  }>();
   const heading = useRef<HTMLHeadingElement>(null);
   const focusOnOpen = useRef(false);
   const headingId = useId();
@@ -130,8 +135,24 @@ export function ModProviderBrowser(props: Props) {
       if (alive.current) apply(value);
       return value;
     } catch (failure) {
-      if (alive.current)
-        setError({ text: errorText(failure), ...(projectId ? { projectId } : {}) });
+      if (alive.current) {
+        const details =
+          failure && typeof failure === "object" && "details" in failure
+            ? failure.details
+            : undefined;
+        const url =
+          details && typeof details === "object" && "provider_browse_url" in details
+            ? details.provider_browse_url
+            : undefined;
+        setError({
+          text: errorText(failure),
+          ...(projectId ? { projectId } : {}),
+          ...(typeof url === "string" &&
+          /^https:\/\/thunderstore\.io\/c\/[a-zA-Z0-9_-]{1,128}\/$/u.test(url)
+            ? { browseUrl: url }
+            : {}),
+        });
+      }
       return undefined;
     } finally {
       if (alive.current) setWorking(undefined);
@@ -227,6 +248,11 @@ export function ModProviderBrowser(props: Props) {
           <bdi>{error.text}</bdi>
           {error.reviewAgain ? ` ${t("mods.browse.reviewAgain")}` : ""}
         </p>
+      )}
+      {error?.browseUrl && (
+        <ExternalLink href={error.browseUrl}>
+          {t("mods.browse.sourcePage", { provider })}
+        </ExternalLink>
       )}
       {failedProjectId && (
         <ActionRow>

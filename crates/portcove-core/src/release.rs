@@ -2531,9 +2531,10 @@ pub(crate) async fn bounded_response_bytes(
         .content_length()
         .is_some_and(|length| length > limit as u64)
     {
-        return Err(PortcoveError::verification(format!(
-            "{label} exceeds the {limit} byte limit"
-        )));
+        return Err(
+            PortcoveError::verification(format!("{label} exceeds the {limit} byte limit"))
+                .detail("response_byte_limit", limit.to_string()),
+        );
     }
     let mut body = Vec::new();
     let mut stream = response.bytes_stream();
@@ -2549,7 +2550,8 @@ pub(crate) async fn bounded_response_bytes(
         if chunk.len() > limit.saturating_sub(body.len()) {
             return Err(PortcoveError::verification(format!(
                 "{label} exceeds the {limit} byte limit"
-            )));
+            ))
+            .detail("response_byte_limit", limit.to_string()));
         }
         body.extend_from_slice(&chunk);
         #[cfg(test)]

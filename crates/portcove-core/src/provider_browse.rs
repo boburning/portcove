@@ -17,15 +17,13 @@ use crate::{
 
 /// Mods listed per browse page.
 const BROWSE_PAGE_SIZE: u32 = 20;
-/// Pages beyond this are not offered; the provider's own site covers deep browsing.
-const MAX_BROWSE_PAGE: u32 = 50;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ProviderBrowsePage {
     pub port_id: String,
     /// The game's catalog name, for presentation.
     pub game_name: String,
-    /// Highest page browsing offers.
+    /// Highest page known from this response, including any continuation.
     pub last_page: u32,
     /// Records on this page the provider labels as another game; not listed.
     pub other_game_records: u32,
@@ -81,12 +79,18 @@ impl PortcoveService {
         page: u32,
     ) -> Result<ProviderBrowsePage> {
         let game_name = self.catalog().port(port_id)?.name.clone();
-        if page == 0 || page > MAX_BROWSE_PAGE {
-            return Err(PortcoveError::usage(format!(
-                "browse pages run from 1 to {MAX_BROWSE_PAGE}"
-            )));
+        if page == 0 {
+            return Err(PortcoveError::usage("browse pages start at 1"));
         }
         let mut observed = client.search(page, BROWSE_PAGE_SIZE).await?;
+        let last_page = if observed.value.complete {
+            page
+        } else {
+            let reported = observed.value.total.div_ceil(u64::from(BROWSE_PAGE_SIZE));
+            u32::try_from(reported)
+                .unwrap_or(u32::MAX)
+                .max(page.saturating_add(1))
+        };
         // The provider filters by game; anything it labels as another game is
         // dropped rather than listed under this one.
         let game_text = client.game_id();
@@ -99,7 +103,7 @@ impl PortcoveService {
         Ok(ProviderBrowsePage {
             port_id: port_id.into(),
             game_name,
-            last_page: MAX_BROWSE_PAGE,
+            last_page,
             other_game_records,
             provider: client.provider().into(),
             page: observed.value,
