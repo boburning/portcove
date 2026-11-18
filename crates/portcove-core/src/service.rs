@@ -7116,6 +7116,8 @@ impl PortcoveService {
         install_root: &Path,
     ) -> Result<Vec<PathBuf>> {
         self.library.require_no_ghostship_recovery(&port.id)?;
+        let contract = self.persistence_contract(port, install_root)?;
+        let port = &contract.port;
         // A profile change made the canonical data newer than this build's copy.
         // Collecting now would copy the stale build over the selected profile.
         // Chocolate has no reviewed profile deployment: an unrelated marker
@@ -7125,8 +7127,6 @@ impl PortcoveService {
         {
             return Ok(Vec::new());
         }
-        let contract = self.persistence_contract(port, install_root)?;
-        let port = &contract.port;
         self.require_completed_restore(&port.id)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, install_root)?;
@@ -19844,6 +19844,60 @@ fn main() {
             fs::write(path, bytes).unwrap();
         }
         register_existing_test_artifact_with_port(library, port, version, &root, artifact, active)
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn chocolate_collection_uses_retained_recipe_despite_current_catalog_and_profile_marker() {
+        const ID: &str = "chocolate-doom-family";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let port = Catalog::embedded().unwrap().port(ID).unwrap().clone();
+        let install = register_forward_install(
+            &library,
+            &port,
+            "chocolate-doom-3.1.1",
+            true,
+            &[("game.wad", b"synthetic original A")],
+        );
+        let user = library.user_dir(ID);
+        fs::create_dir_all(&user).unwrap();
+        fs::write(user.join("game.wad"), b"synthetic original B").unwrap();
+        // An unrelated marker retained by an import is not profile authority.
+        crate::profile_deploy::mark_restore_pending(&crate::profile_deploy::Layout::for_user(
+            &user,
+        ))
+        .unwrap();
+        let mut service = service_with_release(library, "chocolate-doom-3.1.1");
+        let mut document = service.catalog().authoritative_document();
+        let current = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == ID)
+            .unwrap();
+        current.managed_initialization = None;
+        current.windows_runtime_path_policy = None;
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        assert!(!crate::managed_chocolate::applies(
+            service.catalog().port(ID).unwrap()
+        ));
+        // Exercise the public caller that supplies today's catalog, while the
+        // installation's creating contract still owns collection and refusal.
+        let error = service
+            .collect_user_data_from_install(ID, &install.path)
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert_eq!(
+            fs::read(install.path.join("game.wad")).unwrap(),
+            b"synthetic original A"
+        );
+        assert_eq!(
+            fs::read(user.join("game.wad")).unwrap(),
+            b"synthetic original B"
+        );
+        assert!(crate::profile_deploy::restore_pending(&user));
     }
 
     #[cfg(windows)]
