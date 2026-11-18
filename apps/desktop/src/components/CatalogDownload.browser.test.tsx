@@ -312,6 +312,7 @@ it("retains a deliberate older release and package across refresh", async () => 
     release_id: 41,
     asset_id: 8,
     release_tag: "v1.1",
+    release_url: `${listing.project_url}/releases/tag/v1.1`,
     name: "game-variant.zip",
   };
   const previous = {
@@ -330,6 +331,9 @@ it("retains a deliberate older release and package across refresh", async () => 
     })
     .mockResolvedValue(previous);
   await click("Check upstream downloads");
+  await expect
+    .element(page.getByRole("link", { name: "Release notes for v1.2" }))
+    .toHaveAttribute("href", artifact.release_url);
   await click("Change download options");
   await page.getByRole("combobox", { name: /^Release v/ }).click();
   await page.getByRole("option", { name: /v1.1/ }).click();
@@ -343,6 +347,10 @@ it("retains a deliberate older release and package across refresh", async () => 
     41,
     "stable",
   );
+  await expect
+    .element(page.getByRole("link", { name: "Release notes for v1.1" }))
+    .toHaveAttribute("href", older.release_url);
+  expect(document.querySelector(`a[href="${artifact.release_url}"]`)).toBeNull();
   await click("Review download");
   expect(desktopApi.previewCatalogDownload).toHaveBeenCalledExactlyOnceWith(
     { ...selection, release_id: 41, asset_id: 8 },
@@ -997,6 +1005,50 @@ it("counts a pending listing under Needs attention beside a ready registration w
   expect(desktopApi.catalogDownloadCandidates).not.toHaveBeenCalled();
 });
 
+it("uses the downloaded package’s release and retained setup guide when the directory changes", async () => {
+  const retained = {
+    ...listing,
+    setup_url: `${listing.project_url}/wiki/Original-setup`,
+    manual_setup: {
+      steps: [{ title: "Prepare the archive", instruction: "Use the companion data folder." }],
+      warnings: [],
+    },
+  };
+  const current = {
+    ...listing,
+    setup_url: `${listing.project_url}/wiki/New-installer`,
+    manual_setup: {
+      steps: [{ title: "New installer", instruction: "Follow the new setup wizard." }],
+      warnings: [],
+    },
+  };
+  const [resumed] = catalogEntries(
+    undefined,
+    { format_version: 1, listings: [current] },
+    [listingStatus],
+    [{ ...saved, listing: retained }],
+  );
+  await root.rerender(
+    <ListingDetailPanel
+      entry={resumed!}
+      status={status}
+      close={vi.fn()}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+    />,
+  );
+  await page.getByRole("tab", { name: "Game files", exact: true }).click();
+  await expect
+    .element(page.getByRole("link", { name: "Release notes for v1.2" }))
+    .toHaveAttribute("href", artifact.release_url);
+  expect(document.body.textContent).toContain("Use the companion data folder.");
+  expect(document.body.textContent).not.toContain("Follow the new setup wizard.");
+  expect(document.querySelector(`a[href="${retained.setup_url}"]`)).toBeTruthy();
+  expect(document.querySelector(`a[href="${current.setup_url}"]`)).toBeNull();
+  expect(desktopApi.catalogDownloadCandidates).not.toHaveBeenCalled();
+});
+
 it("presents interrupted downloads as recovery and never as launchable or ready setup", async () => {
   const attention = {
     ...saved,
@@ -1464,14 +1516,13 @@ it("separates stable update navigation, selected-package notes and historical se
     .element(page.getByRole("link", { name: "Upstream releases", exact: true }))
     .toHaveAttribute("href", `${listing.project_url}/releases`);
   await expect
-    .element(page.getByRole("link", { name: "Setup instructions", exact: true }))
+    .element(page.getByRole("link", { name: "Project setup guide", exact: true }))
     .toHaveAttribute("href", historical);
   await expect
     .element(page.getByRole("link", { name: "View upstream releases", exact: true }))
     .toHaveAttribute("href", `${listing.project_url}/releases`);
-  await click("Change download options");
   await expect
-    .element(page.getByRole("link", { name: "Release notes and requirements", exact: true }))
+    .element(page.getByRole("link", { name: "Release notes for v1.2", exact: true }))
     .toHaveAttribute("href", artifact.release_url);
 });
 

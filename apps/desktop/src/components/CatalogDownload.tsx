@@ -22,6 +22,7 @@ import { pickInstallFolder } from "../file-picker";
 import { gameIdentityLabel } from "../port-identity";
 import { LatestRequestGeneration } from "../shared/concurrency-state";
 import type {
+  CatalogDownloadCandidate,
   CatalogDownloadCandidates,
   CatalogDownloadRequest,
   PendingSetupRecord,
@@ -43,6 +44,14 @@ interface DownloadControlProps {
   perform: Perform;
   autoCheck?: boolean;
   libraryRoot?: string | undefined;
+}
+
+function ReleaseSetupLink({ artifact }: { artifact: CatalogDownloadCandidate }) {
+  return (
+    <ExternalLink href={artifact.release_url}>
+      Release notes for <bdi>{artifact.release_tag}</bdi>
+    </ExternalLink>
+  );
 }
 
 export function CatalogDownloadControl(props: DownloadControlProps) {
@@ -581,6 +590,12 @@ function PendingActions({
   };
   return (
     <>
+      <p className="grid gap-1 text-sm [overflow-wrap:anywhere]">
+        <span>
+          Downloaded file: <bdi>{pending.artifact.name}</bdi>
+        </span>
+        <ReleaseSetupLink artifact={pending.artifact} />
+      </p>
       <ActionRow>
         <Button
           data-focusable
@@ -769,9 +784,6 @@ function DownloadOptions({
             }
           </p>
         )}
-        {selected && (
-          <ExternalLink href={selected.release_url}>Release notes and requirements</ExternalLink>
-        )}
         <ActionRow>
           <Button
             data-focusable
@@ -850,6 +862,12 @@ function RecommendedDownload({
         </strong>
         <p className="[overflow-wrap:anywhere]">
           {model.selected.name} · {formatBytes(model.selected.size)}
+        </p>
+        <ReleaseSetupLink artifact={model.selected} />
+        <p className="text-sm">
+          {model.selected.can_extract && model.extract
+            ? "Portcove will extract this package. Choose the game program after setup."
+            : "Portcove will save this file for manual setup. Follow the instructions for this release."}
         </p>
         {model.destination && (
           <p className="text-sm [overflow-wrap:anywhere]">
