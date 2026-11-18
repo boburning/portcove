@@ -130,7 +130,16 @@ export function linuxX11ExecutionBudgets(config: Pick<X11Configuration, "stage" 
           resolveDesktopHarnessSelection(parseDesktopHarnessOptions(config.harness_args).values),
         ) + 60_000
       : 240_000;
-  return { harness, outer: harness + 30_000 };
+  const outer = harness + 30_000;
+  const inputCapture = 300_000;
+  const inputVerification = 120_000;
+  return {
+    harness,
+    outer,
+    inputCapture,
+    inputVerification,
+    command: inputCapture + outer + inputVerification + 60_000,
+  };
 }
 export async function readLinuxX11Configuration(file: string) {
   const value: unknown = JSON.parse(await readFile(file, "utf8"));
@@ -475,9 +484,10 @@ export async function runLinuxX11(file: string) {
   });
   let launch: NativeLaunch | undefined;
   try {
+    const budgets = linuxX11ExecutionBudgets(config);
     const retainedRoot = retainedEvidenceRoot(config.output_root);
     const inputs = [];
-    const signal = AbortSignal.timeout(60_000);
+    const signal = AbortSignal.timeout(budgets.inputCapture);
     for (const input of [
       config.xvfb,
       config.xkbcomp,
@@ -549,7 +559,7 @@ export async function runLinuxX11(file: string) {
       JSON.stringify({ exit, join }, null, 2) + "\n",
       { flag: "wx" },
     );
-    await verifyConsumedInputs(inputs, { signal: AbortSignal.timeout(60_000) });
+    await verifyConsumedInputs(inputs, { signal: AbortSignal.timeout(budgets.inputVerification) });
     process.exitCode = exit.code ?? 1;
   } finally {
     if (launch) {
@@ -655,6 +665,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === source) {
         await bootstrap({ ...config, _caller_uid: raw._caller_uid }, runtime);
       } else await virtualDisplay(config, runtime);
     } else if (mode === "--config" && value && !runtime) {
+      const budgetConfiguration: unknown =
+        process.platform === "linux" ? JSON.parse(await readFile(value, "utf8")) : undefined;
+      const executionTimeoutMilliseconds =
+        process.platform === "linux"
+          ? linuxX11ExecutionBudgets(configuration(budgetConfiguration)).command
+          : undefined;
       process.exitCode = await resourceEntrypoint(
         process.platform === "win32" ? "rust" : "browser",
         async () => {
@@ -662,7 +678,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === source) {
           else await runLinuxX11(value);
           return Number(process.exitCode ?? 0);
         },
-        { exclusive: [frontendOutputResource(root)] },
+        {
+          exclusive: [frontendOutputResource(root)],
+          ...(executionTimeoutMilliseconds === undefined ? {} : { executionTimeoutMilliseconds }),
+        },
       );
     } else
       throw new Error(
