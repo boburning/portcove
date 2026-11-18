@@ -22,7 +22,8 @@ for name, url, digest, size in [
     ("graphics", "https://cdn.openttd.org/opengfx-releases/8.0/opengfx-8.0-all.zip", "43a0c1dabf39cb865394f3a6cc36d4da5c10ecfaaf55652043104806810903be", 3583152),
 ]:
     archive = inputs / (name + ".zip")
-    with urllib.request.urlopen(url, timeout=90) as response, archive.open("xb") as out:
+    request = urllib.request.Request(url, headers={"User-Agent": "Portcove-native-qualification/1.0"})
+    with urllib.request.urlopen(request, timeout=90) as response, archive.open("xb") as out:
         total = 0
         while chunk := response.read(65536):
             total += len(chunk)
