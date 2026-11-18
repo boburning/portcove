@@ -938,7 +938,7 @@ jobs:
       matrix:
         include:
           - name: reviewed-discovery-setup-batch
-            source: 1093466ab41a33dcd69ce567a42a8095c9be9960
+            source: aa219a286581df9fd416bc3ae9ebc1dfc3fbec6e
             scenario: native-reviewed-discovery-setup-batch
     env:
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/slice3-native-evidence
