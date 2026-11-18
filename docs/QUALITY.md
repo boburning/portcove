@@ -577,7 +577,8 @@ harness and cleanup must fit inside the job. This calibration is not a claim
 that the original late result passed within its deadline or that latency is fixed.
 The same source's local ordinary scenario suite passed 265 cases and failed its
 existing catalog-backed history import child at its 10-second safeguard. That
-inert child receives 30 seconds inside the unchanged 60-second parent limit;
+inert child receives 30 seconds inside an explicit 60-second limit for this case
+(the maintained suite default remains 30 seconds for other cases);
 assertions, optional-package refusal and child completion remain required. The
 original local failure is retained separately from subsequent focused feedback.
 
