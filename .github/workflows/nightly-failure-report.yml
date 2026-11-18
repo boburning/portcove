@@ -9,9 +9,6 @@ on:
     branches: [main]
 
 permissions: {}
-concurrency:
-  group: nightly-failure-${{ github.event.workflow_run.id }}
-  cancel-in-progress: false
 
 jobs:
   report:
@@ -19,6 +16,9 @@ jobs:
       github.event.workflow_run.head_repository.full_name == github.repository &&
       contains(fromJSON('["failure", "cancelled", "timed_out", "startup_failure"]'),
       github.event.workflow_run.conclusion)
+    concurrency:
+      group: nightly-failure-${{ github.event.workflow_run.id }}
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -35,10 +35,12 @@ jobs:
             const run = context.payload.workflow_run;
             const { owner, repo } = context.repo;
             const repository = `${owner}/${repo}`;
+            const ownerId = run.head_repository?.owner?.id;
             if (run.path !== ".github/workflows/nightly-preview.yml" ||
                 run.head_repository?.full_name !== repository || run.head_branch !== "main" ||
                 run.status !== "completed" ||
                 !["failure", "cancelled", "timed_out", "startup_failure"].includes(run.conclusion) ||
+                !Number.isSafeInteger(ownerId) || ownerId < 1 ||
                 !Number.isSafeInteger(run.id) || run.id < 1 ||
                 !Number.isSafeInteger(run.run_attempt) || run.run_attempt < 1) {
               throw new Error("Unexpected nightly workflow attempt");
@@ -48,12 +50,25 @@ jobs:
             const attemptUrl = `${runUrl}/attempts/${run.run_attempt}`;
             const runMarker = `<!-- portcove-nightly-failure-run:${run.id} -->`;
             const attemptMarker = `<!-- portcove-nightly-failure-attempt:${run.id}:${run.run_attempt} -->`;
+            const actionsBotId = 41898282;
             const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner, repo, state: "all", since: run.created_at, per_page: 100,
             });
-            const matches = issues.filter((issue) => !issue.pull_request && issue.body?.split(/\r?\n/u, 1)[0] === runMarker);
+            const matches = issues.filter((issue) => !issue.pull_request &&
+              (issue.user?.id === actionsBotId || issue.user?.id === ownerId) &&
+              issue.body?.split(/\r?\n/u, 1)[0] === runMarker);
             if (matches.length > 1) throw new Error("Multiple issues already report this nightly");
             const existing = matches[0];
+            const ensureOwnerAssignment = async (issue) => {
+              if (issue.assignees?.some((assignee) => assignee.login === owner)) return;
+              const { data } = await github.rest.issues.addAssignees({
+                owner, repo, issue_number: issue.number, assignees: [owner],
+              });
+              if (!data.assignees?.some((assignee) => assignee.login === owner)) {
+                throw new Error(`Nightly report #${issue.number} is missing its owner assignment`);
+              }
+            };
+            if (existing?.user.id === actionsBotId) await ensureOwnerAssignment(existing);
             const firstAttemptMarker = existing?.body.split(/\r?\n/u, 2)[1];
             if (firstAttemptMarker === attemptMarker) return;
             if (existing && run.run_attempt === 1 && !firstAttemptMarker?.startsWith("<!-- portcove-nightly-failure-attempt:")) return;
@@ -61,7 +76,8 @@ jobs:
               const comments = await github.paginate(github.rest.issues.listComments, {
                 owner, repo, issue_number: existing.number, per_page: 100,
               });
-              if (comments.some((comment) => comment.body?.split(/\r?\n/u, 1)[0] === attemptMarker)) return;
+              if (comments.some((comment) => comment.user?.id === actionsBotId &&
+                  comment.body?.split(/\r?\n/u, 1)[0] === attemptMarker)) return;
             }
 
             let jobs;
@@ -128,8 +144,6 @@ jobs:
                 body: `${runMarker}\n${report}`,
                 assignees: [owner],
               });
-              if (!issue.assignees?.some((assignee) => assignee.login === owner)) {
-                throw new Error(`Nightly report #${issue.number} was created without its owner assignment`);
-              }
+              await ensureOwnerAssignment(issue);
             }
             await core.summary.addRaw(report).write();

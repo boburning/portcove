@@ -1287,7 +1287,7 @@ void test("nightly reporter isolates issue permissions and replays the triggerin
     run_number: 7,
     run_attempt: 2,
     path: ".github/workflows/nightly-preview.yml",
-    head_repository: { full_name: "boburning/portcove" },
+    head_repository: { full_name: "boburning/portcove", owner: { id: 43177418 } },
     head_branch: "main",
     status: "completed",
     conclusion: "cancelled",
@@ -1297,21 +1297,31 @@ void test("nightly reporter isolates issue permissions and replays the triggerin
     updated_at: "2026-11-18T15:00:00Z",
   };
   const oldBody = "<!-- portcove-nightly-failure-run:44324930784 -->\nOriginal incident.";
-  const issue = { number: 8176, state: "closed", body: oldBody };
-  const comments: Array<{ body: string }> = [];
+  const issue = { number: 8176, state: "closed", body: oldBody, user: { id: 43177418 } };
+  const forgedIssue = { ...issue, number: 123, user: { id: 42 } };
+  const forgedComment = {
+    body: "<!-- portcove-nightly-failure-attempt:44324930784:2 -->",
+    user: { id: 42 },
+  };
+  const comments: Array<{ body: string; user: { id: number } }> = [];
   const warnings: string[] = [];
   let existing = true;
   let reopenCount = 0;
   let created: { body: string; assignees: string[] } | undefined;
+  let botIssue:
+    | { number: number; body: string; user: { id: number }; assignees: Array<{ login: string }> }
+    | undefined;
   let jobsAvailable = true;
+  let assignmentAvailable = false;
   const github = {
     paginate: (route: string, params: { attempt_number?: number; issue_number?: number }) => {
       switch (route) {
         case "issues":
-          return existing ? [issue] : [];
+          if (existing) return [forgedIssue, issue];
+          return botIssue ? [forgedIssue, botIssue] : [forgedIssue];
         case "comments":
           assert.equal(params.issue_number, 8176);
-          return comments;
+          return [forgedComment, ...comments];
         case "jobs":
           assert.equal(params.attempt_number, 2);
           if (!jobsAvailable) throw new Error("Job lookup unavailable");
@@ -1355,11 +1365,20 @@ void test("nightly reporter isolates issue permissions and replays the triggerin
         },
         createComment: (params: { issue_number: number; body: string }) => {
           assert.equal(params.issue_number, 8176);
-          comments.push({ body: params.body });
+          comments.push({ body: params.body, user: { id: 41898282 } });
         },
         create: (params: { body: string; assignees: string[] }) => {
           created = params;
-          return { data: { number: 8183, assignees: [{ login: "boburning" }] } };
+          botIssue = { number: 8183, body: params.body, user: { id: 41898282 }, assignees: [] };
+          return { data: botIssue };
+        },
+        addAssignees: (params: { issue_number: number; assignees: string[] }) => {
+          assert.equal(params.issue_number, 8183);
+          assert.equal(params.assignees.join(","), "boburning");
+          if (!assignmentAvailable) throw new Error("Assignment temporarily unavailable");
+          assert.ok(botIssue);
+          botIssue.assignees.push({ login: "boburning" });
+          return { data: botIssue };
         },
       },
     },
@@ -1388,8 +1407,13 @@ void test("nightly reporter isolates issue permissions and replays the triggerin
 
   existing = false;
   jobsAvailable = false;
-  await replay();
+  await assert.rejects(replay(), /Assignment temporarily unavailable/u);
   assert.equal(warnings.length, 1);
   assert.equal(created?.assignees.join(","), "boburning");
   assert.match(created?.body ?? "", /GitHub did not provide job metadata/u);
+  assignmentAvailable = true;
+  await replay();
+  assert.deepEqual(botIssue?.assignees, [{ login: "boburning" }]);
+  assert.equal(warnings.length, 1);
+  assert.equal(comments.length, 1);
 });
