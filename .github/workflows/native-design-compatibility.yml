@@ -281,7 +281,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
-      SOURCE_HEAD: 460515d7d0e59a0455077ba2f97f1a2f281d4a09
+      SOURCE_HEAD: bef33268008ec30c24dc3c6b2e884c2770f6e00b
       CONTROLLER_HEAD: ${{ github.sha }}
       CARGO_TARGET_DIR: ${{ github.workspace }}/work/slice3-native-${{ github.sha }}
     steps:
@@ -963,13 +963,13 @@ jobs:
       matrix:
         include:
           - name: reviewed-discovery-setup-batch
-            source: 460515d7d0e59a0455077ba2f97f1a2f281d4a09
+            source: bef33268008ec30c24dc3c6b2e884c2770f6e00b
             scenario: native-reviewed-discovery-setup-batch
           - name: standing-setup-source-return
-            source: 460515d7d0e59a0455077ba2f97f1a2f281d4a09
+            source: bef33268008ec30c24dc3c6b2e884c2770f6e00b
             scenario: native-standing-setup-source-return
           - name: large-discovery-setup-review
-            source: 460515d7d0e59a0455077ba2f97f1a2f281d4a09
+            source: bef33268008ec30c24dc3c6b2e884c2770f6e00b
             scenario: native-large-discovery-setup-review
     env:
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/slice3-native-evidence
@@ -1044,6 +1044,41 @@ jobs:
           if (Test-Path -LiteralPath $env:CARGO_TARGET_DIR) { throw 'Application target must be fresh.' }
           node scripts/desktop-verify.mts --scenario $env:SCENARIO --require-clean --plan --json > "$env:PORTCOVE_OUTPUT_DIR/selected-plan.json"
           if ($LASTEXITCODE -ne 0) { throw 'Exact native plan failed.' }
+          if ($env:SCENARIO -eq 'native-standing-setup-source-return') {
+            # Match the unoptimized native application instead of Core's optimized test profile.
+            node scripts/run-rust-tests.mts --guard-command cargo test --locked --profile dev -p portcove-core --features qualification-fixtures --lib service::port_intent::tests::standing_setup_installs_on_default_worker_stack -- --exact --nocapture --color never *> "$env:PORTCOVE_OUTPUT_DIR/standing-core-debug-profile.log"
+            $standingCoreExit = $LASTEXITCODE
+            $standingCoreLog = Join-Path $env:PORTCOVE_OUTPUT_DIR 'standing-core-debug-profile.log'
+            $standingCoreInfo = Get-Item -LiteralPath $standingCoreLog
+            $standingCoreReceipt = [ordered]@{
+              source_head = $env:SOURCE_HEAD
+              profile = 'dev'
+              core_opt_level = 0
+              features = @('qualification-fixtures')
+              test = 'service::port_intent::tests::standing_setup_installs_on_default_worker_stack'
+              exit_code = $standingCoreExit
+              log_bytes = $standingCoreInfo.Length
+              log_sha256 = (Get-FileHash -LiteralPath $standingCoreLog -Algorithm SHA256).Hash.ToLowerInvariant()
+              log_included = $false
+            }
+            if ($standingCoreInfo.Length -gt 1048576) {
+              $standingCoreReceipt | ConvertTo-Json -Depth 4 | Set-Content "$env:PORTCOVE_OUTPUT_DIR/standing-core-debug-profile.json"
+              throw 'Unoptimized standing log exceeds its finite retention bound; no pass claimed.'
+            }
+            $standingCoreText = [IO.File]::ReadAllText($standingCoreLog, [Text.Encoding]::UTF8)
+            $standingCoreLines = $standingCoreText -split '\r?\n'
+            $standingCoreLines
+            $standingCoreReceipt.log_included = $true
+            $standingCoreReceipt.log = $standingCoreText
+            $standingCoreReceipt.running_one_test = $standingCoreLines -ccontains 'running 1 test'
+            $standingCoreReceipt.named_pass = $standingCoreLines -ccontains 'test service::port_intent::tests::standing_setup_installs_on_default_worker_stack ... ok'
+            $standingCoreReceipt.one_passed_result = $standingCoreText -cmatch '(?m)^test result: ok\. 1 passed; 0 failed;'
+            $standingCoreReceipt | ConvertTo-Json -Depth 4 | Set-Content "$env:PORTCOVE_OUTPUT_DIR/standing-core-debug-profile.json"
+            if ($standingCoreExit -ne 0) { throw 'Unoptimized standing worker regression failed; preserve original evidence.' }
+            if (-not $standingCoreReceipt.running_one_test -or -not $standingCoreReceipt.named_pass -or -not $standingCoreReceipt.one_passed_result) {
+              throw 'Unoptimized standing regression did not execute the exact named test.'
+            }
+          }
           if ($env:SCENARIO -eq 'native-host-publication-recovery') {
             node scripts/run-rust-tests.mts --guard-command cargo test --locked -p portcove-core --features qualification-fixtures qualification_checkpoint::tests -- --nocapture
             if ($LASTEXITCODE -ne 0) { throw 'Qualification checkpoint tests failed.' }
