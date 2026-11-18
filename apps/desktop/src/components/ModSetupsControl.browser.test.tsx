@@ -2302,18 +2302,11 @@ it("keeps the draft until the exact recovered apply revision is materialized", a
     });
   };
   const read = vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
-  const apply = vi.spyOn(desktopApi, "applyModSetupDraft").mockImplementation(async () => {
-    read.mockResolvedValue(nextView(3));
-    throw Object.assign(new Error("Interrupted Apply"), {
-      presentation: {
-        summary: "Finish applying the setup.",
-        technical_message: "The selected setup has an interrupted change.",
-        mutation_state: "recovery_required",
-        technical_context: { setup_revision: "4", setup_revision_digest: digest },
-        recovery_actions: [],
-      },
-    });
+  let rejectApply!: (error: Error) => void;
+  const interrupted = new Promise<never>((_, reject) => {
+    rejectApply = reject;
   });
+  const apply = vi.spyOn(desktopApi, "applyModSetupDraft").mockReturnValue(interrupted);
   vi.spyOn(desktopApi, "useModSetup").mockImplementation(async () => {
     read.mockResolvedValue(nextView(4, "e".repeat(64)));
     return {} as Awaited<ReturnType<typeof desktopApi.useModSetup>>;
@@ -2326,6 +2319,25 @@ it("keeps the draft until the exact recovered apply revision is materialized", a
     await click("Review changes");
     await click("Check files");
     await click("Apply changes");
+    read.mockResolvedValue(nextView(3));
+    await act(async () => standingPass());
+    expect(localStorage.getItem(stored)).not.toContain(digest);
+    await expect
+      .element(page.getByRole("button", { name: "Finish using Default" }))
+      .not.toBeInTheDocument();
+    await act(async () =>
+      rejectApply(
+        Object.assign(new Error("Interrupted Apply"), {
+          presentation: {
+            summary: "Finish applying the setup.",
+            technical_message: "The selected setup has an interrupted change.",
+            mutation_state: "recovery_required",
+            technical_context: { setup_revision: "4", setup_revision_digest: digest },
+            recovery_actions: [],
+          },
+        }),
+      ),
+    );
     expect(localStorage.getItem(stored)).toContain(digest);
     const finish = page.getByRole("button", { name: "Finish using Default" });
     await expect.element(finish).toBeEnabled();

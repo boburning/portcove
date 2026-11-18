@@ -105,15 +105,16 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
   const [outcome, setOutcome] = useState<string>();
   const [working, setWorking] = useState(false);
   const [request, setRequest] = useState(0);
+  const applyingProviderDraft = useRef(false);
   // False from a change until the view is read again, so no control acts on a
   // revision the change has replaced.
   const [fresh, setFresh] = useState(true);
   useEffect(() => {
     if (busy) return;
-    let current = true;
+    const read = { current: true };
     void readModSetupInventory(portId, generation).then(
       (next) => {
-        if (!current) return;
+        if (!read.current || applyingProviderDraft.current) return;
         if (next.port_id !== portId) {
           setFailure("gameChanged");
           return;
@@ -122,11 +123,12 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
         setFresh(true);
       },
       (failure: unknown) => {
-        if (current) setFailure({ text: errorText(failure) });
+        if (read.current && !applyingProviderDraft.current)
+          setFailure({ text: errorText(failure) });
       },
     );
     return () => {
-      current = false;
+      read.current = false;
     };
   }, [portId, generation, busy, request]);
 
@@ -171,6 +173,9 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
     requestStandingSetup();
     setRequest((value) => value + 1);
   };
+  const setProviderDraftApplying = useCallback((applying: boolean) => {
+    applyingProviderDraft.current = applying;
+  }, []);
   return {
     view,
     error,
@@ -184,6 +189,7 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
     setOutcome,
     setFailure,
     refreshAfterProviderInstall,
+    setProviderDraftApplying,
   };
 }
 
@@ -212,6 +218,7 @@ function BoundModSetupsControl({
     setOutcome,
     setFailure,
     refreshAfterProviderInstall,
+    setProviderDraftApplying,
   } = useModSetupInventory(portId, generation, busy);
   const [browseSelected, selectBrowse] = useState<boolean>();
   const [browserBusy, setBrowserBusy] = useState(false);
@@ -612,6 +619,7 @@ function BoundModSetupsControl({
               }}
               onInstalled={refreshAfterProviderInstall}
               onRefresh={reread}
+              onApplying={setProviderDraftApplying}
               reviewFromPlay={reviewFromPlay}
               onAppliedFromPlay={onAppliedFromPlay}
             />
@@ -1245,7 +1253,7 @@ function ModSetupPackages({
             ]}
           />
         )}
-        {orderSupported && ordered.length > 1 && (
+        {(editOrder || (orderSupported && ordered.length > 1)) && (
           <Button variant="outline" disabled={disabled} onClick={() => setEditOrder(!editOrder)}>
             {t(editOrder ? "mods.workspace.done" : "mods.workspace.editOrder")}
           </Button>

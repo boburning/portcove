@@ -49,6 +49,7 @@ type Props = {
   onBusyChange: (busy: boolean) => void;
   onInstalled: (message: string) => void;
   onRefresh?: () => void;
+  onApplying?: (applying: boolean) => void;
   reviewFromPlay?: number | undefined;
   onAppliedFromPlay?: (() => void) | undefined;
   updates?: Pick<ModUpdateControlProps, "policy" | "setPolicy" | "automaticChecks">;
@@ -76,6 +77,7 @@ export function ModProviderBrowser({
   onBusyChange,
   onInstalled,
   onRefresh,
+  onApplying,
   updates,
   reviewFromPlay,
   onAppliedFromPlay,
@@ -339,6 +341,7 @@ export function ModProviderBrowser({
     setFailure(undefined);
     setWorking("apply");
     applying.current = true;
+    onApplying?.(true);
     try {
       await desktopApi.applyModSetupDraft(
         portId,
@@ -387,6 +390,7 @@ export function ModProviderBrowser({
       }
     } finally {
       applying.current = false;
+      onApplying?.(false);
       if (alive.current) setWorking(undefined);
     }
   };
