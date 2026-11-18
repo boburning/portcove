@@ -1,6 +1,6 @@
 import { useFilterPanel } from "./useFilterPanel";
 import { implementationMethodLabels } from "./implementation-metadata";
-import { useState, type Dispatch, type SetStateAction, type ReactNode } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction, type ReactNode } from "react";
 import { ListFilter, X } from "lucide-react";
 import type { CatalogEntry } from "./catalog-entry";
 import {
@@ -208,8 +208,11 @@ export function CatalogFilters({
     })),
   ];
   const { open, setOpen, panelId, trigger, heading, panel, close } = useFilterPanel();
-  const query = queryFromFilter(filter);
-  const result = evaluateCatalogQuery(candidates ?? [], query, context);
+  const query = useMemo(() => queryFromFilter(filter), [filter]);
+  const result = useMemo(
+    () => evaluateCatalogQuery(candidates ?? [], query, context, { includeFacetCounts: open }),
+    [candidates, query, context, open],
+  );
   const editable = result.state === "matched";
   const supported = result.state !== "unresolved";
   const quickViewOwnsUpdates = quickViewUpdates && isQuickViewUpdateSelection(query.updates);

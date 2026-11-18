@@ -44,7 +44,14 @@ function mod(id: string, name: string, provider = "gamebanana"): ProviderProject
     submitter: null,
     files: [],
     unreadable_files: 0,
-    listing: { categories: ["Textures"] },
+    listing: {
+      artwork: null,
+      categories: ["Textures"],
+      created_at: null,
+      downloads: null,
+      likes: null,
+      ratings: null,
+    },
   };
 }
 

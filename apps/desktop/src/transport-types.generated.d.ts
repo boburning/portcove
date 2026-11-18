@@ -5188,10 +5188,6 @@ export interface AssetConflict {
   winner: string;
   [k: string]: unknown;
 }
-/**
- * Everything a game-level mods view needs in one read: whether the game has a
- * reviewed mod contract, its setups and what is live now. Read-only.
- */
 export interface OutputModSetupsView {
   /**
    * Count from the materialized revision, including disabled mods.
@@ -6016,12 +6012,12 @@ export interface ThunderstoreDependency {
  * Optional provider claims for catalog presentation. Missing metrics stay unknown.
  */
 export interface ProviderListing {
-  artwork?: string | null;
+  artwork: string | null;
   categories: string[];
-  created_at?: number | null;
-  downloads?: number | null;
-  likes?: number | null;
-  ratings?: number | null;
+  created_at: number | null;
+  downloads: number | null;
+  likes: number | null;
+  ratings: number | null;
   [k: string]: unknown;
 }
 /**

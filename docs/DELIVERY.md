@@ -1,23 +1,13 @@
 # Continuous verified delivery
 
-Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+Game release streams are independent of application update feeds. See [game release channels](CLI.md#release-channels).
 
-This is the approved delivery design, not a claim that unattended publication
-or the application updater is active. [Releasing](RELEASING.md) retains the
-current protected tag/draft/publication procedure until a separately authorized,
-implemented and proven replacement is activated. The live
-[Project](https://github.com/users/boburning/projects/1) owns scheduling;
-canonical issues own acceptance and evidence. Immutable release records own
-shipped provenance; catalog data owns actual port availability and support.
-
-The current protected release implementation starts full validation, a read-only
-three-platform build matrix after validation; the dedicated read-only Intel
-producer may prepare compilation concurrently after the cheap identity gate. Native Intel verification begins as soon as that
-producer completes instead of waiting for unrelated platforms. Finalization remains
-serialized behind an explicit all-results gate, native Intel execution of the
-cross-built x86_64 artifacts, and exact run/revision producer lineage. This latency
-optimization does not activate unattended publication,
-change signing authority, or make a rehearsal equivalent to a released artifact.
+This document records delivery design decisions and earlier proposals. Operators
+should use the [current release process](RELEASING.md#current-release-process)
+for production tags, packaging, signing and publication, and the
+[current updater contract](UPDATER-TRUST.md) for installed application behavior.
+GitHub issues and the [Project](https://github.com/users/boburning/projects/1)
+track acceptance and remaining work.
 
 [QUALITY](QUALITY.md#required-hosted-baseline) owns CI scheduling. Ordinary PRs
 use the minimum Windows baseline. Nightly/manual full-platform qualification and
@@ -49,8 +39,8 @@ Linux GLib defect, actual remediation and exact scope/expiry/effect limits of
 existing Linux-only risk decisions. This Windows decision neither fixes the
 advisory nor exercises, renews or expands those decisions. A later Linux release
 must satisfy its applicable security and package requirements afresh. Use
-[package qualification](RELEASING.md#declared-package-policy) for final package
-and uninstall acceptance, and the [upgrade acceptance procedure](RELEASING.md#upgrade-acceptance-and-technical-previews)
+[the active release runbook](RELEASING.md#current-release-process) for packaging
+and publication and the [hosted installed-update procedure](NATIVE-HOSTED-ACCEPTANCE.md#hosted-installed-application-update)
 for platform-specific updater continuity. Additional distribution such as winget
 can be prioritized independently of the existing release commitments.
 
@@ -73,26 +63,16 @@ repeat only invalidated observations.
 
 ## Versions, channels and readiness
 
-Application versions, update channels, capability workstreams and readiness
-commitments are independent. Rolling describes frequent delivery; Stable and
-Preview are the only application channels. Game channels and catalog delivery
-retain their independent contracts. Choosing application Preview never opts
-games into upstream previews. Prepared games remain usable offline without an
-account, GitHub token, telemetry or persistent device identifier.
+The [active application release table](RELEASING.md#current-release-process)
+defines accepted tags, channels, feeds and approvals. A `preview.N` prerelease
+goes to Preview. A bare 0.x version goes to Beta and Preview. Check the
+publisher's table before choosing the next version. The [installed updater
+contract](UPDATER-TRUST.md#channels-and-feeds) explains the default and opt-in
+feeds. The live Project owns the decision to call a release the public beta.
 
-Published versions and evidence are permanent. Continue forward from the actual
-inventory: after `0.1.0-alpha.2`, possible previews are `0.1.0-alpha.3` and
-`0.1.0-alpha.4`; first public beta may be `0.1.0`, then `0.1.1`, `0.2.0` and
-`0.3.0`, production candidates `1.0.0-rc.1`, and production `1.0.0`. These are
-examples, not required stops. Never reset to `0.0.1` or reuse published versions.
-
-Public 0.x releases are Preview-only and GitHub prereleases, including bare
-`0.1.0`, which is not syntactically a SemVer prerelease. Show “Public beta” only
-after the beta gate passes. Stable requires explicit production approval;
-absence of a suffix, GitHub latest, and a prerelease checkbox are insufficient.
-Preview includes eligible experimental/beta/RC and corresponding final releases.
-At production readiness, Stable becomes the default for new installations;
-existing testers choose Stable or continued Preview once and retain that choice.
+**Historical delivery design.** The following design criteria describe the
+earlier proposal. For shipped eligibility, channels, consent and trust, use the
+two current contracts above.
 
 Use maintained SemVer parsing and precedence, never lexical or publication-time
 ordering. Build metadata is provenance, not an update increment. Normal upgrades
@@ -267,15 +247,11 @@ Never make disabling Defender/Gatekeeper or stripping quarantine the normal path
 format, key lifecycle, bounded transport, compatibility and recovery design with
 disposable test-key fixtures. It does not activate production update behavior.
 
-Every artifact has a mandatory Tauri signature. A small separately authenticated
-metadata contract binds immutable release/hash/version/target/package/compatibility
-identity and channel eligibility. Authenticate promotion separately so existing
-bytes can become Stable without rewriting them. Payload signatures do not
-authenticate arbitrary feed JSON; HTTPS and adjacent checksums are insufficient.
-Use maintained cryptographic formats/libraries, separate from catalog execution
-authority. Define replay/freeze limits, constrained origins/redirects, bounded
-parsing/extraction and old-client behavior; metadata failure blocks new updating,
-not offline use.
+The proposal called for a separately authenticated channel metadata document.
+The shipped updater instead uses fixed HTTPS feed URLs and verifies the
+downloaded package signature and signed version. The [application trust
+contract](UPDATER-TRUST.md#owners-and-independent-trust-claims) explains exactly
+what is authenticated. The official catalog uses its own TUF authority.
 
 Plan an automation-capable protected release key, offline recovery backup,
 separate production/test keys, tested recovery/rotation bridges, compromise and

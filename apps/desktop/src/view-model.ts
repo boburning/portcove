@@ -468,6 +468,8 @@ function addSourceNeed(
   requirements.set(profileId, requirement);
 }
 
+const gameNameCollator = new Intl.Collator("en", { sensitivity: "base" });
+
 export function filterPorts(
   ports: CatalogEntry[],
   statuses: Map<string, PortStatus>,
@@ -479,7 +481,6 @@ export function filterPorts(
 ) {
   const selectedStatuses =
     typeof filter !== "string" && context.library ? context.library.statuses : statuses;
-  const normalizedQuery = normalizeGameSearchText(query.trim());
   const legacyFilter = typeof filter === "string" ? filter : "all";
   const structuredQuery =
     typeof filter !== "string"
@@ -493,10 +494,13 @@ export function filterPorts(
       visibleInView(port, selectedStatuses, view) &&
       matchesFilter(selectedStatuses.get(port.id), legacyFilter, Boolean(port.pendingSetup)),
   );
-  const visible = evaluateCatalogQuery(candidates, structuredQuery, {
-    ...context,
-    catalogUniverse: context.catalogUniverse ?? ports,
-  }).ports.filter((port) => searchableText(port).includes(normalizedQuery));
+  const { ports: matching } = evaluateCatalogQuery(
+    candidates,
+    structuredQuery,
+    { ...context, catalogUniverse: context.catalogUniverse ?? ports },
+    { includeFacetCounts: false },
+  );
+  const visible = searchCatalogPorts(matching, query);
   if (
     (view !== "catalog" && view !== "library") ||
     (catalogSort === "catalog" && !context.devicePlatform)
@@ -511,9 +515,7 @@ export function filterPorts(
             catalogRank(right.port, selectedStatuses.get(right.port.id), context.devicePlatform)
           : catalogSort === "name" || catalogSort === "name-desc"
             ? (catalogSort === "name-desc" ? -1 : 1) *
-              gameTitle(left.port).localeCompare(gameTitle(right.port), "en", {
-                sensitivity: "base",
-              })
+              gameNameCollator.compare(gameTitle(left.port), gameTitle(right.port))
             : catalogSort === "recent"
               ? (selectedStatuses.get(right.port.id)?.last_launched_at ?? 0) -
                 (selectedStatuses.get(left.port.id)?.last_launched_at ?? 0)
@@ -569,6 +571,13 @@ function matchesFilter(status: PortStatus | undefined, filter: Filter, pendingSe
   if (filter === "ready") return readiness === "ready" || readiness === "staged";
   if (filter === "setup") return needsAttention(readiness);
   return true;
+}
+
+export function searchCatalogPorts(ports: CatalogEntry[], query: string) {
+  const normalizedQuery = normalizeGameSearchText(query.trim());
+  return normalizedQuery
+    ? ports.filter((port) => searchableText(port).includes(normalizedQuery))
+    : ports;
 }
 
 function searchableText(port: CatalogEntry) {

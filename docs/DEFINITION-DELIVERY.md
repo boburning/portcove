@@ -13,13 +13,11 @@ component fixtures do not complete either production outcome.
 
 ## Implemented engine capability negotiation
 
-Core advertises each installed `AdapterKind` template with contract version 1.
-The public inventory additionally advertises Libultraship portable version 2,
-native portable versions 2–9, managed PS1 versions 2–3, N64 portable versions 2–4
-and staged-source portable versions 2–5, 8, 10–12 and 15–36. The inventory owner is
-`EngineTemplateCapability::current()` in
-[`definition_capabilities.rs`](../crates/portcove-core/src/definition_capabilities.rs);
-the version semantics and admission limits below remain part of each contract.
+Run `portcove --json capabilities` using the client you intend to support.
+Its `engine_templates` lists the exact adapter and contract versions it can
+interpret. [Check a client's capabilities](#check-a-clients-capabilities)
+before choosing a definition. The source inventory is
+[`EngineTemplateCapability::current()`](../crates/portcove-core/src/definition_capabilities.rs).
 
 Staged-source creation versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
@@ -537,6 +535,8 @@ platform, channel and resolved artifact before installation, and refreshes the
 provider result before applying a review. Older clients refuse this combination;
 direct manifests retain version 19. This capability does not authenticate a
 publisher, authorize publication or widen the policies' data and consent scope.
+
+### Check a client's capabilities
 
 API schema 45 exposes the inventory as `capabilities.engine_templates`. The CLI
 `catalog check-capabilities <file>` and Tauri `check_definition_capabilities`
@@ -1234,11 +1234,10 @@ reviewed package layout, and may keep or remove `release.accepted_uploaders`
 but not add an uploader the embedded catalog has not accepted
 ([uploader continuity](CATALOG.md#release-selection-and-maintenance)). An entry
 for a port absent from the embedded catalog therefore cannot accept uploaders.
-Existing service instances keep their constructor
-catalog; a new service (the next CLI invocation) consumes the durable selection.
-This explicit command adds no startup polling, Tauri binding, game lifecycle
-side effects or production feed activation. The default root remains absent;
-fixture orchestration is not the protected unchanged-client journey.
+An existing service keeps its constructor catalog. A new service, such as the
+next CLI invocation, consumes the durable selection. See [official catalog
+provisioning](SIGNED-CATALOG.md) for the compiled root and the
+first refresh of an unconfigured library.
 
 Policy schema 1 authorizes **availability only**, binding the namespace,
 stable ID, grant and monotonic policy revision to the exact index, definition
@@ -1558,14 +1557,13 @@ definition before publishing staged bytes and before registering published bytes
 A refused operation keeps its journal and recovery evidence; the current fallback
 catalog cannot authorize its retained definition. Committed cleanup remains distinct.
 
-Disposable TUF authority and owned HTTP/native probe fixtures exercise this component.
-They do not qualify production TLS, gameplay or automatic publisher delivery.
-Production root/grant provisioning, protected publisher custody and write/signing
-authority, automatic publication and the unchanged-client new-definition,
-next-artifact and correction proof remain distinct #246 acceptance. This is not
-activation of a production feed or whole-issue delivery.
+Disposable authority and HTTP/native fixtures exercise this component in isolation.
+The [current production catalog publisher](RELEASING.md#current-release-process)
+and [workflow](../.github/workflows/catalog-publish.yml) describe today's
+isolated role signing, guarded publication and readback.
 
-#246 uses the existing strict required checks and distinct review under Protect
+**Historical controller design.** The following account records the earlier
+protected-controller design for #246. It used distinct checks and review under Protect
 main ruleset 22155633, including its zero approval count. That rule supplies
 routine merge authority, not signing authority. A separately authorized trusted
 controller runs from a pinned protected revision and accepts inert candidate data.

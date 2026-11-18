@@ -32915,7 +32915,6 @@
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "description": "Everything a game-level mods view needs in one read: whether the game has a\nreviewed mod contract, its setups and what is live now. Read-only.",
     "properties": {
       "applied_package_count": {
         "description": "Count from the materialized revision, including disabled mods.",
@@ -46112,7 +46111,12 @@
           }
         },
         "required": [
-          "categories"
+          "categories",
+          "artwork",
+          "created_at",
+          "downloads",
+          "likes",
+          "ratings"
         ],
         "type": "object"
       },
@@ -46431,7 +46435,12 @@
           }
         },
         "required": [
-          "categories"
+          "categories",
+          "artwork",
+          "created_at",
+          "downloads",
+          "likes",
+          "ratings"
         ],
         "type": "object"
       },
@@ -47029,7 +47038,12 @@
           }
         },
         "required": [
-          "categories"
+          "categories",
+          "artwork",
+          "created_at",
+          "downloads",
+          "likes",
+          "ratings"
         ],
         "type": "object"
       },

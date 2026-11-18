@@ -3,7 +3,7 @@
   "listing": {
     "id": "super-smash-bros-ultimate-ssbu-recomp",
     "name": "Super Smash Bros. Ultimate (ssbu-recomp)",
-    "summary": "An experimental Super Smash Bros. Ultimate port translating AArch64 code to C/x64 with Vulkan and OpenGL fallback services. Partial fighter-script recovery is not recovered whole-game source. The project reports a scripted full CPU 1v1 match; other modes are only scripted/reachable and World of Light reaches its intro. Three-to-eight-player play and physical controllers are unconfirmed; online is experimental and rollback incomplete. Use the source ZIP/clone and Install SSBU.bat to download private Python and player/tool releases and generate locally; Visual Studio is not stated as required. Windows 10/11 x64 is primary. One native Linux CachyOS/NVIDIA/Wayland full match is reported, while Linux work continues and Steam Deck is untested. Supply your own 13.0.4/13.0.5 dump, keys and owned updates/DLC applied locally. Firmware is explicitly unnecessary and open-source fonts are included; exact regional hashes are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "This experimental Windows port of Super Smash Bros. Ultimate builds locally from your own 13.0.4 or 13.0.5 game. The project reports a scripted CPU match and one Linux match. Physical controllers and matches with three or more players remain unconfirmed.",
     "original_game_title": "Super Smash Bros. Ultimate",
     "project_url": "https://github.com/OpenSmash-Ultimate/ssbu-recomp",
     "listed_at": "2026-10-25",
@@ -18,7 +18,27 @@
       "game_slug": "super-smash-bros-ultimate",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2935
+    "issue_number": 2935,
+    "manual_setup": {
+      "help_url": "https://github.com/OpenSmash-Ultimate/ssbu-recomp",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Use your own 13.0.4 or 13.0.5 game dump and keys. Apply any owned updates or DLC locally. The project includes open-source fonts and requires no separate firmware."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Follow the Windows 10 or 11 x64 source guide and run the project’s Install SSBU.bat, which downloads its Python environment, player and build tools. A source ZIP or clone is required."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "World of Light reaches its intro. Online play and rollback are experimental. The reported Linux match used CachyOS, an NVIDIA GPU and Wayland. Steam Deck play remains untested."
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

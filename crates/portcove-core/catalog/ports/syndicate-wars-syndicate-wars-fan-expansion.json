@@ -3,7 +3,7 @@
   "listing": {
     "id": "syndicate-wars-syndicate-wars-fan-expansion",
     "name": "Syndicate Wars (Syndicate Wars Fan Expansion)",
-    "summary": "Upstream route: Maintained native port with current Windows/Ubuntu packages. Limits: Canonical rename from mefistotelis/swars; audit included updated assets and installer source contract. Upstream platforms: Windows/Ubuntu packages and source builds; Windows MinGW32 dependency path documented. Exact selected artifact CPUs unknown in frozen release evidence. Original data: Supply an owned Syndicate Wars CD or CD image (including a supported digital-store image) during SyndWarsFX installation. Upstream installer copies required original files, downloads its extra gfx/sfx/level resources and may convert music; the disc/image is not needed after installation. Match the selected language to the source release; exact pressing/patch digest is Unknown here. Portcove setup/gameplay not verified.",
+    "summary": "Install the Syndicate Wars Fan Expansion for Windows or Ubuntu with your own PC CD or disc image. The upstream installer copies the game data and fetches extra graphics, sound and levels. Choose the language that matches your copy.",
     "original_game_title": "Syndicate Wars",
     "project_url": "https://github.com/swfans/syndwarsfx",
     "artwork": {
@@ -46,6 +46,12 @@
       "warnings": [
         "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
         "Before changing versions, keep a copy of the working game and every data and profile folder it uses. Another executable may use those same folders."
+      ],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The project was formerly mefistotelis/swars. The installer can convert music and does not need the disc image after completing setup. The project also documents a Windows MinGW32 source path. Confirm the selected package architecture and retail revision upstream."
+        }
       ]
     }
   },

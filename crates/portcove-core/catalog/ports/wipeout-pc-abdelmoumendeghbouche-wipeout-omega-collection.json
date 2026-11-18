@@ -4,7 +4,7 @@
     "id": "wipeout-pc-abdelmoumendeghbouche-wipeout-omega-collection",
     "name": "WipEout Omega Collection — wipeout_pc (AbdelmoumenDeghbouche)",
     "original_game_title": "WipEout Omega Collection",
-    "summary": "Experimental project. Upstream early-development status claims boot/menus/saves and HD/2048 races/results, with 110–150FPS reported in 2048 on RTX 4070 Laptop, not a full collection playthrough. New README reports extra render-resolution patches and experimental PS4 Pro mode GOW3_NEO=1 loading a race with correct picture since v0.2.3; not tested further. All HD/HD Fury/2048 event types are not yet tested, HDR RCAS fix awaits testing and new audio effects may have defects; PSVR is not planned. Linux builds from source without a package; do not infer Linux gameplay/CPU qualification. No Portcove runtime or completion qualification was performed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "An experimental Windows port of WipEout Omega Collection using your own PS4 game files. The project reports races in HD and 2048. Its documented US target is CUSA07671 with update 01.07. Linux has a source build, and the collection has no confirmed full playthrough.",
     "project_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -24,7 +24,13 @@
         "Upstream early-development status claims boot/menus/saves and HD/2048 races/results, with 110–150FPS reported in 2048 on RTX 4070 Laptop, not a full collection playthrough. New README reports extra render-resolution patches and experimental PS4 Pro mode GOW3_NEO=1 loading a race with correct picture since v0.2.3; not tested further. All HD/HD Fury/2048 event types are not yet tested, HDR RCAS fix awaits testing and new audio effects may have defects; PSVR is not planned. Linux builds from source without a package; do not infer Linux gameplay/CPU qualification. No Portcove runtime or completion qualification was performed.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc"
+      "help_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc",
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The project reports 110–150 FPS in 2048 on an RTX 4070 Laptop GPU. From v0.2.3, the experimental GOW3_NEO=1 setting displayed a race, with no further testing reported. Unchecked areas include HD Fury and other events, HDR and some audio effects. PSVR is outside the project’s plans."
+        }
+      ]
     },
     "issue_number": 3464,
     "listed_at": "2026-10-25",

@@ -4953,6 +4953,71 @@ fn oversized_file_advisories_leave_room_for_a_late_owned_path() {
 }
 
 #[test]
+fn saved_scan_indexes_profiles_beyond_the_explicit_request_bound() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("originals");
+    fs::create_dir(&root).unwrap();
+    let first = b"earlier profile";
+    let last = b"later profile";
+    fs::write(root.join("first.z64"), first).unwrap();
+    fs::write(root.join("last.z64"), last).unwrap();
+
+    let mut document = catalog(first).document().clone();
+    document
+        .source_profiles
+        .retain(|profile| profile.id == "ocarina-of-time");
+    let mut profile = document.source_profiles[0].clone();
+    for index in 0..255 {
+        profile.id = format!("profile-{index:03}");
+        profile.accepted_sha256 = vec![hex::encode(Sha256::digest(index.to_string()))];
+        document.source_profiles.push(profile.clone());
+    }
+    profile.id = "zz-last".into();
+    profile.accepted_sha256 = vec![hex::encode(Sha256::digest(last))];
+    document.source_profiles.push(profile);
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let mut explicit = request(&root);
+    explicit.profile_ids = document
+        .source_profiles
+        .iter()
+        .map(|profile| profile.id.clone())
+        .collect();
+    assert_eq!(
+        scan(&catalog, &explicit).unwrap_err().code,
+        ErrorCode::Usage
+    );
+
+    let library_path = temporary.path().join("library");
+    let library = crate::Library::open(&library_path).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        ..Default::default()
+    };
+    let partial = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert_eq!(partial.report.searched_profiles.len(), 257);
+    assert_eq!(partial.report.files_hashed, 1);
+    assert!(partial.coverage.unwrap().can_resume);
+    drop(library);
+
+    let library = crate::Library::open(&library_path).unwrap();
+    let complete = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert_eq!(complete.report.files_hashed, 2);
+    assert_eq!(
+        complete.report.hash_bytes,
+        (first.len() + last.len()) as u64
+    );
+    assert!(complete.coverage.unwrap().frontier_exhausted);
+    let matched = complete
+        .report
+        .candidates
+        .iter()
+        .map(|candidate| candidate.profile_id.as_str())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(matched, BTreeSet::from(["ocarina-of-time", "zz-last"]));
+}
+
+#[test]
 fn entry_limited_saved_scans_resume_after_restart_without_rehashing_the_prefix() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("selected");

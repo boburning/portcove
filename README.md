@@ -47,7 +47,7 @@ and the [Alpha 1 to Alpha 2 upgrade guide](docs/UPGRADING.md) are still availabl
 
 ## Your first game
 
-1. **Choose a library.** Open Portcove Desktop and select a folder for your library.
+1. **Browse games.** Open Portcove Desktop and choose **Browse games** in the empty Library. Portcove has already selected a library folder. To use a different one, open **Settings → Library and storage → Choose another library**.
 2. **Find a port in Discover.** Search for a game or project. Check its target operating system, the original game edition it accepts, and the setup instructions from the port authors.
 3. **Supply the originals if needed.** Select the files from your own copy of the game. Portcove checks them on your computer. You can leave them where they are and save their location for reuse.
 4. **Review the installation.** For a managed port, check the version and destination, then confirm the install. If the project provides its own installer or expects an existing installation, follow that route in the port’s details.
@@ -78,17 +78,22 @@ _Harbor Adventure in the same simulated library. Open a tab to find its game fil
 
 ## Use the CLI
 
-Desktop and the CLI share the same library. Use the CLI to inspect a port before
-installing it, script a task, or connect another launcher. These commands list projects and inspect Lighthouse,
-a native port of Banjo-Kazooie, without changing your library.
+Desktop and the CLI normally open the same library. Opening a library can create its
+database or upgrade it for this version. You can browse without writing local files
+in the [web catalog](https://boburning.github.io/portcove/catalog/browse/index.html).
+
+To try the CLI, run these commands from a folder where `portcove-demo` does not
+already exist. They create a separate library there and show Lighthouse, a native
+port of Banjo-Kazooie.
 
 ```sh
-portcove catalog listings
-portcove catalog list
-portcove catalog show lighthouse
+portcove --library "$PWD/portcove-demo" catalog list
+portcove --library "$PWD/portcove-demo" catalog show lighthouse
 ```
 
-`catalog listings` includes projects you can explore upstream. `catalog list`
+If `portcove catalog --help` lists `listings`, run
+`portcove --library "$PWD/portcove-demo" catalog listings` to include projects
+you can explore upstream. `catalog list`
 shows projects with installation definitions. Use `--json` when your script
 needs structured output.
 [CLI guide](docs/CLI.md) · [Connect another launcher](docs/INTEGRATIONS.md)
@@ -97,10 +102,22 @@ needs structured output.
 
 ### Prerequisites
 
-Use the [pinned Rust toolchain](rust-toolchain.toml), the repository’s [Node](.node-version)
-and [pnpm](package.json) versions, and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/)
-for Desktop. From the repository root, run `node scripts/dev-storage.mts preflight`,
-then run the setup script for your system.
+Install the [pinned Rust toolchain](rust-toolchain.toml) and its build prerequisites
+for your operating system.
+
+**Standalone CLI.** From the repository root, run:
+
+```sh
+cargo build --locked --release -p portcove-cli
+```
+
+The executable is in `target/release` unless you configured a different Cargo
+target directory. See the [CLI build requirements](docs/CLI.md).
+
+**Desktop.** Also install the pinned [Node](.node-version) and [pnpm](package.json)
+versions and the [Tauri prerequisites for your platform](https://v2.tauri.app/start/prerequisites/).
+Run `node scripts/dev-storage.mts preflight` from the repository root, then bootstrap
+the frontend tools.
 
 ```powershell
 # Windows
@@ -112,11 +129,10 @@ then run the setup script for your system.
 ./scripts/bootstrap-quality-tools.sh --profile frontend
 ```
 
-Then start Desktop or build the standalone CLI.
+Start Desktop from the repository root.
 
 ```sh
 node scripts/dev-storage.mts run -- pnpm --dir apps/desktop desktop:dev
-node scripts/dev-storage.mts run -- cargo build -p portcove-cli --release
 ```
 
 [Development setup](docs/DEVELOPMENT-TOOLS.md#frontend-workflow) · [Documentation](docs/README.md)

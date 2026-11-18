@@ -74,14 +74,6 @@ impl ProviderClient {
         }
     }
 
-    /// The provider's name in messages.
-    pub(crate) fn label(&self) -> &'static str {
-        match self {
-            Self::GameBanana { .. } => "GameBanana",
-            Self::Thunderstore { .. } => "Thunderstore",
-        }
-    }
-
     /// The game or community identity a project must carry to belong to this port.
     pub(crate) fn game_id(&self) -> String {
         match self {
