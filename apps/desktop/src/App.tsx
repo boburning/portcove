@@ -525,7 +525,7 @@ function useWorkspace(props: WorkspaceProps) {
   if (groupDrop && !pendingGroupDrop) setGroupDrop(undefined);
   const gameSourceDropReview: GameSourceDropReview = {
     pending: pendingGroupDrop,
-    dismiss: () => setGroupDrop(undefined),
+    dismiss: () => setGroupDrop((current) => (current === groupDrop ? undefined : current)),
     select: (drop) => {
       const port = data.catalog?.ports.find((candidate) => candidate.id === drop.portId);
       if (

@@ -431,8 +431,8 @@ it("retires an accepted grouped file drop after an empty search", async () => {
 
 it("retires an accepted grouped file drop after a view switch", async () => {
   const review = await openGroupedFileReview();
-  const libraryButton = [...document.querySelectorAll("button")].find(
-    (button) => button.textContent?.trim() === "Library",
+  const libraryButton = document.querySelector<HTMLButtonElement>(
+    'button[data-navigation-destination="library"]',
   )!;
   await act(async () => libraryButton.click());
   await expect.element(page.getByRole("textbox", { name: "Search your library" })).toBeVisible();
