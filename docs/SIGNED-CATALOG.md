@@ -121,10 +121,10 @@ once compatible application packages are available on the affected channels.
 operational bytes, a representative escaped signed envelope and the separate
 embedded listing directory. The Core test
 `catalog_growth_stays_within_supported_capacity` measures Core serialization for
-the complete projection, escaped indexed snapshot, retained catalog and escaped contract. On November 18, 2026 the generated operational catalog measured 3,992,904 bytes,
-the compact catalog 3,075,670 bytes, and its representative signed envelope
-3,241,373 bytes. The generated listing directory measured 5,534,350 bytes,
-leaving 1,595,966 bytes before the guard and 2,854,258 bytes before its reader
+the complete projection, escaped indexed snapshot, retained catalog and escaped contract. On November 18, 2026 the generated operational catalog measured 3,993,745 bytes,
+the compact catalog 3,076,225 bytes, and its representative signed envelope
+3,241,972 bytes. The generated listing directory measured 5,535,922 bytes,
+leaving 1,594,394 bytes before the guard and 2,852,686 bytes before its reader
 limit. The complete retained graph remains available for existing installs and rollback. A per-port
 retention redesign requires separate work.
 
