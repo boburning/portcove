@@ -122,15 +122,28 @@ fn remember_checks(layout: &Layout, checks: &[ProviderAutoUpdateCheck]) -> Resul
 struct InstalledFile<'a> {
     project: String,
     file: String,
+    binding: Option<&'a crate::ModProviderBinding>,
     packages: Vec<&'a crate::ResolvedPackage>,
     observation: &'a ProviderUpdateObservation,
 }
 
+fn nonlegacy_binding<'a>(
+    port_id: &str,
+    provider: &'a crate::ProviderPackageRef,
+) -> Option<&'a crate::ModProviderBinding> {
+    let legacy = crate::provider_binding::legacy_binding(port_id, &provider.provider);
+    provider
+        .binding
+        .as_ref()
+        .filter(|binding| Some(*binding) != legacy.as_ref())
+}
+
 fn installed_files<'a>(
+    port_id: &str,
     revision: &'a ProfileRevision,
     observations: &'a [ProviderUpdateObservation],
 ) -> Vec<InstalledFile<'a>> {
-    let mut groups = BTreeMap::<(String, String), InstalledFile<'a>>::new();
+    let mut groups = BTreeMap::new();
     for observation in observations {
         let project = observation.provider.project.clone();
         let file = observation.provider.file.clone().unwrap_or_default();
@@ -140,11 +153,18 @@ fn installed_files<'a>(
         }) else {
             continue;
         };
+        let binding = nonlegacy_binding(port_id, &observation.provider);
         groups
-            .entry((project.clone(), file.clone()))
+            .entry((
+                observation.provider.provider.as_str(),
+                binding,
+                project.clone(),
+                file.clone(),
+            ))
             .or_insert_with(|| InstalledFile {
                 project,
                 file,
+                binding,
                 packages: Vec::new(),
                 observation,
             })
@@ -152,6 +172,15 @@ fn installed_files<'a>(
             .push(package);
     }
     groups.into_values().collect()
+}
+
+fn hold_scope(binding: Option<&crate::ModProviderBinding>) -> Option<String> {
+    match binding? {
+        crate::ModProviderBinding::Gamebanana { game_id } => Some(format!("gamebanana:{game_id}")),
+        crate::ModProviderBinding::Thunderstore { community } => {
+            Some(format!("thunderstore:{community}"))
+        }
+    }
 }
 
 /// Asset paths of each enabled package in deployment order, with `replacement`
@@ -296,10 +325,14 @@ fn hold_key(
         _ => observation,
     };
     let fingerprint = hex::encode(Sha256::digest(observation.to_string()));
-    format!(
+    let key = format!(
         "{profile_id}|{revision}|{}|{}|{}|{fingerprint}",
         installed.project, installed.file, candidate.file_id
-    )
+    );
+    match hold_scope(installed.binding) {
+        Some(scope) => format!("{key}|{scope}"),
+        None => key,
+    }
 }
 
 /// An unattended update the player has to review, remembered for a setup's
@@ -318,10 +351,12 @@ pub struct HeldModUpdate {
 pub(crate) fn held_updates(
     layout: &Layout,
     inventory: &crate::ProfileInventory,
+    port: &crate::PortDefinition,
 ) -> Vec<HeldModUpdate> {
     let mut held = Vec::new();
     for (key, reason) in read_holds(layout) {
-        let Some((profile_id, revision, project, file, candidate)) = parse_hold_key(&key) else {
+        let Some((profile_id, revision, project, file, candidate, scope)) = parse_hold_key(&key)
+        else {
             continue;
         };
         // Only setups that still allow unattended updates have one waiting.
@@ -338,7 +373,10 @@ pub(crate) fn held_updates(
             .iter()
             .filter(|package| {
                 package.provider.as_ref().is_some_and(|provider| {
-                    provider.project == project && provider.file.as_deref() == Some(file)
+                    provider.project == project
+                        && provider.file.as_deref() == Some(file)
+                        && crate::provider_binding::reference_matches(port, provider)
+                        && hold_scope(nonlegacy_binding(&port.id, provider)).as_deref() == scope
                 })
             })
             .map(|package| package.native_id.clone())
@@ -359,14 +397,22 @@ pub(crate) fn held_updates(
 
 /// The display identity shared by current keys and legacy keys with no observed
 /// file facts. Legacy keys keep their explanation until the next fresh check.
-fn parse_hold_key(key: &str) -> Option<(&str, u64, &str, &str, &str)> {
+fn parse_hold_key(key: &str) -> Option<(&str, u64, &str, &str, &str, Option<&str>)> {
     let parts = key.split('|').collect::<Vec<_>>();
     let ([profile, revision, project, file, candidate]
-    | [profile, revision, project, file, candidate, _]) = parts.as_slice()
+    | [profile, revision, project, file, candidate, _]
+    | [profile, revision, project, file, candidate, _, _]) = parts.as_slice()
     else {
         return None;
     };
-    Some((profile, revision.parse().ok()?, project, file, candidate))
+    Some((
+        profile,
+        revision.parse().ok()?,
+        project,
+        file,
+        candidate,
+        parts.get(6).copied(),
+    ))
 }
 
 fn write_holds(layout: &Layout, holds: &BTreeMap<String, String>) {
@@ -390,10 +436,14 @@ fn settle_holds(
 ) {
     let mut holds = read_holds(layout);
     let before = holds.len();
+    let scope = hold_scope(installed.binding);
     holds.retain(|key, _| {
         Some(key.as_str()) == keep
-            || !parse_hold_key(key).is_some_and(|(profile, _, project, file, _)| {
-                profile == profile_id && project == installed.project && file == installed.file
+            || !parse_hold_key(key).is_some_and(|(profile, _, project, file, _, held_scope)| {
+                profile == profile_id
+                    && project == installed.project
+                    && file == installed.file
+                    && held_scope == scope.as_deref()
             })
     });
     if holds.len() != before {
@@ -589,7 +639,7 @@ impl PortcoveService {
                         continue;
                     }
                 };
-                for installed in installed_files(&revision, &observations) {
+                for installed in installed_files(port_id, &revision, &observations) {
                     let names = installed
                         .packages
                         .iter()
