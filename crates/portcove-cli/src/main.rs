@@ -589,7 +589,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
     }
     if matches!(&cli.command, Commands::Capabilities) {
         let mut capabilities = CapabilityDocument::current();
-        capabilities.commands.extend(profile_command_capabilities());
+        capabilities.commands = registered_command_capabilities();
         render_read_success(mode, "capabilities", capabilities, human::capabilities)?;
         return Ok(ExitCode::SUCCESS);
     }

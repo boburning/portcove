@@ -646,6 +646,18 @@ Long words wrap, filters can wrap, and the collection scrolls rather than shrink
 covers to fit a row count. The grid chooses columns from available width; a
 reference composition's fixed frame width or column count is not a window rule.
 
+Library and Discover mount visible complete visual rows with a small overscan,
+plus independently retained focus, destination and open-overlay rows. The full
+logical group count and order remain available to navigation and return-focus
+restoration. Library alternatives retain their expanded state when their row
+leaves the viewport; returning to an alternative mounts and expands that exact
+group before focus restoration. Accepted background reordering retains the logical
+reading anchor and exact focused control within the same query and generation;
+a newer player intent cancels restoration. Pending actions can retain focus while
+refusing activation. Saved membership never implies installation.
+Singleton styling follows the logical result count, including a final partial
+virtual row, and both layouts keep their existing responsive sizing rules.
+
 The scrolling workspace fills the available window width. Library and Catalog
 grids use that width to add columns as the window grows; the 1600x1000 reference
 does not impose a maximum collection width or column count. Artwork is

@@ -67,6 +67,7 @@ async function inArabicPreview(render: () => string): Promise<string> {
 describe("grouped library and game settings localization", () => {
   it("keeps complete English messages with exact project names", () => {
     const markup = library([second]);
+    expect(markup).toContain('aria-label="Library entries"');
     expect(markup).toContain("All 2 ports · 1 matching");
     expect(markup).toContain("<bdi>Second project</bdi> · Your choice");
     expect(markup).toContain("<bdi>First project</bdi> · Outside current filters");
@@ -83,6 +84,7 @@ describe("grouped library and game settings localization", () => {
         ),
       ].join(""),
     );
+    expect(markup).toContain('aria-label="عناصر المكتبة"');
     expect(markup).toContain("المنفذان (2) · المطابقة: 1");
     expect(markup).toContain("<bdi>Second project</bdi> · اختيارك");
     expect(markup).toContain("<bdi>First project</bdi> · خارج عوامل التصفية الحالية");

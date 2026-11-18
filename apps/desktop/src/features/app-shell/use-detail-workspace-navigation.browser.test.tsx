@@ -1,3 +1,4 @@
+import { registerCollectionNavigation } from "../../collection-navigation";
 import {
   act,
   createElement,
@@ -232,3 +233,40 @@ describe("detail workspace navigation", () => {
     expect(main.scrollTo).toHaveBeenLastCalledWith({ top: 114 });
   });
 });
+
+it.each([false, true])(
+  "awaits collection mounting and respects newer user intent: cancel=%s",
+  async (cancel) => {
+    const main = workspace.current!;
+    const collection = document.createElement("section");
+    collection.dataset.virtualCollection = "catalog";
+    const trigger = document.createElement("button");
+    trigger.dataset.detailOrigin = "catalog:card:port-a:details";
+    trigger.dataset.detailGameId = "port-a";
+    collection.append(trigger);
+    main.append(collection);
+    document.body.append(main);
+    let complete!: (value: boolean) => void;
+    const mounted = new Promise<boolean>((resolve) => {
+      complete = resolve;
+    });
+    const mount = vi.fn(() => mounted);
+    const unregister = registerCollectionNavigation(collection, {
+      mount,
+      prepareMove: () => undefined,
+    });
+    try {
+      await act(async () => navigation.open("port-a", trigger.dataset.detailOrigin));
+      trigger.remove();
+      await act(async () => navigation.close());
+      expect(mount).toHaveBeenCalled();
+      expect(document.activeElement).not.toBe(trigger);
+      if (cancel) document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      collection.append(trigger);
+      await act(async () => complete(true));
+      expect(document.activeElement === trigger).toBe(!cancel);
+    } finally {
+      unregister();
+    }
+  },
+);
