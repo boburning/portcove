@@ -1187,3 +1187,68 @@ live production latency or payload-download savings. Existing signed listing
 delivery supplies the reusable projection; this change creates no additional
 feed, account, scheduler or publication grant. Production enrichment still
 requires the existing protected candidate acceptance and delivery path.
+
+## Optional research-progress observations
+
+The existing maintenance collection accepts `--progress FILE`, a bounded
+format-1 source manifest. The reviewed initial scope is
+[`scripts/upstream-progress/sources-v1.json`](../scripts/upstream-progress/sources-v1.json).
+The existing daily maintenance job consumes it; no new scheduler or executor is
+introduced. Collection uses the maintained discovery HTTP transport, its byte,
+redirect, request and deadline limits, with a generic JSON/text Accept header for
+external providers. GitHub-specific media types remain scoped to the GitHub API.
+Each source failure is isolated and retains its last-good observation.
+
+Adapters read ByteMatch and decomp.dev version-specific structured JSON,
+frogress's exact reviewed project/version/category/measure, and project-owned
+JSON or column-mapped CSV reports. They never discover ownership from a copied
+badge, search title or shared name. Provider JSON must identify the configured
+repository and exact edition; project-report URLs and methodology require
+reviewed primary evidence. Source keys retain game, implementation, edition,
+provider and report/measure scope, allowing several games to use one repository.
+
+Records retain provider/evidence URLs, full source commit when available,
+observation/check times, source-content digest and methodology. Matching code,
+fuzzy similarity, linked code, matched functions and decompiled code remain
+separate metrics. JSON numeric source tokens and integer counts retain their
+original decimal precision; derived CSV/frogress percentages retain the raw
+numerator and denominator. For example, Fire Emblem's frogress `code` counts bytes
+in `src`, including potentially nonmatching code, and is described as decompiled
+code rather than matching code. Display rounds downward below 100; milestone
+comparisons use exact decimal/count arithmetic, so 99.999999999999999999 does not
+become a completion claim. Neither 100 nor a published GitHub release grants a
+playable package, admission, platform support or qualification.
+
+Each source has an independent changes-only observation history and freshness
+clock in the existing maintenance store. Polling timestamps do not rewrite
+unchanged content. Failed reads do not advance its successful clock. Optional
+`reconsider` names an existing recorded research condition, exact metric and
+threshold. Only a changed condition result or comparability scope records a
+transition; repeated reads stay quiet and A→B→A remains ordered history. The
+existing changes-only digest can carry those transitions; dispatch remains
+disabled. The initial source manifest deliberately sets no new reconsideration
+conditions and creates no unsolicited progress notices.
+
+A project opt-out on any configured source suppresses all its provider/fallback
+reads. Current opt-out observations also suppress older progress rows and pending
+historical notifications from newly generated reports/digests. Immutable private
+store evidence remains retained for recovery; no public history reader bypasses
+that current suppression. Re-enrichment requires an explicit reviewed source
+change. Malformed stored optional progress, including unsafe links, is excluded
+from the report and cannot affect player operations.
+
+Provider disposition and live evidence on November 17, 2026:
+
+| Source          | Disposition and exercised scope                                                                                                                                                                                                                                                                                                                           |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ByteMatch       | Implemented and exercised: OpenRAC/rac3-decomp, PAL SCES_524.56, version-specific JSON. The provider's [API contract](https://bytematch.dev/docs/api) documents this read shape.                                                                                                                                                                          |
+| decomp.dev      | Implemented and exercised: doldecomp/melee, GALE01 JSON. The global `projects.json` index returned HTTP 410; collection does not depend on that retired index.                                                                                                                                                                                            |
+| frogress        | Implemented and exercised: fireemblem8/us/default `code` and `code/total`, bound to the project's [upload template](https://github.com/FireEmblemUniverse/fireemblem8u/blob/3b89a0880e5b1b1d7c09ff3259608e8f1a233c46/scripts/progress-template.txt). Its [guide](https://github.com/decompals/frogress/blob/main/GUIDE.md) documents scoped latest reads. |
+| Project reports | Implemented and exercised: Paper Mario US matching-code CSV from papermar.io, linked by the project's [README](https://github.com/pmret/papermario/blob/222af07f2ce4250c1eb70f751fefe8a8476fae96/README.md). Project JSON parsing also has fixture coverage.                                                                                              |
+
+Direct generic HTTP probes initially received 403 from ByteMatch/frogress; that
+was host/transport evidence, not proof of retirement. The maintained transport
+exposed a GitHub-only Accept header causing frogress HTTP 406. After scoping that
+header correctly, all four configured sources returned usable HTTP 200 reports.
+The actual live observation packet is retained with the implementation evidence;
+fixtures and a local manual read do not establish unattended production operation.

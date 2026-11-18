@@ -1257,6 +1257,20 @@
       ]
     },
     {
+      "file": "scripts/discovery-recompsoftware.test.mts",
+      "memberships": [
+        ["catalog-full", 1381],
+        ["roadmap-check", 1360]
+      ]
+    },
+    {
+      "file": "scripts/upstream-progress.test.mts",
+      "memberships": [
+        ["catalog-full", 1481],
+        ["repository-tools", 517]
+      ]
+    },
+    {
       "file": "scripts/discovery-leads.test.mts",
       "memberships": [
         ["catalog-full", 1000],
@@ -1483,6 +1497,7 @@
           "reason": "The read-only inventory proof needs a real PostgreSQL cluster; a skipped observation is not execution.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full on ubuntu-latest",
           "cases": [
+            "research progress retains precise history, quiet repeats, failures and project opt-outs",
             "declared records flow through Core assessment, the store and a static report",
             "complete collection stores changes only, verifies membership and records absence",
             "each host platform keeps its own assessment history, gaps and latest run",
