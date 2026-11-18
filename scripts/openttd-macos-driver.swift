@@ -19,10 +19,20 @@ func write(_ name: String, _ object: Any) throws {
     try require(data.count <= 2 * 1024 * 1024, "Evidence JSON exceeds bound")
     try data.write(to: native.appendingPathComponent("\(dataset)-\(name).json"), options: .atomic)
 }
-func digest(_ file: URL) throws -> String {
+func digest(_ file: URL, maxBytes: Int = 64 * 1024 * 1024) throws -> String {
     let values = try file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
-    try require(values.isRegularFile == true && values.isSymbolicLink != true && (values.fileSize ?? Int.max) <= 64 * 1024 * 1024, "Expected a bounded regular file")
-    return SHA256.hash(data: try Data(contentsOf: file)).map { String(format: "%02x", $0) }.joined()
+    try require(values.isRegularFile == true && values.isSymbolicLink != true && (values.fileSize ?? Int.max) <= maxBytes, "Expected bounded regular file: \(file.lastPathComponent), bytes=\(values.fileSize ?? -1), limit=\(maxBytes)")
+    let handle = try FileHandle(forReadingFrom: file)
+    defer { try? handle.close() }
+    var hasher = SHA256()
+    var total = 0
+    while let chunk = try handle.read(upToCount: 65536), !chunk.isEmpty {
+        total += chunk.count
+        try require(total <= maxBytes, "Input grew beyond its identity bound")
+        hasher.update(data: chunk)
+    }
+    try require(total == values.fileSize, "Input size changed during identity check")
+    return hasher.finalize().map { String(format: "%02x", $0) }.joined()
 }
 struct OwnedProcess {
     let pid: Int32
@@ -163,7 +173,7 @@ var failed: Error?
 do {
     try require(["fresh", "replay"].contains(dataset), "Unknown fixed dataset")
     try require(CGPreflightScreenCaptureAccess() && AXIsProcessTrusted(), "Actual driver lacks capture or accessibility access; no permission requested")
-    try require(try digest(cli) == input["cli_sha256"] as? String && digest(player) == input["player_sha256"] as? String, "Executed input identity differs")
+    try require(try digest(cli, maxBytes: 512 * 1024 * 1024) == input["cli_sha256"] as? String && digest(player) == input["player_sha256"] as? String, "Executed input identity differs")
     try fm.createDirectory(at: profile.appendingPathComponent("baseset"), withIntermediateDirectories: true)
     try fm.createDirectory(at: library, withIntermediateDirectories: true)
     try fm.copyItem(at: root.appendingPathComponent("inputs/graphics/opengfx-8.0.tar"), to: profile.appendingPathComponent("baseset/opengfx-8.0.tar"))
