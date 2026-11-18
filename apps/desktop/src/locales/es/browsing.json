@@ -102,6 +102,7 @@
     "chosen": "<name/> · Tu elección",
     "chosenOutside": "<name/> · Tu elección · Fuera de los filtros actuales",
     "independence": "Elegir un proyecto no selecciona una versión, no transfiere partidas ni reemplaza otra instalación.",
+    "label": "Elementos de la biblioteca",
     "outside": "<name/> · Fuera de los filtros actuales",
     "portCount_one": "{{count, number}} adaptación",
     "portCount_many": "{{count, number}} adaptaciones",

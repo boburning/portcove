@@ -14,7 +14,7 @@ import {
   type Organization,
 } from "../features/organization/OrganizationControls";
 import { GroupedDiscover, IdentityChips } from "../features/browsing/GroupedDiscover";
-import { GroupedLibrary } from "../features/browsing/GroupedLibrary";
+import { GroupedLibrary, useLibraryMenu } from "../features/browsing/GroupedLibrary";
 import { groupCatalog, groupCountLabel } from "../features/browsing/original-game";
 import { PortSearch } from "./PortSearch";
 import { controlFocus, floatingMotion } from "./ui/control-style";
@@ -350,7 +350,9 @@ function usePortBrowser({
   collectionLayout = "covers",
   setCollectionLayout,
   collectionLayoutFailure,
+  resultsReady = true,
 }: {
+  resultsReady?: boolean | undefined;
   collectionLayout?: CollectionLayout;
   setCollectionLayout?: ((layout: CollectionLayout) => void) | undefined;
   collectionLayoutFailure?: "read" | "write" | undefined;
@@ -487,6 +489,7 @@ function usePortBrowser({
       query,
     });
   return {
+    resultsReady,
     favorites,
     organization,
     organizationView,
@@ -734,6 +737,7 @@ function PortBrowserView({
       {<SuggestedOrderHint {...{ model }} />}
       <BrowserFilterRecovery model={model} />
       <BrowserResults
+        resultsReady={model.resultsReady}
         layout={model.collectionLayout}
         query={model.query}
         view={model.view}
@@ -833,6 +837,7 @@ export function SteamBatchLibraryAction({
 }
 
 function BrowserResults({
+  resultsReady,
   organization,
   query,
   restoreAfter,
@@ -858,6 +863,7 @@ function BrowserResults({
   gameSourceDropReview,
   devicePlatform,
 }: {
+  resultsReady: boolean;
   devicePlatform?: PortDefinition["platforms"][number] | undefined;
   organization?: Organization | undefined;
   restoreAfter: (button: HTMLElement, action: () => Promise<boolean>) => Promise<void>;
@@ -885,7 +891,7 @@ function BrowserResults({
 }) {
   if (loading && ports.length === 0) return <LoadingState />;
   if (unavailable && ports.length === 0) return null;
-  if (ports.length === 0)
+  if (ports.length === 0 && resultsReady)
     return (
       <BrowserEmptyState
         view={view}
@@ -901,6 +907,8 @@ function BrowserResults({
   if (view === "catalog")
     return (
       <GroupedDiscover
+        resultsReady={resultsReady}
+        queryKey={query}
         onTask={onTask}
         layout={layout}
         all={allCatalogPorts}
@@ -918,43 +926,35 @@ function BrowserResults({
       />
     );
   return (
-    <section
-      className={
-        view === "library"
-          ? `port-grid collection-${layout} @container/collection grid w-full ${layout === "rows" ? "gap-0" : ""}`
-          : "port-grid collection-covers @container/collection grid w-full"
-      }
-      aria-label={view === "library" ? "Library entries" : "Find games entries"}
-      data-focus-group
-    >
-      <GroupedLibrary
-        layout={layout}
-        all={allCatalogPorts}
-        matching={ports}
-        statuses={statuses}
-        organization={organization}
-        onSelect={onSelect}
-        renderPort={(port, presentationPort) => (
-          <PortCard
-            layout={layout}
-            favorites={favorites}
-            onFavoriteToggle={onFavoriteToggle}
-            organization={organization}
-            restoreAfter={restoreAfter}
-            key={port.id}
-            port={port}
-            presentationPort={presentationPort}
-            status={statuses.get(port.id)}
-            readiness={portReadiness(statuses.get(port.id))}
-            onSelect={onSelect}
-            onTask={onTask}
-            onLaunch={onLaunch}
-            nativeSourceDrag={nativeSourceDrag}
-            view="library"
-          />
-        )}
-      />
-    </section>
+    <GroupedLibrary
+      resultsReady={resultsReady}
+      queryKey={query}
+      layout={layout}
+      all={allCatalogPorts}
+      matching={ports}
+      statuses={statuses}
+      organization={organization}
+      onSelect={onSelect}
+      renderPort={(port, presentationPort) => (
+        <PortCard
+          layout={layout}
+          favorites={favorites}
+          onFavoriteToggle={onFavoriteToggle}
+          organization={organization}
+          restoreAfter={restoreAfter}
+          key={port.id}
+          port={port}
+          presentationPort={presentationPort}
+          status={statuses.get(port.id)}
+          readiness={portReadiness(statuses.get(port.id))}
+          onSelect={onSelect}
+          onTask={onTask}
+          onLaunch={onLaunch}
+          nativeSourceDrag={nativeSourceDrag}
+          view="library"
+        />
+      )}
+    />
   );
 }
 
@@ -1228,6 +1228,7 @@ const PortCard = memo(function PortCard({
       )}{" "}
       {favorites && (
         <Menu.Item
+          data-collection-control="favorite"
           disabled={!favorites.ids || favorites.busy}
           className={cn(
             controlFocus,
@@ -1512,6 +1513,7 @@ function PortCardStatus({
             variant="primary"
             size="xs"
             className="library-card-action library-card-play"
+            data-detail-origin={`${detailOrigin}:play`}
             disabled={Boolean(action.busy)}
             focusableWhenDisabled={Boolean(action.busy)}
             aria-busy={Boolean(action.busy)}
@@ -1570,7 +1572,7 @@ function resolveLibraryFilters({
         ? candidates.filter((port) => favorites.ids?.has(port.id))
         : candidates;
   const declaredMatches =
-    countCandidates === undefined
+    !composedLibrary || countCandidates === undefined
       ? undefined
       : evaluateCatalogQuery(
           countCandidates,
@@ -1580,6 +1582,7 @@ function resolveLibraryFilters({
               ? { version: 1, channels: [filter] }
               : filter,
           queryContext,
+          { includeFacetCounts: false },
         );
   const readinessCount = (readiness: "all" | "ready" | "setup") =>
     declaredMatches?.state === "matched"
@@ -2271,12 +2274,63 @@ function PortCardActionMenu({
   Parameters<typeof PortCardStatus>[0] & { overflowOrigin: string },
   "favoriteMenu" | "port" | "status" | "onSelect" | "overflowOrigin"
 >) {
+  const menu = useLibraryMenu();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
+  const restorePending = useRef(Boolean(menu?.openPortId === port.id && menu.highlightedAction));
+  const restoreHighlighted = () => {
+    if (!restorePending.current) return;
+    restorePending.current = false;
+    const action = menu?.getHighlighted(port.id);
+    const target = action
+      ? popup.current?.querySelector<HTMLElement>(
+          `[data-collection-control="${CSS.escape(action)}"]`,
+        )
+      : undefined;
+    if (
+      target &&
+      !target.matches(':disabled,[aria-hidden="true"]') &&
+      !target.closest("[hidden],[inert]") &&
+      target.getClientRects().length &&
+      getComputedStyle(target).visibility !== "hidden"
+    )
+      target.focus({ preventScroll: true });
+  };
   return (
-    <Menu.Root>
+    <Menu.Root
+      {...(menu
+        ? {
+            open: menu.openPortId === port.id,
+            onItemHighlighted: (item: HTMLElement | undefined, details: { reason: string }) => {
+              // Ignore automatic first-item initialization and unmount cleanup;
+              // only the player's keyboard/pointer selection replaces continuity.
+              if (details.reason !== "keyboard" && details.reason !== "pointer") return;
+              // A new explicit selection wins even before the remounted popup's
+              // automatic focus/open-complete callbacks have finished.
+              restorePending.current = false;
+              menu.highlight(port.id, item?.dataset.collectionControl);
+            },
+            onOpenChange: (open: boolean) => menu.change(port.id, open),
+            onOpenChangeComplete: (open: boolean) => {
+              if (open) {
+                restoreHighlighted();
+                return;
+              }
+              requestAnimationFrame(() => {
+                const target = trigger.current;
+                if (target?.isConnected && document.activeElement === target)
+                  target.scrollIntoView({ block: "nearest", inline: "nearest" });
+                menu.complete(port.id, false);
+              });
+            },
+          }
+        : {})}
+    >
       <Tooltip label="More actions">
         <Menu.Trigger
           render={
             <Button
+              ref={trigger}
               data-focusable
               data-detail-origin={overflowOrigin}
               className="collection-art-action collection-more"
@@ -2292,6 +2346,16 @@ function PortCardActionMenu({
       <Menu.Portal>
         <Menu.Positioner side="bottom" align="end" sideOffset={4} className="z-(--layer-floating)">
           <Menu.Popup
+            ref={popup}
+            finalFocus={
+              menu
+                ? () =>
+                    menu.canReturn(port.id) && trigger.current?.isConnected
+                      ? trigger.current
+                      : false
+                : undefined
+            }
+            onFocus={restoreHighlighted}
             data-portcove-focus-scope
             aria-label={`More actions for ${gameIdentityLabel(port)}`}
             className={cn(
@@ -2301,6 +2365,7 @@ function PortCardActionMenu({
           >
             {favoriteMenu}
             <Menu.Item
+              data-collection-control="history"
               className={cn(
                 controlFocus,
                 "flex cursor-default items-center gap-2 rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground [&_svg]:size-4 [&_svg]:shrink-0",
@@ -2320,6 +2385,7 @@ function PortCardActionMenu({
             </Menu.Item>
             {port.release && !status?.external_runtime?.user_selected && (
               <Menu.Item
+                data-collection-control="saves"
                 className={cn(
                   controlFocus,
                   "flex cursor-default items-center gap-2 rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground [&_svg]:size-4 [&_svg]:shrink-0",

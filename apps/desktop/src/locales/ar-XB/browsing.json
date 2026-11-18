@@ -111,6 +111,7 @@
     "chosen": "<name/> · اختيارك",
     "chosenOutside": "<name/> · اختيارك · خارج عوامل التصفية الحالية",
     "independence": "اختيار مشروع لا يحدد إصدارًا ولا ينقل الحفظ ولا يستبدل تثبيتًا آخر.",
+    "label": "عناصر المكتبة",
     "outside": "<name/> · خارج عوامل التصفية الحالية",
     "portCount_zero": "{{count, number}} منفذ",
     "portCount_one": "منفذ واحد ({{count, number}})",

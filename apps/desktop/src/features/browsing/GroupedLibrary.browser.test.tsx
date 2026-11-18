@@ -118,6 +118,7 @@ it("requires an acknowledged choice, retains alternatives and targets the chosen
   );
   expect(document.body.textContent).not.toContain("Play First project");
   await page.getByRole("button", { name: "Choose Second project", exact: true }).first().click();
+  expect(write).toHaveBeenCalledTimes(1);
   expect(document.body.textContent).not.toContain("Play Second project");
   accept(false);
   await expect

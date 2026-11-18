@@ -418,8 +418,9 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
     Project, release-health or publication-bundle read records a `failed` run
     with its gap. Prior facts stay current, and every other source still lands.
     `collect` lists such sources in `failed_sources`.
-  - A truncated Project field page fails the issue collection rather than
-    dropping fields.
+  - Issue blockers, Project memberships and Project item fields follow their
+    own continuation cursors. An incomplete page or a changed revision fails
+    the issue collection and retains the prior facts.
 - `--issues` adds the `issues-project` source.
   - It reads the maintained, completeness-verified issue inventory with
     issue-side Project memberships (`RoadmapClient.repositoryIssues`), through a

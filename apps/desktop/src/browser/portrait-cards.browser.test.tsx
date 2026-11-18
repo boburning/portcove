@@ -1,3 +1,9 @@
+import {
+  inspectDiscoverGroups,
+  mountDiscoverPort,
+  inspectLibraryGroups,
+  mountLibraryPort,
+} from "./discover-test-helpers";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { act, useState } from "react";
@@ -366,10 +372,8 @@ it.for(["library", "catalog"] as const)(
         />
       </main>,
     );
-    const frames = [...document.querySelectorAll<HTMLElement>(".collection-art")];
-    expect(frames).toHaveLength(100);
     await userEvent.keyboard("{Tab}");
-    for (const frame of frames) {
+    const inspectFrame = (frame: HTMLElement) => {
       const rect = frame.getBoundingClientRect();
       expect(rect.height / rect.width).toBeCloseTo(1.5, 2);
       const identity = frame.closest<HTMLElement>(".collection-identity, .discover-game-identity")!;
@@ -388,9 +392,26 @@ it.for(["library", "catalog"] as const)(
         expect(text.scrollHeight).toBeLessThanOrEqual(text.clientHeight + 1);
       }
       identity.blur();
-    }
+    };
+    const inspectLibraryFrames = async () => {
+      expect(document.querySelectorAll(".collection-art").length).toBeLessThan(100);
+      await inspectLibraryGroups(
+        many.map((port) => [port.id]),
+        (card) => inspectFrame(card.querySelector<HTMLElement>(".collection-art")!),
+      );
+    };
+    if (view === "catalog") {
+      await inspectDiscoverGroups(
+        many.map(({ id }) => [id]),
+        (card) => inspectFrame(card.querySelector<HTMLElement>(".collection-art")!),
+      );
+    } else await inspectLibraryFrames();
+    const lastFrame =
+      view === "catalog"
+        ? (await mountDiscoverPort("large-99")).querySelector<HTMLElement>(".collection-art")!
+        : (await mountLibraryPort("large-99")).querySelector<HTMLElement>(".collection-art")!;
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(960);
-    frames[99]!
+    lastFrame
       .closest(".collection-identity, .discover-game-identity")!
       .querySelector<HTMLElement>(".collection-title")!
       .scrollIntoView();
@@ -398,7 +419,7 @@ it.for(["library", "catalog"] as const)(
     await page.screenshot({
       path: `../../../../outputs/uiux-game-titles/expanded-${view}-960.png`,
     });
-    const metadata = frames[99]!.closest<HTMLElement>(
+    const metadata = lastFrame.closest<HTMLElement>(
       ".collection-identity, .discover-game-identity",
     )!;
     metadata.focus();
@@ -790,63 +811,81 @@ it.for([2, 4] as const)(
         png_base64: canvas.toDataURL("image/png").split(",")[1]!,
       };
     });
+    const installed = new Map([
+      [port.id, { ...portStatus(), port_id: port.id, active: { ...install, port_id: port.id } }],
+    ]);
+    function CollectionRoutes() {
+      const [view, setView] = useState<"catalog" | "library" | "detail">("catalog");
+      return (
+        <ArtworkProvider generation={7} listings={listings}>
+          <nav className="flex flex-wrap gap-2" aria-label="Collection preview routes">
+            <button onClick={() => setView("catalog")}>Discover collection preview</button>
+            <button onClick={() => setView("library")}>Library collection preview</button>
+          </nav>
+          {view === "detail" ? (
+            <GameHero port={port} variant="detail">
+              <h1>Collection project</h1>
+            </GameHero>
+          ) : (
+            <PortBrowser
+              view={view}
+              ports={[port]}
+              statuses={view === "library" ? installed : new Map<string, PortStatus>()}
+              overview={{
+                installed: view === "library" ? 1 : 0,
+                ready: view === "library" ? 1 : 0,
+                needsSetup: 0,
+                staged: 0,
+              }}
+              filter="all"
+              setFilter={() => {}}
+              onSelect={() => setView("detail")}
+              onContinue={() => {}}
+              loading={false}
+            />
+          )}
+        </ArtworkProvider>
+      );
+    }
     await page.viewport(960, 720);
-    await render(
-      <ArtworkProvider generation={7} listings={listings}>
-        <PortBrowser
-          view="catalog"
-          ports={[port]}
-          statuses={new Map()}
-          overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
-          filter="all"
-          setFilter={() => {}}
-          onSelect={() => {}}
-          onContinue={() => {}}
-          loading={false}
-        />
-        <PortBrowser
-          view="library"
-          ports={[port]}
-          statuses={
-            new Map([
-              [
-                port.id,
-                { ...portStatus(), port_id: port.id, active: { ...install, port_id: port.id } },
-              ],
-            ])
-          }
-          overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 0 }}
-          filter="all"
-          setFilter={() => {}}
-          onSelect={() => {}}
-          onContinue={() => {}}
-          loading={false}
-        />
-        <GameHero port={port} variant="detail">
-          <h1>Collection project</h1>
-        </GameHero>
-      </ArtworkProvider>,
-    );
-    const frame = document.querySelector<HTMLElement>(".collection-art")!;
+    // App renders one workspace route at a time. Keep its shared artwork cache,
+    // without stacking two virtual document scrollers above a separate Details.
+    await render(<CollectionRoutes />);
+    let frame = document.querySelector<HTMLElement>(".collection-art")!;
     frame.scrollIntoView();
     await expect.poll(() => frame.querySelectorAll("img").length).toBe(count);
-    document.querySelector(".game-hero")!.scrollIntoView({ block: "center" });
+    await expectContainedOriginals(frame, count);
+    await page.getByRole("button", { name: "View port", exact: true }).click();
+    await expect.poll(() => document.querySelector(".game-hero-detail")).not.toBeNull();
     await expect
-      .poll(() => document.querySelectorAll(".game-hero-collection img").length)
+      .poll(() => document.querySelectorAll(".game-hero-detail .game-hero-collection img").length)
       .toBe(count);
-    document.querySelector(".port-card-library")!.scrollIntoView({ block: "center" });
+    await expectContainedOriginals(
+      document.querySelector<HTMLElement>(".game-hero-detail .game-hero-collection")!,
+      count,
+    );
+    await page.getByRole("button", { name: "Library collection preview", exact: true }).click();
+    await expect
+      .poll(() => document.querySelector("[data-virtual-collection=library]"))
+      .not.toBeNull();
     await expect
       .poll(() => document.querySelectorAll(".port-card-library .collection-art img").length)
       .toBe(count);
+    await expectContainedOriginals(
+      document.querySelector<HTMLElement>(".port-card-library .collection-art")!,
+      count,
+    );
+    await page.getByRole("button", { name: "Discover collection preview", exact: true }).click();
+    await expect
+      .poll(() => document.querySelector("[data-virtual-collection=catalog]"))
+      .not.toBeNull();
+    frame = document.querySelector<HTMLElement>(".collection-art")!;
+    await expect.poll(() => frame.querySelectorAll("img").length).toBe(count);
     for (const img of frame.querySelectorAll("img")) {
       await expect.poll(() => img.naturalWidth).toBeGreaterThan(0);
       expect(getComputedStyle(img).objectFit).toBe("contain");
     }
-    const hero = document.querySelector<HTMLElement>(".game-hero-collection")!;
-    const library = document.querySelector<HTMLElement>(".port-card-library .collection-art")!;
     await expectContainedOriginals(frame, count);
-    await expectContainedOriginals(hero, count);
-    await expectContainedOriginals(library, count);
     expect(frame.dataset.artworkSource).toBe("igdb_cover_collection");
     expect(desktopApi.collectionCoverThumbnail).toHaveBeenCalledTimes(count);
     for (const cover of covers)
@@ -866,21 +905,60 @@ it.for([2, 4] as const)(
     await page.viewport(390, 844);
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390);
     await settlePortraitPointer();
+    // Responsive virtual rows may replace the wide card. Capture its current
+    // rendered artwork, after the same node survives the resize render frames.
+    await expect
+      .poll(async () => {
+        const current = document.querySelector<HTMLElement>(".discover-game .collection-art");
+        if (!current) return false;
+        await act(async () => {
+          await new Promise(requestAnimationFrame);
+          await new Promise(requestAnimationFrame);
+        });
+        if (
+          !current.isConnected ||
+          current !== document.querySelector(".discover-game .collection-art")
+        )
+          return false;
+        frame = current;
+        return true;
+      })
+      .toBe(true);
+    await expect.poll(() => frame.querySelectorAll("img").length).toBe(count);
+    for (const img of frame.querySelectorAll("img")) {
+      await expect.poll(() => img.naturalWidth).toBeGreaterThan(0);
+      expect(getComputedStyle(img).objectFit).toBe("contain");
+    }
+    expect(frame.dataset.artworkSource).toBe("igdb_cover_collection");
+    expect(desktopApi.collectionCoverThumbnail).toHaveBeenCalledTimes(count);
     await expectContainedOriginals(frame, count);
-    await expectContainedOriginals(hero, count);
-    await expectContainedOriginals(library, count);
     await captureTargetScreenshot(
       frame,
       `../../../../outputs/uiux-game-titles/collection-${count}-narrow.png`,
       `collection-${count}-narrow`,
       context,
     );
+    // The other narrow consumers must be observed while their route is active.
+    await page.getByRole("button", { name: "View port", exact: true }).click();
+    await expect
+      .poll(() => document.querySelector(".game-hero-detail .game-hero-collection"))
+      .not.toBeNull();
+    const hero = document.querySelector<HTMLElement>(".game-hero-detail .game-hero-collection")!;
+    await expectContainedOriginals(hero, count);
     await captureTargetScreenshot(
       hero,
       `../../../../outputs/uiux-game-titles/collection-${count}-narrow-hero.png`,
       `collection-${count}-narrow-hero`,
       context,
     );
+    await page.getByRole("button", { name: "Library collection preview", exact: true }).click();
+    await expect
+      .poll(() => document.querySelector("[data-virtual-collection=library]"))
+      .not.toBeNull();
+    const library = document.querySelector<HTMLElement>(".port-card-library .collection-art")!;
+    await expectContainedOriginals(library, count);
+    expect(desktopApi.collectionCoverThumbnail).toHaveBeenCalledTimes(count);
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390);
   },
 );
 
@@ -940,10 +1018,10 @@ it("contains both staggered originals in an actual narrow App hero and Library",
     );
     document.documentElement.dataset.theme = "dark";
     await expect
-      .poll(() =>
-        document.querySelector(`.collection-entry button[data-detail-game-id="${port.id}"]`),
-      )
+      .poll(() => document.querySelector("[data-virtual-collection=library]"))
       .not.toBeNull();
+    // This exact title can begin outside the narrow Library's mounted window.
+    await mountLibraryPort(port.id);
     const identity = document.querySelector<HTMLButtonElement>(
       `.collection-entry button[data-detail-game-id="${port.id}"]`,
     )!;
