@@ -123,6 +123,11 @@ const catalog: unknown = JSON.parse(
 if (catalog && typeof catalog === "object" && "ports" in catalog && Array.isArray(catalog.ports)) {
   for (const port of catalog.ports as unknown[]) {
     if (!port || typeof port !== "object") continue;
+    if ("mod_provider_bindings" in port) {
+      throw new Error(
+        "Format-1 signed catalogs cannot deliver mod provider bindings. Use a compatible indexed definition.",
+      );
+    }
     if ("windows_shipwright_persistence" in port && port.windows_shipwright_persistence === true) {
       throw new Error(
         "Format-1 signed catalogs cannot deliver Shipwright working-directory persistence. Use a compatible indexed definition.",

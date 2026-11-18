@@ -31,6 +31,41 @@ fn fixture() -> Value {
 }
 
 #[test]
+fn provider_bindings_require_the_adapter_floor_for_fresh_and_retained_reads() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("shipwright").unwrap().clone();
+    let bindings = vec![
+        crate::ModProviderBinding::Gamebanana { game_id: 32001 },
+        crate::ModProviderBinding::Thunderstore {
+            community: "owned-fixture".into(),
+        },
+    ];
+    port.mod_provider_bindings = Some(bindings.clone());
+    let mut entry = entry_for_port(&port);
+    let version = crate::provider_binding::LIBULTRASHIP_BINDING_CAPABILITY;
+    entry["required_capabilities"][0]["maximum_version"] = json!(version);
+    for minimum in [version - 1, version] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if minimum < version {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .message
+                        .contains("mod provider bindings")
+                );
+            } else {
+                assert!(result.unwrap().capabilities().compatible);
+            }
+        }
+    }
+}
+
+#[test]
 fn executable_grants_require_their_adapter_floor_for_fresh_and_retained_reads() {
     for (adapter, version) in [
         (crate::AdapterKind::NativePortable, 22),
