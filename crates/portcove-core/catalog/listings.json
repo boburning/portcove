@@ -27004,12 +27004,6 @@
       "listed_at": "2026-11-18",
       "original_game_title": "Wolfenstein 3D",
       "availability": "packages",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "setup_url": "https://maniacsvault.net/ecwolf/download.php",
       "release_url": "https://maniacsvault.net/ecwolf/download.php",
       "recommended_download_channel": "stable",
@@ -27025,8 +27019,8 @@
             "instruction": "Install the official matching Ubuntu amd64 package with your system package manager so its dependencies and system data are present. Put the complete matching .WL1 data set in ~/.config/ecwolf, or the ecwolf folder below your XDG_CONFIG_HOME. Preserve the filenames and their case. Select /usr/games/ecwolf and its containing folder in Portcove; enter --data and WL1 as two separate arguments. Review the details, add the game, then choose Play. Use the system package manager or upstream to update this installation."
           },
           {
-            "title": "Use the upstream Mac app",
-            "instruction": "Use the official universal Mac app from the DMG and put matching game data in ~/Library/Application Support/ECWolf. Open the upstream app directly. Keep ~/Library/Preferences/ecwolf.cfg and ~/Documents/ECWolf/Savegames backed up separately, together with any chosen custom paths. This Mac route uses upstream setup and updates."
+            "title": "Add the Intel or Apple Silicon Mac player",
+            "instruction": "Copy the complete official ECWolf.app from the DMG into Applications and open it normally once. Copy all eight matching .WL1 shareware data files into ~/Library/Application Support/ECWolf, preserving their names and case. In Portcove, select /Applications/ECWolf.app/Contents/MacOS/ecwolf and its containing folder; enter --data and WL1 as separate arguments, review the details, then add the game and choose Play. Keep ecwolf.pk3 and the complete app together. The later ecwolf.exe choice applies to Windows; Mac uses the native file inside ECWolf.app."
           },
           {
             "title": "Select the prepared player",
@@ -27047,10 +27041,16 @@
           },
           {
             "title": "Player-data ownership",
-            "instruction": "You and upstream own the external copy's data: Windows Roaming AppData/ECWolf settings and Windows Saved Games/ECWolf progress, including upstream fallback locations; Linux XDG configuration/ecwolf and data/ecwolf/savegames folders; original game files, mods and any explicit --config or --savedir locations. Back up these locations separately; registration does not migrate or certify their compatibility."
+            "instruction": "You and upstream own the external copy's data: Windows Roaming AppData/ECWolf settings and Windows Saved Games/ECWolf progress, including upstream fallback locations; Linux XDG configuration/ecwolf and data/ecwolf/savegames folders; Mac ~/Library/Preferences/ecwolf.cfg, ~/Documents/ECWolf/Savegames, ~/Library/Application Support/ECWolf and upstream fallback locations; original game files, mods and any explicit --config or --savedir locations. Back up these locations separately; registration does not migrate or certify their compatibility."
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "edf2027-edf-3-recompilation-from-the-360-version-v0-3-0-beta-invisivel46-earth-defense-force-2017",
