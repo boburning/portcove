@@ -161,7 +161,7 @@ jobs:
         run: node scripts/release-controller-fixture-scope.mts
   fixture:
     needs: scope
-    if: ${{ !cancelled() && needs.scope.outputs.catalog_data_only != 'true' }}
+    if: ${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.catalog_data_only != 'true') }}
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -206,7 +206,7 @@ jobs:
           compression-level: 0
   windows-tools:
     needs: scope
-    if: ${{ !cancelled() && needs.scope.outputs.catalog_data_only != 'true' }}
+    if: ${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.catalog_data_only != 'true') }}
     runs-on: windows-2022
     timeout-minutes: 15
     steps:

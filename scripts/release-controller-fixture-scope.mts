@@ -39,7 +39,6 @@ if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) 
     fastValidationEnabled: true,
   });
   const catalogOnly = catalogDataOnlyFixtureChanges(plan);
-  appendFileSync(output, `catalog_data_only=${catalogOnly}\n`);
   if (catalogOnly) {
     const note =
       "Controller fixture skipped the native rebuild for a complete diff of regular listing and authoring JSON edits. The required catalog check still validates the data.";
@@ -47,4 +46,5 @@ if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) 
     if (process.env.GITHUB_STEP_SUMMARY)
       appendFileSync(process.env.GITHUB_STEP_SUMMARY, note + "\n");
   }
+  appendFileSync(output, `catalog_data_only=${catalogOnly}\n`);
 }

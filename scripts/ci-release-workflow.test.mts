@@ -554,6 +554,14 @@ void test("controller fixtures cover Windows driver, semantic worker, and bootst
     new URL("../.github/workflows/controller-tool-build-fixture.yml", import.meta.url),
   );
   const settings: unknown = parseDocument(workflow).toJS();
+  for (const name of ["fixture", "windows-tools"]) {
+    const job = workflowJob(name, workflow);
+    assert.equal(job.needs, "scope");
+    assert.match(
+      String(job.if),
+      /!cancelled\(\) && \(needs\.scope\.result != 'success' \|\| needs\.scope\.outputs\.catalog_data_only != 'true'\)/u,
+    );
+  }
   assert.ok(isRecord(settings) && isRecord(settings.on));
   for (const trigger of ["pull_request", "push"]) {
     const section: unknown = settings.on[trigger];
