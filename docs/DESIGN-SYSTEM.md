@@ -644,9 +644,10 @@ wrap and remain accessible in full.
 At desktop windows up to 760px high (from 761px width, including the 1280×720
 reference), chrome rhythm tightens across the toolbar, header, quick views and
 query rows. Poster covers reserve one project line instead of two and expand on
-focus. At heights of 673–800px, Library poster columns use a 10rem preferred
-minimum and retain the 220px artwork cap. At heights up to 672px, multiple Library
-covers use the horizontal portrait-and-identity composition described above.
+focus. At heights up to 50rem (800px at the default browser text size), multiple
+Library covers use the horizontal portrait-and-identity composition described
+above, matching the singleton cover's height boundary. This keeps first-row
+identity, readiness and actions together when listing platform chips wrap.
 Ordinary/tall and compact width rules retain their existing density. Rem-based
 minimums honor whole-interface enlargement. Poster layouts retain the effective
 24px cover-to-title gap and title/project reservations; horizontal covers use

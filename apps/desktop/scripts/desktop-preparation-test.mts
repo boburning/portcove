@@ -1032,6 +1032,80 @@ export function assertPreparedLibrarySummary(
   assert.equal(text.replace(/\s+/gu, " ").trim(), `${installed.length} in your library`);
 }
 
+export interface LibraryFooterKeyboardPoint {
+  originFocused: boolean;
+  withinCard: boolean;
+  footerFocused: boolean;
+  tabStops: number;
+}
+
+/** Follow the actual Tab order; never rescue a skipped action with focus() or scrolling. */
+export async function reachLibraryFooterAction(
+  observe: () => Promise<LibraryFooterKeyboardPoint>,
+  pressTab: () => Promise<void>,
+) {
+  const origin = await observe();
+  assert.ok(origin.originFocused && origin.withinCard, "Start at the owned Library More action");
+  assert.ok(Number.isSafeInteger(origin.tabStops) && origin.tabStops > 0);
+  for (let step = 0; step < origin.tabStops; step++) {
+    await pressTab();
+    const point = await observe();
+    assert.ok(point.withinCard, "Tab left the owned Library card before its primary action");
+    if (point.footerFocused) return { ...point, tabPresses: step + 1 };
+  }
+  throw new Error("The owned Library primary action was not reached through its Tab order");
+}
+
+export function libraryFooterKeyboardPoint(originSelector: string) {
+  const origin = document.querySelector(originSelector);
+  if (!(origin instanceof HTMLButtonElement)) throw new Error("Library More action disappeared");
+  const card = origin.closest(".collection-entry");
+  if (!card) throw new Error("Library action has no owning card");
+  const footer = card.querySelector<HTMLButtonElement>(
+    '.library-entry-footer button:not(:disabled):not([aria-disabled="true"])',
+  );
+  if (!footer) throw new Error("The owned Library card has no enabled primary action");
+  const rectangle = footer.getBoundingClientRect();
+  const workspace = document.querySelector('main[data-focus-region="workspace"]');
+  const clip = workspace?.getBoundingClientRect();
+  const style = getComputedStyle(footer);
+  const ring =
+    style.outlineStyle === "none"
+      ? 0
+      : Number.parseFloat(style.outlineWidth || "0") +
+        Math.max(0, Number.parseFloat(style.outlineOffset || "0"));
+  return {
+    originFocused: document.activeElement === origin,
+    withinCard: card.contains(document.activeElement),
+    footerFocused: document.activeElement === footer,
+    tabStops: [
+      ...card.querySelectorAll<HTMLElement>(
+        "button,a[href],input,select,textarea,summary,[tabindex]",
+      ),
+    ].filter(
+      (element) =>
+        element.tabIndex >= 0 &&
+        !element.matches(':disabled,[aria-disabled="true"]') &&
+        element.getClientRects().length > 0,
+    ).length,
+    name: footer.getAttribute("aria-label") || footer.textContent?.trim(),
+    documentFocused: document.hasFocus(),
+    zoom: localStorage.getItem("portcove.appearance.interface-size"),
+    rectangle: {
+      top: rectangle.top,
+      bottom: rectangle.bottom,
+      left: rectangle.left,
+      right: rectangle.right,
+    },
+    ring,
+    fullyVisible:
+      rectangle.top - ring >= Math.max(0, clip?.top ?? 0) - 1 &&
+      rectangle.bottom + ring <= Math.min(innerHeight, clip?.bottom ?? innerHeight) + 1 &&
+      rectangle.left - ring >= Math.max(0, clip?.left ?? 0) - 1 &&
+      rectangle.right + ring <= Math.min(innerWidth, clip?.right ?? innerWidth) + 1,
+  };
+}
+
 /** Observe one owned Library action and retain its exact visual evidence. */
 export async function captureLibraryAction(
   browser: WebDriver,
@@ -1094,6 +1168,51 @@ export async function captureLibraryAction(
       ),
   });
   artifacts.push(capture.image.path, capture.receipt);
+  const reached = await reachLibraryFooterAction(
+    () => executeBrowserScript(browser, libraryFooterKeyboardPoint, selector),
+    () => browser.actions().sendKeys(Key.TAB).perform(),
+  );
+  await browser.wait(
+    async () => {
+      const point = await executeBrowserScript(browser, libraryFooterKeyboardPoint, selector);
+      return (
+        point.footerFocused && point.documentFocused && point.fullyVisible && point.zoom === "200"
+      );
+    },
+    5_000,
+    "The Tab-reached Library primary action and its focus ring must fit at200%",
+  );
+  const footerSelector = `.collection-entry:has(${selector}) .library-entry-footer button:not(:disabled):not([aria-disabled="true"])`;
+  const footerCapture = await captureSettledVisual({
+    browser,
+    output,
+    name: `library-${theme}-${layout === "Covers" ? "covers" : "rows"}-200-footer`,
+    scenario: "native-library-layout",
+    target: footerSelector,
+    observeTarget: () =>
+      executeBrowserScript(browser, observeVisibleTarget, footerSelector, "visual" as const),
+    readiness: async () => {
+      const point = await executeBrowserScript(browser, libraryFooterKeyboardPoint, selector);
+      return {
+        ready:
+          point.footerFocused &&
+          point.documentFocused &&
+          point.fullyVisible &&
+          point.zoom === "200",
+        point,
+        tabPresses: reached.tabPresses,
+        feedbackFixture: "Owned DOM-only artwork feedback; imported artwork remains available",
+        interaction: "Actual Tab from More; no forced focus or scrolling",
+      };
+    },
+  });
+  artifacts.push(footerCapture.image.path, footerCapture.receipt);
+  for (let step = 0; step < reached.tabPresses; step++)
+    await browser.actions().keyDown(Key.SHIFT).sendKeys(Key.TAB).keyUp(Key.SHIFT).perform();
+  assert.ok(
+    (await executeBrowserScript(browser, libraryFooterKeyboardPoint, selector)).originFocused,
+    "Reverse Tab must return to the original Library More action",
+  );
 }
 
 export async function settleDirectPreparationRecovery(browser: WebDriver) {

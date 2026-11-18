@@ -21,6 +21,7 @@ import {
   overflowUpdateFocusPoint,
   rollbackWitnessWithinLibrary,
   waitForReviewedUpdateAction,
+  reachLibraryFooterAction,
 } from "./desktop-preparation-test.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 
@@ -380,3 +381,65 @@ for (const [name, changes] of refusedReviews) {
     assert.ok(observation.review.latest);
   });
 }
+
+test("native Library footer is reached through Tab without forcing focus", async () => {
+  let position = 0;
+  const result = await reachLibraryFooterAction(
+    async () => ({
+      originFocused: position === 0,
+      withinCard: true,
+      footerFocused: position === 2,
+      tabStops: 3,
+    }),
+    async () => {
+      position++;
+    },
+  );
+  assert.equal(position, 2);
+  assert.equal(result.tabPresses, 2);
+});
+
+test("native Library footer refuses an unrelated origin or a Tab path that skips the action", async () => {
+  let tabs = 0;
+  await assert.rejects(
+    reachLibraryFooterAction(
+      async () => ({ originFocused: false, withinCard: true, footerFocused: false, tabStops: 3 }),
+      async () => {
+        tabs++;
+      },
+    ),
+    /Start at the owned Library More action/u,
+  );
+  assert.equal(tabs, 0);
+  await assert.rejects(
+    reachLibraryFooterAction(
+      async () => ({
+        originFocused: tabs === 0,
+        withinCard: tabs === 0,
+        footerFocused: false,
+        tabStops: 3,
+      }),
+      async () => {
+        tabs++;
+      },
+    ),
+    /Tab left the owned Library card/u,
+  );
+  assert.equal(tabs, 1);
+  tabs = 0;
+  await assert.rejects(
+    reachLibraryFooterAction(
+      async () => ({
+        originFocused: tabs === 0,
+        withinCard: true,
+        footerFocused: false,
+        tabStops: 3,
+      }),
+      async () => {
+        tabs++;
+      },
+    ),
+    /was not reached through its Tab order/u,
+  );
+  assert.equal(tabs, 3);
+});
