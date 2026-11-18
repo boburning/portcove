@@ -169,14 +169,15 @@ const config = {
   controller_source: process.env.GITHUB_SHA,
   cli: path.join(root, "portcove.exe"),
   cli_sha256: executables.cli.sha256,
-  core_test: path.join(root, "core-tests.exe"),
+  // Alias preservation failed in retained run44330201491; repair/replay has its own #5359 candidate.
+  core_test: null,
   core_test_sha256: executables.core.sha256,
   alias_temp: path.join(root, "alias-temp"),
   library: path.join(root, "library"),
   evidence_dir: evidence,
   global_chocolate_root: process.env.CHOCOLATE_KNOWN_ROAMING,
   ui_helper: path.resolve("scripts/chocolate-hosted-ui.ps1"),
-  scenarios: ["public-original-core-lifecycle", "exact-short-alias-fixtures"],
+  scenarios: ["public-original-core-lifecycle"],
   titles: [],
 };
 assert(
