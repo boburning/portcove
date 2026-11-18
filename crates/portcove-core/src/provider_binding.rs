@@ -7,7 +7,7 @@ pub(crate) const LIBULTRASHIP_BINDING_CAPABILITY: u32 = 5;
 pub(crate) const N64_RECOMP_BINDING_CAPABILITY: u32 = 7;
 
 /// Exact provider-side scope from a reviewed definition.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "provider", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ModProviderBinding {
     Gamebanana { game_id: u64 },
