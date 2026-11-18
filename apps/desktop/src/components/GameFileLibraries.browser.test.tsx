@@ -2510,17 +2510,6 @@ it("reviews more than sixteen eligible games without opening their match pages",
     ),
   );
   const panel = document.querySelector<HTMLElement>('[aria-label="Install selected games"]')!;
-  const active = document.activeElement;
-  console.info("batch-review-focus-probe", {
-    triggerConnected: trigger.isConnected,
-    activeTag: active?.tagName,
-    activeText: active?.textContent?.slice(0, 120),
-    reviewContainsActive: panel.contains(active),
-    reviewBounds: {
-      top: panel.getBoundingClientRect().top,
-      bottom: panel.getBoundingClientRect().bottom,
-    },
-  });
   await vi.waitFor(() => expect(panel.contains(document.activeElement)).toBe(true));
   const focused = document.activeElement!.getBoundingClientRect();
   expect(focused.top).toBeGreaterThanOrEqual(0);

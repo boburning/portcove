@@ -26,6 +26,8 @@ import {
   selectedSetupGeneration,
 } from "./desktop-source-dialog-test.mts";
 import { transportValue, transportValues } from "./transport-values.mts";
+import { executeBrowserScript } from "./browser-script.mts";
+import { observeSetupReviewFocus } from "./desktop-completion-focus.mts";
 
 export interface BatchContext {
   browser: WebDriver;
@@ -221,13 +223,45 @@ export async function largeSetupReviewScenario(
         assert.ok(panelText.includes(`Large review game ${String(index).padStart(2, "0")} only`));
       assert.ok(!panelText.includes("Large review game 20"));
       facts();
+      report.review_entry_focus = await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            observeSetupReviewFocus,
+            '[aria-label="Install selected games"]',
+          ),
+        15_000,
+      );
       await screenshot("native-large-twenty-game-review");
-      const cancel = await panel.findElement(By.xpath('.//button[normalize-space(.)="Cancel"]'));
-      await cancel.sendKeys(Key.SPACE);
+      // Send ordinary keys to the current focus. Targeted element.sendKeys would
+      // focus Cancel itself and hide a broken review-entry handoff.
+      for (let step = 0; step < 4; step++) {
+        if ((await (await browser.switchTo().activeElement()).getText()).trim() === "Cancel") break;
+        await browser.actions().sendKeys(Key.TAB).perform();
+      }
+      const cancelFocus = await executeBrowserScript(
+        browser,
+        observeSetupReviewFocus,
+        '[aria-label="Install selected games"]',
+      );
+      assert.ok(cancelFocus);
+      assert.equal(cancelFocus.tag, "BUTTON");
+      assert.equal(cancelFocus.text, "Cancel");
+      report.cancel_focus = cancelFocus;
+      await browser.actions().sendKeys(Key.SPACE).perform();
       await browser.wait(
         async () =>
           (await browser.findElements(By.css('[aria-label="Install selected games"]'))).length ===
           0,
+        15_000,
+      );
+      report.review_return_focus = await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            observeSetupReviewFocus,
+            '[aria-label="Selected setup reviews"]',
+          ),
         15_000,
       );
       assert.deepEqual(await sources(), initialSources);
@@ -257,8 +291,9 @@ export async function largeSetupReviewScenario(
         "finish bounded scan",
         "select all20 eligible",
         "show retained match page",
-        "review20",
-        "cancel",
+        "review20 with visible entry focus",
+        "ordinary Tab to Cancel and Space",
+        "visible focus returned to setup choices",
       ];
       report.outcome = "passed";
       await screenshot("native-large-cancelled-preserved");
