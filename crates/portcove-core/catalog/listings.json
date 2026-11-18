@@ -32482,27 +32482,35 @@
       "id": "guitar-hero-classic-noahbaxter-guitar-hero-ii-plus-classic-harmonix-song-imports",
       "name": "Guitar Hero II (plus classic Harmonix song imports) — Guitar Hero Classic (noahbaxter)",
       "original_game_title": "Guitar Hero II (plus classic Harmonix song imports)",
-      "summary": "This release uses a disc-folder setup and remains in development. GHClassic is not confirmed to be the same project as Recomp-Hero-2; use the instructions for this implementation. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
+      "summary": "Upstream publishes preview packages for Windows x86-64, Linux x86-64 and Apple Silicon. Use your own USA Guitar Hero II disc image for setup. Additional original Guitar Hero discs are optional imports.",
       "project_url": "https://github.com/noahbaxter/GHClassic",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/noahbaxter/GHClassic",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/noahbaxter/GHClassic/blob/v0.9/README.md#install",
       "manual_setup": {
         "steps": [
           {
             "title": "Check the required game files",
-            "instruction": "Use your own USA PlayStation 2 Guitar Hero II SLUS-21447 ISO. Other original Guitar Hero discs are optional imports."
+            "instruction": "Use your own USA PlayStation 2 Guitar Hero II disc (SLUS-21447) as an ISO, CHD or BIN. Other original Guitar Hero discs are optional imports."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use the portable Windows or Linux runtime folder, or the macOS disk image. Place your own USA SLUS21447 disc in PUT_DISC_HERE. Follow GHClassic’s instructions; the archived ghpc prototype points to this replacement project."
+            "title": "Set up the Windows or Linux package",
+            "instruction": "Extract the ZIP and put the disc image in PUT_DISC_HERE beside the game."
+          },
+          {
+            "title": "Set up the Apple Silicon package",
+            "instruction": "Open the disk image and drag GHClassic to Applications. Run it once to open the PUT_DISC_HERE folder in ~/Library/Application Support/GHClassic. Put your disc image there."
           }
         ],
         "warnings": [
           "This release uses a disc-folder setup and remains in development. GHClassic is not confirmed to be the same project as Recomp-Hero-2; use the instructions for this implementation.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/noahbaxter/GHClassic"
+        "help_url": "https://github.com/noahbaxter/GHClassic/blob/v0.9/README.md#install"
       },
       "issue_number": 3000,
       "listed_at": "2026-10-25",
@@ -32513,7 +32521,10 @@
         "image_sha256": "31cff9ee4bf15d460535fb3da9d11cbd7b15f9bdd104235b6150695003c1fa3c",
         "game_slug": "guitar-hero-ii",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/noahbaxter/GHClassic/releases/tag/v0.9",
+      "recommended_download_channel": "beta",
+      "download_block_reason": "Portcove has identified the upstream v0.9 game packages. Package acquisition remains on hold until their contents and permission to use them through Portcove are reviewed."
     },
     {
       "id": "guitar-hero-ii-recompiled-sp00nznet-guitar-hero-ii-xbox-360",
@@ -38918,7 +38929,7 @@
     {
       "id": "lost-odyssey-recomp",
       "name": "Lost Odyssey Recomp",
-      "summary": "Explore Lost Odyssey Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Upstream v1.1.0 publishes Windows x86-64, Linux x86-64, Apple Silicon and Android ARM64 packages. The upstream importer opens when game data is missing. Import Disc 1 to start, then use Settings → System → Import discs & DLC to add more discs later.",
       "project_url": "https://github.com/freefrank/LostOdysseyRecomp",
       "issue_number": 744,
       "listed_at": "2026-10-23",
@@ -38926,9 +38937,13 @@
         "https://ko-fi.com/dotslash",
         "https://buymeacoffee.com/dotslash"
       ],
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/freefrank/LostOdysseyRecomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/freefrank/LostOdysseyRecomp/blob/v1.1.0/docs/INSTALLING.md",
       "artwork": {
         "game_id": 7057,
         "cover_id": 178444,
@@ -38936,7 +38951,9 @@
         "image_sha256": "c066384a5aeb7b43d45f30b695b19ab3ff3507c62a3f0ca1dcc577a57c96b65d",
         "game_slug": "lost-odyssey",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/freefrank/LostOdysseyRecomp/releases/tag/v1.1.0",
+      "download_block_reason": "Portcove downloads are on hold while the prepared runtime, save behavior and update ownership are verified."
     },
     {
       "id": "lostartefacts-trx",
@@ -42148,13 +42165,16 @@
     {
       "id": "monster-hunter-generations-ultimate-mhgurecomp",
       "name": "Monster Hunter Generations Ultimate (MHGURecomp)",
-      "summary": "An experimental Monster Hunter Generations Ultimate port translating 32-bit ARM code to C on x64 hosts. Code-changing cheats use interpreter fallbacks; it does not guarantee interpreter-free execution. The project claims a dozen hunts and multiplayer, without independent play observations. Its release includes mhgugame.dll, expressly identified as translated game code outside the project license, and optional donor saves/event data. Package downloads remain unavailable until contents and applicable permissions are reviewed; a no-game-files banner does not resolve those conditions. A local-generation source route is separate. Windows 10/11 x64 needs AVX2 and Vulkan 1.2; Windows/Arch Linux ZIPs exist, and Gentoo/NVIDIA/Wayland source play is reported. The non-AVX2 v2 flag is untested. Use your own 1.4.0 title 0100770008DD8000, main build prefix FB08F1D20FD1204F, with updated ExeFS and complete merged RomFS under data. No separate keys/firmware input is described after extraction. Portcove offers no setup or launch integration and has not tested gameplay.",
+      "summary": "Upstream publishes a Windows x86-64 ZIP, a native Linux x86-64 tarball and an experimental Android ARM64 APK. Setup uses your own Monster Hunter Generations Ultimate 1.4.0 ExeFS and RomFS. The desktop releases include a separate upstream updater. Desktop needs AVX2 and Vulkan 1.2. Linux also needs glibc 2.39 or later. Android requires Android 10 or later, Vulkan 1.1 and a controller.",
       "original_game_title": "Monster Hunter Generations Ultimate",
       "project_url": "https://github.com/morerokk/MHGURecomp",
       "listed_at": "2026-10-25",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/morerokk/MHGURecomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/morerokk/MHGURecomp/blob/0.17.8/README.md#installation",
       "artwork": {
         "game_id": 25623,
         "cover_id": 68007,
@@ -42163,7 +42183,9 @@
         "game_slug": "monster-hunter-generations-ultimate",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2950
+      "issue_number": 2950,
+      "release_url": "https://github.com/morerokk/MHGURecomp/releases/tag/0.17.8",
+      "download_block_reason": "The upstream packages include translated game code excluded from the project license. Portcove downloads are on hold pending a review of component permissions or a released package that prepares the code from the player’s own files."
     },
     {
       "id": "monster-hunter-portable-3rd-hd-yakumo",
@@ -69960,8 +69982,11 @@
       "project_url": "https://github.com/Voicedrew11/verdite2",
       "issue_number": 1900,
       "listed_at": "2026-10-23",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/Voicedrew11/verdite2",
       "original_game_title": "King's Field",
       "manual_setup": {
@@ -70006,7 +70031,8 @@
         "image_sha256": "57cc35a74621c0dc875e59305946e9ebcf060be02772976ccbf3f695f89a059e",
         "game_slug": "kings-field",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/Voicedrew11/verdite2/releases/tag/v0.6.1"
     },
     {
       "id": "voicedrew11-verdite3",
