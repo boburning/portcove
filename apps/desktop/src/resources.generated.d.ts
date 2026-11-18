@@ -1300,8 +1300,8 @@ export default interface Resources {
         "intro_one": "Portcove kept the current version of a mod because its update needs your review:",
         "intro_other": "Portcove kept the current versions of some mods because their updates need your review:",
         "item": "<mods />: <reason />",
-        "next_one": "To install it anyway, find the mod with Find mods on {{provider}} below and review the newer file. Or leave it: Portcove checks again when this setup changes or the mod offers another file.",
-        "next_other": "To install them anyway, find each mod with Find mods on {{provider}} below and review its newer file. Or leave them: Portcove checks again when this setup changes or a mod offers another file."
+        "next_one": "To install it anyway, review the newer file from {{provider}} under Installed mods. Or leave it: Portcove checks again when this setup changes or the mod offers another file.",
+        "next_other": "To install them anyway, review the newer files from {{provider}} under Installed mods. Or leave them: Portcove checks again when this setup changes or a mod offers another file."
       },
       "inUse": "In use",
       "intro": "A setup is a set of mods with its own saves and settings. Switching setups puts away the current setup’s saves and settings and brings back the other setup’s. Turning a mod off removes it from the game’s mods folder; its file stays in Portcove so you can turn it on again.",

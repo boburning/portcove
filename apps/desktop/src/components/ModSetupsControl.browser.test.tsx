@@ -433,7 +433,7 @@ it("explains a held unattended update for the setup in use", async () => {
     "kept the current version of a mod because its update needs your review",
   );
   expect(host.textContent).toContain("checks again when this setup changes");
-  expect(host.textContent).toContain("Find mods on GameBanana below");
+  expect(host.textContent).toContain("the newer file from GameBanana under Installed mods");
   expect(host.textContent).toContain("hd.o2r: the newer file changes which mods it contains");
   expect(host.textContent).not.toContain("not for the setup in use");
 });
@@ -799,7 +799,7 @@ it("points held Thunderstore updates to the Thunderstore browser", async () => {
     }),
   );
   const host = await render();
-  expect(host.textContent).toContain("Find mods on Thunderstore below");
+  expect(host.textContent).toContain("the newer file from Thunderstore under Installed mods");
   expect(host.textContent).not.toContain("GameBanana");
   expect(
     [...host.querySelectorAll("button")].some(
@@ -847,7 +847,11 @@ it("opens review for the exact project named by a saved automatic hold", async (
   await render();
 
   await expect.element(page.getByText("Update needs review.", { exact: false })).toBeVisible();
-  await page.getByRole("button", { name: "Review update files" }).click();
+  await act(async () => {
+    (
+      page.getByRole("button", { name: "Review update files" }).element() as HTMLButtonElement
+    ).click();
+  });
 
   expect(project).toHaveBeenCalledExactlyOnceWith("shipwright", "42", 7, "gamebanana");
 });
@@ -888,7 +892,11 @@ it("shows the exact runtime and offers a direct switch to clean play", async () 
   await expect.element(page.getByText("Game version 9.3.1")).toBeVisible();
   await expect.element(page.getByText("Game version 9.3.0")).toBeVisible();
   await expect.element(page.getByText("This setup’s runtime needs attention.")).toBeVisible();
-  await page.getByRole("button", { name: "Switch to clean play" }).click();
+  await act(async () => {
+    (
+      page.getByRole("button", { name: "Switch to clean play" }).element() as HTMLButtonElement
+    ).click();
+  });
   expect(use).toHaveBeenCalledWith("shipwright", "default", 7);
 });
 
@@ -930,7 +938,7 @@ it("offers a present clean setup while retaining known runtime failures and Core
   await expect
     .element(page.getByRole("button", { name: "Create clean setup…" }))
     .not.toBeInTheDocument();
-  await clean.click();
+  await act(async () => (clean.element() as HTMLButtonElement).click());
   expect(use).toHaveBeenCalledExactlyOnceWith("shipwright", "default", 7);
   await expect
     .element(page.getByRole("alert"))
