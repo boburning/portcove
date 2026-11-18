@@ -908,7 +908,9 @@ export async function sourceDialogScenario({
     const discoveryActivity = By.xpath(
       `//div[contains(@class, "activity-row") and @data-activity-id=${JSON.stringify(sourceDiscovery.id)}]//button[@aria-label="Open Game files settings for Portcove library"]`,
     );
-    await browser.wait(until.elementLocated(discoveryActivity), 15_000);
+    // Native27 still awaited the updated Activity row after a 20.687 s workspace
+    // read, with another read pending. Keep its exact identity and accessible name.
+    await browser.wait(until.elementLocated(discoveryActivity), 60_000);
     await click(discoveryActivity);
     await browser.wait(
       () =>
