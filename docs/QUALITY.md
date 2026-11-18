@@ -411,6 +411,12 @@ defer is left to finish. The re-run is best effort; if it does not happen, use "
 all jobs" on the head's CI run; re-running only failed jobs keeps the draft
 classification. Push, qualification, release and reused plans never defer.
 
+The ready transition has a finite 25-minute API budget inside a 30-minute job,
+polling once per minute while classification or cancelled-run gate jobs wait
+for runners. The 64-request cap and terminal-state check remain enforced;
+ordinary supersede events retain their four-minute API and five-minute job
+budgets. Expiry preserves the run and the same all-jobs recovery instruction.
+
 A superseded pull request run stops taking runners before its cancellation arrives.
 The supersede workflow needs a runner of its own to cancel older runs, and under
 queue pressure that can take as long as any other job. The classifier and the fast

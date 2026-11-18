@@ -6,13 +6,76 @@ import {
   deferredWindowsRun,
   ownRunId,
   readyForReviewAction,
+  supersedeTiming,
   supersededRunIds,
+  waitForCancelledRun,
 } from "./ci-supersede.mts";
 import { workflowStep } from "./ci-workflow-fixture.mts";
 
 const run = (id: number, ...pulls: number[]) => ({
   id,
   pull_requests: pulls.map((number) => ({ number })),
+});
+
+void test("ready transition waits for queued cancellation gates beyond the ordinary budget", async () => {
+  // #8085 took 14m39s between accepted cancellation and terminal run state.
+  // Virtual time reproduces that delay without waiting or using GitHub.
+  const drainMs = (14 * 60 + 39) * 1000;
+  const simulate = async (action: string) => {
+    const timing = supersedeTiming(action);
+    let elapsed = 0;
+    let observations = 0;
+    const finished = waitForCancelledRun(
+      async () => {
+        observations++;
+        return { status: elapsed >= drainMs ? "completed" : "in_progress" };
+      },
+      { run: 8085, deadline: timing.clientMs - 20_000, pollMs: timing.pollMs },
+      {
+        now: () => elapsed,
+        sleep: async (milliseconds) => {
+          elapsed += milliseconds;
+        },
+      },
+    );
+    if (action === "ready_for_review") {
+      await finished;
+      assert.ok(elapsed >= drainMs && elapsed < timing.clientMs);
+      assert.ok(observations < 64);
+    } else {
+      await assert.rejects(finished, /did not finish cancelling; re-run all jobs/u);
+      assert.ok(elapsed < drainMs);
+    }
+  };
+  await simulate("synchronize");
+  await simulate("ready_for_review");
+});
+
+void test("an unfinished cancellation still expires within the finite ready budget", async () => {
+  const timing = supersedeTiming("ready_for_review");
+  let elapsed = 0;
+  let observations = 0;
+  await assert.rejects(
+    waitForCancelledRun(
+      async () => {
+        observations++;
+        return { status: "in_progress" };
+      },
+      { run: 8085, deadline: timing.clientMs - 20_000, pollMs: timing.pollMs },
+      {
+        now: () => elapsed,
+        sleep: async (milliseconds) => {
+          elapsed += milliseconds;
+        },
+      },
+    ),
+    /Run 8085 did not finish cancelling/u,
+  );
+  assert.ok(elapsed < timing.clientMs);
+  assert.ok(observations < 64);
+  // Classification uses two reads per poll. Reserve four discovery reads and
+  // both mutation requests within the same unchanged request ceiling.
+  assert.ok(Math.ceil(timing.clientMs / timing.pollMs) * 2 + 6 <= 64);
 });
 
 void test("a head's own run is its newest run for the pull request", () => {
