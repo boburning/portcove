@@ -796,7 +796,7 @@ function RetainedUpdateArchive({
         install the update separately.
       </p>
       <details className="mt-2 text-xs">
-        <summary data-focusable className="cursor-pointer py-1">
+        <summary data-focusable className="disclosure-pad-1 cursor-pointer">
           Download details
         </summary>
         <dl className="mt-2 grid gap-2 [overflow-wrap:anywhere]">

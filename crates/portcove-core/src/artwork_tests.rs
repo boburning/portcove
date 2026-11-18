@@ -2779,6 +2779,157 @@ fn igdb_cover(service: &PortcoveService, port_id: &str) -> Option<crate::IgdbArt
 }
 
 #[test]
+fn companion_cover_requires_current_default_and_uses_the_verified_igdb_cache() {
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let port_id = "kirby-letsgo-oracles-decomp";
+    let primary = retention_mapping("fixtureages", &coloured_jpeg([30, 30, 200]));
+    let bytes = coloured_jpeg([200, 30, 30]);
+    let mut companion = retention_mapping("fixtureseasons", &bytes);
+    companion.game_id += 1;
+    companion.cover_id += 1;
+    let mut document = service.catalog().document().clone();
+    let presentation = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == port_id)
+        .unwrap()
+        .presentation
+        .as_mut()
+        .unwrap();
+    presentation.artwork = Some(primary);
+    presentation.companion_cover = Some(companion.clone());
+    service.replace_catalog_for_test(crate::Catalog::from_document(document).unwrap());
+    let ArtworkResolvedSource::IgdbCover { cache_id, .. } = service
+        .artwork(port_id, ArtworkSlot::Cover)
+        .unwrap()
+        .resolved_source
+    else {
+        panic!("catalog default missing");
+    };
+    let cached = published_cover(&service, &companion, || Ok(bytes)).unwrap();
+    let get = |revision| {
+        service.companion_cover_thumbnail(port_id, &cache_id, &companion.image_sha256, revision)
+    };
+    let shown = get(0).unwrap();
+    assert_eq!(shown.asset_sha256, companion.image_sha256);
+    assert_eq!(shown.png, cached.png);
+    assert_eq!(
+        service
+            .companion_cover_thumbnail(port_id, "stale", &companion.image_sha256, 0)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    let local = image_file(temporary.path(), "local.png", image::ImageFormat::Png);
+    let selected = service
+        .import_artwork(port_id, ArtworkSlot::Cover, &local, 0)
+        .unwrap();
+    assert_eq!(get(0).unwrap_err().code, crate::ErrorCode::Conflict);
+    assert_eq!(
+        get(selected.choice.revision).unwrap_err().code,
+        crate::ErrorCode::Conflict
+    );
+}
+
+#[test]
+fn collection_members_obey_local_choice_and_retain_registered_identity_after_directory_removal() {
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let id = "collection-fixture";
+    let first_bytes = coloured_jpeg([180, 30, 30]);
+    let second_bytes = coloured_jpeg([30, 30, 180]);
+    let first = retention_mapping("collectionfirst", &first_bytes);
+    let mut second = retention_mapping("collectionsecond", &second_bytes);
+    second.game_id += 1;
+    second.cover_id += 1;
+    let directory = crate::CatalogListingDocument::from_json(&serde_json::json!({
+        "format_version": 11, "listings": [{"id": id, "name": "Collection fixture", "summary": "A descriptive project with two games.", "project_url": "https://example.invalid/collection", "collection_covers": [first, second]}]
+    }).to_string()).unwrap();
+    service.replace_catalog_for_test(
+        retention_catalog(&[])
+            .with_listing_document(directory)
+            .unwrap(),
+    );
+    published_cover(&service, &first, || Ok(first_bytes)).unwrap();
+    published_cover(&service, &second, || Ok(second_bytes)).unwrap();
+    for cover in [&first, &second] {
+        let shown = service
+            .collection_cover_thumbnail(id, &cover.image_sha256, 0)
+            .unwrap();
+        assert_eq!(shown.asset_sha256, cover.image_sha256);
+        assert!(!shown.png.is_empty());
+    }
+    assert_eq!(
+        service
+            .collection_cover_thumbnail(id, &"f".repeat(64), 0)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound
+    );
+    let local = image_file(temporary.path(), "local.png", image::ImageFormat::Png);
+    let selected = service
+        .import_artwork(id, ArtworkSlot::Cover, &local, 0)
+        .unwrap();
+    for revision in [0, selected.choice.revision] {
+        assert_eq!(
+            service
+                .collection_cover_thumbnail(id, &first.image_sha256, revision)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Conflict
+        );
+    }
+    let reset = service
+        .reset_artwork(id, ArtworkSlot::Cover, selected.choice.revision)
+        .unwrap();
+    let working = temporary.path().join("user-owned-game");
+    fs::create_dir(&working).unwrap();
+    let executable = crate::test_fixture::build_probe(&working);
+    let preview = service
+        .preview_user_selected_runtime(id, &executable, &working, &[])
+        .unwrap();
+    let consent = service
+        .authorize_user_selected_runtime(id, &executable, &working, &[], &preview.preview_sha256)
+        .unwrap();
+    service
+        .register_user_selected_runtime(id, &executable, &working, &[], &consent.token)
+        .unwrap();
+    let listed_bytes = coloured_jpeg([30, 180, 30]);
+    let listed = retention_mapping("collectionlisted", &listed_bytes);
+    service.replace_catalog_for_test(retention_catalog(&[("collection-other", Some(&listed))]));
+    // A real publication sweeps unreferenced originals; retained members must survive.
+    published_cover(&service, &listed, || Ok(listed_bytes)).unwrap();
+    for cover in [&first, &second] {
+        assert!(cached_original(&service, cover));
+        assert!(
+            !service
+                .collection_cover_thumbnail(id, &cover.image_sha256, reset.choice.revision)
+                .unwrap()
+                .png
+                .is_empty()
+        );
+    }
+    let fresh_bytes = coloured_jpeg([180, 180, 30]);
+    let fresh = retention_mapping("collectionfresh", &fresh_bytes);
+    service.replace_catalog_for_test(retention_catalog(&[
+        (id, None),
+        ("collection-other", Some(&fresh)),
+    ]));
+    published_cover(&service, &fresh, || Ok(fresh_bytes)).unwrap();
+    assert_eq!(
+        service
+            .collection_cover_thumbnail(id, &first.image_sha256, reset.choice.revision)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound
+    );
+    assert!(!cached_original(&service, &first));
+    assert!(!cached_original(&service, &second));
+    assert!(cached_original(&service, &fresh));
+}
+
+#[test]
 fn signed_cover_correction_and_withdrawal_retire_unreferenced_cached_originals() {
     let temporary = tempfile::tempdir().unwrap();
     let mut service =

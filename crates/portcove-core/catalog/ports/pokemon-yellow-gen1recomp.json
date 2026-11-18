@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "pokemon-yellow-gen1recomp",
+    "artwork": {
+      "game_id": 1512,
+      "cover_id": 266345,
+      "image_id": "co5pih",
+      "image_sha256": "4be67775dc5afbbffb9c1a81c7ac009368ef1a2cefefab08defa813f73790f02",
+      "game_slug": "pokemon-yellow-version-special-pikachu-edition",
+      "match_kind": "underlying-game"
+    },
     "name": "Pokémon Yellow (Gen1Recomp / G1R Deluxe)",
     "summary": "Import your own exact yellow original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
     "original_game_title": "Pokémon Yellow",

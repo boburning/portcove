@@ -93,12 +93,12 @@ function ActivityDiagnosticSession({
         {t("diagnostic.view")}
       </summary>
       {pending && (
-        <p role="status">
+        <p role="status" className="mt-3">
           {capture !== undefined ? t("diagnostic.readingWithPrevious") : t("diagnostic.reading")}
         </p>
       )}
       {failure && (
-        <div role={failure.cancelled ? "status" : "alert"}>
+        <div role={failure.cancelled ? "status" : "alert"} className="mt-3 grid gap-2">
           <strong>
             {failure.cancelled ? t("diagnostic.cancelled") : t("diagnostic.loadFailed")}
           </strong>
@@ -117,33 +117,39 @@ function ActivityDiagnosticSession({
       )}
       {capture?.length === 0 && !pending && !failure && <p>{t("diagnostic.none")}</p>}
       {capture?.map((phase) => (
-        <section key={phase.phase}>
-          <h3>
-            {phase.phase === "preparation.extract"
-              ? t("diagnostic.phase.extract")
-              : phase.phase === "preparation.setup"
-                ? t("diagnostic.phase.setup")
-                : t("diagnostic.phase.other")}
-          </h3>
-          <p>{phase.complete ? t("diagnostic.complete") : t("diagnostic.incomplete")}</p>
-          {(phase.stdout.truncated || phase.stderr.truncated) && (
-            <p>{t("diagnostic.truncated", { limit: formatBytes(phase.stream_limit_bytes) })}</p>
-          )}
-          <p>
-            {t("diagnostic.lastSaved", {
-              time: new Date(phase.updated_at * 1000).toLocaleString(),
-            })}
-          </p>
-          <h4>{t("diagnostic.stdout")}</h4>
-          <ReadOnlyTextField
-            label={t("diagnostic.stdoutLabel")}
-            value={phase.stdout.text || t("diagnostic.stdoutEmpty")}
-          />
-          <h4>{t("diagnostic.stderr")}</h4>
-          <ReadOnlyTextField
-            label={t("diagnostic.stderrLabel")}
-            value={phase.stderr.text || t("diagnostic.stderrEmpty")}
-          />
+        <section key={phase.phase} className="mt-4 grid min-w-0 gap-3">
+          <div className="grid gap-1">
+            <h4 className="text-sm font-semibold">
+              {phase.phase === "preparation.extract"
+                ? t("diagnostic.phase.extract")
+                : phase.phase === "preparation.setup"
+                  ? t("diagnostic.phase.setup")
+                  : t("diagnostic.phase.other")}
+            </h4>
+            <p>{phase.complete ? t("diagnostic.complete") : t("diagnostic.incomplete")}</p>
+            {(phase.stdout.truncated || phase.stderr.truncated) && (
+              <p>{t("diagnostic.truncated", { limit: formatBytes(phase.stream_limit_bytes) })}</p>
+            )}
+            <p>
+              {t("diagnostic.lastSaved", {
+                time: new Date(phase.updated_at * 1000).toLocaleString(),
+              })}
+            </p>
+          </div>
+          <div className="grid min-w-0 gap-1">
+            <h5 className="text-xs font-semibold">{t("diagnostic.stdout")}</h5>
+            <ReadOnlyTextField
+              label={t("diagnostic.stdoutLabel")}
+              value={phase.stdout.text || t("diagnostic.stdoutEmpty")}
+            />
+          </div>
+          <div className="grid min-w-0 gap-1">
+            <h5 className="text-xs font-semibold">{t("diagnostic.stderr")}</h5>
+            <ReadOnlyTextField
+              label={t("diagnostic.stderrLabel")}
+              value={phase.stderr.text || t("diagnostic.stderrEmpty")}
+            />
+          </div>
         </section>
       ))}
       <div className="mt-2 flex flex-wrap gap-2">
@@ -182,7 +188,9 @@ function ActivityDiagnosticSession({
       {copyOutcome === "copied" && <p role="status">{t("diagnostic.copiedStatus")}</p>}
       {copyOutcome === "failed" && (
         <>
-          <p role="alert">{t("diagnostic.clipboardUnavailable")}</p>
+          <p role="alert" className="mt-3">
+            {t("diagnostic.clipboardUnavailable")}
+          </p>
           <ReadOnlyTextField label={t("diagnostic.manualCopy")} value={technical} />
         </>
       )}

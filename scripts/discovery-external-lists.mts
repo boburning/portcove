@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
 
@@ -18,6 +19,15 @@ export const externalLeadLists = [
     format: "alexbeav-js",
     cap: 1024 * 1024,
   },
+  {
+    id: "recompsoftware",
+    format: "recompsoftware-json",
+    cap: 8 * 1024 * 1024,
+    revision_repository: "andrewnakas/recompsoftware",
+    repository_id: 1418451069,
+    revision_path: "data/projects/games.json",
+    reviewed_revision: "e981757f31fdb58b85e546069cf303daac56cc61",
+  },
 ] as const;
 export type ExternalLeadListId = (typeof externalLeadLists)[number]["id"];
 export const externalListIds: readonly string[] = externalLeadLists.map((list) => list.id);
@@ -32,16 +42,30 @@ const listId = /^[a-z0-9][a-z0-9-]{0,63}$/u;
 const maxEntries = 20000;
 const maxTitle = 160;
 
+/** External claims only: source slug/subject never establish Portcove game identity. */
+export interface ExternalSourceEntry {
+  id: string;
+  subject: string;
+  category: string;
+  method: string;
+  status: string;
+  targets: string[];
+  needs_original: boolean | null;
+  latest_release: string | null;
+  fingerprint: string;
+}
 export interface ExternalListEntry {
   key: string;
   url: string;
   host: "github" | "gitlab" | "codeberg";
   title: string;
+  source_entries?: ExternalSourceEntry[];
 }
 export interface ParsedExternalList {
   entries: ExternalListEntry[];
   /** Entries without a usable repository link: name-only hints that are not invented mappings. */
   unlinked: number;
+  source?: { url: string; revision: string; content_sha256: string };
 }
 export interface ExternalListClock {
   completed_at: string;
@@ -49,6 +73,7 @@ export interface ExternalListClock {
   entries: number;
   unlinked: number;
   fingerprint: string;
+  source?: ParsedExternalList["source"];
 }
 export interface ExternalListAttempt {
   attempted_at: string;
@@ -62,6 +87,9 @@ export interface ExternalHint {
   lists: string[];
   first_observed_at: string;
   last_observed_at: string;
+  source_entries?: Record<string, ExternalSourceEntry[]>;
+  /** One changes-only primary research handoff, acknowledged by lead-dispose. */
+  source_change?: { fingerprint: string; observed_at: string };
   resolution?: {
     status: "queued" | "unavailable" | "conflict" | "failed";
     checked_at: string;
@@ -227,9 +255,104 @@ export function parseAlexbeavCatalog(text: string): ParsedExternalList {
   return collect(rows, unlinked);
 }
 
+/** Parse structured data without evaluating upstream code or reusing its prose. */
+export function parseRecompSoftwareCatalog(text: string): ParsedExternalList {
+  bounded(text, 8 * 1024 * 1024, "RecompSoftware catalog");
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    throw new Error("Malformed RecompSoftware JSON");
+  }
+  if (!Array.isArray(value) || !value.length || value.length > maxEntries)
+    throw new Error("Unsupported RecompSoftware entry set");
+  const entries = new Map<string, ExternalListEntry>();
+  const ids = new Set<string>();
+  let unlinked = 0;
+  for (const row of value) {
+    if (
+      !isRecord(row) ||
+      typeof row.slug !== "string" ||
+      !/^[a-z0-9][a-z0-9-]{0,159}$/u.test(row.slug) ||
+      ids.has(row.slug) ||
+      typeof row.name !== "string" ||
+      typeof row.subject !== "string" ||
+      typeof row.category !== "string" ||
+      typeof row.method !== "string" ||
+      typeof row.status !== "string" ||
+      !Array.isArray(row.targets) ||
+      row.targets.length > 64 ||
+      !row.targets.every((v) => typeof v === "string" && v.length <= 160) ||
+      !(row.needsOriginal === null || typeof row.needsOriginal === "boolean") ||
+      !(
+        row.latestRelease === null ||
+        (typeof row.latestRelease === "string" && row.latestRelease.length <= 256) ||
+        (isRecord(row.latestRelease) &&
+          typeof row.latestRelease.version === "string" &&
+          row.latestRelease.version.length <= 256 &&
+          typeof row.latestRelease.date === "string" &&
+          row.latestRelease.date.length <= 64)
+      )
+    )
+      throw new Error("Malformed RecompSoftware entry");
+    ids.add(row.slug);
+    const repository = typeof row.repo === "string" && externalRepository(row.repo);
+    if (!repository) {
+      unlinked++;
+      continue;
+    }
+    const claims = {
+      id: row.slug,
+      subject: inert(row.subject),
+      category: inert(row.category),
+      method: inert(row.method),
+      status: inert(row.status),
+      targets: [...new Set(row.targets.map(inert))].sort(),
+      needs_original: row.needsOriginal,
+      latest_release:
+        row.latestRelease === null
+          ? null
+          : typeof row.latestRelease === "string"
+            ? row.latestRelease
+            : JSON.stringify({ version: row.latestRelease.version, date: row.latestRelease.date }),
+    };
+    const source = { ...claims, fingerprint: observationHash(claims) };
+    const entry = entries.get(repository.key) ?? {
+      ...repository,
+      title: inert(row.name),
+      source_entries: [],
+    };
+    entry.source_entries!.push(source);
+    entries.set(repository.key, entry);
+  }
+  for (const entry of entries.values())
+    entry.source_entries!.sort((a, b) => a.id.localeCompare(b.id));
+  return { entries: [...entries.values()].sort((a, b) => a.key.localeCompare(b.key)), unlinked };
+}
+
+/** Revision is resolved before the bounded raw read; The raw read uses the immutable revision. */
+export function bindExternalListSource(
+  parsed: ParsedExternalList,
+  text: string,
+  url: string,
+  revision: string,
+): ParsedExternalList {
+  if (
+    !/^[a-f0-9]{40}$/u.test(revision) ||
+    url !==
+      `https://raw.githubusercontent.com/andrewnakas/recompsoftware/${revision}/data/projects/games.json`
+  )
+    throw new Error("Invalid immutable external source binding");
+  return {
+    ...parsed,
+    source: { url, revision, content_sha256: createHash("sha256").update(text).digest("hex") },
+  };
+}
+
 export function parseExternalList(id: string, text: string): ParsedExternalList {
   const list = externalLeadLists.find((candidate) => candidate.id === id);
   if (!list) throw new Error("Unknown external lead list");
+  if (list.format === "recompsoftware-json") return parseRecompSoftwareCatalog(text);
   if (list.format === "finds-json") return parseFindsFeed(text);
   if (list.format === "portsdr-html") return parsePortsdrPage(text);
   return parseAlexbeavCatalog(text);
@@ -251,7 +374,7 @@ export function parseExternalLeadState(value: unknown): ExternalLeadState | unde
       (raw.error !== undefined && typeof raw.error !== "string")
     )
       throw new Error("Invalid retained external list attempt");
-  for (const [id, raw] of Object.entries(value.lists))
+  for (const [id, raw] of Object.entries(value.lists)) {
     if (
       !listId.test(id) ||
       !isRecord(raw) ||
@@ -264,6 +387,18 @@ export function parseExternalLeadState(value: unknown): ExternalLeadState | unde
       Number(raw.unlinked) < 0
     )
       throw new Error("Invalid retained external list clock");
+    if (
+      raw.source !== undefined &&
+      (!isRecord(raw.source) ||
+        typeof raw.source.revision !== "string" ||
+        !/^[a-f0-9]{40}$/u.test(raw.source.revision) ||
+        raw.source.url !==
+          `https://raw.githubusercontent.com/andrewnakas/recompsoftware/${raw.source.revision}/data/projects/games.json` ||
+        typeof raw.source.content_sha256 !== "string" ||
+        !/^[a-f0-9]{64}$/u.test(raw.source.content_sha256))
+    )
+      throw new Error("Invalid retained immutable external source");
+  }
   for (const [key, raw] of Object.entries(value.hints)) {
     const repository = isRecord(raw) && typeof raw.url === "string" && externalRepository(raw.url);
     if (
@@ -282,6 +417,42 @@ export function parseExternalLeadState(value: unknown): ExternalLeadState | unde
       !clock(raw.last_observed_at)
     )
       throw new Error("Invalid retained external hint");
+    if (
+      raw.source_change !== undefined &&
+      (!isRecord(raw.source_change) ||
+        typeof raw.source_change.fingerprint !== "string" ||
+        !/^[a-f0-9]{64}$/u.test(raw.source_change.fingerprint) ||
+        !clock(raw.source_change.observed_at))
+    )
+      throw new Error("Invalid external source change");
+    if (raw.source_entries !== undefined) {
+      if (
+        !isRecord(raw.source_entries) ||
+        Object.entries(raw.source_entries).some(
+          ([source, rows]) =>
+            !listId.test(source) ||
+            !Array.isArray(rows) ||
+            rows.length > maxEntries ||
+            rows.some((row) => {
+              if (!isRecord(row)) return true;
+              const { fingerprint, ...claims } = row;
+              return (
+                typeof row.id !== "string" ||
+                typeof row.subject !== "string" ||
+                typeof row.category !== "string" ||
+                typeof row.method !== "string" ||
+                typeof row.status !== "string" ||
+                !Array.isArray(row.targets) ||
+                !row.targets.every((v) => typeof v === "string") ||
+                !(row.needs_original === null || typeof row.needs_original === "boolean") ||
+                !(row.latest_release === null || typeof row.latest_release === "string") ||
+                fingerprint !== observationHash(claims)
+              );
+            }),
+        )
+      )
+        throw new Error("Invalid retained external source entries");
+    }
     const resolution = raw.resolution;
     if (
       resolution !== undefined &&
@@ -342,14 +513,33 @@ export function mergeExternalList(
   const next: ExternalLeadState = structuredClone(state ?? { lists: {}, hints: {} });
   for (const entry of parsed.entries) {
     const old = next.hints[entry.key];
+    const previous = old?.source_entries?.[id];
+    const retained = entry.source_entries
+      ? [
+          ...new Map(
+            [...(previous ?? []), ...entry.source_entries].map((row) => [row.id, row]),
+          ).values(),
+        ].sort((a, b) => a.id.localeCompare(b.id))
+      : undefined;
+    const changed = previous && retained && observationHash(previous) !== observationHash(retained);
+    const sourceFields = entry.source_entries
+      ? {
+          source_entries: { ...old?.source_entries, [id]: retained! },
+          ...(changed
+            ? { source_change: { fingerprint: observationHash(retained), observed_at: observedAt } }
+            : {}),
+        }
+      : {};
     next.hints[entry.key] = old
       ? {
           ...old,
+          ...sourceFields,
           title: old.title || entry.title,
           lists: [...new Set([...old.lists, id])].sort(),
           last_observed_at: observedAt,
         }
       : {
+          ...sourceFields,
           url: entry.url,
           host: entry.host,
           title: entry.title,
@@ -363,7 +553,8 @@ export function mergeExternalList(
     evidence,
     entries: parsed.entries.length,
     unlinked: parsed.unlinked,
-    fingerprint: observationHash(parsed.entries.map((entry) => entry.key)),
+    fingerprint: observationHash(parsed.entries),
+    ...(parsed.source ? { source: parsed.source } : {}),
   };
   next.attempts = { ...next.attempts, [id]: { attempted_at: observedAt, outcome: "complete" } };
   return next;
@@ -394,7 +585,8 @@ export function externalHintCoverage(
   paths: ReadonlyMap<string, number>,
   now: string,
 ): ExternalHintCoverage {
-  if (covered.has(key)) return "covered";
+  const changed = hint.source_change !== undefined;
+  if (!changed && covered.has(key)) return "covered";
   if (hint.host !== "github") return "non-github";
   if (paths.has(key.slice(19))) return "queued";
   const resolution = hint.resolution;

@@ -1027,6 +1027,24 @@ pub(crate) fn port_intent(intent: &portcove_core::PortIntent) -> String {
     text
 }
 
+pub(crate) fn mod_update_outcome(outcome: &portcove_core::ProviderAutoUpdateOutcome) -> String {
+    match outcome {
+        portcove_core::ProviderAutoUpdateOutcome::Applied { file_id, .. } => format!(
+            "updated to provider file {}; the earlier version stays recoverable",
+            clean(file_id)
+        ),
+        portcove_core::ProviderAutoUpdateOutcome::Held { reason } => {
+            format!("a mod update waits for your review - {}", clean(reason))
+        }
+        portcove_core::ProviderAutoUpdateOutcome::Deferred { reason } => {
+            format!("a mod update will be tried again later - {}", clean(reason))
+        }
+        portcove_core::ProviderAutoUpdateOutcome::Unavailable { reason } => {
+            format!("couldn't check for mod updates - {}", clean(reason))
+        }
+    }
+}
+
 fn port_readiness_line(assessment: &portcove_core::PortIntentAssessment) -> String {
     use portcove_core::PortReadiness;
     let state = match &assessment.readiness {
@@ -1129,8 +1147,13 @@ pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> Stri
         .iter()
         .map(port_readiness_line)
         .collect::<Vec<_>>();
-    if value.batches.is_empty() {
-        lines.push("No game was ready for automatic setup, so nothing was installed.".to_owned());
+    if let Some(reason) = &value.game_setup_unavailable {
+        lines.push(format!(
+            "Couldn't read the automatic game setup queue - {}",
+            clean(reason)
+        ));
+    } else if value.batches.is_empty() {
+        lines.push("No game was ready for automatic setup, so no games were installed.".to_owned());
     }
     for batch in &value.batches {
         lines.push(install_batch(batch));
@@ -1171,30 +1194,10 @@ pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> Stri
                     .join(", ")
             )
         };
-        lines.push(match &update.outcome {
-            portcove_core::ProviderAutoUpdateOutcome::Applied { file_id, .. } => format!(
-                "{subject}: updated to GameBanana file {}; the earlier version stays recoverable",
-                clean(file_id)
-            ),
-            portcove_core::ProviderAutoUpdateOutcome::Held { reason } => {
-                format!(
-                    "{subject}: a mod update waits for your review - {}",
-                    clean(reason)
-                )
-            }
-            portcove_core::ProviderAutoUpdateOutcome::Deferred { reason } => {
-                format!(
-                    "{subject}: a mod update will be tried again later - {}",
-                    clean(reason)
-                )
-            }
-            portcove_core::ProviderAutoUpdateOutcome::Unavailable { reason } => {
-                format!(
-                    "{subject}: couldn't check for mod updates - {}",
-                    clean(reason)
-                )
-            }
-        });
+        lines.push(format!(
+            "{subject}: {}",
+            mod_update_outcome(&update.outcome)
+        ));
     }
     if value.not_assessed > 0 {
         lines.push(format!(
@@ -1888,6 +1891,13 @@ pub(crate) fn statuses(statuses: &[PortStatus], catalog: &portcove_core::Catalog
         format!("{summary}\nActions:\n{actions}")
     };
     for status in statuses {
+        if let Some(carried) = &status.carried_files {
+            output.push_str(&format!(
+                "\nFiles kept during the version switch for {}:\n{}",
+                port_name(catalog, &status.port_id),
+                carried_files(carried),
+            ));
+        }
         if let Some(readiness) = &status.readiness {
             if readiness.blockers.contains(&LaunchBlocker::MissingRuntime) {
                 output.push_str(&format!("\nNext step for {}: Using the same library, run portcove update {} to acquire the required catalog runtime. Core checks current eligibility before applying it.", port_name(catalog, &status.port_id), clean(&status.port_id)));
@@ -1901,6 +1911,101 @@ pub(crate) fn statuses(statuses: &[PortStatus], catalog: &portcove_core::Catalog
         }
     }
     output
+}
+
+fn carried_files(status: &portcove_core::CarriedFilesStatus) -> String {
+    let outcome = &status.outcome;
+    let mut lines = vec![format!("  Active version: {}", clean(&status.to_version))];
+    if let Some(version) = &status.from_version {
+        lines.push(format!("  Version before the switch: {}", clean(version)));
+    }
+    if outcome.source_modified {
+        lines.push(
+            "  Files were left with the earlier version because its installation had changed."
+                .into(),
+        );
+    }
+    if outcome.insufficient_space {
+        lines.push(
+            "  Files were left with the earlier version because there was not enough free space."
+                .into(),
+        );
+        if let Some(count) = outcome.not_carried_count {
+            lines.push(format!("  Files left because of low space: {count}"));
+        }
+    }
+    for (label, examples, count) in [
+        (
+            "Copied",
+            &outcome.carried,
+            outcome.counts.as_ref().map(|counts| counts.carried),
+        ),
+        (
+            "Unchanged copies removed",
+            &outcome.removed,
+            outcome.counts.as_ref().map(|counts| counts.removed),
+        ),
+        (
+            "Different copies kept separately",
+            &outcome.kept_separately,
+            outcome.counts.as_ref().map(|counts| counts.kept_separately),
+        ),
+        (
+            "Could not be read",
+            &outcome.source_unreadable,
+            outcome
+                .counts
+                .as_ref()
+                .map(|counts| counts.source_unreadable),
+        ),
+        (
+            "Supplied by the new version",
+            &outcome.new_version_ships_file,
+            outcome
+                .counts
+                .as_ref()
+                .map(|counts| counts.new_version_ships_file),
+        ),
+    ] {
+        if count == Some(0) && examples.is_empty() {
+            continue;
+        }
+        lines.push(format!(
+            "  {label}: {}",
+            count.map_or_else(
+                || "complete count not recorded".into(),
+                |count| count.to_string()
+            )
+        ));
+        lines.extend(examples.iter().map(|path| format!("    {}", clean(path))));
+        if count.is_none_or(|count| count > examples.len() as u64) {
+            lines.push("    Only recorded path examples are listed.".into());
+        }
+    }
+    for (label, bytes) in [
+        ("Bytes copied", outcome.carried_bytes),
+        ("Space required at the switch", outcome.required_bytes),
+        ("Space available at the switch", outcome.available_bytes),
+    ] {
+        if let Some(bytes) = bytes {
+            lines.push(format!("  {label}: {}", format_bytes(bytes)));
+        }
+    }
+    if let Some(path) = &status.from_path {
+        lines.push(format!(
+            "  Earlier version folder: {}",
+            clean(&path.display().to_string())
+        ));
+    } else {
+        lines.push(
+            "  The earlier version is no longer recorded; its files were not rechecked.".into(),
+        );
+    }
+    lines.push(format!(
+        "  Active version folder: {}",
+        clean(&status.to_path.display().to_string())
+    ));
+    lines.join("\n")
 }
 
 pub(crate) fn definition_reason(
@@ -2582,9 +2687,13 @@ pub(crate) fn preparation_cleanup(
     )
 }
 
-pub(crate) fn paths(paths: &PortPaths, catalog: &portcove_core::Catalog) -> String {
-    format!(
-        "Paths for {}\nLibrary: {}\nSaves and settings: {}\nFuture install folder: {} ({})\nActive: {}\nPrevious: {}\nSaved for later: {}",
+pub(crate) fn paths(
+    paths: &PortPaths,
+    collection_root: Option<&std::path::Path>,
+    catalog: &portcove_core::Catalog,
+) -> String {
+    let mut output = format!(
+        "Paths for {}\nLibrary: {}\nSaves and settings: {} (Portcove data folder)\nFuture install folder: {} ({})\nActive: {}\nPrevious: {}\nSaved for later: {}",
         port_name(catalog, &paths.port_id),
         clean(&paths.library_root.display().to_string()),
         clean(&paths.user_data_root.display().to_string()),
@@ -2599,6 +2708,38 @@ pub(crate) fn paths(paths: &PortPaths, catalog: &portcove_core::Catalog) -> Stri
         optional_path(paths.active_install_root.as_deref()),
         optional_path(paths.previous_install_root.as_deref()),
         optional_path(paths.staged_install_root.as_deref()),
+    );
+    if let Some(root) = collection_root {
+        output.push_str(&format!(
+            "\nBackup collection folder for the active installation: {}",
+            clean(&root.display().to_string())
+        ));
+    } else if paths.active_install_root.is_some() {
+        output.push_str("\nBackup collection folder for the active installation: Unknown");
+    }
+    if paths.active_install_root.is_some() {
+        output.push_str(&format!(
+            "\nUse portcove --json backup list {} to see the backup rules and files eligible for collection. Saves in other profiles may need a separate backup.\nPortcove manages updates for the active installation. Use remove-preview to see what removal keeps.",
+            paths.port_id
+        ));
+    }
+    output
+}
+
+pub(crate) fn external_paths(
+    runtime: &portcove_core::ExternalRuntimeRecord,
+    catalog: &portcove_core::Catalog,
+) -> String {
+    let registered_folder = if runtime.user_selected.is_some() {
+        "Registered working folder"
+    } else {
+        "Registered installation folder"
+    };
+    format!(
+        "Paths for {}\n{registered_folder}: {}\nSelected program: {}\nSaves and settings: Check the project's setup instructions or your game's settings for the actual save location.\nBack up the external profile separately.\nUpstream or you update this installation. Removing the registration keeps its files in place.",
+        port_name(catalog, &runtime.port_id),
+        clean(&runtime.path.display().to_string()),
+        clean(&runtime.executable.display().to_string()),
     )
 }
 
@@ -3434,6 +3575,7 @@ mod tests {
         report.issues = vec![SourceDiscoveryIssue {
             path: None,
             profile_id: Some("future\nprofile".into()),
+            direct_check_profiles: Vec::new(),
             message: "Cannot read\nfile token=owned-secret\u{1b}[31m".into(),
         }];
         report.issues_omitted = 7;
@@ -3539,6 +3681,7 @@ mod tests {
                 issues: vec![portcove_core::SourceDiscoveryIssue {
                     path: Some(PathBuf::from("/private/fixture-path")),
                     profile_id: None,
+                    direct_check_profiles: Vec::new(),
                     message: "token=fixture-secret\u{1b}[2J\rprivate diagnostic".into(),
                 }],
                 issues_omitted: 7,
@@ -4459,6 +4602,36 @@ mod tests {
             "staged": null
         }))
         .unwrap()
+    }
+
+    #[test]
+    fn carried_file_disclosure_preserves_unknown_counts_and_missing_source_coordinates() {
+        let recorded = portcove_core::CarriedFilesStatus {
+            from_install_id: "removed-source".into(),
+            to_install_id: "target".into(),
+            from_version: None,
+            from_path: None,
+            to_version: "2.0".into(),
+            to_path: PathBuf::from("target-folder"),
+            outcome: portcove_core::CarriedFileOutcome {
+                kept_separately: vec!["notes\nwith-control.txt".into()],
+                insufficient_space: true,
+                required_bytes: Some(2_048),
+                available_bytes: Some(1_024),
+                ..Default::default()
+            },
+        };
+        let text = super::carried_files(&recorded);
+        assert!(text.contains("complete count not recorded"));
+        assert!(!text.contains("kept separately: 1"));
+        assert!(text.contains("Space required at the switch: 2.0 KiB"));
+        assert!(text.contains("Space available at the switch: 1.0 KiB"));
+        assert!(text.contains("earlier version is no longer recorded"));
+        assert!(!text.contains("notes\nwith-control.txt"));
+        assert_eq!(
+            recorded.outcome.kept_separately[0],
+            "notes\nwith-control.txt"
+        );
     }
 
     #[test]

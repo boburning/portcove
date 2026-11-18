@@ -1,8 +1,11 @@
+import { requireCompleteCaptureTarget } from "../../test/capture-target";
 import { controlledAct as act } from "../../test/controlled-react-act";
+import { captureParityState } from "../../test/parity-capture";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../test-fixtures";
 import { useRef, useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import type { PreparationPlan } from "../types";
 import {
@@ -93,6 +96,120 @@ async function pressEscape() {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
   });
 }
+
+it.each([
+  {
+    name: "extended-windows",
+    theme: "dark",
+    width: 960,
+    direction: "ltr",
+    prefix: String.raw`\\?\C:\Portcove`,
+  },
+  {
+    name: "extended-windows-rtl",
+    theme: "light",
+    width: 430,
+    direction: "rtl",
+    prefix: String.raw`\\?\C:\Portcove`,
+  },
+  {
+    name: "extended-unc",
+    theme: "dark",
+    width: 430,
+    direction: "ltr",
+    prefix: String.raw`\\?\UNC\archive\games`,
+  },
+  { name: "posix", theme: "light", width: 430, direction: "ltr", prefix: "/home/player/Portcove" },
+])(
+  "keeps the $name preparation paths intact at $width",
+  async ({ name, theme, width, direction, prefix }) => {
+    const previousTheme = document.documentElement.dataset.theme;
+    const previousDirection = document.documentElement.getAttribute("dir");
+    const previousViewport = { width: innerWidth, height: innerHeight };
+    const path = prefix + (name === "posix" ? "/" : "\\") + "RecordedOriginalGameFiles".repeat(10);
+    const reviewed = structuredClone(plan);
+    reviewed.inputs.source.path = path;
+    reviewed.inputs.install.path = path + (name === "posix" ? "/installed" : "\\installed");
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.setAttribute("dir", direction);
+    await page.viewport(width, 780);
+    try {
+      vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(reviewed);
+      await root.rerender(
+        <PreparationControl
+          portId="sample"
+          generation={7}
+          disabled={false}
+          run={async () => reviewed.inputs.install}
+        />,
+      );
+      await click("Finish setup", ".preparation-control");
+      await document.fonts.ready;
+      const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
+      const values = [...dialog!.querySelectorAll<HTMLElement>("bdi[dir=ltr]")];
+      expect(values.map((value) => value.textContent)).toEqual([
+        reviewed.inputs.source.path,
+        reviewed.inputs.install.path,
+      ]);
+      for (const [index, value] of values.entries()) {
+        expect(getComputedStyle(value).direction).toBe("ltr");
+        const bounds = value.closest("dd")!.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(value);
+        const lines = [...range.getClientRects()];
+        expect(lines.length).toBeGreaterThan(1);
+        for (const line of lines) {
+          expect(line.left).toBeGreaterThanOrEqual(bounds.left - 1);
+          expect(line.right).toBeLessThanOrEqual(bounds.right + 1);
+        }
+        const selection = window.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+        expect(selection.toString()).toBe(
+          index === 0 ? reviewed.inputs.source.path : reviewed.inputs.install.path,
+        );
+        selection.removeAllRanges();
+        range.setStart(value.firstChild!, 0);
+        range.setEnd(value.firstChild!, 16);
+        expect(range.getClientRects().length).toBe(1);
+      }
+      expect(dialog!.scrollWidth).toBeLessThanOrEqual(dialog!.clientWidth + 1);
+      await captureParityState(`preparation-path-prefix-${name}`);
+      const footer = dialog!.querySelector<HTMLElement>('[data-slot="dialog-footer"]')!;
+      footer.scrollIntoView({ block: "center", behavior: "instant" });
+      const actions = [...footer.querySelectorAll<HTMLButtonElement>("button")];
+      expect(actions.map((action) => action.textContent)).toEqual([
+        "Cancel review",
+        "Finish setup",
+      ]);
+      const dialogBounds = dialog!.getBoundingClientRect();
+      for (const action of actions) {
+        const bounds = action.getBoundingClientRect();
+        requireCompleteCaptureTarget(
+          {
+            target: action.textContent,
+            target_count: 1,
+            visible: action.checkVisibility(),
+            rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+            viewport: { width: innerWidth, height: innerHeight },
+          },
+          action.textContent,
+        );
+        expect(bounds.left).toBeGreaterThanOrEqual(dialogBounds.left);
+        expect(bounds.right).toBeLessThanOrEqual(dialogBounds.right);
+        expect(bounds.top).toBeGreaterThanOrEqual(dialogBounds.top);
+        expect(bounds.bottom).toBeLessThanOrEqual(dialogBounds.bottom);
+      }
+      if (width === 430) await captureParityState(`preparation-path-prefix-${name}-footer`);
+    } finally {
+      if (previousTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = previousTheme;
+      if (previousDirection === null) document.documentElement.removeAttribute("dir");
+      else document.documentElement.setAttribute("dir", previousDirection);
+      await page.viewport(previousViewport.width, previousViewport.height);
+    }
+  },
+);
 
 it.each(["remove", "replace"])(
   "restores selected requirements focus when successful preparation %s changes its opener",
@@ -275,7 +392,7 @@ it("reviews without executing and binds explicit confirmation to the returned pl
     "The finished version goes in a new folder beside it.",
   );
   const reviewedFacts = document.body.querySelector(".preparation-plan dl");
-  expect(reviewedFacts?.textContent).toContain(plan.inputs.install.version);
+  expect(dialog?.textContent).toContain(`Installed version ${plan.inputs.install.version}`);
   expect(reviewedFacts?.textContent).toContain(plan.inputs.install.path);
   expect(reviewedFacts?.textContent).toContain(plan.inputs.source.path);
   expect(document.body.textContent).toContain("plus what the game creates");

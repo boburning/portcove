@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "cannon-fodder-open-fodder",
+    "artwork": {
+      "game_id": 5519,
+      "cover_id": 171195,
+      "image_id": "co3o3f",
+      "image_sha256": "2394e928556e1da5ad176cb85b929764b9ff10da02b4482cbd13a9d08ee1c5a4",
+      "game_slug": "cannon-fodder",
+      "match_kind": "underlying-game"
+    },
     "name": "Cannon Fodder (Open Fodder)",
     "summary": "Set up Cannon Fodder through its upstream openfodder player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Cannon Fodder",

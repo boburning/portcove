@@ -132,7 +132,20 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own complete matching 19-track USA CHD (SCUS-94350) and retail SCPH-1001 BIOS. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Portcove checks track count and the first data-track SHA-1. Keep the complete disc, including its audio tracks. The other tracks and the complete TOC are not independently authenticated. Use the 19-track CHD from the correct complete USA disc. The merged-BIN digest is a separate upstream setup input. Portcove builds privately with the registered toolchain and launches the generated player. Native generation, gameplay and save compatibility remain unobserved."
+      "manual_preparation": "Provide your own complete matching 19-track USA CHD (SCUS-94350) and retail SCPH-1001 BIOS. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Portcove checks track count and the first data-track SHA-1. Keep the complete disc, including its audio tracks. The other tracks and the complete TOC are not independently authenticated. Use the 19-track CHD from the correct complete USA disc. The merged-BIN digest is a separate upstream setup input. Portcove builds privately with the registered toolchain and launches the generated player. Native generation, gameplay and save compatibility remain unobserved.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "Native generation, gameplay and save compatibility remain unobserved."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
   }

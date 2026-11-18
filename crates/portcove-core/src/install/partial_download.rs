@@ -12,7 +12,7 @@
 //! publishes, registers or activates anything.
 use std::{
     fs::{self, File, OpenOptions},
-    io::{Seek, SeekFrom},
+    io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
     time::{Duration, SystemTime},
 };
@@ -23,6 +23,24 @@ use crate::{ReleaseAsset, Result};
 
 const RECORD_BYTES: u64 = 16 * 1024;
 const TEMPORARY_PREFIX: &str = ".portcove-partial-";
+pub(super) const INDEX_LOCK: &str = "index.lock";
+
+/// Serializes pathname and record changes. Network transfers only hold the
+/// individual part lock. While holding this lock, a part lock must never wait.
+fn lock_index(root: &Path) -> std::io::Result<File> {
+    let path = root.join(INDEX_LOCK);
+    if fs::symlink_metadata(&path).is_ok_and(|metadata| !metadata.is_file()) {
+        return Err(std::io::Error::other("invalid partial download index lock"));
+    }
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(path)?;
+    file.lock()?;
+    Ok(file)
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -56,6 +74,7 @@ pub(crate) struct PartialDownloads {
 #[derive(Debug)]
 pub(crate) struct Lease {
     file: File,
+    root: PathBuf,
     part: PathBuf,
     record: PathBuf,
     asset: ReleaseAsset,
@@ -120,6 +139,7 @@ impl PartialDownloads {
         {
             return None;
         }
+        let _index = lock_index(&self.root).ok()?;
         let (part, record) = self.paths(&key);
         if fs::symlink_metadata(&part).is_ok_and(|metadata| !metadata.is_file()) {
             return None;
@@ -140,9 +160,18 @@ impl PartialDownloads {
         file.seek(SeekFrom::End(0)).ok()?;
         // Bounds apply to everything else in the store, including entries a
         // crash left behind.
-        self.sweep(&key, asset.size);
+        let received = resumed.as_ref().map_or(0, |entry| entry.bytes);
+        if !self.admit(&key, asset.size, received) {
+            if resumed.is_none() {
+                // No validator or useful bytes can belong to this entry.
+                drop(file);
+                let _ = fs::remove_file(&part);
+            }
+            return None;
+        }
         Some(Lease {
             file,
+            root: self.root.clone(),
             part,
             record,
             asset: asset.clone(),
@@ -177,14 +206,16 @@ impl PartialDownloads {
         })
     }
 
-    /// Removes expired, unpaired, leftover and surplus entries other than
-    /// `keeping`, so `keeping` plus the rest fits the bounds. An entry another
-    /// transfer holds is left alone.
-    fn sweep(&self, keeping: &str, keeping_bytes: u64) {
+    /// Makes room for the incoming asset while counting the full declared
+    /// length of each other active transfer. Idle entries use their actual size.
+    fn admit(&self, keeping: &str, keeping_bytes: u64, received: u64) -> bool {
         let Ok(entries) = fs::read_dir(&self.root) else {
-            return;
+            return false;
         };
-        let mut kept = Vec::new();
+        let mut idle = Vec::new();
+        let mut count = 1;
+        let mut total = keeping_bytes;
+        let mut needed = keeping_bytes.saturating_sub(received);
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().into_owned();
             let path = entry.path();
@@ -207,44 +238,86 @@ impl PartialDownloads {
             let Ok(metadata) = fs::symlink_metadata(&path) else {
                 continue;
             };
-            let modified = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-            let expired = SystemTime::now()
-                .duration_since(modified)
-                .is_ok_and(|age| age > self.max_age);
-            if expired || !metadata.is_file() {
-                self.remove_unheld(key);
+            if !metadata.is_file() && self.remove_unheld(key) {
                 continue;
             }
-            kept.push((modified, key.to_owned(), metadata.len()));
+            let idle_metadata = metadata
+                .is_file()
+                .then(|| {
+                    let file = OpenOptions::new().read(true).write(true).open(&path).ok()?;
+                    file.try_lock().ok()?;
+                    // An interrupted transfer can drop its lock after writing
+                    // more bytes than the directory walk initially observed.
+                    file.metadata().ok()
+                })
+                .flatten();
+            if let Some(metadata) = idle_metadata {
+                let modified = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+                let expired = SystemTime::now()
+                    .duration_since(modified)
+                    .is_ok_and(|age| age > self.max_age);
+                if expired && self.remove_unheld(key) {
+                    continue;
+                }
+                idle.push((modified, key.to_owned(), metadata.len()));
+                total = total.saturating_add(metadata.len());
+            } else {
+                // The size is encoded in every transfer's key, even before a
+                // response supplies the validator record. An unreadable
+                // entry without a valid size cannot guarantee another lease.
+                let Some(size) = key
+                    .rsplit_once('-')
+                    .and_then(|(_, size)| size.parse::<u64>().ok())
+                else {
+                    return false;
+                };
+                total = total.saturating_add(size.max(metadata.len()));
+                // A concurrent transfer may reset its representation and
+                // truncate after we read the directory entry.
+                needed = needed.saturating_add(size);
+            }
+            count += 1;
         }
-        kept.sort();
-        let mut total = kept
-            .iter()
-            .map(|(_, _, size)| size)
-            .sum::<u64>()
-            .saturating_add(keeping_bytes);
-        let mut count = kept.len() + 1;
-        for (_, key, size) in kept {
-            if count <= self.max_entries && total <= self.max_bytes {
-                break;
+        idle.sort();
+        let fits = |count, total| {
+            count <= self.max_entries
+                && total <= self.max_bytes
+                && fs4::available_space(&self.root).is_ok_and(|available| needed <= available)
+        };
+        for (_, key, size) in idle {
+            if fits(count, total) {
+                return true;
             }
             if self.remove_unheld(&key) {
                 total = total.saturating_sub(size);
                 count -= 1;
             }
         }
+        fits(count, total)
     }
 
     /// Removes an entry unless another transfer holds it.
     fn remove_unheld(&self, key: &str) -> bool {
         let (part, record) = self.paths(key);
-        let held = File::open(&part).is_ok_and(|file| file.try_lock().is_err());
-        if held {
-            return false;
-        }
+        let _file = match fs::symlink_metadata(&part) {
+            Ok(metadata) if metadata.is_file() => {
+                let Ok(file) = OpenOptions::new().read(true).write(true).open(&part) else {
+                    return false;
+                };
+                if file.try_lock().is_err() {
+                    return false;
+                }
+                Some(file)
+            }
+            Ok(_) => None,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(_) => return false,
+        };
         let _ = fs::remove_file(record);
-        let _ = fs::remove_file(part);
-        true
+        match fs::remove_file(part) {
+            Ok(()) => true,
+            Err(error) => error.kind() == std::io::ErrorKind::NotFound,
+        }
     }
 }
 
@@ -264,6 +337,9 @@ impl Lease {
     /// Records the representation the bytes now belong to. Without a strong
     /// validator they cannot continue, so no record is kept.
     pub(crate) fn describe(&self, validator: Option<&str>, length: Option<u64>) {
+        let Ok(_index) = lock_index(&self.root) else {
+            return;
+        };
         let _ = fs::remove_file(&self.record);
         let Some(validator) = validator else {
             return;
@@ -288,30 +364,54 @@ impl Lease {
 
     /// Drops the representation record before received bytes are discarded.
     pub(crate) fn forget(&self) {
-        let _ = fs::remove_file(&self.record);
+        if let Ok(_index) = lock_index(&self.root) {
+            let _ = fs::remove_file(&self.record);
+        }
     }
 
     /// Moves the complete bytes to `destination` and removes the entry.
-    pub(crate) fn finish(self, destination: &Path) -> Result<()> {
-        let _ = fs::remove_file(&self.record);
-        let Self { file, part, .. } = self;
-        // The lock and handle go before the file moves (Windows refuses
-        // renaming an open file).
-        drop(file);
-        if fs::rename(&part, destination).is_err() {
-            // A game output folder on another volume.
-            fs::copy(&part, destination)?;
-            fs::remove_file(&part)?;
+    pub(crate) fn finish(
+        mut self,
+        destination: &Path,
+        checkpoint: impl Fn() -> Result<()>,
+        validate_destination: impl Fn() -> Result<()>,
+    ) -> Result<()> {
+        {
+            let _index = lock_index(&self.root)?;
+            checkpoint()?;
+            validate_destination()?;
+            let _ = fs::remove_file(&self.record);
+            if crate::durability::rename_noreplace(&self.part, destination).is_ok() {
+                return Ok(());
+            }
         }
+        // A different volume still needs a copy. Keep the part locked but
+        // leave the index available to other assets during that transfer.
+        self.file.rewind()?;
+        checkpoint()?;
+        validate_destination()?;
+        let mut output = File::create_new(destination)?;
+        let mut buffer = [0_u8; 128 * 1024];
+        loop {
+            checkpoint()?;
+            let count = self.file.read(&mut buffer)?;
+            if count == 0 {
+                break;
+            }
+            output.write_all(&buffer[..count])?;
+        }
+        let _index = lock_index(&self.root)?;
+        fs::remove_file(&self.part)?;
         Ok(())
     }
 
     /// Removes the entry and its bytes, for example after a rejected file.
     pub(crate) fn discard(self) {
+        let Ok(_index) = lock_index(&self.root) else {
+            return;
+        };
         let _ = fs::remove_file(&self.record);
         let _ = self.file.set_len(0);
-        let Self { file, part, .. } = self;
-        drop(file);
-        let _ = fs::remove_file(part);
+        let _ = fs::remove_file(&self.part);
     }
 }

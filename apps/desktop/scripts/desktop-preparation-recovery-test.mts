@@ -1,3 +1,4 @@
+import { observeReviewSettlement } from "./desktop-review-observation.mts";
 import { fixtureObject as object } from "./desktop-scenario-state.mts";
 import type { PreparationContext } from "./desktop-preparation-test.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
@@ -81,6 +82,8 @@ import {
   preparationLogControl,
   setupConfirmButton,
   setupReviewButton,
+  revealDetailSection,
+  selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
 
 function insertOwnedRow(
@@ -365,7 +368,7 @@ export async function interruptedPreparationScenario({
         : false;
     }, 15_000);
     assert.ok(beforeRestartText);
-    assert.match(beforeRestartText, /Running game setup/);
+    assert.match(beforeRestartText, /Game setup/);
     assert.doesNotMatch(beforeRestartText, /No files were changed|The operation was cancelled/);
     await beforeRestartLog.click();
     await browser.navigate().refresh();
@@ -426,7 +429,7 @@ export async function interruptedPreparationScenario({
       await log.click();
     }
     assert.ok(row, "original retained preparation row with incomplete diagnostic capture");
-    assert.match(await row.getText(), /Running game setup/);
+    assert.match(await row.getText(), /Game setup/);
     assert.deepEqual(
       (await activities()).find((item) => item.id === activity.id),
       recovered,
@@ -592,11 +595,20 @@ export async function interruptedPreparationScenario({
     // review. Later stale-review, cancellation, restart, and accepted-cleanup
     // checks remain unchanged.
     setPreparationProcessQuiescence(library, activity.id, 1);
-    await controls.click(controls.button("Review again"));
-    await browser.wait(
-      async () =>
-        (await browser.findElement(cleanupDialog).getText()).includes(required(privatePath)),
-      15_000,
+    await observeReviewSettlement(
+      browser,
+      '[aria-labelledby="preparation-cleanup-title"]',
+      path.join(output, "preparation-quiescence-review-settlement.json"),
+      artifacts,
+      async () => {
+        await controls.click(controls.button("Review again"));
+        await browser.wait(
+          async () =>
+            (await browser.findElement(cleanupDialog).getText()).includes(required(privatePath)),
+          15_000,
+          "The fresh quiesced preparation review must show its retained folder",
+        );
+      },
     );
     await reviewRetainedCleanup(required(privatePath));
     const cleanupActionStyles = await assertDestructiveReviewAction(
@@ -1603,6 +1615,62 @@ async function livePreparationRecoveryScenario({
     const afterImage = path.join(output, `native-live-preparation-after-${suffix}.png`);
     await writeFile(afterImage, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
     artifacts.push(afterImage);
+    let retry;
+    if (!ordinaryClose && !linux) {
+      assert.equal(required(recovered).status, "failed");
+      const retainedCheckpoint = await readFile(checkpoint);
+      await selectPrimaryNavigation(browser, "Library");
+      const card = await browser.wait(
+        until.elementLocated(By.css(`button[data-detail-game-id="${port.id}"]`)),
+        15_000,
+      );
+      await clickVisible(browser, card);
+      await revealDetailSection(browser, "Game files");
+      const restarted = await beginLivePreparation({
+        browser,
+        activities,
+        library,
+        port,
+        message: "A reviewed retry must start a separate private setup",
+      });
+      assert.notEqual(restarted.activity.id, activity.id);
+      let completed: ActivityRecord | undefined;
+      await browser.wait(
+        async () => {
+          completed = (await activities()).find((item) => item.id === restarted.activity.id);
+          return completed !== undefined && completed.status !== "running";
+        },
+        60_000,
+        "The fresh owned preparation must finish",
+      );
+      assert.equal(required(completed).status, "succeeded");
+      const ready = await status(port.id);
+      assert.equal(required(ready.active).id, restarted.activity.id);
+      assert.equal(required(ready.readiness).launchable, true);
+      assert.equal(
+        await digest(path.join(required(ready.active).path, "OpenGOAL", "jak3", "save.bin")),
+        before.save_sha256,
+      );
+      assert.equal(await digest(source), before.source_sha256);
+      assert.equal(await digest(originalExecutable), before.original_executable_sha256);
+      assert.deepEqual(await readFile(checkpoint), retainedCheckpoint);
+      const originalActivity = (await activities()).find((item) => item.id === activity.id);
+      assert.equal(required(originalActivity).status, "failed");
+      const retryImage = path.join(output, "native-live-preparation-retry.png");
+      await writeFile(retryImage, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(retryImage);
+      retry = {
+        operation_id: restarted.activity.id,
+        activity: completed,
+        status: ready,
+        interrupted_activity: originalActivity,
+        retained_checkpoint_unchanged: true,
+        source_and_save_unchanged: true,
+      };
+    }
     const evidence = path.join(
       output,
       ordinaryClose ? "closed-preparation-preservation.json" : "live-preparation-preservation.json",
@@ -1625,6 +1693,7 @@ async function livePreparationRecoveryScenario({
           observed_operation: operation,
           cleanup_preview: cleanup,
           cleanup_refusal: cleanup.error,
+          retry,
           limits:
             "Owned development fixtures; no OS shutdown, installed package, other operation family, or other platform qualification",
         },

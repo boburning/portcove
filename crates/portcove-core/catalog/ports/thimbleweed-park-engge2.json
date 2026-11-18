@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "thimbleweed-park-engge2",
+    "artwork": {
+      "game_id": 10232,
+      "cover_id": 89067,
+      "image_id": "co1wq3",
+      "image_sha256": "a75e7a2a6ebc6a6f2bdcf3201b84378663b2f69fb8b27629da0d6e42b2d2bbc9",
+      "game_slug": "thimbleweed-park",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/scemino/engge2",
     "name": "Thimbleweed Park / engge2",
     "original_game_title": "Thimbleweed Park",

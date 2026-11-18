@@ -95,6 +95,9 @@ pub struct GameFileScanMatchQuery {
     /// Only matches inside this saved folder.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub root_id: Option<String>,
+    /// Only matches for this source profile.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -111,6 +114,13 @@ pub struct GameFileScanMatchPage {
 }
 
 pub const MAX_GAME_FILE_SCAN_MATCH_PAGE: u32 = 512;
+
+/// Retained matches for the current registration of each source profile.
+#[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct GameFileScanRegisteredMatches {
+    pub candidates: Vec<crate::SourceRecord>,
+    pub preliminary_selections: Vec<crate::SourceInspection>,
+}
 
 /// One retained match row written with its scan snapshot.
 #[derive(Debug, Clone)]
@@ -238,6 +248,10 @@ impl Library {
 
     pub fn game_file_roots(&self) -> Result<Vec<GameFileRoot>> {
         let connection = self.connection()?;
+        Self::game_file_roots_from(&connection)
+    }
+
+    fn game_file_roots_from(connection: &rusqlite::Connection) -> Result<Vec<GameFileRoot>> {
         let mut statement = connection.prepare(
             "SELECT id,path,created_at,updated_at FROM game_file_roots ORDER BY created_at,id",
         )?;
@@ -261,7 +275,7 @@ impl Library {
             .collect::<Vec<_>>();
         let root = roots
             .into_iter()
-            .filter(|root| path.starts_with(root))
+            .filter(|root| registered_path_inside_saved_root(path, root))
             .max_by_key(|root| root.components().count())?;
         (!std::fs::metadata(&root).is_ok_and(|metadata| metadata.is_dir())).then_some(root)
     }
@@ -373,6 +387,26 @@ impl Library {
         expected_payload: Option<&str>,
         matches: &GameFileScanMatchWrite,
     ) -> Result<()> {
+        self.publish_game_file_scan_checkpoint(
+            snapshot,
+            expected_outputs,
+            expected_roots,
+            expected_payload,
+            matches,
+            None,
+        )
+        .map(drop)
+    }
+
+    pub(crate) fn publish_game_file_scan_checkpoint(
+        &self,
+        snapshot: &GameFileScanSnapshot,
+        expected_outputs: &[crate::library::OutputRootRecord],
+        expected_roots: &[GameFileRoot],
+        expected_payload: Option<&str>,
+        matches: &GameFileScanMatchWrite,
+        cancellable_activity: Option<&str>,
+    ) -> Result<String> {
         let payload = serde_json::to_string(snapshot)?;
         if payload.len() > MAX_SCAN_SNAPSHOT_BYTES {
             return Err(
@@ -383,6 +417,9 @@ impl Library {
         }
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if let Some(id) = cancellable_activity {
+            crate::cancellation::guard_checkpoint_publication(&transaction, id)?;
+        }
         if Self::output_roots_from(&transaction)? != expected_outputs {
             return Err(PortcoveError::conflict(
                 "game-output ownership changed during the game-file scan; retry the scan",
@@ -395,15 +432,7 @@ impl Library {
                 |row| row.get::<_, String>(0),
             )
             .optional()?;
-        let current_roots = {
-            let mut statement = transaction.prepare(
-                "SELECT id,path,created_at,updated_at FROM game_file_roots ORDER BY created_at,id",
-            )?;
-            statement
-                .query_map([], StoredGameFileRoot::from_row)?
-                .map(|row| row?.into_record())
-                .collect::<Result<Vec<_>>>()?
-        };
+        let current_roots = Self::game_file_roots_from(&transaction)?;
         if current_payload.as_deref() != expected_payload || current_roots != expected_roots {
             return Err(PortcoveError::conflict(
                 "saved folders or scan checkpoint changed during the game-file scan; retry the scan",
@@ -413,10 +442,10 @@ impl Library {
         transaction.execute(
             "INSERT INTO game_file_scan_state(singleton,snapshot_json) VALUES (1,?1)
              ON CONFLICT(singleton) DO UPDATE SET snapshot_json=excluded.snapshot_json",
-            [payload],
+            [&payload],
         )?;
         transaction.commit()?;
-        Ok(())
+        Ok(payload)
     }
 
     /// One page of the current scan's matches. The snapshot and its rows are
@@ -498,23 +527,39 @@ impl Library {
                     (Some(key), Some(prefix))
                 })
                 .unwrap_or_default();
-            let filter = "scan_id=?1 AND kind=?2
-                 AND (?3 IS NULL OR path_key=?3 OR substr(path_key,1,length(?4))=?4)";
+            let profile_filter = if query.profile_id.is_some() {
+                "profile_id=?5"
+            } else {
+                "?5 IS NULL"
+            };
+            let filter = format!(
+                "scan_id=?1 AND kind=?2
+                 AND (?3 IS NULL OR path_key=?3 OR substr(path_key,1,length(?4))=?4)
+                 AND {profile_filter}"
+            );
             let kind = query.kind.row_kind();
             let total: i64 = transaction.query_row(
                 &format!("SELECT count(*) FROM game_file_scan_matches WHERE {filter}"),
-                params![scan_id, kind, key, prefix],
+                params![scan_id, kind, key, prefix, query.profile_id],
                 |row| row.get(0),
             )?;
             page.total = u32::try_from(total)
                 .map_err(|_| PortcoveError::state("stored scan match count is invalid"))?;
             let mut statement = transaction.prepare(&format!(
                 "SELECT record_json FROM game_file_scan_matches WHERE {filter}
-                 ORDER BY ordinal LIMIT ?5 OFFSET ?6"
+                 ORDER BY ordinal LIMIT ?6 OFFSET ?7"
             ))?;
             let records = statement
                 .query_map(
-                    params![scan_id, kind, key, prefix, query.limit, query.offset],
+                    params![
+                        scan_id,
+                        kind,
+                        key,
+                        prefix,
+                        query.profile_id,
+                        query.limit,
+                        query.offset
+                    ],
                     |row| row.get::<_, String>(0),
                 )?
                 .collect::<std::result::Result<Vec<_>, _>>()?;
@@ -544,7 +589,13 @@ impl Library {
                         .report
                         .candidates
                         .into_iter()
-                        .filter(|record| inside(&record.path))
+                        .filter(|record| {
+                            inside(&record.path)
+                                && query
+                                    .profile_id
+                                    .as_ref()
+                                    .is_none_or(|id| record.profile_id == *id)
+                        })
                         .collect::<Vec<_>>();
                     page.total = all.len() as u32;
                     page.candidates = all.into_iter().take(end).skip(start).collect();
@@ -555,7 +606,13 @@ impl Library {
                         .report
                         .preliminary_selections
                         .into_iter()
-                        .filter(|selection| inside(&selection.path))
+                        .filter(|selection| {
+                            inside(&selection.path)
+                                && query
+                                    .profile_id
+                                    .as_ref()
+                                    .is_none_or(|id| selection.profile_id == *id)
+                        })
                         .collect::<Vec<_>>();
                     page.total = all.len() as u32;
                     page.preliminary_selections = all.into_iter().take(end).skip(start).collect();
@@ -569,6 +626,106 @@ impl Library {
         let next = query.offset as usize + returned;
         page.next_offset = (returned > 0 && next < page.total as usize).then_some(next as u32);
         Ok(page)
+    }
+
+    /// Read only rows whose profile and path have a current registration.
+    /// The scan summary and registrations come from the same transaction.
+    pub(crate) fn game_file_scan_registered_matches(
+        &self,
+        expected: &GameFileScanMatchSummary,
+        catalog_sha256: &str,
+    ) -> Result<GameFileScanRegisteredMatches> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        let payload = transaction
+            .query_row(
+                "SELECT snapshot_json FROM game_file_scan_state WHERE singleton=1",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        if payload
+            .as_ref()
+            .is_some_and(|value| value.len() > MAX_SCAN_SNAPSHOT_BYTES)
+        {
+            return Err(PortcoveError::state(
+                "stored game-file scan snapshot exceeds its storage limit",
+            ));
+        }
+        let snapshot = payload
+            .as_deref()
+            .map(crate::source_discovery::decode_game_file_scan)
+            .transpose()?;
+        let roots = Self::game_file_roots_from(&transaction)?;
+        if !snapshot.as_ref().is_some_and(|snapshot| {
+            crate::source_discovery::scan_match_summary(snapshot) == Some(expected)
+                && crate::source_discovery::scan_snapshot_inputs_match(
+                    snapshot,
+                    catalog_sha256,
+                    &roots,
+                )
+        }) {
+            return Err(PortcoveError::conflict(
+                "the saved scan changed; reload its matches",
+            ));
+        }
+
+        let mut result = GameFileScanRegisteredMatches::default();
+        {
+            let mut statement = transaction.prepare(
+                "SELECT matches.kind, matches.record_json, sources.path, sources.sha256
+                 FROM game_file_scan_matches AS matches
+                 JOIN sources ON sources.profile_id=matches.profile_id
+                 WHERE matches.scan_id=?1
+                 ORDER BY matches.kind, matches.ordinal",
+            )?;
+            let mut rows = statement.query([&expected.scan_id])?;
+            while let Some(row) = rows.next()? {
+                let kind: u8 = row.get(0)?;
+                let record: String = row.get(1)?;
+                let registered_path: String = row.get(2)?;
+                let registered_sha256: String = row.get(3)?;
+                let invalid = |error: serde_json::Error| {
+                    PortcoveError::state("stored scan match is invalid")
+                        .detail("cause", error.to_string())
+                };
+                if kind == GameFileScanMatchKind::Exact.row_kind() {
+                    let mut candidate: crate::SourceRecord =
+                        serde_json::from_str(&record).map_err(invalid)?;
+                    if candidate.sha256 == registered_sha256
+                        && scan_path_matches_registration(
+                            &candidate.path,
+                            Path::new(&registered_path),
+                        )
+                    {
+                        // Publish the admitted spelling, without rewriting the
+                        // durable registration or teaching adapters path identity.
+                        candidate.path = PathBuf::from(&registered_path);
+                        result.candidates.push(candidate);
+                    }
+                } else {
+                    let mut inspection: crate::SourceInspection =
+                        serde_json::from_str(&record).map_err(invalid)?;
+                    if inspection.record.as_mut().is_some_and(|source| {
+                        if source.sha256 != registered_sha256
+                            || !scan_path_matches_registration(
+                                &source.path,
+                                Path::new(&registered_path),
+                            )
+                        {
+                            return false;
+                        }
+                        source.path = PathBuf::from(&registered_path);
+                        true
+                    }) {
+                        inspection.path = PathBuf::from(&registered_path);
+                        result.preliminary_selections.push(inspection);
+                    }
+                }
+            }
+        }
+        transaction.commit()?;
+        Ok(result)
     }
 
     /// The source profiles of the current scan's exact matches inside one
@@ -842,6 +999,44 @@ fn require_available_root(path: &Path) -> Result<PathBuf> {
     Ok(path)
 }
 
+// A registration may preserve the spelling supplied by the player while
+// saved folders are canonicalized. The folder may be offline, so compare
+// path components without asking the filesystem to resolve either path.
+fn scan_path_matches_registration(scanned: &Path, registered: &Path) -> bool {
+    if scanned == registered {
+        return true;
+    }
+    #[cfg(windows)]
+    {
+        // Only ordinary/verbatim absolute disk or UNC spelling equivalence.
+        // Preserve case and components; no symlink resolution or byte admission.
+        crate::path::comparable_windows_absolute(scanned)
+            .zip(crate::path::comparable_windows_absolute(registered))
+            .is_some_and(|(scanned, registered)| scanned == registered)
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
+}
+
+fn registered_path_inside_saved_root(path: &Path, root: &Path) -> bool {
+    #[cfg(windows)]
+    {
+        let path = crate::path::comparable_windows_path(&path.to_string_lossy());
+        let root = crate::path::comparable_windows_path(&root.to_string_lossy());
+        let path = Path::new(&path);
+        !path
+            .components()
+            .any(|component| component == std::path::Component::ParentDir)
+            && path.starts_with(Path::new(&root))
+    }
+    #[cfg(not(windows))]
+    {
+        path.starts_with(root)
+    }
+}
+
 /// Whether `path` is the saved folder with this path key or inside it,
 /// compared as stored rows are (case-insensitively on Windows).
 pub(crate) fn key_inside(path: &Path, key: &str) -> bool {
@@ -869,6 +1064,49 @@ fn validate_id(id: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn scan_registration_aliases_preserve_case_components_and_device_boundaries() {
+        let disk = PathBuf::from(["D:", "Games", "game.z64"].join("\\"));
+        let verbatim = PathBuf::from(["", "", "?", "D:", "Games", "game.z64"].join("\\"));
+        let unc = PathBuf::from(["", "", "Host", "Share", "game.z64"].join("\\"));
+        let verbatim_unc =
+            PathBuf::from(["", "", "?", "UNC", "Host", "Share", "game.z64"].join("\\"));
+        assert!(scan_path_matches_registration(&verbatim, &disk));
+        assert!(scan_path_matches_registration(&verbatim_unc, &unc));
+        for components in [
+            vec!["D:", "Games", "other.z64"],
+            vec!["D:", "games", "game.z64"],
+            vec!["D:", "Games", "child", "..", "game.z64"],
+            vec!["D:Games", "game.z64"],
+            vec!["", "", ".", "D:", "Games", "game.z64"],
+        ] {
+            assert!(!scan_path_matches_registration(
+                &verbatim,
+                &PathBuf::from(components.join("\\"))
+            ));
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn reconnect_matches_ordinary_sources_under_canonical_windows_roots() {
+        let root = PathBuf::from(["", "", "?", "UNC", "Host", "Share", "Games"].join("\\"));
+        let share = PathBuf::from(["", "", "host", "share"].join("\\"));
+        assert!(registered_path_inside_saved_root(
+            &share.join(r"games\disc.chd"),
+            &root,
+        ));
+        assert!(!registered_path_inside_saved_root(
+            &share.join(r"games-old\disc.chd"),
+            &root,
+        ));
+        assert!(!registered_path_inside_saved_root(
+            &share.join(r"games\..\disc.chd"),
+            &root,
+        ));
+    }
 
     #[test]
     fn concurrent_root_registration_returns_one_durable_identity() {

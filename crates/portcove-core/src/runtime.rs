@@ -10,7 +10,7 @@ pub(crate) const GENERATED_CACHE_TAR_XZ_CAPABILITY: u32 = 3;
 /// n64-recomp-portable capability that reads a per-platform runtime subdirectory.
 pub(crate) const N64_PLATFORM_RUNTIME_SUBDIRECTORY_CAPABILITY: u32 = 6;
 pub(crate) const NATIVE_MAC_BUNDLE_TAR_XZ_CAPABILITY: u32 = 26;
-pub(crate) const LINUX_PACKAGED_LIBRARY_CAPABILITY: u32 = 38;
+pub(crate) const LINUX_PACKAGED_LIBRARY_CAPABILITY: u32 = 40;
 
 pub(crate) fn validate_linux_packaged_library(port: &PortDefinition) -> Result<()> {
     let Some(library) = port.linux_packaged_library.as_deref() else {
@@ -188,7 +188,7 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     }
     crate::persistence::validate_mod_package_policy(port)?;
     crate::managed_shared_preferences::validate(port)?;
-    crate::managed_tfe::validate(port)?;
+    crate::managed_initialization::validate(port)?;
     crate::runtime_data_policy::validate(port)?;
     crate::runtime_path_policy::validate(port)?;
     if port.bundled_runtime.is_empty() {

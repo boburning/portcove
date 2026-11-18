@@ -157,8 +157,11 @@ pub(crate) enum KnownFailureCause {
     HostLocalCredential {
         path: std::path::PathBuf,
     },
+    RecordedUploaderHold,
+    PackageShapeDrift,
     CatalogValidity,
     CatalogReplay,
+    OriginalEmbeddedInRuntime,
     NewerLibrary,
     IncompleteLibrary,
     Busy,
@@ -192,6 +195,7 @@ pub(crate) enum KnownFailureCause {
         previous_path: std::path::PathBuf,
         current_confirmed: bool,
     },
+    NativeModListReview,
     RestoreRecovery,
     BackupDeletionRecovery,
     TfePreparationRecovery {
@@ -266,6 +270,14 @@ impl KnownFailureCause {
                 "credential_store_locked",
                 "Secure credential storage on this device is locked or refused access, so Portcove can't read or save the credential this task needs. Unlock it or allow access, for example to your login keyring or keychain, then try again.",
             ),
+            Self::RecordedUploaderHold => (
+                "recorded_uploader_hold",
+                "Portcove couldn't confirm the uploader for this version. Check for updates to find a version Portcove can confirm.",
+            ),
+            Self::PackageShapeDrift => (
+                "package_shape_drift",
+                "This release changed some of the files or folders Portcove checks before installing. It is waiting for review. You can still use an installed version.",
+            ),
             Self::CatalogValidity => (
                 "catalog_validity_rejected",
                 "The signed catalog sequence or validity period was not accepted. Check the system clock and obtain a current catalog from its configured source.",
@@ -273,6 +285,10 @@ impl KnownFailureCause {
             Self::CatalogReplay => (
                 "catalog_replay_rejected",
                 "This catalog revision has already been seen or is older than the recorded revision. Check for a newer catalog; do not reset the library's trust history.",
+            ),
+            Self::OriginalEmbeddedInRuntime => (
+                "original_embedded_in_runtime",
+                "This runtime already contains prepared game data. Prepare another runtime to use a different original.",
             ),
             Self::NewerLibrary => (
                 "library_version_newer",
@@ -388,6 +404,10 @@ impl KnownFailureCause {
                     ),
                 );
             }
+            Self::NativeModListReview => (
+                "native_mod_list_review",
+                "Review the enabled mods and their dependencies in Setups and mods before playing again.",
+            ),
             Self::RestoreRecovery => (
                 "restore_recovery_required",
                 "A backup restore is unfinished. Keep the backup and any safety copy. Reopen Portcove and check the recovery result before playing or backing up saves again.",
@@ -576,6 +596,13 @@ impl PortcoveError {
 
     pub(crate) fn known_cause(&self) -> Option<&KnownFailureCause> {
         self.failure.known_cause.as_ref()
+    }
+
+    pub(crate) fn is_recorded_uploader_hold(&self) -> bool {
+        matches!(
+            self.failure.known_cause,
+            Some(KnownFailureCause::RecordedUploaderHold)
+        )
     }
 
     pub(crate) fn with_known_cause(mut self, cause: KnownFailureCause) -> Self {

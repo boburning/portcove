@@ -4,6 +4,14 @@
     "id": "syphon-filter-recompiled-danilopaulinodasilva-danilopaulinodasilva-syphon-filter",
     "name": "Syphon Filter — Syphon Filter Recompiled (danilopaulinodasilva) (danilopaulinodasilva)",
     "original_game_title": "Syphon Filter",
+    "artwork": {
+      "game_id": 4115,
+      "cover_id": 90991,
+      "image_id": "co1y7j",
+      "image_sha256": "20acf73d36a68feb7a54b5a2347279935265d80fe4ef582f6439cc58a0efea00",
+      "game_slug": "syphon-filter",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reports the first mission, Georgia Street, and attract mode. Later missions have not been checked. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/danilopaulinodasilva/SyphonFilterRecomp",
     "listed_at": "2026-10-25",

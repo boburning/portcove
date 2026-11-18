@@ -132,6 +132,24 @@ async function commit(c: SourceContext, meta: Record<string, unknown>) {
     ).sha,
   );
 }
+/** Resolve a reviewed repository's current default branch to one immutable revision. */
+export async function resolveDiscoveryDefaultRevision(
+  context: SourceContext,
+  repository: string,
+  repositoryId: number,
+): Promise<string> {
+  const meta = await metadata(context, repository);
+  if (
+    meta.id !== repositoryId ||
+    repoName(meta.full_name).toLowerCase() !== repository.toLowerCase() ||
+    typeof meta.default_branch !== "string" ||
+    meta.default_branch.length === 0
+  )
+    throw new Error("External source repository identity or default branch unavailable");
+  const revision = await commit(context, meta);
+  if (!/^[a-f0-9]{40}$/u.test(revision)) throw new Error("External source revision unavailable");
+  return revision;
+}
 async function content(c: SourceContext, repo: string, file: string, ref: string) {
   const parts = file.split("/");
   if (

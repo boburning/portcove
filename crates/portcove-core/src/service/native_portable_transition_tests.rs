@@ -89,7 +89,7 @@ async fn assert_reviewed_archive_transition(
         ),
         _ => panic!("undeclared transition consumer"),
     };
-    let old_release = server.release_in_folder("controlled-predecessor", 1, "", executable);
+    let old_release = server.release_with_reviewed_layout("controlled-predecessor", 1, executable);
     let original = b"lawful original fixture for reviewed predecessor data transition";
     let (creating, target) = transition_fixture_catalogs(id, original, &old_release);
     let definition = serde_json::to_vec(&target.authoritative_document()).unwrap();
@@ -140,7 +140,7 @@ async fn assert_reviewed_archive_transition(
             .unwrap();
     let old_program = fs::read(first.path.join(executable)).unwrap();
     service.replace_catalog_for_test(target.clone());
-    *provider.0.lock().unwrap() = server.release_in_folder("controlled-next", 2, "", executable);
+    *provider.0.lock().unwrap() = server.release_with_reviewed_layout("controlled-next", 2, executable);
     let review = service.plan_game_update(id, false).await.unwrap();
     assert!(review.data_transition.is_some());
     assert!(

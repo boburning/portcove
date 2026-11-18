@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { LibraryMetadataFile, PortDefinition, PortStatus } from "../types";
 import { gameIdentityLabel } from "../port-identity";
 import { errorText } from "../view-model";
@@ -27,6 +27,7 @@ export function LibraryRecovery({
   const [preparing, setPreparing] = useState(false);
   const [exported, setExported] = useState<LibraryMetadataFile>();
   const [error, setError] = useState<string>();
+  const errorId = useId();
   const pending = useRef(false);
   const current = useRef(true);
   useEffect(() => {
@@ -45,7 +46,9 @@ export function LibraryRecovery({
         Keep a manual recovery copy, restore a checked copy, or change where this library is stored.
       </p>
       <details>
-        <summary className="cursor-pointer py-2 text-sm">What each recovery copy includes</summary>
+        <summary className="disclosure-pad-2 cursor-pointer text-sm">
+          What each recovery copy includes
+        </summary>
         <dl className="my-4 grid gap-3 text-sm [&_dd]:m-0 [&_dt]:font-semibold">
           <div>
             <dt>Game-save backups</dt>
@@ -68,7 +71,9 @@ export function LibraryRecovery({
         </dl>
       </details>
       <details>
-        <summary className="cursor-pointer py-2 font-semibold">Prepare a recovery copy</summary>
+        <summary className="disclosure-pad-2 cursor-pointer font-semibold">
+          Prepare a recovery copy
+        </summary>
         <p>
           Portcove exports library information. Copy the library files yourself and test a restore
           before relying on the copy.
@@ -118,6 +123,9 @@ export function LibraryRecovery({
             variant="outline"
             size="sm"
             disabled={Boolean(busy) || preparing || !exportMetadata}
+            focusableWhenDisabled={preparing}
+            aria-busy={preparing}
+            aria-describedby={error ? errorId : undefined}
             onClick={() => {
               if (pending.current || !exportMetadata) return;
               pending.current = true;
@@ -140,14 +148,19 @@ export function LibraryRecovery({
           </Button>
           {exported && (
             <p role="status">
-              Library information exported to{" "}
+              Library information was last exported to{" "}
               <code dir="ltr" className="[unicode-bidi:isolate]">
                 {exported.path}
               </code>
               . Content has not been copied or verified.
             </p>
           )}
-          {error && <p role="alert">Library information export did not finish: {error}</p>}
+          {/* Workspace task feedback announces the failure. The inline copy describes retry. */}
+          {error && (
+            <p id={errorId} className="text-pc-danger-strong" dir="auto">
+              Library information export did not finish: {error}
+            </p>
+          )}
         </section>
         <section className="mt-6 grid justify-items-start gap-3">
           <h3>3. Close Portcove and copy the content</h3>

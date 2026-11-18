@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "hexen-crispy-doom-family",
+    "artwork": {
+      "game_id": 3512,
+      "cover_id": 76354,
+      "image_id": "co1mwy",
+      "image_sha256": "4b88f98af3997f8fb298284318b37aefd24c925bdf7c375c7e92153107c80ecb",
+      "game_slug": "hexen-beyond-heretic",
+      "match_kind": "underlying-game"
+    },
     "name": "Hexen (Crispy Doom family)",
     "summary": "Install the official Crispy Hexen Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
     "original_game_title": "Hexen",

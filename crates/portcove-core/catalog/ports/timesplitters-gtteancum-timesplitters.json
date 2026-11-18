@@ -4,6 +4,14 @@
     "id": "timesplitters-gtteancum-timesplitters",
     "name": "TimeSplitters — Timesplitters (GTTeancum)",
     "original_game_title": "TimeSplitters",
+    "artwork": {
+      "game_id": 2142,
+      "cover_id": 79170,
+      "image_id": "co1p36",
+      "image_sha256": "76d6ff03e97146851fd043da73dd6d7e471a0d27b64ca416d052a74ba13ca120",
+      "game_slug": "timesplitters",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project describes native recompilation with four-player multiplayer screenshots and controller/save claims. Linux was tested under WSL. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/GTTeancum/Timesplitters",
     "listed_at": "2026-10-25",

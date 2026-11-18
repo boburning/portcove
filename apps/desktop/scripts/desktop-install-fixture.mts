@@ -972,7 +972,162 @@ export async function createInstallFixture({
   };
 }
 
+/** Prelaunch-only expansion for the finite native retained-page review case.
+ * Distinct bytes identify 21 games; only the last game has two implementations.
+ * Twenty-five copies per game exceed the 512-match Core preview before UI paging. */
+export async function prepareLargeSetupReviewFixture(
+  fixture: Awaited<ReturnType<typeof createInstallFixture>>,
+  revision: string,
+) {
+  if (!/^[a-f0-9]{40}$/.test(revision) || fixture.requests.length !== 0)
+    throw new Error("Large review requires frozen source and unstarted fixture acquisition");
+  const owned = requiredSources(fixture.sourceJourney);
+  const current = catalog(JSON.parse(await readFile(fixture.catalogPath, "utf8")));
+  const template = current.ports.find((item) => item.id === fixture.port.id);
+  const contract = current.source_catalog.contracts.find(
+    (item) => item.port_id === fixture.port.id && item.role === "game",
+  );
+  if (!template || !contract) throw new Error("Large review requires the selected-source fixture");
+  const previousPorts = new Set([fixture.port.id, fixture.refreshPort.id]);
+  current.ports = current.ports.filter((item) => !previousPorts.has(item.id));
+  current.source_catalog.contracts = current.source_catalog.contracts.filter(
+    (item) => !previousPorts.has(item.port_id),
+  );
+  current.source_catalog.identities = current.source_catalog.identities.filter(
+    (item) => !owned.profiles.includes(item.id),
+  );
+  const eligiblePorts: string[] = [],
+    choicePorts: string[] = [];
+  const originals: { profile: string; path: string; copies: string[]; sha256: string }[] = [];
+  const gap =
+    "Owned unique inert game bytes for native large review only; no retail, preparation or gameplay qualification.";
+  for (let index = 0; index < 21; index++) {
+    const ordinal = String(index).padStart(2, "0");
+    const profile = `desktop-large-review-original-${ordinal}`;
+    if (current.source_catalog.identities.some((item) => item.id === profile))
+      throw new Error("Large-review source identity collision");
+    const bytes = Buffer.from(`Portcove inert large-review game ${ordinal}\n`);
+    addSourceIdentityProfiles(
+      current,
+      [
+        {
+          id: profile,
+          label: `Owned large review game ${ordinal}`,
+          extension: "pcgame",
+          payloads: [bytes],
+        },
+      ],
+      gap,
+    );
+    const copies: string[] = [];
+    for (let copy = 0; copy < 25; copy++) {
+      const file = path.join(owned.directory, `large-${ordinal}-copy-${copy}.pcgame`);
+      await writeFile(file, bytes, { flag: "wx" });
+      copies.push(file);
+    }
+    originals.push({
+      profile,
+      path: text(copies[0]),
+      copies,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+    });
+    for (const version of index === 20 ? ["a", "b"] : ["only"]) {
+      const id = `desktop-large-review-${ordinal}-${version}`;
+      if (current.ports.some((item) => item.id === id))
+        throw new Error("Large-review port identity collision");
+      const definition = structuredClone(template);
+      definition.id = id;
+      definition.name = `Large review game ${ordinal} ${version}`;
+      definition.source_profile = profile;
+      delete definition.bios_source_profile;
+      const presentation = object(definition.presentation);
+      presentation.original_game_title = `Large review game ${ordinal}`;
+      presentation.variant_label = index === 20 ? version : null;
+      presentation.source_requirements = [
+        {
+          role: "game",
+          profile_id: profile,
+          label: `Owned large review game ${ordinal}`,
+          verification: "catalog-identity",
+        },
+      ];
+      current.ports.push(definition);
+      current.source_catalog.contracts.push({
+        ...structuredClone(contract),
+        id: `${id}-game`,
+        port_id: id,
+        profile_id: profile,
+        supported_variant_ids: ["inert-0"],
+        authority_ref: revision,
+        immutable_review_url: `https://github.com/boburning/portcove/blob/${revision}/apps/desktop/scripts/desktop-install-fixture.mts`,
+        evidence_gap: gap,
+      });
+      (index === 20 ? choicePorts : eligiblePorts).push(id);
+    }
+  }
+  await writeFile(fixture.catalogPath, `${JSON.stringify(current, null, 2)}\n`);
+  return {
+    eligiblePorts,
+    choicePorts,
+    originals,
+    exactMatches: originals.reduce((total, original) => total + original.copies.length, 0),
+  };
+}
+
 function requiredSources<T>(value: T | null): T {
   if (!value) throw new Error("Selected fixture source is required");
   return value;
+}
+
+/** Two independently installed portable integrations; the PS1 selection fixture stays separate. */
+export async function prepareReviewedSetupBatchFixture(
+  fixture: Awaited<ReturnType<typeof createInstallFixture>>,
+) {
+  const sources = requiredSources(fixture.sourceJourney);
+  if (
+    fixture.completionJourney ||
+    fixture.preliminaryJourney ||
+    fixture.requests.length !== 0 ||
+    fixture.port.id !== INSTALL_FIXTURE_PORT_ID ||
+    fixture.port.adapter !== "libultraship-portable" ||
+    fixture.refreshPort.id !== INSTALL_REFRESH_FIXTURE_PORT_ID ||
+    fixture.refreshPort.adapter !== "psx-recomp-managed"
+  )
+    throw new Error("Reviewed batch requires an unused standalone source-selection fixture");
+  const current = catalog(JSON.parse(await readFile(fixture.catalogPath, "utf8")));
+  const primary = current.ports.find((port) => port.id === fixture.port.id);
+  const peerIndex = current.ports.findIndex((port) => port.id === fixture.refreshPort.id);
+  const gameContracts = current.source_catalog.contracts.filter(
+    (contract) => contract.port_id === fixture.port.id,
+  );
+  const game = gameContracts[0];
+  if (
+    !primary ||
+    primary.adapter !== "libultraship-portable" ||
+    primary.source_profile !== sources.profiles[0] ||
+    peerIndex < 0 ||
+    gameContracts.length !== 1 ||
+    !game ||
+    game.role !== "game" ||
+    game.profile_id !== sources.profiles[0]
+  )
+    throw new Error("Reviewed batch requires the original portable game contract");
+  const peer = {
+    ...structuredClone(fixture.port),
+    id: fixture.refreshPort.id,
+    name: fixture.refreshPort.name,
+    summary: "Second isolated portable integration sharing the registered original.",
+  };
+  current.ports[peerIndex] = peer;
+  current.source_catalog.contracts = current.source_catalog.contracts.filter(
+    (contract) => contract.port_id !== peer.id,
+  );
+  current.source_catalog.contracts.push({
+    ...structuredClone(game),
+    id: `${peer.id}-game`,
+    port_id: peer.id,
+  });
+  await writeFile(fixture.catalogPath, `${JSON.stringify(current, null, 2)}\n`);
+  Object.assign(fixture.refreshPort, peer);
+  delete fixture.refreshPort.bios_source_profile;
 }

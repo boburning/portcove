@@ -114,6 +114,36 @@ pub(crate) fn archive_file_links_capability(port: &crate::PortDefinition) -> u32
         .map_or(archive, |profile| profile.max(archive))
 }
 
+pub(crate) fn retained_manual_dhewm3_catalog(id: &str) -> crate::Catalog {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let snapshot: serde_json::Value = serde_json::from_str(include_str!(
+        "testdata/retained-dhewm3-manual-2026-11-16.json"
+    ))
+    .unwrap();
+    let Some(retained) = snapshot["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|port| port["id"] == id)
+    else {
+        return catalog;
+    };
+    let mut document = catalog.authoritative_document();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == id)
+        .unwrap();
+    *port = serde_json::from_value(retained.clone()).unwrap();
+    document
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .contracts
+        .retain(|contract| contract.port_id != id);
+    crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+}
+
 pub(crate) fn definition_requirements(
     port: &crate::PortDefinition,
     default_version: u32,
@@ -139,6 +169,11 @@ pub(crate) fn definition_requirements(
             json!({"template":port.adapter,"minimum_version":version,"maximum_version":version}),
         ];
     }
+    let default_version = if crate::preparation::source::native_relative(port) {
+        default_version.max(crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY)
+    } else {
+        default_version
+    };
     let default_version = if crate::persistence::requires_psx_retained_scope(port) {
         default_version.max(crate::persistence::PSX_RETAINED_SCOPE_CAPABILITY)
     } else {
@@ -459,6 +494,8 @@ impl<'a> IndexedCatalogFixture<'a> {
             version
         } else if port.mod_package_policy.is_some() {
             24
+        } else if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::CAPABILITY
         } else if crate::persistence::ready_staged_archive(port) {
             23
         } else if crate::managed_runtime_policy::requires_provider_resolution(port) {

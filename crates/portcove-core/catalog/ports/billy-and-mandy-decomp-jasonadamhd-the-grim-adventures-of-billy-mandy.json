@@ -4,6 +4,14 @@
     "id": "billy-and-mandy-decomp-jasonadamhd-the-grim-adventures-of-billy-mandy",
     "name": "The Grim Adventures of Billy & Mandy — billy-and-mandy-decomp (JasonAdamHD)",
     "original_game_title": "The Grim Adventures of Billy & Mandy",
+    "artwork": {
+      "game_id": 2820,
+      "cover_id": 129081,
+      "image_id": "co2rll",
+      "image_sha256": "ba928e414efc91ec4bcaf8d37719b4b0c30bfe99e6783a4dc4665f9d63c9ee7f",
+      "game_slug": "the-grim-adventures-of-billy-mandy",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reports startup, title, menus and input using a CPU-renderer workaround. A full playthrough is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/JasonAdamHD/billy-and-mandy-decomp",
     "listed_at": "2026-10-25",

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Gamepad2, FolderOpen } from "lucide-react";
 import { gameIdentityLabel } from "../port-identity";
 import { desktopApi } from "../api";
+import { focusAndReveal } from "../focus";
 import { pickSteamFolder } from "../file-picker";
 import type {
   PortDefinition,
@@ -533,7 +534,10 @@ export function SteamBatchEntryDialog({
   generation: number;
   close: () => void;
 }) {
-  const cancelButton = useRef<HTMLButtonElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const applyButton = useRef<HTMLButtonElement>(null);
+  const reviewButton = useRef<HTMLButtonElement>(null);
+  const restoreReviewFocus = useRef(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [steamRoot, setSteamRoot] = useState("");
   const [steamUserId, setSteamUserId] = useState("");
@@ -543,11 +547,26 @@ export function SteamBatchEntryDialog({
   const [includeArtwork, setIncludeArtwork] = useState(true);
   const [pending, setPending] = useState<"review" | "apply">();
   const [error, setError] = useState<string>();
+  const [writeDeclined, setWriteDeclined] = useState(false);
+  useLayoutEffect(() => {
+    const button = applyButton.current;
+    if (writeDeclined && button === document.activeElement) focusAndReveal(button);
+  }, [writeDeclined]);
+  useLayoutEffect(() => {
+    if (error === undefined || pending || !restoreReviewFocus.current) return;
+    restoreReviewFocus.current = false;
+    const target = reviewButton.current;
+    const active = document.activeElement;
+    if (target && (active === document.body || active === target.closest('[role="dialog"]'))) {
+      focusAndReveal(target);
+    }
+  }, [error, pending]);
   const resetReview = () => {
     setReview(undefined);
     setReviewedSelection(undefined);
     setResult(undefined);
     setError(undefined);
+    setWriteDeclined(false);
   };
   const dismiss = () => {
     if (pending !== "apply") close();
@@ -576,6 +595,7 @@ export function SteamBatchEntryDialog({
     if (!review || !reviewedSelection || pending) return;
     setPending("apply");
     setError(undefined);
+    setWriteDeclined(false);
     try {
       const applied = await desktopApi.applySteamBatchAdd(
         reviewedSelection,
@@ -586,8 +606,12 @@ export function SteamBatchEntryDialog({
       if (applied) {
         setResult(applied);
         setReview(undefined);
+      } else {
+        setWriteDeclined(true);
       }
     } catch (value) {
+      const button = applyButton.current;
+      restoreReviewFocus.current = button !== null && document.activeElement === button;
       resetReview();
       setError(errorText(value));
     } finally {
@@ -602,12 +626,12 @@ export function SteamBatchEntryDialog({
       }}
     >
       <DialogContent
-        initialFocus={cancelButton}
+        initialFocus={heading}
         showCloseButton={false}
         reviewSize="standard"
         aria-describedby="steam-batch-description"
       >
-        <DialogTitle id="steam-batch-title" className="mb-2 text-xl">
+        <DialogTitle ref={heading} tabIndex={-1} id="steam-batch-title" className="mb-2 text-xl">
           Add selected games to Steam
         </DialogTitle>
         <DialogDescription id="steam-batch-description" className="mb-4 leading-relaxed">
@@ -661,19 +685,15 @@ export function SteamBatchEntryDialog({
         {pending === "review" && <p role="status">Inspecting selected games and Steam profile…</p>}
         {review && <SteamEntryReviewDetails review={review} />}
         {result && <SteamEntryResult result={result} batch />}
+        {writeDeclined && <p role="status">Steam shortcut changes were cancelled.</p>}
         {error && <p role="alert">{error}</p>}
         <DialogFooter className="mt-4">
-          <Button
-            ref={cancelButton}
-            data-focusable
-            variant="outline"
-            disabled={pending === "apply"}
-            onClick={dismiss}
-          >
+          <Button data-focusable variant="outline" disabled={pending === "apply"} onClick={dismiss}>
             {result ? "Close" : "Cancel"}
           </Button>
           {!review && !result && (
             <Button
+              ref={reviewButton}
               data-focusable
               disabled={
                 selectedIds.length < 2 ||
@@ -698,9 +718,12 @@ export function SteamBatchEntryDialog({
               </Button>
               {review.writes_required && (
                 <Button
+                  ref={applyButton}
                   data-focusable
                   variant="primary"
                   disabled={Boolean(pending) || review.steam_client_state !== "closed"}
+                  aria-busy={pending === "apply"}
+                  focusableWhenDisabled={pending === "apply"}
                   onClick={() => void apply()}
                 >
                   {pending === "apply" ? "Updating shortcuts…" : "Add or repair selected shortcuts"}

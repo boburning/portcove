@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "littlebigrecomp-benjidotsh-littlebigplanet",
+    "artwork": {
+      "game_id": 1058,
+      "cover_id": 219039,
+      "image_id": "co4p0f",
+      "image_sha256": "c6b433605cb359568c320a836808eaf2baee25c50cc749523db88b585f826e07",
+      "game_slug": "littlebigplanet",
+      "match_kind": "underlying-game"
+    },
     "name": "LittleBigPlanet — LittleBigRecomp (benjidotsh)",
     "original_game_title": "LittleBigPlanet",
     "summary": "Upstream reports first-start save creation and the Introduction level. Intermittent bright wedges and depth/stencil rendering bugs remain. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",

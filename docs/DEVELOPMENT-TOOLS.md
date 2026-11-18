@@ -424,6 +424,13 @@ application/configuration projects retain bundler resolution; native harnesses
 also check the DOM callbacks that Selenium serializes. Node-only tooling does
 not receive browser globals. All projects inherit the strict shared policy.
 
+API library declarations are separate from emitted syntax targets. The renderer
+adds `ES2023.Array` for copying array methods available within its existing
+`chrome111`/`safari16.4` targets. Native harnesses add `ES2024.Promise` for
+`Promise.withResolvers` in pinned Node code. Their serialized browser callbacks
+must still use APIs supported by the WebView targets; the shared type-checking
+project does not establish browser API compatibility.
+
 Native harnesses use `apps/desktop/scripts/transport-values.mts` when consuming
 complete domain payloads. It validates against the existing Rust-exported output
 schemas before exposing their generated types, using the pinned Ajv 2020 loader
@@ -2079,6 +2086,13 @@ that private virtual display; WSLg, physical display/controller and other Linux
 routes remain separate. Missing or unsupported prerequisites are reported; no
 provisioning or fallback qualification is implied.
 
+An ordinary Linux appearance restart retains its captured driver until the
+existing stop action and that exact child's exit have completed. A failed join
+keeps the reference for owned cleanup and refuses the replacement launch. The
+private namespace still owns final descendant closure; a driver exit alone does
+not establish whole-tree quiescence. Selected Linux sessions keep their existing
+namespace stop/join authority and its retirement budget.
+
 For ordinary Linux shipping boundaries, select only
 `native-linux-packaged-webview-boundary` and pass `--package-evidence ABSOLUTE_JSON`.
 The maintained private-X11 route also requires an installed Google Chrome at
@@ -2187,6 +2201,17 @@ checks the highlighted option before committing. A mounted listbox alone does
 not establish keyboard readiness. Failures retain viewport/preference observations
 and a screenshot before reset/resize cleanup; the original assertion still fails.
 
+`native-secondary-panel-presentation` uses a fresh Windows fixture library and
+an owned prepared installation. It inspects DAT editing, metadata export,
+ready notices, mod original-file choice, recipe/provider reviews, retirement,
+file preservation and portable-save feedback in both themes. The retained
+observation identifies supplied replies and controlled refusals. DAT and the
+successful metadata export use actual isolated Core operations. Ordinary
+owned preferences and background setup requests retain their existing paths.
+Its fixed projections remain in the renderer cache until the disposable session
+closes, so this selector runs alone. Existing owned-session cleanup and exact
+input receipts apply.
+
 `native-library-layout` uses two owned inert installations to check both Library
 views and themes through ordinary window sizes and native interface sizing. At
 startup it imports the existing red/blue diagnostic JPEGs into the disposable
@@ -2208,6 +2233,30 @@ unchanged. It is not
 large-collection, gameplay, OS DPI, physical
 controller or assistive-technology acceptance.
 
+`native-collection-artwork-presentation` is a standalone Windows opt-in with a
+ten-minute harness budget and the existing identity-bound native review cleanup.
+It uses the normal app and a fresh source-free library. The actual accepted
+catalog supplies the two-member `andreyvelsk-com-mobilerpgpack-phone` and four-member
+`crownpark-xbox360-native-ports-collection` listings, member credits and digests.
+Public thumbnail IPC is bound to the actual library generation and artwork choice
+revision; retained PNG identities are compared with displayed images. Discover,
+detail and credits use settled, contained captures in both themes at the supported
+960×640 outer window. A four-member compact representative uses that same window
+at 200% through the production Ctrl+0/Ctrl++ native WebView sizing route. Records
+bind the actual outer size, saved percentage, device pixel ratio and effective
+viewport; the compact viewport must be half its measured 100% baseline, within
+two CSS pixels. Full credits are captured at 100%; the compact capture frames
+their opener while still checking every source link and credit. Back must restore
+the exact Discover opener focus. Theme/interface-size preference changes use
+existing controls in the isolated profile and are restored. Catalog and artwork
+choices remain unchanged; no original files, runtime installation, catalog
+replacement or provider credentials are used. Restoration completes before the
+final report is serialized, including any restoration failure.
+Public failures retain concrete member failures and any partial/fallback evidence
+and fail complete-collection acceptance. Browser fixtures for Library/Manage remain
+separate evidence; this listing-only native case does not qualify those installed
+surfaces, gameplay or publication. It is absent from routine profiles.
+
 `just desktop-verify --scenario native-saved-folder-hash-resume --require-clean`
 selects one standalone
 Windows journey outside routine profiles. An isolated first-party CLI seeds a
@@ -2217,6 +2266,50 @@ input, and cancels without registration, acquisition or original-file changes.
 The receipt binds the actual executables, source, screenshots and positive
 owned-process closure. This case does not establish native picker, setup
 execution, gameplay, physical storage or Linux acceptance.
+
+`just desktop-verify --scenario native-reviewed-discovery-setup-batch --require-clean`
+selects one standalone Windows journey. The CLI first seeds an isolated saved
+folder and two inert source registrations. Desktop scans the folder and lets the
+operator select two compatible integrations. The scenario cancels one batch
+review before selecting both games again and confirming their installation.
+Both portable-package fixtures share the admitted game source. The other source
+registration remains an unchanged custody control; this case does not execute
+the separate PS1 preparation fixture.
+It checks the installed files and retained installation identities after an
+application restart. Original files, source registrations and saved folders stay
+intact. Launch history stays empty. Reports include screenshots and positive
+owned-process closure. This fixture does not establish native picker, real-game,
+gameplay or physical-storage acceptance.
+
+`just desktop-verify --scenario native-standing-setup-source-return --require-clean`
+selects one standalone Windows journey. The CLI seeds an isolated saved folder
+and inert originals before their owned directory becomes unavailable. Desktop
+saves one Set up when ready choice. An observer records the actual automatic
+pass without changing its request or response. The pass must name the missing
+saved folder and leave attempts, batches and downloads unchanged.
+After positive process exit, the restart owner restores the same directory.
+Normal startup then installs only the selected integration. The scenario checks
+the files, consent and retained identities after another restart. No game starts.
+This fixture does not establish SMB reconnect, physical storage, real-game or
+gameplay acceptance. A failed run retains the unavailable original directory
+rather than restoring it while the consented app is still live.
+
+`just desktop-verify --scenario native-large-discovery-setup-review --require-clean`
+selects one standalone Windows or Linux review journey outside routine profiles.
+The private-X11 wrapper derives both waits from the selected harness budget:
+this case retains its ten-minute deadline, an eleven-minute harness wait, and
+an eleven-minute-thirty-second launcher wait for failure capture and positive joins.
+An isolated CLI saves one root and registers 21 distinct inert originals, with
+25 identical copies of each original. Desktop continues the bounded scan to
+525 retained matches, exceeding the 512-match Core preview, then selects all
+20 independent eligible games before loading
+the remaining result page, and leaves one game's two implementations unselected.
+Keyboard activation opens the exact twenty-game review and cancels it. No batch,
+download, installation or launch may occur; original files and registrations stay
+unchanged. The native receipt includes the scan identity, selected plans, counts,
+screenshots and ordinary harness process cleanup. It does not establish native
+picker, retail, gameplay or physical-storage acceptance. Execution of a reviewed
+batch is qualified separately.
 
 `just desktop-verify --scenario native-selected-setup-completion --require-clean`
 selects the standalone owned-input journey on Windows: bounded two-port
@@ -2246,6 +2339,8 @@ checks the warning, fresh Core setup review, neutral cancellation and return
 with selection preserved. No validator, preparation, acquisition, gameplay,
 physical-storage or Linux execution is claimed. The existing preliminary
 review-only scenario remains separately selectable.
+
+### Select a native scenario and profile
 
 With no selector, `desktop-verify` uses the `smoke` profile. Exact `--scenario`
 flags are repeatable and mutually exclusive with `--profile`; selection is normalized
@@ -2349,6 +2444,8 @@ preparation and actual-device evidence gaps belong to #51/#217 for the Public be
 follow-up, Required before 1.0; they consume the shared engine baseline without
 becoming #993 initial-beta closure conditions. Do not stop fixture development or
 turn missing evidence into a pass.
+
+### Choose a verification profile
 
 The curated profiles are:
 
@@ -2474,6 +2571,8 @@ can signal only a separately captured, verified game process tree. This journey
 does not establish human gameplay, an installed package, Linux qualification or
 catalog support admission. Keep any earlier failed receipts and their limits.
 
+### Capture a game-first scenario
+
 Game-first visual captures scroll to one complete identified target, then let the
 shared settled-capture owner wait for fresh, stable geometry before taking its
 single candidate image. Every observation still requires complete visibility;
@@ -2589,8 +2688,10 @@ an owned setup child reaches its live checkpoint, the identified harness tree
 is forcibly terminated without first deleting the WebDriver session, and a new
 native host performs recovery. The run checks source, original executable,
 active-install and save preservation, retained staging, recovered activity and
-cleanup refusal when durable process quiescence is unknown. It does not rewrite
-the recovery journal. The existing `native-interrupted-preparation-recovery`
+cleanup refusal when durable process quiescence is unknown. It then reviews and
+confirms a fresh preparation through Desktop, checks a distinct operation reaches
+ready, and verifies the interrupted activity and checkpoint remain intact along
+with the original source and save. It does not rewrite the recovery journal. The existing `native-interrupted-preparation-recovery`
 remains a separate synthetic durable-state and reviewed-cleanup test. Neither
 scenario proves OS shutdown, another operation family, installed packages or
 another platform.
@@ -2760,6 +2861,8 @@ native scenarios always execute in a fresh evidence directory. The run metadata
 records whether frontend bytes were rebuilt or reused, while source revision and
 `--require-clean` evidence remain independent and unchanged.
 
+### Coordinate focus and session ownership
+
 Every native run can take focus and send input. The shared lock serializes
 Portcove qualification runners across worktrees, but it cannot prevent unrelated
 user input. Announce the foreground run and establish an uncontended window.
@@ -2776,6 +2879,19 @@ Focused and small-profile runs retain the three-minute whole-harness watchdog,
 except where `desktopHarnessDeadlineMs` records a measured allowance: library move
 (300 s), interrupted preparation recovery (420 s) and the Steam entry/batch
 journeys (600 s).
+The November 17 combined ordinary owned-workflow run at `eb33f3b` reached backup
+restore before its 20-minute watchdog stopped the driver. Combinations executing
+more than eight scenarios, including the preparation prerequisite, now allow
+40 minutes. The established eight-case owned-ready group keeps 20 minutes;
+standalone allowances, product deadlines and zero automatic retries stay unchanged.
+The same run's workspace read took 23.926 seconds while cancellation became
+durable. Post-navigation cancellation and game-return settlement now use the
+existing 60-second native refresh/launch allowance with distinct failure labels.
+Held-assessment refresh also uses its existing 60-second readiness allowance;
+strict injection/restoration failures are recorded without replacing the primary
+wait error. The original timeout and downstream connection failures remain failed
+evidence; only a fresh exact-source run can establish completion.
+
 The opt-in Windows `native-library-switch-recovery` scenario uses only owned
 libraries and saved preferences. Real folder selection and review first commit a
 recognizable SQLite library with a future schema; refusal retains the Core-owned
@@ -2934,6 +3050,8 @@ retry plus refresh recovery, not upstream availability, game compatibility,
 gameplay or human acceptance.
 Core/component tests and human acceptance remain separate. An incomplete report is
 not full desktop qualification.
+
+### Restart and recover a Windows test session
 
 Windows restart checks capture the exact driver-owned application and child
 process identities before closing the session. Before reusing its WebView profile,
@@ -3724,7 +3842,12 @@ verifier rather than a mutable worktree.
 The exact Linux supervisor is registered before the host ACK permits the original
 payload gate to open. Release independently checks supervisor exit, cleanup
 receipt and directory identity. Connection loss or uncertain cleanup retains
-custody. Windows process-identity inspection retains a finite 15-second harness
+custody. While admission is pending, input EOF or error aborts acquisition while
+preserving buffered protocol bytes. A lease that resolves despite cancellation
+retains external custody; connection loss never authorizes its release.
+The host bounds queued raw bytes to 32 KiB; UTF-8 decoding stays inside the
+message parser so stream lengths retain byte units.
+Windows process-identity inspection retains a finite 15-second harness
 budget under host I/O load; host release allows 65 seconds for its bounded
 remote cleanup probe and identity checks. Timeouts retain custody. The host adapter's --recover action consumes the original reference and
 invocation before using existing external-capacity recovery. Prelaunch recovery

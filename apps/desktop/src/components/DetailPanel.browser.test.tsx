@@ -1,4 +1,5 @@
 import { captureParityState } from "../../test/parity-capture";
+import { expectDisclosureAlignment } from "../../test/disclosure-alignment";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -12,6 +13,225 @@ import type { PortOutputLocation, ReadinessBlocker, SourceHealth } from "../type
 import "../styles/index.css";
 
 afterEach(cleanup);
+
+it.each(["dark", "light"] as const)(
+  "aligns all padded disclosure markers to the first wrapped line in %s",
+  async (theme) => {
+    const oldTheme = document.documentElement.dataset.theme;
+    const oldFontSize = document.documentElement.style.fontSize;
+    const oldViewport = { width: innerWidth, height: innerHeight };
+    await page.viewport(430, 780);
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.fontSize = "16px";
+    try {
+      await render(
+        <div style={{ inlineSize: 260, padding: 16 }}>
+          {["ltr", "rtl"].map((direction) => (
+            <section key={direction} dir={direction}>
+              {[1, 2, 3].map((spacing) => (
+                <details key={spacing}>
+                  <summary className={`disclosure-pad-${spacing}`}>
+                    {direction === "rtl"
+                      ? "تفاصيل التثبيت ونتائج الفحص والملفات المحفوظة"
+                      : "Installation details, recorded checks and preserved game files"}
+                  </summary>
+                  <p>Recorded details remain separate from current checks.</p>
+                </details>
+              ))}
+            </section>
+          ))}
+        </div>,
+      );
+      await document.fonts.ready;
+      const summaries = [...document.querySelectorAll<HTMLElement>("summary")];
+      expect(summaries).toHaveLength(6);
+      for (const [index, summary] of summaries.entries()) {
+        // Retain the existing 4/8/12 px hit-area padding as well as the drawn alignment.
+        const padding = [4, 8, 12][index % 3];
+        expect(parseFloat(getComputedStyle(summary).paddingBlockStart)).toBe(padding);
+        expect(parseFloat(getComputedStyle(summary).paddingBlockEnd)).toBe(padding);
+        const text = document.createRange();
+        text.selectNodeContents(summary);
+        expect(text.getClientRects().length).toBeGreaterThan(1);
+        expectDisclosureAlignment(summary);
+        expect(summary.scrollWidth).toBeLessThanOrEqual(summary.clientWidth + 1);
+        summary.focus();
+        await userEvent.keyboard("{Enter}");
+        expect(summary.closest("details")!.open).toBe(true);
+        expectDisclosureAlignment(summary);
+        await userEvent.keyboard("{Enter}");
+        expect(summary.closest("details")!.open).toBe(false);
+      }
+      await captureParityState("disclosure-spacing-wrapped-ltr-rtl");
+    } finally {
+      document.documentElement.style.fontSize = oldFontSize;
+      if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = oldTheme;
+      await page.viewport(oldViewport.width, oldViewport.height);
+    }
+  },
+);
+
+it.each(["dark", "light"] as const)(
+  "aligns the actual Versions future-preferences disclosure in %s",
+  async (theme) => {
+    const oldTheme = document.documentElement.dataset.theme;
+    const oldViewport = { width: innerWidth, height: innerHeight };
+    await page.viewport(430, 780);
+    document.documentElement.dataset.theme = theme;
+    try {
+      const props = installedSourceDetail("road-rash-64-recompiled", "not_checked");
+      props.actions.check = vi.fn();
+      await render(<DetailPanel {...props} />);
+      await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
+      const summary = page.getByText("Future update preferences", { exact: true });
+      await expect.element(summary).toBeVisible();
+      summary.element().scrollIntoView({ block: "center" });
+      await document.fonts.ready;
+      expectDisclosureAlignment(summary.element());
+      summary.element().focus();
+      await userEvent.keyboard("{Enter}");
+      expect(summary.element().closest("details")!.open).toBe(true);
+      expectDisclosureAlignment(summary.element());
+      await expect.element(page.getByText(/Saving them does not run an update/)).toBeVisible();
+      await userEvent.keyboard("{Enter}");
+      expect(summary.element().closest("details")!.open).toBe(false);
+      expect(document.activeElement).toBe(summary.element());
+      const bounds = summary.element().getBoundingClientRect();
+      expect(bounds.top).toBeGreaterThanOrEqual(0);
+      expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+      await captureParityState("versions-future-preferences-disclosure-aligned");
+      expect(props.actions.check).not.toHaveBeenCalled();
+      expect(props.actions.launch).not.toHaveBeenCalled();
+    } finally {
+      if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = oldTheme;
+      await page.viewport(oldViewport.width, oldViewport.height);
+    }
+  },
+);
+
+function expectManualSummaryGeometry(label: Element, direction: "ltr" | "rtl") {
+  const summary = fixtureValue(label.closest("summary"), "manual summary");
+  const text = fixtureValue(summary.querySelector<HTMLElement>(":scope > span"), "summary text");
+  const icon = fixtureValue(summary.querySelector<SVGSVGElement>(":scope > svg"), "manual chevron");
+  summary.scrollIntoView({ block: "center", behavior: "instant" });
+  const bounds = summary.getBoundingClientRect();
+  const textBounds = text.getBoundingClientRect();
+  const iconBounds = icon.getBoundingClientRect();
+  const style = getComputedStyle(summary);
+  const titleRange = document.createRange();
+  titleRange.selectNodeContents(label);
+  const firstLine = fixtureValue([...titleRange.getClientRects()][0], "first title line");
+  const trailingDistance =
+    direction === "rtl"
+      ? Math.abs(iconBounds.left - bounds.left - parseFloat(style.paddingLeft))
+      : Math.abs(bounds.right - parseFloat(style.paddingRight) - iconBounds.right);
+  expect(trailingDistance).toBeLessThanOrEqual(1);
+  expect(
+    Math.abs((iconBounds.top + iconBounds.bottom) / 2 - (firstLine.top + firstLine.bottom) / 2),
+  ).toBeLessThanOrEqual(2);
+  expect(iconBounds.width).toBeGreaterThan(0);
+  expect(iconBounds.height).toBeGreaterThan(0);
+  expect(iconBounds.left).toBeGreaterThanOrEqual(bounds.left);
+  expect(iconBounds.right).toBeLessThanOrEqual(bounds.right);
+  expect(iconBounds.top).toBeGreaterThanOrEqual(bounds.top);
+  expect(iconBounds.bottom).toBeLessThanOrEqual(bounds.bottom);
+  const textRange = document.createRange();
+  textRange.selectNodeContents(text);
+  for (const line of textRange.getClientRects()) {
+    expect(line.left).toBeGreaterThanOrEqual(textBounds.left - 1);
+    expect(line.right).toBeLessThanOrEqual(textBounds.right + 1);
+  }
+  expect(summary.scrollWidth).toBeLessThanOrEqual(summary.clientWidth + 1);
+  expect(bounds.top).toBeGreaterThanOrEqual(0);
+  expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+}
+
+it.each(
+  ([430, 960] as const).flatMap((width) =>
+    (["dark", "light"] as const).flatMap((theme) =>
+      (["ltr", "rtl"] as const).map((direction) => ({ width, theme, direction })),
+    ),
+  ),
+)(
+  "keeps actual manual summaries attached to their first text row in $theme $direction at $width",
+  async ({ width, theme, direction }) => {
+    const oldTheme = document.documentElement.dataset.theme;
+    const oldViewport = { width: innerWidth, height: innerHeight };
+    const folderError = "Owned manual-summary folder read unavailable";
+    const read = vi.spyOn(desktopApi, "outputLocation").mockRejectedValue(new Error(folderError));
+    const relocation = vi.spyOn(desktopApi, "outputRelocationStatus").mockResolvedValue(null);
+    const apply = vi
+      .spyOn(desktopApi, "setOutputLocation")
+      .mockRejectedValue(new Error("No apply expected"));
+    const reset = vi
+      .spyOn(desktopApi, "resetOutputLocation")
+      .mockRejectedValue(new Error("No reset expected"));
+    const props = {
+      ...installedSourceDetail("opengoal-jak1", "not_checked", ["preparation_required"]),
+      source: undefined,
+      sourcePath: "",
+    };
+    props.status.readiness.pending_setup = true;
+    props.actions.install = vi.fn();
+    props.actions.reviewInstall = vi.fn();
+    try {
+      await page.viewport(width, 780);
+      document.documentElement.dataset.theme = theme;
+      await render(
+        <div dir={direction} style={{ inlineSize: width === 430 ? 260 : 704 }}>
+          <DetailPanel {...props} busy="Owned operation still pending" />
+        </div>,
+      );
+      await document.fonts.ready;
+      for (const [tab, title] of [
+        ["Game files", "Game-file requirements and setup"],
+        ["Manage", "Folder for a future install"],
+        ["Manage", "Technical details"],
+      ] as const) {
+        await page.getByRole("tab", { name: tab, exact: true }).click();
+        const control = page.getByText(title, { exact: true });
+        await expect.element(control).toBeVisible();
+        const label = control.element();
+        const summary = fixtureValue(label.closest("summary"), "manual summary");
+        const details = fixtureValue(summary.closest("details"), "manual details");
+        const originalOpen = details.open;
+        expectManualSummaryGeometry(label, direction);
+        summary.focus();
+        await userEvent.keyboard("{Enter}");
+        expect(details.open).toBe(!originalOpen);
+        expect(document.activeElement).toBe(summary);
+        expectManualSummaryGeometry(label, direction);
+        await userEvent.keyboard("{Enter}");
+        expect(details.open).toBe(originalOpen);
+        expect(document.activeElement).toBe(summary);
+        expectManualSummaryGeometry(label, direction);
+        if (direction === "ltr" && tab === "Game files")
+          await captureParityState("detail-manual-requirements-trailing-chevron");
+      }
+      await page.getByText("Folder for a future install", { exact: true }).click();
+      await expect.element(page.getByText(folderError, { exact: false })).toBeVisible();
+      const technical = page.getByText("Technical details", { exact: true }).element();
+      expectManualSummaryGeometry(technical, direction);
+      if (direction === "ltr") await captureParityState("detail-manual-summary-trailing-chevron");
+      expect(apply).not.toHaveBeenCalled();
+      expect(reset).not.toHaveBeenCalled();
+      expect(props.actions.install).not.toHaveBeenCalled();
+      expect(props.actions.reviewInstall).not.toHaveBeenCalled();
+      expect(props.actions.launch).not.toHaveBeenCalled();
+      expect(props.inspectSource).not.toHaveBeenCalled();
+    } finally {
+      read.mockRestore();
+      relocation.mockRestore();
+      apply.mockRestore();
+      reset.mockRestore();
+      if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = oldTheme;
+      await page.viewport(oldViewport.width, oldViewport.height);
+    }
+  },
+);
 
 function installedSourceDetail(
   id: string,

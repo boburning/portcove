@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "diablo-devilutionx",
+    "artwork": {
+      "game_id": 125,
+      "cover_id": 161304,
+      "image_id": "co3ggo",
+      "image_sha256": "514e501260b0929c26bc55653acff593099b98a5d4f83ad2c04a00f026778440",
+      "game_slug": "diablo",
+      "match_kind": "underlying-game"
+    },
     "name": "Diablo (DevilutionX)",
     "summary": "Play Diablo through DevilutionX with your matching original game files.",
     "original_game_title": "Diablo",

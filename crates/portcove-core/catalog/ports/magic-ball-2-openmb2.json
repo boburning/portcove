@@ -1,0 +1,63 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "magic-ball-2-openmb2",
+    "name": "Magic Ball 2 / OpenMB2",
+    "summary": "Play Magic Ball 2 and Smash Frenzy 2 with widescreen and controller support.",
+    "original_game_title": "Magic Ball 2",
+    "project_url": "https://github.com/Kippykip/OpenMB2",
+    "artwork": {
+      "game_id": 54374,
+      "cover_id": 73020,
+      "image_id": "co1kcc",
+      "image_sha256": "e983cefb72e574cf0b5577f8675d2c937b54bd80069f67fe01c0ca03d7267cb3",
+      "game_slug": "smash-frenzy-2",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 5434,
+    "listed_at": "2026-11-17",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "download_block_reason": "All three v1.0.2 packages include an original Russian game font. Portcove Download requires permission covering the bundled original game data or a replacement package without that data.",
+    "setup_url": "https://github.com/Kippykip/OpenMB2/blob/v1.0.2/README.md#instructions",
+    "release_url": "https://github.com/Kippykip/OpenMB2/releases/tag/v1.0.2",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare a writable copy of your original game folder",
+          "instruction": "Use your own Magic Ball 2 or Smash Frenzy 2 installation. Keep its original data together, including any .pak or .dat archives. The engine writes player files in the game-data folder."
+        },
+        {
+          "title": "Start the Windows engine",
+          "instruction": "If you have permission to use the Windows x64 OpenMB2 package, put OpenMB2.exe and the OpenMB2 folder in your writable game folder. Run OpenMB2.exe. The upstream guide also gives --game and --overrides options for keeping the engine files separate."
+        }
+      ],
+      "warnings": [
+        "OpenMB2 writes progress and settings in the selected game-data folder, even when the engine is in a separate folder."
+      ],
+      "references": [
+        {
+          "title": "Keep your progress when replacing the engine",
+          "instruction": "Close both engines and back up the writable game-data folder. Keep score.dat, the s<pack>.sav progress files, other save slots and openmb2.ini. OpenMB2 reads the original params.txt and keeps its own settings in openmb2.ini."
+        },
+        {
+          "title": "Set up the ARM64 Linux handheld package",
+          "instruction": "Use the matching MuOS or PortMaster layout in the upstream instructions. Copy your original game files into that port’s openmb2/gamedata folder and start OpenMB2 from the handheld launcher. Back up gamedata to retain your progress and settings."
+        }
+      ],
+      "help_url": "https://github.com/Kippykip/OpenMB2/blob/v1.0.2/README.md#instructions"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "magic-ball-2-openmb2",
+    "origin": {
+      "project_url": "https://github.com/Kippykip/OpenMB2",
+      "repository": {
+        "host": "github.com",
+        "id": "1433449366"
+      }
+    },
+    "decisions": []
+  }
+}

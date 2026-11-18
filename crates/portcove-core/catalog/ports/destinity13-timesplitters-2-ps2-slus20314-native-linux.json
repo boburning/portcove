@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "destinity13-timesplitters-2-ps2-slus20314-native-linux",
+    "artwork": {
+      "game_id": 2143,
+      "cover_id": 515651,
+      "image_id": "cob1vn",
+      "image_sha256": "e58e9bf9bc151bd06b83e8ef20c7152da2a9ad11ba433b389f26b9faaeb8739a",
+      "game_slug": "timesplitters-2",
+      "match_kind": "underlying-game"
+    },
     "name": "TimeSplitters 2 — Destinity13 native recompilation",
     "original_game_title": "TimeSplitters 2",
     "summary": "Prepare a native Windows or Linux player from your own USA PlayStation 2 disc image.",

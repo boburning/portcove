@@ -14,7 +14,16 @@ import {
 } from "node:fs";
 import os from "node:os";
 import { performance } from "node:perf_hooks";
-import { createGitHubClient, type GitHubRequestPolicy } from "./github-client.mts";
+import {
+  createGitHubClient,
+  iterateGitHubPages,
+  type GitHubRequestPolicy,
+} from "./github-client.mts";
+import {
+  artifactName,
+  assertExactArtifactNames,
+  loadPackagePolicy,
+} from "./release-package-policy.mts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -549,27 +558,149 @@ type Release = {
 };
 
 /** Every release, drafts included (the by-tag endpoint omits drafts). */
-async function listReleases(api: Awaited<ReturnType<typeof client>>) {
-  const all: Release[] = [];
-  for (let page = 1; page <= 10; page++) {
-    const response = await api.request("GET /repos/{owner}/{repo}/releases", {
-      owner: "boburning",
-      repo: "portcove",
-      per_page: 100,
-      page,
-      ...read(),
-    });
-    const releases = response.data as Release[];
-    all.push(...releases);
-    if (releases.length < 100) return all;
+export async function listReleases(api: Awaited<ReturnType<typeof client>>) {
+  const origin = "https://api.github.com";
+  const path = `/repos/${repository}/releases`;
+  const inventoryPaths = [path, "/repositories/1354613114/releases"];
+  const all = new Map<number, Release>();
+  let pages = 0;
+  try {
+    for await (const response of iterateGitHubPages(api, {
+      url: `${origin}${path}?per_page=100`,
+      prepareRequest: async (url) => {
+        const next = new URL(url);
+        if (next.origin !== origin || !inventoryPaths.includes(next.pathname) || ++pages > 100)
+          throw new Error("release inventory pagination exceeded its scope or 100-page budget");
+      },
+    })) {
+      if (!Array.isArray(response.data)) throw new Error("invalid release inventory page");
+      for (const release of response.data as Release[]) {
+        if (!Number.isSafeInteger(release.id) || release.id <= 0 || !release.tag_name)
+          throw new Error("release inventory lacks a stable ID or tag");
+        const previous = all.get(release.id);
+        if (
+          previous &&
+          (previous.tag_name !== release.tag_name || previous.draft !== release.draft)
+        )
+          throw new Error("release changed during inventory collection");
+        all.set(release.id, release);
+      }
+    }
+  } catch (cause) {
+    throw new Error("release inventory is incomplete", { cause });
   }
-  throw new Error("release inventory exceeds its bound");
+  return [...all.values()];
 }
 
-async function findRelease(api: Awaited<ReturnType<typeof client>>, tag: string) {
+export async function findPublishedRelease(api: Awaited<ReturnType<typeof client>>, tag: string) {
+  try {
+    const response = await api.request("GET /repos/{owner}/{repo}/releases/tags/{tag}", {
+      owner: "boburning",
+      repo: "portcove",
+      tag,
+      ...read(),
+    });
+    const release = response.data as Release;
+    if (
+      release.tag_name !== tag ||
+      release.draft ||
+      !Number.isSafeInteger(release.id) ||
+      release.id <= 0
+    )
+      throw new Error("published release lookup returned an unexpected identity");
+    return release;
+  } catch (error) {
+    if ((error as { status?: unknown }).status === 404) return null;
+    throw error;
+  }
+}
+
+export async function findRelease(api: Awaited<ReturnType<typeof client>>, tag: string) {
+  const published = await findPublishedRelease(api, tag);
+  if (published) return published;
   const matches = (await listReleases(api)).filter((release) => release.tag_name === tag);
   if (matches.length > 1) throw new Error(`more than one release exists for ${tag}`);
   return matches[0] ?? null;
+}
+
+export async function readReleaseById(
+  api: Awaited<ReturnType<typeof client>>,
+  id: number,
+  tag: string,
+) {
+  const response = await api.request("GET /repos/{owner}/{repo}/releases/{release_id}", {
+    owner: "boburning",
+    repo: "portcove",
+    release_id: id,
+    ...read(),
+  });
+  const release = response.data as Release;
+  if (release.id !== id || release.tag_name !== tag)
+    throw new Error("release readback returned an unexpected identity");
+  return release;
+}
+
+export async function assertAppReleaseAssets(version: string, names: readonly string[]) {
+  const policy = await loadPackagePolicy();
+  const cli = policy.packages
+    .filter((entry) => entry.interface === "cli")
+    .map((entry) => ({ label: entry.display_label, filename: artifactName(entry, version) }));
+  const updaterPayloads = [
+    ...new Set(platformAssets.map(({ suffix }) => `Portcove_${version}${suffix}`)),
+  ];
+  assertExactArtifactNames(
+    [
+      ...cli.map((entry) => entry.filename),
+      ...updaterPayloads.flatMap((name) => [name, `${name}.sig`]),
+      `Portcove_${version}_universal.dmg`,
+      "SHA256SUMS",
+    ],
+    names,
+    "app release assets",
+  );
+  return cli;
+}
+
+export async function renderAppReleaseDownloadSection(
+  tag: string,
+  version: string,
+  names: readonly string[],
+) {
+  const cli = await assertAppReleaseAssets(version, names);
+  const channel = classifyRelease(version).channel;
+  if (tag !== `v${version}` && !(channel === "preview" && tag === `nightly-${version}`))
+    throw new Error("download section tag and version disagree");
+
+  const base = `https://github.com/${repository}/releases/download/${tag}`;
+  const link = (name: string) => `[${name}](${base}/${name})`;
+  const rows: [string, string, string][] = [
+    ["Windows x86-64", "Desktop installer", `Portcove_${version}_x64-setup.exe`],
+    ["Linux x86-64", "Desktop AppImage (run directly)", `Portcove_${version}_amd64.AppImage`],
+    ["macOS Apple Silicon and Intel", "Desktop disk image", `Portcove_${version}_universal.dmg`],
+  ];
+  for (const entry of cli)
+    rows.push([entry.label, "Standalone CLI (extract and run)", entry.filename]);
+  return [
+    `## Download Portcove ${version}`,
+    "",
+    tag.startsWith("nightly-")
+      ? "Channel: Nightly Preview"
+      : `Channel: ${channel.charAt(0).toUpperCase()}${channel.slice(1)}`,
+    "",
+    "| Operating system and processor | Purpose | Download |",
+    "| --- | --- | --- |",
+    ...rows.map(([platform, purpose, name]) => `| ${platform} | ${purpose} | ${link(name)} |`),
+    "",
+    `Check the SHA-256 for your exact filename in ${link("SHA256SUMS")} before using it.`,
+    "",
+    `The ${link(`Portcove_${version}_universal.app.tar.gz`)} archive is for the macOS updater. The signature files also serve the updater.`,
+    "",
+    "### CLI quick start",
+    "",
+    "Extract the standalone archive and open a terminal in that folder. Run `./portcove --version` and `./portcove --json capabilities` on Linux or macOS. In Windows PowerShell, use `.\\portcove.exe` in both commands. Check `schema_version` and the commands your frontend needs in the JSON. For Steam Add or Repair, use the CLI from this same release and processor.",
+    "",
+    `See the [CLI guide](https://github.com/${repository}/blob/${tag}/docs/CLI.md) for library selection and launch commands.`,
+  ].join("\n");
 }
 
 /** Creates or completes the release so its asset set equals `distDir`, then publishes it once. */
@@ -583,9 +714,10 @@ export async function publishRelease(options: {
   /** The built commit; GitHub uses it only if the tag does not exist yet. */
   commit?: string;
 }) {
+  const expected = readdirSync(options.distDir).sort();
+  await assertAppReleaseAssets(options.version, expected);
   const api = await client(options.token);
   const uploads = await client(options.token, "https://uploads.github.com");
-  const expected = readdirSync(options.distDir).sort();
   let release = await findRelease(api, options.tag);
   if (release === null) {
     const created = await api.request("POST /repos/{owner}/{repo}/releases", {
@@ -593,7 +725,7 @@ export async function publishRelease(options: {
       repo: "portcove",
       tag_name: options.tag,
       ...(options.commit ? { target_commitish: options.commit } : {}),
-      name: `Portcove ${options.version}`,
+      name: `Portcove ${options.tag.startsWith("nightly-") ? "Nightly — " : ""}${options.version}`,
       body: options.notes,
       draft: true,
       prerelease: options.prerelease,
@@ -620,29 +752,32 @@ export async function publishRelease(options: {
         },
       );
   }
-  const current = (await findRelease(api, options.tag))!;
+  const current = await readReleaseById(api, release.id, options.tag);
   const actual = current.assets.map((asset) => asset.name).sort();
   if (JSON.stringify(actual) !== JSON.stringify(expected))
     throw new Error(
       `release assets differ from this build: ${JSON.stringify({ expected, actual })}`,
     );
-  if (current.draft)
+  if (current.draft) {
+    const downloads = await renderAppReleaseDownloadSection(options.tag, options.version, actual);
     await api.request("PATCH /repos/{owner}/{repo}/releases/{release_id}", {
       owner: "boburning",
       repo: "portcove",
       release_id: current.id,
       draft: false,
+      body: `${downloads}\n\n${options.notes}`,
       make_latest: options.prerelease ? "false" : "true",
       ...once(),
     });
+  }
   return { id: current.id, assets: actual.length };
 }
 
 /** Writes the published release's `.sig` files, so the feed always matches the immutable bytes. */
 export async function downloadPublishedSignatures(token: string, tag: string, dir: string) {
   const api = await client(token);
-  const release = await findRelease(api, tag);
-  if (release === null || release.draft) throw new Error(`${tag} is not a published release`);
+  const release = await findPublishedRelease(api, tag);
+  if (release === null) throw new Error(`${tag} is not a published release`);
   mkdirSync(dir, { recursive: true });
   for (const asset of release.assets.filter((entry) => entry.name.endsWith(".sig"))) {
     const response = await fetch(asset.browser_download_url, {

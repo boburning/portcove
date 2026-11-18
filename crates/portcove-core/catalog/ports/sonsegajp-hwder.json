@@ -3,7 +3,7 @@
   "listing": {
     "id": "sonsegajp-hwder",
     "name": "Hyrule Warriors: Definitive Edition / Hyrule Warriors: Definitive Edition Recomp (sonsegajp)",
-    "summary": "An experimental Hyrule Warriors: Definitive Edition project translating AArch64 code to C for a Windows x64 Vulkan player with custom kernel/services. It reads original NSO segments and data from your own package and claims no CPU JIT. The project reports startup, menus, movies, Adventure/Legend battles, saves and audio in test prereleases; these are not independent play observations. Windows 10/11 x64 needs AVX2 and Vulkan 1.2; movies require MediaFoundation, with the extra feature pack on N editions. Source builds generate C from your dump, but release instructions only provide NSP/keys and do not establish first-run code generation. Use your own base NSP title 0100AE00096EA000 and prod.keys; it decrypts ExeFS/RomFS directly. Exact base revision/region/hashes and firmware/fonts are unconfirmed. The separate musoh 1.0.1 profile is not interchangeable. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "A Windows port of Hyrule Warriors: Definitive Edition that reads your own Switch base game. The project reports menus, battles, movies and saving in test releases. Check the title ID before setup because the separate musoh 1.0.1 profile accepts a different input.",
     "project_url": "https://github.com/sonsegajp/HWDER",
     "issue_number": 1827,
     "listed_at": "2026-10-23",
@@ -17,6 +17,26 @@
       "image_sha256": "6bcb2e3eb76fd024f9f503605a3625b8beacd0bb4645301addacaa113c08def8",
       "game_slug": "hyrule-warriors-definitive-edition",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/sonsegajp/HWDER",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Provide your own base NSP for title 0100AE00096EA000 and prod.keys. The player reads ExeFS and RomFS from the package. The exact region, revision and hashes have not been confirmed."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Follow the project’s Windows 10 or 11 x64 instructions on a machine with AVX2 and Vulkan 1.2. For movies, enable Media Foundation and install the feature pack on Windows N editions."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The project reports Adventure and Legend battles with sound. Source builds generate C from the original game. Release instructions do not say whether this generation occurs on first launch."
+        }
+      ]
     }
   }
 }

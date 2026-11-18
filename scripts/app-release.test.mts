@@ -4,13 +4,18 @@ import { parse } from "yaml";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import { execFileSync } from "node:child_process";
 import {
   addWithdrawn,
+  assertAppReleaseAssets,
   assertNewerThanTags,
   assertVersionUnclaimed,
   buildFeed,
   classifyRelease,
+  findRelease,
+  listReleases,
+  readReleaseById,
   compareVersions,
   isWithdrawn,
   nextPreviewVersion,
@@ -21,6 +26,7 @@ import {
   publishedReleases,
   quietMentions,
   readWorkspaceVersion,
+  renderAppReleaseDownloadSection,
   replacementCandidates,
   stampVersion,
   tagRelease,
@@ -996,7 +1002,7 @@ type WorkflowJob = {
   secrets?: string | Record<string, string>;
   with?: Record<string, unknown>;
   env?: Record<string, unknown>;
-  environment?: string | { name?: string; url?: string };
+  environment?: string | { name?: string; url?: string; deployment?: boolean };
   permissions?: Record<string, string>;
   steps?: WorkflowStep[];
 };
@@ -1005,6 +1011,61 @@ type Workflow = { on: Record<string, unknown>; jobs: Record<string, WorkflowJob>
 const workflowsDirectory = path.join(import.meta.dirname, "..", ".github", "workflows");
 const readWorkflow = async (name: string) =>
   parse(await readFile(path.join(workflowsDirectory, name), "utf8")) as Workflow;
+
+void test("the release requires every desktop bundle, signature and standalone CLI archive", async () => {
+  const version = "0.1.0-preview.7";
+  const names = [
+    "Portcove_0.1.0-preview.7_x64-setup.exe",
+    "Portcove_0.1.0-preview.7_x64-setup.exe.sig",
+    "Portcove_0.1.0-preview.7_amd64.AppImage",
+    "Portcove_0.1.0-preview.7_amd64.AppImage.sig",
+    "Portcove_0.1.0-preview.7_universal.app.tar.gz",
+    "Portcove_0.1.0-preview.7_universal.app.tar.gz.sig",
+    "Portcove_0.1.0-preview.7_universal.dmg",
+    "portcove-cli-0.1.0-preview.7-windows-x86_64.zip",
+    "portcove-cli-0.1.0-preview.7-linux-x86_64.tar.gz",
+    "portcove-cli-0.1.0-preview.7-macos-aarch64.tar.gz",
+    "portcove-cli-0.1.0-preview.7-macos-x86_64.tar.gz",
+    "SHA256SUMS",
+  ];
+  const section = await renderAppReleaseDownloadSection(`nightly-${version}`, version, names);
+  assert.match(section, /Channel: Nightly Preview/u);
+  assert.match(section, /Linux x86-64.*AppImage.*run directly/u);
+  assert.match(section, /Apple Silicon and Intel.*Desktop disk image/u);
+  assert.match(section, /universal\.app\.tar\.gz.*is for the macOS updater/u);
+  assert.match(section, /SHA256SUMS.*nightly-0\.1\.0-preview\.7/u);
+  assert.match(section, /\.\/portcove --json capabilities/u);
+  assert.match(section, /schema_version/u);
+  for (const name of names.filter((name) => !name.endsWith(".sig"))) {
+    assert.ok(section.includes(`/releases/download/nightly-${version}/${name}`));
+  }
+  await assert.rejects(
+    renderAppReleaseDownloadSection("nightly-0.1.0-preview.6", version, names),
+    /tag and version disagree/u,
+  );
+  await assert.rejects(
+    renderAppReleaseDownloadSection(
+      `v${version}`,
+      version,
+      names.filter((name) => !name.includes("cli-")),
+    ),
+    /missing:.*portcove-cli/u,
+  );
+  await assertAppReleaseAssets(version, names);
+  for (const missing of names) {
+    await assert.rejects(
+      assertAppReleaseAssets(
+        version,
+        names.filter((name) => name !== missing),
+      ),
+      (error: Error) => error.message.includes(`missing: ${missing}; unexpected: none`),
+    );
+  }
+  await assert.rejects(
+    assertAppReleaseAssets(version, [...names, "stale.zip"]),
+    /unexpected: stale.zip/u,
+  );
+});
 
 void test("the Linux AppImage build checks its WebKitGTK floor before bundling", async () => {
   const workflow = await readWorkflow("app-release-build.yml");
@@ -1065,7 +1126,10 @@ void test("release workflows keep the signing key behind owner tags and main", a
   // The shared jobs check their inputs before the signing step runs.
   assert.deepEqual(Object.keys(build.on), ["workflow_call"]);
   const buildSteps = build.jobs.build!.steps!;
-  assert.equal(build.jobs.build!.environment, "${{ inputs.environment }}");
+  assert.deepEqual(build.jobs.build!.environment, {
+    name: "${{ inputs.environment }}",
+    deployment: false,
+  });
   const verify = buildSteps.findIndex((step) =>
     step.run?.includes("app-release.mts verify-inputs"),
   );
@@ -1148,5 +1212,48 @@ void test("release workflows keep the signing key behind owner tags and main", a
       if (job.uses?.includes("app-release-build.yml"))
         assert.ok(["app-release.yml", "nightly-preview.yml"].includes(name), `${name}:${id}`);
     }
+  }
+});
+
+void test("lists the complete provider inventory at 999, 1000 and 1001 releases", async () => {
+  for (const count of [999, 1000, 1001]) {
+    const releases = Array.from({ length: count }, (_, index) => ({
+      id: index + 1,
+      tag_name: `v0.0.${index + 1}`,
+      draft: index === count - 1,
+      assets: [],
+    }));
+    const fallback = (status: number) =>
+      new Response(JSON.stringify({ message: "fixture" }), {
+        status,
+        headers: { "content-type": "application/json" },
+      });
+    const endpoint = "https://api.github.com/repositories/1354613114/releases";
+    const endpoints: string[] = [];
+    let interrupt = false;
+    const api = await fixtureGitHub(({ endpoint: route }) => {
+      endpoints.push(route);
+      if (route.includes("/tags/")) return route.endsWith("v0.0.1") ? releases[0] : fallback(404);
+      if (route.endsWith(`/releases/${count}`)) return releases.at(-1);
+      const page = Number(new URL(route, "https://api.github.com").searchParams.get("page") ?? 1);
+      if (interrupt && page === 2) return fallback(500);
+      const more = page * 100 < releases.length;
+      return new Response(JSON.stringify(releases.slice((page - 1) * 100, page * 100)), {
+        headers: {
+          "content-type": "application/json",
+          ...(more ? { link: `<${endpoint}?per_page=100&page=${page + 1}>; rel="next"` } : {}),
+        },
+      });
+    });
+    assert.equal((await findRelease(api, "v0.0.1"))?.id, 1);
+    assert.equal(endpoints.length, 1, "published lookup reads the exact tag");
+    assert.equal((await listReleases(api)).length, count);
+    assert.equal((await findRelease(api, `v0.0.${count}`))?.draft, true);
+    assert.equal(await findRelease(api, "absent"), null);
+    interrupt = true;
+    await assert.rejects(findRelease(api, "absent"), /inventory is incomplete/u);
+    const observed = endpoints.length;
+    assert.equal((await readReleaseById(api, count, `v0.0.${count}`)).id, count);
+    assert.equal(endpoints.length - observed, 1, "retry reads the known ID directly");
   }
 });

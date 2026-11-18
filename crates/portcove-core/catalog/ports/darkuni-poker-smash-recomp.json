@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "darkuni-poker-smash-recomp",
+    "artwork": {
+      "game_id": 21351,
+      "cover_id": 51143,
+      "image_id": "qao4hoonhugsw03xmifm",
+      "image_sha256": "ff66efc38bdde254be2944957a7dc48296c47a333e12b1c04ef29dd1df015aee",
+      "game_slug": "poker-smash",
+      "match_kind": "underlying-game"
+    },
     "name": "Poker Smash (darkuni Recomp)",
     "summary": "Play Poker Smash with darkuni's Windows recompilation and your own purchased Xbox 360 package.",
     "project_url": "https://github.com/darkuni/poker-smash-recomp",

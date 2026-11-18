@@ -10,7 +10,8 @@ import type { ActivityRecord } from "../../types";
 
 import { installRecord, updateCenterFixtures } from "../../components/rendered-test-fixtures";
 import { captureParityState } from "../../../test/parity-capture";
-import { page } from "vite-plus/test/browser";
+import { expectDisclosureAlignment } from "../../../test/disclosure-alignment";
+import { page, userEvent } from "vite-plus/test/browser";
 
 const { port, priorResult } = updateCenterFixtures();
 
@@ -76,6 +77,41 @@ describe("individual update failure interaction", () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
+
+  it.each(["dark", "light"] as const)(
+    "keeps the actual Activity update-check disclosure aligned in %s",
+    async (theme) => {
+      const oldTheme = document.documentElement.dataset.theme;
+      const oldViewport = { width: innerWidth, height: innerHeight };
+      await page.viewport(960, 640);
+      document.documentElement.dataset.theme = theme;
+      try {
+        await root.rerender(view());
+        const summary = page.getByText("About update checks", { exact: true });
+        await expect.element(summary).toBeVisible();
+        summary.element().scrollIntoView({ block: "center" });
+        await document.fonts.ready;
+        expectDisclosureAlignment(summary.element());
+        summary.element().focus();
+        await userEvent.keyboard("{Enter}");
+        expect(summary.element().closest("details")!.open).toBe(true);
+        expectDisclosureAlignment(summary.element());
+        await expect.element(page.getByText("Update statistics", { exact: true })).toBeVisible();
+        await userEvent.keyboard("{Enter}");
+        expect(summary.element().closest("details")!.open).toBe(false);
+        expect(document.activeElement).toBe(summary.element());
+        const bounds = summary.element().getBoundingClientRect();
+        expect(bounds.top).toBeGreaterThanOrEqual(0);
+        expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+        await captureParityState("activity-update-check-disclosure-aligned");
+        expect(checkAll).not.toHaveBeenCalled();
+      } finally {
+        if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+        else document.documentElement.dataset.theme = oldTheme;
+        await page.viewport(oldViewport.width, oldViewport.height);
+      }
+    },
+  );
 
   it("opens and copies only the failed game's supplied diagnostics without navigating or running a check", async () => {
     const error = failureReport();

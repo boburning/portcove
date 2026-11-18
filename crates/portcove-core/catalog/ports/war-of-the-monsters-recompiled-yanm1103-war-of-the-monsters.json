@@ -4,6 +4,14 @@
     "id": "war-of-the-monsters-recompiled-yanm1103-war-of-the-monsters",
     "name": "War of the Monsters — War of the Monsters Recompiled (yanm1103)",
     "original_game_title": "War of the Monsters",
+    "artwork": {
+      "game_id": 3208,
+      "cover_id": 122903,
+      "image_id": "co2mtz",
+      "image_sha256": "b40321c3832a025c2c4c275c6f1f4df5c3db4f1c74b7900a12b89ba9630ec192",
+      "game_slug": "war-of-the-monsters",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project claims keyboard/gamepad fights, movies, sound and 60 FPS through a source build. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/yanm1103/War_of_the_Monsters_recomp",
     "listed_at": "2026-10-25",

@@ -13,6 +13,8 @@ on:
     secrets:
       PORTCOVE_ROADMAP_TOKEN:
         required: true
+      PORTCOVE_DISCOVERY_DATABASE_URL:
+        required: false
   issue_comment:
     types: [created, edited]
   pull_request:
@@ -63,7 +65,8 @@ jobs:
       github.actor == 'boburning' &&
       (github.event_name == 'workflow_dispatch' ||
       (github.event.issue.number == 177 &&
-      startsWith(github.event.comment.body, '<!-- portcove-hosted-intake:v1 -->')))
+      (startsWith(github.event.comment.body, '<!-- portcove-hosted-intake:v1 -->') ||
+      startsWith(github.event.comment.body, '<!-- portcove-hosted-intake-amendment:v1 -->'))))
     runs-on: ubuntu-latest
     # Progress-aware worker passes share a 90-minute deadline inside this outer limit.
     timeout-minutes: 100
@@ -88,11 +91,15 @@ jobs:
           node-version-file: .node-version
       - name: Install trusted locked GitHub dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - name: Ensure the maintenance PostgreSQL client is available
+        if: github.ref_name == github.event.repository.default_branch && inputs.mode != 'probe'
+        run: command -v psql || sudo apt-get install -y --no-install-recommends postgresql-client
       - name: Reconcile retained hosted requests through maintained intake and doctor
         run: node scripts/hosted-discovery-intake-runner.mts
         env:
           GH_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
           REPOSITORY_TOKEN: ${{ github.token }}
+          PORTCOVE_DISCOVERY_DATABASE_URL: ${{ github.ref_name == github.event.repository.default_branch && inputs.mode != 'probe' && secrets.PORTCOVE_DISCOVERY_DATABASE_URL || '' }}
           HOSTED_INTAKE_MODE: ${{ inputs.mode }}
           HOSTED_INTAKE_PROBE: ${{ inputs.probe_issue }}
       - name: Retain bounded diagnostics in job logs without metered artifact storage
@@ -104,7 +111,7 @@ jobs:
           const passes = existsSync(root) ? readdirSync(root).filter(name => /^pass-[1-9]\d?$/.test(name)) : [];
           for (const directory of [root, ...passes.map(name => `${root}/${name}`)]) {
           if (existsSync(directory)) for (const name of readdirSync(directory)) {
-            if (!/^(?:summary|inventory-recollection|write-probe|write-proof-\d+|doctor-\d+-\d+|global-doctor-\d+|failure-\d+|receipt-\d+|api-observations|budget)\.json$/.test(name)) continue;
+            if (!/^(?:summary|inventory-recollection|write-probe|write-proof-\d+|audit-repairs-\d+|hold-\d+-[a-z0-9-]+|doctor-\d+-\d+|global-doctor-\d+|failure-\d+|receipt-\d+|api-observations|budget)\.json$/.test(name)) continue;
             const bytes = readFileSync(`${directory}/${name}`);
             if (bytes.length <= 262144) console.log(JSON.stringify({ file: `${directory}/${name}`, evidence: JSON.parse(bytes) }));
           }

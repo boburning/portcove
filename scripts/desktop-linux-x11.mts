@@ -32,6 +32,7 @@ import {
   parseDesktopHarnessOptions,
   resolveDesktopHarnessSelection,
 } from "./desktop-execution-plan.mts";
+import { desktopHarnessDeadlineMs } from "./desktop-scenarios.mts";
 
 const source = fileURLToPath(import.meta.url);
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -54,6 +55,7 @@ interface DisplayReceipt {
   format_version: number;
   scope: string;
   stage: X11Configuration["stage"];
+  execution_budgets_ms: ReturnType<typeof linuxX11ExecutionBudgets>;
   authorization: string;
   prerequisites: FileIdentity[];
   events: never[];
@@ -121,6 +123,24 @@ export function assertQualificationUidMap(callerUid: number, mapping: string) {
   assert.ok(Number.isSafeInteger(callerUid) && callerUid > 0 && callerUid < 0xffffffff);
   assert.equal(mapping.trim().replace(/\s+/gu, " "), `0 ${callerUid} 1`);
 }
+export function linuxX11ExecutionBudgets(config: Pick<X11Configuration, "stage" | "harness_args">) {
+  const harness =
+    config.stage === "harness"
+      ? desktopHarnessDeadlineMs(
+          resolveDesktopHarnessSelection(parseDesktopHarnessOptions(config.harness_args).values),
+        ) + 60_000
+      : 240_000;
+  const outer = harness + 30_000;
+  const inputCapture = 300_000;
+  const inputVerification = 120_000;
+  return {
+    harness,
+    outer,
+    inputCapture,
+    inputVerification,
+    command: inputCapture + outer + inputVerification + 60_000,
+  };
+}
 export async function readLinuxX11Configuration(file: string) {
   const value: unknown = JSON.parse(await readFile(file, "utf8"));
   const config = configuration(value);
@@ -140,8 +160,7 @@ export async function readLinuxX11Configuration(file: string) {
     0xef53,
     "The proven route requires ext4 outputs",
   );
-  if (config.stage === "harness")
-    resolveDesktopHarnessSelection(parseDesktopHarnessOptions(config.harness_args).values);
+  linuxX11ExecutionBudgets(config);
   return { config, identities };
 }
 
@@ -194,6 +213,7 @@ async function virtualDisplay(config: X11Configuration, runtime: string) {
     format_version: 1,
     scope,
     stage: config.stage,
+    execution_budgets_ms: linuxX11ExecutionBudgets(config),
     authorization: "private cookie excluded from capture and receipts",
     prerequisites: await Promise.all(
       [config.xvfb, config.xkbcomp].map((file) => fileIdentity(file)),
@@ -351,7 +371,7 @@ async function virtualDisplay(config: X11Configuration, runtime: string) {
       program.child.stdout.pipe(process.stdout);
       program.child.stderr.pipe(process.stderr);
       await program.ready();
-      receipt.harness_exit = await waitExit(program, 240_000);
+      receipt.harness_exit = await waitExit(program, receipt.execution_budgets_ms.harness);
       await close(program, "harness_join");
       program = undefined;
       assert.equal(receipt.harness_exit.code, 0);
@@ -464,9 +484,10 @@ export async function runLinuxX11(file: string) {
   });
   let launch: NativeLaunch | undefined;
   try {
+    const budgets = linuxX11ExecutionBudgets(config);
     const retainedRoot = retainedEvidenceRoot(config.output_root);
     const inputs = [];
-    const signal = AbortSignal.timeout(60_000);
+    const signal = AbortSignal.timeout(budgets.inputCapture);
     for (const input of [
       config.xvfb,
       config.xkbcomp,
@@ -530,7 +551,7 @@ export async function runLinuxX11(file: string) {
     launch.child.stdout.pipe(process.stdout);
     launch.child.stderr.pipe(process.stderr);
     await launch.ready();
-    const exit = await waitExit(launch, 270_000);
+    const exit = await waitExit(launch, linuxX11ExecutionBudgets(config).outer);
     const join = await launch.stop();
     launch = undefined;
     await writeFile(
@@ -538,7 +559,7 @@ export async function runLinuxX11(file: string) {
       JSON.stringify({ exit, join }, null, 2) + "\n",
       { flag: "wx" },
     );
-    await verifyConsumedInputs(inputs, { signal: AbortSignal.timeout(60_000) });
+    await verifyConsumedInputs(inputs, { signal: AbortSignal.timeout(budgets.inputVerification) });
     process.exitCode = exit.code ?? 1;
   } finally {
     if (launch) {
@@ -644,6 +665,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === source) {
         await bootstrap({ ...config, _caller_uid: raw._caller_uid }, runtime);
       } else await virtualDisplay(config, runtime);
     } else if (mode === "--config" && value && !runtime) {
+      const budgetConfiguration: unknown =
+        process.platform === "linux" ? JSON.parse(await readFile(value, "utf8")) : undefined;
+      const executionTimeoutMilliseconds =
+        process.platform === "linux"
+          ? linuxX11ExecutionBudgets(configuration(budgetConfiguration)).command
+          : undefined;
       process.exitCode = await resourceEntrypoint(
         process.platform === "win32" ? "rust" : "browser",
         async () => {
@@ -651,7 +678,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === source) {
           else await runLinuxX11(value);
           return Number(process.exitCode ?? 0);
         },
-        { exclusive: [frontendOutputResource(root)] },
+        {
+          exclusive: [frontendOutputResource(root)],
+          ...(executionTimeoutMilliseconds === undefined ? {} : { executionTimeoutMilliseconds }),
+        },
       );
     } else
       throw new Error(

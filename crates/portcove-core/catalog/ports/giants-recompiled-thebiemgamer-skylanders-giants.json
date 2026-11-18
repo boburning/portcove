@@ -4,6 +4,14 @@
     "id": "giants-recompiled-thebiemgamer-skylanders-giants",
     "name": "Skylanders Giants — Giants Recompiled (TheBiemGamer)",
     "original_game_title": "Skylanders Giants",
+    "artwork": {
+      "game_id": 1586,
+      "cover_id": 91745,
+      "image_id": "co1ysh",
+      "image_sha256": "35b73176ac616e4d0039205e1651c15b6feeb91046b40ca2cb17e0a7eafeb597",
+      "game_slug": "skylanders-giants",
+      "match_kind": "underlying-game"
+    },
     "summary": "Upstream describes early gameplay. Modes other than Story have not been tested. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/TheBiemGamer/GiantsRecomp",
     "listed_at": "2026-10-25",

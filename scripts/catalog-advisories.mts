@@ -28,6 +28,7 @@ const fields = new Set([
   "observed_at",
   "evidence",
   "workaround",
+  "launch_behavior",
 ]);
 function text(v: unknown, max: number): v is string {
   if (typeof v !== "string" || !v || v.trim() !== v || Buffer.byteLength(v) > max) return false;
@@ -37,6 +38,12 @@ function text(v: unknown, max: number): v is string {
   }
   return true;
 }
+const launchBehaviors = [
+  "starts-game-directly",
+  "opens-project-launcher",
+  "asks-for-game-files",
+  "unknown",
+];
 const descriptive = (v: unknown) =>
   text(v, 2048) && !/`|\$\(|(?:[a-z]:\\|\/(?:home|Users)\/)/iu.test(v);
 
@@ -48,13 +55,18 @@ export function checkCatalogAdvisories(
 ): void {
   if (
     !isRecord(value) ||
-    value.format_version !== 1 ||
+    (value.format_version !== 1 && value.format_version !== 2) ||
     Object.keys(value).some((k) => !["format_version", "records"].includes(k)) ||
     !Array.isArray(value.records) ||
     value.records.length > 64 ||
     Buffer.byteLength(JSON.stringify(value)) > 65536
   )
-    throw new Error("Compatibility advisories require a bounded format-1 envelope.");
+    throw new Error("Compatibility advisories require a bounded supported envelope.");
+  if (
+    value.format_version === 2 &&
+    !value.records.some((r) => isRecord(r) && r.launch_behavior != null)
+  )
+    throw new Error("Compatibility format 2 requires a launch behavior record.");
   const ids = new Set<string>();
   for (const r of value.records) {
     if (
@@ -67,10 +79,11 @@ export function checkCatalogAdvisories(
       !features.has(r.feature) ||
       typeof r.platform !== "string" ||
       !platforms.includes(r.platform) ||
-      !["managed", "accepted-external", "existing-copy", "user-selected"].includes(
-        String(r.route),
-      ) ||
-      !["observed", "upstream-reported", "manual-requirement"].includes(String(r.evidence)) ||
+      typeof r.route !== "string" ||
+      (!["managed", "accepted-external", "existing-copy", "user-selected"].includes(r.route) &&
+        !(r.route === "upstream-setup" && r.launch_behavior != null)) ||
+      typeof r.evidence !== "string" ||
+      !["observed", "upstream-reported", "manual-requirement"].includes(r.evidence) ||
       !descriptive(r.explanation) ||
       !Number.isSafeInteger(r.observed_at) ||
       Number(r.observed_at) <= 0 ||
@@ -91,6 +104,25 @@ export function checkCatalogAdvisories(
         !r.release)
     )
       throw new Error("Artifact advisories require a release and SHA-256.");
+    if (Object.hasOwn(r, "launch_behavior")) {
+      const launch = r.launch_behavior;
+      if (
+        value.format_version !== 2 ||
+        r.feature !== "launch" ||
+        !r.release ||
+        !r.artifact_sha256 ||
+        !["observed", "upstream-reported"].includes(r.evidence) ||
+        !isRecord(launch) ||
+        Object.keys(launch).length !== 2 ||
+        typeof launch.first_launch !== "string" ||
+        !launchBehaviors.includes(launch.first_launch) ||
+        typeof launch.repeat_launch !== "string" ||
+        !launchBehaviors.includes(launch.repeat_launch)
+      )
+        throw new Error(
+          "Launch behavior requires an exact release, artifact and both launch stages.",
+        );
+    }
     if (!text(r.provenance, 2048)) throw new Error("Advisory provenance is required.");
     const url = new URL(r.provenance);
     if (url.protocol !== "https:" || !url.hostname || url.username || url.password || url.search)

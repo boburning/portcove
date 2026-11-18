@@ -1,3 +1,4 @@
+import { ImplementationFacts } from "./ImplementationFacts";
 import { useGameComparison } from "../recommendations/use-game-comparison";
 import {
   GameComparisonControls,
@@ -13,7 +14,7 @@ import { Trans } from "react-i18next";
 import { useAppTranslation } from "../../localization";
 import { ArrowRight, GitCompareArrows, Heart, Star } from "lucide-react";
 import { ArtworkFrame, artworkDisplayNotice } from "../../components/Artwork";
-import { useArtwork, useArtworkVisibility } from "../../artwork";
+import { useArtwork, useArtworkVisibility, useCompanionCover } from "../../artwork";
 import { ExternalLink } from "../../components/ExternalLink";
 import { Button } from "../../components/ui/button";
 import { Chip } from "../../components/ui/chip";
@@ -179,6 +180,7 @@ export function GroupedDiscover({
             onTask={onTask}
             key={group.id}
             group={group}
+            showCompanion={layout === "covers"}
             statuses={statuses}
             descriptionPrefix={descriptionPrefix}
             nativeSourceDrag={nativeSourceDrag}
@@ -217,7 +219,7 @@ export function GroupedDiscover({
                   : t("discover.compare.several", { total: comparison.ports.length })}
               </DialogDescription>
               <details className="my-4 text-xs text-pc-muted-foreground">
-                <summary data-focusable className="cursor-pointer py-2">
+                <summary data-focusable className="disclosure-pad-2 cursor-pointer">
                   {t("discover.compare.options")}
                 </summary>
                 <p>{t("discover.compare.optionsIntro")}</p>
@@ -263,7 +265,8 @@ export function GroupedDiscover({
                         )}
                       </header>
                       <ComparisonPortFacts port={port} status={status} single={single} />
-                      <div className="min-w-0">
+                      <div className="grid min-w-0 content-start gap-2">
+                        <ImplementationFacts port={port} />
                         <GameComparisonEvidence
                           comparison={evidence}
                           portId={port.id}
@@ -412,6 +415,7 @@ const DiscoverGameCard = memo(DiscoverGameCardView, (previous, next) => {
 
 function DiscoverGameCardView({
   group,
+  showCompanion,
   onTask,
   statuses,
   descriptionPrefix,
@@ -423,6 +427,7 @@ function DiscoverGameCardView({
   compare,
 }: {
   group: GameGroup;
+  showCompanion: boolean;
   onTask?: ((activityId?: string) => void) | undefined;
   statuses: ReadonlyMap<string, PortStatus>;
   descriptionPrefix: string;
@@ -449,6 +454,12 @@ function DiscoverGameCardView({
   const detailOrigin = `catalog:card:${first.id}`;
   const { element: artworkElement, visible } = useArtworkVisibility();
   const { display: artwork } = useArtwork(first.id, "cover", visible);
+  const companion = useCompanionCover(
+    first.id,
+    showCompanion ? first.presentation?.companion_cover?.image_sha256 : undefined,
+    artwork,
+    visible,
+  );
   const artworkNotice = artworkDisplayNotice(artwork);
   return (
     <article
@@ -486,14 +497,13 @@ function DiscoverGameCardView({
             : group.ports.length > 1
               ? t("discover.identity.matching", {
                   title: gameTitle(first),
-                  project: projectLabel,
+                  project: projectLabel ?? "",
                   port: firstProject,
                   state: observation.state.label,
                   action: memberLabel(t, first, status),
                 })
               : t("discover.identity.single", {
-                  title: gameTitle(first),
-                  project: projectLabel,
+                  identity: projectLabel ? `${gameTitle(first)} ${projectLabel}` : gameTitle(first),
                   state: observation.state.label,
                   action: memberLabel(t, first, status),
                 })
@@ -506,11 +516,16 @@ function DiscoverGameCardView({
         <ArtworkFrame
           element={artworkElement}
           display={artwork}
+          portId={first.id}
+          visible={visible}
+          companion={companion}
           identityArtwork
           className="collection-art"
         />
         <h2 className="collection-title font-semibold">{gameTitle(first)}</h2>{" "}
-        <p className="collection-project text-pc-muted-foreground">{projectLabel}</p>
+        {projectLabel && (
+          <p className="collection-project text-pc-muted-foreground">{projectLabel}</p>
+        )}
       </Button>
       <div className="collection-personal-actions">
         {group.ports.length === 1 && favorite(first, true)}
@@ -612,13 +627,13 @@ function discoverCardIdentity(
     organization?.snapshot ? (organization.snapshot.preferred_port_by_game ?? {}) : undefined,
   ).port;
   const first = chosen ?? group.matchingPorts[0]!;
-  const firstProject = gameProjectLabel(first) || first.name;
+  const firstProject = gameProjectLabel(first);
   return {
     first,
     actionGroup: chosen ? { ...group, matchingPorts: [chosen] } : group,
     status: statuses.get(first.id),
     exact: Boolean(chosen) || group.matchingPorts.length === 1,
-    firstProject,
+    firstProject: firstProject ?? first.name,
     projectLabel:
       group.ports.length === 1
         ? firstProject

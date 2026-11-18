@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "wolfenstein-3d-reflectionhle",
+    "artwork": {
+      "game_id": 262516,
+      "cover_id": 325157,
+      "image_id": "co6yw5",
+      "image_sha256": "c6997e9d87f5abc5fa7603d6e6b2597e5d7913354c1705eb075c16851cc56c5a",
+      "game_slug": "wolfenstein-3d--1",
+      "match_kind": "underlying-game"
+    },
     "name": "Wolfenstein 3D (ReflectionHLE)",
     "summary": "Play Wolfenstein 3D through ReflectionHLE with the matching original DOS game files.",
     "original_game_title": "Wolfenstein 3D",

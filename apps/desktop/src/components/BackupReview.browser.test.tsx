@@ -78,7 +78,7 @@ it("reviews exact paths and safety-backup behavior before a bound restore", asyn
   expect(document.body.textContent).toContain("game must be stopped");
   expect(document.body.textContent).toContain("retains recovery data");
   await captureParityState("backup-restore-reviewed-fixture");
-  await expect.poll(() => document.activeElement?.textContent).toBe("Cancel");
+  await expect.poll(() => document.activeElement?.id).toBe("backup-review-title");
   await click("Restore this backup");
   expect(apply).toHaveBeenCalledWith(review.preview.backup, "reviewed-data");
   expect(close).toHaveBeenCalledOnce();

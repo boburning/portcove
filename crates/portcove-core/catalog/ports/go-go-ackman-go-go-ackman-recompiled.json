@@ -5,6 +5,14 @@
     "name": "Go Go Ackman (Go Go Ackman Recompiled)",
     "summary": "Use an already permitted Go Go Ackman v1.0 Windows player with your own exact Japanese ROM. The project combines compiled game code with an interpreter; full-game compatibility is unconfirmed. Fresh downloads remain conditional on permission for embedded translation content. Portcove has not confirmed setup or gameplay. Linux Flatpak is a separate upstream package.",
     "original_game_title": "Go Go Ackman",
+    "artwork": {
+      "game_id": 15926,
+      "cover_id": 119792,
+      "image_id": "co2kfk",
+      "image_sha256": "b34daab0504ef5ffb26d3a72871596c0ea0544c8861b0530ccf451fc23b6289d",
+      "game_slug": "go-go-ackman",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/catmidori/gogoackman1recomp",
     "platforms": [],
     "availability": "unknown",

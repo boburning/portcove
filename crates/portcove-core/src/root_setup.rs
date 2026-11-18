@@ -674,6 +674,7 @@ impl PortcoveService {
                     offset: start,
                     limit: ROOT_MATCH_PAGE,
                     root_id: Some(root.id.clone()),
+                    profile_id: None,
                 }) {
                     Ok(page) => page,
                     // A newer scan replaced this one; the next pass reads it.

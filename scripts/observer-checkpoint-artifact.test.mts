@@ -1159,6 +1159,12 @@ void test("framed transfer enforces runtime, window, integrity, framing, budget 
     yield { name: "first", bytes: Buffer.from("original") };
     yield { name: "second", bytes: Buffer.from("retained") };
   }
+  // Decode/re-encode of the bounded retained graph may need more than one minute.
+  await encodeObserverRecords(input(), { ...limits, deadline: Date.now() + 120_000 });
+  await assert.rejects(
+    encodeObserverRecords(input(), { ...limits, deadline: Date.now() + 181_000 }),
+    /deadline/,
+  );
   const encoded = await encodeObserverRecords(input(), limits);
   const values: string[] = [];
   await decodeObserverRecords(encoded.bytes, limits, (name, bytes) =>

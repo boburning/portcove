@@ -366,7 +366,7 @@ deadlines, assertions and zero retries remain; the original compilation delay is
 not retrospectively diagnosed or repaired by a later pass.
 These are retained calibration records, not ceilings or a requirement for fresh
 owner permission. Future harness-only adjustments follow the standing
-[timeout authorization](#autonomous-test-timeout-calibration); #706 security-risk
+[timeout authorization](../QUALITY.md#autonomous-test-timeout-calibration); #706 security-risk
 acceptance and other protected authority remain separate and unchanged.
 Use the [CI timing diagnostics](../DEVELOPMENT-TOOLS.md#ci-timing-diagnostics) to
 assess the next three genuine warm focused hosted runs; instrumentation alone

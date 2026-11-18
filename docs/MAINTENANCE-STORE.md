@@ -30,6 +30,23 @@ never becomes a second copy of it.
 Reporting code never infers capability, compatibility or eligibility from issue
 closure, titles or tags. Those rules stay in Core.
 
+### Discovery executor checkpoints
+
+The hosted intake executor uses migration `0005` with its own PostgreSQL login
+in `portcove_maintenance_executor`, provided to the main-branch workflow as
+`PORTCOVE_DISCOVERY_DATABASE_URL`. The existing maintenance migration job applies
+the schema. Configure the login after that migration. The executor checks the
+active store and advances each batch by exact request hash, previous receipt and
+revision. GitHub comments remain the portable public receipts.
+
+The deployment activation row is local to the database being used for writes.
+Portable restore verifies the backup, applies pending migrations and clears
+discovery activation. Before reactivating a replacement or restored store,
+reconcile the retained candidate and receipt bindings against GitHub, including
+unconfirmed writes. The schema owner can then set the singleton
+`portcove_maintenance_meta.discovery_intake_activation.active` to true. An
+executor login has read-only access to that flag.
+
 ## Canonical identities
 
 `subject_key` is `<kind>:<identity>` using an existing canonical identity:
@@ -208,7 +225,7 @@ migration and every restore. It defines three `NOLOGIN` group roles:
 | Role                             | May write                                                                            |
 | -------------------------------- | ------------------------------------------------------------------------------------ |
 | `portcove_maintenance_collector` | Runs, observations, assessments, transitions, reconsiderations and new notifications |
-| `portcove_maintenance_executor`  | Operations and notification delivery state                                           |
+| `portcove_maintenance_executor`  | Operations, intake checkpoints and notification delivery state                       |
 | `portcove_maintenance_report`    | Nothing; read-only                                                                   |
 
 All three can read. None owns or alters the schema. Operators grant membership
@@ -322,7 +339,9 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
 - Each source records a collection run. Its coverage is relative to the
   declared sample.
   The catalog observation is bound to the commit. The Core observation is bound
-  to the CLI binary SHA-256, the host platform and the isolation scope. Each
+  to the CLI binary SHA-256, the host platform returned by that executable's
+  isolated `doctor` command and the isolation scope. Legacy keys derived from
+  the launcher's architecture are only reusable with matching producer evidence. Each
   Core run's revision records the binary digest and, with `--targets`, the
   build's recorded source and its `verified` or `unverified` binding ([Core
   target routes](#core-target-routes)). Without `--targets` no source is
@@ -1254,3 +1273,25 @@ stub Core CLI, using the collector and report roles. It checks:
   prerequisite skip elsewhere. These are fixture results. Hosted provider, backup
   destination and unattended operation evidence belong to the later #4129
   checkpoints.
+
+## Optional upstream research progress
+
+`maintenance-inventory.mts collect --all --cli PATH --progress
+scripts/upstream-progress/sources-v1.json` adds the reviewed research scope through
+the same collector, transaction and daily workflow. Each exact source has a
+`research-progress-<scope digest>` run with the existing acquisition fence,
+append-only observations and changes-only membership. Failed sources preserve
+last-good rows and checks; an unavailable provider never stalls unrelated
+sources or Core assessment.
+
+`report` includes dated progress, exact game/edition, metric meaning, evidence
+and last-attempt failure alongside last-good age. Stored optional rows are
+validated again before rendering. A missing or stale progress row has no effect
+on the offered-route assessment. Research conditions use the existing transition
+and notification tables; unchanged checks do not notify and repeated states
+retain distinct transition episodes. New progress dispatch is not enabled.
+Current project opt-outs suppress future report and pending-digest exposure of
+older research evidence, while private immutable recovery history remains.
+
+The owning adapter, scope, precision, failure and opt-out contract is
+[Optional research-progress observations](UPSTREAM-OBSERVATIONS.md#optional-research-progress-observations).

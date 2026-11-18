@@ -75,7 +75,9 @@ fn folder_setup_is_off_by_default_and_records_an_explicit_boundary() {
     // An empty folder sets up nothing and launches nothing.
     let pass = run(&["--json", "games", "setup-ready"]);
     assert!(pass.status.success(), "{pass:?}");
-    assert_eq!(json_stdout(&pass)["data"]["batches"], serde_json::json!([]));
+    let pass = json_stdout(&pass);
+    assert_eq!(pass["data"]["batches"], serde_json::json!([]));
+    assert!(pass["data"].get("game_setup_unavailable").is_none());
 
     let human = run(&["games", "folder-setups"]);
     assert!(human.status.success(), "{human:?}");
@@ -91,4 +93,38 @@ fn folder_setup_is_off_by_default_and_records_an_explicit_boundary() {
         json_stdout(&run(&["--json", "games", "folder-setups"]))["data"],
         serde_json::json!([])
     );
+}
+
+#[test]
+fn standing_setup_machine_result_distinguishes_an_unreadable_game_queue() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    drop(portcove_core::Library::open(&library).unwrap());
+    let database = rusqlite::Connection::open(library.join("portcove.sqlite3")).unwrap();
+    database.execute(
+        "INSERT INTO port_intents(port_id, updated_at, record_json) VALUES ('zelda64-recomp', 1, X'00')",
+        [],
+    ).unwrap();
+    drop(database);
+
+    let capabilities = portcove(&library, &["--json", "capabilities"]);
+    assert!(capabilities.status.success(), "{capabilities:?}");
+    let capabilities = json_stdout(&capabilities);
+    let pass = portcove(&library, &["--json", "games", "setup-ready"]);
+    assert!(pass.status.success(), "{pass:?}");
+    let pass = json_stdout(&pass);
+    assert_eq!(pass["schema_version"], portcove_core::API_SCHEMA_VERSION);
+    assert_eq!(
+        pass["schema_version"],
+        capabilities["data"]["schema_version"]
+    );
+    assert_eq!(pass["command"], "games.setup-ready");
+    assert_eq!(pass["ok"], true);
+    assert!(pass["error"].is_null());
+    assert!(
+        pass["data"]["game_setup_unavailable"]
+            .as_str()
+            .is_some_and(|reason| !reason.is_empty())
+    );
+    assert_eq!(pass["data"]["batches"], serde_json::json!([]));
 }

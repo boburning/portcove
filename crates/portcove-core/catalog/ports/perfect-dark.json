@@ -75,7 +75,25 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Set up the managed copy",
+            "instruction": "Select your own US Rev 1 Perfect Dark game file. Portcove checks the original and installs the managed player for this computer."
+          }
+        ],
+        "help_url": "https://github.com/perfect-dark-pc-port/perfect_dark#macos"
+      }
     }
+  },
+  "managed_setup_platform_warnings": {
+    "macos-x86-64": [
+      "Before choosing Play on this Mac, use the upstream Mac instructions to install SDL2.framework in /Library/Frameworks. You manage the system framework separately."
+    ],
+    "macos-aarch64": [
+      "Before choosing Play on this Mac, use the upstream Mac instructions to install SDL2.framework in /Library/Frameworks. You manage the system framework separately."
+    ]
   }
 }

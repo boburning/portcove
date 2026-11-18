@@ -61,6 +61,24 @@ impl ReleaseProvider for CompositeReleaseProvider {
         }
     }
 
+    async fn resolve_shape_fallback(
+        &self,
+        port: &PortDefinition,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        withheld: &ResolvedRelease,
+    ) -> Result<Option<crate::ScopedResolvedRelease>> {
+        if port.release.provider != ReleaseSource::Github {
+            return Ok(None);
+        }
+        if port.release.managed_build.contains_key(&platform) {
+            return Err(crate::cartridge_build::retired_creation());
+        }
+        self.github
+            .resolve_shape_fallback(port, platform, scope, withheld)
+            .await
+    }
+
     fn cached_release_notes(
         &self,
         port: &PortDefinition,

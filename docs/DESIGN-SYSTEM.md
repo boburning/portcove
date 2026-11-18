@@ -2,6 +2,28 @@
 
 The current whole-product composition and coverage contract is [Integrated UI design](INTEGRATED-UI-DESIGN.md). Reuse the existing control, token, preference and domain-projection owners throughout; task-specific layouts do not introduce a second authority.
 
+## Path values
+
+Opaque file and folder paths use `path-value` or the existing `saved-file-path`
+primitive. They remain selectable, exact and left to right. Break long values
+across available lines without leaving an extended Windows prefix alone above
+the drive or UNC location. Preserve each consumer's existing typography and
+surface; this presentation rule never normalizes or changes a stored path.
+Loading and unavailable messages are ordinary UI copy, not path values. They
+use normal word wrapping; only an actual path uses code styling and forced
+left-to-right direction.
+
+## Required-file discovery
+
+The Find required files heading names its dialog without a duplicate category
+kicker; its accessible description remains attached. This surface owns its
+internal rhythm. Keep the required-file choice and game-file-folder actions
+together, separate them from the search-folder/store choices, then separate scan
+results from both groups.
+Preliminary selections keep their warning and unvalidated status beside the
+existing review control; spacing does not alter admission or file actions.
+The groups reflow without horizontal overflow in compact and wide dialogs.
+
 ## Saved-location impact
 
 Saved-location removal uses an inline impact region within Game files. Its
@@ -16,10 +38,23 @@ Raw filesystem availability cannot announce passed checks when ownership or
 validation refuses the folder. Full, unavailable and unknown results remain
 explicit; the host retains apply authorization and preimage checks.
 
+Install-folder reads belong to the exact port and library generation. A new
+scope starts a fresh loading session; ordinary rerenders in the same scope keep
+the player's draft. An unavailable initial read offers a read-only retry through
+the existing metadata APIs, including while unrelated work is busy. Path changes
+retain their existing review, busy and readiness guards. Loading, unavailable and
+loaded information stay distinct. Retry completion transfers focus only while
+it still owns the current navigation scope; a player who moved to another control
+or dialog keeps that focus.
+
 ## Library and Discover covers and compact rows
 
 Library and Discover default independently to Covers; Compact rows uses the same entries and authoritative
 local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover defaults to Title A–Z when no sort is saved and offers Catalog order, Title A–Z, Title Z–A and In library first (#5058 F4; a tested-first shelf waits for a native look at the real catalog). With an observed device target, Catalog order is labeled Library & device to describe the existing deterministic library/device ranking; its explanation remains visible. No subjective recommendation or quality score is implied. Library counts entries, including separate ports for one game; the Discover header counts the cards it shows as games, and port counts stay on each game's comparison (#5058 F3).
+While Library results are loading, its loading surface owns the pending explanation;
+result counts and unavailable-result copy wait for settlement. A settled unread
+result remains unavailable, and a known empty result remains distinct.
+
 Search, named Readiness, independent Favorites and declared filters share the
 retrieval area. Quick views keep their own navigation row above the search/filter
 toolbar and deliberately reflow at narrow or enlarged-text widths; no hidden
@@ -35,15 +70,22 @@ selection scope, including filtered-out entries in supported Steam commands.
 
 Library covers use content-driven columns with a preferred minimum of 11.25rem,
 giving six columns at the matched 1440px desktop viewport with the normal interface
-size and full sidebar. At desktop widths of761px and above with height800px or
-less, Library uses a10rem minimum for denser short windows. Whole-image
+size and full sidebar in tall windows. Whole-image
 2:3 artwork caps at 220 CSS pixels, and identity and overlay controls share that
 width. Below 760px the preferred minimum is 10rem; 360–480px windows use two
 flexible columns with a 12px gap and no artwork cap, while narrower windows use
 one column. Available width and interface size still determine readable text and
-control wrapping. Library covers use 10px artwork corners, a 24px effective art-to-title gap and
+control wrapping. Poster covers use 10px artwork corners, a 24px effective art-to-title gap and
 600 title weight; compact rows and Discover keep their own geometry.
-Cover cards reserve two readable lines for both title and project (the project reserves one line in desktop windows up to 760px high and expands on hover and keyboard focus), aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
+In short or narrow windows, a single visible Library cover uses spare grid width
+to place its identity beside the portrait. Its status and primary action follow
+in a footer spanning the card. A sole multi-port group uses the same layout and keeps
+its other implementations below the selected port or choice prompt.
+At effective heights up to 800px, multiple Library covers use a 20rem preferred
+column minimum and place identity beside a contained portrait. Their status and
+primary actions span the card below. This keeps the first row actionable in a
+960×640, 1280×800 and 1366×768 windows while retaining larger artwork than compact Rows.
+Poster cover cards reserve two readable lines for both title and project (the project reserves one line in desktop windows up to 760px high and expands on hover and keyboard focus), aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
 40em. Footer actions stay beside the dominant status without overlapping it. A ready card's Play pairs a triangle with a compact signature-red labeled button, so the primary action is recognizable on arrival; its accessible name adds the game and project ("Play: Title · Project"), as do View task and the setup/review actions. Readiness stays a compact text-and-icon cue, and updates remain secondary while the game is playable. Routine Stable is omitted from Library card chips; a non-Stable channel or a channel that differs from the selected one stays visible. Discover cards likewise omit the chip when Stable is the only offered channel and the selected channel is Stable or unset; Preview, Rolling and mixed channels stay, and the comparison dialog shows every offered channel. With an observed device target, Discover cards omit platform chips and show “Not available for Platform” only when a port lists platforms that exclude this device; without a device target the platforms stay listed. The single-port “Why this port?” view omits setup, file and update rows and the “No platform/update channel is listed” lines when they have no value; several ports keep every row aligned for comparison (#5058 F3, F5). Release-channel and platform chips and filter options are neutral: semantic green means ready to play and blue means selection or a link, so a kept update is a neutral status with its icon; original-system identity colors remain (#5058 V2). “Update saved for later” stays, because a kept version may reuse local bytes without a download. (Supersedes the quiet bordered repeated Play; see #5058 L4–L5.) Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
 The quick views read as underlined navigation above the search/filter toolbar.
 Artwork remains contained; neither a crop nor a provider mapping is inferred.
@@ -55,7 +97,8 @@ playable current installation keeps Play when a downloaded candidate is present.
 The candidate has a concise update review link. Healthy update entries omit the redundant green readiness summary while retaining Play. Mandatory setup/repair/unknown states and concurrent blockers remain visible. Acquisition work or attention precedes prepared/available update copy; secondary update/channel facts use an explicit disclosure. Active invocations lead to their existing task destination.
 
 Compact rows keep 32x48px contained thumbnails (up to 40x60px with text enlargement),
-10px block padding, full wrapping identity and a bounded action span. The list
+10px block padding, full wrapping identity and a status/action column bounded
+by both the available width and a maximum. The list
 uses the available workspace width. Below 36em readiness stacks beneath identity with
 thumbnail alignment indentation; its separate column has no indentation. Below
 28em actions follow readiness. Artwork loading, stale/failed notices and user
@@ -79,6 +122,9 @@ game detail identity chip names the fact as Original system not specified.
 Each workspace composes collection/navigation choices, one search/filter/sort/view toolbar, then a wrapping result and active-filter summary. Chips name their categories and share the choices’ canonical identity icons/colors; target labels retain architecture. Clear filters preserves search and returns focus to Filters.
 
 Comparisons use balanced project cards, side by side where space allows and stacked in compact windows, with aligned setup, file, target, ownership and observation sections. Filtered-out projects retain their own actions and explicit qualification. Unresearched gameplay differences remain unclaimed.
+Optional project metadata and reports share one information row, so omitted or
+expanded evidence cannot overlap or misalign current status and actions.
+Keep that information together at the top of its row when a neighboring project expands.
 
 Identity chips use the v58 decorative Lucide/palette mappings; semantic readiness,
 warning, failure, selection and focus retain their own tokens.
@@ -91,8 +137,9 @@ shrinking essential text, hiding consequences or replacing the domain projection
 
 Cover-grid titles use scalable 14px-equivalent type with 1.45 leading; project text
 uses a 12px-equivalent role with 1.5 leading. Compact-row titles use 15px-equivalent
-type with 1.4 leading and 13px-equivalent project text. The cover-to-identity gap is
-24px in Library and 12px in Discover at normal scale. Columns are separated by
+type with 1.4 leading and 13px-equivalent project text. At normal scale, poster layouts use a cover-to-identity gap of
+24px in Library and 12px in Discover. Horizontal Library covers use the
+`--space-3` gap. Columns are separated by
 20px, and card actions use a 32px-equivalent height. Shared general-purpose buttons retain their larger hit targets. Saved and
 hidden collection views, Favorites, and Not in library share existing query owners;
 the latter is selected only for that exact singleton membership, not an OR selection
@@ -144,7 +191,8 @@ decorative backdrop images. Change artwork in Manage retains the existing user
 artwork choices. No title-based identity or edition mapping is inferred.
 
 Five permanent sections use Base UI manual-activation tabs. Arrow keys and
-Home/End move focus; Enter/Space select. Narrow tab lists retain visible labels in one horizontally scrollable row.
+Home/End move focus; Enter/Space select. Narrow tab lists wrap so every
+section remains visible. The active section uses a labeled, underlined tab.
 Panels stay mounted to preserve drafts and reviews; inactive panels are hidden and
 inert, so they cannot receive keyboard, accessibility or controller traversal.
 Overview pairs the actual description with a narrower facts column; project status,
@@ -155,6 +203,11 @@ settings), including reviewed GameBanana installs for games with a binding. Vers
 checks, candidate decisions, staged activation, rollback, future preferences and
 private notice choices. Manage owns installation/location/artwork/Steam/CLI,
 verification/removal and the existing reviewed managed-route transition. Unsupported routes state their actual limits and keep upstream links.
+
+Manual disclosure summaries reserve a trailing icon column. Their title and
+secondary information wrap within the remaining text column, keeping the icon
+beside the first title line in compact, wide and right-to-left layouts. Native
+summary semantics, keyboard behavior and focus indicators remain intact.
 
 A concise attention strip exposes relevant exceptions and running work; its action
 opens the owning section. An available update does not change the current playable
@@ -205,6 +258,12 @@ Primary destinations display Library, Discover, Activity and Settings; internal 
 Cards, details and Activity use the same action-presentation selector. Core readiness remains distinct from a temporary local exclusion. Feedback names the action and game/port or library target. Independent failures remain individually dismissible; a successful mutation followed by failed refresh is presented as finished work with unavailable current state, not an instruction to repeat the mutation. Link a specific task only when its exact owned identity exists. Shared progress announces phase changes separately from numeric ticks. Cancellation requested stays pending until authoritative settlement. Invocation-backed polite messages use a status owner that exists empty before work begins, with an atomic action/target message for each invocation. Pending, execution completion, readback and terminal changes update that invocation’s message; simultaneous results do not replace one another. Real failures retain their attributed assertive notices, and visual progress does not duplicate the owned announcement. Browser lifecycle checks do not establish actual screen-reader speech.
 
 Library location-change review and recovery retain Core's typed failure consequences through the shared review-failure presentation. The summary, reported mutation outcome and expandable technical phase/context remain together. An unknown outcome stays unknown; a committed outcome does not invite an automatic repeat. Displaying recovery details grants no additional recovery action or library lease authority.
+
+When a reviewed setup batch settles, refresh the parent workspace from Core before
+the player dismisses its results. Keep the finished batch and its current focus
+mounted during that read. Done dismisses the results; it does not gate the first
+refresh. Refresh failure keeps the reported batch outcomes and the workspace's
+existing refresh feedback, without repeating installation or inventing readiness.
 
 Portcove should feel like development software from an alternate 1997 console studio, rebuilt with current desktop UX and accessibility standards. Nostalgia never outranks clarity. The working interface stays compact, neutral, and technical; personality appears through tactile geometry, restrained color, direct copy, and quick interaction feedback.
 
@@ -274,6 +333,8 @@ build targets, operating-system minima or publication qualification.
 - Tailwind utilities and variants are the primary component styling approach. Limited custom CSS remains appropriate for specialized artwork, layout, input, or native-integration behavior where it is clearer than utilities. CSS Modules may survive only for justified specialized ownership; they are no longer the default migration destination.
 - `html[data-theme]` is the runtime theme marker and activates Tailwind `dark:` variants. `html[lang]`, `html[dir]`, and Base UI's `DirectionProvider` are now driven together by the [desktop localization owner](LOCALIZATION.md), including for portaled controls. New layout rules use logical properties and mixed-direction technical values keep an explicit direction.
 - Shared Button intent is explicit: neutral `default`, signature-red `primary` for the dominant Play/Install/Apply action, blue `selected`, and danger-semantic `destructive`. All retain the shared gold focus signal and 36px compact and 40px ordinary/large minimum heights. Dialog owns the semantic scrim without backdrop blur; Dialog and Select use logical positioning and spacing where direction matters.
+- Recovery fields retain visible labels in their accessible names. Manual report copying has a localized label, and failed exit-code copying leaves the exact code visible with an announced retry instruction. Copy feedback belongs to the current library generation and launch. The command palette includes a visible Close action alongside its keyboard/controller hints. Operation progress uses a system-color border for its fill in forced colors, preserving the user's palette and the existing reduced-motion behavior.
+- The retained clipboard fallback always removes its temporary text field, including when copying throws. It restores the original connected focus and unchanged text selection without overriding a copy handler's deliberate focus move. Best-effort restoration does not change the copy result; modern clipboard permission refusals remain failures rather than invoking the legacy mechanism.
 - Graphite and warm controller-gray surfaces carry most of the interface. In the light theme, navigation is darker than the warm workspace and elevated surfaces are brighter. Blue means selected or interactive, yellow means keyboard/controller focus or rare emphasis, green means healthy or complete, and red is reserved for Portcove's signature and dangerous or critical action.
 - Text uses four sizes: 13px for metadata and chips (`--text-2xs`/`--text-xs`), 14px for body (`--text-sm`), 16px for card and game titles (`--text-md`), plus the page and section heading sizes; weights are 400 and 600 (#5058 V1).
 - Single-select strips, including Library quick views, Activity sections and detail tabs, share the selected treatment: selection fill plus an underline in the current color; option cards such as the theme picker keep their outline and tick (#5058 V3).
@@ -301,7 +362,7 @@ uses the same 60px rail. Keep task controls
 in the workspace flow. [Theme ownership](THEME.md#whole-interface-enlargement-and-reflow) owns
 the controller, persistence and native/browser evidence boundaries.
 
-Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+Display game release streams as **Stable**, **Preview** and **Rolling**. Use the [CLI channel contract](CLI.md#release-channels) when translating stored values into labels.
 
 - Import only controls demonstrated by current product needs. Checked-in controls should stay close to official composition, refs, events, and accessibility behavior; do not put a near-identical Portcove wrapper around every shadcn control.
 - A specific Base UI control may be replaced when a reproducible Tauri, controller, accessibility, or supported-platform failure remains after bounded repair. Preserve the shared API, semantics, and theme where practical, record the evidence, and review the replacement independently; one incompatible control does not reopen the selected system.
@@ -341,6 +402,7 @@ Finishing is acceptance within the owning journeys, not a separate perpetual pol
 - Command-palette query changes choose the best eligible result predictably, background refresh preserves the active command by stable identity where possible, and Enter during IME composition never executes a command.
 - Typing in the command palette also lists matching games, grouped as Library or Discover entries, and opens their details. Game results appear only for a non-empty query so the empty palette stays a short list of destinations and actions. Matching ignores letter case and accents, as Library and Discover search do. Library-hidden games remain searchable but appear only as Discover results.
 - Command-palette pointer movement, option focus and direct clicks remain usable alongside keyboard selection. A popup appearing beneath a stationary pointer must not replace the command selected with the arrow keys.
+- At effective viewport heights up to 360px, the command palette uses one outer vertical scroll area with sticky search. Results, exact no-match queries and expanded navigation help remain reachable. A no-match query returns the scroll position to the start, and arrow selection reveals its result below search.
 - Artwork remains legible and stable across bright, dark, white, missing, unusual-aspect, and long-title cases. Optional artwork failure does not become launch failure, and essential actions never depend on imagery.
 - Optical review covers icon/label alignment, tabular numerals where values change or align in columns, consistent dialog geometry, subordinate shortcut hints, long-path identification and exact copying, and reduced nested-card emphasis. Essential instructions and warnings never exist only in a tooltip or browser title.
 - Supplemental tooltips stay within their trigger's existing landmark or dialog. Fixed positioning keeps the popup clear of scrollable containers while preserving accessible names, descriptions and dismissal.
@@ -430,6 +492,10 @@ object. **File details**, **Technical details** and **Test results** are distinc
 supporting information, as defined by content design. Use ordinary “and” in prose
 and retain approved compound destination labels.
 
+Within a source check, **File details and test results** contains file-wide
+digests, validation and reviewed evidence. **Test results for this port** names
+the per-port automated and hands-on records, so adjacent disclosures remain distinct.
+
 Name a concrete action and object; say “Review” when review is actually next.
 Place consequences before implementation detail and keep essential warnings
 visible. Errors state the known cause, outcome, and realistic next action. Use
@@ -449,16 +515,15 @@ saved update policy. A successful launch activity says **Process exited**, with
 an explicit explanation that successful process termination does not establish
 tested gameplay. Keep update and activity statuses in readable sentence case.
 
-Details first offers Review game update without a disposition selector for an
-unidentified candidate. Its first review retains the saved policy's current
-default (automatic installs; other policies keep for later). Once Core supplies
-the release, show its consequences and offer the alternate action through a new
-reviewed plan. Switching action never reuses the previous plan's fingerprint.
+For an available game update, **Update now** and **Download for later** select
+the immediate action. A saved policy governs future updates. Review the release
+and its consequences for the selected action. If the player switches actions,
+get a new plan before applying it.
 Details labels matching saved checks as earlier observations, shows their update
 version when available, and makes Check for updates primary when no available or
 saved candidate is known. Manual review remains available as a secondary action.
 The optional application-update choice notice uses a secondary review action;
-ordinary first-use Add games remains the primary task.
+the empty Library keeps **Browse games** as its primary action.
 
 Use **Check method** for a configured way to inspect game files; say whether a check
 actually ran and what it found separately. Show the planned output folder with
@@ -533,7 +598,7 @@ complete contextual-handoff acceptance.
 
 ## Shell and navigation
 
-The stable desktop shell consists of primary port navigation, a scrollable workspace, contextual port details, and a predictable operation/error layer. Pages do not invent unrelated chrome. `Ctrl/Cmd+1–4` changes primary views, `Ctrl/Cmd+F` focuses the current searchable view, and `Ctrl/Cmd+K` opens the command palette. Unmodified slash has no application action. Context search does not redirect Settings or capture editable/IME input; explicit palette commands open Library or catalog search. Workspace shortcuts stay inactive behind a dialog.
+The stable desktop shell consists of primary port navigation, a scrollable workspace, contextual port details, and a predictable operation/error layer. The workspace toolbar identifies the destination and, when open, the current game or contextual task. `Ctrl/Cmd+1–4` changes primary views, `Ctrl/Cmd+F` focuses the current searchable view, and `Ctrl/Cmd+K` opens the command palette. Unmodified slash has no application action. Context search does not redirect Settings or capture editable/IME input; explicit palette commands open Library or catalog search. Workspace shortcuts stay inactive behind a dialog.
 
 When a game-file check identifies a specific host disc tool that needs attention,
 its detail result links to that tool in Settings > Game Files. The route focuses
@@ -545,6 +610,8 @@ Keyboard, controller, and dialog focus share one inventory of visible, enabled c
 Controller input explicitly enables the gold focus outline; browser keyboard heuristics alone cannot identify controller focus. Focused controls and selected commands scroll into view. Text fields retain native keyboard editing. Choice controls open a focused list where A selects and B cancels, without cycling values implicitly. Hints reflect the current surface: section shortcuts appear only in the workspace.
 
 Vertical navigation visits the nearest visual row before considering horizontal alignment. Entering a new control group starts at its first control, so headers cannot skip filters, the first port card, or account actions. Within a card grid, vertical movement preserves the column. Search and Commands share the 42-pixel control height; search focus outlines the complete field including its icon and shortcut. External links use the desktop's system-browser bridge, which accepts only reviewed HTTPS project and GitHub device-login destinations and preserves the shared child-process environment policy.
+
+External-link failure feedback belongs to the latest attempt for the current destination and opener. A superseded response cannot replace newer feedback. Changing that context clears the old error while preserving the anchor and keyboard focus; it does not cancel a browser-open request already sent to the desktop.
 
 Portcove targets dense desktop use and a minimum 960-pixel-wide Tauri window. At narrower supported widths, the shell reduces nonessential labels and column count before hiding technical data. Reduced-motion preference removes nonessential transitions and progress animation.
 
@@ -626,17 +693,18 @@ truly narrow or enlarged content may stack personal controls. Long identities
 wrap and remain accessible in full.
 
 At desktop windows up to 760px high (from 761px width, including the 1280×720
-reference), chrome rhythm tightens (toolbar, header, quick views and query rows)
-and the cover project reserves one line instead of two, expanding on focus, so
-the first row's primary actions are visible on arrival without changing cover
-geometry. At short desktop heights (up to800px, from761px width), Library covers use a10rem
-minimum track. The220px artwork cap remains; no obsolete180px cap is reintroduced.
+reference), chrome rhythm tightens across the toolbar, header, quick views and
+query rows. Poster covers reserve one project line instead of two and expand on
+focus. At heights up to 50rem (800px at the default browser text size), multiple
+Library covers use the horizontal portrait-and-identity composition described
+above, matching the singleton cover's height boundary. This keeps first-row
+identity, readiness and actions together when listing platform chips wrap.
 Ordinary/tall and compact width rules retain their existing density. Rem-based
-minimums continue honoring whole-interface enlargement. The effective cover-to-
-title gap is24px at normal size (14px caption padding plus10px title margin),
-with the existing two-line title/project reservations. Artwork uses the raised
-surface and a quiet translucent border. Chips use11px/500 type and7px corners;
-wrapped footer rhythm uses an8px gap while action controls retain32px height.
+minimums honor whole-interface enlargement. Poster layouts retain the effective
+24px cover-to-title gap and title/project reservations; horizontal covers use
+`--space-3` and let identity determine its height. Unfocused horizontal project labels retain their existing line limit; identity focus reveals the complete label. Port-choice labels wrap as one translated text flow while retaining exact bidirectional names. Artwork uses the raised surface
+and a quiet translucent border. Chips use 11px/500 type and 7px corners;
+wrapped footer rhythm uses an 8px gap while action controls retain 32px height.
 
 Library quick views retain their full meaning, lighter400-weight labels and44px
 minimum control height. Compact count badges are visually omitted, with counts
@@ -648,6 +716,9 @@ fine pointer and remains visible on touch. Every action retains keyboard access.
 Library's intermediate app-window tier uses a 10.25rem sidebar and 1.5rem
 workspace gutters between 47.5rem and 56.25rem. Retrieval wraps according to
 available workspace; its phone controls retain safe text-enlargement fallbacks.
+Between the compact rail and 65rem, the expanded sidebar uses a smaller mascot,
+wordmark and gap so its complete brand fits beside navigation without horizontal
+scrolling. Long navigation labels wrap within their controls.
 Cover metadata keeps at least 10px before the footer while retaining bottom
 alignment. Narrow rows keep independent personal actions beside short identity
 stacks where space permits, and naturally grow for long titles. A narrow header
@@ -748,6 +819,14 @@ logo legibility on resize and advance the same fallback chain when necessary. Us
 deliberate contrasting logo stage when necessary without recoloring brand pixels. Expose image
 provenance and rights through the shared credits disclosure.
 
+Paired original covers retain both complete images and their natural proportions
+inside the foreground stage, including the stagger, in portrait cards and short
+wide detail stages. Center shrinkable portrait halves, cap the stagger by the
+available stage height, and constrain each intrinsic image by both width and the
+height left after the stagger. Verify decoded image bounds against the actual
+frame in Library, Discover and details; object-fit alone does not prove that a
+foreground image is contained.
+
 Provide **Change artwork**, **Choose local image**, **Browse SteamGridDB** when
 configured, **Reset to default**, and source/author information. Reset affects
 only the selected slot's explicit choice; unavailable preferred art retains its
@@ -755,6 +834,14 @@ selection with a fallback or actionable explanation. Keep provider configuration
 in Appearance or Integrations with contextual picker guidance, never first-play
 API-key onboarding. Keyboard/controller navigation, focus restoration, long
 titles, scaled layouts and text status must remain usable.
+Provider image and match grids opt out of prose list markers. Artwork disclosures
+keep their first-line chevrons aligned with the padded hit area.
+Native disclosures with shared chevrons use one spacing value for block padding
+and first-line marker position, including wrapped and right-to-left labels.
+An unknown key status shows a settled read failure with an explicit retry; it cannot dispatch
+a search. Recovery keeps focus until it can transfer to Search or no-key guidance.
+A provider-requested pause remains visible and enforced through Back; expired
+retry guidance is removed when requests become available again.
 
 The selected-game Steam flow also presents **Include artwork**, any existing
 destination customization, per-role planned source and a truthful partial result.
@@ -835,19 +922,25 @@ roughly 36–40rem surface on large displays or a restrained sticky primary acti
 but focus, controller navigation, compact layouts, and safety information must
 remain intact. Infrequent maintenance and technical controls use progressive
 disclosure without becoming hidden safety state. Settings uses Appearance,
-Library and storage, Game files, Updates, Integrations, Advanced, and About
-categories. Wide layouts use an 11.875rem category column beside a reading column
-bounded at 47.5rem. Below 65rem, navigation becomes one horizontally scrollable
-category strip above the panel. Settings rows use open surfaces and dividing
+Library and storage, Game files, Updates, Integrations, Keyboard and controller,
+Advanced, and About categories. Wide layouts use a 13rem category column beside
+a reading column bounded at 47.5rem. Below 56.3125rem, navigation becomes one
+horizontally scrollable category strip above the panel. Settings rows use open surfaces and dividing
 rules rather than a surrounding card for every group. Category changes hide rather
 than unmount panels, preserving unsaved drafts and pending operations; they do
 not persist settings or cancel work. Focus the selected heading and reveal its
 outline below any sticky category strip, using the existing workspace scroll owner
 only as far as needed. Direct
 recovery links select the owning category before focusing its relevant control.
-The sidebar About entry opens About directly. Updates explains application/game
-updates and the bundled game catalog; optional custom catalog trust controls
+About links to the support report heading in Advanced. Updates explains
+application/game updates and the bundled game catalog; optional custom catalog trust controls
 belong under Advanced. Category selection is ephemeral presentation state.
+SteamGridDB setup distinguishes an active device-status read from a settled
+failure. A failed read offers Check setup again without claiming a saved or
+missing key. Key controls become available only after the read succeeds; retry
+retains its focus, and failed key writes retain the masked input. Device key
+status survives library changes, while image checks remain bound to the current
+library generation. A retired Settings mount cannot publish a delayed read.
 Recovery items expose read-only navigation beside their collapsed recorded
 locations: setup opens the game, missing installations and backup problems open
 Saves and storage, and unfinished operations reveal their exact loaded activity
@@ -962,13 +1055,13 @@ for work the application did not perform.
 
 The genuine first-use Library omits collection layout, sorting and filter tools
 until there is content or a browsing constraint to operate on. Keep its mascot
-compact (4rem) and Add games visible at the supported minimum window, including
-the initial application-update choice notice. Filtered no-results retains its
+compact (4rem) and keep Browse games visible at the supported minimum window,
+including with the initial application-update choice notice.
 reset and filtering controls; hiding first-use tools must not clear preferences.
 
-Library's heading Add games action and empty-state primary action open the
-same in-flow workspace. Keep source choice, current port identity and the next
-review action together. Start with three routes: Browse games (opens Discover,
+In an empty Library, **Browse games** takes the player directly to Discover.
+**Add games** opens the in-flow setup workspace. Keep the source choice, current
+port and next review action together. Its three routes are Browse games (Discover,
 where choosing a game always happens), Scan a folder, or use an existing
 installation. Show only the selected route's actual inputs and requirements. In
 Add games, "Choose folder to scan" saves the chosen folder and scans the saved
@@ -1133,18 +1226,38 @@ known location and backup actions; exclusions and history stay visible. Manage
 keeps one ownership/path summary and puts future-install choices after its
 regular action rows.
 
+Per-game setup choices distinguish an unread choice, an active read and a settled
+read failure. The initial read shows Reading choices… and leaves unknown choices
+unselected. A failed read clears the busy state, keeps changes unavailable and
+offers Read again. The recovery control retains focus while rereading and after
+success. A later failed reread preserves the last confirmed choice without
+enabling changes; another game or library cannot inherit its pending result.
+
 Activity recovery uses flat linked rows with recorded paths and guidance behind
 each row's disclosure. Recovery observations remain separate from task records;
 links use a real operation reference when one is available. Failed/unfinished
 outcomes and cancellation settlement remain visible on task rows. Operation IDs
 and retained preparation logs share Task details; they do not compete with the
 next action or hide mutation/uncertainty summaries.
+Retained log phases use subordinate headings and grouped stream labels, fields
+and observation metadata. Phase headings name the saved work without implying
+that a completed or failed task is still running; stream completeness remains
+separate from the task outcome. Prior output remains visible through refresh and
+clipboard failures, with the exact manual-copy field beside its explanation.
+Application-update status follows local and host-reported active installation
+before offering ready-to-download copy. Phase and byte progress belong to the
+current local invocation; host-only activity does not invent a starting phase.
 
 Port comparison shares `styles/comparison.css`: a concise evidence status, one
 optional settings disclosure and aligned project facts/actions. Exact artifact,
 freshness, file health and evidence provenance remain in each project's existing
 explanation. Advisory context remains distinct from setup/launch checks, and
 shared compatibility cautions are stated once rather than repeated on every card.
+
+Compatibility and project-implementation disclosures shrink within their actual
+detail or comparison column. Long release, edition, artifact and dependency
+identifiers wrap without truncation; complete evidence remains selectable and
+keyboard disclosure controls remain reachable in compact windows.
 
 ## Prototype presentation alignment
 

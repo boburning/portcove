@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "perfectdarkzerorecomp-nikolaygorb-perfect-dark-zero",
+    "artwork": {
+      "game_id": 1465,
+      "cover_id": 111118,
+      "image_id": "co2dqm",
+      "image_sha256": "3ea62380a30a8f2e3403e5ef90343a25891c27fc9a3c715b07e8fa3ca2d1bda8",
+      "game_slug": "perfect-dark-zero",
+      "match_kind": "underlying-game"
+    },
     "name": "Perfect Dark Zero — PerfectDarkZeroRecomp (nikolaygorb)",
     "original_game_title": "Perfect Dark Zero",
     "summary": "The project describes the game as fully playable with audio, achievements and saves. Its Linux test statements conflict, and Portcove has not confirmed them. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",

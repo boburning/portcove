@@ -193,6 +193,10 @@ pub struct PortPresentation {
     /// release or library identity. Explicit original_game metadata owns display grouping.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub original_game_title: Option<String>,
+    /// Optional descriptive implementation methods and dependencies. Malformed or future
+    /// content is unavailable as explanation and never changes operation authority.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub implementation: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub original_game: Option<OriginalGameIdentity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -206,6 +210,16 @@ pub struct PortPresentation {
     pub manual_setup: Option<ManualSetupGuide>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artwork: Option<IgdbArtwork>,
+    /// Cover for the second game in a combined definition's Discover card.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub companion_cover: Option<IgdbArtwork>,
+    /// Reviewed constituent-game covers for a multi-game project. Display only.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_collection_covers"
+    )]
+    pub collection_covers: Option<Vec<IgdbArtwork>>,
     /// Absent legacy metadata may use the directory; an explicit empty list clears it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub media: Option<Vec<crate::CatalogMediaAsset>>,
@@ -770,6 +784,8 @@ pub enum ManagedInitialization {
     TfeDarkForces122420,
     #[serde(rename = "tfe-dark-forces-portable-v1")]
     TfeDarkForcesPortableV1,
+    #[serde(rename = "chocolate-family-portable-v1")]
+    ChocolateFamilyPortableV1,
 }
 
 /// Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.
@@ -800,6 +816,7 @@ pub enum ExternalProfilePolicy {
     RecompDirectV1,
     Doom3LinuxV1,
     OpenjkUnixV1,
+    EndlessSkyDesktopV1,
     OpenomfLinuxV1,
     VcmiWindowsV1,
 }
@@ -1080,6 +1097,21 @@ where
     Vec::<String>::deserialize(deserializer).map(Some)
 }
 
+fn present_collection_covers<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<Vec<IgdbArtwork>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let covers = Vec::<IgdbArtwork>::deserialize(deserializer)?;
+    if !(1..=4).contains(&covers.len()) {
+        return Err(serde::de::Error::custom(
+            "a cover collection needs one to four members",
+        ));
+    }
+    Ok(Some(covers))
+}
+
 /// Descriptive project information. A listing never grants managed installation,
 /// executable selection, source access or ownership of an external directory.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -1103,6 +1135,10 @@ pub struct PortListing {
     pub project_url: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub original_game_title: Option<String>,
+    /// Optional descriptive implementation methods and dependencies. Malformed or future
+    /// content is unavailable as explanation and never changes operation authority.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub implementation: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub original_game: Option<OriginalGameIdentity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1148,6 +1184,13 @@ pub struct PortListing {
     pub manual_setup: Option<ManualSetupGuide>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artwork: Option<IgdbArtwork>,
+    /// Display samples of a project's constituent games. Requires listing format 11.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_collection_covers"
+    )]
+    pub collection_covers: Option<Vec<IgdbArtwork>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub media: Vec<crate::CatalogMediaAsset>,
 }
@@ -1390,6 +1433,9 @@ pub struct ExternalRuntimeRecord {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortStatus {
+    /// Recorded file preservation during the switch to the current active version.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub carried_files: Option<crate::CarriedFilesStatus>,
     /// Owned archive acquisition, separate from a staged or active runtime.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub acquisition: Option<GameUpdateAcquisition>,
@@ -2610,7 +2656,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7, 8, 9, 10],
+            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12],
             port_capability_schema: Some(1),
             artwork_handoff_schema: Some(crate::ARTWORK_HANDOFF_SCHEMA),
             operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,

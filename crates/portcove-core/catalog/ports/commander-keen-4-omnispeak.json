@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "commander-keen-4-omnispeak",
+    "artwork": {
+      "game_id": 2443,
+      "cover_id": 100803,
+      "image_id": "co25s3",
+      "image_sha256": "1f70f40053df3da6afa38bb1286a556c0de4b13afded1581dccbb04573428b43",
+      "game_slug": "commander-keen-in-goodbye-galaxy-secret-of-the-oracle",
+      "match_kind": "underlying-game"
+    },
     "name": "Commander Keen 4 (Omnispeak)",
     "summary": "Play Commander Keen 4 using the official Omnispeak v1.1 packages with bundled EGA shareware. Setup and updates stay upstream-owned.",
     "original_game_title": "Commander Keen 4",

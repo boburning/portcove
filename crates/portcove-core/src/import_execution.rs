@@ -304,9 +304,7 @@ fn restore_metadata(target: &Library, metadata: &LibraryMetadata) -> Result<()> 
         drop(transaction);
         return crate::transfer_copy::verify_metadata(target, metadata);
     }
-    for source in &metadata.source_references {
-        Library::write_source(&transaction, source)?;
-    }
+    crate::portability::restore_saved_originals(&transaction, metadata, target.root())?;
     for original in &metadata.application_versions {
         let mut install = original.clone();
         install.path = target.root().join(&install.path);
