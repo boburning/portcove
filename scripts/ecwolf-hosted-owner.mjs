@@ -317,14 +317,14 @@ try {
   ]);
   const selected = await command(["status", config.port]);
   assert(selected.readiness.launchable && selected.successful_launches === 0);
-  await command(["play", config.port], { raw: true });
+  await command(["run", config.port], { raw: true });
   const savesAfterFirst = await inventory(config.saves);
   assert(
     savesAfterFirst.some((f) => /savegam[0-9]+\.ecs$/i.test(f.path) && f.bytes > 1000),
     "No engine-created ECWolf save",
   );
   await record("saves-after-first", savesAfterFirst);
-  await command(["play", config.port], { raw: true });
+  await command(["run", config.port], { raw: true });
   const saveBeforeRemove = await inventory(config.saves),
     profileBeforeRemove = await inventory(config.roaming),
     playerBeforeRemove = await inventory(config.player_root);
