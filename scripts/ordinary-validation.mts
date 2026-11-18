@@ -2412,6 +2412,10 @@ for (const file of [
     "scripts/application-release-budget.test.mts",
   ]);
 
+explicitNodeTests.set("scripts/release-controller-fixture-scope.mts", [
+  "scripts/ci-release-workflow.test.mts",
+]);
+
 const workflowTests = new Map([
   ["upstream-relocation-evidence.yml", ["scripts/check-catalog-repositories.test.mts"]],
   ["hosted-installed-update.yml", ["scripts/hosted-installed-update.test.mts"]],
@@ -2419,7 +2423,10 @@ const workflowTests = new Map([
     "hosted-native-continuity.yml",
     ["scripts/hosted-native-continuity.test.mts", "scripts/updater-artifact-inventory.test.mts"],
   ],
-  ["controller-tool-build-fixture.yml", ["scripts/release-controller-tools.test.mts"]],
+  [
+    "controller-tool-build-fixture.yml",
+    ["scripts/release-controller-tools.test.mts", "scripts/ci-release-workflow.test.mts"],
+  ],
   [
     "application-update-production.yml",
     [
