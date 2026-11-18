@@ -354,8 +354,16 @@ void test("manifest work drains fairly past eight files, persists each exact blo
         : "zamiba/portforge-mediaitems";
       if (endpoint === "repos/SirDiabo/GHLAppList")
         throw new Error("unrelated unavailable registry");
-      if (endpoint === `repos/${repo}`)
-        body = { id: repo.startsWith("Retro") ? 1 : 2, full_name: repo, default_branch: "main" };
+      if (endpoint === "repositories/1316230812")
+        body = {
+          id: 1316230812,
+          full_name: "RetroPortingToolKit/Retro-Catalog",
+          default_branch: "ports/current",
+        };
+      else if (endpoint === "repos/RetroPortingToolKit/Retro-Catalog/commits/ports%2Fcurrent")
+        body = { sha: "a".repeat(40) };
+      else if (endpoint === `repos/${repo}`)
+        body = { id: 2, full_name: repo, default_branch: "main" };
       else if (endpoint.includes("/git/ref/heads/")) body = { object: { sha: "a".repeat(40) } };
       else if (endpoint.includes("/git/trees/"))
         body = {
