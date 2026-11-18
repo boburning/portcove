@@ -286,7 +286,7 @@ impl HostDiagnostics {
         Option<std::thread::JoinHandle<()>>,
     ) {
         let directory = directory.to_owned();
-        Self::bootstrap(
+        Self::bootstrap_worker(
             surface,
             false,
             move |session, surface, support_directory| {
