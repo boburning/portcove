@@ -366,3 +366,67 @@ fn setup_references_reach_human_current_and_explicit_legacy_consumers() {
             .any(|step| step.instruction.contains("historical observation"))
     );
 }
+
+#[test]
+fn implementation_descriptions_export_with_an_explicit_legacy_reader_fence() {
+    let temporary = tempfile::tempdir().unwrap();
+    let home = temporary.path().join("isolated-home");
+    let config = home.join("config");
+    let cache = home.join("cache");
+    let data = home.join("data");
+    let state = home.join("state");
+    for directory in [&home, &config, &cache, &data, &state] {
+        std::fs::create_dir_all(directory).unwrap();
+    }
+    let read = |arguments: &[&str]| {
+        let output = command(temporary.path())
+            .env("HOME", &home)
+            .env("USERPROFILE", &home)
+            .env("APPDATA", &config)
+            .env("LOCALAPPDATA", &cache)
+            .env("XDG_CONFIG_HOME", &config)
+            .env("XDG_CACHE_HOME", &cache)
+            .env("XDG_DATA_HOME", &data)
+            .env("XDG_STATE_HOME", &state)
+            .current_dir(temporary.path())
+            .args(arguments)
+            .output()
+            .expect("compiled CLI should start in the isolated fixture");
+        assert!(output.status.success(), "{output:?}");
+        super::json_stdout(&output)["data"].clone()
+    };
+    let current = read(&["--json", "catalog", "listings"]);
+    let legacy = read(&["--json", "catalog", "listings", "--format-version", "11"]);
+    assert_eq!(current["format_version"], 12);
+    assert_eq!(legacy["format_version"], 11);
+    // Consume the compiled producer's documents through the actual Core reader,
+    // rather than accepting only a new format number or a hand-authored fixture.
+    portcove_core::CatalogListingDocument::from_json(&current.to_string()).unwrap();
+    portcove_core::CatalogListingDocument::from_json(&legacy.to_string()).unwrap();
+    let current_listings = current["listings"].as_array().unwrap();
+    let legacy_listings = legacy["listings"].as_array().unwrap();
+    assert_eq!(current_listings.len(), legacy_listings.len());
+    let zelda = current_listings
+        .iter()
+        .find(|listing| listing["id"] == "zelda64-recomp")
+        .unwrap();
+    assert_eq!(
+        zelda["implementation"]["methods"][0]["kind"],
+        "static-recompilation"
+    );
+    assert!(zelda["original_game"]["source_editions"].is_array());
+    assert!(current_listings.iter().any(|listing| {
+        listing["download_block_reason"]
+            .as_str()
+            .is_some_and(|reason| !reason.is_empty())
+    }));
+    for (original, exported) in current_listings.iter().zip(legacy_listings) {
+        assert!(exported.get("implementation").is_none());
+        // Every original-file guide, edition identity, availability and download
+        // restriction survives; only inert explanations are omitted for strict
+        // readers that understand at most listing format 11.
+        let mut expected = original.clone();
+        expected.as_object_mut().unwrap().remove("implementation");
+        assert_eq!(&expected, exported, "listing {}", original["id"]);
+    }
+}
