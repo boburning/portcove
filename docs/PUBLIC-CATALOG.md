@@ -22,8 +22,11 @@ Implementations of a reviewed game have separate sections and comparison rows.
 Matching titles alone never group projects. Source editions remain separate from
 target platforms. A shared runtime never combines different original games.
 
-Search and platform/method filters use only the generated local index. All links
-remain in static HTML if JavaScript is disabled or the index cannot load. A failed
+Search and platform/method filters use only the generated local index. The browser
+script `search.js` is stripped from checked `search.ts` by the pinned
+Node runtime. Publication needs no additional package install. The renderer
+fingerprint binds the TypeScript source, CSS and generator.
+All links remain in static HTML if JavaScript is disabled or the index cannot load. A failed
 index leaves a visible explanation and disables unavailable filters. Missing or
 unknown optional method metadata leaves the rest of the page useful.
 

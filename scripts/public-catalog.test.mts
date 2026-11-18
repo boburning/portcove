@@ -331,6 +331,14 @@ void test("publisher CLI adds generated browsing alongside immutable assembled T
   );
   assert.ok(isRecord(result));
   assert.equal(result.scope, "development");
+  execFileSync(process.execPath, ["--check", path.join(output, "search.js")], {
+    encoding: "utf8",
+    timeout: 15000,
+  });
+  assert.doesNotMatch(
+    (await readFile(path.join(output, "search.js"))).toString(),
+    /interface SearchEntry|: SearchEntry\[\]/u,
+  );
   assert.deepEqual(await readFile(path.join(repository, "metadata/timestamp.json")), timestamp);
   assert.deepEqual(await readFile(path.join(repository, "targets/game.json")), target);
   assert.match(

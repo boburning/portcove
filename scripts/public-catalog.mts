@@ -1,6 +1,7 @@
 /** Read-only public pages from existing public catalog projections. Nothing in
  * this module admits a definition, selects a package or asserts publication. */
 import { createHash } from "node:crypto";
+import { stripTypeScriptTypes } from "node:module";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -97,7 +98,7 @@ export interface PublicCatalogProjection {
 
 async function publicCatalogInputs(listingsSha: string, catalogSha: string) {
   const files = await Promise.all(
-    ["public-catalog.mts", "public-catalog/catalog.css", "public-catalog/search.js"].map(
+    ["public-catalog.mts", "public-catalog/catalog.css", "public-catalog/search.ts"].map(
       async (name) => ({
         name,
         sha256: digest(
@@ -113,7 +114,12 @@ async function publicCatalogInputs(listingsSha: string, catalogSha: string) {
     format_version: 1,
     listings_sha256: listingsSha,
     catalog_sha256: catalogSha,
-    renderer_sha256: digest(JSON.stringify(files)),
+    renderer_sha256: digest(
+      JSON.stringify({
+        files,
+        javascript_emitter: { kind: "node-strip-types", version: process.versions.node },
+      }),
+    ),
   };
 }
 
@@ -472,14 +478,18 @@ export async function publicCatalogFiles(
         "../../",
       ),
     );
-  for (const name of ["catalog.css", "search.js"])
-    put(
-      name,
-      await readControllerToolFile(
-        fileURLToPath(new URL(`./public-catalog/${name}`, import.meta.url)),
-        128 * 1024,
-      ),
-    );
+  put(
+    "catalog.css",
+    await readControllerToolFile(
+      fileURLToPath(new URL("./public-catalog/catalog.css", import.meta.url)),
+      128 * 1024,
+    ),
+  );
+  const searchSource = await readControllerToolFile(
+    fileURLToPath(new URL("./public-catalog/search.ts", import.meta.url)),
+    128 * 1024,
+  );
+  put("search.js", stripTypeScriptTypes(searchSource.toString("utf8"), { mode: "strip" }));
   put("projection.json", JSON.stringify(projection));
   put(
     "inputs.json",
