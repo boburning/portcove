@@ -1,3 +1,4 @@
+import { mountLibraryPort } from "./discover-test-helpers";
 import { captureParityState } from "../../test/parity-capture";
 import { openAdvancedFilters } from "../../test/filter-fields";
 import { navigateTo } from "../../test/primary-navigation";
@@ -444,6 +445,10 @@ it("keeps actual App update entries and their independent Play actions reachable
   await page.viewport(960, 640);
   document.documentElement.style.fontSize = "200%";
   mount("collection");
+  await expect
+    .poll(() => document.querySelector('[data-virtual-collection="library"]'))
+    .not.toBeNull();
+  await mountLibraryPort("collection-0");
   await expect
     .element(page.getByRole("button", { name: /^View details for Super Mario 64/ }).first())
     .toBeVisible();

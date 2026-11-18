@@ -50,6 +50,7 @@
         "data_locations": [
           "Windows Roaming AppData/ECWolf settings and Windows Saved Games/ECWolf progress, including upstream fallback locations",
           "Linux XDG configuration/ecwolf and data/ecwolf/savegames folders",
+          "Mac ~/Library/Preferences/ecwolf.cfg, ~/Documents/ECWolf/Savegames, ~/Library/Application Support/ECWolf and upstream fallback locations",
           "original game files, mods and any explicit --config or --savedir locations"
         ]
       },

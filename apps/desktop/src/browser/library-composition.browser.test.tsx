@@ -12,7 +12,13 @@ import {
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { desktopApi } from "../api";
 import { PortBrowser } from "../components/PortBrowser";
-import { discoverGroupForPort } from "./discover-test-helpers";
+import {
+  discoverGroupForPort,
+  inspectLibraryGroups,
+  mountLibraryPort,
+  inspectDiscoverGroups,
+  mountDiscoverPort,
+} from "./discover-test-helpers";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { workspace } from "../dev-scenarios/interactive/scenarios";
 import { initializeLocalization, LocalizationProvider } from "../localization";
@@ -54,7 +60,9 @@ async function mount(
     { container: root },
   );
   await expect
-    .poll(() => document.querySelectorAll(".collection-entry").length)
+    .poll(() =>
+      Number(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")),
+    )
     .toBe(expectedLibraryEntries);
   document.documentElement.dataset.theme = theme;
 }
@@ -245,7 +253,11 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   expect(commands.textContent).toContain("hidden by filters");
   await userEvent.keyboard("{Escape}");
   await page.getByRole("button", { name: "Reset view", exact: true }).click();
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await expect
+    .poll(() =>
+      Number(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")),
+    )
+    .toBe(12);
   const more = page.getByRole("button", { name: /^More actions for/ }).first();
   await more.click();
   await expect.element(page.getByRole("menu", { name: /^More actions for/ })).toHaveFocus();
@@ -540,6 +552,7 @@ it.each([
     expect(identity.scrollWidth).toBeLessThanOrEqual(identity.clientWidth + 1);
     for (const layout of ["Covers", "Compact rows"]) {
       await page.getByRole("button", { name: layout, exact: true }).click();
+      await mountLibraryPort(port.id);
       document.querySelector<HTMLButtonElement>(`[data-detail-game-id="${port.id}"]`)!.focus();
       expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
       const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
@@ -575,12 +588,18 @@ for (const theme of ["dark", "light"]) {
     await mount(theme, "collection-large");
     await page.getByRole("button", { name: "Compact rows", exact: true }).click();
     await page.getByRole("textbox", { name: "Search your library" }).fill("a");
-    const count = document.querySelectorAll(".collection-entry").length;
-    const action = [
-      ...document.querySelectorAll<HTMLButtonElement>(
-        ".collection-actions button[data-variant=outline]",
-      ),
-    ].at(-1)!;
+    // The native input value changes before React commits the raw query. Wait for
+    // its real clear control before starting a destination scoped to that query.
+    await expect
+      .element(page.getByRole("button", { name: "Clear search", exact: true }))
+      .toBeVisible();
+    const expectedCount = Number(
+      document.querySelector("[data-library-port-ids]")!.getAttribute("aria-setsize"),
+    );
+    await mountLibraryPort("collection-59");
+    const action = document.querySelector<HTMLButtonElement>(
+      '[data-detail-origin="library:card:collection-59:play"]',
+    )!;
     action.focus();
     action.scrollIntoView({ block: "center" });
     const main = document.querySelector<HTMLElement>(".app-shell > main")!;
@@ -592,7 +611,10 @@ for (const theme of ["dark", "light"]) {
     ]) {
       await page.viewport(width!, height!);
       expect(document.activeElement).toBe(action);
-      expect(document.querySelectorAll(".collection-row")).toHaveLength(count);
+      expect(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")).toBe(
+        String(expectedCount),
+      );
+      expect(document.querySelectorAll(".collection-row").length).toBeLessThan(expectedCount);
       expect((document.getElementById("port-search") as HTMLInputElement).value).toBe("a");
       expect(Math.abs(main.getBoundingClientRect().right - innerWidth)).toBeLessThanOrEqual(1);
       expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
@@ -674,13 +696,37 @@ for (const theme of ["dark", "light"]) {
     await mount(theme, "collection", 11);
     await page.getByRole("button", { name: "Discover", exact: true }).click();
     await expect.poll(() => document.querySelectorAll(".collection-art").length).toBe(11);
-    const group = discoverGroupForPort("collection-1");
-    const artwork = group.querySelector<HTMLElement>(".collection-art")!;
-    const ordinary = artwork.getBoundingClientRect();
+    const ordinary = discoverGroupForPort("collection-1")
+      .querySelector<HTMLElement>(".collection-art")!
+      .getBoundingClientRect();
     document.documentElement.style.fontSize = "32px";
+    // Font reflow can replace complete virtual rows. Wait for current DOM to
+    // settle, then resolve the logical group instead of retaining its old node.
     await expect
-      .poll(() => artwork.getBoundingClientRect().width)
-      .toBeLessThanOrEqual(Math.max(ordinary.width, 260));
+      .poll(async () => {
+        const group = discoverGroupForPort("collection-1");
+        const artwork = group.querySelector<HTMLElement>(".collection-art")!;
+        const before = artwork.getBoundingClientRect();
+        await act(async () => {
+          await new Promise(requestAnimationFrame);
+          await new Promise(requestAnimationFrame);
+        });
+        const after = artwork.getBoundingClientRect();
+        return (
+          artwork.isConnected &&
+          group === discoverGroupForPort("collection-1") &&
+          before.width === after.width &&
+          before.height === after.height &&
+          after.width > 0 &&
+          after.width <= Math.max(ordinary.width, 260)
+        );
+      })
+      .toBe(true);
+    const group = await mountDiscoverPort("collection-1");
+    const artwork = group.querySelector<HTMLElement>(".collection-art")!;
+    expect(artwork.getBoundingClientRect().width).toBeLessThanOrEqual(
+      Math.max(ordinary.width, 260),
+    );
     expect(
       artwork.getBoundingClientRect().height / artwork.getBoundingClientRect().width,
     ).toBeCloseTo(1.5);
@@ -981,6 +1027,12 @@ it.each([
     page.getByRole("button", { name: "Covers", exact: true }).element().focus();
     main.scrollTop = 0;
     window.scrollTo(0, 0);
+    await expect
+      .poll(() => {
+        const row = document.querySelector<HTMLElement>("[data-collection-row]");
+        return row?.querySelectorAll("[data-library-port-ids]").length;
+      })
+      .toBe(Math.min(renderedEntries, 3));
     const cards = [...document.querySelectorAll<HTMLElement>(".collection-cover")];
     const firstTop = cards[0]!.getBoundingClientRect().top;
     const firstRow = cards.filter(
@@ -1173,9 +1225,11 @@ it("keeps plain short Covers and their overflow menu reachable at 430px", async 
 it("keeps twelve short-window Covers contained through fallback artwork and the last action", async () => {
   await page.viewport(960, 640);
   await mount("dark", "collection", 12);
-  const cards = [...document.querySelectorAll<HTMLElement>(".collection-cover")];
-  expect(cards).toHaveLength(12);
-  for (const card of cards) expectContainedCover(card);
+  await inspectLibraryGroups(
+    [2, 6, 10, 4, 8, 5, 9, 0, 1, 3, 7, 11].map((index) => [`collection-${index}`]),
+    (card) => expectContainedCover(card.querySelector<HTMLElement>(".collection-cover") ?? card),
+  );
+  await mountLibraryPort("collection-4");
   await captureParityState("library-short-covers-many-initial");
   const missing = document
     .querySelector('[data-detail-game-id="collection-4"]')!
@@ -1195,7 +1249,8 @@ it("keeps twelve short-window Covers contained through fallback artwork and the 
   expect(fallbackBounds.top).toBeGreaterThanOrEqual(0);
   expect(fallbackBounds.bottom).toBeLessThanOrEqual(innerHeight);
   await captureParityState("library-short-covers-many-fallback");
-  const last = cards.at(-1)!;
+  const lastGroup = await mountLibraryPort("collection-11");
+  const last = lastGroup.querySelector<HTMLElement>(".collection-cover") ?? lastGroup;
   await focusFooterControlsInViewport(last);
   const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
   const owner =
@@ -1230,7 +1285,13 @@ it.each([false, true])(
 
     await expect.poll(() => document.querySelectorAll(".collection-cover").length).toBe(1);
     const cover = document.querySelector<HTMLElement>(".collection-cover")!;
-    expect(Boolean(cover.closest("section[data-library-game-id]"))).toBe(grouped);
+    expect(
+      (
+        JSON.parse(
+          cover.closest<HTMLElement>("[data-library-port-ids]")!.dataset.libraryPortIds!,
+        ) as string[]
+      ).length > 1,
+    ).toBe(grouped);
     const play = page.getByRole("button", { name: /^Play: Harbor Adventure/ });
     await expect.element(play).toBeVisible();
     const action = play.element().getBoundingClientRect();
@@ -1260,7 +1321,11 @@ it.each([
     await page.viewport(width, height);
     await mount();
     const grid = document.querySelector<HTMLElement>(".collection-covers")!;
-    expect(getComputedStyle(grid).gridTemplateColumns.split(" ")).toHaveLength(columns);
+    expect(
+      getComputedStyle(
+        grid.querySelector("[data-collection-row]") ?? grid,
+      ).gridTemplateColumns.split(" "),
+    ).toHaveLength(columns);
     const cover = grid.querySelector<HTMLElement>(".collection-cover")!;
     const art = cover.querySelector<HTMLElement>(".collection-art")!;
     const overlay = cover.querySelector<HTMLElement>(".collection-personal-actions")!;
@@ -1368,7 +1433,11 @@ it("creates and removes a collection through its editor while retaining a failed
   await expect.element(all).toHaveAttribute("aria-pressed", "true");
   await expect.element(all).toHaveFocus();
   await expect.element(selected).not.toBeInTheDocument();
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await expect
+    .poll(() =>
+      Number(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")),
+    )
+    .toBe(12);
   await captureParityState("collection-removed-all-games-focus");
   await expect.element(opener).toHaveAccessibleName("Create your first collection");
   await userEvent.keyboard("{Escape}");
@@ -1394,7 +1463,11 @@ it("opens Hidden games and restores Favorites focus when its last entry is shown
     { kind: "set_hidden", port_id: "collection-0", hidden: true },
     1,
   );
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(11);
+  await expect
+    .poll(() =>
+      Number(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")),
+    )
+    .toBe(11);
   const hidden = page.getByRole("button", { name: /^Hidden games/ });
   await hidden.click();
   await expect.element(hidden).toHaveAttribute("aria-pressed", "true");
@@ -1417,7 +1490,11 @@ it("opens Hidden games and restores Favorites focus when its last entry is shown
   await expect.element(page.getByRole("radio", { name: "Favorites 0", exact: true })).toHaveFocus();
   await captureParityState("library-hidden-final-entry-restored");
   await page.getByRole("button", { name: "Reset view", exact: true }).click();
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await expect
+    .poll(() =>
+      Number(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")),
+    )
+    .toBe(12);
 }, 45_000);
 
 it("keeps the confirmed favorite state during a pending and rejected write", async () => {
@@ -1470,10 +1547,6 @@ it("keeps the confirmed favorite state during a pending and rejected write", asy
 it("sorts actual Library entries by the selected title order without changing their identities", async () => {
   await page.viewport(1024, 800);
   await mount();
-  const ids = () =>
-    [...document.querySelectorAll<HTMLElement>(".collection-identity")].map((entry) =>
-      entry.getAttribute("data-detail-game-id")!,
-    );
   const sort = page.getByRole("combobox", { name: /^Sort / });
   await sort.click();
   await expect.element(page.getByRole("option", { name: "Title A–Z", exact: true })).toBeVisible();
@@ -1482,7 +1555,15 @@ it("sorts actual Library entries by the selected title order without changing th
   await expect
     .element(sort.element().querySelector<HTMLElement>("[data-slot=select-value]"))
     .toHaveTextContent("Title A–Z");
-  const ascending = ids();
+  const ascending: string[] = [];
+  await inspectLibraryGroups(
+    [2, 6, 10, 4, 8, 5, 9, 0, 1, 3, 7, 11].map((index) => [`collection-${index}`]),
+    (card, index) => {
+      ascending[index] = card
+        .querySelector(".collection-identity")!
+        .getAttribute("data-detail-game-id")!;
+    },
+  );
   expect(ascending).toHaveLength(12);
   expect(new Set(ascending).size).toBe(12);
   await sort.click();
@@ -1490,14 +1571,23 @@ it("sorts actual Library entries by the selected title order without changing th
   await expect
     .element(sort.element().querySelector<HTMLElement>("[data-slot=select-value]"))
     .toHaveTextContent("Title Z–A");
-  const descending = ids();
+  const descending: string[] = [];
+  const descendingTitles: string[] = [];
+  await inspectLibraryGroups(
+    // Descending titles retain original input order within each equal-title cohort.
+    [3, 7, 11, 0, 1, 5, 9, 4, 8, 6, 10, 2].map((index) => [`collection-${index}`]),
+    (card, index) => {
+      descending[index] = card
+        .querySelector(".collection-identity")!
+        .getAttribute("data-detail-game-id")!;
+      descendingTitles[index] = card.querySelector(".collection-title")!.textContent?.trim() ?? "";
+    },
+  );
   expect(descending).not.toEqual(ascending);
   expect([...descending].sort((a, b) => a.localeCompare(b))).toEqual(
     [...ascending].sort((a, b) => a.localeCompare(b)),
   );
-  const titles = [
-    ...document.querySelectorAll<HTMLElement>(".collection-entry .collection-title"),
-  ].map((title) => title.textContent?.trim() ?? "");
+  const titles = descendingTitles;
   expect(titles).toHaveLength(12);
   expect(titles).toEqual(
     [...titles].sort((a, b) => b.localeCompare(a, "en", { sensitivity: "base" })),
@@ -1510,7 +1600,11 @@ it("keeps a grouped Discover Save unselected while pending and after a rejected 
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(groupedCollectionSnapshot());
   await mount("dark", "collection", 11);
   await page.getByRole("button", { name: "Discover", exact: true }).click();
-  await expect.poll(() => document.querySelectorAll(".collection-art").length).toBe(11);
+  const order = [2, 6, 10, 4, 8, 5, 9, 0, 3, 7, 11].map((index) =>
+    index === 0 ? ["collection-0", "collection-1"] : [`collection-${index}`],
+  );
+  await inspectDiscoverGroups(order);
+  await mountDiscoverPort("collection-1");
   let rejectWrite!: (reason: Error) => void;
   const change = vi.spyOn(desktopApi, "changeOrganization").mockReturnValueOnce(
     new Promise((_resolve, reject) => {

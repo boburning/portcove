@@ -3625,8 +3625,16 @@ function TechnicalCommandContinuity(
       port={model.port}
       status={model.status}
       channel={model.selectedChannel}
-      sourcePath={model.sources.sourcePath || model.sources.source?.path || ""}
-      biosPath={model.sources.biosPath || model.sources.bios?.path || ""}
+      sourcePath={model.sources.sourcePath}
+      biosPath={model.sources.biosPath ?? ""}
+      registered={{
+        game: Boolean(
+          model.sources.source && model.sources.source.profile_id === model.port.source_profile,
+        ),
+        bios: Boolean(
+          model.sources.bios && model.sources.bios.profile_id === model.port.bios_source_profile,
+        ),
+      }}
     />
   );
 }

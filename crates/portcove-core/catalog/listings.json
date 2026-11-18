@@ -12641,8 +12641,10 @@
       "original_game_title": "Amped 2",
       "project_url": "https://github.com/bertibertig/Amped2-Recomp",
       "listed_at": "2026-10-25",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/bertibertig/Amped2-Recomp",
       "artwork": {
         "game_id": 5725,
@@ -12652,7 +12654,24 @@
         "game_slug": "amped-2",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2626
+      "issue_number": 2626,
+      "release_url": "https://github.com/bertibertig/Amped2-Recomp/releases/tag/v0.2.0",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "Amped2-Recomp",
+          "linux-x86_64.tar.gz"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/bertibertig/Amped2-Recomp/blob/v0.2.0/README.md",
+        "steps": [
+          {
+            "title": "Play the experimental Linux release",
+            "instruction": "Use glibc 2.39 or later, SDL2 and a Vulkan driver. Extract the Linux tarball. Put your complete supported PAL Xbox disc files under game_files/ with default.xbe directly in that folder. Run ./run.sh from the extracted package. Run ./run.sh --settings to open graphics settings. Linux saves and cache live under ~/.local/share/xboxrecomp, while settings live in ~/.config/amped2-recomp/settings.ini. Preserve those paths and your original files when replacing the upstream package."
+          }
+        ],
+        "warnings": []
+      }
     },
     {
       "id": "amped-3-revamped-minty-hippo-amped-3",
@@ -21263,14 +21282,16 @@
         "linux-x86-64"
       ],
       "availability": "packages",
-      "release_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/releases/tag/v1.41.2",
+      "release_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/releases",
       "setup_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/blob/v1.41.2/README.md#running-the-game",
       "download_asset_hints": {
         "windows-x86-64": [
-          "crusader-1.41.2-windows-x64.zip"
+          "crusader-",
+          "-windows-x64.zip"
         ],
         "linux-x86-64": [
-          "crusader-1.41.2-linux-x64.tar.gz"
+          "crusader-",
+          "-linux-x64.tar.gz"
         ]
       },
       "manual_setup": {
@@ -27234,12 +27255,6 @@
       "listed_at": "2026-11-18",
       "original_game_title": "Wolfenstein 3D",
       "availability": "packages",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "setup_url": "https://maniacsvault.net/ecwolf/download.php",
       "release_url": "https://maniacsvault.net/ecwolf/download.php",
       "recommended_download_channel": "stable",
@@ -27255,8 +27270,8 @@
             "instruction": "Install the official matching Ubuntu amd64 package with your system package manager so its dependencies and system data are present. Put the complete matching .WL1 data set in ~/.config/ecwolf, or the ecwolf folder below your XDG_CONFIG_HOME. Preserve the filenames and their case. Select /usr/games/ecwolf and its containing folder in Portcove; enter --data and WL1 as two separate arguments. Review the details, add the game, then choose Play. Use the system package manager or upstream to update this installation."
           },
           {
-            "title": "Use the upstream Mac app",
-            "instruction": "Use the official universal Mac app from the DMG and put matching game data in ~/Library/Application Support/ECWolf. Open the upstream app directly. Keep ~/Library/Preferences/ecwolf.cfg and ~/Documents/ECWolf/Savegames backed up separately, together with any chosen custom paths. This Mac route uses upstream setup and updates."
+            "title": "Add the Intel or Apple Silicon Mac player",
+            "instruction": "Copy the complete official ECWolf.app from the DMG into Applications and open it normally once. Copy all eight matching .WL1 shareware data files into ~/Library/Application Support/ECWolf, preserving their names and case. In Portcove, select /Applications/ECWolf.app/Contents/MacOS/ecwolf and its containing folder; enter --data and WL1 as separate arguments, review the details, then add the game and choose Play. Keep ecwolf.pk3 and the complete app together. The later ecwolf.exe choice applies to Windows; Mac uses the native file inside ECWolf.app."
           },
           {
             "title": "Select the prepared player",
@@ -27277,10 +27292,16 @@
           },
           {
             "title": "Player-data ownership",
-            "instruction": "You and upstream own the external copy's data: Windows Roaming AppData/ECWolf settings and Windows Saved Games/ECWolf progress, including upstream fallback locations; Linux XDG configuration/ecwolf and data/ecwolf/savegames folders; original game files, mods and any explicit --config or --savedir locations. Back up these locations separately; registration does not migrate or certify their compatibility."
+            "instruction": "You and upstream own the external copy's data: Windows Roaming AppData/ECWolf settings and Windows Saved Games/ECWolf progress, including upstream fallback locations; Linux XDG configuration/ecwolf and data/ecwolf/savegames folders; Mac ~/Library/Preferences/ecwolf.cfg, ~/Documents/ECWolf/Savegames, ~/Library/Application Support/ECWolf and upstream fallback locations; original game files, mods and any explicit --config or --savedir locations. Back up these locations separately; registration does not migrate or certify their compatibility."
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "edf2027-edf-3-recompilation-from-the-360-version-v0-3-0-beta-invisivel46-earth-defense-force-2017",
@@ -35953,8 +35974,11 @@
       "project_url": "https://github.com/SilverwireGames/ReChan",
       "issue_number": 348,
       "listed_at": "2026-10-23",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/SilverwireGames/ReChan",
       "original_game_title": "Jackie Chan Stuntmaster",
       "manual_setup": {
@@ -35985,6 +36009,12 @@
           "The project’s MIT grant applies to its codebase, not original game data or every third-party component. Source declarations about newly authored support files do not certify arbitrary historical/current release contents; earlier package-integrity evidence retains its exact version and scope. Upstream/player must supply a permitted, already prepared copy.",
           "The upstream extractor/updater and ordinary runtime writes remain upstream-owned. No Portcove-managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion, network sandbox or full successor-session guarantee is offered. Do not use its crash/export/test modes as a qualification shortcut.",
           "Reviewing source and running an inert Portcove check do not run this game or confirm gameplay, saving, state/mod compatibility, installed behavior or other platforms. Preserve each working build and its profile separately."
+        ],
+        "references": [
+          {
+            "title": "Set up the v1.0.2 preview",
+            "instruction": "Extract the Windows ZIP or Linux tarball and open rechan.exe or rechan from its extracted directory. Put one NTSC-U Jackie Chan Stuntmaster BIN or ISO that you own in discimage beside the executable. The first launch checks the image and extracts the required files. Keep the prepared folder for later launches, including its saves. The Windows attachment instructions above describe the older v1.0.1 copy."
+          }
         ]
       },
       "artwork": {
@@ -35994,7 +36024,17 @@
         "image_sha256": "3ccb32aac7e3b1b15561c58359847af01fdd9f164f331682e994adfe0f94b604",
         "game_slug": "jackie-chan-stuntmaster",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/SilverwireGames/ReChan/releases/tag/v1.0.2",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "rechan-win64.zip"
+        ],
+        "linux-x86-64": [
+          "rechan-linux64.tar.gz"
+        ]
+      },
+      "recommended_download_channel": "beta"
     },
     {
       "id": "jagged-alliance-2-ja2-stracciatella",
@@ -43036,8 +43076,11 @@
       "summary": "Attach an independently permitted, prepared OpenShao Windows player using the supported USA/Europe Xbox original. Preserve the separate application-data and Saved Games locations, remembered source and legacy-folder migration recovery.",
       "original_game_title": "Mortal Kombat: Shaolin Monks (Xbox)",
       "project_url": "https://github.com/OAleex/OpenShao",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/OAleex/OpenShao",
       "artwork": {
         "game_id": 1614,
@@ -43075,6 +43118,27 @@
         ],
         "warnings": [
           "The exact release-input XBE SHA1 remains Unknown. Keep both data and Saved Games roots plus legacy recovery; unsupported bundled demos are not admitted."
+        ],
+        "references": [
+          {
+            "title": "Play and update through the v0.5.1 upstream launcher",
+            "instruction": "Extract the package and open OpenShao.exe on Windows or OpenShao on Linux. Select your own supported USA or Europe Xbox game files, keep them in place and use Play from the launcher. The upstream launcher owns updates. Its Files page shows the actual data and save paths. Linux normally uses ~/.local/share/OpenShao/saves. Windows uses Saved Games/OpenShao unless relocated."
+          },
+          {
+            "title": "Check the v0.5.1 Linux requirements",
+            "instruction": "Use glibc 2.38 or later, an x64 CPU with SSE4.2 and POPCNT, and Vulkan 1.2 with dynamic rendering and timeline semaphores. Install your system’s libcurl for mod and update downloads."
+          }
+        ]
+      },
+      "release_url": "https://github.com/OAleex/OpenShao/releases/tag/v0.5.1",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "OpenShao-",
+          "Windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "OpenShao-",
+          "Linux-x64.tar.gz"
         ]
       }
     },
@@ -46745,8 +46809,12 @@
       "project_url": "https://github.com/lfarroco/ogre-battle-64-recomp",
       "issue_number": 1356,
       "listed_at": "2026-10-23",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/lfarroco/ogre-battle-64-recomp",
       "artwork": {
         "game_id": 3568,
@@ -46782,6 +46850,27 @@
         ],
         "warnings": [
           "Select the prepared ogrebattle64.exe and retain its actual writable root, stored ROM and battery progress. Source/redistribution permissions and managed lifecycle qualification are separate from attachment."
+        ],
+        "references": [
+          {
+            "title": "Set up the v0.9.1 desktop player",
+            "instruction": "Extract the package and open ogrebattle64.exe on Windows, ogrebattle64 on Linux or Ogre Battle 64.app on Apple silicon. On the start screen select your own USA Rev A cartridge dump. The game verifies and stores the ROM, then starts the game directly on later launches. Press Escape to open the tab panel and select Settings. Keep saves/ from the actual writable game-data folder when replacing the extracted package."
+          }
+        ]
+      },
+      "release_url": "https://github.com/lfarroco/ogre-battle-64-recomp/releases/tag/v0.9.1",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "ogre-battle-64-recomp",
+          "windows-x86_64.zip"
+        ],
+        "linux-x86-64": [
+          "ogre-battle-64-recomp",
+          "linux-x86_64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "ogre-battle-64-recomp",
+          "macos-arm64.tar.gz"
         ]
       }
     },
