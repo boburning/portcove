@@ -1031,7 +1031,7 @@ function inOverrideOrder(entry: ModSetupView) {
     const index = order.indexOf(id);
     return index === -1 ? order.length : index;
   };
-  return [...(entry.revision.packages ?? [])].sort(
+  return (entry.revision.packages ?? []).toSorted(
     (a, b) => rank(a.native_id) - rank(b.native_id) || a.native_id.localeCompare(b.native_id),
   );
 }

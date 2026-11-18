@@ -557,7 +557,7 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     assert.equal(previewValue.changes.length, 2);
     assert.equal(previewValue.writes_required, true);
     const changedSelection = await invoke("apply_steam_batch_add", {
-      request: { ...request, portIds: [...request.portIds].reverse() },
+      request: { ...request, portIds: request.portIds.toReversed() },
       expectedReviewSha256: previewValue.review_sha256,
       generation: selectedGeneration,
     });

@@ -424,6 +424,13 @@ application/configuration projects retain bundler resolution; native harnesses
 also check the DOM callbacks that Selenium serializes. Node-only tooling does
 not receive browser globals. All projects inherit the strict shared policy.
 
+API library declarations are separate from emitted syntax targets. The renderer
+adds `ES2023.Array` for copying array methods available within its existing
+`chrome111`/`safari16.4` targets. Native harnesses add `ES2024.Promise` for
+`Promise.withResolvers` in pinned Node code. Their serialized browser callbacks
+must still use APIs supported by the WebView targets; the shared type-checking
+project does not establish browser API compatibility.
+
 Native harnesses use `apps/desktop/scripts/transport-values.mts` when consuming
 complete domain payloads. It validates against the existing Rust-exported output
 schemas before exposing their generated types, using the pinned Ajv 2020 loader
