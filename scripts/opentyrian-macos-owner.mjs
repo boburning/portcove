@@ -15,7 +15,7 @@ try {
   if(prepared===0&&closed) {
     closed=false;
     const input=JSON.parse(await readFile('opentyrian-macos-input.json','utf8'));
-    const worker=spawn('xcrun',['swift','-import-objc-header','scripts/opentyrian-macos-headers.h','scripts/opentyrian-macos-driver.swift','menu'],{stdio:'inherit',env:{...process.env,XDG_CONFIG_HOME:`${input.root}/menu/profile`,SDL_RENDER_DRIVER:'software',SDL_AUDIODRIVER:'dummy'}});
+    const worker=spawn('xcrun',['swift','-import-objc-header','scripts/opentyrian-macos-headers.h','scripts/opentyrian-macos-driver.swift','menu'],{stdio:'inherit',env:{...process.env,SDL_RENDER_DRIVER:'software',SDL_AUDIODRIVER:'dummy'}});
     const [code]=await once(worker,'close');
     const cleanup=JSON.parse(await readFile(`${native}/menu-cleanup.json`,'utf8').catch(()=>'null'));
     closed=cleanup?.all_owned_processes_exited===true;
@@ -23,6 +23,6 @@ try {
   }
 } finally {
   if(closed) await lease.release();
-  await writeFile('evidence/admission.json',JSON.stringify({released:closed,scope:'fresh hosted Mac session',reason:closed?'positive owned mount/process exit observations':'owned closure unknown; claim retained'}));
+  await writeFile('evidence/admission.json',JSON.stringify({released:closed,scope:'fresh hosted Mac session',reason:closed?'positive owned extraction/process exit observations':'owned closure unknown; claim retained'}));
 }
 process.exitCode=status;

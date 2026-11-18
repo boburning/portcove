@@ -88,7 +88,7 @@ let input: [String: Any] = try JSONSerialization.jsonObject(with: Data(contentsO
 let root = URL(fileURLWithPath: input["root"] as! String)
 let player = URL(fileURLWithPath: input["player"] as! String)
 let cli = URL(fileURLWithPath: input["cli"] as! String)
-let profile = root.appendingPathComponent("\(dataset)/profile")
+let profile = URL(fileURLWithPath: input["profile_root"] as! String)
 let library = root.appendingPathComponent("\(dataset)/library")
 let port = "andyvand-opentyrian2000"
 func cliJSON(_ name: String, _ args: [String]) throws -> [String: Any] {
@@ -183,8 +183,7 @@ do {
     try require(dataset == "menu", "Unknown fixed dataset")
     try require(CGPreflightScreenCaptureAccess() && AXIsProcessTrusted(), "Actual driver lacks capture or accessibility access; no permission requested")
     try require(try digest(cli, maxBytes: 512 * 1024 * 1024) == input["cli_sha256"] as? String && digest(player) == input["player_sha256"] as? String, "Executed input identity differs")
-    try require(ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"] == profile.path, "Private profile environment differs")
-    try fm.createDirectory(at: profile, withIntermediateDirectories: true)
+    try require(!fm.fileExists(atPath: profile.deletingLastPathComponent().path), "Publisher sandbox container appeared after input preparation")
     try fm.createDirectory(at: library, withIntermediateDirectories: true)
     let args = ["--no-sound", "--no-joystick", "--no-xmas"]
     var selected = [port, player.path, "--working-directory", input["working_directory"] as! String]
@@ -214,6 +213,10 @@ do {
     guard let game = child else { throw ProbeFailure(message: "Recorded native child was not established") }
     try live(owner); try live(game)
     Thread.sleep(forTimeInterval: 8)
+    try capture("intro", game)
+    // The publisher's two intro logos precede its menu; observe finite extra
+    // time without injecting keys or changing the game's own deadlines.
+    Thread.sleep(forTimeInterval: 12)
     try capture("menu", game)
     NSRunningApplication(processIdentifier: game.pid)?.activate(options: [.activateIgnoringOtherApps])
     Thread.sleep(forTimeInterval: 0.5)
@@ -225,12 +228,12 @@ do {
     let final = try cliJSON("final-launch", ["launch", "show", request])
     let gameExited = try gone(game)
     try require(process.terminationStatus == 0 && final["outcome"] as? String == "succeeded" && (final["exit_code"] as? NSNumber)?.intValue == 0 && gameExited, "Normal native exit was not established")
-    let settings = profile.appendingPathComponent("opentyrian2000/opentyrian.cfg")
+    let settings = profile.appendingPathComponent("opentyrian.cfg")
     let settingsSize = try settings.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
     try require(settingsSize > 0 && settingsSize <= 1024 * 1024, "No bounded native settings file was produced")
     try require(try snapshot([package]) == packageBefore, "Player modified publisher package bytes")
     let globals = (input["initially_absent_global_paths"] as? [String] ?? []).map { URL(fileURLWithPath: $0) }.filter { fm.fileExists(atPath: $0.path) }
-    let externalRoots = [package, profile] + globals
+    let externalRoots = [package] + globals
     let before = try snapshot(externalRoots)
     try write("external-before-removal", before)
     let removal = try cliJSON("removal-preview", ["external", "removal-preview", port])
@@ -240,7 +243,7 @@ do {
     let after = try snapshot(externalRoots)
     try write("external-after-removal", after)
     try require(before == after && (status["external_runtime"] == nil || status["external_runtime"] is NSNull), "Registration removal changed external bytes or retained registration")
-    try write("result", ["phase": "complete-pending-image-inspection", "native_exit": 0, "settings_bytes": settingsSize, "settings_sha256": try digest(settings), "preserved_entries": before.count, "scope": "Publisher universal Mac package menu, normal exit and fresh settings creation; screenshots require inspection; no mission gameplay, populated-save restoration, audio, physical controls, Tauri or managed maintenance claim"])
+    try write("result", ["phase": "complete-pending-image-inspection", "native_exit": 0, "profile_root": profile.path, "settings_bytes": settingsSize, "settings_sha256": try digest(settings), "preserved_entries": before.count, "scope": "Publisher universal Mac package menu, normal exit and fresh settings creation; screenshots require inspection; no mission gameplay, populated-save restoration, audio, physical controls, Tauri or managed maintenance claim"])
 
 
 } catch {
