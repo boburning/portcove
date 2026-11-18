@@ -552,8 +552,8 @@ function SourceDiscoveryDialog({
   };
   const choices = [
     { value: "", label: "Choose the required files" },
-    ...[...profiles]
-      .sort((left, right) => left.label.localeCompare(right.label))
+    ...profiles
+      .toSorted((left, right) => left.label.localeCompare(right.label))
       .map((item) => ({ value: item.id, label: item.label })),
   ];
   return (

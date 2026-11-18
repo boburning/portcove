@@ -472,11 +472,11 @@ async function launchFixedLinuxNativeSession(
           }
         | undefined,
     };
-  let resolveReady!: () => void, rejectReady!: (reason: unknown) => void;
-  const readiness = new Promise<void>((resolve, reject) => {
-    resolveReady = resolve;
-    rejectReady = reject;
-  });
+  const {
+    promise: readiness,
+    resolve: resolveReady,
+    reject: rejectReady,
+  } = Promise.withResolvers<void>();
   readiness.catch(() => {});
   let sequence = 0,
     pending:
