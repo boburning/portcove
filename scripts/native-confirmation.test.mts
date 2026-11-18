@@ -352,6 +352,29 @@ void test("native game-file picker titles match the actual application dialog", 
     const source = await readFile(path.join("apps/desktop/scripts", helper), "utf8");
     assert.ok(source.includes(title), `${helper} must recognize the actual application dialog`);
   }
+  const datTitle = picker.match(/export function pickDatPath\([\s\S]*?title: "([^"]+)"/u)?.[1];
+  assert.equal(datTitle, "Choose a DAT file");
+  const confirmation = await readFile("apps/desktop/scripts/native-confirmation.ps1", "utf8");
+  const allowed = confirmation.match(/\$openTitles = @\(([^)]+)\)/u)?.[1];
+  assert.ok(allowed);
+  assert.ok(allowed.split(", ").includes(`'${datTitle}'`));
+  const secondary = await readFile(
+    "apps/desktop/scripts/desktop-secondary-panels-test.mts",
+    "utf8",
+  );
+  assert.ok(secondary.includes(`"${datTitle}",\n        "Open",`));
+  const recipeMessages: unknown = JSON.parse(
+    await readFile("apps/desktop/src/locales/en/gameSettings.json", "utf8"),
+  );
+  assert.ok(isRecord(recipeMessages) && isRecord(recipeMessages.mods));
+  const recipe = recipeMessages.mods.recipe;
+  assert.ok(isRecord(recipe) && typeof recipe.openPicker === "string");
+  for (const title of [recipe.openPicker, "Import saves"])
+    assert.ok(allowed.split(", ").includes(`'${title}'`));
+  const saves = confirmation.match(/\$saveTitles = @\(([^)]+)\)/u)?.[1];
+  assert.equal(saves, "'Export library information', 'Export saves'");
+  for (const title of ["Export library information", "Export saves", "Import saves"])
+    assert.ok(picker.includes(`title: "${title}"`));
 });
 
 void test("game-first adoption confirms the actual native copy title and button", async () => {
@@ -405,6 +428,44 @@ ${fixture}
     }),
   };
 }
+
+void test("Save picker inputs require an explicit owned parent and a fresh literal JSON leaf", async (t) => {
+  const { result } = await isolatedConsumer(
+    t,
+    `
+const { validatePickerInput: validate } = await import('./apps/desktop/scripts/desktop-native-confirmation.mts');
+const { mkdir } = await import('node:fs/promises');
+const existing = path.join(output, 'existing.json');
+await writeFile(existing, 'retained existing data');
+await mkdir(path.join(output, 'nested'));
+await mkdir(path.join(output, 'directory.json'));
+const input = { output, title:'Export library information', button:'Save',
+  filePath:path.join(output,'new.json'), ownedSaveRoot:output };
+for (const title of ['Export library information','Export saves']) await validate({...input,title});
+for (const variant of [
+  {...input, ownedSaveRoot:undefined},
+  {...input, title:'Export library information extra'},
+  {...input, title:'Choose a DAT file'},
+  {...input, button:'Yes'},
+  {...input, button:'Open'},
+  {...input, filePath:undefined},
+  {...input, filePath:existing},
+  {...input, filePath:path.join(output,'directory.json')},
+  {...input, filePath:path.join(output,'nested','new.json')},
+  {...input, filePath:output + path.sep + 'nested' + path.sep + '..' + path.sep + 'new.json'},
+  {...input, ownedSaveRoot:path.dirname(output)},
+  {...input, output:path.join(output,'missing'), ownedSaveRoot:path.join(output,'missing'),
+    filePath:path.join(output,'missing','new.json')},
+  {...input, filePath:path.join(output,'new.exe')},
+  {...input, filePath:path.join(output,'*.json')},
+  {...input, filePath:path.join(output,'CON.json')},
+]) await assert.rejects(validate(variant));
+assert.equal(await readFile(existing,'utf8'), 'retained existing data');
+assert.equal(globalThis.calls.length,0,'validation must not start PowerShell or send native input');
+`,
+  );
+  assert.equal(result.status, 0, result.stderr);
+});
 
 void test(
   "failed confirmation retains a redacted helper receipt before its original assertion",
@@ -1002,6 +1063,9 @@ function Block([string]$marker) {
     if (-not $node) { throw 'Production file-picker inventory changed' }
     return [scriptblock]::Create($node.Extent.Text)
 }
+$saveDefinition = $ast.Find({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Resolve-OwnedSaveTarget' }, $true)
+if (-not $saveDefinition) { throw 'Production owned Save guard missing' }
+. ([scriptblock]::Create($saveDefinition.Extent.Text))
 $inputBody = Block 'SetValue($selected)'
 $readbackBody = Block "Write-ObservationProgress 'file-input-readback'"
 $closeBody = Block '$closeDeadline ='
@@ -1010,25 +1074,59 @@ function Assert-LiveApplication { if ($script:case -eq 'changed-app') { throw 'c
 function Write-ObservationProgress { param($stage) }
 function Get-OwnedConfirmationWindows {
     $script:polls++
-    if ($script:case -eq 'still-open' -or ($script:case -eq 'valid' -and $script:polls -eq 1)) { [pscustomobject]@{ handle = 7 } }
+    if ($script:case -eq 'still-open' -or ($script:case -in $validCases -and $script:polls -eq 1)) { [pscustomobject]@{ handle = 7 } }
 }
 $FilePath = '${fixture.replaceAll("'", "''")}'; $DirectoryPath = $null; $Title = 'Choose game files'; $Button = 'Open'; $applicationId = 42
 $window = [pscustomobject]@{ Current = [pscustomobject]@{ NativeWindowHandle = 7 } }; $selectedWindowHandle = 7
-foreach ($script:case in @('valid', 'foreign-field', 'ignored-set', 'changed-field', 'still-open', 'changed-app')) {
-    $script:polls = 0; $failed = $false
-    $field = [pscustomobject]@{ Current = [pscustomobject]@{ Name = 'File name:'; ControlType = [System.Windows.Automation.ControlType]::Edit; ProcessId = $(if ($script:case -eq 'foreign-field') { 99 } else { 42 }); Value = '' } }
+$ownedRoot = '${root.replaceAll("'", "''")}'
+$existingJson = [IO.Path]::Combine($ownedRoot, 'existing.json')
+[IO.File]::WriteAllText($existingJson, 'retained data')
+$nested = [IO.Directory]::CreateDirectory([IO.Path]::Combine($ownedRoot, 'nested')).FullName
+$validCases = @('valid', 'dat-valid', 'recipe-valid', 'saves-import-valid', 'metadata-save-valid', 'saves-export-valid')
+$zeroInputCases = @('dat-foreign-field', 'dat-title-suffix', 'dat-wrong-action', 'unknown-open', 'unknown-save', 'save-title-open', 'save-yes', 'missing-save-root', 'missing-save-parent', 'foreign-save-parent', 'save-traversal', 'existing-save-target', 'save-device', 'save-wildcard', 'save-foreign-field')
+foreach ($script:case in @('valid', 'foreign-field', 'ignored-set', 'changed-field', 'still-open', 'changed-app', 'dat-valid', 'dat-foreign-field', 'dat-title-suffix', 'dat-wrong-action', 'recipe-valid', 'saves-import-valid', 'metadata-save-valid', 'saves-export-valid', 'unknown-open', 'unknown-save', 'save-title-open', 'save-yes', 'missing-save-root', 'missing-save-parent', 'foreign-save-parent', 'save-traversal', 'existing-save-target', 'save-device', 'save-wildcard', 'save-foreign-field', 'save-target-appeared')) {
+    $script:polls = 0; $script:values = 0; $failed = $false
+    $Title = if ($script:case.StartsWith('dat-')) { 'Choose a DAT file' } else { 'Choose game files' }
+    $Button = if ($script:case -eq 'dat-wrong-action') { 'Save' } else { 'Open' }
+    $OwnedSaveRoot = $null
+    $FilePath = '${fixture.replaceAll("'", "''")}'
+    if ($script:case -eq 'recipe-valid') { $Title = 'Open setup recipe…' }
+    if ($script:case -eq 'saves-import-valid') { $Title = 'Import saves' }
+    if ($script:case -eq 'dat-title-suffix') { $Title = 'Choose a DAT file extra' }
+    if ($script:case -eq 'unknown-open') { $Title = 'Unrelated file picker' }
+    if ($script:case -like '*save*' -and $script:case -ne 'saves-import-valid') {
+        $Title = 'Export library information'; $Button = 'Save'; $OwnedSaveRoot = $ownedRoot
+        $FilePath = [IO.Path]::Combine($ownedRoot, $script:case + '.json')
+    }
+    switch ($script:case) {
+        'saves-export-valid' { $Title = 'Export saves' }
+        'unknown-save' { $Title = 'Export library information extra' }
+        'save-title-open' { $Button = 'Open' }
+        'save-yes' { $Button = 'Yes' }
+        'missing-save-root' { $OwnedSaveRoot = $null }
+        'missing-save-parent' { $OwnedSaveRoot = [IO.Path]::Combine($ownedRoot,'missing'); $FilePath = [IO.Path]::Combine($OwnedSaveRoot,'new.json') }
+        'foreign-save-parent' { $FilePath = [IO.Path]::Combine($nested,'new.json') }
+        'save-traversal' { $FilePath = $ownedRoot + [IO.Path]::DirectorySeparatorChar + 'nested' + [IO.Path]::DirectorySeparatorChar + '..' + [IO.Path]::DirectorySeparatorChar + 'new.json' }
+        'existing-save-target' { $FilePath = $existingJson }
+        'save-device' { $FilePath = [IO.Path]::Combine($ownedRoot,'CON.json') }
+        'save-wildcard' { $FilePath = [IO.Path]::Combine($ownedRoot,'*.json') }
+    }
+    $field = [pscustomobject]@{ Current = [pscustomobject]@{ Name = 'File name:'; ControlType = [System.Windows.Automation.ControlType]::Edit; ProcessId = $(if ($script:case -in @('foreign-field', 'dat-foreign-field', 'save-foreign-field')) { 99 } else { 42 }); Value = '' } }
     $field | Add-Member ScriptMethod GetCurrentPattern { param($pattern) $this }
-    $field | Add-Member ScriptMethod SetValue { param($value) if ($script:case -ne 'ignored-set') { $this.Current.Value = $value } }
+    $field | Add-Member ScriptMethod SetValue { param($value) $script:values++; if ($script:case -ne 'ignored-set') { $this.Current.Value = $value } }
     $children = @($field)
     try {
         . $inputBody
         if ($script:case -eq 'changed-field') { $field.Current.Value = 'other' }
+        if ($script:case -eq 'save-target-appeared') { [IO.File]::WriteAllText($FilePath,'concurrent owned fixture') }
         . $readbackBody
         . $closeBody
     } catch { $failed = $true }
-    if ($failed -ne ($script:case -ne 'valid')) { throw "Wrong verdict for $script:case" }
-    if ($script:case -eq 'valid' -and (-not $fileSelection.closed -or -not $fileSelection.field_readback_matches -or $script:polls -ne 2)) { throw 'Missing fresh dismissal/readback witness' }
+    if ($failed -ne ($script:case -notin $validCases)) { throw "Wrong verdict for $script:case" }
+    if ($script:case -in $validCases -and (-not $fileSelection.closed -or -not $fileSelection.field_readback_matches -or $script:polls -ne 2 -or $script:values -ne 1)) { throw 'Missing fresh dismissal/readback witness' }
+    if ($script:case -in $zeroInputCases -and $script:values -ne 0) { throw 'Refused picker target received file input' }
 }
+if ([IO.File]::ReadAllText($existingJson) -cne 'retained data') { throw 'Save overwrote retained fixture data' }
 Write-Output 'file-picker-witness-passed'
 `,
     );

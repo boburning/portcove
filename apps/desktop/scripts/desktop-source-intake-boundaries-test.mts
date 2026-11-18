@@ -19,6 +19,7 @@ import {
   reviewControls,
 } from "./desktop-review-controls.mts";
 import { executeBrowserScript } from "./browser-script.mts";
+import { readWorkspaceSnapshotObservation } from "./desktop-review-observation.mts";
 
 export function staleSourceImportScript(
   request: Record<string, unknown>,
@@ -84,6 +85,7 @@ export async function waitForSourceIntakeRestoration(
   browser: WebDriver,
   invoke: ScenarioInvoke,
   ownedLibraries: readonly string[],
+  readbacks: unknown[] = [],
 ) {
   const success = (response: unknown) => {
     const reply = object(response);
@@ -111,10 +113,7 @@ export async function waitForSourceIntakeRestoration(
     (await executeBrowserScript(browser, observeIntakeWorkspace)).generation !== current.generation
   )
     await browser.navigate().refresh();
-  transportValue(
-    "desktop_workspace_snapshot",
-    success(await invoke("get_workspace_snapshot", { generation: current.generation })),
-  );
+  await readWorkspaceSnapshotObservation(invoke, current, readbacks);
   await browser.wait(
     async () => {
       const state = await executeBrowserScript(browser, observeIntakeWorkspace);
@@ -312,10 +311,14 @@ export async function sourceIntakeNativeBoundaries({
     try {
       if (switched) {
         observed.restoration_stage = "waiting_for_current_workspace";
-        observed.restoration_precondition = await waitForSourceIntakeRestoration(browser, invoke, [
-          library,
-          other,
-        ]);
+        const readbacks: unknown[] = [];
+        observed.restoration_workspace_readbacks = readbacks;
+        observed.restoration_precondition = await waitForSourceIntakeRestoration(
+          browser,
+          invoke,
+          [library, other],
+          readbacks,
+        );
         observed.restoration_stage = "restoring_original_library";
         success(await invoke("set_default_library", { path: library }));
         observed.restoration_stage = "reloading_original_library";

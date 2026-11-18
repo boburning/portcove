@@ -516,6 +516,55 @@ shared owned-target scroll and settled-capture contract for the complete
 workspace feedback region, retaining its filename and focus. These are harness
 repairs; original failures remain retained and require later native verification.
 
+The same campaign's library-switch-recovery job `135122626538` retained its
+future-schema refusal and original bootstrap/library identity, then a workspace
+read received Core's explicit `conflict` with string details
+`workspace_snapshot_stale: "true"` and `retryable: "true"`. Native metadata
+observation may repeat only that read, at most three times, with the original
+root and generation checked before and after each read. One 60-second acceptance
+budget covers the attempts; it is not reset per retry. Already-started IPC is
+awaited under its existing timeout even if that crosses the acceptance budget,
+then fails without a detached read or late continuation. Every returned refusal
+is retained in readbacks and the job log. Other conflicts, nonretryable results,
+changed scope and mutations are never retried. Library recovery and the intake
+restoration precondition share this policy; Core's consistency checks and
+two-second outgoing-library drain are unchanged. The concurrent writer is unknown.
+
+The minimized-preparation job `135122626750` completed the owned preparation and
+native restore, then its positive Play-only lookup rejected the fixture's enabled
+**Try launch** control. That restored-ready lookup now accepts either exact
+caption in the detail's primary actions, still requiring launchable typed state,
+no pending setup, visibility and enabled state with the existing 15-second waits.
+Strict confirmed and negative launch checks elsewhere remain unchanged.
+
+The closed-preparation job `135122626664` reported a scenario pass, but its
+33,060,552-byte preservation report exceeded the unchanged 12 MiB evidence bound;
+the codec retained no recoverable captures. Recovery still decodes and validates
+the full workspace and checks the exact port status and operation activity before
+reporting. Windows ordinary-close and Linux recovery reports now label
+`recovered_workspace` as an asserted preparation projection: bootstrap/root and
+generation, the asserted status/activity and a SHA-256 plus UTF-8 byte count of
+the full validated snapshot's JSON serialization. This digest is not raw-wire
+evidence. Unrelated catalog payloads are omitted only after the assertions;
+codec bounds and all data/save/operation checks remain unchanged. The earlier
+scenario summary does not establish retained-artifact or rendered acceptance.
+
+The secondary-panel job `135122626691` completed owned DAT cancellation and focus
+return, then the helper refused the implemented **Choose a DAT file** Open dialog
+before input. The finite same-scenario audit also identified its existing recipe
+and saves Open titles and metadata/saves Save titles missing from that guard.
+Only these exact title/action pairs are added. Save defaults to denied unless
+the trusted scenario explicitly supplies its owned output root; the wrapper binds
+it to the existing fixture scope, and PowerShell requires an absent literal JSON
+leaf directly under that existing non-reparse parent. Missing/unowned parents,
+traversal, existing targets, device/wildcard names, unrelated titles and wrong
+actions fail before field input. The path is rechecked before Save; the helper
+never confirms overwrite or invokes Yes as part of Save. Process/creation/window
+identity, exact owned fields/buttons, single-action readback/dismissal and existing
+timeouts remain in force. Linux contracts verify fixture validation and producer
+titles; the existing Windows-only AST/input witness covers the actual guarded
+PowerShell blocks. Those Windows checks and native flows require later execution.
+
 The November 17 Linux Heavy Rust calibration raises the parent's adopting-reaper
 exit wait from 5 to 30 seconds. A guarded desktop build at `95f11af1` returned
 payload status 0 and eventually published a positive quiescence receipt, but its
