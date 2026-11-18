@@ -1,4 +1,3 @@
-import type { ChildProcess } from "node:child_process";
 import type { NativeSessionMode } from "../apps/desktop/scripts/desktop-owned-native-session.mts";
 import {
   readNativeProcessSnapshot,
@@ -28,9 +27,10 @@ function naturalPid(value: unknown): number {
   return value;
 }
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { ChildProcess, spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { once } from "node:events";
+import { runInNewContext } from "node:vm";
 import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -39,6 +39,231 @@ import test from "node:test";
 import { observeStartup } from "../apps/desktop/scripts/desktop-startup-observation.mts";
 import { startEmbeddedInstalledSession } from "../apps/desktop/scripts/desktop-windows-embedded-session.mts";
 import { startWindowsUpdateExitObservation } from "../apps/desktop/scripts/desktop-installed-update-harness.mts";
+
+void test("ordinary Linux restart stops and joins its captured driver before releasing it", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function requestApplicationShutdown(snapshot: string) {");
+  const end = source.indexOf("\nasync function restartHistoryApplication(", start);
+  assert.ok(start >= 0 && end > start);
+  const shutdown = source.slice(start, end).replace("snapshot: string", "snapshot");
+  for (const outcome of [
+    "joined",
+    "timeout",
+    "already-exited",
+    "selected-session",
+    "changed",
+    "windows",
+  ] as const) {
+    const captured = new ChildProcess();
+    if (outcome === "already-exited") Object.defineProperty(captured, "exitCode", { value: 0 });
+    const replacement = new ChildProcess();
+    const controller = new AbortController();
+    const calls: string[] = [];
+    let stopped: (() => void) | undefined;
+    const stopping = new Promise<void>((resolve) => {
+      stopped = resolve;
+    });
+    let finishStop: (() => void) | undefined;
+    const publicationJoined = new Promise<void>((resolve) => {
+      finishStop = resolve;
+    });
+    const context = {
+      driver: captured as ChildProcess | undefined,
+      browser: {
+        quit: async () => {
+          calls.push("quit");
+          if (outcome === "changed") context.driver = replacement;
+        },
+      } as { quit: () => Promise<void> } | undefined,
+      process: { platform: outcome === "windows" ? "win32" : "linux" },
+      linuxSelectedSession: outcome === "already-exited" || outcome === "selected-session",
+      ChildProcess,
+      assert,
+      once,
+      required,
+      AbortSignal: {
+        timeout: (milliseconds: number) => {
+          assert.equal(
+            context.linuxSelectedSession,
+            false,
+            "Selected sessions keep their maintained namespace join budget",
+          );
+          assert.equal(milliseconds, 5_000);
+          return controller.signal;
+        },
+      },
+      stopDriver: async () => {
+        assert.equal(context.driver, captured);
+        calls.push("stop");
+        required(stopped)();
+        if (context.linuxSelectedSession) await publicationJoined;
+      },
+      observeNativeSession: (mode: string, snapshot: string) => {
+        assert.equal(mode, "StopDriver");
+        assert.equal(snapshot, "owned.json");
+        calls.push("windows-stop");
+        return "windows-proof";
+      },
+    };
+    const requestValue: unknown = runInNewContext(`(${shutdown})`, context);
+    assert.ok(typeof requestValue === "function");
+    const request = requestValue as (snapshot: string) => Promise<unknown>;
+    let settled = false;
+    const capturedBrowser = context.browser;
+    const result = request("owned.json");
+    void result.then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      },
+    );
+    if (outcome === "changed") {
+      await assert.rejects(result, /Restart driver changed during application shutdown/u);
+      assert.equal(
+        context.driver,
+        replacement,
+        "A replacement child must never be stopped or discarded",
+      );
+      assert.equal(
+        context.browser,
+        capturedBrowser,
+        "A refused ownership change must preserve the browser reference",
+      );
+      assert.deepEqual(calls, ["quit"]);
+      continue;
+    }
+    if (outcome === "windows") {
+      assert.equal(await result, "windows-proof");
+      assert.deepEqual(calls, ["quit", "windows-stop"]);
+      assert.equal(context.driver, undefined);
+      continue;
+    }
+    await Promise.race([
+      stopping,
+      result.then(() => {
+        throw new Error("Restart discarded the Linux driver without stopping it");
+      }),
+    ]);
+    assert.equal(context.driver, captured);
+    assert.equal(settled, false, "Stopping alone does not prove the captured driver exited");
+    if (context.linuxSelectedSession) {
+      assert.equal(
+        captured.listenerCount("exit"),
+        0,
+        "Selected sessions use their existing stop/join authority",
+      );
+      required(finishStop)();
+      await result;
+      assert.equal(
+        context.driver,
+        undefined,
+        "Selected child requires maintained publication retirement even after exit",
+      );
+    } else if (outcome === "timeout") {
+      const rejected = assert.rejects(result, { name: "AbortError" });
+      controller.abort();
+      await rejected;
+      assert.equal(context.driver, captured, "An unjoined driver must remain owned for cleanup");
+    } else {
+      Object.defineProperty(captured, "exitCode", { value: 0 });
+      captured.emit("exit", 0, null);
+      await result;
+      assert.equal(context.driver, undefined);
+    }
+    assert.deepEqual(calls, ["quit", "stop"]);
+    assert.equal(context.browser, undefined);
+  }
+});
+
+void test("Linux driver stop preserves namespace retirement and never signals an exited root", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function stopDriver() {");
+  const end = source.indexOf("\nfunction stopBackupFocusDriver() {", start);
+  assert.ok(start >= 0 && end > start);
+  for (const outcome of [
+    "signaled",
+    "live",
+    "exited",
+    "selected-signaled",
+    "selected-live",
+  ] as const) {
+    const captured = new ChildProcess();
+    Object.defineProperty(captured, "pid", { value: 12345 });
+    if (outcome === "exited") Object.defineProperty(captured, "exitCode", { value: 0 });
+    if (outcome.includes("signaled"))
+      Object.defineProperty(captured, "signalCode", { value: "SIGTERM" });
+    const calls: unknown[] = [];
+    let beginPublication!: () => void;
+    const publicationStarted = new Promise<void>((resolve) => {
+      beginPublication = resolve;
+    });
+    let releasePublication!: () => void;
+    const publicationJoined = new Promise<void>((resolve) => {
+      releasePublication = resolve;
+    });
+    const selected = outcome.startsWith("selected");
+    const context = {
+      driver: captured,
+      linuxSelectedSession: selected,
+      identityBoundSession: false,
+      historySession: false,
+      linuxPublication: {
+        stop: async () => {
+          calls.push("publication-stop");
+          beginPublication();
+          await publicationJoined;
+        },
+      },
+      process: {
+        platform: "linux",
+        kill: (pid: number, signal: string) => {
+          calls.push({ pid, signal });
+          return true;
+        },
+      },
+    };
+    const stopValue: unknown = runInNewContext(`(${source.slice(start, end)})`, context);
+    assert.ok(typeof stopValue === "function");
+    const stop = stopValue as () => Promise<void>;
+    let settled = false;
+    const result = stop();
+    void result.then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      },
+    );
+    if (selected) {
+      await publicationStarted;
+      assert.equal(
+        settled,
+        false,
+        "Namespace publication retirement must finish before stop returns",
+      );
+      assert.deepEqual(calls, ["publication-stop"]);
+      releasePublication();
+    }
+    await result;
+    assert.deepEqual(
+      calls,
+      selected
+        ? ["publication-stop"]
+        : outcome === "live"
+          ? [{ pid: -12345, signal: "SIGTERM" }]
+          : [],
+    );
+  }
+});
 
 void test(
   "marked helper observation retains actual OS exits without inventing or forcing them",
