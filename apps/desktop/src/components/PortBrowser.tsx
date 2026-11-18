@@ -1797,25 +1797,25 @@ function BrowserQuickViews({
     );
   };
   const views: { view: LibraryQuickView; label: string; description: string }[] = [
-    { view: "all", label: "All", description: "Every game in this library scope" },
+    { view: "all", label: "All", description: "Every port in this library scope" },
     ...(favorites
       ? [
           {
             view: "favorites" as const,
             label: "Favorites",
-            description: "Games you marked as favorites",
+            description: "Ports you marked as favorites",
           },
         ]
       : []),
     {
       view: "attention",
       label: "Needs attention",
-      description: "Games that need setup, files or repair before they can play",
+      description: "Ports that need setup, files or repair before they can play",
     },
     {
       view: "updates",
       label: "Updates",
-      description: "Games with an update available or downloaded and ready to apply",
+      description: "Ports with an update available or downloaded and ready to apply",
     },
   ];
   const enabled = (view: LibraryQuickView) =>
@@ -1897,7 +1897,7 @@ function BrowserQuickViews({
               : `${description}.`}
             {/* Favorites already names its count. */}
             {view !== "favorites" &&
-              ` ${typeof count === "number" ? `${count} ${count === 1 ? "game" : "games"}` : "Count unavailable"}`}
+              ` ${typeof count === "number" ? `${count} ${count === 1 ? "port" : "ports"}` : "Count unavailable"}`}
           </span>
         );
       })}
@@ -2013,7 +2013,7 @@ function collectionViewLabel(
 }
 
 function libraryResultCount(visible: number, installed: number) {
-  return `${visible} of ${installed} in your library`;
+  return `${visible} of ${installed} ${installed === 1 ? "port" : "ports"} in your library`;
 }
 
 function CollectionLayoutToggle({
@@ -2388,7 +2388,7 @@ function BrowserLastPlayed({
 
 function browserResultCount(view: View, count: number) {
   return view === "library"
-    ? `${count} in your library`
+    ? `${count} ${count === 1 ? "port" : "ports"} in your library`
     : `${count} ${count === 1 ? "port" : "ports"}`;
 }
 
