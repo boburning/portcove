@@ -332,9 +332,9 @@ jobs:
         timeout-minutes: 3
         run: node scripts/run-rust-tests.mts --guard-command node scripts/desktop-linux-namespace-preflight.mts
       - name: Install the existing disposable Linux prerequisites
-        timeout-minutes: 15
+        timeout-minutes: 20
         run: |
-          ./scripts/install-linux-desktop-prerequisites.sh --include-webdriver
+          ./scripts/install-linux-desktop-prerequisites.sh --include-webdriver --install-timeout-seconds=600
           version=$(node -p "require('./.config/tool-bootstrap.json').desktop.tauri_driver")
           cargo install tauri-driver --locked --version "$version" \
             --root "$RUNNER_TEMP/slice3-native-driver" \

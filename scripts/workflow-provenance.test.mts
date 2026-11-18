@@ -2027,6 +2027,18 @@ void test("Linux large review binds source and controller and publishes an outsi
         (value) => record(value).name === "Observe the exact retained-page review and cancellation",
       ),
   );
+  const prerequisites = record(
+    required(
+      steps.find(
+        (value) => record(value).name === "Install the existing disposable Linux prerequisites",
+      ),
+    ),
+  );
+  assert.equal(prerequisites["timeout-minutes"], 20);
+  assert.match(
+    text(prerequisites.run),
+    /install-linux-desktop-prerequisites\.sh --include-webdriver --install-timeout-seconds=600/u,
+  );
   const build = record(
     required(
       steps.find(
