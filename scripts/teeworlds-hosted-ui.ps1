@@ -16,6 +16,7 @@ public static class TeeworldsWindow {
   System.Threading.Thread.Sleep(300);GetWindowThreadProcessId(h,out owner);
   if(owner!=pid || GetForegroundWindow()!=h)throw new Exception("Owned foreground changed");
  }
+ public static bool ForegroundOwned(IntPtr h,uint pid){uint owner;GetWindowThreadProcessId(h,out owner);return owner==pid && GetForegroundWindow()==h;}
  public delegate bool EnumProc(IntPtr h, IntPtr p);
  [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetProcessTimes(Microsoft.Win32.SafeHandles.SafeProcessHandle h,out long created,out long exited,out long kernel,out long user);
  public static long Created(Microsoft.Win32.SafeHandles.SafeProcessHandle h){long c,e,k,u;if(!GetProcessTimes(h,out c,out e,out k,out u))throw new Exception("Retained process creation identity unavailable");return c;}
@@ -67,7 +68,7 @@ function Capture([string]$label) {
  $width=$rect.Right-$rect.Left;$height=$rect.Bottom-$rect.Top
  if($width -lt 100 -or $height -lt 80 -or $width -gt 2560 -or $height -gt 1600){throw 'Capture outside bounds'}
  $bitmap=[Drawing.Bitmap]::new($width,$height);$graphics=[Drawing.Graphics]::FromImage($bitmap)
- try{$graphics.CopyFromScreen($rect.Left,$rect.Top,0,0,$bitmap.Size);$bitmap.Save((Join-Path $Evidence "$Prefix-$label.png"),[Drawing.Imaging.ImageFormat]::Png)}finally{$graphics.Dispose();$bitmap.Dispose()}
+ try{if(-not [TeeworldsWindow]::ForegroundOwned($window,[uint32]$ownedGame.Id)){throw 'Owned window is not foreground immediately before capture'};$graphics.CopyFromScreen($rect.Left,$rect.Top,0,0,$bitmap.Size);$bitmap.Save((Join-Path $Evidence "$Prefix-$label.png"),[Drawing.Imaging.ImageFormat]::Png)}finally{$graphics.Dispose();$bitmap.Dispose()}
  $steps.Add(@{capture=$label;at=[DateTime]::UtcNow.ToString('o');width=$width;height=$height})
 }
 try {
