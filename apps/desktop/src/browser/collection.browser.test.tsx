@@ -207,7 +207,7 @@ it("retains a session-only layout through the real details unmount and return", 
     "12",
   );
   await inspectLibraryGroups(
-    [2, 6, 10, 4, 8, 5, 9, 0, 3, 7, 11].map((index) => [`collection-${index}`]),
+    [2, 6, 10, 4, 8, 5, 9, 0, 1, 3, 7, 11].map((index) => [`collection-${index}`]),
   );
   expect(document.body.textContent).toContain(
     "This collection view is available for this session; it could not be saved.",
@@ -323,7 +323,7 @@ for (const theme of ["dark", "light"]) {
       "12",
     );
     await inspectLibraryGroups(
-      [2, 6, 10, 4, 8, 5, 9, 0, 3, 7, 11].map((index) => [`collection-${index}`]),
+      [2, 6, 10, 4, 8, 5, 9, 0, 1, 3, 7, 11].map((index) => [`collection-${index}`]),
     );
     await mountLibraryPort("collection-3");
     expect(entryFor(3).querySelector(".collection-actions")?.textContent).toContain("Play");

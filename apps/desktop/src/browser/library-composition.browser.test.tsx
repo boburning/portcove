@@ -1193,7 +1193,7 @@ it("keeps twelve short-window Covers contained through fallback artwork and the 
   await page.viewport(960, 640);
   await mount("dark", "collection", 12);
   await inspectLibraryGroups(
-    [2, 6, 10, 4, 8, 5, 9, 0, 3, 7, 11].map((index) => [`collection-${index}`]),
+    [2, 6, 10, 4, 8, 5, 9, 0, 1, 3, 7, 11].map((index) => [`collection-${index}`]),
     (card) => expectContainedCover(card.querySelector<HTMLElement>(".collection-cover") ?? card),
   );
   await mountLibraryPort("collection-4");
@@ -1518,7 +1518,7 @@ it("sorts actual Library entries by the selected title order without changing th
     .toHaveTextContent("Title A–Z");
   const ascending: string[] = [];
   await inspectLibraryGroups(
-    [2, 6, 10, 4, 8, 5, 9, 0, 3, 7, 11].map((index) => [`collection-${index}`]),
+    [2, 6, 10, 4, 8, 5, 9, 0, 1, 3, 7, 11].map((index) => [`collection-${index}`]),
     (card, index) => {
       ascending[index] = card
         .querySelector(".collection-identity")!
@@ -1535,7 +1535,8 @@ it("sorts actual Library entries by the selected title order without changing th
   const descending: string[] = [];
   const descendingTitles: string[] = [];
   await inspectLibraryGroups(
-    [...ascending].reverse().map((id) => [id]),
+    // Descending titles retain original input order within each equal-title cohort.
+    [3, 7, 11, 0, 1, 5, 9, 4, 8, 6, 10, 2].map((index) => [`collection-${index}`]),
     (card, index) => {
       descending[index] = card
         .querySelector(".collection-identity")!
