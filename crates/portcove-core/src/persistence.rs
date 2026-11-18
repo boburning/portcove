@@ -227,7 +227,9 @@ pub(crate) fn ready_staged_archive(port: &PortDefinition) -> bool {
         && port.setup_arguments.is_empty()
         && port.setup_output_paths.is_empty()
         && port.setup_marker.is_none()
-        && port.managed_initialization.is_none()
+        && (port.managed_initialization.is_none()
+            || (crate::managed_chocolate::applies(port)
+                && crate::managed_chocolate::validate(port).is_ok()))
         && port.managed_shared_preferences.is_none()
         && port.runtime_data_policy.is_none()
 }

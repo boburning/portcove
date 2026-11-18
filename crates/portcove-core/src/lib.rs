@@ -70,6 +70,8 @@ mod library_import;
 mod library_membership;
 mod library_move;
 mod library_transfer;
+mod managed_chocolate;
+mod managed_initialization;
 mod managed_runtime_policy;
 mod managed_shared_preferences;
 mod managed_tfe;

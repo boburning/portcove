@@ -1194,6 +1194,20 @@ bounded quick filter observations are distinct: the latter returns `NotChecked`
 for this shape. See [managed Dark Forces setup and recovery](reference/managed-tfe.md)
 for player workflow, persistence boundaries and the removal recovery hold.
 
+The closed `chocolate-family-portable-v1` initializer requires staged-source
+capability **38**. It selects one official Windows Chocolate Doom, Heretic or
+Hexen package and a checked whole IWAD. Core creates only a missing local extra
+configuration, preserving existing compatible bytes. Autoload and music-pack
+paths stay local. Save directories are derived from the actual IWAD's SHA-256,
+so different original editions do not share slots. Actual IWAD bytes are checked
+before preparation, data movement and spawning; a changed original or incomplete
+dataset holds the operation. An explicit setup deployment retains its existing
+whole-dataset replacement authority. The recipe does not initialize TFE files,
+import host profiles, run a setup utility or accept catalog-supplied file contents.
+Older consumers must refuse the unknown initializer/capability. See
+[managed Chocolate profiles](reference/managed-chocolate.md) for ownership and
+preservation boundaries.
+
 ## STFS package extraction
 
 `stfs-directory` extracts a player's original Xbox 360 STFS package (an Xbox Live
