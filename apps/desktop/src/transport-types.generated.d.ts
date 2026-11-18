@@ -824,7 +824,11 @@ export type OutputListingStatuses = PortListingStatus[];
  * What the package would run on the player's machine if enabled.
  */
 export type RecompExecution = "recompiled_code" | "native_libraries" | "external_code";
-export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
+/**
+ * `Present` is limited to ordinary setup metadata previews; it does not
+ * establish current immutable payload integrity. Strict inspection uses `Verified`.
+ */
+export type RetainedBuildAvailability = "verified" | "present" | "missing" | "changed" | "held" | "unavailable";
 export type OriginalAvailability = "verified" | "missing" | "changed";
 /**
  * What one standing pass did about one installed provider file.

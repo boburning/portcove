@@ -2917,3 +2917,277 @@ fn creating_a_clean_setup_preserves_the_source_runtime_and_progress() {
     assert_eq!(live_mods(&w), ["color.o2r"]);
     assert_eq!(fs::read(live_save).unwrap(), b"source progress");
 }
+
+#[test]
+fn mod_inventory_checks_metadata_without_reusing_payload_digests() {
+    let (_temporary, service, install) = fixture();
+    let profile = service.ensure_default_profile("starship").unwrap();
+    let executable = install.path.join(&install.selected_executable);
+    let file = fs::File::open(&executable).unwrap();
+    let fingerprint = crate::adapter::preview_digest::Fingerprint::of(&file).unwrap();
+    // Neither this poisoned digest nor the payload bytes are consulted by the
+    // metadata preview. A copy still verifies fresh bytes outside any preview.
+    crate::adapter::preview_digest::record(
+        &executable,
+        fingerprint,
+        &("0".repeat(64), file.metadata().unwrap().len()),
+    );
+    let preview = service.preview_mod_setups("starship").unwrap();
+    assert_eq!(
+        preview.inventory.unwrap().profiles[0].build_availability,
+        crate::RetainedBuildAvailability::Present
+    );
+    // A real setup mutation must hash the correct bytes instead of inheriting
+    // either the metadata preview or its unrelated cached digest.
+    let copied = service
+        .copy_profile("starship", &profile.id, "Freshly verified")
+        .unwrap();
+    assert_ne!(copied.id, profile.id);
+    let preview = service.preview_mod_setups("starship").unwrap();
+    assert!(preview.inventory.unwrap().profiles.iter().all(|profile| {
+        profile.build_availability == crate::RetainedBuildAvailability::Present
+    }));
+    assert!(
+        service
+            .mod_setups("starship")
+            .unwrap()
+            .inventory
+            .unwrap()
+            .profiles
+            .iter()
+            .all(|profile| {
+                profile.build_availability == crate::RetainedBuildAvailability::Verified
+            })
+    );
+}
+
+#[test]
+fn mod_inventory_metadata_never_authorizes_same_size_changed_runtime_bytes() {
+    let (_temporary, service, install) = fixture();
+    let profile = service.ensure_default_profile("starship").unwrap();
+    let executable = install.path.join(&install.selected_executable);
+    let modified = fs::metadata(&executable).unwrap().modified().unwrap();
+    let mut bytes = fs::read(&executable).unwrap();
+    let preview = service.preview_mod_setups("starship").unwrap();
+    assert_eq!(
+        preview.inventory.unwrap().profiles[0].build_availability,
+        crate::RetainedBuildAvailability::Present
+    );
+    bytes[0] ^= 1;
+    fs::write(&executable, bytes).unwrap();
+    fs::File::options()
+        .write(true)
+        .open(&executable)
+        .unwrap()
+        .set_times(fs::FileTimes::new().set_modified(modified))
+        .unwrap();
+    let preview = service.preview_mod_setups("starship").unwrap();
+    assert_eq!(
+        preview.inventory.unwrap().profiles[0].build_availability,
+        crate::RetainedBuildAvailability::Present
+    );
+    assert_eq!(
+        service.profile_inventory("starship").unwrap().profiles[0].build_availability,
+        crate::RetainedBuildAvailability::Changed
+    );
+    assert_eq!(
+        service
+            .mod_setups("starship")
+            .unwrap()
+            .inventory
+            .unwrap()
+            .profiles[0]
+            .build_availability,
+        crate::RetainedBuildAvailability::Changed
+    );
+    assert!(
+        service
+            .copy_profile("starship", &profile.id, "Changed runtime")
+            .is_err()
+    );
+    assert!(
+        service
+            .verified_retained_build("starship", &install.id)
+            .is_err()
+    );
+    let qualification = crate::InstallQualification::from_catalog(
+        service.catalog(),
+        "starship",
+        crate::Platform::current().unwrap(),
+    )
+    .unwrap();
+    let installer = crate::Installer::new(service.library().clone()).unwrap();
+    assert!(installer.verify_critical(&install, &qualification).is_err());
+    assert!(
+        installer
+            .verify_critical_for_replacement(&install, &qualification)
+            .is_err()
+    );
+    assert_eq!(
+        service
+            .profile_inventory("starship")
+            .unwrap()
+            .profiles
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn mod_inventory_metadata_preserves_missing_and_changed_metadata_failures() {
+    let (_temporary, service, install) = fixture();
+    service.ensure_default_profile("starship").unwrap();
+    let manifest = install.path.join(".portcove-manifest.json");
+    let bytes = fs::read(&manifest).unwrap();
+    fs::write(&manifest, b"changed manifest").unwrap();
+    assert_eq!(
+        service
+            .preview_mod_setups("starship")
+            .unwrap()
+            .inventory
+            .unwrap()
+            .profiles[0]
+            .build_availability,
+        crate::RetainedBuildAvailability::Changed
+    );
+    fs::remove_file(&manifest).unwrap();
+    assert_eq!(
+        service
+            .preview_mod_setups("starship")
+            .unwrap()
+            .inventory
+            .unwrap()
+            .profiles[0]
+            .build_availability,
+        crate::RetainedBuildAvailability::Missing
+    );
+    fs::write(&manifest, bytes).unwrap();
+    fs::remove_file(install.path.join(&install.selected_executable)).unwrap();
+    assert_eq!(
+        service
+            .preview_mod_setups("starship")
+            .unwrap()
+            .inventory
+            .unwrap()
+            .profiles[0]
+            .build_availability,
+        crate::RetainedBuildAvailability::Missing
+    );
+}
+
+#[test]
+fn mod_inventory_metadata_does_not_walk_or_authorize_unknown_runtime_files() {
+    let (_temporary, service, install) = fixture();
+    let profile = service.ensure_default_profile("starship").unwrap();
+    fs::write(install.path.join("unknown-runtime-file.txt"), b"unrecorded").unwrap();
+    let preview = service
+        .preview_mod_setups("starship")
+        .unwrap()
+        .inventory
+        .unwrap();
+    assert_eq!(
+        preview.profiles[0].build_availability,
+        crate::RetainedBuildAvailability::Present
+    );
+    assert_eq!(
+        service.profile_inventory("starship").unwrap().profiles[0].build_availability,
+        crate::RetainedBuildAvailability::Changed
+    );
+    assert!(
+        service
+            .copy_profile("starship", &profile.id, "Refused")
+            .is_err()
+    );
+    assert_eq!(
+        service
+            .profile_inventory("starship")
+            .unwrap()
+            .profiles
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn mod_inventory_metadata_checks_current_binding_without_verifying_retained_history() {
+    let (_temporary, service, first) = fixture();
+    let profile = service.ensure_default_profile("starship").unwrap();
+    let second = crate::retained_build::tests::install(
+        service.library(),
+        "second",
+        b"next accepted runtime",
+        true,
+    );
+    service.ensure_default_profile("starship").unwrap();
+    fs::remove_file(first.path.join(&first.selected_executable)).unwrap();
+    let preview = service
+        .preview_mod_setups("starship")
+        .unwrap()
+        .inventory
+        .unwrap();
+    assert_eq!(
+        preview.profiles[0].build_availability,
+        crate::RetainedBuildAvailability::Present
+    );
+    assert_eq!(preview.profiles[0].revision.build.install_id, second.id);
+    let strict = service
+        .resolve_retained_build("starship", &profile.id)
+        .unwrap();
+    assert_eq!(
+        strict.availability,
+        crate::RetainedBuildAvailability::Verified
+    );
+    assert_eq!(strict.history.len(), 1);
+    assert_eq!(
+        strict.history[0].availability,
+        crate::RetainedBuildAvailability::Missing
+    );
+}
+
+#[test]
+fn mod_inventory_metadata_keeps_current_runtime_policy_refusals() {
+    let (_temporary, mut service, install) = fixture();
+    let profile = service.ensure_default_profile("starship").unwrap();
+    let mut document = service.catalog().authoritative_document();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "starship")
+        .unwrap();
+    port.managed_acquisition_hold = Some(crate::ManagedAcquisitionHold {
+        reason: "Fixture acquisition hold".into(),
+        activation_reason: "Fixture runtime hold".into(),
+        reviewed_artifacts: Vec::new(),
+        excluded_artifacts: Vec::new(),
+    });
+    service.replace_catalog_for_test(
+        crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+    );
+    let preview = service
+        .preview_mod_setups("starship")
+        .unwrap()
+        .inventory
+        .unwrap();
+    let strict = service
+        .resolve_retained_build("starship", &profile.id)
+        .unwrap();
+    assert_eq!(preview.profiles[0].build_availability, strict.availability);
+    assert_ne!(
+        strict.availability,
+        crate::RetainedBuildAvailability::Verified
+    );
+    assert_ne!(
+        strict.availability,
+        crate::RetainedBuildAvailability::Present
+    );
+    assert!(
+        service
+            .verified_retained_build("starship", &install.id)
+            .is_err()
+    );
+    assert!(
+        service
+            .copy_profile("starship", &profile.id, "Held")
+            .is_err()
+    );
+}

@@ -22,7 +22,9 @@ pub(crate) async fn get_mod_setups(
 ) -> DesktopResult<ModSetupsView> {
     let state = state.inner().clone();
     blocking_worker(move || {
-        read_at_generation(&state, generation, |service| service.mod_setups(&port_id))
+        read_at_generation(&state, generation, |service| {
+            service.preview_mod_setups(&port_id)
+        })
     })
     .await
 }

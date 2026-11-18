@@ -1446,6 +1446,7 @@ export default interface Resources {
         "title": "Retire recovery offer {{revision}}?"
       },
       "runtimeHeld": "This setup’s runtime needs attention.",
+      "runtimePresent": "Installed game files are checked before play or copying this setup.",
       "runtimeVersion": "Game version {{version}}",
       "separator": ", ",
       "setups": "Setups",
