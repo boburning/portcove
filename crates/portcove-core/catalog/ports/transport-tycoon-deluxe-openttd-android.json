@@ -1,0 +1,71 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "transport-tycoon-deluxe-openttd-android",
+    "name": "Transport Tycoon Deluxe (OpenTTD Android community port)",
+    "summary": "Build a transport network with the community OpenTTD Android app. Install it through the publisher’s Google Play listing and follow its setup. Android apps and saved data stay under your and the app’s control. Keep this variant separate from official desktop OpenTTD and JGR Patch Pack.",
+    "original_game_title": "Transport Tycoon Deluxe",
+    "project_url": "https://github.com/pelya/openttd-android",
+    "availability": "packages",
+    "setup_url": "https://play.google.com/store/apps/details?id=org.openttd.sdl",
+    "release_url": "https://play.google.com/store/apps/details?id=org.openttd.sdl",
+    "artwork": {
+      "game_id": 5502,
+      "cover_id": 85659,
+      "image_id": "co1u3f",
+      "image_sha256": "3554c280028ad14f2991fc66c11dee1349690679b178a6af800b47dd160d9b0d",
+      "game_slug": "transport-tycoon-deluxe",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 8081,
+    "listed_at": "2026-11-18",
+    "manual_setup": {
+      "help_url": "https://play.google.com/store/apps/details?id=org.openttd.sdl",
+      "steps": [
+        {
+          "title": "Install the Android community app",
+          "instruction": "Use pelya’s OpenTTD listing on Google Play (org.openttd.sdl). Follow the app’s setup for its graphics and optional content. This Android community version has its own releases; the official desktop download and JGR Patch Pack are separate variants."
+        },
+        {
+          "title": "Keep your Android saves recoverable",
+          "instruction": "Before updating, reinstalling or changing the app’s download source, export or back up every actual save, configuration and content folder with the app’s supported tools. Android can restrict access to app data. Keep the working app version and exact content recoverable before transferring a save to another OpenTTD version."
+        },
+        {
+          "title": "Keep Android setup under the app’s control",
+          "instruction": "Install, start and update the game with Android and the publisher’s tools. Portcove provides this upstream setup reference; it does not install Android apps, launch this APK or manage its updates, saves, backups or removal."
+        }
+      ],
+      "warnings": [
+        "Do not uninstall the working app to replace it with a differently signed APK until you have confirmed that its data can be restored. Reinstallation can remove app data.",
+        "Use your own original Transport Tycoon Deluxe files only if you choose them instead of the free base graphics. This guide does not supply original assets."
+      ],
+      "references": [
+        {
+          "title": "Use the publisher’s app route",
+          "instruction": "Use the linked Google Play listing for Android installation. Historical GitHub APKs are older releases, not a current-build recommendation. The available APK and its signing identity can differ from the store version."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "transport-tycoon-deluxe",
+      "evidence_urls": [
+        "https://github.com/pelya/openttd-android/blob/a3163e003f86ff2b4e56e739456b44e2bd34f5b0/README.md",
+        "https://wiki.openttd.org/en/Community/Patches/Compiling%20and%20installing%20the%20unofficial%20Android%20port"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "transport-tycoon-deluxe-openttd-android",
+    "origin": {
+      "project_url": "https://github.com/pelya/openttd-android",
+      "repository": {
+        "host": "github.com",
+        "id": "17780277"
+      }
+    },
+    "decisions": []
+  }
+}

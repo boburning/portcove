@@ -974,6 +974,8 @@ export default interface Resources {
         "detail": "Portcove tells you when it can be installed, and again only if its setup changes. Nothing is installed.",
         "label": "Tell me when it's ready"
       },
+      "readAgain": "Read again",
+      "reading": "Reading choices…",
       "setUpWhenReady": {
         "detail": "Portcove installs it without asking again once its files and requirements are ready. It never starts the game. Choose another option to stop.",
         "label": "Set it up when it's ready"
@@ -2147,6 +2149,11 @@ export default interface Resources {
       "review": "Review restore",
       "title": "Restore from a library copy",
       "trust": "<strong>Use an export you trust.</strong> Review its source, destination, required space, installed versions, saved file locations, and copied files before restoring it."
+    },
+    "steamGridDb": {
+      "readAgain": "Check setup again",
+      "readFailed": "Couldn't check SteamGridDB setup. Check again to see whether a key is saved.",
+      "reading": "Checking SteamGridDB setup…"
     },
     "supportReport": {
       "collecting": "Collecting available diagnostics…",

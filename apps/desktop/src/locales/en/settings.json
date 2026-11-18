@@ -52,6 +52,11 @@
     "title": "Restore from a library copy",
     "trust": "<strong>Use an export you trust.</strong> Review its source, destination, required space, installed versions, saved file locations, and copied files before restoring it."
   },
+  "steamGridDb": {
+    "readAgain": "Check setup again",
+    "readFailed": "Couldn't check SteamGridDB setup. Check again to see whether a key is saved.",
+    "reading": "Checking SteamGridDB setup…"
+  },
   "supportReport": {
     "collecting": "Collecting available diagnostics…",
     "contentsLimits": "This report may not include every log entry or task. Older or later activity and log output may be missing.",

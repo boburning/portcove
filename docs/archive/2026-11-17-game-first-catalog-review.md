@@ -151,3 +151,31 @@ choice/restart journey. Running that journey, inspecting its captures, required
 exact-head CI, guarded delivery and installed/published-build observation retain
 their separate evidence requirements on #8076. This dated source review claims
 none of those observations by itself.
+
+
+## November 18 current-catalog reconciliation
+
+Target `eb6f13dc58bf2c5126dd830aafa3ff281edaabcb` adds the descriptive
+`transport-tycoon-deluxe-openttd-android` listing through
+[#8082](https://github.com/boburning/portcove/pull/8082), owned by
+[#8081](https://github.com/boburning/portcove/issues/8081). Its
+[pinned publisher README](https://github.com/pelya/openttd-android/blob/a3163e003f86ff2b4e56e739456b44e2bd34f5b0/README.md)
+identifies the original Transport Tycoon Deluxe relationship; the
+[community Android guide](https://wiki.openttd.org/en/Community/Patches/Compiling%20and%20installing%20the%20unofficial%20Android%20port)
+confirms a separate Android implementation, signing and data route. Independent
+review approved reusing `transport-tycoon-deluxe`, with source editions unspecified.
+The expected family now includes Android, official desktop OpenTTD and JGR Patch
+Pack. This extends the independently reviewed expectation, rather than deriving
+it from the generated catalog.
+
+The current universe is **1,551 listings**, **435 operational definitions**,
+**1,513 identified records**, **1,171 original-game IDs**, **240 multi-option
+families / 582 member records**, **38 standalone project entries**, and **1,209
+production groups**. The original 1,550-record audit and preservation comparison
+above remain historical evidence. The Android addition grants no managed action,
+desktop platform, compatible-source or save claim. Its full setup guide, publisher
+routes, artwork, opaque repository identity and lineage are preserved. The only
+change to that target-authored record is its additive original-game metadata.
+Target changes to the official desktop guide are retained. Current native
+catalog assertions and the independent baseline include the added listing;
+application acceptance is still owned by #8076.

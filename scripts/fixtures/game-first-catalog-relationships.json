@@ -1378,6 +1378,7 @@
     "toystoryracerrecomp-irafunesto-toy-story-racer",
     "tr-underworld-recomp-zenigatabloch-tomb-raider-underworld-xbox-360",
     "transformers-2004-ps2-port-tpepperoni666-transformers-2004",
+    "transport-tycoon-deluxe-openttd-android",
     "transport-tycoon-deluxe-openttd-upstream",
     "triaevum-ocarina-of-time-3d",
     "trials-hd-recompiled-snufflyyy-trials-hd",
@@ -2336,6 +2337,7 @@
     ],
     "transport-tycoon-deluxe": [
       "jgrennison-openttd-patches",
+      "transport-tycoon-deluxe-openttd-android",
       "transport-tycoon-deluxe-openttd-upstream"
     ],
     "twisted-metal-2": [
@@ -2462,5 +2464,15 @@
     "wipeout-pc-abdelmoumendeghbouche-wipeout-omega-collection": "multi-game",
     "wootbeer-jillandroid": "multi-game",
     "zdoom-gzdoom": "multi-game"
+  },
+  "reconciliation": {
+    "target_revision": "eb6f13dc58bf2c5126dd830aafa3ff281edaabcb",
+    "added_port_ids": ["transport-tycoon-deluxe-openttd-android"],
+    "evidence_urls": [
+      "https://github.com/boburning/portcove/issues/8081",
+      "https://github.com/pelya/openttd-android/blob/a3163e003f86ff2b4e56e739456b44e2bd34f5b0/README.md",
+      "https://wiki.openttd.org/en/Community/Patches/Compiling%20and%20installing%20the%20unofficial%20Android%20port"
+    ],
+    "decision": "Same original Transport Tycoon Deluxe, separate Android implementation and external setup/update/player-data owner. Reviewed expected membership extends the original audit; no relationship was derived from generated output."
   }
 }
