@@ -2208,6 +2208,30 @@ unchanged. It is not
 large-collection, gameplay, OS DPI, physical
 controller or assistive-technology acceptance.
 
+`native-collection-artwork-presentation` is a standalone Windows opt-in with a
+ten-minute harness budget and the existing identity-bound native review cleanup.
+It uses the normal app and a fresh source-free library. The actual accepted
+catalog supplies the two-member `andreyvelsk-com-mobilerpgpack-phone` and four-member
+`crownpark-xbox360-native-ports-collection` listings, member credits and digests.
+Public thumbnail IPC is bound to the actual library generation and artwork choice
+revision; retained PNG identities are compared with displayed images. Discover,
+detail and credits use settled, contained captures in both themes at the supported
+960×640 outer window. A four-member compact representative uses that same window
+at 200% through the production Ctrl+0/Ctrl++ native WebView sizing route. Records
+bind the actual outer size, saved percentage, device pixel ratio and effective
+viewport; the compact viewport must be half its measured 100% baseline, within
+two CSS pixels. Full credits are captured at 100%; the compact capture frames
+their opener while still checking every source link and credit. Back must restore
+the exact Discover opener focus. Theme/interface-size preference changes use
+existing controls in the isolated profile and are restored. Catalog and artwork
+choices remain unchanged; no original files, runtime installation, catalog
+replacement or provider credentials are used. Restoration completes before the
+final report is serialized, including any restoration failure.
+Public failures retain concrete member failures and any partial/fallback evidence
+and fail complete-collection acceptance. Browser fixtures for Library/Manage remain
+separate evidence; this listing-only native case does not qualify those installed
+surfaces, gameplay or publication. It is absent from routine profiles.
+
 `just desktop-verify --scenario native-saved-folder-hash-resume --require-clean`
 selects one standalone
 Windows journey outside routine profiles. An isolated first-party CLI seeds a
@@ -2632,8 +2656,10 @@ an owned setup child reaches its live checkpoint, the identified harness tree
 is forcibly terminated without first deleting the WebDriver session, and a new
 native host performs recovery. The run checks source, original executable,
 active-install and save preservation, retained staging, recovered activity and
-cleanup refusal when durable process quiescence is unknown. It does not rewrite
-the recovery journal. The existing `native-interrupted-preparation-recovery`
+cleanup refusal when durable process quiescence is unknown. It then reviews and
+confirms a fresh preparation through Desktop, checks a distinct operation reaches
+ready, and verifies the interrupted activity and checkpoint remain intact along
+with the original source and save. It does not rewrite the recovery journal. The existing `native-interrupted-preparation-recovery`
 remains a separate synthetic durable-state and reviewed-cleanup test. Neither
 scenario proves OS shutdown, another operation family, installed packages or
 another platform.
@@ -2819,6 +2845,19 @@ Focused and small-profile runs retain the three-minute whole-harness watchdog,
 except where `desktopHarnessDeadlineMs` records a measured allowance: library move
 (300 s), interrupted preparation recovery (420 s) and the Steam entry/batch
 journeys (600 s).
+The November 17 combined ordinary owned-workflow run at `eb33f3b` reached backup
+restore before its 20-minute watchdog stopped the driver. Combinations executing
+more than eight scenarios, including the preparation prerequisite, now allow
+40 minutes. The established eight-case owned-ready group keeps 20 minutes;
+standalone allowances, product deadlines and zero automatic retries stay unchanged.
+The same run's workspace read took 23.926 seconds while cancellation became
+durable. Post-navigation cancellation and game-return settlement now use the
+existing 60-second native refresh/launch allowance with distinct failure labels.
+Held-assessment refresh also uses its existing 60-second readiness allowance;
+strict injection/restoration failures are recorded without replacing the primary
+wait error. The original timeout and downstream connection failures remain failed
+evidence; only a fresh exact-source run can establish completion.
+
 The opt-in Windows `native-library-switch-recovery` scenario uses only owned
 libraries and saved preferences. Real folder selection and review first commit a
 recognizable SQLite library with a future schema; refusal retains the Core-owned

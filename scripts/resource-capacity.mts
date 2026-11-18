@@ -611,7 +611,10 @@ async function acquireLocalResourceCapacity(
           );
         if (performance.now() >= nextReport) {
           const holder =
-            legacy ?? (await observeCapacity({ root })).running.find((entry) => entry.activity);
+            legacy ??
+            (await observeCapacity({ root, passive: true })).running.find(
+              (entry) => entry.activity,
+            );
           (options.report ?? console.error)(
             `Waiting for host capacity (${profile}, ${units}/${config.slots} slots); queued ${elapsed}ms; owner ${diagnosticText(holder?.workspace ?? waiting[0]?.workspace ?? "unknown")}, command ${diagnosticText(holder?.command ?? waiting[0]?.command ?? "unknown")}.`,
           );

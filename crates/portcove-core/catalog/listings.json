@@ -1,5 +1,5 @@
 {
-  "format_version": 10,
+  "format_version": 11,
   "listings": [
     {
       "id": "shipwright",
@@ -12581,8 +12581,8 @@
     },
     {
       "id": "andreyvelsk-com-mobilerpgpack-phone",
-      "name": "Doom-engine games (exact offered game scope unresolved) / Mobile RPG Pack (andreyvelsk)",
-      "summary": "Explore Doom-engine games (exact offered game scope unresolved) / Mobile RPG Pack (andreyvelsk) and follow the upstream project for requirements, downloads and setup.",
+      "name": "Doom / Doom II — UZDoom (andreyvelsk)",
+      "summary": "Follow the AYN Thor UZDoom setup for your own Doom or Doom II game data.",
       "project_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone",
       "issue_number": 1848,
       "listed_at": "2026-10-23",
@@ -12593,7 +12593,7 @@
         "steps": [
           {
             "title": "Finish setup in the upstream Android app",
-            "instruction": "This fork’s published APK is for Android, specifically the AYN Thor dual-screen UZDoom route. Install this fork’s APK on the Android device, open its launcher deliberately, and select your own compatible Doom-family IWAD/content through the UZDoom setup. Other engines named in the inherited parent README have been excluded from this fork; do not prepare Doom RPG, Wolfenstein RPG or another parent engine for this APK."
+            "instruction": "This fork’s published APK is for Android, specifically the AYN Thor dual-screen UZDoom route. Install this fork’s APK on the Android device, open its launcher deliberately, and select your own Doom or Doom II IWAD through the UZDoom setup. Other engines named in the inherited parent README have been excluded from this fork; do not prepare Doom RPG, Wolfenstein RPG or another parent engine for this APK."
           },
           {
             "title": "Keep your data when changing versions",
@@ -12603,7 +12603,25 @@
         "warnings": [],
         "help_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/blob/2.9.1-ds.1.0.2/README.md"
       },
-      "release_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/releases"
+      "release_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/releases",
+      "collection_covers": [
+        {
+          "game_id": 673,
+          "cover_id": 268663,
+          "image_id": "co5rav",
+          "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+          "game_slug": "doom",
+          "match_kind": "underlying-game"
+        },
+        {
+          "game_id": 312,
+          "cover_id": 303937,
+          "image_id": "co6iip",
+          "image_sha256": "9aaabe14844aa0f4152bc03a571c5e8f327dfa173469a2fd9e8cfc302e6fe6db",
+          "game_slug": "doom-ii-hell-on-earth",
+          "match_kind": "underlying-game"
+        }
+      ]
     },
     {
       "id": "andyvand-opentyrian2000",
@@ -16937,6 +16955,10 @@
           {
             "title": "Use an existing copy you have permission to play",
             "instruction": "Keep the full copy, including bin, graphics, data, missions and libraries. On Windows, the publisher ZIP uses the 32-bit bin/cdogs-sdl.exe player. On Linux x86-64, the publisher tarball needs glibc 2.34 or later, SDL2 and SDL2_mixer. Open a terminal in bin and run ./cdogs-sdl so it finds the data in the parent directory."
+          },
+          {
+            "title": "Register your existing Windows player",
+            "instruction": "In Portcove, choose bin/cdogs-sdl.exe from your permitted Windows copy and choose its bin folder as the working directory. Review the selected player and folder, then choose Play. Keep backups of the complete package and your actual C-Dogs profile. Removing this registration keeps those external files; you and upstream still own updates and backups."
           }
         ],
         "warnings": [
@@ -20862,7 +20884,41 @@
           "Upstream testing varies by title and platform. Check the notes for the package you choose."
         ],
         "help_url": "https://github.com/CrownParkComputing/Xbox360-Native-Ports/releases"
-      }
+      },
+      "collection_covers": [
+        {
+          "game_id": 2626,
+          "cover_id": 123757,
+          "image_id": "co2nhp",
+          "image_sha256": "17ffbbf892889f90f17cfaa50f67d03cd57f79f856b895555ba9fb8c6a607b92",
+          "game_slug": "burnout-revenge",
+          "match_kind": "underlying-game"
+        },
+        {
+          "game_id": 201644,
+          "cover_id": 294814,
+          "image_id": "co6bha",
+          "image_sha256": "256235d63a2dd949cd655e0b28d59f000e2f52f048107669f8cb0e7259d4939d",
+          "game_slug": "banjo-kazooie--1",
+          "match_kind": "underlying-game"
+        },
+        {
+          "game_id": 15756,
+          "cover_id": 288708,
+          "image_id": "co66ro",
+          "image_sha256": "7b8b36781520e5bd98d507f2db8fae975b07fd34ae5d78ce921800d8bc1411d5",
+          "game_slug": "geometry-wars-retro-evolved",
+          "match_kind": "underlying-game"
+        },
+        {
+          "game_id": 84308,
+          "cover_id": 133079,
+          "image_id": "co2uon",
+          "image_sha256": "4f9137fedf281cd967f35616a9d94263c3235fd843bd797293825c057c4d44ea",
+          "game_slug": "rez-hd",
+          "match_kind": "underlying-game"
+        }
+      ]
     },
     {
       "id": "crusader-no-remorse-sebsebseb1982-sdl-port",
@@ -35707,13 +35763,16 @@
     {
       "id": "jetstrike-sdl3-port",
       "name": "JetStrike / SDL3 Port",
-      "summary": "Play the original DOS JetStrike with the SDL3 port and your own game data.",
+      "summary": "Use your own DOS JetStrike CD-ROM data with the Windows package or a source build on Linux or Mac.",
       "original_game_title": "JetStrike",
       "project_url": "https://github.com/kylofon/jetstrike-sdl3",
       "issue_number": 5826,
       "listed_at": "2026-11-17",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/kylofon/jetstrike-sdl3/blob/v0.1.0/README.md",
@@ -35735,8 +35794,16 @@
             "instruction": "Extract the complete Windows x64 ZIP into its own folder and keep both executables and every DLL together. Open JetStrike.exe to choose your data and options. The optional Rip CD music action uses your owned CUE image and writes the 14 audio tracks under Game/MUSIC."
           },
           {
+            "title": "Build the direct player on Linux",
+            "instruction": "The reviewed release has no Linux package. Use the upstream source with a C11 compiler, CMake 3.24 or newer and SDL3 development files. From the repository root, run cmake -S jsport -B build -DCMAKE_BUILD_TYPE=Release -DJS_LAUNCHER=OFF -DCMAKE_C_STANDARD_LIBRARIES=-lm, then cmake --build build --target jsport. Keep the built jsport and its SDL3 runtime available. The Windows ZIP and launcher are not used on Linux. This build has not been tested with original CD-ROM data on Linux."
+          },
+          {
+            "title": "Build the direct player on Mac",
+            "instruction": "Use a C11 compiler, CMake 3.24 or newer and the macOS SDL3 framework from SDL’s official development package. Keep SDL3.framework in a stable folder. From the repository root, run cmake -S jsport -B build -DCMAKE_BUILD_TYPE=Release -DJS_LAUNCHER=OFF -DSDL3_DIR=\"/full/path/SDL3.framework/Resources/CMake\" -DCMAKE_BUILD_RPATH=\"/full/path/framework-folder\", then cmake --build build --target jsport. Replace both paths with your actual framework locations. Build on the Mac you will use, so the player matches Intel or Apple Silicon. Keep the framework folder in place after building. The Windows ZIP and launcher are not used. Native Mac game startup and saving have not been tested."
+          },
+          {
             "title": "Register the actual player in Portcove",
-            "instruction": "Choose jsport.exe as the existing installation and its containing directory as the working directory. Add --game-dir and your writable game-data folder as two separate arguments. The folder must contain the DOS CD-ROM data. Review the selected player, folder and arguments, then choose Play. The separate upstream launcher can stay open or close while its game continues."
+            "instruction": "On Windows, choose jsport.exe as the existing installation; on Linux or Mac, choose the built jsport. Choose the player’s containing directory as the working directory. Add --game-dir and your writable Game copy as two separate arguments. Review the selected player, folder and arguments, then choose Play. The separate upstream launcher can stay open or close while its game continues."
           }
         ],
         "warnings": [
@@ -35748,11 +35815,23 @@
             "instruction": "Back up JS.CFG, js_save.000 through js_save.009 and any MUSIC folder with your working game data. Copy %APPDATA%/JetStrike/settings.ini as well. Close both the player and launcher before replacing files. Portcove keeps a launch registration. You and upstream own runtime replacement and backups. Removing the registration leaves the working files and profile in place."
           },
           {
+            "title": "SDL3 development framework for Mac",
+            "instruction": "Get the official SDL3 development download from https://github.com/libsdl-org/SDL/releases/latest. Use SDL3.framework from the macos-arm64_x86_64 folder in SDL3.xcframework. The iOS and simulator frameworks are different targets."
+          },
+          {
             "title": "Other platforms",
-            "instruction": "This release publishes a Windows x64 package. The publisher has no reviewed Linux, Intel Mac, Apple Silicon or Android package for this route."
+            "instruction": "Windows x64 has the reviewed official package. Linux x64 uses the upstream source build described above, with no reviewed Linux package or title-run evidence. Intel Mac and Apple Silicon use the upstream source build described above. Both native architectures were built; Mac game execution remains untested, and there is no reviewed Mac package. Android has no reviewed package or mobile host integration. Those platforms do not inherit Windows or Linux observations."
           }
         ],
         "help_url": "https://github.com/kylofon/jetstrike-sdl3/blob/v0.1.0/README.md"
+      },
+      "artwork": {
+        "game_id": 37108,
+        "cover_id": 597588,
+        "image_id": "coct3o",
+        "image_sha256": "f9808d15b4ddf646fee4967310d941711713ed11fe60df51e6067385df9e5ddc",
+        "game_slug": "jetstrike",
+        "match_kind": "underlying-game"
       }
     },
     {
@@ -43843,6 +43922,65 @@
       ]
     },
     {
+      "id": "naev",
+      "name": "Naev",
+      "summary": "Explore space, trade and take missions in Naev. Use the official desktop package with its included game data.",
+      "original_game_title": "Naev",
+      "project_url": "https://codeberg.org/naev/naev",
+      "issue_number": 6817,
+      "listed_at": "2026-11-17",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://naev.org/downloads/",
+      "release_url": "https://codeberg.org/naev/naev/releases/latest",
+      "download_block_reason": "Use Naev’s downloads page for the Windows installer, Linux AppImage or universal Mac disk image.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the current official package",
+            "instruction": "Use the releases linked by Naev’s downloads page. Current releases are on Codeberg; the old GitHub mirror has older packages. The desktop packages include the game data. Keep the complete package and its licence notices."
+          },
+          {
+            "title": "Set up Naev on your computer",
+            "instruction": "On Windows x64, use the installer. For a portable copy, select Portable Install and choose a separate writable folder. On Linux x64, mark the AppImage executable and open it. On Intel or Apple Silicon Mac, copy the complete Naev app from the disk image to Applications. Follow the publisher’s Mac security instructions if your system prevents opening it."
+          },
+          {
+            "title": "Keep your profile before upgrading or removing files",
+            "instruction": "Close every copy of Naev and back up its whole profile, including conf.lua, saves and plugins. A normal Windows install uses %APPDATA%/naev. A portable Windows copy uses naev-data beside the player unless you changed datapath.lua. Linux normally uses ~/.local/share/naev, or naev under XDG_DATA_HOME. Mac normally uses ~/Library/Application Support/naev. Keep any custom data folder as well."
+          },
+          {
+            "title": "Preserve older profiles before the first upgrade launch",
+            "instruction": "Naev 0.13 can move files from older profile locations when the new location has no matching file. Before starting an upgrade, keep copies of the existing profile and configuration folders, including an older ~/.config/naev on Linux, or ~/Library/Application Support/org.naev.Naev and ~/Library/Preferences/naev on Mac. Follow the actual profile path reported by your game."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Updates, backups and existing installations",
+            "instruction": "Use upstream’s installer, app or package tools to replace the runtime. Keep your working version and every profile folder recoverable. When registering a prepared Windows copy in Portcove, select naev.exe and its containing folder as the working directory so an existing datapath.lua applies. Retain any established launch arguments. Removing the registration leaves external files in place. You and upstream own runtime replacement, backups, save migration and file removal."
+          },
+          {
+            "title": "Host requirements and other platforms",
+            "instruction": "The publisher lists Windows 10 or newer, macOS 11 or newer for the universal app, and glibc 2.30 or newer for the Linux x64 AppImage. Naev needs a working OpenGL context. The reviewed release has no Android or Linux ARM64 package. These requirements and package listings do not establish Portcove gameplay or minimum-system qualification."
+          }
+        ],
+        "help_url": "https://naev.org/downloads/"
+      },
+      "artwork": {
+        "game_id": 52025,
+        "cover_id": 173643,
+        "image_id": "co3pzf",
+        "image_sha256": "55d491ea767f2758b1974622c94192fc9bf1766e946d7275bf89f80b60091a32",
+        "game_slug": "naev",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
       "id": "nakagawa-recomp-jstar269-hot-shots-tennis-get-a-grip",
       "name": "Hot Shots Tennis: Get a Grip — Nakagawa Recomp (Jstar269)",
       "original_game_title": "Hot Shots Tennis: Get a Grip",
@@ -44532,7 +44670,7 @@
         "steps": [
           {
             "title": "Run the stable Windows player",
-            "instruction": "Download and extract the complete neverball-1.6.0.zip from Neverball’s Downloads page. Keep data and the included DLLs beside neverball.exe in the neverball-1.6.0 folder. Start neverball.exe with Windows support for 32-bit applications."
+            "instruction": "Download and extract the complete neverball-1.6.0.zip from Neverball’s Downloads page. Keep data and the included DLLs beside neverball.exe in the neverball-1.6.0 folder. Start neverball.exe on Windows with support for 32-bit applications and a working OpenGL graphics driver. For Portcove registration, choose neverball.exe and its containing working directory. Add --data and the full path to that package’s data folder as two separate arguments. Review the selection, then choose Play."
           },
           {
             "title": "Install the Linux game through your package manager",
@@ -60109,13 +60247,16 @@
     {
       "id": "street-rod-sdl3-port",
       "name": "Street Rod / SDL3 Port",
-      "summary": "Play the original DOS Street Rod with the SDL3 port and your own game data.",
+      "summary": "Use your own DOS Street Rod game data with the Windows package or a source build on Linux or Mac.",
       "original_game_title": "Street Rod",
       "project_url": "https://github.com/kylofon/street-rod-sdl3",
       "issue_number": 5855,
       "listed_at": "2026-11-17",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/kylofon/street-rod-sdl3/blob/v0.1.0/README.md",
@@ -60137,8 +60278,16 @@
             "instruction": "Extract the complete Windows x64 ZIP into its own folder and keep both executables and every DLL together. Open Street Rod.exe to choose your data and options. Choose original cars or Street Rod SE cars deliberately. The launcher uses the matching dataset for each."
           },
           {
+            "title": "Build the direct player on Linux",
+            "instruction": "The reviewed release has no Linux package. Use the upstream source with a C11 compiler, CMake 3.24 or newer and SDL3 development files. From the repository root, run cmake -S srport -B build -DCMAKE_BUILD_TYPE=Release -DSR_LAUNCHER=OFF -DCMAKE_C_STANDARD_LIBRARIES=-lm, then cmake --build build --target srport. The extra math-library flag is needed on Linux. Keep the built srport and its SDL3 runtime available. The Windows ZIP and launcher are not used on Linux."
+          },
+          {
+            "title": "Build the direct player on Mac",
+            "instruction": "Use a C11 compiler, CMake 3.24 or newer and the macOS SDL3 framework from SDL’s official development package. Keep SDL3.framework in a stable folder. From the repository root, run cmake -S srport -B build -DCMAKE_BUILD_TYPE=Release -DSR_LAUNCHER=OFF -DSDL3_DIR=\"/full/path/SDL3.framework/Resources/CMake\" -DCMAKE_BUILD_RPATH=\"/full/path/framework-folder\", then cmake --build build --target srport. Replace both paths with your actual framework locations. Build on the Mac you will use, so the player matches Intel or Apple Silicon. Keep the framework folder in place after building. The Windows ZIP and launcher are not used. Native Mac game startup and saving have not been tested."
+          },
+          {
             "title": "Register the actual player in Portcove",
-            "instruction": "Choose srport.exe as the existing installation and its containing directory as the working directory. Add --game-dir and your writable game-data folder as two separate arguments. For Street Rod SE, choose the datadisk folder. Review the selected player, folder and arguments, then choose Play. The separate upstream launcher can stay open or close while its game continues."
+            "instruction": "On Windows, choose srport.exe as the existing installation; on Linux or Mac, choose the built srport. Choose the player’s containing directory as the working directory. Add --game-dir and your writable game-data folder as two separate arguments. For Street Rod SE, choose the datadisk folder. Review the selected player, folder and arguments, then choose Play. The separate upstream launcher can stay open or close while its game continues."
           }
         ],
         "warnings": [
@@ -60150,11 +60299,23 @@
             "instruction": "Back up HOTROD1.SAV through HOTROD15.SAV and hall_dat with each working dataset. Keep the original-car and datadisk-car folders separate so each retains its own progress. Copy %APPDATA%/Street Rod/settings.ini as well. Close both the player and launcher before replacing files. Portcove keeps a launch registration. You and upstream own runtime replacement and backups. Removing the registration leaves the working files and profile in place."
           },
           {
+            "title": "SDL3 development framework for Mac",
+            "instruction": "Get the official SDL3 development download from https://github.com/libsdl-org/SDL/releases/latest. Use SDL3.framework from the macos-arm64_x86_64 folder in SDL3.xcframework. The iOS and simulator frameworks are different targets."
+          },
+          {
             "title": "Other platforms",
-            "instruction": "This release publishes a Windows x64 package. The publisher has no reviewed Linux, Intel Mac, Apple Silicon or Android package for this route."
+            "instruction": "Windows x64 has the reviewed official package. Linux x64 uses the upstream source build described above, with no reviewed Linux package. Intel Mac and Apple Silicon use the upstream source build described above. Both native architectures were built; Mac game execution remains untested, and there is no reviewed Mac package. Android has no reviewed package or mobile host integration. Those platforms do not inherit the Windows or Linux observations."
           }
         ],
         "help_url": "https://github.com/kylofon/street-rod-sdl3/blob/v0.1.0/README.md"
+      },
+      "artwork": {
+        "game_id": 19229,
+        "cover_id": 289884,
+        "image_id": "co67oc",
+        "image_sha256": "427b375020b0410bd5c2bb0661ca1d395fc88e6636e58572654245291016aad0",
+        "game_slug": "street-rod",
+        "match_kind": "underlying-game"
       }
     },
     {

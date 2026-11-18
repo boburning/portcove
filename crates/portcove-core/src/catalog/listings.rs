@@ -57,6 +57,7 @@ impl From<&PortDefinition> for PortListing {
                 .and_then(|guide| guide.help_url.clone()),
             manual_setup: presentation.and_then(|value| value.manual_setup.clone()),
             artwork: presentation.and_then(|value| value.artwork.clone()),
+            collection_covers: presentation.and_then(|value| value.collection_covers.clone()),
             media: presentation
                 .and_then(|value| value.media.clone())
                 .unwrap_or_default(),
@@ -82,13 +83,18 @@ fn has_extended_media(listing: &PortListing) -> bool {
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5..=10) {
+        if !matches!(format_version, 5..=11) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5, 6, 7, 8, 9 and 10",
+                "listing export supports formats 5, 6, 7, 8, 9, 10 and 11",
             ));
         }
         let mut document = self.clone();
         document.format_version = format_version;
+        if format_version < 11 {
+            for listing in &mut document.listings {
+                listing.collection_covers = None;
+            }
+        }
         if format_version < 10 {
             for listing in &mut document.listings {
                 // Funding links are inert; earlier strict readers never see them.
@@ -121,6 +127,13 @@ impl CatalogListingDocument {
     /// Only already accepted facts may be promoted; raw authored documents keep
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
+        if self
+            .listings
+            .iter()
+            .any(|listing| listing.collection_covers.is_some())
+        {
+            self.format_version = self.format_version.max(11);
+        }
         if self
             .listings
             .iter()
@@ -217,7 +230,7 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=10) {
+        if !matches!(self.format_version, 1..=11) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
@@ -256,6 +269,16 @@ impl CatalogListingDocument {
         {
             return Err(PortcoveError::unsupported(
                 "funding links require listing format 10",
+            ));
+        }
+        if self.format_version < 11
+            && self
+                .listings
+                .iter()
+                .any(|listing| listing.collection_covers.is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "cover collections require listing format 11",
             ));
         }
         if self.format_version == 1
@@ -723,8 +746,16 @@ impl PortListing {
         {
             return Err(PortcoveError::usage("invalid listing setup guidance"));
         }
-        if let Some(artwork) = &self.artwork
-            && (artwork.game_id == 0
+        super::validate_cover_collection(
+            self.collection_covers.as_deref(),
+            self.artwork.is_some(),
+        )?;
+        for artwork in self
+            .artwork
+            .iter()
+            .chain(self.collection_covers.iter().flatten())
+        {
+            if artwork.game_id == 0
                 || artwork.cover_id == 0
                 || artwork.image_id.is_empty()
                 || artwork.image_id.len() > 128
@@ -742,9 +773,10 @@ impl PortListing {
                 || !artwork
                     .game_slug
                     .bytes()
-                    .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'))
-        {
-            return Err(PortcoveError::usage("invalid listing artwork mapping"));
+                    .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+            {
+                return Err(PortcoveError::usage("invalid listing artwork mapping"));
+            }
         }
         Ok(())
     }
@@ -929,6 +961,67 @@ mod tests {
             "summary":"Known project; package and platform availability are unknown.",
             "project_url":"https://example.com/project", "availability":"source-only"
         })
+    }
+
+    #[test]
+    fn collection_covers_require_format_eleven_and_legacy_exports_keep_setup_facts() {
+        let parse = |value: &serde_json::Value, version: u32| {
+            CatalogListingDocument::from_json(
+                &json!({"format_version": version, "listings": [value]}).to_string(),
+            )
+        };
+        let mut value = listing();
+        let covers = (1..=2).map(|index| json!({
+            "game_id": index, "cover_id": index, "image_id": format!("collection{index}"),
+            "game_slug": format!("collection-{index}"), "image_sha256": format!("{index:x}").repeat(64),
+            "match_kind": "underlying-game"
+        })).collect::<Vec<_>>();
+        value["collection_covers"] = json!(covers);
+        let document = parse(&value, 11).unwrap();
+        for version in 1..=10 {
+            assert!(parse(&value, version).is_err());
+        }
+        for version in 5..=10 {
+            let legacy = document.export_format(version).unwrap();
+            assert!(legacy.listings[0].collection_covers.is_none());
+            assert_eq!(legacy.listings[0].name, document.listings[0].name);
+            assert_eq!(
+                legacy.listings[0].manual_setup,
+                document.listings[0].manual_setup
+            );
+            assert_eq!(
+                legacy.listings[0].availability,
+                document.listings[0].availability
+            );
+            assert_eq!(
+                legacy.listings[0].download_block_reason,
+                document.listings[0].download_block_reason
+            );
+        }
+        let retained = Catalog::for_user_selected_listing(document.listings[0].clone()).unwrap();
+        assert_eq!(retained.listing_document().format_version, 11);
+        assert_eq!(
+            retained.listings()[0].collection_covers,
+            document.listings[0].collection_covers
+        );
+        for invalid in [
+            json!(null),
+            json!([]),
+            json!(vec![covers[0].clone(); 5]),
+            json!([covers[0], covers[0]]),
+        ] {
+            value["collection_covers"] = invalid;
+            assert!(parse(&value, 11).is_err());
+        }
+        value["collection_covers"] = json!(covers);
+        value["artwork"] = covers[0].clone();
+        assert!(parse(&value, 11).is_err());
+        value.as_object_mut().unwrap().remove("artwork");
+        value["collection_covers"] = json!([covers[0]]);
+        assert!(
+            parse(&value, 11).is_ok(),
+            "one surviving member remains valid after withdrawal"
+        );
     }
 
     #[test]
@@ -1192,7 +1285,7 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":11,"listings":[]}),
+            json!({"format_version":12,"listings":[]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
@@ -1397,8 +1490,8 @@ mod tests {
                 .id,
             "beetle-adventure-racing"
         );
-        // Embedded listings carry funding links, which need format 10.
-        assert_eq!(projected.listing_document().format_version, 10);
+        // Embedded listings include cover collections, which need format 11.
+        assert_eq!(projected.listing_document().format_version, 11);
     }
 
     #[test]
@@ -1587,11 +1680,11 @@ mod observation_metadata_tests {
         assert_eq!(retained.listing_document().format_version, 8);
         assert!(retained.port("observed-project").is_err());
         let mut future = document;
-        future.format_version = 11;
+        future.format_version = 12;
         future.promote_projected_format();
-        assert_eq!(future.format_version, 11);
+        assert_eq!(future.format_version, 12);
         assert!(future.validate().is_err());
-        assert!(parse(&value, 11).is_err());
+        assert!(parse(&value, 12).is_err());
     }
 
     #[test]
@@ -1618,12 +1711,13 @@ mod observation_metadata_tests {
     #[test]
     fn references_are_versioned_bounded_and_lossless_in_legacy_listings() {
         let mut document = CatalogListingDocument::from_json(EMBEDDED_LISTINGS).unwrap();
-        // Embedded listings carry funding links, which need format 10.
-        assert_eq!(document.format_version, 10);
-        // This test is about setup references, so drop the unrelated date and funding requirements.
+        // Embedded listings include cover collections, which need format 11.
+        assert_eq!(document.format_version, 11);
+        // Isolate setup references from unrelated date, funding and collection fields.
         for listing in &mut document.listings {
             listing.listed_at = None;
             listing.funding_urls = None;
+            listing.collection_covers = None;
         }
         document.format_version = 6;
         let legacy = document.export_format(5).unwrap();

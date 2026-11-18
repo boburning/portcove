@@ -282,6 +282,15 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-collection-artwork-presentation",
+    "Actual listing-only two/four-member collections preserve public thumbnail identity, contained Discover/detail artwork, credits and Back focus.",
+    {
+      source: "desktop-collection-artwork-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-application-update-preferences",
     "Application update setup consent, focus and corrupt-state recovery remain isolated and explicit.",
   ),
@@ -462,7 +471,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   ),
   scenario(
     "native-host-interrupted-preparation",
-    "Forced Windows host termination during live preparation preserves originals and requires recovery.",
+    "Forced Windows host termination preserves originals and a reviewed fresh preparation can finish.",
     {
       prerequisites: ["desktop", "owned-fixture"],
       source: "desktop-preparation-recovery-test.mts",
@@ -815,6 +824,13 @@ export function resolveDesktopSelection({
     throw new Error(`Unknown desktop scenario: ${[...new Set(unknown)].join(", ")}`);
   const uniqueRequested = ordered(requested);
   if (
+    uniqueRequested.includes("native-collection-artwork-presentation") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error(
+      "native-collection-artwork-presentation requires one standalone Windows scenario",
+    );
+  if (
     uniqueRequested.includes("native-interface-size") &&
     (uniqueRequested.length !== 1 || platform !== "win32")
   )
@@ -1017,6 +1033,9 @@ export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
 export function desktopHarnessDeadlineMs(
   selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
 ) {
+  // Six public collection previews, two themes, compact capture and owned native exit.
+  if (selection.selected_scenarios.includes("native-collection-artwork-presentation"))
+    return 600_000;
   // Real saved-folder checks plus three bounded input pickers, two library
   // handoffs and positive custody. Product/cancellation deadlines are unchanged.
   if (selection.selected_scenarios.includes("native-saved-folder-selected-setup")) return 600_000;
@@ -1106,12 +1125,17 @@ export function desktopHarnessDeadlineMs(
     // Moving the update review to its own group (#4879) left owned-ready at eight
     // executed scenarios, and run 43781898959 stopped it at the 180 s default. Its
     // release-channel restart journey keeps the allowance from eight executed.
+    // Native run 17 combined 17 executed ordinary workflows and reached backup
+    // restore at 20 minutes before the watchdog stopped its live driver. Larger owned
+    // combinations get 40 minutes; the established eight-case and standalone budgets stay.
     (executed > 8 ||
       (executed === 8 &&
         selection.selected_scenarios.includes("native-release-channel-selection-and-restart"))) &&
       (selection.selected_scenarios.includes("native-preparation-review-and-play") ||
         selection.setup_scenarios.includes("native-preparation-review-and-play"))
-      ? 1_200_000
+      ? executed > 8
+        ? 2_400_000
+        : 1_200_000
       : 0,
   );
   const cacheConditions = selection.selected_scenarios.includes(

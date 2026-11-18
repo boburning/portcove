@@ -110,7 +110,8 @@ it("keeps the report on screen for manual copying when the clipboard fails", asy
   await mount(open);
   await click("Report a problem");
   await click("Open on GitHub");
-  const readOnly = document.body.querySelector("textarea[readonly]");
+  const readOnly = document.body.querySelector<HTMLTextAreaElement>("textarea[readonly]");
+  await expect.element(readOnly).toHaveAccessibleName("Text for manual copy");
   expect(readOnly instanceof HTMLTextAreaElement ? readOnly.value : undefined).toBe(
     "full report text",
   );
@@ -301,7 +302,8 @@ it("shows the text for manual copying when an asked copy fails", async () => {
   await click("Report a problem or send feedback");
   await click("Something broke or didn't work as it should");
   await click("Copy text");
-  const readOnly = document.body.querySelector("textarea[readonly]");
+  const readOnly = document.body.querySelector<HTMLTextAreaElement>("textarea[readonly]");
+  await expect.element(readOnly).toHaveAccessibleName("Text for manual copy");
   expect(readOnly instanceof HTMLTextAreaElement ? readOnly.value : undefined).toBe("by hand");
   expect(document.body.querySelector("[role=alert]")?.textContent).toContain(
     "could not be copied automatically",

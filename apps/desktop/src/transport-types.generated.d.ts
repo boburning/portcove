@@ -2563,6 +2563,10 @@ export interface ReviewedHoldArtifact {
 export interface PortPresentation {
   artwork?: IgdbArtwork | null;
   /**
+   * Reviewed constituent-game covers for a multi-game project. Display only.
+   */
+  collection_covers?: IgdbArtwork[] | null;
+  /**
    * Cover for the second game in a combined definition's Discover card.
    */
   companion_cover?: IgdbArtwork | null;
@@ -3152,6 +3156,10 @@ export interface PortListing {
    * Authored exception takes precedence over observations only with this reason.
    */
   availability_override_reason?: string | null;
+  /**
+   * Display samples of a project's constituent games. Requires listing format 11.
+   */
+  collection_covers?: IgdbArtwork[] | null;
   /**
    * Inert optional advisory envelope. Invalid/future content is unavailable as advice,
    * never an acquisition restriction or an operation grant. Requires listing format 7.

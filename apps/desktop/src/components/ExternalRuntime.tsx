@@ -943,7 +943,6 @@ function RuntimeArgumentEditor(
             Launch options (advanced) (one per line, optional)
             <textarea
               className="rounded-pc-md border border-pc-input bg-pc-surface p-2"
-              aria-label="Launch arguments"
               value={model.argumentLines}
               disabled={model.busy}
               onChange={(event) => {

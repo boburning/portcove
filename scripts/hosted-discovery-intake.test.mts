@@ -1,3 +1,8 @@
+import { hostedAmendmentMarker } from "./hosted-discovery-amendment.mts";
+import {
+  resolveDiscoveryRepository,
+  DiscoveryLocationUnavailable,
+} from "./upstream-relocation-candidates.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -166,6 +171,9 @@ async function fixture(
     projectFailure = false,
     denied = false,
     primaryChanged = false;
+  let changedRepository: string | undefined;
+  const researchCalls: string[] = [];
+  const repositoryAliases = new Map<string, string>();
   const issues: {
     id: string;
     node_id: string;
@@ -179,8 +187,8 @@ async function fixture(
   }[] = [];
   const fields = { ...portFieldInitialization(null) };
   let normalizations = 0;
-  const snapshots: { delivery: { status: string }[] }[] = [];
-  let lastInventorySnapshot: { delivery: { status: string }[] } | undefined;
+  const snapshots: { delivery: { status: string; hold?: unknown }[] }[] = [];
+  let lastInventorySnapshot: { delivery: { status: string; hold?: unknown }[] } | undefined;
   const client = await sdkRoadmap(config, {
     graphql: async () => {
       throw new Error("Unexpected domain transport");
@@ -228,7 +236,7 @@ async function fixture(
     const checked = structuredClone(lastInventorySnapshot);
     const attempt = snapshots.at(-1);
     assert(checked && attempt);
-    const index = checked.delivery.findIndex((d) => d.status === "preflight");
+    const index = checked.delivery.findIndex((d) => d.status === "preflight" && !d.hold);
     assert(index >= 0);
     checked.delivery[index]!.status = "create-attempted";
     assert.deepEqual(
@@ -306,25 +314,34 @@ async function fixture(
     client,
     { project: sdk, repository: sdk },
     "a".repeat(40),
-    async (upstream) => ({
-      metadata: {
-        id: candidates.find((c) => new URL(c.upstream).pathname.slice(1) === upstream)!
-          .repository_id,
-        full_name: upstream,
-      },
-      releases: [],
-      selected: [],
-      readme: {
-        commit: (primaryChanged ? "c" : "b").repeat(40),
-        blob: "d".repeat(40),
-        text: "Primary evidence",
-      },
-      fingerprint: "primary-release-fingerprint",
-      manifest: undefined,
-      manifest_evidence: { commit: "b".repeat(40), status: "unavailable-or-invalid" },
-      scope: "Fixture primary evidence",
-      observed_at: undefined,
-    }),
+    async (upstream) => {
+      researchCalls.push(upstream);
+      return {
+        metadata: {
+          id: candidates.find(
+            (c) =>
+              (repositoryAliases.get(new URL(c.upstream).pathname.slice(1)) ??
+                new URL(c.upstream).pathname.slice(1)) === upstream,
+          )!.repository_id,
+          full_name: upstream,
+        },
+        releases: [],
+        selected: [],
+        readme: {
+          commit: (primaryChanged && (!changedRepository || upstream.endsWith(changedRepository))
+            ? "c"
+            : "b"
+          ).repeat(40),
+          blob: "d".repeat(40),
+          text: "Primary evidence",
+        },
+        fingerprint: "primary-release-fingerprint",
+        manifest: undefined,
+        manifest_evidence: { commit: "b".repeat(40), status: "unavailable-or-invalid" },
+        scope: "Fixture primary evidence",
+        observed_at: undefined,
+      };
+    },
     () => {},
     undefined,
     undefined,
@@ -435,8 +452,11 @@ async function fixture(
     deny: () => {
       denied = true;
     },
-    changePrimary: () => {
+    researchCalls,
+    repositoryAliases,
+    changePrimary: (repository?: string) => {
       primaryChanged = true;
+      changedRepository = repository;
     },
   };
 }
@@ -1164,10 +1184,9 @@ void test("interrupted Project delivery recovers the same issue without another 
   assert.equal(f.creations, 1);
 });
 void test("changed primary, request or existing issue body refuses stale preparation", async () => {
-  for (const change of ["primary", "request", "issue"] as const) {
+  for (const change of ["request", "issue"] as const) {
     const f = await fixture();
     if (change !== "issue") await f.prepare();
-    if (change === "primary") f.changePrimary();
     if (change === "request") f.comments.get(100)!.body += "edited";
     if (change === "issue") {
       f.failProject(true);
@@ -1759,10 +1778,8 @@ void test("a held bound slot retains its binding and refuses changed evidence on
   assert.deepEqual(held.plan[0]!.primary, before.primary);
   f.bridge.primary = primary;
   f.changePrimary();
-  await assert.rejects(
-    f.bridge.process(f.request, f.all(), { resumeHolds: true }),
-    /Primary evidence changed/u,
-  );
+  const changed = await f.bridge.process(f.request, f.all(), { resumeHolds: true });
+  assert.equal(changed.delivery[0]?.hold?.reason, "evidence-changed");
   assert.equal(f.creations, 0);
   assert.equal((await f.bridge.status(f.request, f.all())).held, 1);
 });
@@ -2202,5 +2219,302 @@ void test("an audit interruption preserves delivered candidates across upstream 
   assert.deepEqual(
     completed.delivery.map((d) => d.created_issue),
     f.issues.map((issue) => issue.number),
+  );
+});
+
+function amendmentFor(
+  f: Awaited<ReturnType<typeof fixture>>,
+  index: number,
+  replacement = {},
+  hold = false,
+) {
+  const receipt = f
+    .all()
+    .find((c) => c.body.startsWith(`<!-- portcove-hosted-intake-receipt:${f.request.id} -->`))!;
+  const stored = JSON.parse(receipt.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
+    plan: { body_sha256: string; evidence_sha256: string | null }[];
+  };
+  const original = parseHostedRequest(f.request.body).candidates[index]!;
+  const value = {
+    schema_version: 1,
+    ...(hold ? { hold: true } : {}),
+    request_comment: f.request.id,
+    request_sha256: observationHash(f.request.body),
+    receipt_comment: receipt.id,
+    receipt_sha256: observationHash(receipt.body),
+    candidate_index: index,
+    port_key: original.port_key,
+    previous_body_sha256: stored.plan[index]!.body_sha256,
+    previous_evidence_sha256: stored.plan[index]!.evidence_sha256,
+    replacement: {
+      upstream: original.upstream,
+      evidence:
+        "Fresh dated primary research retains the original requirements and maturity limits.",
+      resume: original.resume,
+      ...replacement,
+    },
+    reason: "Reconcile newer primary evidence for this unattempted candidate.",
+  };
+  const comment = {
+    ...f.request,
+    id: 10000 + index,
+    body: `${hostedAmendmentMarker}\n\`\`\`json\n${JSON.stringify(value)}\n\`\`\``,
+  };
+  f.comments.set(comment.id, comment);
+  return { comment, value, receipt };
+}
+
+void test("candidate amendments finish a legacy partial batch while preserving four delivered owners", async () => {
+  const f = await partialFixture(8, 4);
+  const before = structuredClone(f.issues);
+  f.changePrimary();
+  let saved: ReturnType<HostedIntakeCheckpointStore["load"]> = null;
+  f.bridge.durable.checkpoints = () => ({
+    load: () => structuredClone(saved),
+    save(_request, hash, revision, body, previous, slots) {
+      assert.equal(revision, saved?.revision ?? 0);
+      if (saved) assert.equal(previous?.body, saved.receipt_body);
+      saved = {
+        revision: revision + 1,
+        request_sha256: hash,
+        receipt_body: body,
+        previous_receipt_sha256: previous?.hash ?? null,
+        candidates: structuredClone([...slots]),
+      };
+      return revision + 1;
+    },
+  });
+  for (let index = 4; index < 8; index++) amendmentFor(f, index);
+  f.researchCalls.length = 0;
+  const result = await f.bridge.process(f.request, f.all());
+  assert.equal(result.status, "complete");
+  assert.equal(f.creations, 8);
+  assert(
+    f.researchCalls.every(
+      (name) => !before.some((issue) => issue.body.includes(`https://github.com/${name}`)),
+    ),
+  );
+  assert.deepEqual(f.issues.slice(0, 4), before);
+  assert(saved);
+  assert.equal((await f.bridge.status(f.request, f.all())).status, "complete");
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+  assert.equal(f.creations, 8);
+});
+
+void test("a changed candidate holds independently and its amendment resumes the same request", async () => {
+  const f = await partialFixture(3, 1);
+  f.changePrimary("-1");
+  const held = await f.bridge.process(f.request, f.all());
+  assert.equal(held.status, "complete_with_holds");
+  assert.equal(held.delivery[1]?.hold?.reason, "evidence-changed");
+  assert.equal(held.delivery[2]?.status, "delivered");
+  amendmentFor(f, 1);
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+  assert.equal(f.creations, 3);
+});
+
+void test("stale amendments, completed slots and uncertain writes retain original intent", async () => {
+  for (const state of ["stale", "delivered", "uncertain"] as const) {
+    const f = state === "uncertain" ? await fixture() : await partialFixture(2, 1);
+    if (state === "uncertain") {
+      f.failPost();
+      await assert.rejects(f.bridge.process(f.request, f.all()), /unknown/u);
+    }
+    const { comment, value } = amendmentFor(
+      f,
+      state === "delivered" ? 0 : state === "uncertain" ? 0 : 1,
+    );
+    if (state === "stale") {
+      value.previous_body_sha256 = "f".repeat(64);
+      comment.body = `${hostedAmendmentMarker}\n\`\`\`json\n${JSON.stringify(value)}\n\`\`\``;
+    }
+    const creations = f.creations;
+    await assert.rejects(f.bridge.process(f.request, f.all()), /amendment cannot revise/u);
+    assert.equal(f.creations, creations);
+  }
+});
+
+void test("repository moves retain immutable identity and a reused source name holds independently", async () => {
+  const paths: string[] = [];
+  const moved = await resolveDiscoveryRepository("old/game", 42, async (endpoint) => {
+    paths.push(endpoint);
+    return endpoint === "/repos/old/game"
+      ? {
+          status: 301,
+          data: { message: "Moved Permanently", url: "https://api.github.com/repositories/42" },
+        }
+      : { status: 200, data: { id: 42, full_name: "new/game" } };
+  });
+  assert.equal(moved, "new/game");
+  assert.deepEqual(paths, ["/repos/old/game", "/repositories/42", "/repos/new/game"]);
+  for (const data of [
+    { status: 200, data: { id: 43 } },
+    {
+      status: 301,
+      data: { message: "Moved Permanently", url: "https://untrusted.test/repositories/42" },
+    },
+    {
+      status: 301,
+      data: { message: "Moved Permanently", url: "https://api.github.com/repositories/43" },
+    },
+    { status: 404, data: null },
+  ]) {
+    let reads = 0;
+    await assert.rejects(
+      resolveDiscoveryRepository("old/game", 42, async () => {
+        reads++;
+        return data;
+      }),
+      DiscoveryLocationUnavailable,
+    );
+    assert.equal(reads, 1);
+  }
+  const f = await partialFixture(3, 1);
+  f.bridge.durable.resolveRepository = async (name) => {
+    if (name.endsWith("-1")) throw new DiscoveryLocationUnavailable("name-reused");
+    return name;
+  };
+  const held = await f.bridge.process(f.request, f.all());
+  assert.equal(held.delivery[1]?.hold?.reason, "repository-location");
+  assert.equal(held.delivery[2]?.status, "delivered");
+  assert.equal(f.creations, 2);
+});
+
+void test("an amended candidate retains its verified repository move across interrupted delivery and status readback", async () => {
+  const f = await partialFixture(2, 1);
+  const previous = structuredClone(f.issues);
+  f.changePrimary();
+  amendmentFor(f, 1);
+  const originalName = "example/native-game-1";
+  const currentName = "new-owner/native-game-1";
+  f.repositoryAliases.set(originalName, currentName);
+  f.bridge.durable.resolveRepository = async (name) => (name === originalName ? currentName : name);
+  f.failProject(true);
+  await assert.rejects(f.bridge.process(f.request, f.all()), /interrupted/u);
+  assert.equal(f.creations, 2);
+  f.failProject(false);
+  const result = await f.bridge.process(f.request, f.all());
+  assert.equal(result.status, "complete");
+  assert.deepEqual(result.plan[1]?.location, {
+    declared: `https://github.com/${originalName}`,
+    current: `https://github.com/${currentName}`,
+    repository_id: candidate.repository_id + 1,
+  });
+  assert(result.plan[1]?.amendment);
+  assert.equal(result.delivery[1]?.created_issue, f.issues[1]?.number);
+  assert.deepEqual(f.issues.slice(0, 1), previous);
+  const status = await f.bridge.status(f.request, f.all());
+  assert.equal(status.slots[1]?.upstream, `https://github.com/${currentName}`);
+  assert.equal(f.creations, 2);
+});
+
+void test("malformed unrelated amendments cannot block independent requests", async () => {
+  const f = await fixture();
+  f.comments.set(9000, { ...f.request, id: 9000, body: `${hostedAmendmentMarker}\ninvalid JSON` });
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+});
+
+void test("competing or edited amendments stop before further candidate writes", async () => {
+  for (const mode of ["competing", "edited"] as const) {
+    const f = await partialFixture(2, 1);
+    const { comment } = amendmentFor(f, 1);
+    if (mode === "competing") f.comments.set(20000, { ...comment, id: 20000 });
+    else {
+      const all = f.all();
+      comment.body += "edited";
+      await assert.rejects(f.bridge.process(f.request, all), /preimage changed/u);
+      assert.equal(f.creations, 1);
+      continue;
+    }
+    await assert.rejects(f.bridge.process(f.request, f.all()), /compete/u);
+    assert.equal(f.creations, 1);
+  }
+});
+
+void test("an amended checkpoint survives receipt response loss and resumes from the exact predecessor", async () => {
+  const f = await partialFixture(2, 1);
+  f.changePrimary();
+  amendmentFor(f, 1);
+  let saved: ReturnType<HostedIntakeCheckpointStore["load"]> = null;
+  f.bridge.durable.checkpoints = () => ({
+    load: () => structuredClone(saved),
+    save(_request, hash, revision, body, previous, slots) {
+      assert.equal(revision, saved?.revision ?? 0);
+      if (saved) assert.equal(previous?.body, saved.receipt_body);
+      saved = {
+        revision: revision + 1,
+        request_sha256: hash,
+        receipt_body: body,
+        previous_receipt_sha256: previous?.hash ?? null,
+        candidates: structuredClone([...slots]),
+      };
+      return revision + 1;
+    },
+  });
+  const publish = f.bridge.persist.bind(f.bridge);
+  f.bridge.persist = async () => {
+    throw new Error("Receipt response unavailable");
+  };
+  await assert.rejects(f.bridge.process(f.request, f.all()), /Receipt response unavailable/u);
+  assert.equal(f.creations, 1);
+  assert(saved);
+  f.bridge.persist = publish;
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+  assert.equal(f.creations, 2);
+  const checkpoint = f.bridge.durable.checkpoints().load(f.request.id);
+  assert(checkpoint);
+  assert.equal(
+    checkpoint.receipt_body,
+    f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"))?.body,
+  );
+});
+
+void test("an owner research amendment holds one fork while eligible candidates finish", async () => {
+  const f = await partialFixture(3, 1);
+  const first = amendmentFor(f, 1, {}, true);
+  const held = await f.bridge.process(f.request, f.all());
+  assert.equal(held.status, "complete_with_holds");
+  assert.equal(held.delivery[1]?.hold?.reason, "owner-research");
+  assert.equal(held.delivery[2]?.status, "delivered");
+  assert.equal(f.creations, 2);
+  assert.equal(
+    (await f.bridge.process(f.request, f.all(), { resumeHolds: true })).delivery[1]?.hold?.reason,
+    "owner-research",
+  );
+  const next = amendmentFor(f, 1);
+  next.comment.id = 20001;
+  f.comments.set(first.comment.id, first.comment);
+  f.comments.set(next.comment.id, next.comment);
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+  assert.equal(f.creations, 3);
+});
+
+void test("retained plans re-admit receipt growth before relocated candidate creation", async () => {
+  const candidates = Array.from({ length: 29 }, (_, index) => ({
+    ...candidate,
+    game: `Capacity game ${index}`,
+    title: `Capacity game ${index}`,
+    port_key: `capacity-game-${index}`,
+    upstream: `https://github.com/example/game-${index}`,
+    repository_id: candidate.repository_id + index,
+  }));
+  const f = await fixture(candidates);
+  await f.prepare();
+  const before = f
+    .all()
+    .find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"))!.body;
+  for (const c of candidates) {
+    const name = new URL(c.upstream).pathname.slice(1);
+    f.repositoryAliases.set(name, `renamed/${"a".repeat(600)}-${c.port_key}`);
+  }
+  f.bridge.durable.resolveRepository = async (name) => f.repositoryAliases.get(name) ?? name;
+  await assert.rejects(
+    f.bridge.process(f.request, f.all()),
+    /Logical batch cannot retain complete delivery receipts/u,
+  );
+  assert.equal(f.creations, 0);
+  assert.equal(
+    f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"))?.body,
+    before,
   );
 });

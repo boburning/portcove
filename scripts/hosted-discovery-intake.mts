@@ -1,4 +1,15 @@
 import { createHash } from "node:crypto";
+import {
+  hostedAmendmentMarker,
+  parseHostedAmendment,
+  readHostedAmendment,
+  type AmendmentReference,
+} from "./hosted-discovery-amendment.mts";
+import {
+  resolveDiscoveryRepository,
+  relocationMetadataReader,
+  DiscoveryLocationUnavailable,
+} from "./upstream-relocation-candidates.mts";
 import { isDeepStrictEqual } from "node:util";
 import {
   postgresIntakeCheckpoints,
@@ -227,6 +238,8 @@ export function assertHostedEvent(
   } else if (eventName !== "workflow_dispatch") throw new Error("Unsupported hosted intake event");
 }
 interface Planned {
+  amendment?: AmendmentReference;
+  location?: { declared: string; current: string; repository_id: number };
   candidate: Candidate;
   body: string;
   body_sha256: string;
@@ -313,7 +326,25 @@ const identityHoldResume =
 
 class CandidateIdentityConflict extends Error {}
 
+const researchHoldResumes = {
+  "owner-research":
+    "Resume through a new owner amendment after the candidate's research condition is satisfied.",
+  "repository-location":
+    "Resume after the declared location and immutable repository ID verify; preserve any unfinished write.",
+  "evidence-changed":
+    "Submit an owner candidate amendment bound to this slot's exact prior body and evidence hashes.",
+} as const;
+type ResearchHold = keyof typeof researchHoldResumes;
+class CandidateResearchHold extends Error {
+  readonly reason: ResearchHold;
+  constructor(reason: ResearchHold, message: string) {
+    super(message);
+    this.reason = reason;
+  }
+}
+
 interface CandidateHold {
+  reason?: ResearchHold;
   port_key: string;
   repository_id: number;
   upstream: string;
@@ -377,6 +408,9 @@ function readHostedReceipt(
   request: Comment,
   proposal: Proposal,
   bodyRequest: number,
+  all: readonly Comment[] = [],
+  owner = "boburning",
+  repository = "boburning/portcove",
 ): Receipt {
   const match = /```json\n([\s\S]+)\n```\s*$/u.exec(comment.body);
   if (!match) throw new Error("Malformed retained hosted receipt");
@@ -397,9 +431,32 @@ function readHostedReceipt(
   )
     throw new Error("Unknown retained plan encoding");
   stored.plan = stored.plan.map((raw, index) => {
-    const binding = object(raw),
-      candidate = proposal.candidates[index]!,
-      body = hostedBody(candidate, bodyRequest);
+    const binding = object(raw);
+    let candidate = proposal.candidates[index]!;
+    if (binding.amendment !== undefined) {
+      const ref = object(binding.amendment);
+      exact(ref, ["comment", "sha256"]);
+      const rows = all.filter((c) => c.id === ref.comment);
+      if (rows.length !== 1 || observationHash(rows[0]!.body) !== ref.sha256)
+        throw new Error("Candidate amendment reference differs");
+      const amendment = readHostedAmendment(rows[0]!, owner, repository, request);
+      if (amendment.candidate_index !== index || amendment.port_key !== candidate.port_key)
+        throw new Error("Candidate amendment identity differs");
+      candidate = { ...candidate, ...amendment.replacement };
+    }
+    if (binding.location !== undefined) {
+      const location = object(binding.location);
+      exact(location, ["declared", "current", "repository_id"]);
+      if (
+        location.declared !== candidate.upstream ||
+        location.repository_id !== candidate.repository_id ||
+        typeof location.current !== "string" ||
+        !/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(location.current)
+      )
+        throw new Error("Retained repository location binding differs");
+      candidate = { ...candidate, upstream: location.current };
+    }
+    const body = hostedBody(candidate, bodyRequest);
     if (
       binding.body_sha256 !== observationHash(body) ||
       (binding.primary === null
@@ -417,6 +474,8 @@ function readHostedReceipt(
       body_sha256: binding.body_sha256,
       evidence_sha256: binding.evidence_sha256,
       primary: binding.primary,
+      ...(binding.location === undefined ? {} : { location: binding.location }),
+      ...(binding.amendment === undefined ? {} : { amendment: binding.amendment }),
     };
   });
   const receipt = stored as unknown as Receipt;
@@ -458,7 +517,8 @@ function readHostedReceipt(
         h.upstream !== c.upstream ||
         !(
           (h.http_status === 404 && h.resume === holdResume) ||
-          (h.http_status === null && c.intent && h.resume === identityHoldResume)
+          (h.http_status === null && c.intent && h.resume === identityHoldResume) ||
+          (h.http_status === null && h.reason && h.resume === researchHoldResumes[h.reason])
         ) ||
         typeof h.observed_at !== "string" ||
         !Number.isFinite(Date.parse(h.observed_at))
@@ -605,14 +665,18 @@ function encodeReceipt(r: Receipt) {
 }
 
 function checkpointSlots(receipt: Receipt) {
-  return receipt.plan.map(({ candidate, body_sha256, evidence_sha256, primary }, index) => ({
-    intent: candidate.intent,
-    port_key: candidate.port_key,
-    body_sha256,
-    evidence_sha256,
-    primary,
-    delivery: receipt.delivery[index],
-  }));
+  return receipt.plan.map(
+    ({ candidate, body_sha256, evidence_sha256, primary, location, amendment }, index) => ({
+      ...(location ? { location } : {}),
+      ...(amendment ? { amendment } : {}),
+      ...(candidate.intent ? { intent: candidate.intent } : {}),
+      port_key: candidate.port_key,
+      body_sha256,
+      evidence_sha256,
+      primary,
+      delivery: receipt.delivery[index],
+    }),
+  );
 }
 
 function receiptBody(r: Receipt) {
@@ -741,6 +805,7 @@ export class HostedIntakeBridge {
   readonly durable: {
     checkpoints?: () => HostedIntakeCheckpointStore;
     requireIntent?: boolean;
+    resolveRepository?: (repository: string, id: number) => Promise<string>;
   };
   constructor(
     client: HostedRoadmapOperations,
@@ -924,13 +989,28 @@ export class HostedIntakeBridge {
       throw new Error("Diagnostic publication readback is unconfirmed");
   }
   async primary(c: Candidate, request: number): Promise<Planned> {
-    const primary = await this.research(new URL(c.upstream).pathname.slice(1));
+    const declared = c.upstream;
+    const name = new URL(declared).pathname.slice(1);
+    let resolved = name;
+    try {
+      resolved = (await this.durable.resolveRepository?.(name, c.repository_id)) ?? name;
+    } catch (error) {
+      if (!(error instanceof DiscoveryLocationUnavailable)) throw error;
+      throw new CandidateResearchHold("repository-location", error.message);
+    }
+    const current = `https://github.com/${resolved}`;
+    if (normalizedUpstream(current) !== normalizedUpstream(declared))
+      c = { ...c, upstream: current };
+    const primary = await this.research(resolved);
     if (
       primary.metadata.id !== c.repository_id ||
       normalizedUpstream(`https://github.com/${String(primary.metadata.full_name)}`) !==
         normalizedUpstream(c.upstream)
     )
-      throw new Error("Primary immutable repository identity changed");
+      throw new CandidateResearchHold(
+        "repository-location",
+        "Primary immutable repository identity changed",
+      );
     const identity = {
       repository_id: c.repository_id,
       readme_commit: primary.readme.commit,
@@ -952,6 +1032,11 @@ export class HostedIntakeBridge {
       body_sha256: observationHash(body),
       evidence_sha256: observationHash(identity),
       primary: identity,
+      ...(c.upstream === declared
+        ? {}
+        : {
+            location: { declared, current: c.upstream, repository_id: c.repository_id },
+          }),
     };
   }
   async inventory(cache?: RoadmapInventory, full = false) {
@@ -1196,7 +1281,15 @@ export class HostedIntakeBridge {
     if (found.length > 1) throw new Error("Ambiguous hosted receipt identity");
     const lineage = await this.reconciliation(request, proposal, all);
     const receipt = found[0]
-      ? readHostedReceipt(found[0], request, proposal, lineage?.bodyRequest ?? request.id)
+      ? readHostedReceipt(
+          found[0],
+          request,
+          proposal,
+          lineage?.bodyRequest ?? request.id,
+          all,
+          this.client.config.owner,
+          this.client.config.repository,
+        )
       : undefined;
     const deliveries = receipt?.delivery ?? [];
     const counts = deliveryCounts(deliveries, proposal.candidates.length);
@@ -1278,7 +1371,10 @@ export class HostedIntakeBridge {
       doctor: receipt?.doctor ?? null,
       last_error: failure ?? null,
       observed_at: receipt?.observed_at ?? null,
-      slots: candidateSlots(proposal, deliveries),
+      slots: candidateSlots(
+        receipt ? { ...proposal, candidates: receipt.plan.map((p) => p.candidate) } : proposal,
+        deliveries,
+      ),
     };
   }
   async reconciliation(request: Comment, proposal: Proposal, all: Comment[]) {
@@ -1327,7 +1423,15 @@ export class HostedIntakeBridge {
       raw.body_request_comment === undefined ? source.id : positive(raw.body_request_comment);
     if (bodyRequest > source.id || (old.reconcile === undefined && bodyRequest !== source.id))
       throw new Error("Reconciliation root marker identity differs");
-    const receipt = readHostedReceipt(comment, original, old, bodyRequest);
+    const receipt = readHostedReceipt(
+      comment,
+      original,
+      old,
+      bodyRequest,
+      all,
+      this.client.config.owner,
+      this.client.config.repository,
+    );
     if (
       receipt.plan_sha256 !== ref.plan_sha256 ||
       receipt.status === "complete" ||
@@ -1409,6 +1513,34 @@ export class HostedIntakeBridge {
       (c) => c.user.login === "github-actions[bot]" && c.body.startsWith(receiptMarker(request.id)),
     );
     if (found.length > 1) throw new Error("Ambiguous hosted receipt identity");
+    const parsedAmendments = all.flatMap((comment) => {
+      if (
+        comment.user.login !== this.client.config.owner ||
+        !comment.body.startsWith(hostedAmendmentMarker)
+      )
+        return [];
+      try {
+        return [{ comment, value: parseHostedAmendment(comment.body) }];
+      } catch {
+        // Invalid comments grant no authority. The triggering event still reports
+        // its parsing failure, while independent proposals can drain normally.
+        return [];
+      }
+    });
+    const amendments = parsedAmendments
+      .filter(({ value }) => value.request_comment === request.id)
+      .map(({ comment }) => ({
+        comment,
+        value: readHostedAmendment(
+          comment,
+          this.client.config.owner,
+          this.client.config.repository,
+          request,
+        ),
+      }));
+    const freshAmendments = async () => {
+      for (const { comment } of amendments) await this.fresh(comment);
+    };
     let prior = found[0];
     if (proposal.schema_version === 1 && this.durable.requireIntent && !prior && !lineage)
       throw new Error(
@@ -1417,24 +1549,46 @@ export class HostedIntakeBridge {
     let receipt: Receipt | undefined;
     if (prior) {
       await this.fresh(prior);
-      receipt = readHostedReceipt(prior, request, proposal, bodyRequest);
+      receipt = readHostedReceipt(
+        prior,
+        request,
+        proposal,
+        bodyRequest,
+        all,
+        this.client.config.owner,
+        this.client.config.repository,
+      );
       if (receipt.status === "complete") {
         if (receipt.plan_encoding === "proposal-bound-v2" || proposal.schema_version === 2)
           await this.status(request, all);
         return receipt;
       }
     }
+    const hasAmendments = amendments.length > 0;
+    const authorizedImport =
+      proposal.schema_version === 1 &&
+      prior &&
+      receipt &&
+      amendments.some(
+        ({ value }) =>
+          value.receipt_comment === prior!.id &&
+          value.receipt_sha256 === observationHash(prior!.body),
+      );
     const checkpointStore =
-      proposal.schema_version === 2 ? this.durable.checkpoints?.() : undefined;
+      proposal.schema_version === 2 || hasAmendments ? this.durable.checkpoints?.() : undefined;
     const saved = checkpointStore?.load(request.id);
     let revision = saved?.revision ?? 0;
     let checkpointFailure: { error: unknown } | undefined;
     const requestHash = observationHash(request.body);
     const checkpointAndPublish = async (next: Receipt, previous?: Comment) => {
-      if (!checkpointStore) return await this.persist(next, previous);
+      if (!checkpointStore) {
+        await freshAmendments();
+        return await this.persist(next, previous);
+      }
       if (checkpointFailure) throw checkpointFailure.error;
       try {
         await this.fresh(request);
+        await freshAmendments();
         if (previous) await this.fresh(previous);
         next.observed_at = new Date().toISOString();
         const body = receiptBody(next);
@@ -1452,13 +1606,52 @@ export class HostedIntakeBridge {
         throw error;
       }
     };
-    if (checkpointStore && !saved && prior)
-      throw new Error(
-        "GitHub intake receipt has no PostgreSQL checkpoint; reconcile the restored store",
+    if (checkpointStore && !saved && prior) {
+      if (!authorizedImport || !receipt)
+        throw new Error(
+          "GitHub intake receipt has no PostgreSQL checkpoint; reconcile the restored store",
+        );
+      // The owner amendment authorizes importing this exact historical bot state.
+      // Validate every amended slot before the first checkpoint or mutation.
+      const importReceipt = prior;
+      for (const { value } of amendments.filter(
+        ({ value }) =>
+          value.receipt_comment === importReceipt.id &&
+          value.receipt_sha256 === observationHash(importReceipt.body),
+      )) {
+        const slot = receipt.plan[value.candidate_index],
+          d = receipt.delivery[value.candidate_index];
+        if (
+          !slot ||
+          !d ||
+          !canHold(d) ||
+          slot.candidate.port_key !== value.port_key ||
+          slot.body_sha256 !== value.previous_body_sha256 ||
+          slot.evidence_sha256 !== value.previous_evidence_sha256
+        )
+          throw new Error("Historical amendment cannot revise a completed or uncertain candidate");
+      }
+      await freshAmendments();
+      revision = checkpointStore.save(
+        request.id,
+        requestHash,
+        0,
+        prior.body,
+        null,
+        checkpointSlots(receipt),
       );
+    }
     if (saved) {
       const projected = { ...request, body: saved.receipt_body };
-      const checkpointReceipt = readHostedReceipt(projected, request, proposal, bodyRequest);
+      const checkpointReceipt = readHostedReceipt(
+        projected,
+        request,
+        proposal,
+        bodyRequest,
+        all,
+        this.client.config.owner,
+        this.client.config.repository,
+      );
       if (
         saved.request_sha256 !== requestHash ||
         !isDeepStrictEqual(saved.candidates, checkpointSlots(checkpointReceipt))
@@ -1472,6 +1665,7 @@ export class HostedIntakeBridge {
         if (observationHash(prior.body) !== saved.previous_receipt_sha256)
           throw new Error("GitHub receipt is ahead of or differs from the PostgreSQL checkpoint");
         await this.fresh(request);
+        await freshAmendments();
         await freshLineage();
         prior = await this.persist(checkpointReceipt, prior, saved.receipt_body);
         receipt = checkpointReceipt;
@@ -1485,7 +1679,16 @@ export class HostedIntakeBridge {
       }
     }
     if (receipt) {
-      if (receipt.status === "complete_with_holds" && !resumeHolds) {
+      if (
+        receipt.status === "complete_with_holds" &&
+        !resumeHolds &&
+        !authorizedImport &&
+        !amendments.some(
+          ({ value }) =>
+            value.receipt_comment === prior?.id &&
+            value.receipt_sha256 === observationHash(prior.body),
+        )
+      ) {
         await this.status(request, all);
         return receipt;
       }
@@ -1535,38 +1738,86 @@ export class HostedIntakeBridge {
     );
     const historical = new Set<number>();
     const plan: PlanSlot[] = [];
-    for (const [index, candidate] of proposal.candidates.entries()) {
+    for (const [index, original] of proposal.candidates.entries()) {
       const d = delivery[index]!;
       const previous = receipt?.plan[index];
-      if (
-        previous &&
-        ((d.hold && !resumeHolds) ||
-          ((proposal.schema_version === 2 ||
-            (!lineage && receipt?.plan_encoding === "proposal-bound-v2")) &&
-            isDelivered(d)))
-      ) {
+      let candidate = original;
+      let amendment = previous?.amendment;
+      let amended = false;
+      let ownerHold = false;
+      const selected = amendments.filter(
+        ({ comment, value }) =>
+          comment.id !== previous?.amendment?.comment &&
+          value.candidate_index === index &&
+          value.receipt_comment === prior?.id &&
+          value.receipt_sha256 === observationHash(prior.body),
+      );
+      if (selected.length > 1)
+        throw new Error("Multiple owner amendments compete for one candidate");
+      if (selected.length) {
+        const { comment, value } = selected[0]!;
+        if (
+          !previous ||
+          !canHold(d) ||
+          value.port_key !== original.port_key ||
+          value.previous_body_sha256 !== previous.body_sha256 ||
+          value.previous_evidence_sha256 !== previous.evidence_sha256
+        )
+          throw new Error("Candidate amendment cannot revise a completed or uncertain write");
+        amendment = { comment: comment.id, sha256: observationHash(comment.body) };
+        amended = true;
+      }
+      if (amendment) {
+        const comment = all.find((c) => c.id === amendment.comment);
+        if (!comment || observationHash(comment.body) !== amendment.sha256)
+          throw new Error("Candidate amendment preimage differs");
+        const value = readHostedAmendment(
+          comment,
+          this.client.config.owner,
+          this.client.config.repository,
+          request,
+        );
+        candidate = { ...original, ...value.replacement };
+        ownerHold = value.hold === true;
+      }
+      if (previous && ((d.hold && !resumeHolds && !amended) || (!lineage && isDelivered(d)))) {
         if (isDelivered(d)) {
           if (missingDeliveryProof(d)) throw new Error("Historical delivery lacks a scoped doctor");
-          historical.add(index);
+          if (
+            proposal.schema_version === 2 ||
+            receipt?.plan_encoding === "proposal-bound-v2" ||
+            hasAmendments
+          )
+            historical.add(index);
         }
         plan.push(previous);
         continue;
       }
       try {
-        const fresh = await this.primary(candidate, bodyRequest);
-        if (previous?.primary && previous.evidence_sha256 !== fresh.evidence_sha256)
-          throw new Error(
-            "Primary evidence changed since preparation; a fresh proposal is required",
+        if (ownerHold)
+          throw new CandidateResearchHold(
+            "owner-research",
+            "Owner retained this candidate for research",
           );
-        plan.push(fresh);
+        const fresh = await this.primary(candidate, bodyRequest);
+        if (previous && !canHold(d) && previous.body_sha256 !== fresh.body_sha256)
+          throw new Error(
+            "An unfinished write retains its original body and location; reconcile its marker",
+          );
+        if (previous?.primary && previous.evidence_sha256 !== fresh.evidence_sha256 && !amended) {
+          throw new CandidateResearchHold(
+            "evidence-changed",
+            "Primary evidence changed; amend this unfinished candidate",
+          );
+        }
+        plan.push({ ...fresh, ...(amendment ? { amendment } : {}) });
         delete d.hold;
       } catch (error) {
-        if (
-          lineage ||
-          !(error instanceof DiscoveryRepositoryUnavailable) ||
-          error.repository !== new URL(candidate.upstream).pathname.slice(1)
-        )
-          throw error;
+        const researchHold = error instanceof CandidateResearchHold;
+        const inaccessible =
+          error instanceof DiscoveryRepositoryUnavailable &&
+          error.repository === new URL(candidate.upstream).pathname.slice(1);
+        if (lineage || (!researchHold && !inaccessible)) throw error;
         if (previous?.primary && isDelivered(d)) {
           if (missingDeliveryProof(d)) throw new Error("Historical delivery lacks a scoped doctor");
           historical.add(index);
@@ -1574,16 +1825,25 @@ export class HostedIntakeBridge {
           continue;
         }
         if (!canHold(d)) throw error;
-        d.hold = candidateHold(candidate);
-        const body = hostedBody(candidate, bodyRequest);
-        validateDiscoveryIntakeBody(body, candidate.upstream, candidate.port_key);
+        const heldCandidate = amended ? candidate : (previous?.candidate ?? candidate);
+        d.hold = researchHold
+          ? {
+              ...candidateHold(heldCandidate),
+              http_status: null,
+              reason: error.reason,
+              resume: researchHoldResumes[error.reason],
+            }
+          : candidateHold(heldCandidate);
+        const body = hostedBody(heldCandidate, bodyRequest);
+        validateDiscoveryIntakeBody(body, heldCandidate.upstream, heldCandidate.port_key);
         plan.push(
-          previous ?? {
-            candidate,
+          (!amended && previous) || {
+            candidate: heldCandidate,
             body,
             body_sha256: observationHash(body),
             primary: null,
             evidence_sha256: null,
+            ...(amendment ? { amendment } : {}),
           },
         );
       }
@@ -1661,6 +1921,7 @@ export class HostedIntakeBridge {
     receipt.plan_sha256 = hostedPlanHash(receipt.request_sha256, plan);
     if (delivery.some((d) => d.hold)) receipt.plan_encoding = "proposal-bound-v2";
     if (found.length) receipt.delivery = delivery;
+    assertReceiptCapacity(receipt);
     await freshLineage();
     receipt.head = this.head;
     receipt.run = process.env.GITHUB_RUN_ID ?? "local";
@@ -2226,6 +2487,17 @@ async function main() {
     project: process.env.GH_TOKEN,
     repository: process.env.REPOSITORY_TOKEN,
   });
+  const locationSdk = await createGitHubClient({
+    ...discoveryGitHubScope(budget, process.env.GH_TOKEN),
+    observeRedirects: true,
+    maxBytes: 16384,
+    allowRequest: (method, url) =>
+      method === "GET" &&
+      (/^\/repos\/[^/]+\/[^/]+$/u.test(url.pathname) ||
+        /^\/repositories\/[1-9]\d*$/u.test(url.pathname) ||
+        url.pathname === "/rate_limit"),
+  });
+  const locationRead = relocationMetadataReader(locationSdk);
   const http = createDiscoveryTransport(budget, process.env.GH_TOKEN);
   const head = runCheckedGit(["rev-parse", "HEAD"], { cwd: root }).trim();
   const admitInventory = async (cache?: RoadmapInventory) => {
@@ -2245,6 +2517,7 @@ async function main() {
     {
       checkpoints: postgresIntakeCheckpoints,
       requireIntent: Boolean(process.env.PORTCOVE_DISCOVERY_DATABASE_URL),
+      resolveRepository: (name, id) => resolveDiscoveryRepository(name, id, locationRead),
     },
   );
   const settleAdmission = async () => {

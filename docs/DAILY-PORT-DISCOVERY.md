@@ -91,8 +91,10 @@ logical batch stays together when it fits the existing comment limit.
 The same invocation then applies the bound proposal automatically. Port metadata
 intake requires no separate model reviewer or review attestation. The owner
 confirmed this policy on October 28, 2026. Software changes retain the repository's
-independent review and CI requirements. Changed request or primary evidence stops
-delivery; prepare a fresh proposal instead of overwriting an in-flight issue.
+independent review and CI requirements. A changed request refuses delivery.
+Changed primary evidence holds its unfinished candidate. Use an exact-receipt
+owner amendment, described below, to refresh its evidence. Completed deliveries
+retain their saved proofs.
 
 A candidate whose initial upstream repository metadata lookup returns HTTP 404
 can receive a **candidate hold** when it has no unfinished delivery or uncertain
@@ -131,7 +133,12 @@ object alongside `schema_version`, `kind`, `investigator` and `candidates`:
 }
 ```
 
-These example hash placeholders must be replaced with actual SHA-256 digests.
+Use `observationHash` from `scripts/upstream-observer.mts` for comment hashes.
+For `request_sha256`, hash the original proposal portion beginning at
+`<!-- portcove-hosted-intake:v1 -->`, after the withdrawal prefix. For
+`receipt_sha256`, hash the complete bot comment body. The helper hashes the
+canonical JSON encoding of the string. Copy the retained plan hash from the
+matching bot receipt.
 The executor requires that exact withdrawn owner source, one exact bot receipt,
 its original request/plan/body bindings and at least one confirmed canonical ID.
 It rejects reordered, dropped, added or revised candidate bodies. Reconciliation
@@ -161,6 +168,33 @@ publication stops further checkpoint advancement. A subsequent pass may
 republish the saved bytes on a known predecessor comment. Missing or
 contradictory receipt identities require explicit reconciliation. PostgreSQL
 and GitHub retain separate write boundaries.
+
+An owner can amend one unattempted candidate on #177 with
+`<!-- portcove-hosted-intake-amendment:v1 -->` and a JSON object containing
+`schema_version: 1`, `request_comment`, `request_sha256`, `receipt_comment`,
+`receipt_sha256`, `candidate_index`, `port_key`, `previous_body_sha256`,
+`previous_evidence_sha256`, `replacement` and `reason`. Hashes bind the exact
+original proposal, current bot receipt and candidate slot. Compute both comment
+hashes with `observationHash(comment.body)` from `scripts/upstream-observer.mts`.
+Copy the previous body/evidence hashes from the exact bot receipt. `replacement` contains
+only `upstream`, `evidence` and `resume`. Optional top-level `hold: true` retains
+the amended candidate for research. A later exact-receipt amendment without that
+flag resumes it after its research condition is satisfied. Repository ID, game, key, title and intent
+retain their original identities. Competing amendments or completed/uncertain
+writes refuse revision. The retained receipt references the exact owner amendment.
+An amendment event drains the existing queue and reports its original proposal.
+For a historical schema 1 batch, an exact-receipt amendment authorizes importing
+that receipt and its candidate proofs into the existing PostgreSQL checkpoint
+store. The original proposal and stable creation markers stay authoritative.
+
+Unfinished candidates verify repository location with bounded metadata reads. A
+GitHub 301 must name the retained numeric repository ID. Numeric metadata and the
+current named endpoint must agree before research uses the new location. Receipts
+retain both locations. Name reuse, missing metadata and conflicting IDs hold the
+affected candidate. New primary evidence also holds its unfinished candidate until
+an owner amendment verifies. Other candidates continue. Delivered candidates use
+their saved scoped proofs during ordinary resumption. Further releases become
+separate observations.
 
 The executor serializes repository-wide and drains retained proposal comments,
 so GitHub's replaceable pending workflow slot cannot erase a request. Explicit

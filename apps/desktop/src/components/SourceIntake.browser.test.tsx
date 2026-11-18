@@ -581,222 +581,304 @@ describe("source intake dialog", () => {
     },
   );
 
-  it.each(["game", "bios", "changed BIOS", "store originals", "GOG originals", "Doom"])(
-    "checks the selected App setup handoff for %s",
-    async (scenario) => {
-      const installedSources: SourceRecord[] = [];
-      const first = scenario === "bios" ? "bios" : "game";
-      const replaceBios = scenario === "changed BIOS";
-      const fromGog = scenario === "GOG originals";
-      const doom = scenario === "Doom";
-      const fromStore = scenario === "store originals" || fromGog || doom;
-      const store = fromGog ? "gog" : "steam";
-      const title = doom ? "DOOM 3" : "Dark Forces";
-      const storeRoot = fromGog ? "D:/GOG Games/Dark Forces" : `D:/Steam/steamapps/common/${title}`;
-      const folder = fromGog || doom ? storeRoot : `${storeRoot}/Game`;
-      const input = fromStore
-        ? {
-            ...profile,
-            id: doom ? "doom-3-classic-pc-131-pk4" : "dark-forces-pc-complete-installed-data",
-            kind: doom ? ("relative-file-set" as const) : ("file-set" as const),
-          }
-        : profile;
-      const pickerOpen = vi
-        .spyOn(picker, "pickSourcePath")
-        .mockImplementation(async ({ id }) => `D:/${id}.z64`);
-      if (fromStore) {
-        vi.spyOn(desktopApi, "storeGameInstalls").mockResolvedValue({
-          checked_stores: [store],
-          skipped_entries: 0,
-          limited: false,
-          installs: [
-            {
-              store,
-              product_id: fromGog ? "1421404433" : doom ? "9050" : "32400",
-              title,
-              saved_root_id: null,
-              path: storeRoot,
-              original_folder: { path: folder, profile_id: input.id },
-            },
-          ],
-        });
+  it.each([
+    "game",
+    "bios",
+    "changed BIOS",
+    "store originals",
+    "GOG originals",
+    "Doom",
+    "BStone Steam AOG",
+    "BStone Steam PS",
+    "BStone GOG AOG",
+    "BStone GOG PS",
+    "BStone anthology AOG",
+    "BStone anthology PS",
+  ])("checks the selected App setup handoff for %s", async (scenario) => {
+    const installedSources: SourceRecord[] = [];
+    const first = scenario === "bios" ? "bios" : "game";
+    const replaceBios = scenario === "changed BIOS";
+    const storeCases: Record<
+      string,
+      {
+        store: "steam" | "gog";
+        title: string;
+        productId: string;
+        profileId: string;
+        subfolder?: string;
+        relative?: boolean;
       }
-      const bios = { ...profile, id: "bios", label: "Fixture BIOS" };
-      const transport = installInteractiveTransport("setup", (message) => {
-        throw new Error(message);
-      });
-      const selectedRecord = (id: string, path: string) => ({ ...record(path), profile_id: id });
-      if (replaceBios) installedSources.push(selectedRecord("bios", "D:/original-bios.z64"));
-      vi.spyOn(desktopApi, "workspaceSnapshot").mockImplementation(async () => {
-        const snapshot = workspace("setup");
-        const port = snapshot.catalog.ports.find((port) => port.id === "orchard")!;
-        port.source_profile = input.id;
-        port.bios_source_profile = fromStore ? null : bios.id;
-        snapshot.catalog.source_profiles = fromStore ? [input] : [input, bios];
-        snapshot.sources = [...installedSources];
-        const has = (id: string) => installedSources.some((source) => source.profile_id === id);
-        const reason = !has(input.id)
-          ? "missing_source"
-          : !fromStore && !has(bios.id)
-            ? "missing_bios"
-            : null;
-        const status = snapshot.statuses.find((status) => status.port_id === port.id)!;
-        status.active = null;
-        status.staged = null;
-        status.readiness = {
-          launchable: false,
-          pending_setup: false,
-          blockers: reason ? [reason] : [],
-        };
-        status.port_actions = [
+    > = {
+      "store originals": {
+        store: "steam",
+        title: "Dark Forces",
+        productId: "32400",
+        profileId: "dark-forces-pc-complete-installed-data",
+        subfolder: "Game",
+      },
+      "GOG originals": {
+        store: "gog",
+        title: "Dark Forces",
+        productId: "1421404433",
+        profileId: "dark-forces-pc-complete-installed-data",
+      },
+      Doom: {
+        store: "steam",
+        title: "DOOM 3",
+        productId: "9050",
+        profileId: "doom-3-classic-pc-131-pk4",
+        relative: true,
+      },
+      "BStone Steam AOG": {
+        store: "steam",
+        title: "Blake Stone",
+        productId: "358190",
+        profileId: "bstone-aliens-of-gold-originals",
+        subfolder: "Blake Stone - Aliens of Gold",
+      },
+      "BStone Steam PS": {
+        store: "steam",
+        title: "Planet Strike",
+        productId: "358310",
+        profileId: "bstone-planet-strike-originals",
+        subfolder: "Blake Stone - Planet Strike",
+      },
+      "BStone GOG AOG": {
+        store: "gog",
+        title: "Blake Stone",
+        productId: "1207658728",
+        profileId: "bstone-aliens-of-gold-originals",
+      },
+      "BStone GOG PS": {
+        store: "gog",
+        title: "Planet Strike",
+        productId: "1207658729",
+        profileId: "bstone-planet-strike-originals",
+      },
+      "BStone anthology AOG": {
+        store: "steam",
+        title: "Apogee Throwback Pack",
+        productId: "238050",
+        profileId: "bstone-aliens-of-gold-originals",
+        subfolder: "Blake Stone",
+      },
+      "BStone anthology PS": {
+        store: "steam",
+        title: "Apogee Throwback Pack",
+        productId: "238050",
+        profileId: "bstone-planet-strike-originals",
+        subfolder: "Planet Strike",
+      },
+    };
+    const selectedStore = storeCases[scenario];
+    const fromStore = selectedStore !== undefined;
+    const fromGog = selectedStore?.store === "gog";
+    const store = selectedStore?.store ?? "steam";
+    const title = selectedStore?.title ?? "Dark Forces";
+    const storeRoot = fromGog ? `D:/GOG Games/${title}` : `D:/Steam/steamapps/common/${title}`;
+    const folder = selectedStore?.subfolder ? `${storeRoot}/${selectedStore.subfolder}` : storeRoot;
+    const input = selectedStore
+      ? {
+          ...profile,
+          id: selectedStore.profileId,
+          kind: selectedStore.relative ? ("relative-file-set" as const) : ("file-set" as const),
+        }
+      : profile;
+    const pickerOpen = vi
+      .spyOn(picker, "pickSourcePath")
+      .mockImplementation(async ({ id }) => `D:/${id}.z64`);
+    const storeLookup = vi.spyOn(desktopApi, "storeGameInstalls");
+    if (selectedStore) {
+      storeLookup.mockResolvedValue({
+        checked_stores: [store],
+        skipped_entries: 0,
+        limited: false,
+        installs: [
           {
-            action: "install",
-            availability: reason ? "waiting" : "allowed",
-            reason: reason ?? "available",
+            store,
+            product_id: selectedStore.productId,
+            title,
+            saved_root_id: null,
+            path: storeRoot,
+            original_folder: { path: folder, profile_id: input.id },
           },
-        ];
-        return snapshot;
+        ],
       });
-      vi.spyOn(desktopApi, "inspectSourceIntake").mockImplementation(async (id, paths) => ({
-        ...intake(paths[0]!),
-        profile_id: id,
-      }));
-      vi.spyOn(desktopApi, "planSourceImport").mockImplementation(async (id, path, mode) => ({
-        schema_version: 1,
+    }
+    const bios = { ...profile, id: "bios", label: "Fixture BIOS" };
+    const transport = installInteractiveTransport("setup", (message) => {
+      throw new Error(message);
+    });
+    const selectedRecord = (id: string, path: string) => ({ ...record(path), profile_id: id });
+    if (replaceBios) installedSources.push(selectedRecord("bios", "D:/original-bios.z64"));
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockImplementation(async () => {
+      const snapshot = workspace("setup");
+      const port = snapshot.catalog.ports.find((port) => port.id === "orchard")!;
+      port.source_profile = input.id;
+      port.bios_source_profile = fromStore ? null : bios.id;
+      snapshot.catalog.source_profiles = fromStore ? [input] : [input, bios];
+      snapshot.sources = [...installedSources];
+      const has = (id: string) => installedSources.some((source) => source.profile_id === id);
+      const reason = !has(input.id)
+        ? "missing_source"
+        : !fromStore && !has(bios.id)
+          ? "missing_bios"
+          : null;
+      const status = snapshot.statuses.find((status) => status.port_id === port.id)!;
+      status.active = null;
+      status.staged = null;
+      status.readiness = {
+        launchable: false,
+        pending_setup: false,
+        blockers: reason ? [reason] : [],
+      };
+      status.port_actions = [
+        {
+          action: "install",
+          availability: reason ? "waiting" : "allowed",
+          reason: reason ?? "available",
+        },
+      ];
+      return snapshot;
+    });
+    vi.spyOn(desktopApi, "inspectSourceIntake").mockImplementation(async (id, paths) => ({
+      ...intake(paths[0]!),
+      profile_id: id,
+    }));
+    vi.spyOn(desktopApi, "planSourceImport").mockImplementation(async (id, path, mode) => ({
+      schema_version: 1,
+      profile_id: id,
+      mode,
+      source: selectedRecord(id, path),
+      admission_mode: "exact_identity",
+      destination: path,
+      destination_exists: true,
+      existing_registration: null,
+      reuse_existing: false,
+      required_bytes: 0,
+      source_guard_sha256: "b".repeat(64),
+      plan_sha256: "c".repeat(64),
+    }));
+    const save = vi.spyOn(desktopApi, "importSource").mockImplementation(async (id, path, mode) => {
+      const registered = selectedRecord(id, path);
+      if (replaceBios) installedSources[0] = selectedRecord("bios", "D:/replacement-bios.z64");
+      installedSources.push(registered);
+      return {
+        import_id: `imported-${id}`,
         profile_id: id,
         mode,
-        source: selectedRecord(id, path),
-        admission_mode: "exact_identity",
-        destination: path,
-        destination_exists: true,
-        existing_registration: null,
-        reuse_existing: false,
-        required_bytes: 0,
-        source_guard_sha256: "b".repeat(64),
-        plan_sha256: "c".repeat(64),
-      }));
-      const save = vi
-        .spyOn(desktopApi, "importSource")
-        .mockImplementation(async (id, path, mode) => {
-          const registered = selectedRecord(id, path);
-          if (replaceBios) installedSources[0] = selectedRecord("bios", "D:/replacement-bios.z64");
-          installedSources.push(registered);
-          return {
-            import_id: `imported-${id}`,
-            profile_id: id,
-            mode,
-            outcome: "registered_current_location",
-            registered,
-            copied: false,
-            original_deleted: false,
-            original_retained: true,
-            recovered: false,
-          };
-        });
-      const reuse = vi.spyOn(desktopApi, "reviewSourceReuse").mockImplementation(async () => ({
-        registration: installedSources.find((source) => source.profile_id === input.id)!,
-        inspection: { ...report(fromStore ? folder : "D:/game.z64"), profile_id: input.id },
-        reference: { profile_id: input.id, reference_sha256: "d".repeat(64) },
-        applications: [],
-      }));
-      const review = vi.spyOn(desktopApi, "plan").mockResolvedValue({
-        port_id: "orchard",
-        channel: "stable",
-        platform: "windows-x86-64",
-        bundled_runtime: null,
-        action: "download",
-        source_requirements: [],
-        download_bytes: 1024,
-        release: {
-          version: "2.0",
-          channel: "stable",
-          published_at: null,
-          asset: {
-            name: "orchard.zip",
-            url: "https://example.com/orchard.zip",
-            size: 1024,
-            sha256: "a".repeat(64),
-          },
-        },
-        storage: {
-          library_root: "D:/Portcove",
-          volume_total_bytes: 1024 ** 4,
-          volume_available_bytes: 512 * 1024 ** 3,
-        },
-        output_location: {
-          port_id: "orchard",
-          library_root: "D:/Portcove",
-          configured_output_directory: null,
-          default_output_directory: "D:/Portcove/versions/orchard",
-          effective_output_directory: "D:/Portcove/versions/orchard",
-          selection_source: "library_default",
-          user_data_root: "D:/Portcove/user/orchard",
-        },
-      });
-      const install = vi.spyOn(desktopApi, "install");
-      const launch = vi.spyOn(desktopApi, "launch");
-      const register = async (id: string) => {
-        const label =
-          id === "bios"
-            ? "Choose BIOS file to check"
-            : fromStore
-              ? `Check ${title} files from ${fromGog ? "GOG" : "Steam"}`
-              : "Choose game files to check";
-        await page.getByRole("button", { name: label, exact: true }).click();
-        await page.getByRole("button", { name: "Use current location", exact: true }).click();
-        await page.getByRole("button", { name: "Use current location", exact: true }).click();
-        await page.getByRole("button", { name: "Continue setup", exact: true }).click();
+        outcome: "registered_current_location",
+        registered,
+        copied: false,
+        original_deleted: false,
+        original_retained: true,
+        recovered: false,
       };
-      try {
-        localStorage.clear();
-        initializeLocalization(["en"]);
-        await root.rerender(
-          <LocalizationProvider api={desktopApi}>
-            <App />
-          </LocalizationProvider>,
-        );
-        await page.getByRole("button", { name: "Discover", exact: true }).click();
-        await page.getByRole("textbox", { name: "Search Discover" }).fill("Orchard Quest");
-        await page.getByRole("button", { name: /^Orchard Quest(?:[,. ·]|$)/u }).click();
-        if (fromStore) {
-          await page
-            .getByRole("region", { name: "Game actions", exact: true })
-            .getByRole("button", { name: "Choose game files", exact: true })
-            .click();
-        } else {
-          await page.getByRole("tab", { name: "Game files", exact: true }).click();
-          await page
-            .getByRole("button", {
-              name: first === "game" ? "Check game files" : "Check required BIOS",
-              exact: true,
-            })
-            .click();
-        }
-        await register(first);
-        const reviewsBeforeRemainingInput = fromStore ? null : review.mock.calls.length;
-        const next = first === "game" ? "bios" : "game";
-        if (!fromStore && !replaceBios) await register(next);
-        const outcome = replaceBios
-          ? page.getByText("The saved files have changed.", { exact: false })
-          : page.getByRole("dialog", { name: "Review installation", exact: true });
-        await expect.element(outcome).toBeVisible();
-        expect(reviewsBeforeRemainingInput).toBe(fromStore ? null : 0);
-        expect(review.mock.calls).toEqual(replaceBios ? [] : [["orchard", "stable"]]);
-        expect(save).toHaveBeenCalledTimes(replaceBios || fromStore ? 1 : 2);
-        expect(save.mock.calls[0]?.slice(0, 2)).toEqual(
-          fromStore ? [input.id, folder] : [first, `D:/${first}.z64`],
-        );
-        expect(reuse.mock.calls).toEqual(replaceBios ? [] : [[input.id, 1]]);
-        expect(pickerOpen).toHaveBeenCalledTimes(fromStore ? 0 : replaceBios ? 1 : 2);
-        expect(install).not.toHaveBeenCalled();
-        expect(launch).not.toHaveBeenCalled();
-      } finally {
-        await root.rerender(null);
-        transport.dispose();
-        localStorage.clear();
+    });
+    const reuse = vi.spyOn(desktopApi, "reviewSourceReuse").mockImplementation(async () => ({
+      registration: installedSources.find((source) => source.profile_id === input.id)!,
+      inspection: { ...report(fromStore ? folder : "D:/game.z64"), profile_id: input.id },
+      reference: { profile_id: input.id, reference_sha256: "d".repeat(64) },
+      applications: [],
+    }));
+    const review = vi.spyOn(desktopApi, "plan").mockResolvedValue({
+      port_id: "orchard",
+      channel: "stable",
+      platform: "windows-x86-64",
+      bundled_runtime: null,
+      action: "download",
+      source_requirements: [],
+      download_bytes: 1024,
+      release: {
+        version: "2.0",
+        channel: "stable",
+        published_at: null,
+        asset: {
+          name: "orchard.zip",
+          url: "https://example.com/orchard.zip",
+          size: 1024,
+          sha256: "a".repeat(64),
+        },
+      },
+      storage: {
+        library_root: "D:/Portcove",
+        volume_total_bytes: 1024 ** 4,
+        volume_available_bytes: 512 * 1024 ** 3,
+      },
+      output_location: {
+        port_id: "orchard",
+        library_root: "D:/Portcove",
+        configured_output_directory: null,
+        default_output_directory: "D:/Portcove/versions/orchard",
+        effective_output_directory: "D:/Portcove/versions/orchard",
+        selection_source: "library_default",
+        user_data_root: "D:/Portcove/user/orchard",
+      },
+    });
+    const install = vi.spyOn(desktopApi, "install");
+    const launch = vi.spyOn(desktopApi, "launch");
+    const register = async (id: string) => {
+      const label =
+        id === "bios"
+          ? "Choose BIOS file to check"
+          : fromStore
+            ? `Check ${title} files from ${fromGog ? "GOG" : "Steam"}`
+            : "Choose game files to check";
+      await page.getByRole("button", { name: label, exact: true }).click();
+      await page.getByRole("button", { name: "Use current location", exact: true }).click();
+      await page.getByRole("button", { name: "Use current location", exact: true }).click();
+      await page.getByRole("button", { name: "Continue setup", exact: true }).click();
+    };
+    try {
+      localStorage.clear();
+      initializeLocalization(["en"]);
+      await root.rerender(
+        <LocalizationProvider api={desktopApi}>
+          <App />
+        </LocalizationProvider>,
+      );
+      await page.getByRole("button", { name: "Discover", exact: true }).click();
+      await page.getByRole("textbox", { name: "Search Discover" }).fill("Orchard Quest");
+      await page.getByRole("button", { name: /^Orchard Quest(?:[,. ·]|$)/u }).click();
+      if (fromStore) {
+        await page
+          .getByRole("region", { name: "Game actions", exact: true })
+          .getByRole("button", { name: "Choose game files", exact: true })
+          .click();
+      } else {
+        await page.getByRole("tab", { name: "Game files", exact: true }).click();
+        await page
+          .getByRole("button", {
+            name: first === "game" ? "Check game files" : "Check required BIOS",
+            exact: true,
+          })
+          .click();
       }
-    },
-  );
+      await register(first);
+      const reviewsBeforeRemainingInput = fromStore ? null : review.mock.calls.length;
+      const next = first === "game" ? "bios" : "game";
+      if (!fromStore && !replaceBios) await register(next);
+      const outcome = replaceBios
+        ? page.getByText("The saved files have changed.", { exact: false })
+        : page.getByRole("dialog", { name: "Review installation", exact: true });
+      await expect.element(outcome).toBeVisible();
+      expect(reviewsBeforeRemainingInput).toBe(fromStore ? null : 0);
+      expect(review.mock.calls).toEqual(replaceBios ? [] : [["orchard", "stable"]]);
+      expect(save).toHaveBeenCalledTimes(replaceBios || fromStore ? 1 : 2);
+      expect(save.mock.calls[0]?.slice(0, 2)).toEqual(
+        fromStore ? [input.id, folder] : [first, `D:/${first}.z64`],
+      );
+      expect(reuse.mock.calls).toEqual(replaceBios ? [] : [[input.id, 1]]);
+      expect(pickerOpen).toHaveBeenCalledTimes(fromStore ? 0 : replaceBios ? 1 : 2);
+      expect(storeLookup.mock.calls).toEqual(fromStore ? [[1, input.id]] : []);
+      expect(install).not.toHaveBeenCalled();
+      expect(launch).not.toHaveBeenCalled();
+    } finally {
+      await root.rerender(null);
+      transport.dispose();
+      localStorage.clear();
+    }
+  });
 
   it("keeps an in-flight import bound to its original library and discards its completion after switching", async () => {
     const apply = prepareImport();

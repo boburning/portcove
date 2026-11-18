@@ -282,6 +282,18 @@ impl Adapter for StandardAdapter {
             ("PORTCOVE_USER_DATA".into(), user_data_path.clone()),
         ]);
         environment.extend(port.launch_environment.clone());
+        if self.0 == AdapterKind::NativePortable
+            && matches!(platform, Platform::WindowsX86_64 | Platform::LinuxX86_64)
+            && port.id == "corsixth-corsixth"
+            && port.release.provider == crate::ReleaseSource::Github
+            && port
+                .release
+                .repository
+                .eq_ignore_ascii_case("CorsixTH/CorsixTH")
+        {
+            // CorsixTH's blank player name expects USER or USERNAME before its own PLAYER fallback.
+            environment.insert("USER".into(), "PLAYER".into());
+        }
         crate::native_temp::environment(port, platform, &mut environment)?;
         if let Some(variable) = &port.user_data_environment {
             environment.insert(variable.clone(), user_data_path.clone());
@@ -4384,6 +4396,68 @@ mod tests {
 
     use super::*;
     use crate::Catalog;
+
+    #[test]
+    fn managed_corsixth_uses_a_neutral_player_name_without_inheriting_the_account() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("install");
+        std::fs::create_dir(&install).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let corsixth = catalog.port("corsixth-corsixth").unwrap();
+        let mut retained_windows = corsixth.clone();
+        retained_windows.external_profile_policy = None;
+        retained_windows.platforms = vec![Platform::WindowsX86_64];
+        let another_port = catalog.port("dethrace-labs-dethrace").unwrap();
+
+        for (port, platform, executable, expected) in [
+            (
+                corsixth,
+                Platform::LinuxX86_64,
+                "corsix-th.AppImage",
+                Some("PLAYER"),
+            ),
+            (
+                corsixth,
+                Platform::WindowsX86_64,
+                "CorsixTH.exe",
+                Some("PLAYER"),
+            ),
+            (
+                &retained_windows,
+                Platform::WindowsX86_64,
+                "CorsixTH.exe",
+                Some("PLAYER"),
+            ),
+            (another_port, Platform::WindowsX86_64, "dethrace.exe", None),
+        ] {
+            let executable = install.join(executable);
+            std::fs::write(&executable, b"test").unwrap();
+            let spec = standard(port.adapter)
+                .launch_spec_with_executable(
+                    LaunchSpecRequest {
+                        library: &library,
+                        port,
+                        platform,
+                        install_root: &install,
+                        selected_executable: &executable,
+                        source: None,
+                        source_record: None,
+                        disc_progress: None,
+                    },
+                    &|| Ok(()),
+                )
+                .unwrap();
+            let command = ChildProcessPolicy::game_command(&spec.process_spec(), &[]).unwrap();
+            let user = command
+                .get_envs()
+                .find(|(name, _)| *name == "USER")
+                .and_then(|(_, value)| value)
+                .and_then(|value| value.to_str());
+            assert_eq!(user, expected, "{platform:?} {}", port.id);
+            assert!(!command.get_envs().any(|(name, _)| name == "USERNAME"));
+        }
+    }
 
     fn launch_fixture_inventory(root: &Path) -> BTreeMap<PathBuf, Option<Vec<u8>>> {
         fn visit(root: &Path, directory: &Path, entries: &mut BTreeMap<PathBuf, Option<Vec<u8>>>) {
