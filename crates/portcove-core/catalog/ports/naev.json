@@ -84,7 +84,6 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "",
       "user_prepared": {
         "windows-x86-64": {
           "trust": "user-selected",
