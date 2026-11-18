@@ -812,7 +812,7 @@ function GithubConnection({ status }: { status?: GithubAuthStatus | undefined })
         ? `Connected as ${status.login}`
         : "Connected to GitHub"
       : "Not signed in";
-  const stateClass = `inline-flex items-center gap-1 rounded-full border px-[9px] py-[5px] text-xs ${
+  const stateClass = `inline-flex max-w-full min-w-0 items-center gap-1 rounded-full wrap-anywhere border px-[9px] py-[5px] text-xs ${
     connected
       ? "border-[var(--color-success-border)] bg-pc-success-subtle text-pc-success-foreground"
       : "border-[var(--color-border-strong)] text-pc-muted-foreground"
