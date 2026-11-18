@@ -5,7 +5,7 @@ import {
   type CatalogQuery,
   type CatalogQueryContext,
 } from "./features/browsing/catalog-query";
-import { availablePlatforms } from "./features/browsing/catalog-entry";
+import { assessListingAvailability, availablePlatforms } from "./features/browsing/catalog-entry";
 import type { CatalogEntry } from "./features/browsing/catalog-entry";
 import type {
   ActivityRecord,
@@ -502,13 +502,20 @@ export function filterPorts(
     (catalogSort === "catalog" && !context.devicePlatform)
   )
     return visible;
+  const now = Date.now();
   return visible
-    .map((port, index) => ({ port, index }))
+    .map((port, index) => ({
+      port,
+      index,
+      rank:
+        catalogSort === "catalog"
+          ? catalogRank(port, selectedStatuses.get(port.id), context.devicePlatform, now)
+          : 0,
+    }))
     .sort((left, right) => {
       const comparison =
         catalogSort === "catalog"
-          ? catalogRank(left.port, selectedStatuses.get(left.port.id), context.devicePlatform) -
-            catalogRank(right.port, selectedStatuses.get(right.port.id), context.devicePlatform)
+          ? left.rank - right.rank
           : catalogSort === "name" || catalogSort === "name-desc"
             ? (catalogSort === "name-desc" ? -1 : 1) *
               gameTitle(left.port).localeCompare(gameTitle(right.port), "en", {
@@ -534,12 +541,18 @@ export function filterPorts(
     .map(({ port }) => port);
 }
 
-function catalogRank(port: CatalogEntry, status: PortStatus | undefined, platform?: string) {
+function catalogRank(
+  port: CatalogEntry,
+  status: PortStatus | undefined,
+  platform: string | undefined,
+  now: number,
+) {
   if (status?.active || status?.external_runtime || port.pendingSetup) return 0;
   if (port.release && !portActionPresentation(status, "install").blocked) return 1;
-  if (port.listing?.availability === "unavailable" || port.listing?.availability === "source-only")
+  const assessment = port.listing ? assessListingAvailability(port.listing, now) : undefined;
+  if (assessment?.availability === "unavailable" || assessment?.availability === "source-only")
     return 5;
-  const platforms = availablePlatforms(port);
+  const platforms = assessment?.observedPlatforms ?? availablePlatforms(port);
   if (platforms.some((candidate) => candidate === platform)) return 2;
   return platforms.length ? 4 : 3;
 }
