@@ -70,6 +70,7 @@ fn hold(stop: CarryStop) -> PortcoveError {
         CarryStop::InsufficientSpace { .. } => {
             PortcoveError::state("insufficient space is not a hold")
         }
+        CarryStop::StagingStorageFull => PortcoveError::state("unhandled staging exhaustion"),
     }
 }
 
@@ -93,6 +94,16 @@ impl PortcoveService {
         active: &InstallRecord,
         target: &InstallRecord,
         observe_space: &dyn Fn(&std::path::Path) -> Result<(u64, u64)>,
+    ) -> Result<Option<CarryOutcome>> {
+        self.carry_unknown_files_with_staging_writer(active, target, observe_space, None)
+    }
+
+    pub(super) fn carry_unknown_files_with_staging_writer(
+        &self,
+        active: &InstallRecord,
+        target: &InstallRecord,
+        observe_space: &dyn Fn(&std::path::Path) -> Result<(u64, u64)>,
+        writer: Option<&carry_step::StagingWriter<'_>>,
     ) -> Result<Option<CarryOutcome>> {
         if active.id == target.id
             || !self.carry_participates(active)?
@@ -305,13 +316,24 @@ impl PortcoveService {
         carry_step::sweep(&target_root)?;
         let space = observe_space(&target_root)?;
         let mut outcome = CarryOutcome::default();
-        let kept = match carry_step::stage(
-            (&source_root, &target_root),
-            &plan,
-            &inspected,
-            space,
-            &checkpoint,
-        ) {
+        let staged = match writer {
+            Some(writer) => carry_step::stage_with_writer(
+                (&source_root, &target_root),
+                &plan,
+                &inspected,
+                space,
+                &checkpoint,
+                writer,
+            ),
+            None => carry_step::stage(
+                (&source_root, &target_root),
+                &plan,
+                &inspected,
+                space,
+                &checkpoint,
+            ),
+        };
+        let kept = match staged {
             Ok(staged) => {
                 let mut kept = staged.changed_targets.clone();
                 kept.extend(staged.publish().map_err(hold)?);
@@ -325,11 +347,14 @@ impl PortcoveService {
                 // An earlier attempt published part of a carry here: hold
                 // rather than activate a partial carry (review M5).
                 if self.partial_carry_present(active, target)? {
-                    return Err(PortcoveError::conflict(
+                    let mut error = PortcoveError::conflict(
                         "There isn't enough free space to finish carrying files to the new version. Nothing more was changed. Free up space on the drive that holds the game, then try again.",
                     )
-                    .detail("required_bytes", required.to_string())
-                    .detail("available_bytes", available.to_string()));
+                    .detail("required_bytes", required.to_string());
+                    if let Some(available) = available {
+                        error = error.detail("available_bytes", available.to_string());
+                    }
+                    return Err(error);
                 }
                 outcome.insufficient_space = true;
                 outcome.not_carried_count = Some(
@@ -340,7 +365,7 @@ impl PortcoveService {
                         .count() as u64,
                 );
                 outcome.required_bytes = Some(required);
-                outcome.available_bytes = Some(available);
+                outcome.available_bytes = available;
                 let transaction = connection.transaction()?;
                 record_outcome(&transaction, active, target, &outcome);
                 transaction.commit()?;

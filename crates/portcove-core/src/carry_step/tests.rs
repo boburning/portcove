@@ -43,6 +43,17 @@ fn run_with(
     rows: &dyn Fn(&str) -> Rows,
     space: (u64, u64),
 ) -> (Vec<PlannedPath>, std::result::Result<Staged, CarryStop>) {
+    run_with_writer(fixture, paths, rows, space, &write_staging, &ok)
+}
+
+fn run_with_writer(
+    fixture: &Fixture,
+    paths: &[&str],
+    rows: &dyn Fn(&str) -> Rows,
+    space: (u64, u64),
+    writer: &StagingWriter<'_>,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> (Vec<PlannedPath>, std::result::Result<Staged, CarryStop>) {
     let mut inputs = BTreeMap::new();
     let mut sizes = BTreeMap::new();
     let (source_listings, target_listings) = (Listings::default(), Listings::default());
@@ -66,12 +77,13 @@ fn run_with(
     }
     let planned = plan("a", &inputs, &CarryExclusions::default(), &|_| false);
     let inspected = Inspected { sizes };
-    let staged = stage(
+    let staged = stage_with_writer(
         (&fixture.source, &fixture.target),
         &planned,
         &inspected,
         space,
-        &ok,
+        checkpoint,
+        writer,
     );
     (planned, staged)
 }
@@ -493,4 +505,112 @@ fn publish_rechecks_new_destination_folders_and_preserves_player_files() {
         b"player copy"
     );
     assert_eq!(sweep(&fixture.target).unwrap(), 0);
+}
+
+#[test]
+fn staging_storage_full_discards_completed_and_partial_nested_copies() {
+    let fixture = fixture();
+    write(&fixture.source, "existing/first.txt", b"first player file");
+    write(&fixture.source, "missing/second.txt", b"second player file");
+    fs::create_dir(fixture.target.join("existing")).unwrap();
+    let writes = std::cell::Cell::new(0);
+    let writer = |output: &mut fs::File, bytes: &[u8]| {
+        writes.set(writes.get() + 1);
+        if writes.get() == 2 {
+            write_staging(output, &bytes[..1])?;
+            return Err(std::io::ErrorKind::StorageFull.into());
+        }
+        write_staging(output, bytes)
+    };
+    let (_, result) = run_with_writer(
+        &fixture,
+        &["existing/first.txt", "missing/second.txt"],
+        &|_| (None, None),
+        (u64::MAX, u64::MAX),
+        &writer,
+        &ok,
+    );
+    assert!(matches!(
+        result,
+        Err(CarryStop::InsufficientSpace {
+            available: None,
+            ..
+        })
+    ));
+    assert_eq!(writes.get(), 2);
+    assert_eq!(fs::read_dir(&fixture.target).unwrap().count(), 1);
+    assert_eq!(
+        fs::read_dir(fixture.target.join("existing"))
+            .unwrap()
+            .count(),
+        0
+    );
+    assert!(!fixture.target.join("missing").exists());
+    assert_eq!(
+        fs::read(fixture.source.join("existing/first.txt")).unwrap(),
+        b"first player file"
+    );
+    assert_eq!(
+        fs::read(fixture.source.join("missing/second.txt")).unwrap(),
+        b"second player file"
+    );
+}
+
+#[test]
+fn staging_non_space_destination_and_checkpoint_errors_remain_holds() {
+    let fixture = fixture();
+    write(&fixture.source, "notes.txt", b"player file");
+    let denied = |_: &mut fs::File, _: &[u8]| Err(std::io::ErrorKind::PermissionDenied.into());
+    let (_, result) = run_with_writer(
+        &fixture,
+        &["notes.txt"],
+        &|_| (None, None),
+        (u64::MAX, u64::MAX),
+        &denied,
+        &ok,
+    );
+    assert!(matches!(result, Err(CarryStop::Failed(_))));
+    let checkpoint = || Err(std::io::Error::from(std::io::ErrorKind::StorageFull).into());
+    let (_, result) = run_with_writer(
+        &fixture,
+        &["notes.txt"],
+        &|_| (None, None),
+        (u64::MAX, u64::MAX),
+        &write_staging,
+        &checkpoint,
+    );
+    assert!(matches!(result, Err(CarryStop::Failed(_))));
+    assert_eq!(fs::read_dir(&fixture.target).unwrap().count(), 0);
+}
+
+#[test]
+fn staging_exhaustion_with_unremovable_prior_temp_remains_a_hold() {
+    let fixture = fixture();
+    write(&fixture.source, "a.txt", b"first player file");
+    write(&fixture.source, "b.txt", b"second player file");
+    let first_path = std::cell::RefCell::new(None);
+    let writer = |output: &mut fs::File, bytes: &[u8]| {
+        if let Some(path) = first_path.borrow().as_ref() {
+            fs::remove_file(path)?;
+            fs::create_dir(path)?;
+            write_staging(output, &bytes[..1])?;
+            return Err(std::io::ErrorKind::StorageFull.into());
+        }
+        write_staging(output, bytes)?;
+        *first_path.borrow_mut() = Some(fs::read_dir(&fixture.target)?.next().unwrap()?.path());
+        Ok(())
+    };
+    let (_, result) = run_with_writer(
+        &fixture,
+        &["a.txt", "b.txt"],
+        &|_| (None, None),
+        (u64::MAX, u64::MAX),
+        &writer,
+        &ok,
+    );
+    assert!(matches!(result, Err(CarryStop::Failed(_))));
+    assert!(first_path.borrow().as_ref().unwrap().is_dir());
+    assert_eq!(fs::read_dir(&fixture.target).unwrap().count(), 1);
+    assert!(!fixture.target.join("a.txt").exists());
+    assert!(!fixture.target.join("b.txt").exists());
 }
