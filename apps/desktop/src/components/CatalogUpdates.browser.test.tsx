@@ -319,7 +319,10 @@ it("refreshes descriptive directory data through Core and reloads the workspace"
     withdrawn_ids: [],
     fallback_reason: null,
   } satisfies Awaited<ReturnType<typeof desktopApi.listingDeliveryStatus>>;
-  vi.spyOn(desktopApi, "listingDeliveryStatus").mockResolvedValue(initial);
+  const read = vi
+    .spyOn(desktopApi, "listingDeliveryStatus")
+    .mockRejectedValueOnce(new Error("Status unavailable"))
+    .mockResolvedValue(initial);
   const apply = vi
     .spyOn(desktopApi, "refreshCatalogListings")
     .mockResolvedValue({ ...initial, revision: 2, selected: true, listing_count: 1 });
@@ -329,7 +332,16 @@ it("refreshes descriptive directory data through Core and reloads the workspace"
   const root = createRoot(host);
   try {
     await act(async () => root.render(<CatalogSettings disabled={false} onChanged={changed} />));
-    await page.getByText("Game listings", { exact: true }).click();
+    await expect
+      .element(page.getByRole("alert"))
+      .toMatchTextContent("Game listing status is unknown");
+    await page.getByRole("button", { name: "Retry listing status", exact: true }).click();
+    await expect
+      .element(page.getByText("Using the built-in directory", { exact: true }))
+      .toBeVisible();
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(apply).not.toHaveBeenCalled();
+    await page.getByText("Listing refresh settings", { exact: true }).click();
     await page
       .getByRole("textbox", { name: "Catalog metadata address" })
       .fill("https://catalog.example/metadata/");

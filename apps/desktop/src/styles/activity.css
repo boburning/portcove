@@ -144,7 +144,7 @@
     font-variant-numeric: tabular-nums;
     overflow-wrap: anywhere;
   }
-  .update-center .activity-row > .activity-details {
+  .update-center .activity-row > :is(.activity-details, .activity-diagnostic) {
     grid-column: 2 / -1;
     margin: 0;
   }
@@ -258,7 +258,7 @@
       max-inline-size: none;
       text-align: start;
     }
-    .update-center .activity-row > .activity-details {
+    .update-center .activity-row > :is(.activity-details, .activity-diagnostic) {
       grid-column: 1 / -1;
     }
     .update-center .update-stats {
@@ -314,13 +314,19 @@
   }
   .recovery-review-item {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: start;
-    gap: var(--space-3);
+    gap: var(--space-2);
     min-inline-size: 0;
     padding-block: var(--space-3);
     border-block-start: 1px solid var(--color-border-subtle);
     overflow-wrap: anywhere;
+  }
+  .recovery-review-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .recovery-review-actions:empty {
+    display: none;
   }
   .recovery-review-item > details {
     min-inline-size: 0;
@@ -328,13 +334,5 @@
   .recovery-review-item > details > summary {
     --disclosure-padding: var(--space-2);
     font-size: var(--text-sm);
-  }
-  @media (max-width: 30rem) {
-    .recovery-review-item {
-      grid-template-columns: minmax(0, 1fr);
-    }
-    .recovery-review-item > button {
-      justify-self: start;
-    }
   }
 }

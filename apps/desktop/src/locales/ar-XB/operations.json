@@ -63,6 +63,16 @@
         "inspect": "ملفات تركها إعداد غير مكتمل"
       }
     },
+    "consequence": {
+      "backup": "",
+      "malformed": "",
+      "missing": "",
+      "orphaned": "",
+      "retained": "",
+      "unfinished": "",
+      "unknown": "",
+      "unreviewable": ""
+    },
     "details": {
       "cleanupLabel": "تغييرات التنظيف والبيانات المحفوظة",
       "clearScope": "لم يُعثر على ملفات عمل للإعداد. يمسح التنظيف مسار الإعداد المسجّل إن وُجد وسجل الاسترداد القديم الخاص به.",
@@ -100,6 +110,7 @@
       "noGuidance": "لم تُسجّل أي إرشادات للاسترداد.",
       "noLocation": "لم يُسجّل أي موقع.",
       "observation": "ملاحظة تشخيصية",
+      "recordDetails": "",
       "reference": "مرجع العملية",
       "reviewFiles": "مراجعة ملفات الإعداد غير المكتمل",
       "summary": "<game /> · {{label}}"

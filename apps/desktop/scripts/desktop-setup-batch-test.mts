@@ -19,6 +19,7 @@ import {
   clickVisible,
   reviewControls,
   selectGameFilesSettings,
+  openGameFileScan,
   selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
 import {
@@ -120,6 +121,7 @@ export async function largeSetupReviewScenario(
       const { button, click } = reviewControls(browser);
       await selectPrimaryNavigation(browser, "Settings");
       await selectGameFilesSettings(browser);
+      await openGameFileScan(browser);
       await click(button("Refresh folders"));
       await browser.wait(
         async () => (await browser.findElement(button("Scan saved folders"))).isEnabled(),
@@ -368,7 +370,8 @@ export async function setupBatchScenario(context: BatchContext) {
       const { button, click } = reviewControls(browser);
       await selectPrimaryNavigation(browser, "Settings");
       await selectGameFilesSettings(browser);
-      await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 15_000);
+      await openGameFileScan(browser);
+      await browser.wait(until.elementLocated(By.id("add-games-folders-heading")), 15_000);
       await click(button("Refresh folders"));
       await browser.wait(
         async () => (await browser.findElement(button("Scan saved folders"))).isEnabled(),

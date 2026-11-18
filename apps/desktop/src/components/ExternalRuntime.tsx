@@ -571,6 +571,7 @@ function SelectedRuntimeDialog({
     failureMessage:
       "Portcove couldn't register these launch details. Review the selected executable and working directory.",
   });
+  const launchArguments = preview?.user_selected?.arguments ?? selected.arguments;
   const content = (
     <>
       {inline ? (
@@ -595,18 +596,15 @@ function SelectedRuntimeDialog({
           </DialogDescription>
         </>
       )}
-      <dl
-        hidden={inline && (!preview || preview.executable === selected.executable)}
-        className="grid gap-2 [overflow-wrap:anywhere]"
-      >
+      <dl className="grid gap-2 [overflow-wrap:anywhere]">
         <dt>Game program</dt>
         <dd>{preview?.executable ?? selected.executable}</dd>
         <dt>Start in folder</dt>
         <dd>{preview?.path ?? selected.workingDirectory}</dd>
         <dt>Launch options (advanced)</dt>
         <dd>
-          {selected.arguments.length
-            ? selected.arguments.map((argument, index) => (
+          {launchArguments.length
+            ? launchArguments.map((argument, index) => (
                 <div key={index}>
                   <span className="text-xs text-pc-muted-foreground">Argument {index + 1}</span>
                   {argument ? (

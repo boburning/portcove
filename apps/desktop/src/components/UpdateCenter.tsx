@@ -122,6 +122,7 @@ function useUpdateCenter({
   signInOffer,
   onCheckAnyway,
   onDismissSignInOffer,
+  onReviewGithub,
   onSelect,
   onOpenSettings,
   generation,
@@ -169,6 +170,7 @@ function useUpdateCenter({
   signInOffer?: SignInOffer | undefined;
   onCheckAnyway?: (() => void | Promise<void>) | undefined;
   onDismissSignInOffer?: (() => void) | undefined;
+  onReviewGithub?: (() => void) | undefined;
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onOpenSettings: (target: ActivitySettingsTarget, sourceProfileId?: string) => void;
 }) {
@@ -286,6 +288,7 @@ function useUpdateCenter({
     signInOffer,
     onCheckAnyway,
     onDismissSignInOffer,
+    onReviewGithub,
     onSelect,
     onOpenSettings,
     generation,
@@ -383,6 +386,7 @@ function renderUpdateCheckToolbar(model: ReturnType<typeof useUpdateCenter>) {
         signInOffer={model.signInOffer}
         onCheckAnyway={model.onCheckAnyway}
         onDismissSignInOffer={model.onDismissSignInOffer}
+        onReviewGithub={model.onReviewGithub}
       />
     </div>
   );
@@ -617,6 +621,14 @@ function GameUpdatesContent({ model }: { model: UpdateCenterModel }) {
   return (
     <>
       {renderUpdateCheckToolbar(model)}
+      <Button
+        data-focusable
+        variant="link"
+        size="sm"
+        onClick={() => model.onOpenSettings("application-updates")}
+      >
+        Open Portcove update settings
+      </Button>
       <UpdateBatchNotice read={model.batchRead} />
       <details className="update-check-details">
         <summary data-focusable>About update checks</summary>
@@ -626,17 +638,6 @@ function GameUpdatesContent({ model }: { model: UpdateCenterModel }) {
         </p>
         <h3>Update statistics</h3>
         {model.renderStatistics()}
-        <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-          Looking for Portcove or catalog updates?{" "}
-          <Button
-            data-focusable
-            variant="link"
-            size="xs"
-            onClick={() => model.onOpenSettings("application-updates")}
-          >
-            Open Portcove update settings
-          </Button>
-        </p>
       </details>
       {model.installed.length > 0 && (
         <div className="update-list grid max-w-5xl gap-3" data-focus-group>
@@ -837,6 +838,7 @@ function UpdateCheckControl({
   signInOffer,
   onCheckAnyway,
   onDismissSignInOffer,
+  onReviewGithub,
 }: {
   busy?: string | undefined;
   status?: UpdateBatchRead["status"] | undefined;
@@ -845,6 +847,7 @@ function UpdateCheckControl({
   signInOffer?: SignInOffer | undefined;
   onCheckAnyway?: (() => void | Promise<void>) | undefined;
   onDismissSignInOffer?: (() => void) | undefined;
+  onReviewGithub?: (() => void) | undefined;
 }) {
   const pendingCheck = useRef<typeof checkAll | undefined>(undefined);
   const labelId = useId();
@@ -886,7 +889,17 @@ function UpdateCheckControl({
             in under Settings raises that allowance. Nothing is checked until you choose.
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <Button data-focusable variant="outline" onClick={() => void onCheckAnyway?.()}>
+            {onReviewGithub && (
+              <Button data-focusable variant="link" onClick={onReviewGithub}>
+                Open GitHub connection
+              </Button>
+            )}
+            <Button
+              data-focusable
+              variant="outline"
+              data-github-check-decision
+              onClick={() => void onCheckAnyway?.()}
+            >
               Check anyway
             </Button>
             <Button data-focusable variant="ghost" onClick={() => onDismissSignInOffer?.()}>
@@ -1208,6 +1221,9 @@ function ActivityRow({
         </div>
       )}
       <ActivityFailure activity={activity} target={target} onSelect={onSelect} />
+      {activity.operation === "prepare" && (
+        <ActivityDiagnostic activityId={activity.id} generation={generation} />
+      )}
       <details className={activityDetailsClass}>
         <summary data-focusable>Task details</summary>
         <dl className="mt-2 grid gap-1">
@@ -1216,13 +1232,6 @@ function ActivityRow({
             <code>{activity.id}</code>
           </dd>
         </dl>
-        {activity.operation === "prepare" && (
-          <ActivityDiagnostic
-            key={`${generation}:${activity.id}`}
-            activityId={activity.id}
-            generation={generation}
-          />
-        )}
       </details>
     </div>
   );

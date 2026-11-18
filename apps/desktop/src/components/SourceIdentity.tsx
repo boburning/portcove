@@ -16,6 +16,7 @@ import type {
   ObservedSourceComponent,
   ObservedSourceDigest,
   SourceInspectionReport,
+  SourceRecord,
   SourceRepresentation,
 } from "../types";
 import { platformLabel } from "../view-model";
@@ -39,8 +40,12 @@ export function SourceIdentityPanel({
   report,
   openEvidence,
   openHostTool,
+  recordedSource,
+  evidenceLabel = "File details and test results",
 }: {
   report: SourceInspectionReport;
+  recordedSource?: SourceRecord | undefined;
+  evidenceLabel?: string;
   openEvidence?: ((evidenceId: string) => void) | undefined;
   openHostTool?: ((toolId: string) => void) | undefined;
 }) {
@@ -153,7 +158,7 @@ export function SourceIdentityPanel({
           data-focusable
           className="disclosure-pad-3 cursor-pointer font-medium text-pc-interactive-foreground"
         >
-          File details and test results
+          {evidenceLabel}
         </summary>
         <div className="grid gap-4 [&_h4]:mt-3 [&_h4]:mb-2">
           <MetadataGrid className="source-identity-summary @max-[30rem]/source:grid-cols-[1fr]">
@@ -164,7 +169,10 @@ export function SourceIdentityPanel({
               <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">{admissionLabel(report)}</dd>
             </div>
           </MetadataGrid>
-          <IdentityDigests report={report} />
+          <IdentityDigests
+            report={report}
+            recordedSource={recordedSource ?? report.registered ?? undefined}
+          />
           <Qualification report={report} />
           {report.evidence.length > 0 && (
             <section>
@@ -326,7 +334,13 @@ function ApplicationResult({
   );
 }
 
-function IdentityDigests({ report }: { report: SourceInspectionReport }) {
+function IdentityDigests({
+  report,
+  recordedSource,
+}: {
+  report: SourceInspectionReport;
+  recordedSource?: SourceRecord | undefined;
+}) {
   const inspection = report.inspection;
   const recognized =
     inspection?.assessment.classification.state === "recognized"
@@ -339,6 +353,17 @@ function IdentityDigests({ report }: { report: SourceInspectionReport }) {
     : (report.expected_identity?.variants ?? []);
   return (
     <section>
+      {recordedSource && (
+        <>
+          <h4>Recorded identity</h4>
+          <dl>
+            <dt>Saved SHA-256</dt>
+            <dd>
+              <code className="break-all">{recordedSource.sha256 || "Not recorded"}</code>
+            </dd>
+          </dl>
+        </>
+      )}
       <h4>Calculated identity</h4>
       {inspection ? (
         <>

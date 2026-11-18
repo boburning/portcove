@@ -1321,7 +1321,12 @@ it("retains a manually selected setup target and literal arguments across remoun
     10,
   );
   expect(pickHostToolExecutable).toHaveBeenCalledOnce();
-  expect(document.body.textContent).toContain(executable);
+  const launchReview = page.getByText("Game program", { exact: true }).element().closest("dl")!;
+  for (const value of [executable, "C:/Upstream data", "--data", "C:/Original files"]) {
+    await expect
+      .element(page.elementLocator(launchReview).getByText(value, { exact: true }))
+      .toBeVisible();
+  }
 });
 
 it("shows save warnings without promoting an unscoped guide step to a download instruction", async () => {

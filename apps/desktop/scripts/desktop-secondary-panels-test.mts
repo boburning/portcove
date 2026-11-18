@@ -240,7 +240,7 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
       await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, portId);
       await clearCatalogFilters(browser);
       await selectCatalogPort(browser, portId);
-      await revealDetailSection(browser, "Saves & backups");
+      await revealDetailSection(browser, "Game settings & mods");
       await text("Setups and mods");
     };
     const observedAction = async (command: string, action: () => Promise<unknown>) => {

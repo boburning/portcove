@@ -26,7 +26,7 @@ afterEach(async () => {
 
 it.each([
   ["retained_preparation", "Review game setup", undefined],
-  ["missing_registered_path", "Review game installation", "saves"],
+  ["missing_registered_path", "Review game installation", "manage"],
   ["degraded_backup", "Review saves and backups", "saves"],
   ["backup_recovery_required", "Review saves and backups", "saves"],
   ["partial_operation", "Review game details", undefined],
@@ -70,7 +70,10 @@ it.each(["future_kind", "constructor", "__proto__"])(
       />,
     );
     expect(document.querySelectorAll("button")).toHaveLength(0);
-    expect(document.body.textContent).toContain("Recovery information needs review");
+    await expect
+      .element(page.getByRole("heading", { name: /Recovery information needs review/ }))
+      .toBeVisible();
+    await expect.element(page.getByText(/no supported recovery action/i)).toBeVisible();
     for (const callback of Object.values(callbacks)) expect(callback).not.toHaveBeenCalled();
   },
 );

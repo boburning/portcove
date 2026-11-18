@@ -221,6 +221,7 @@ export function PreparationControl({
                 </p>
               </div>
             </div>
+            {pending !== "prepare" && <PreparationConsequences />}
             {pending === "prepare" ? (
               <>
                 <div className="preparation-review-progress">
@@ -333,23 +334,18 @@ function PreparationFacts({ plan }: { plan: PreparationPlan }) {
           </dd>
         </div>
       </dl>
-      <p>{t("preparation.plan.originalSafe")}</p>
-      <details>
-        <summary data-focusable className="disclosure-pad-1 cursor-pointer">
-          {t("preparation.plan.ifWrong")}
-        </summary>
-        <div className="preparation-during" role="group" aria-label={t("preparation.plan.during")}>
-          <p>{t("preparation.plan.activationText")}</p>
-          <p>{t("preparation.plan.duringOpen")}</p>
-          <p>{t("preparation.plan.duringInterrupt")}</p>
-        </div>
-      </details>
-      <details>
-        <summary data-focusable className="disclosure-pad-1 cursor-pointer">
-          {t("preparation.plan.window")}
-        </summary>
-        <p className="mt-2 mb-0">{t("preparation.plan.windowText")}</p>
-      </details>
     </div>
+  );
+}
+
+function PreparationConsequences() {
+  const { t } = useAppTranslation("installation");
+  return (
+    <section className="grid gap-2" aria-label={t("preparation.plan.during")}>
+      <p>{t("preparation.plan.activationText")}</p>
+      <p>{t("preparation.plan.duringOpen")}</p>
+      <p>{t("preparation.plan.duringInterrupt")}</p>
+      <p>{t("preparation.plan.windowText")}</p>
+    </section>
   );
 }

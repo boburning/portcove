@@ -1138,8 +1138,7 @@ describe("desktop components", () => {
       html.indexOf(port.summary),
     );
     expect(detailSection(html, "manage")).toContain("Managed installation");
-    expect(detailSection(html, "files")).toContain("Requirements");
-    expect(html).toMatch(/<details class="requirements-disclosure[^"]*" open="">/u);
+    expect(detailSection(html, "files")).toContain("Current game-file requirements");
     expect(detailSection(html, "versions")).toContain("Installed version");
     expect(html).not.toContain(">Play</button>");
   });
@@ -1513,8 +1512,7 @@ describe("desktop components", () => {
     expect(sourceFree).toContain('data-variant="primary"');
     expect(sourceFree).toMatch(/<details class="future-setup-disclosure advanced-settings[^"]*">/u);
     expect(installed).toContain(">Play</button>");
-    expect(installed).toContain('class="requirements-disclosure');
-    expect(installed).not.toMatch(/<details class="requirements-disclosure[^"]*" open="">/u);
+    expect(detailSection(installed, "files")).toContain("Current game-file requirements");
     expect(installed).toMatch(/<button[^>]*data-variant="primary"[^>]*>[^]*?Play<\/button>/u);
     expect(installed).toMatch(/<button[^>]*data-variant="ghost"[^>]*>[^]*?Back<\/button>/u);
     expect(installed).toMatch(

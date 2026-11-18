@@ -271,6 +271,7 @@ for (const count of [1, 2]) {
         steamPorts={Array.from({ length: count }, (_, index) => ({
           ...portDefinition(),
           id: `steam-${index}`,
+          name: `Steam fixture ${index + 1}`,
         }))}
       />,
     );
@@ -288,3 +289,38 @@ for (const count of [1, 2]) {
     await expect.element(trigger).toHaveFocus();
   });
 }
+
+it("keeps Steam profile fields when switching from the Settings picker to one game", async () => {
+  await render(
+    <SettingsView
+      category="integrations"
+      steamPorts={[1, 2].map((index) => ({
+        ...portDefinition(),
+        id: `steam-${index}`,
+        name: `Steam fixture ${index}`,
+      }))}
+    />,
+  );
+  await page.getByRole("button", { name: "Choose games for Steam…", exact: true }).click();
+  const batch = page.getByRole("dialog", { name: "Add selected games to Steam", exact: true });
+  await expect
+    .element(batch.getByRole("button", { name: "Review selected shortcuts" }))
+    .toBeDisabled();
+  await batch.getByRole("checkbox", { name: "Steam fixture 1", exact: true }).click();
+  await batch.getByRole("textbox", { name: "Steam installation folder" }).fill("E:/Steam");
+  await batch.getByRole("textbox", { name: "Steam profile ID" }).fill("76561197960265730");
+  await batch.getByRole("button", { name: "Review selected game", exact: true }).click();
+  const single = page.getByRole("dialog", { name: "Manage Steam shortcut", exact: true });
+  await expect.element(single).toBeVisible();
+  await expect
+    .element(single.getByRole("textbox", { name: "Steam installation folder" }))
+    .toHaveValue("E:/Steam");
+  await single.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect
+    .element(batch.getByRole("checkbox", { name: "Steam fixture 1", exact: true }))
+    .toBeChecked();
+  await batch.getByRole("checkbox", { name: "Steam fixture 2", exact: true }).click();
+  await expect
+    .element(batch.getByRole("button", { name: "Review selected shortcuts" }))
+    .toBeEnabled();
+});

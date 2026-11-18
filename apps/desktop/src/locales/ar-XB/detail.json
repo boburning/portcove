@@ -124,6 +124,7 @@
     "website": "موقع المشروع"
   },
   "section": {
+    "configuration": "",
     "files": "ملفات اللعبة",
     "label": "أقسام تفاصيل اللعبة",
     "manage": "الإدارة",

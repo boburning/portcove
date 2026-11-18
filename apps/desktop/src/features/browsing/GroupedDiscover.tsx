@@ -218,13 +218,7 @@ export function GroupedDiscover({
                   ? t("discover.compare.single")
                   : t("discover.compare.several", { total: comparison.ports.length })}
               </DialogDescription>
-              <details className="my-4 text-xs text-pc-muted-foreground">
-                <summary data-focusable className="disclosure-pad-2 cursor-pointer">
-                  {t("discover.compare.options")}
-                </summary>
-                <p>{t("discover.compare.optionsIntro")}</p>
-                <GameComparisonControls comparison={evidence} />
-              </details>
+              <GameComparisonControls comparison={evidence} />
               <div className="port-comparison-grid">
                 {comparison.ports.map((port) => {
                   const status = statuses.get(port.id);
@@ -444,6 +438,7 @@ function DiscoverGameCardView({
     group,
     statuses,
     organization,
+    devicePlatform,
   );
   const observation = browsePortPresentation(first, status, "catalog");
   const descriptionId = `${descriptionPrefix}:${encodeURIComponent(first.id)}`;
@@ -620,12 +615,20 @@ function discoverCardIdentity(
   group: GameGroup,
   statuses: ReadonlyMap<string, PortStatus>,
   organization: Organization | undefined,
+  devicePlatform: PortDefinition["platforms"][number] | undefined,
 ) {
-  const chosen = resolveGameChoice(
+  const choice = resolveGameChoice(
     group,
     statuses,
     organization?.snapshot ? (organization.snapshot.preferred_port_by_game ?? {}) : undefined,
-  ).port;
+  );
+  const platformMatch =
+    devicePlatform && group.matchingPorts.every((port) => availablePlatforms(port).length > 0)
+      ? group.matchingPorts.filter((port) => availablePlatforms(port).includes(devicePlatform))
+      : [];
+  const chosen =
+    choice.port ??
+    (choice.reason === "ambiguous" && platformMatch.length === 1 ? platformMatch[0] : undefined);
   const first = chosen ?? group.matchingPorts[0]!;
   const firstProject = gameProjectLabel(first);
   return {

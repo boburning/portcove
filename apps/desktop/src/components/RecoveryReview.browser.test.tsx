@@ -43,7 +43,8 @@ it("puts paths behind a collapsed review and omits raw errors and execution cont
     expect(
       host.querySelector(".recovery-review")?.classList.contains("recovery-review-quiet"),
     ).toBe(false);
-    expect(host.querySelector("summary")?.textContent).toContain(port.name);
+    expect(host.querySelector("h3")?.textContent).toContain(port.name);
+    expect(host.querySelector("summary")?.textContent).toBe("Record details");
     const details = host.querySelector("details")!;
     expect(details.open).toBe(false);
     await act(async () => {

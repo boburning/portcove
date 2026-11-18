@@ -232,7 +232,6 @@ describe("update destination links", () => {
         (button) => button.textContent === "Open Portcove update settings",
       );
       expect(link?.closest(".update-center")).not.toBeNull();
-      await page.getByText("About update checks", { exact: true }).click();
       await page
         .getByRole("button", { name: "Open Portcove update settings", exact: true })
         .click();

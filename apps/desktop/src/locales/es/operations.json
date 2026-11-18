@@ -63,6 +63,16 @@
         "inspect": "Archivos que dejó una configuración sin terminar"
       }
     },
+    "consequence": {
+      "backup": "",
+      "malformed": "",
+      "missing": "",
+      "orphaned": "",
+      "retained": "",
+      "unfinished": "",
+      "unknown": "",
+      "unreviewable": ""
+    },
     "details": {
       "cleanupLabel": "Cambios de la limpieza y datos conservados",
       "clearScope": "No se encontraron archivos de trabajo de la configuración. La limpieza borra la ruta de configuración registrada, si existe, y su registro de recuperación obsoleto.",
@@ -100,6 +110,7 @@
       "noGuidance": "No se registraron indicaciones de recuperación.",
       "noLocation": "No se registró ninguna ubicación.",
       "observation": "Observación de diagnóstico",
+      "recordDetails": "",
       "reference": "Referencia de la operación",
       "reviewFiles": "Revisar los archivos de configuración sin terminar",
       "summary": "<game /> · {{label}}"

@@ -39,7 +39,8 @@ function Fixture({
     ? createElement(BootstrapRecovery, {
         error: state.bootstrapError,
         recoveryPending: state.recoveryPending,
-        chooseLibrary: state.chooseLibrary,
+        switchLibrary: state.switchLibrary,
+        chooseFolder,
         resetLibrary: state.resetLibrary,
       })
     : createElement("output", { "data-generation": state.bootstrap?.generation });
@@ -170,6 +171,11 @@ describe("bootstrap state", () => {
     const choose = buttons.find((button) => button.textContent === "Choose library")!;
     const useDefault = buttons.find((button) => button.textContent === "Use platform default")!;
     await act(async () => choose.click());
+    expect(setDefault).not.toHaveBeenCalled();
+    const confirm = [...document.querySelectorAll("button")].find(
+      (button) => button.textContent === "Open reviewed library",
+    )!;
+    await act(async () => confirm.click());
     expect(setDefault).toHaveBeenCalledExactlyOnceWith("/fixture/library");
     expect(state.recoveryPending).toBe(true);
     expect(choose.disabled).toBe(true);
@@ -283,11 +289,17 @@ describe("bootstrap state", () => {
       .spyOn(desktopApi, "resetDefaultLibrary")
       .mockRejectedValueOnce(new Error("reset refused"))
       .mockResolvedValueOnce(ready(2));
+    vi.spyOn(desktopApi, "defaultLibraryRoot").mockResolvedValue("E:/default");
     await render();
     const useDefault = [...host.querySelectorAll("button")].find(
       (button) => button.textContent === "Use platform default",
     )!;
     await act(async () => useDefault.click());
+    await act(async () =>
+      [...document.querySelectorAll("button")]
+        .find((button) => button.textContent === "Open reviewed library")
+        ?.click(),
+    );
     expect([...host.querySelectorAll('[role="alert"]')].map((alert) => alert.textContent)).toEqual([
       "offline",
       "reset refused",
@@ -295,6 +307,11 @@ describe("bootstrap state", () => {
     expect(useDefault.disabled).toBe(false);
     expect(state.recoveryPending).toBe(false);
     await act(async () => useDefault.click());
+    await act(async () =>
+      [...document.querySelectorAll("button")]
+        .find((button) => button.textContent === "Open reviewed library")
+        ?.click(),
+    );
     expect(reset).toHaveBeenCalledTimes(2);
     expect(state.bootstrap).toEqual(ready(2));
     expect(host.querySelector("p[role=alert]")).toBeNull();

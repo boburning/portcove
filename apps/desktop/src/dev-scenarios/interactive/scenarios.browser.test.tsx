@@ -360,13 +360,14 @@ it("opens About through Settings and keeps custom catalog trust under Advanced",
     .toHaveAttribute("aria-current", "page");
   const navigation = page.getByRole("navigation", { name: "Settings categories" });
   await navigation.getByRole("button", { name: "Updates", exact: true }).click();
-  await page.getByRole("button", { name: "Manage custom catalog sources", exact: true }).click();
+  const catalog = page.getByRole("button", { name: "Manage custom catalog sources", exact: true });
+  await catalog.click();
+  await expect.element(page.getByRole("dialog")).toBeVisible();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(catalog).toHaveFocus();
   await expect
-    .element(navigation.getByRole("button", { name: "Advanced", exact: true }))
+    .element(navigation.getByRole("button", { name: "Updates", exact: true }))
     .toHaveAttribute("aria-current", "page");
-  await expect
-    .element(page.getByRole("heading", { name: "Custom catalog sources", exact: true }))
-    .toBeVisible();
 });
 
 it("opens the Updates category before focusing an application-update notice", async () => {
@@ -400,7 +401,6 @@ it("opens application updates from Activity without entering custom catalog sett
   await mount("library");
   await navigateTo("Activity");
   await page.getByRole("tab", { name: "Game updates", exact: true }).click();
-  await page.getByText("About update checks", { exact: true }).click();
   await page.getByRole("button", { name: "Open Portcove update settings", exact: true }).click();
   await expect
     .element(
@@ -557,6 +557,7 @@ it("shows recovery choices, accepts the platform-default choice, and resets to t
   expect(document.body.textContent).toContain("Continue location change");
   expect(document.body.textContent).toContain("Keep using original library");
   await click("Use platform default");
+  await click("Open reviewed library");
   expect(document.querySelector("#port-search")).not.toBeNull();
   await click("Reset journey");
   expect(document.body.textContent).toContain("Portcove couldn’t start");

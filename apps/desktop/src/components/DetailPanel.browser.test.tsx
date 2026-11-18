@@ -910,6 +910,6 @@ it("keeps a setup-needed game's file details inside a 400% interface-size column
   );
   await userEvent.click(page.getByRole("tab", { name: "Game files" }));
   const column = page.getByTestId("narrow-details-column").element();
-  await expect.poll(() => column.querySelector(".requirements-disclosure") !== null).toBe(true);
+  await expect.poll(() => column.querySelector(".requirements-body") !== null).toBe(true);
   expect(column.scrollWidth).toBeLessThanOrEqual(column.clientWidth);
 });
