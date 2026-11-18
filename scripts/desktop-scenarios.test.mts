@@ -439,6 +439,9 @@ void test("scan cleanup attempts every owned action and retains the primary scen
         throw error;
       },
       requireTrustedProbeCleanup,
+      openGameFileScan: async () => {
+        throw primary;
+      },
       reviewControls: () => ({
         button: (name: string) => name,
         click: async () => {
