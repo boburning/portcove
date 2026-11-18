@@ -775,6 +775,7 @@ fn scopes_with_shared_provider_coordinates_keep_distinct_updates_and_holds() {
         download_url: "https://thunderstore.io/package/download/Owner/Shared/2.0.0/".into(),
         claimed_md5: None,
         archived: false,
+        status_unknown: None,
         claimed_scan: None,
         thunderstore_dependencies: None,
     };
