@@ -773,7 +773,7 @@ export default interface Resources {
         "separator": " · ",
         "source": "Source",
         "sourceLine": "<link /> · {{date}}",
-        "versionSpecific": "These details apply to the version and package shown above."
+        "versionSpecific": "These details apply to the scope shown above."
       },
       "noticesUnavailable": "Optional known-issue notices are unavailable. Setup and launch retain their current assessments.",
       "observations": {
