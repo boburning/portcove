@@ -1,0 +1,51 @@
+{
+  "ecwolf-1.4.2_x64.zip": {
+    "ecwolf.exe": {
+      "bytes": 4679680,
+      "sha256": "95193ede9c67afa2607b20fdc0d6058e99be4e5cbb03087da172492e5fa3a239"
+    },
+    "ecwolf.pk3": {
+      "bytes": 180194,
+      "sha256": "ed354d32fde0e175d7fd601b2113c94452d38388baee9262bf49cc5f233ee64a"
+    },
+    "licenses.zip": {
+      "bytes": 54787,
+      "sha256": "e8141588828a101217744ccb06d2b53d939e8554f5a543777a2529f670a5d38c"
+    }
+  },
+  "wolf3d14.zip": {
+    "wolf3d14/AUDIOHED.WL1": {
+      "bytes": 1156,
+      "sha256": "39351624ae6f8eef4b873e060c1a6f3e5ee7e81c4939c485275a89b145336338"
+    },
+    "wolf3d14/AUDIOT.WL1": {
+      "bytes": 132613,
+      "sha256": "1e2c9ae30398a14c61a4ddd39aabaa0dbcc984cc4924a3e51df75574c259cfb9"
+    },
+    "wolf3d14/GAMEMAPS.WL1": {
+      "bytes": 27425,
+      "sha256": "a6a6654b342f2c027bcb22bfce0a41f9fc0063b775e9e4da0c771970e53e11aa"
+    },
+    "wolf3d14/MAPHEAD.WL1": {
+      "bytes": 402,
+      "sha256": "3458f661c9b875bca99ea22a7267771fad8f2a33c699ea732cf7c3322909bf8c"
+    },
+    "wolf3d14/VGADICT.WL1": {
+      "bytes": 1024,
+      "sha256": "59878fec65f033b00dbb1240317d1793f5858213dc8013b4d68f9ac8b45b0c80"
+    },
+    "wolf3d14/VGAGRAPH.WL1": {
+      "bytes": 326568,
+      "sha256": "d5176f843c53415132db199c19f38591eaf3cedd35a4f7eb2698c1865d83030d"
+    },
+    "wolf3d14/VGAHEAD.WL1": {
+      "bytes": 471,
+      "sha256": "f4cc800dc8444373092d4eaa5d6ab59d63d23a510a9d38b73ca9b3dbb700d18b"
+    },
+    "wolf3d14/VSWAP.WL1": {
+      "bytes": 742912,
+      "sha256": "698f217257e2cbb951a4d110ba09140291f38d0121b3784d1d6be59c03a6b47b"
+    }
+  },
+  "ecwolf-1.4.2_arm64-v8a.apk": {}
+}
