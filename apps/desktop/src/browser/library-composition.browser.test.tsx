@@ -588,6 +588,11 @@ for (const theme of ["dark", "light"]) {
     await mount(theme, "collection-large");
     await page.getByRole("button", { name: "Compact rows", exact: true }).click();
     await page.getByRole("textbox", { name: "Search your library" }).fill("a");
+    // The native input value changes before React commits the raw query. Wait for
+    // its real clear control before starting a destination scoped to that query.
+    await expect
+      .element(page.getByRole("button", { name: "Clear search", exact: true }))
+      .toBeVisible();
     const expectedCount = Number(
       document.querySelector("[data-library-port-ids]")!.getAttribute("aria-setsize"),
     );
