@@ -16,6 +16,7 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "n64hub-rayman-2-recomp-n64-usa",
     "n64hub-super-mario-64-recomp",
     "n64hub-super-smash-bros-n64-usa-recomp",
+    "naev",
     "nhl-94-genesis-ninety-four",
     "quake-ironwail",
     "quake-vkquake",
@@ -103,6 +104,11 @@ fn prepared_guide_adoption_declared_n64hub_super_mario_64_recomp() {
 #[test]
 fn prepared_guide_adoption_declared_n64hub_super_smash_bros_n64_usa_recomp() {
     assert_declarative_prepared_player_route("n64hub-super-smash-bros-n64-usa-recomp");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_naev() {
+    assert_declarative_prepared_player_route("naev");
 }
 
 #[test]

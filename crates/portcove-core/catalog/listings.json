@@ -44397,16 +44397,16 @@
     {
       "id": "naev",
       "name": "Naev",
-      "summary": "Explore space, trade and take missions in Naev. Use the official desktop package with its included game data.",
+      "summary": "Explore space, trade and take missions in Naev. Prepare the official package, then add your Windows or Mac installation to Portcove.",
       "original_game_title": "Naev",
       "project_url": "https://codeberg.org/naev/naev",
       "issue_number": 6817,
       "listed_at": "2026-11-17",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
-        "macos-aarch64"
+        "macos-aarch64",
+        "linux-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://naev.org/downloads/",
@@ -44420,26 +44420,34 @@
           },
           {
             "title": "Set up Naev on your computer",
-            "instruction": "On Windows x64, use the installer. For a portable copy, select Portable Install and choose a separate writable folder. On Linux x64, mark the AppImage executable and open it. On Intel or Apple Silicon Mac, copy the complete Naev app from the disk image to Applications. Follow the publisher’s Mac security instructions if your system prevents opening it."
+            "instruction": "On Windows x64, use the installer. For a portable copy, select Portable Install and choose a separate writable folder. On Linux x64, mark the AppImage executable and open it. On Intel or Apple Silicon Mac, copy the complete Naev app from the disk image to Applications. Follow the publisher’s Mac security instructions if your system prevents opening it. To add an Intel or Apple Silicon Mac copy to Portcove, select /Applications/Naev.app/Contents/MacOS/naev and its containing folder, retain your established arguments, review the details, then choose Play. Keep the complete app together. The later naev.exe selection applies to Windows."
           },
           {
-            "title": "Keep your profile before upgrading or removing files",
-            "instruction": "Close every copy of Naev and back up its whole profile, including conf.lua, saves and plugins. A normal Windows install uses %APPDATA%/naev. A portable Windows copy uses naev-data beside the player unless you changed datapath.lua. Linux normally uses ~/.local/share/naev, or naev under XDG_DATA_HOME. Mac normally uses ~/Library/Application Support/naev. Keep any custom data folder as well."
+            "title": "Preserve current and older profiles before changes",
+            "instruction": "Close every copy of Naev and back up its whole profile, including conf.lua, saves and plugins. A normal Windows install uses %APPDATA%/naev. A portable Windows copy uses naev-data beside the player unless you changed datapath.lua. Linux normally uses ~/.local/share/naev, or naev under XDG_DATA_HOME. Mac normally uses ~/Library/Application Support/naev. Keep any custom data folder as well. Naev 0.13 can move files from older profile locations when the new location has no matching file. Before starting an upgrade, keep copies of the existing profile and configuration folders, including an older ~/.config/naev on Linux, or ~/Library/Application Support/org.naev.Naev and ~/Library/Preferences/naev on Mac. Follow the actual profile path reported by your game."
           },
           {
-            "title": "Preserve older profiles before the first upgrade launch",
-            "instruction": "Naev 0.13 can move files from older profile locations when the new location has no matching file. Before starting an upgrade, keep copies of the existing profile and configuration folders, including an older ~/.config/naev on Linux, or ~/Library/Application Support/org.naev.Naev and ~/Library/Preferences/naev on Mac. Follow the actual profile path reported by your game."
+            "title": "Select the prepared player",
+            "instruction": "Select naev.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
         "warnings": [],
         "references": [
           {
             "title": "Updates, backups and existing installations",
-            "instruction": "Use upstream’s installer, app or package tools to replace the runtime. Keep your working version and every profile folder recoverable. When registering a prepared Windows copy in Portcove, select naev.exe and its containing folder as the working directory so an existing datapath.lua applies. Retain any established launch arguments. Removing the registration leaves external files in place. You and upstream own runtime replacement, backups, save migration and file removal."
+            "instruction": "Use upstream’s installer, app or package tools to replace the runtime. Keep your working version and every profile folder recoverable. A Windows installation uses naev.exe and its parent so an existing datapath.lua applies. Mac uses the native player inside the complete app. Retain any established launch arguments. Removing the registration leaves external files in place. You and upstream own runtime replacement, backups, save migration and file removal."
           },
           {
             "title": "Host requirements and other platforms",
-            "instruction": "The publisher lists Windows 10 or newer, macOS 11 or newer for the universal app, and glibc 2.30 or newer for the Linux x64 AppImage. Naev needs a working OpenGL context. The reviewed release has no Android or Linux ARM64 package. These requirements and package listings do not establish Portcove gameplay or minimum-system qualification."
+            "instruction": "The publisher lists Windows 10 or newer, macOS 11 or newer for the universal app, and glibc 2.30 or newer for the Linux x64 AppImage. Naev needs a working OpenGL context. The reviewed release has no Android or Linux ARM64 package. These requirements and package listings do not establish Portcove gameplay or minimum-system qualification. Linux registration is not offered by this entry; use the complete upstream AppImage, whose environment and bundled dependencies must remain intact."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: Windows %APPDATA%/naev or portable naev-data beside the player, including datapath.lua overrides; Mac ~/Library/Application Support/naev and predecessor ~/Library/Application Support/org.naev.Naev and ~/Library/Preferences/naev profiles; all custom profile, save, settings and plugin folders, including predecessor locations before upstream migration. Back up these locations separately; registration does not migrate or certify their compatibility."
           }
         ],
         "help_url": "https://naev.org/downloads/"
