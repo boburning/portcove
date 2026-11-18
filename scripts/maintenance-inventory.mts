@@ -380,9 +380,18 @@ export function capabilityResult(observation: CapabilityObservation) {
   };
 }
 
-export function hostPlatform() {
-  const arch = process.arch === "x64" ? "x86-64" : process.arch;
-  return `${process.platform === "win32" ? "windows" : process.platform === "darwin" ? "macos" : process.platform}-${arch}`;
+/** Use the executable's runtime identity for its own assessment. */
+export async function readAssessmentPlatform(cli: string, supportedPlatforms: readonly unknown[]) {
+  const envelope = await isolatedCli(cli, ["doctor"]);
+  const { platform } = (envelope.data ?? {}) as { platform?: unknown };
+  if (
+    !envelope.ok ||
+    typeof platform !== "string" ||
+    !/^[a-z0-9]+(-[a-z0-9]+)*$/u.test(platform) ||
+    !supportedPlatforms.includes(platform)
+  )
+    throw new MaintenanceStoreError("Portcove doctor did not identify a supported host platform");
+  return platform;
 }
 
 const literal = (value: string) => `'${value.replaceAll("'", "''")}'`;
@@ -454,6 +463,7 @@ export function coreReuseKey(input: {
       api: input.apiSchema,
       projection: capabilityProjectionVersion,
       platform: input.platform,
+      platform_identity: "cli-doctor-platform-v1",
       isolation: isolationScope,
     }),
   );
@@ -1840,8 +1850,6 @@ export async function collect(options: {
   progress?: readonly ProgressSource[] | undefined;
   /** With `all`, also collect every #177 hosted-intake request through the executor's status. */
   hostedIntake?: (() => Promise<HostedStatusAll>) | undefined;
-  /** Host platform label; defaults to this host. Fixtures use it to model other hosts. */
-  platform?: string | undefined;
   environment: NodeJS.ProcessEnv;
   runner?: string | undefined;
 }) {
@@ -1853,21 +1861,20 @@ export async function collect(options: {
   const cliSha256 = sha256(readFileSync(options.cli));
   const envelope = await isolatedCli(options.cli, ["capabilities"]);
   const capabilities = envelope.data as
-    | { schema_version?: unknown; port_capability_schema?: unknown }
+    | { schema_version?: unknown; port_capability_schema?: unknown; platforms?: unknown }
     | undefined;
   if (
     !envelope.ok ||
     capabilities?.port_capability_schema !== 1 ||
-    typeof capabilities.schema_version !== "number"
+    typeof capabilities.schema_version !== "number" ||
+    !Array.isArray(capabilities.platforms)
   )
     throw new MaintenanceStoreError(
       "portcove capabilities are unavailable or use an unsupported port capability schema",
     );
   const apiSchema = capabilities.schema_version;
   const coreSourceClean = git(["status", "--porcelain", "--", ...coreSemanticPaths]).trim() === "";
-  const platform = options.platform ?? hostPlatform();
-  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/u.test(platform))
-    throw new MaintenanceStoreError("Invalid platform label");
+  const platform = await readAssessmentPlatform(options.cli, capabilities.platforms);
   // Freshness is the database's order of this ticket, never this runner's clock.
   const acquisition = acquireCollection(options.environment);
   const startedAt = new Date().toISOString();
