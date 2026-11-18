@@ -125,6 +125,71 @@ const packets = [
 ];
 for (const [name, url, digest] of packets) await download(url, name, 12000000, digest);
 await python("player");
+// Isolated test-only software OpenGL; never install a system driver or run deployment scripts.
+const mesaArchive = "mesa3d-26.2.7-release-mingw.7z";
+await download(
+  "https://github.com/pal1000/mesa-dist-win/releases/download/26.2.7/" + mesaArchive,
+  mesaArchive,
+  60000000,
+  "19c74aad7b09e682473b8de4c35b47e6498de97b71cae5511a231b8eb02f2b22",
+);
+const mesaFiles = [
+  {
+    name: "opengl32.dll",
+    bytes: 113152,
+    sha256: "218b6ebd9011fd2660a116923fa5c232e6d4db86f6f8a4141a0d19b2e7c9d915",
+  },
+  {
+    name: "libgallium_wgl.dll",
+    bytes: 77711360,
+    sha256: "4d493cc131fec96c72c2e7dd61afa7d7608ee337ac86a8120aec2c423d10136c",
+  },
+];
+for (const file of mesaFiles) {
+  // Fixed member streamed to a caller-owned path; no archive paths reach filesystem APIs.
+  // Pinned 55.8MB archive has a 256MiB LZMA2 dictionary; cap output and wall time before decoding.
+  const p = spawn(
+    "C:\\Program Files\\7-Zip\\7z.exe",
+    ["x", "-so", "-bso0", "-bsp0", path.join(root, mesaArchive), "x64\\" + file.name],
+    { stdio: ["ignore", "pipe", "pipe"] },
+  );
+  const chunks = [];
+  let bytes = 0;
+  let failure = null;
+  const stop = (error) => {
+    failure ??= String(error);
+    p.kill();
+  };
+  p.on("error", stop);
+  p.stdout.on("error", stop);
+  p.stderr.on("data", () => {});
+  p.stdout.on("data", (b) => {
+    bytes += b.length;
+    if (bytes > file.bytes) stop("Mesa output exceeds exact member size");
+    else chunks.push(b);
+  });
+  const timer = setTimeout(() => stop("Mesa decode deadline exceeded"), 60000);
+  const [code] = await once(p, "close");
+  clearTimeout(timer);
+  assert(failure === null && code === 0 && bytes === file.bytes, "Mesa fixed member decode failed");
+  const buffer = Buffer.concat(chunks);
+  assert.equal(createHash("sha256").update(buffer).digest("hex"), file.sha256);
+  await writeFile(path.join(root, "player", file.name), buffer, { flag: "wx" });
+}
+await writeFile(
+  path.join(evidence, "mesa-test-dependencies.json"),
+  JSON.stringify(
+    {
+      archive: mesaArchive,
+      archive_sha256: "19c74aad7b09e682473b8de4c35b47e6498de97b71cae5511a231b8eb02f2b22",
+      files: mesaFiles,
+      scope:
+        "isolated test-only llvmpipe; stock Windows driver failed glTexImage3D; no system changes or GPU qualification",
+    },
+    null,
+    2,
+  ),
+);
 const config = {
   sdk: pathToFileURL(path.resolve("product") + path.sep).href,
   product_source: source,

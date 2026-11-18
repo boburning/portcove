@@ -82,9 +82,12 @@ assert.equal(
 // Existing hosted native precedent: this VM has no physical audio endpoint.
 environment.SDL_AUDIODRIVER = "dummy";
 environment.SDL_RENDER_DRIVER = "software";
+environment.GALLIUM_DRIVER = "llvmpipe";
+environment.LIBGL_ALWAYS_SOFTWARE = "1";
+environment.SDL_OPENGL_LIBRARY = path.join(config.player_root, "opengl32.dll");
 await record("hosted-drivers", {
   audio: "SDL dummy",
-  renderer: "SDL software requested",
+  renderer: "Mesa26.2.7 x64 llvmpipe requested through isolated app-local SDL_OPENGL_LIBRARY",
   scope: "visual/state lifecycle only; physical audio and hardware rendering not established",
 });
 environment.PORTCOVE_PREFERENCES = path.join(root, "preferences.json");
