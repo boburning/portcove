@@ -1,14 +1,14 @@
 # Reports failure independently of the nightly build and signing workflow.
-# The completed run is treated as data: do not check out or execute its commit.
+# Only the triggering attempt is inspected. No source checkout is needed.
 name: Nightly failure report
 
 on:
   workflow_run:
     workflows: ["Nightly preview"]
     types: [completed]
+    branches: [main]
 
 permissions: {}
-
 concurrency:
   group: nightly-failure-${{ github.event.workflow_run.id }}
   cancel-in-progress: false
@@ -17,87 +17,119 @@ jobs:
   report:
     if: >-
       github.event.workflow_run.head_repository.full_name == github.repository &&
-      github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.conclusion != 'success'
+      contains(fromJSON('["failure", "cancelled", "timed_out", "startup_failure"]'),
+      github.event.workflow_run.conclusion)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       actions: read
+      checks: read
       issues: write
     steps:
       - name: File a diagnostic issue for a failed or cancelled nightly
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
-          REPOSITORY: ${{ github.repository }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          report_dir="$(mktemp -d)"
-          trap 'rm -rf "$report_dir"' EXIT
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          retries: 0
+          debug: false
+          script: |
+            const run = context.payload.workflow_run;
+            const { owner, repo } = context.repo;
+            const repository = `${owner}/${repo}`;
+            if (run.path !== ".github/workflows/nightly-preview.yml" ||
+                run.head_repository?.full_name !== repository || run.head_branch !== "main" ||
+                run.status !== "completed" ||
+                !["failure", "cancelled", "timed_out", "startup_failure"].includes(run.conclusion) ||
+                !Number.isSafeInteger(run.id) || run.id < 1 ||
+                !Number.isSafeInteger(run.run_attempt) || run.run_attempt < 1) {
+              throw new Error("Unexpected nightly workflow attempt");
+            }
 
-          gh api --method GET "repos/$REPOSITORY/actions/runs/$RUN_ID" > "$report_dir/run.json"
-          jq -e --argjson id "$RUN_ID" --arg repo "$REPOSITORY" \
-            '.id == $id and .name == "Nightly preview" and .head_repository.full_name == $repo and .head_branch == "main" and .status == "completed"' \
-            "$report_dir/run.json" > /dev/null
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${repository}/actions/runs/${run.id}`;
+            const attemptUrl = `${runUrl}/attempts/${run.run_attempt}`;
+            const runMarker = `<!-- portcove-nightly-failure-run:${run.id} -->`;
+            const attemptMarker = `<!-- portcove-nightly-failure-attempt:${run.id}:${run.run_attempt} -->`;
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner, repo, state: "all", since: run.created_at, per_page: 100,
+            });
+            const matches = issues.filter((issue) => !issue.pull_request && issue.body?.split(/\r?\n/u, 1)[0] === runMarker);
+            if (matches.length > 1) throw new Error("Multiple issues already report this nightly");
+            const existing = matches[0];
+            const firstAttemptMarker = existing?.body.split(/\r?\n/u, 2)[1];
+            if (firstAttemptMarker === attemptMarker) return;
+            if (existing && run.run_attempt === 1 && !firstAttemptMarker?.startsWith("<!-- portcove-nightly-failure-attempt:")) return;
+            if (existing) {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner, repo, issue_number: existing.number, per_page: 100,
+              });
+              if (comments.some((comment) => comment.body?.split(/\r?\n/u, 1)[0] === attemptMarker)) return;
+            }
 
-          conclusion="$(jq -r '.conclusion // "unknown"' "$report_dir/run.json")"
-          # Successful runs require no failure issue. A successful rerun does not
-          # prove that an earlier release was published: do not auto-close issues.
-          if [[ "$conclusion" == "success" ]]; then
-            echo "Nightly completed successfully; nothing to report."
-            exit 0
-          fi
+            let jobs;
+            try {
+              jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRunAttempt, {
+                owner, repo, run_id: run.id, attempt_number: run.run_attempt, per_page: 100,
+              });
+            } catch {
+              core.warning("Could not retrieve job metadata for the triggering nightly attempt");
+            }
+            const tableCell = (value) => value.replace(/[\r\n|<>@]/gu, " ");
+            const jobRows = jobs && await Promise.all(jobs.map(async (job) => {
+              const affected = (job.steps ?? []).filter((step) =>
+                ["failure", "cancelled", "timed_out"].includes(step.conclusion));
+              const steps = affected.map((step) => tableCell(step.name)).join(", ");
+              let evidence = steps || "None identified";
+              if (job.conclusion === "cancelled" && !job.steps?.length) {
+                try {
+                  const annotations = await github.paginate(github.rest.checks.listAnnotations, {
+                    owner, repo, check_run_id: job.id, per_page: 100,
+                  });
+                  if (annotations.some((annotation) => annotation.annotation_level === "failure" &&
+                      annotation.message === "The job was not acquired by Runner of type hosted even after multiple attempts")) {
+                    evidence = "GitHub reported that the job never acquired a hosted runner";
+                  }
+                } catch {
+                  core.warning("Could not retrieve check annotations for cancelled job " + job.id);
+                }
+              }
+              return `| ${tableCell(job.name)} | ${job.conclusion ?? job.status} | ${evidence} | [Job](${runUrl}/job/${job.id}) |`;
+            }));
+            const report = [
+              attemptMarker,
+              "## Nightly release failure",
+              "",
+              `- Run: [#${run.run_number}, attempt ${run.run_attempt}](${attemptUrl})`,
+              `- Conclusion: ${run.conclusion}`,
+              `- Trigger: ${run.event}`,
+              `- Workflow commit: ${run.head_sha}`,
+              `- Started: ${run.run_started_at ?? "Not recorded"}`,
+              `- Finished/updated: ${run.updated_at}`,
+              "",
+              "### Job outcomes",
+              "",
+              ...(jobRows?.length ? [
+                "| Job | Outcome | Evidence | Details |",
+                "| --- | --- | --- | --- |",
+                ...jobRows,
+              ] : ["GitHub did not provide job metadata for this attempt."]),
+              "",
+              "Open the affected jobs to inspect annotations, logs and cancellation evidence.",
+              "Verify all platform assets and the Preview feed after retrying failed jobs.",
+            ].join("\n");
 
-          gh api --method GET "repos/$REPOSITORY/actions/runs/$RUN_ID/jobs?filter=latest&per_page=100" > "$report_dir/jobs.json"
-          jq -e '.total_count as $total | $total <= 100 and (.jobs | type == "array") and (.jobs | length == $total)' \
-            "$report_dir/jobs.json" > /dev/null
-
-          {
-            printf '<!-- portcove-nightly-failure-run:%s -->\n' "$RUN_ID"
-            printf '## Nightly release failed\n\n'
-            jq -r '
-              "- **Run:** [#\(.run_number), attempt \(.run_attempt)](\(.html_url))\n" +
-              "- **Conclusion:** \(.conclusion)\n" +
-              "- **Trigger:** \(.event)\n" +
-              "- **Commit:** \(.head_sha)\n" +
-              "- **Created:** \(.created_at) UTC\n" +
-              "- **Started:** \(.run_started_at // "not recorded") UTC\n" +
-              "- **Finished/updated:** \(.updated_at) UTC\n"
-            ' "$report_dir/run.json"
-            printf '\n### Job outcomes\n\n| Job | Outcome | Failed/cancelled steps |\n| --- | --- | --- |\n'
-            jq -r '
-              .jobs[] |
-              "| [\(.name | gsub("[\r\n|]"; " "))](\(.html_url)) | \(.conclusion // .status) | " +
-              ([.steps[]? | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out") | .name | gsub("[\r\n|]"; " ")] |
-                if length == 0 then "Not identified in job metadata" else join(", ") end) + " |"
-            ' "$report_dir/jobs.json"
-            printf '\n### Investigate\n\n'
-            printf '%s\n' '- Open the affected job links above to inspect the complete log, annotations and cancellation reason.'
-            printf '%s\n' '- A cancelled build or skipped publish job does not establish a root cause by itself.'
-            printf '%s\n' '- Repair the cause and rerun failed jobs. Verify all release assets and the Preview updater feed before closing.'
-            printf '%s\n' '- Do not copy unreviewed build logs into this public issue; logs can contain sensitive data.'
-          } > "$report_dir/report.md"
-
-          date="$(jq -r '.created_at[:10]' "$report_dir/run.json")"
-          # Search all issue states by this immutable run ID; reruns update the
-          # original report instead of adding another issue for the same run.
-          issue="$(gh issue list --repo "$REPOSITORY" --state all --limit 100 \
-            --search "$RUN_ID in:title" --json number,title \
-            --jq '.[] | select(.title | contains("Nightly release failure")) | .number' | head -n 1)"
-          if [[ -n "$issue" ]]; then
-            gh issue edit "$issue" --repo "$REPOSITORY" --body-file "$report_dir/report.md"
-            if [[ "$(gh issue view "$issue" --repo "$REPOSITORY" --json state --jq .state)" == "CLOSED" ]]; then
-              gh issue reopen "$issue" --repo "$REPOSITORY"
-            fi
-            printf 'Updated existing nightly failure issue #%s\n' "$issue"
-          else
-            gh issue create --repo "$REPOSITORY" \
-              --title "Nightly release failure — $date (run $RUN_ID)" \
-              --body-file "$report_dir/report.md" --assignee boburning
-          fi
-
-          {
-            printf '## Nightly release needs attention\n\n'
-            cat "$report_dir/report.md"
-          } >> "$GITHUB_STEP_SUMMARY"
+            if (existing) {
+              const issue = { owner, repo, issue_number: existing.number };
+              if (existing.state === "closed") await github.rest.issues.update({ ...issue, state: "open" });
+              await github.rest.issues.createComment({ ...issue, body: report });
+            } else {
+              const date = run.created_at.slice(0, 10);
+              const { data: issue } = await github.rest.issues.create({
+                owner, repo,
+                title: `Nightly release failure — ${date} (run ${run.id})`,
+                body: `${runMarker}\n${report}`,
+                assignees: [owner],
+              });
+              if (!issue.assignees?.some((assignee) => assignee.login === owner)) {
+                throw new Error(`Nightly report #${issue.number} was created without its owner assignment`);
+              }
+            }
+            await core.summary.addRaw(report).write();

@@ -124,19 +124,21 @@ version.
   re-run skips the already tagged commit, and the next nightly with new commits
   takes the next N.
 
-**Failed-nightly reporting.** [`nightly-failure-report.yml`](../.github/workflows/nightly-failure-report.yml)
-listens for a completed Nightly preview run, independently of its build jobs.
-On failure or cancellation, it creates an assigned GitHub issue with the
-run/attempt, source commit, job outcomes, failed/cancelled step names when
-GitHub provides them, and direct job-log links. A rerun of the same run updates
-the existing issue instead of opening duplicates. A later successful run does
-not close an unresolved failure issue: verify the release assets and Preview
-feed before closing it. The reporter reads only GitHub Actions metadata; it
-does not check out the triggering commit, receive signing keys, or paste raw
-build logs into a public issue. The owner should enable GitHub notifications
-for assigned issues; email/push delivery depends on their account settings.
-A successful run that deliberately skips publication because there is no new
-eligible commit is not reported as a failure.
+**Failed-nightly reporting.** [The failure reporter](../.github/workflows/nightly-failure-report.yml)
+listens for completed Nightly preview runs independently of the build jobs.
+A failure or cancellation creates a GitHub issue assigned to the repository
+owner. It records the triggering attempt, workflow commit, job outcomes and
+available failure evidence. Each further failed attempt adds one comment to
+the same issue and reopens it if needed. The original report and manual
+diagnosis stay in the issue body. GitHub delivers assignment notifications
+according to the owner's notification settings.
+
+Job outcomes link to the relevant logs and annotations. The report identifies
+a known hosted-runner acquisition failure when GitHub supplies that annotation.
+It reads metadata only and has no checkout, signing inputs or release write
+permission. If job metadata is unavailable, the issue still records the run
+and attempt. A successful attempt creates no failure report. Verify the
+release assets and Preview feed before closing a failure issue.
 
 **Withdrawing a release.** The owner runs
 [`withdraw-release.yml`](../.github/workflows/withdraw-release.yml) from `main`
