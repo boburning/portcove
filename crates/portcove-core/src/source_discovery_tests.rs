@@ -6929,6 +6929,121 @@ fn more_matches_than_continuation_records_never_reach_checkpoint_storage() {
 }
 
 #[test]
+fn setup_review_projects_both_preliminary_paths_to_the_registered_spelling() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("originals");
+    fs::create_dir(&root).unwrap();
+    let original = root.join("game.iso");
+    fs::write(&original, b"synthetic retail disc candidate").unwrap();
+    let registration_path = if cfg!(windows) {
+        PathBuf::from(crate::path::comparable_windows_absolute(&original).unwrap())
+    } else {
+        original
+    };
+    let service =
+        PortcoveService::new(crate::Library::open(temporary.path().join("library")).unwrap())
+            .unwrap();
+    service
+        .register_source("opengoal-jak1-disc", &registration_path)
+        .unwrap();
+    let registered = service
+        .library()
+        .source("opengoal-jak1-disc")
+        .unwrap()
+        .unwrap();
+    service.library().add_game_file_root(&root).unwrap();
+    let (snapshot, _) = scan_to_end(
+        service.catalog(),
+        service.library(),
+        &SourceDiscoveryLimits::default(),
+    );
+    let matches = service
+        .game_file_scan_registered_matches(snapshot.matches.as_ref().unwrap())
+        .unwrap();
+    assert_eq!(matches.preliminary_selections.len(), 1);
+    let selection = &matches.preliminary_selections[0];
+    assert_eq!(selection.path, registered.path);
+    assert_eq!(selection.record.as_ref().unwrap().path, registered.path);
+    assert_eq!(selection.record.as_ref().unwrap().sha256, registered.sha256);
+}
+
+#[test]
+fn setup_review_preserves_registered_path_spelling_and_excludes_other_copies() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("originals");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported setup source";
+    let original = root.join("game.z64");
+    let other = root.join("other.z64");
+    fs::write(&original, payload).unwrap();
+    fs::write(&other, payload).unwrap();
+    let registration_path = if cfg!(windows) {
+        crate::path::comparable_windows_absolute(&original)
+            .map(PathBuf::from)
+            .unwrap()
+    } else {
+        original.clone()
+    };
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let mut service = PortcoveService::new(library).unwrap();
+    service.replace_catalog_for_test(catalog.clone());
+    service
+        .register_source("ocarina-of-time", &registration_path)
+        .unwrap();
+    let registered = service
+        .library()
+        .source("ocarina-of-time")
+        .unwrap()
+        .unwrap();
+    assert_eq!(registered.path, registration_path);
+    let (snapshot, _) = scan_to_end(
+        &catalog,
+        service.library(),
+        &SourceDiscoveryLimits::default(),
+    );
+    let summary = snapshot.matches.as_ref().unwrap();
+    assert!(summary.preview_complete);
+    assert_eq!(summary.exact_matches, 4);
+    #[cfg(windows)]
+    assert!(
+        snapshot
+            .report
+            .candidates
+            .iter()
+            .all(|candidate| candidate.path != registered.path)
+    );
+    let matches = service.game_file_scan_registered_matches(summary).unwrap();
+    assert_eq!(matches.candidates.len(), 1);
+    assert_eq!(matches.candidates[0].path, registered.path);
+    assert_eq!(matches.candidates[0].sha256, registered.sha256);
+    assert_eq!(
+        serde_json::to_value(
+            service
+                .library()
+                .source("ocarina-of-time")
+                .unwrap()
+                .unwrap()
+        )
+        .unwrap(),
+        serde_json::to_value(&registered).unwrap()
+    );
+    let mut changed = registered.clone();
+    changed.sha256 = "0".repeat(64);
+    changed.storage_sha256 = changed.sha256.clone();
+    changed.observed_identity = None;
+    service.library().register_source(&changed).unwrap();
+    assert!(
+        service
+            .game_file_scan_registered_matches(summary)
+            .unwrap()
+            .candidates
+            .is_empty()
+    );
+}
+
+#[test]
 fn setup_review_reads_registered_matches_beyond_the_preview_for_the_expected_scan() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("originals");

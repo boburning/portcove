@@ -52,6 +52,7 @@ void test(
     for (const scenario of [
       "native-selected-setup-completion",
       "native-saved-folder-selected-setup",
+      "native-large-discovery-setup-review",
     ])
       assert.deepEqual(
         linuxX11ExecutionBudgets({ stage: "harness", harness_args: ["--scenario", scenario] }),

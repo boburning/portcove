@@ -4,6 +4,7 @@ import { render as renderComponent, cleanup, type RenderResult } from "vitest-br
 import { fixtureValue } from "../test-fixtures";
 import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import {
   GameFileScanProvider,
@@ -2304,6 +2305,65 @@ it("counts every stored match and shows more of them a page at a time", async ()
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
+it("uses Core's registered path spelling even when the complete scan fits its preview", async () => {
+  const stored: GameFileScanSnapshot = {
+    ...storedMatchesSnapshot(),
+    report: {
+      ...snapshot.report,
+      candidates: [{ ...savedCandidate, path: "\\\\?\\D:\\Games\\game.z64" }],
+    },
+    matches: { ...storedMatchesSnapshot().matches!, exact_matches: 1, preview_complete: true },
+  };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);
+  const projection = vi.spyOn(desktopApi, "gameFileScanRegisteredMatches").mockResolvedValue({
+    candidates: [savedCandidate],
+    preliminary_selections: [],
+  });
+  const port = {
+    ...portDefinition(),
+    id: "registered-port",
+    source_profile: savedCandidate.profile_id,
+  };
+  const status = {
+    ...portStatus(),
+    port_id: port.id,
+    port_actions: [
+      {
+        action: "install" as const,
+        availability: "allowed" as const,
+        reason: "available" as const,
+      },
+    ],
+  };
+  const review = vi.spyOn(desktopApi, "planInstallBatch").mockResolvedValue({
+    items: [{ port_id: port.id, hold: "Waiting for setup input" }],
+    capacity: { download_bytes: 0, volumes: [] },
+  });
+  const start = vi.spyOn(desktopApi, "startInstallBatch");
+  await root.rerender(
+    <SetupReviewSelectionProvider>
+      <GameFileLibraries
+        generation={1}
+        ports={[port]}
+        profiles={[{ ...sourceProfile(), id: savedCandidate.profile_id }]}
+        registeredSources={[savedCandidate]}
+        statuses={new Map([[port.id, status]])}
+        onOpenPort={vi.fn()}
+      />
+    </SetupReviewSelectionProvider>,
+  );
+  await click("Refresh folders");
+  await vi.waitFor(() =>
+    expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(1),
+  );
+  expect(projection).toHaveBeenLastCalledWith(stored.matches, 1);
+  await act(async () => document.querySelector<HTMLElement>("[data-setup-review-port]")!.click());
+  await click("Review installing 1 selected");
+  expect(review).toHaveBeenCalledExactlyOnceWith([port.id], 1);
+  expect(start).not.toHaveBeenCalled();
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
 it("adds a game whose registered match is outside the scan preview", async () => {
   const stored = storedMatchesSnapshot();
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);
@@ -2441,7 +2501,33 @@ it("reviews more than sixteen eligible games without opening their match pages",
   expect(projection).toHaveBeenLastCalledWith(stored.matches, 1);
   expect(pages).not.toHaveBeenCalled();
   await click("Select all 20 eligible");
-  await click("Review installing 20 selected");
+  const trigger = button("Review installing 20 selected");
+  trigger.focus();
+  await act(async () => userEvent.keyboard(" "));
+  await vi.waitFor(() =>
+    expect(document.querySelector('[aria-label="Install selected games"]')?.textContent).toContain(
+      "0 ready to install, 20 waiting",
+    ),
+  );
+  const panel = document.querySelector<HTMLElement>('[aria-label="Install selected games"]')!;
+  await vi.waitFor(() => expect(panel.contains(document.activeElement)).toBe(true));
+  const focused = document.activeElement!.getBoundingClientRect();
+  expect(focused.top).toBeGreaterThanOrEqual(0);
+  expect(focused.top).toBeLessThan(innerHeight);
+  for (let step = 0; document.activeElement?.textContent !== "Cancel" && step < 4; step++)
+    await act(async () => userEvent.tab());
+  expect(document.activeElement?.textContent).toBe("Cancel");
+  await act(async () => userEvent.keyboard(" "));
+  await vi.waitFor(() =>
+    expect(document.querySelector('[aria-label="Install selected games"]')).toBeNull(),
+  );
+  const choices = document.querySelector<HTMLElement>('[aria-label="Selected setup reviews"]')!;
+  await vi.waitFor(() => expect(choices.contains(document.activeElement)).toBe(true));
+  const returned = document.activeElement!.getBoundingClientRect();
+  expect(returned.width).toBeGreaterThan(0);
+  expect(returned.height).toBeGreaterThan(0);
+  expect(returned.top).toBeGreaterThanOrEqual(0);
+  expect(returned.top).toBeLessThan(innerHeight);
   expect(plan).toHaveBeenCalledExactlyOnceWith(selectedIds, 1);
   expect(start).not.toHaveBeenCalled();
   expect(run).not.toHaveBeenCalled();
