@@ -17,6 +17,7 @@ import {
   portStatus,
   sourceProfile,
 } from "../test-fixtures";
+import { AddGames } from "./AddGames";
 import type {
   GameFileScanSnapshot,
   InstallPlan,
@@ -176,9 +177,8 @@ const refreshed: PortStatus[] = [
   fixtureValue(statuses[1], "second status"),
 ];
 
-/** Actual Settings owns both the batch and the adjacent game-file requirements.
- * Only the workspace read is controlled; its reply supplies every status/count. */
-function BatchSettings({
+/** Add games owns the batch and Settings displays the same refreshed file requirements. */
+function BatchWorkspace({
   readWorkspace,
   generation,
 }: {
@@ -188,6 +188,9 @@ function BatchSettings({
   const [current, setCurrent] = useState(statuses);
   const [failure, setFailure] = useState<{ error: unknown }>();
   const [refreshing, setRefreshing] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [openedScan, setOpenedScan] = useState(false);
+  const statusMap = new Map(current.map((status) => [status.port_id, status]));
   const refresh = async () => {
     setRefreshing(true);
     try {
@@ -219,18 +222,45 @@ function BatchSettings({
             retryRecovery={async () => undefined}
           />
         </div>
-        <SettingsView
-          category="game-files"
+        <div hidden={scanning}>
+          <SettingsView
+            category="game-files"
+            generation={generation}
+            ports={ports}
+            statuses={statusMap}
+            sources={sources}
+            sourceProfiles={profiles}
+            sourceRequirementsState="available"
+            installedCount={current.filter((status) => status.active).length}
+            workspaceRefreshFailed={Boolean(failure)}
+            onSourceAdded={refresh}
+            onOpenPort={() => undefined}
+            onOpenGameFileScan={() => {
+              setOpenedScan(true);
+              setScanning(true);
+            }}
+          />
+        </div>
+        {scanning && (
+          <button type="button" onClick={() => setScanning(false)}>
+            Back to Game files settings
+          </button>
+        )}
+        <AddGames
+          active={scanning}
+          scanRequest={openedScan ? 1 : 0}
           generation={generation}
           ports={ports}
-          statuses={new Map(current.map((status) => [status.port_id, status]))}
+          statuses={statusMap}
           sources={sources}
-          sourceProfiles={profiles}
-          sourceRequirementsState="available"
-          installedCount={current.filter((status) => status.active).length}
-          workspaceRefreshFailed={Boolean(failure)}
-          onSourceAdded={refresh}
+          profiles={profiles}
+          refreshFailed={Boolean(failure)}
+          perform={async (_, task) => task()}
+          onAdded={refresh}
           onOpenPort={() => undefined}
+          onBrowseCatalog={() => undefined}
+          onCopyInstallation={() => undefined}
+          setSetupSource={() => undefined}
         />
       </main>
     </SetupReviewSelectionProvider>
@@ -249,6 +279,7 @@ async function click(name: string) {
   await act(async () => button(name).click());
 }
 async function confirmBatch() {
+  await page.getByRole("button", { name: "View scan results", exact: true }).click();
   await vi.waitFor(() =>
     expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(2),
   );
@@ -323,7 +354,7 @@ it.for([
     vi.mocked(desktopApi.runInstallBatch).mockReturnValue(running.promise);
     const read = vi.fn(() => reading.promise);
     try {
-      await view.rerender(<BatchSettings generation={1} readWorkspace={read} />);
+      await view.rerender(<BatchWorkspace generation={1} readWorkspace={read} />);
       await confirmBatch();
       expect(read).not.toHaveBeenCalled();
       await act(async () => running.resolve(completed));
@@ -357,6 +388,15 @@ it.for([
       await vi.waitFor(() =>
         expect(document.querySelector('[aria-label="Install selected games"]')).toBeNull(),
       );
+      await expect
+        .poll(() => Boolean(document.activeElement?.closest('[aria-label="Add games workspace"]')))
+        .toBe(true);
+      await click("Back to Game files settings");
+      await expect
+        .element(
+          page.getByText("No missing original game files are currently listed", { exact: false }),
+        )
+        .toBeVisible();
       expect(read).toHaveBeenCalledTimes(1);
       expect(desktopApi.addGamesToLibrary).not.toHaveBeenCalled();
     } finally {
@@ -376,7 +416,7 @@ it("keeps committed results and workspace retry feedback when the parent refresh
     .mockReturnValueOnce(reading.promise)
     .mockResolvedValue(refreshed);
   try {
-    await view.rerender(<BatchSettings generation={1} readWorkspace={read} />);
+    await view.rerender(<BatchWorkspace generation={1} readWorkspace={read} />);
     await confirmBatch();
     await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1));
     const done = button("Done");
@@ -413,7 +453,7 @@ it("refreshes Core after a rejected run without losing the retained mixed result
   vi.mocked(desktopApi.runInstallBatch).mockRejectedValue(new Error("Owned batch response lost"));
   vi.spyOn(desktopApi, "installBatch").mockResolvedValue(completed);
   const read = vi.fn(async () => refreshed);
-  await view.rerender(<BatchSettings generation={1} readWorkspace={read} />);
+  await view.rerender(<BatchWorkspace generation={1} readWorkspace={read} />);
   await confirmBatch();
   await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1));
   await vi.waitFor(() =>
@@ -436,9 +476,9 @@ it("does not refresh a replacement workspace when a detached batch finishes", as
   const oldRead = vi.fn(async () => refreshed);
   const currentRead = vi.fn(async () => statuses);
   try {
-    await view.rerender(<BatchSettings key={1} generation={1} readWorkspace={oldRead} />);
+    await view.rerender(<BatchWorkspace key={1} generation={1} readWorkspace={oldRead} />);
     await confirmBatch();
-    await view.rerender(<BatchSettings key={2} generation={2} readWorkspace={currentRead} />);
+    await view.rerender(<BatchWorkspace key={2} generation={2} readWorkspace={currentRead} />);
     await act(async () => running.resolve(completed));
     expect(oldRead).not.toHaveBeenCalled();
     expect(currentRead).not.toHaveBeenCalled();
