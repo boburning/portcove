@@ -526,6 +526,14 @@
       "ordinary_families": ["upstream-health-contract-tests"]
     },
     {
+      "file": "scripts/public-catalog.test.mts",
+      "memberships": [
+        ["catalog-full", 550],
+        ["repository-tools", 550]
+      ],
+      "ordinary_families": ["catalog-contract-tests"]
+    },
+    {
       "file": "scripts/scheduled-package-drift.test.mts",
       "memberships": [
         ["catalog-full", 1204],
