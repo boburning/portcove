@@ -1101,30 +1101,6 @@ export function GameFileLibraries({
     | undefined
   >(undefined);
   const currentBatchReview = batchReview?.generation === generation ? batchReview : undefined;
-  useLayoutEffect(() => {
-    const pending = pendingBatchReturn.current;
-    pendingBatchReturn.current = undefined;
-    if (!pending || batchReview || pending.review.generation !== generation) return;
-    const { review, departing } = pending;
-    if (
-      !review.owner.isConnected ||
-      (document.activeElement !== document.body && !departing?.contains(document.activeElement))
-    )
-      return;
-    const controls = focusableControls(review.owner);
-    const target = controls.includes(review.origin)
-      ? review.origin
-      : (controls[0] ?? heading.current);
-    if (
-      !target?.isConnected ||
-      !navigationScope().contains(target) ||
-      target.closest("[inert], [hidden], [aria-hidden=true]") ||
-      !target.getClientRects().length ||
-      getComputedStyle(target).visibility === "hidden"
-    )
-      return;
-    focusAndReveal(target, { centerBeforeFocus: true });
-  }, [batchReview, generation]);
   const [removingId, setRemovingId] = useState<string>();
   const [reviewedPlan, setReviewedPlan] = useState<{
     generation: number;
@@ -1169,6 +1145,30 @@ export function GameFileLibraries({
     plan,
     busy,
   });
+  useLayoutEffect(() => {
+    const pending = pendingBatchReturn.current;
+    pendingBatchReturn.current = undefined;
+    if (!pending || batchReview || pending.review.generation !== generation) return;
+    const { review, departing } = pending;
+    if (
+      !review.owner.isConnected ||
+      (document.activeElement !== document.body && !departing?.contains(document.activeElement))
+    )
+      return;
+    const controls = focusableControls(review.owner);
+    const target = controls.includes(review.origin)
+      ? review.origin
+      : (controls[0] ?? heading.current);
+    if (
+      !target?.isConnected ||
+      !navigationScope().contains(target) ||
+      target.closest("[inert], [hidden], [aria-hidden=true]") ||
+      !target.getClientRects().length ||
+      getComputedStyle(target).visibility === "hidden"
+    )
+      return;
+    focusAndReveal(target, { centerBeforeFocus: true });
+  }, [batchReview, generation, heading]);
   const run = (
     label: string,
     task: () => Promise<void>,

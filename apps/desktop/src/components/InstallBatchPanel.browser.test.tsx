@@ -370,6 +370,6 @@ it.each(["waiting", "mixed", "starting"])(
     await vi.waitFor(() => expect(text()).toContain("Current review"));
     expect(onDone).not.toHaveBeenCalled();
     expect(run).not.toHaveBeenCalled();
-    if (stage !== "starting") expect(desktopApi.startInstallBatch).not.toHaveBeenCalled();
+    expect(desktopApi.startInstallBatch).toHaveBeenCalledTimes(stage === "starting" ? 1 : 0);
   },
 );
