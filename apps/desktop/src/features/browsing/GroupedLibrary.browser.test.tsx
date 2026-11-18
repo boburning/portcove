@@ -107,7 +107,92 @@ it("requires an acknowledged choice, retains alternatives and targets the chosen
     "Check its setup instructions for shared save locations before switching.",
   );
   expect(document.body.textContent).not.toContain("Play First project");
-  await page.getByRole("button", { name: "Choose Second project", exact: true }).first().click();
+  // Temporary #6797 hosted event diagnostic; remove before final qualification.
+  const identities = new WeakMap<Element, number>();
+  let nextIdentity = 1;
+  const describe = (target: EventTarget | null | undefined) => {
+    if (!(target instanceof Element)) return null;
+    if (!identities.has(target)) identities.set(target, nextIdentity++);
+    const row = target.closest<HTMLElement>("[data-collection-row]");
+    const rect = target.getBoundingClientRect();
+    return {
+      node: identities.get(target),
+      tag: target.tagName,
+      connected: target.isConnected,
+      origin: target.getAttribute("data-detail-origin"),
+      group: target.closest<HTMLElement>("[data-detail-return-group]")?.dataset.detailReturnGroup,
+      row: row?.dataset.collectionRow,
+      rowKey: row
+        ? JSON.stringify(
+            [...row.querySelectorAll<HTMLElement>("[data-detail-return-group]")].map(
+              (card) => card.dataset.detailReturnGroup,
+            ),
+          )
+        : undefined,
+      rect: [rect.x, rect.y, rect.width, rect.height],
+      disabled: target.getAttribute("aria-disabled"),
+      busy: target.getAttribute("aria-busy"),
+    };
+  };
+  const scroll = () => ({
+    document: document.scrollingElement?.scrollTop,
+    window: window.scrollY,
+    workspace: document.querySelector<HTMLElement>("[data-focus-region=workspace]")?.scrollTop,
+  });
+  const events: unknown[] = [];
+  let dropped = 0;
+  const capture = (event: Event) => {
+    if (events.length >= 16) {
+      dropped++;
+      return;
+    }
+    events.push({
+      type: event.type,
+      target: describe(event.target),
+      active: describe(document.activeElement),
+      related: event instanceof FocusEvent ? describe(event.relatedTarget) : undefined,
+      defaultPrevented: event.defaultPrevented,
+      scroll: scroll(),
+    });
+  };
+  const eventTypes = [
+    "pointerdown",
+    "pointerup",
+    "mousedown",
+    "mouseup",
+    "click",
+    "focusin",
+    "focusout",
+  ];
+  const chooseSecond = page
+    .getByRole("button", { name: "Choose Second project", exact: true })
+    .first();
+  const original = chooseSecond.element();
+  const snapshot = () => ({
+    original: describe(original),
+    current: describe(chooseSecond.query()),
+    active: describe(document.activeElement),
+    scroll: scroll(),
+  });
+  const before = snapshot();
+  let after: ReturnType<typeof snapshot> | undefined;
+  for (const type of eventTypes) document.addEventListener(type, capture, true);
+  try {
+    await chooseSecond.click();
+  } catch (error) {
+    console.info(
+      "[DEBUG-perf-choice]",
+      JSON.stringify({ before, after: snapshot(), events, dropped }),
+    );
+    throw error;
+  } finally {
+    after = snapshot();
+    for (const type of eventTypes) document.removeEventListener(type, capture, true);
+  }
+  expect(
+    write,
+    `[DEBUG-perf-choice] ${JSON.stringify({ before, after, events, dropped })}`,
+  ).toHaveBeenCalledTimes(1);
   expect(document.body.textContent).not.toContain("Play Second project");
   accept(false);
   await expect
