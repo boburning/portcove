@@ -86,6 +86,9 @@ jobs:
             --jq '.[] | select(.title | contains("Nightly release failure")) | .number' | head -n 1)"
           if [[ -n "$issue" ]]; then
             gh issue edit "$issue" --repo "$REPOSITORY" --body-file "$report_dir/report.md"
+            if [[ "$(gh issue view "$issue" --repo "$REPOSITORY" --json state --jq .state)" == "CLOSED" ]]; then
+              gh issue reopen "$issue" --repo "$REPOSITORY"
+            fi
             printf 'Updated existing nightly failure issue #%s\n' "$issue"
           else
             gh issue create --repo "$REPOSITORY" \
