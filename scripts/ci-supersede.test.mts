@@ -73,9 +73,10 @@ void test("an unfinished cancellation still expires within the finite ready budg
   );
   assert.ok(elapsed < timing.clientMs);
   assert.ok(observations < 64);
-  // Classification uses two reads per poll. Reserve four discovery reads and
-  // both mutation requests within the same unchanged request ceiling.
-  assert.ok(Math.ceil(timing.clientMs / timing.pollMs) * 2 + 6 <= 64);
+  // Normal polling fits the cap: two reads per classification poll, up to
+  // six discovery reads, the immediate cancellation observation and two writes.
+  // Transient transport retries can still exhaust the retained request cap.
+  assert.ok(Math.ceil(timing.clientMs / timing.pollMs) * 2 + 6 + 1 + 2 <= 64);
 });
 
 void test("a head's own run is its newest run for the pull request", () => {
