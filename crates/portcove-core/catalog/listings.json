@@ -12758,7 +12758,7 @@
           },
           {
             "title": "Preserve the Tyrian 2000 profile",
-            "instruction": "On Linux and Mac back up $XDG_CONFIG_HOME/opentyrian2000 or ~/.config/opentyrian2000. Keep its saves and settings separate from the OpenTyrian 2.1 profile."
+            "instruction": "On Linux, back up $XDG_CONFIG_HOME/opentyrian2000 or ~/.config/opentyrian2000. The reviewed Mac app uses ~/Library/Containers/com.AnV.Software.opentyrian2000/Data instead. Use Quit in the game menu before backing up or replacing the Mac app. In Finder, choose Go > Go to Folder and open that path. Find and back up your actual tyrian.sav, tyrian.cfg and opentyrian.cfg before replacing the app. Keep Tyrian 2000 data separate from the OpenTyrian 2.1 profile."
           }
         ]
       },
