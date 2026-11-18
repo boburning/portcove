@@ -567,6 +567,13 @@ and offers Check again after a running-client review so the player can close
 Steam and refresh the plan before applying it. A completed result says whether
 the shortcut changed or already matched; the full profile and file path remain
 available in the review and result.
+On Linux and macOS, you can keep the extracted `portcove` CLI at
+`~/.local/bin/portcove`. Desktop checks this location when it cannot find a
+compatible CLI beside itself or on its search path. Verify the archive against
+the checksum manifest from the same release. When you upgrade Desktop, replace
+the CLI with the same release's executable at that path. Steam can use the
+same shortcut path, and **Repair** can review the new executable identity.
+
 Add/Repair accepts only a standalone CLI whose passive embedded marker advertises
 this Portcove version's Steam `exec` contract, shows its SHA-256 in the review,
 binds that identity into the plan, and rehashes the same no-follow regular file
