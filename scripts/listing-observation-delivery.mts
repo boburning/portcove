@@ -406,6 +406,7 @@ export async function prepareObservationBundle(options: {
         config,
         JSON.stringify({
           schema_version: 1,
+          initial_root_profile: "single-owner-one-of-one-v1",
           trusted_root: path.resolve(options.root),
           trusted_root_sha256: hash(root),
           offline_targets: path.resolve(options.offlineTargets),
