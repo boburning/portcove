@@ -2,6 +2,75 @@
   "format_version": 1,
   "order": 8,
   "listing": {
+    "compatibility": {
+      "format_version": 2,
+      "records": [
+        {
+          "id": "zelda-entry-windows-x86-64",
+          "feature": "launch",
+          "platform": "windows-x86-64",
+          "route": "upstream-setup",
+          "release": "v1.2.2",
+          "artifact_sha256": "d02b95f1cf5e4d44d6587fa6136c6db521f61aa41ba8700c05f91bea8b0a26d0",
+          "explanation": "The game's main menu asks you to select your own North American Majora’s Mask ROM on first setup. Keep the same profile to reuse that original. On later starts, the project's main menu still opens. Choose Start game there or use its settings.",
+          "provenance": "https://github.com/Zelda64Recomp/Zelda64Recomp/blob/v1.2.2/src/ui/ui_launcher.cpp",
+          "observed_at": 1795035532,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "opens-project-launcher"
+          }
+        },
+        {
+          "id": "zelda-entry-linux-x86-64",
+          "feature": "launch",
+          "platform": "linux-x86-64",
+          "route": "upstream-setup",
+          "release": "v1.2.2",
+          "artifact_sha256": "de8b19cdb4e3ad0c10fd6d8127f7a6cc2a9eba106d89c753439178b718887c42",
+          "explanation": "The game's main menu asks you to select your own North American Majora’s Mask ROM on first setup. Keep the same profile to reuse that original. On later starts, the project's main menu still opens. Choose Start game there or use its settings.",
+          "provenance": "https://github.com/Zelda64Recomp/Zelda64Recomp/blob/v1.2.2/src/ui/ui_launcher.cpp",
+          "observed_at": 1795035532,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "opens-project-launcher"
+          }
+        },
+        {
+          "id": "zelda-entry-macos-x86-64",
+          "feature": "launch",
+          "platform": "macos-x86-64",
+          "route": "upstream-setup",
+          "release": "v1.2.2",
+          "artifact_sha256": "f369815d7ba2a1139a6fab8a0aa51c52e5f064dcfcce649eb888fdef9f648689",
+          "explanation": "The game's main menu asks you to select your own North American Majora’s Mask ROM on first setup. Keep the same profile to reuse that original. On later starts, the project's main menu still opens. Choose Start game there or use its settings.",
+          "provenance": "https://github.com/Zelda64Recomp/Zelda64Recomp/blob/v1.2.2/src/ui/ui_launcher.cpp",
+          "observed_at": 1795035532,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "opens-project-launcher"
+          }
+        },
+        {
+          "id": "zelda-entry-macos-aarch64",
+          "feature": "launch",
+          "platform": "macos-aarch64",
+          "route": "upstream-setup",
+          "release": "v1.2.2",
+          "artifact_sha256": "f369815d7ba2a1139a6fab8a0aa51c52e5f064dcfcce649eb888fdef9f648689",
+          "explanation": "The game's main menu asks you to select your own North American Majora’s Mask ROM on first setup. Keep the same profile to reuse that original. On later starts, the project's main menu still opens. Choose Start game there or use its settings.",
+          "provenance": "https://github.com/Zelda64Recomp/Zelda64Recomp/blob/v1.2.2/src/ui/ui_launcher.cpp",
+          "observed_at": 1795035532,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "opens-project-launcher"
+          }
+        }
+      ]
+    },
     "id": "zelda64-recomp",
     "name": "Zelda 64: Recompiled",
     "summary": "Native Majora's Mask recompilation.",
