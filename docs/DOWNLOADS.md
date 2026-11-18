@@ -17,18 +17,24 @@ your operating system and processor.
 The macOS `*.app.tar.gz` file and `*.sig` files serve the automatic updater.
 GitHub's **Source code** archives require a [source build](../README.md#prerequisites).
 
-### Published previews
+### Public prerelease archive
 
-| Release                                                                                         | Published standalone CLI                                                |
-| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| [Preview 2](https://github.com/boburning/portcove/releases/tag/v0.1.0-preview.2)                | Windows x86-64, CLI API 93                                              |
-| [Nightly Preview 6](https://github.com/boburning/portcove/releases/tag/nightly-0.1.0-preview.6) | Windows x86-64, CLI API 100                                             |
-| [Alpha 2](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2)                    | Windows x86-64, Linux x86-64, Apple Silicon and Intel macOS, CLI API 34 |
+| Channel and version                                                                                               | Published standalone CLI                                    | CLI API |
+| ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ------- |
+| [Nightly Preview 7 (0.1.0-preview.7)](https://github.com/boburning/portcove/releases/tag/nightly-0.1.0-preview.7) | Windows x86-64                                              | 100     |
+| [Nightly Preview 6 (0.1.0-preview.6)](https://github.com/boburning/portcove/releases/tag/nightly-0.1.0-preview.6) | Windows x86-64                                              | 100     |
+| [Nightly Preview 4 (0.1.0-preview.4)](https://github.com/boburning/portcove/releases/tag/nightly-0.1.0-preview.4) | Windows x86-64                                              | 93      |
+| [Nightly Preview 3 (0.1.0-preview.3)](https://github.com/boburning/portcove/releases/tag/nightly-0.1.0-preview.3) | Windows x86-64                                              | 93      |
+| [Preview 2 (0.1.0-preview.2)](https://github.com/boburning/portcove/releases/tag/v0.1.0-preview.2)                | Windows x86-64                                              | 93      |
+| [Alpha 2 (0.1.0-alpha.2)](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2)                      | Windows x86-64, Linux x86-64, Apple Silicon and Intel macOS | 34      |
+| [Alpha 1 (0.1.0-alpha.1)](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.1)                      | Windows x86-64, Linux x86-64, Apple Silicon and Intel macOS | 12      |
 
-Preview 2 and Nightly Preview 6 ship a Desktop AppImage and a universal DMG.
-Their Linux and macOS CLI choices are absent, so those Desktop packages lack a
-matching published CLI for Add or Repair in Steam. Alpha 2's CLI belongs to
-Alpha 2. It cannot supply those Preview releases' Steam companion.
+All five Preview releases in the table have a Linux Desktop AppImage and a
+universal macOS Desktop disk image. Add or Repair in Steam on those platforms
+requires a compatible CLI, which those releases never published. For Steam,
+choose the CLI for the same Desktop version and processor, even when another
+version reports the same CLI API. Alpha releases name their standalone archives
+`portcove-<os>-<architecture>.zip` or `portcove-<os>-<architecture>.tar.gz`.
 
 ## Verify a download
 
@@ -44,7 +50,9 @@ Extract the standalone archive and open a terminal in that folder. Run
 `./portcove --version` and `./portcove --json capabilities` on Linux or macOS.
 In Windows PowerShell, use `.\portcove.exe` in both commands. Frontends can read
 `schema_version` and the advertised commands before using the
-[CLI task guide](CLI.md#task-guides).
+[CLI task guide](CLI.md#task-guides). When checking an older CLI, add
+`--library <path>` before `--json capabilities` and point it at a fresh folder.
+This keeps the older CLI from opening a library created by a newer release.
 
 Windows packages lack Authenticode signing and may show unknown-publisher or
 reputation warnings. macOS packages lack Developer ID signing and notarization

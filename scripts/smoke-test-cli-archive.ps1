@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory = $true)][string]$ArchivePath,
     [Parameter(Mandatory = $true)][ValidateSet("windows-x86_64", "linux-x86_64", "macos-aarch64", "macos-x86_64")][string]$PlatformLabel,
-    [Parameter(Mandatory = $true)][string]$Version
+    [Parameter(Mandatory = $true)][string]$Version,
+    [ValidateRange(1, 999999999)][int]$ExpectedCliApi
 )
 
 $ErrorActionPreference = "Stop"
@@ -173,6 +174,10 @@ try {
         $capabilitiesOutput = (& $executable --library $library --json capabilities | Out-String).Trim() | ConvertFrom-Json
         if ($LASTEXITCODE -ne 0 -or $capabilitiesOutput.ok -ne $true -or $capabilitiesOutput.command -ne "capabilities") {
             throw "Packaged CLI failed its launch-capability smoke test"
+        }
+        if ($ExpectedCliApi -and ($capabilitiesOutput.schema_version -cne $ExpectedCliApi -or
+            $capabilitiesOutput.data.schema_version -cne $ExpectedCliApi)) {
+            throw "Packaged CLI did not report the release's CLI API $ExpectedCliApi"
         }
         if (@($capabilitiesOutput.data.raw_stream_commands) -cnotcontains "exec") {
             throw "Packaged CLI does not declare exec as its raw-stream launch route"
