@@ -122,6 +122,22 @@ pub(crate) fn local_steam_profiles(steam_root: &Path) -> Result<Vec<String>> {
     Ok(profiles)
 }
 
+/// Keep shortcut-capable client roots in discovery order. Canonical paths
+/// identify aliases, while the original discovered path is shown to the player.
+pub(crate) fn steam_client_roots_with_profiles(candidates: Vec<PathBuf>) -> Vec<PathBuf> {
+    let mut seen = BTreeSet::new();
+    candidates
+        .into_iter()
+        .filter(|candidate| {
+            candidate.is_absolute()
+                && fs::canonicalize(candidate).is_ok_and(|root| {
+                    seen.insert(root.clone())
+                        && local_steam_profiles(&root).is_ok_and(|profiles| !profiles.is_empty())
+                })
+        })
+        .collect()
+}
+
 fn is_regular_profile_directory(metadata: &fs::Metadata) -> bool {
     if !metadata.is_dir() || metadata.file_type().is_symlink() {
         return false;
@@ -1629,6 +1645,43 @@ mod tests {
             vec!["12345", "987"]
         );
         assert!(!fixture.config.join(SHORTCUTS_FILE).exists());
+    }
+
+    #[test]
+    fn steam_installation_discovery_requires_a_shortcut_capable_client_root() {
+        let temporary = tempfile::tempdir().unwrap();
+        let roots = temporary.path();
+        let registry = roots.join("custom-install");
+        let native = roots.join(".local/share/Steam");
+        let flatpak = roots.join(".var/app/com.valvesoftware.Steam/.local/share/Steam");
+        let macos = roots.join("Library/Application Support/Steam");
+        let library_only = roots.join("game-library");
+        let incomplete = roots.join("no-local-profile");
+        fs::create_dir_all(library_only.join("steamapps/common/game")).unwrap();
+        fs::create_dir_all(incomplete.join("userdata")).unwrap();
+        assert!(
+            steam_client_roots_with_profiles(vec![
+                roots.join("no-client"),
+                library_only.clone(),
+                incomplete.clone(),
+            ])
+            .is_empty()
+        );
+        let expected = vec![registry, native, flatpak, macos];
+        for root in &expected {
+            fs::create_dir_all(root.join("userdata/12345/config")).unwrap();
+        }
+        let inputs = expected
+            .iter()
+            .cloned()
+            .chain([library_only, incomplete, expected[0].clone()])
+            .collect();
+        assert_eq!(steam_client_roots_with_profiles(inputs), expected);
+        assert!(
+            expected
+                .iter()
+                .all(|root| !root.join("userdata/12345/config/shortcuts.vdf").exists())
+        );
     }
 
     #[test]

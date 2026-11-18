@@ -17,13 +17,17 @@ use crate::steam_entries::{
     SteamCliIdentity, SteamClientState, SteamEntryApplyResult, SteamEntryChangeKind,
     SteamEntryError, SteamEntryPlan, SteamEntryPlanRequest, SteamEntryRecoveryOutcome,
     SteamGameEntryTarget, apply_steam_entry_plan, local_steam_profiles, plan_steam_entries,
-    recover_steam_entries, shortcut_operation_pending, steam_profile_config,
+    recover_steam_entries, shortcut_operation_pending, steam_client_roots_with_profiles,
+    steam_profile_config,
 };
 use crate::{
     DesktopError, DesktopResult, DesktopState, blocking_worker, cli_context, confirm_destructive,
     service_at_generation,
 };
-use portcove_core::{DestinationArtworkContent, PortcoveError, PortcoveService};
+use portcove_core::{
+    DestinationArtworkContent, PortcoveError, PortcoveService, StoreInstallHost,
+    SystemStoreInstallHost,
+};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 
@@ -35,6 +39,24 @@ struct SteamEntryContext {
     library_root: PathBuf,
     cli: Option<cli_context::CliExecutableIdentity>,
     active_install_id: Option<String>,
+}
+
+#[tauri::command]
+pub(crate) async fn discover_steam_client_roots(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<Vec<String>> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?;
+        Ok(
+            steam_client_roots_with_profiles(SystemStoreInstallHost.steam_client_roots())
+                .into_iter()
+                .filter_map(|path| path.into_os_string().into_string().ok())
+                .collect(),
+        )
+    })
+    .await
 }
 
 #[tauri::command]
