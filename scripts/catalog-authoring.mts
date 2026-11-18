@@ -1,10 +1,10 @@
+import { checkImplementationMetadata } from "./implementation-metadata.mts";
+import type { ImplementationMetadata } from "./implementation-metadata.mts";
 import {
   checkOriginalGameReview,
   checkOriginalGameConsistency,
   type OriginalGameReview,
 } from "./catalog-game-review.mts";
-import { checkImplementationMetadata } from "./implementation-metadata.mts";
-import type { ImplementationMetadata } from "./implementation-metadata.mts";
 import {
   checkPackagePlayerObservation,
   projectPackagePlayerFacts,
@@ -78,7 +78,6 @@ export interface AuthoredListing extends NamedRecord {
 export interface AuthoredPort extends Record<string, unknown> {
   format_version: 1;
   listing: AuthoredListing;
-  original_game_review?: OriginalGameReview;
   route_facts_v1?: RouteFactsV1;
   igdb_regional_cover?: IgdbRegionalCover;
   /** Desktop review copy, outside signed and retained definition schemas. */
@@ -96,6 +95,7 @@ export interface AuthoredPort extends Record<string, unknown> {
   /** Reviewed provenance; never projected into runtime definitions or listings. */
   upstream_lineage?: UpstreamLineage;
   release_maintenance?: { reason: string; reconsider_when: string };
+  original_game_review?: OriginalGameReview;
 }
 
 export const catalogSourceNames = {
