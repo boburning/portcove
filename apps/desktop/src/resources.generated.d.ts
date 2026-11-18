@@ -56,7 +56,8 @@ export default interface Resources {
       "checking": "Checking for updates…",
       "current": "Portcove is up to date. Last checked {{checked}}.",
       "notChecked": "Portcove hasn’t checked for updates yet.",
-      "title": "Status"
+      "title": "Status",
+      "updating": "Updating Portcove…"
     }
   },
   "backups": {
@@ -1447,6 +1448,7 @@ export default interface Resources {
         "title": "Retire recovery offer {{revision}}?"
       },
       "runtimeHeld": "This setup’s runtime needs attention.",
+      "runtimePresent": "Installed game files are checked before play or copying this setup.",
       "runtimeVersion": "Game version {{version}}",
       "separator": ", ",
       "setups": "Setups",
@@ -1740,7 +1742,7 @@ export default interface Resources {
       "label": "Microsoft runtimes",
       "missing": "Windows is most likely missing something this game needs to start:",
       "nextAction": "Install the listed runtimes from Microsoft, then recheck here.",
-      "present": "The checked runtimes are installed. Select Play to try the game again.",
+      "present": "The checked runtimes are installed.",
       "recheck": "Recheck runtimes",
       "unconfirmed": "Portcove could not confirm that all required runtimes are installed. You can recheck again.",
       "visualCpp2010": "Microsoft Visual C++ 2010 Redistributable",
@@ -1806,9 +1808,9 @@ export default interface Resources {
       "manualCopy": "Retained log for manual copy",
       "none": "No retained diagnostic capture is available. Older activity details may be available in a redacted support report in Settings.",
       "phase": {
-        "extract": "Preparing game files",
+        "extract": "Game file preparation",
         "other": "Preparation log",
-        "setup": "Running game setup"
+        "setup": "Game setup"
       },
       "reading": "Reading the retained log…",
       "readingWithPrevious": "Reading the retained log… Showing the last loaded capture while the current log is checked.",
@@ -2011,7 +2013,7 @@ export default interface Resources {
     "applying": "Uninstalling…",
     "cancel": "Cancel",
     "checking": "Checking installed versions…",
-    "deletedFolders_one": "Files inside these {{count, number}} installation folder will be deleted, including retained versions:",
+    "deletedFolders_one": "Files inside this installation folder will be deleted, including retained versions:",
     "deletedFolders_other": "Files inside these {{count, number}} installation folders will be deleted, including retained versions:",
     "description": "This removes all installed versions of {{name}} managed by Portcove.",
     "detailsLabel": "Files removed and data preserved",

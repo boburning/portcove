@@ -85,6 +85,36 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-large-discovery-setup-review",
+    "Native retained pages select twenty eligible games, preserve version choices and cancel without mutation.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-setup-batch-test.mts",
+      qualification_only: true,
+      platforms: ["win32", "linux"],
+    },
+  ),
+  scenario(
+    "native-reviewed-discovery-setup-batch",
+    "A reviewed native two-game setup batch preserves consent, originals and completed installs across restart.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-setup-batch-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
+    "native-standing-setup-source-return",
+    "Native standing consent waits for its original, then normal startup installs once without launching.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-standing-setup-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-selected-setup-completion",
     "Discovered synthetic inputs continue through ordinary installation, cancellation, retry and isolated preparation.",
     {
@@ -848,6 +878,25 @@ export function resolveDesktopSelection({
       throw new Error("native-preliminary-source-review requires one exact standalone scenario");
     if (platform !== "win32") throw new Error("native-preliminary-source-review requires Windows");
   }
+  if (
+    uniqueRequested.includes("native-large-discovery-setup-review") &&
+    (uniqueRequested.length !== 1 || !["win32", "linux"].includes(platform))
+  )
+    throw new Error(
+      "native-large-discovery-setup-review requires one standalone Windows/Linux scenario",
+    );
+  if (
+    uniqueRequested.includes("native-reviewed-discovery-setup-batch") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error(
+      "native-reviewed-discovery-setup-batch requires one standalone Windows scenario",
+    );
+  if (
+    uniqueRequested.includes("native-standing-setup-source-return") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-standing-setup-source-return requires one standalone Windows scenario");
   if (uniqueRequested.includes("native-selected-setup-completion")) {
     if (uniqueRequested.length !== 1)
       throw new Error("native-selected-setup-completion requires one exact standalone scenario");
@@ -1014,6 +1063,11 @@ export function desktopHarnessDeadlineMs(
   // hosted selected-setup (job 132439346311) was still progressing at 161 s and the
   // 180 s watchdog left no room for failure capture and cleanup. Harness only.
   if (selection.selected_scenarios.includes("native-selected-setup-completion")) return 600_000;
+  // Saved-source scan, two bounded installs, one fresh-session read and cleanup.
+  if (selection.selected_scenarios.includes("native-large-discovery-setup-review")) return 600_000;
+  if (selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch"))
+    return 600_000;
+  if (selection.selected_scenarios.includes("native-standing-setup-source-return")) return 600_000;
   // Two ordinary downloads/setups, real launches, file repair and positive exit joins.
   if (selection.selected_scenarios.includes("native-registered-source-reuse")) return 1_200_000;
   if (selection.selected_scenarios.includes("native-game-first-installed-mm"))

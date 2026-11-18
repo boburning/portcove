@@ -280,14 +280,23 @@ Clients display Core's complete current plan, acquisitions and capacity when
 offered, obtain its required consent and consume its action/readiness decisions.
 They must not execute catalog build instructions or derive eligibility from a
 historical recipe name. The maintained reference supports API 42–57, 60–63 or
-65–99 and event schemas 2–3. Unknown future APIs,
+65–100 and event schemas 2–3. Unknown future APIs,
 unsupported required capabilities and unknown execution/ownership semantics
 remain refused. API or template negotiation alone grants no admission or operation
 authority.
 
-API 99 adds exact original and typed settings review for recipes, and commands
+API 100 adds exact original and typed settings review for recipes, and commands
 to check or discard private acquisition. Use the fresh plan digest and applicable
 target-local permission to apply. Event schema remains 3.
+
+Desktop's ordinary mod-setup inventory can report retained-build availability
+`present`: registered runtime metadata, executable presence and current policy
+were checked, but immutable payload contents were not. Treat it as a preview,
+not execution permission or a full integrity result. The matching Desktop
+consumer explains the deferred check and still submits actions to Core. CLI
+`profile list`, `profile setups`, explicit retained-build inspection and consequential operations
+keep their existing full verification. This Desktop preview adds no CLI API or
+event version and does not widen a reference client's advertised version window.
 
 API 98 exposes `profile inspect-mod-file` and `profile preserve-mod-file`.
 Use the exact plan digest to preserve one unmanaged or edited mod file.

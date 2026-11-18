@@ -193,7 +193,7 @@ export function PortCapabilities({
       ? cached
       : undefined);
   return (
-    <section className="mt-4 grid gap-3" aria-label={t("capabilities.label")}>
+    <section className="mt-4 grid min-w-0 gap-3 wrap-anywhere" aria-label={t("capabilities.label")}>
       <h3>{t("capabilities.heading")}</h3>
       <Button
         data-focusable

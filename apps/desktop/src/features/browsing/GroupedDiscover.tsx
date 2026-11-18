@@ -342,7 +342,7 @@ export function GroupedDiscover({
                   : t("discover.compare.several", { total: comparison.ports.length })}
               </DialogDescription>
               <details className="my-4 text-xs text-pc-muted-foreground">
-                <summary data-focusable className="cursor-pointer py-2">
+                <summary data-focusable className="disclosure-pad-2 cursor-pointer">
                   {t("discover.compare.options")}
                 </summary>
                 <p>{t("discover.compare.optionsIntro")}</p>
@@ -388,8 +388,8 @@ export function GroupedDiscover({
                         )}
                       </header>
                       <ComparisonPortFacts port={port} status={status} single={single} />
-                      <ImplementationFacts port={port} />
-                      <div className="min-w-0">
+                      <div className="grid min-w-0 content-start gap-2">
+                        <ImplementationFacts port={port} />
                         <GameComparisonEvidence
                           comparison={evidence}
                           portId={port.id}

@@ -46,7 +46,9 @@ export function LibraryRecovery({
         Keep a manual recovery copy, restore a checked copy, or change where this library is stored.
       </p>
       <details>
-        <summary className="cursor-pointer py-2 text-sm">What each recovery copy includes</summary>
+        <summary className="disclosure-pad-2 cursor-pointer text-sm">
+          What each recovery copy includes
+        </summary>
         <dl className="my-4 grid gap-3 text-sm [&_dd]:m-0 [&_dt]:font-semibold">
           <div>
             <dt>Game-save backups</dt>
@@ -69,7 +71,9 @@ export function LibraryRecovery({
         </dl>
       </details>
       <details>
-        <summary className="cursor-pointer py-2 font-semibold">Prepare a recovery copy</summary>
+        <summary className="disclosure-pad-2 cursor-pointer font-semibold">
+          Prepare a recovery copy
+        </summary>
         <p>
           Portcove exports library information. Copy the library files yourself and test a restore
           before relying on the copy.

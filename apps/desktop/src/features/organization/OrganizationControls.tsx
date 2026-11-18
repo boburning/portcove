@@ -134,7 +134,7 @@ export function OrganizationControls({
           open={editing}
           onToggle={(event) => setEditing(event.currentTarget.open)}
         >
-          <summary className="cursor-pointer py-2 pe-2">{t("edit.summary")}</summary>
+          <summary className="disclosure-pad-2 cursor-pointer pe-2">{t("edit.summary")}</summary>
           <form
             className="mt-2 flex max-w-full flex-wrap items-end gap-2"
             onSubmit={(event) => {

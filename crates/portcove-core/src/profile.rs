@@ -646,6 +646,25 @@ impl PortcoveService {
     }
 
     pub fn profile_inventory(&self, port_id: &str) -> Result<ProfileInventory> {
+        self.profile_inventory_with(port_id, |profile| {
+            let resolved = self.resolve_retained_build(port_id, &profile.id)?;
+            Ok((resolved.availability, resolved.install))
+        })
+    }
+
+    /// Presentation reads check registered runtime metadata; consequential
+    /// operations and explicit inventory retain their full integrity checks.
+    pub(crate) fn preview_profile_inventory(&self, port_id: &str) -> Result<ProfileInventory> {
+        self.profile_inventory_with(port_id, |profile| {
+            self.preview_retained_build(port_id, &profile.id)
+        })
+    }
+
+    fn profile_inventory_with(
+        &self,
+        port_id: &str,
+        inspect: impl Fn(&Profile) -> Result<(RetainedBuildAvailability, Option<crate::InstallRecord>)>,
+    ) -> Result<ProfileInventory> {
         self.catalog().port(port_id)?;
         let connection = self.library.connection()?;
         let sources = self.library.sources()?;
@@ -653,13 +672,13 @@ impl PortcoveService {
         let mut views = Vec::new();
         for profile in profiles_from(&connection, port_id)? {
             let revision = revision_from(&connection, &profile.id, profile.current_revision)?;
-            let resolved = self.resolve_retained_build(port_id, &profile.id).ok();
+            let resolved = inspect(&profile).ok();
             let build_availability = resolved
                 .as_ref()
-                .map(|resolved| resolved.availability)
+                .map(|(availability, _)| *availability)
                 .unwrap_or(RetainedBuildAvailability::Unavailable);
             let build_version = resolved
-                .and_then(|resolved| resolved.install)
+                .and_then(|(_, install)| install)
                 .map(|install| install.version);
             views.push(ProfileView {
                 originals: original_statuses(

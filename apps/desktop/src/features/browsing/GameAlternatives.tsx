@@ -113,7 +113,7 @@ export function GameAlternatives({
   if (ports.length < 2) return null;
   return (
     <details ref={root} className="min-w-0 basis-full text-sm">
-      <summary data-focusable className="cursor-pointer py-2">
+      <summary data-focusable className="disclosure-pad-2 cursor-pointer">
         {t("alternatives.heading", { total: ports.length })}
       </summary>
       <p className="mb-2 text-xs text-pc-muted-foreground">{t("alternatives.independence")}</p>

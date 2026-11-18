@@ -31,6 +31,20 @@ without cancelling or overlapping backend IPC. Recovery stays outside query
 execution. Activity ordering, pending-change handoff and diagnostic revision guards
 remain explicit; query cancellation only stops frontend continuations.
 
+Mod setup inventory requests share one frontend read lane per port and library
+generation, including across component remounts while native work is outstanding.
+Refreshes arriving during a read coalesce into one subsequent read; each current
+consumer receives its batch's result. Settled results are discarded, and outgoing
+components retain their publication fencing. After abandoned-stage cleanup, Core
+`preview_mod_setups` checks each current setup's registered installation identity,
+manifest, executable presence and current policy without traversing immutable
+payloads or historical builds. `present` means those metadata checks passed;
+it does not claim current payload integrity. Missing, changed and held metadata
+remain distinct. The explicit `mod_setups`, `profile_inventory` and retained-build APIs,
+setup mutations, automatic-update execution, deployment and launch retain their
+existing verification. Live mod drift is still observed separately. No settled
+inventory result or execution authorization is cached by the preview.
+
 Desktop interface enlargement is presentation authority: `InterfaceSizeController`
 serializes the existing Tauri WebView zoom API and persists acknowledged choices
 within the browser profile, independently of library generations. React owns
@@ -2896,6 +2910,16 @@ Reads report whether catalog bytes, roots, availability, relink state and scan
 rules still match the recorded inputs. That does not claim the collection stayed byte-identical after
 the scan; the snapshot is local evidence, not a watcher, source registration, setup
 intent, or permission to mutate or install anything.
+
+Setup review asks Core for the registered matches of every current saved scan,
+including a scan that fits entirely in its preview. Core reads the scan, roots,
+catalog binding and current registrations in one transaction. Profile, content
+digest and source path must match. On Windows only, the existing absolute-path
+comparison accepts ordinary and verbatim disk/UNC spellings while preserving
+case and path components. Returned matches use the saved registration spelling;
+the registration itself is never rewritten. Other copies with the same digest
+remain distinct. React consumes this result without deciding filesystem identity,
+and installation review still verifies the current source before authorization.
 
 CLI and Tauri expose that same foreground scan, its normal operation events, and
 nullable snapshot readback. They accept only core's typed limits and do not add a

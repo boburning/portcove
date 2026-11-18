@@ -104,10 +104,13 @@ pub struct RetainedBuildRetirementPreview {
     pub preview_sha256: String,
 }
 
+/// `Present` is limited to ordinary setup metadata previews; it does not
+/// establish current immutable payload integrity. Strict inspection uses `Verified`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RetainedBuildAvailability {
     Verified,
+    Present,
     Missing,
     Changed,
     Held,
@@ -303,24 +306,8 @@ impl PortcoveService {
     }
 
     fn check_retained_build(&self, install: &InstallRecord) -> Result<RetainedBuildIdentity> {
-        if !install.verified {
-            return Err(PortcoveError::verification(
-                "installation has not been accepted as verified",
-            ));
-        }
-        if !install.path.try_exists()?
-            || !install.path.join(".portcove-manifest.json").try_exists()?
-        {
-            return Err(PortcoveError::not_found(
-                "exact retained build or manifest is missing",
-            ));
-        }
-        crate::output_root::validate_install_path(&self.library, &install.port_id, &install.path)?;
-        let identity = crate::install::retained_build_identity_for_install(install)?;
+        let (identity, catalog) = self.retained_build_metadata(install)?;
         let installer = Installer::new(self.library.clone())?;
-        let catalog = installer.retained_catalog(install)?.ok_or_else(|| {
-            PortcoveError::unsupported("installation has no retained exact definition contract")
-        })?;
         let qualification =
             self.installed_mutability_qualification_for_platform(install, identity.platform)?;
         let report = installer.verify_managed(install, &qualification)?;
@@ -343,6 +330,85 @@ impl PortcoveService {
         }
         self.require_retained_build_permission(&installer, install, &catalog)?;
         Ok(identity)
+    }
+
+    /// Ordinary setup browsing is a metadata observation, never execution
+    /// authority. Do not traverse historical builds or the immutable file tree.
+    pub(crate) fn preview_retained_build(
+        &self,
+        port_id: &str,
+        setup_id: &str,
+    ) -> Result<(RetainedBuildAvailability, Option<InstallRecord>)> {
+        let reference = reference_from(&self.library.connection()?, port_id, setup_id)?
+            .ok_or_else(|| PortcoveError::not_found("setup has no retained-build reference"))?;
+        let install = Library::install_by_id(
+            &self.library.connection()?,
+            Some(&reference.build.install_id),
+        )?;
+        let result = (|| {
+            let install = install.as_ref().ok_or_else(|| {
+                PortcoveError::not_found("referenced installation record is missing")
+            })?;
+            if !reference.build.matches_install(install) {
+                return Err(PortcoveError::verification(
+                    "referenced installation identity changed; no other build was selected",
+                ));
+            }
+            let (identity, catalog) = self.retained_build_metadata(install)?;
+            if identity != reference.build {
+                return Err(PortcoveError::verification(
+                    "referenced definition or runtime binding changed",
+                ));
+            }
+            let executable = install.path.join(&install.selected_executable);
+            if !executable.try_exists()? {
+                return Err(PortcoveError::not_found("setup executable is missing"));
+            }
+            crate::install::refuse_symlink_path_within(
+                &install.path,
+                &executable,
+                "setup executable",
+            )?;
+            crate::permissions::require_platform_executable(
+                &executable,
+                identity.platform,
+                "setup executable",
+            )?;
+            self.require_retained_build_permission(
+                &Installer::new(self.library.clone())?,
+                install,
+                &catalog,
+            )
+        })();
+        Ok(match result {
+            Ok(()) => (RetainedBuildAvailability::Present, install),
+            Err(error) => (availability_for_error(&error), None),
+        })
+    }
+
+    fn retained_build_metadata(
+        &self,
+        install: &InstallRecord,
+    ) -> Result<(RetainedBuildIdentity, crate::Catalog)> {
+        if !install.verified {
+            return Err(PortcoveError::verification(
+                "installation has not been accepted as verified",
+            ));
+        }
+        if !install.path.try_exists()?
+            || !install.path.join(".portcove-manifest.json").try_exists()?
+        {
+            return Err(PortcoveError::not_found(
+                "exact retained build or manifest is missing",
+            ));
+        }
+        crate::output_root::validate_install_path(&self.library, &install.port_id, &install.path)?;
+        let identity = crate::install::retained_build_identity_for_install(install)?;
+        let installer = Installer::new(self.library.clone())?;
+        let catalog = installer.retained_catalog(install)?.ok_or_else(|| {
+            PortcoveError::unsupported("installation has no retained exact definition contract")
+        })?;
+        Ok((identity, catalog))
     }
 
     fn require_retained_build_permission(

@@ -257,6 +257,7 @@ void test("Windows diagnostics serialize file workers without changing coverage 
     "scripts/resource-capacity.test.mts",
     "scripts/resource-command.test.mts",
     "scripts/ci-windows-helpers.test.mts",
+    "scripts/desktop-setup-batch-fixture.test.mts",
   ]);
 });
 

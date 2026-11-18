@@ -297,6 +297,11 @@ it.for([
           )
           .toBe(true);
       }
+      // Exercise neutral layout measurement after a card was hovered.
+      if (view === "library") {
+        const identity = document.querySelectorAll<HTMLElement>(".collection-identity").item(4);
+        await userEvent.hover(identity);
+      }
       window.scrollTo(0, 0);
       await document.fonts.ready;
       const { frames, fallback } = await assertPortraitLayout(view, theme, width, height);
@@ -610,12 +615,27 @@ it.each([
   },
 );
 
+async function settlePortraitPointer() {
+  await userEvent.hover(document.documentElement, { position: { x: 1, y: 1 } });
+  await expect
+    .poll(() => {
+      const frames = [...document.querySelectorAll<HTMLElement>(".collection-art")];
+      return (
+        frames.length > 0 &&
+        !document.querySelector(".collection-identity:hover, .discover-game-identity:hover") &&
+        frames.every((frame) => getComputedStyle(frame).transform === "none")
+      );
+    })
+    .toBe(true);
+}
+
 async function assertPortraitLayout(
   view: "library" | "catalog",
   theme: string,
   width: number,
   height: number,
 ) {
+  await settlePortraitPointer();
   const frames = [...document.querySelectorAll<HTMLElement>(".collection-art")].map((element) => {
     const rect = element.getBoundingClientRect();
     return {
@@ -654,6 +674,23 @@ async function assertPortraitLayout(
     identity.blur();
   }
   window.scrollTo(0, 0);
+  // Keyboard traversal can leave the inherited pointer over a poster. Compare
+  // resting rows after the intentional two-pixel hover lift has settled.
+  await userEvent.hover(
+    page
+      .getByRole("group", {
+        name: view === "library" ? "Library filters" : "Favorite games",
+        exact: true,
+      })
+      .element(),
+  );
+  await expect
+    .poll(() =>
+      [...document.querySelectorAll(".collection-art")].every(
+        (art) => getComputedStyle(art).transform === "none",
+      ),
+    )
+    .toBe(true);
   const alignmentErrors: number[] = [];
   if (view === "library" && width >= 1280) {
     const alignedRows = new Map<number, number>();
@@ -851,6 +888,7 @@ it.for([2, 4] as const)(
         3,
         7,
       );
+    await settlePortraitPointer();
     await captureTargetScreenshot(
       frame,
       `../../../../outputs/uiux-game-titles/collection-${count}-wide.png`,
@@ -859,6 +897,7 @@ it.for([2, 4] as const)(
     );
     await page.viewport(390, 844);
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390);
+    await settlePortraitPointer();
     // Responsive virtual rows may replace the wide card. Capture its current
     // rendered artwork, after the same node survives the resize render frames.
     await expect
