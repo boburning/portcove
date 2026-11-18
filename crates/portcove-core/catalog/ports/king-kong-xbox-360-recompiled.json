@@ -45,6 +45,16 @@
       "warnings": [
         "Use king_kong.exe with empty arguments for its ordinary launcher, or retain --kk_launcher=false for the existing prepared direct-game choice. Preserve userdata, legacy Documents/king_kong and recovery witnesses. Portcove follows the selected process only; close actual games/helpers before maintenance."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "peter-jackson-s-king-kong-the-official-game-of-the-movie",
+      "evidence_urls": [
+        "https://github.com/TekRantGaming/king-kong-recompiled",
+        "https://github.com/TekRantGaming/king-kong-recompiled/blob/2a367f7326a21c3e0ff8b9070a18c7d9457682c2/README.md"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Peter Jackson's King Kong: The Official Game of the Movie"
   }
 }

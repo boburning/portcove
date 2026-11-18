@@ -7,7 +7,9 @@
     "original_game_title": "Yo-kai Watch 4++",
     "project_url": "https://github.com/ILFforever/YW4Recomp",
     "listed_at": "2026-10-25",
-    "funding_urls": ["https://buymeacoffee.com/ilfforever"],
+    "funding_urls": [
+      "https://buymeacoffee.com/ilfforever"
+    ],
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/ILFforever/YW4Recomp",
@@ -39,6 +41,14 @@
           "instruction": "The project reports 30 FPS in early areas. The Linux badge describes a planned route and has no Linux test behind it. No Mac route is documented."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "yo-kai-watch-4",
+      "evidence_urls": [
+        "https://github.com/ILFforever/YW4Recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -50,7 +50,16 @@
       "windows-x86-64": ["HardCorpsUprising-", "-windows-x64.zip"],
       "linux-x86-64": ["HardCorpsUprisingRecompiled-", "-x86_64.AppImage"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "hard-corps-uprising",
+      "evidence_urls": [
+        "https://github.com/saulob/hard-corps-uprising-recompiled",
+        "https://github.com/saulob/hard-corps-uprising-recompiled#readme"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

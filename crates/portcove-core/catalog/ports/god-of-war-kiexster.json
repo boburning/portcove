@@ -31,6 +31,16 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/KIexster/god-of-war-recomp#readme"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war",
+      "evidence_urls": [
+        "https://github.com/KIexster/god-of-war-recomp#readme",
+        "https://github.com/KIexster/god-of-war-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "God of War"
   }
 }

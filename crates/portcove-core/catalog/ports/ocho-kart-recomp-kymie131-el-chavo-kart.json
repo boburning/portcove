@@ -35,6 +35,12 @@
       "image_sha256": "26920631f0dac8429c6db06d28f8961790a91c660fe63f3aab8112d3ca397ae0",
       "game_slug": "el-chavo-kart",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "el-chavo-kart",
+      "evidence_urls": ["https://github.com/Kymie131/ocho-kart-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

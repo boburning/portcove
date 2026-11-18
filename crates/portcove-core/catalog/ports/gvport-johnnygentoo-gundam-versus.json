@@ -35,6 +35,12 @@
       "image_sha256": "2a9844627c22ab14fdb4524f8d3ac108ef0c1f4453acfa6edcc37840f4d7a0be",
       "game_slug": "gundam-versus",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "gundam-versus",
+      "evidence_urls": ["https://github.com/johnnygentoo/gvport"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -35,6 +35,12 @@
       "image_sha256": "ba9392e6fe317c94ce46ed918055e763dde45931a7133ac7cb05fe0fea388e91",
       "game_slug": "ncaa-football-14",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ncaa-football-14",
+      "evidence_urls": ["https://github.com/LegendaryDoors/NCAAFootball14Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

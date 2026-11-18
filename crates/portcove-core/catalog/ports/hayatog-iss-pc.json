@@ -51,6 +51,15 @@
       "warnings": [
         "Preserve the actual inFAMOUS-PC data-root pointer, separate launcher settings and every effective save/backup location; complete upstream preparation and restart/update paths outside attachment."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "infamous-second-son",
+      "evidence_urls": [
+        "https://github.com/HayatoG/iss_pc/blob/372273780e2239b2e654229a3566d8f6bc642dcf/README.md",
+        "https://github.com/HayatoG/iss_pc"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

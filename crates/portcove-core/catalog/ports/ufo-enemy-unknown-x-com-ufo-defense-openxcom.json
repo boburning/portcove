@@ -61,7 +61,13 @@
       ]
     },
     "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
-    "release_url": "https://github.com/OpenXcom/OpenXcom/actions/workflows/nightly.yml"
+    "release_url": "https://github.com/OpenXcom/OpenXcom/actions/workflows/nightly.yml",
+    "original_game": {
+      "format_version": 1,
+      "id": "ufo-enemy-unknown-x-com-ufo-defense",
+      "evidence_urls": ["https://openxcom.org/", "https://github.com/OpenXcom/OpenXcom"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

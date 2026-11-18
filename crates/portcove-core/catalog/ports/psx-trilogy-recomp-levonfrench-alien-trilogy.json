@@ -35,6 +35,12 @@
       "image_sha256": "bf5d531fa1434f30f706d48c7ca1d0edfd518cc6c91fb85d97604126016d28b2",
       "game_slug": "alien-trilogy",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "alien-trilogy",
+      "evidence_urls": ["https://github.com/LevonFrench/PSX-Trilogy-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

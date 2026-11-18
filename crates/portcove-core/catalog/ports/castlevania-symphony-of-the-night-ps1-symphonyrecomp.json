@@ -51,6 +51,15 @@
       "image_sha256": "cecb4ca6ff14641c5396d5d57c282c502479d630cd64f098b0c3311c1bdd0a2f",
       "game_slug": "castlevania-symphony-of-the-night",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "castlevania-symphony-of-the-night",
+      "evidence_urls": [
+        "https://github.com/BlackLabelHQ/SymphonyRecomp/blob/16859f39abbeca905dcd6ab062617f19a7285fe6/README.md",
+        "https://github.com/BlackLabelHQ/SymphonyRecomp"
+      ],
+      "source_editions": []
     }
   }
 }

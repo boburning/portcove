@@ -16,7 +16,13 @@
       "game_slug": "goemon-64-recompiled--1",
       "match_kind": "port"
     },
-    "issue_number": 105
+    "issue_number": 105,
+    "original_game": {
+      "format_version": 1,
+      "id": "mystical-ninja-starring-goemon",
+      "evidence_urls": ["https://github.com/klorfmorf/Goemon64Recomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

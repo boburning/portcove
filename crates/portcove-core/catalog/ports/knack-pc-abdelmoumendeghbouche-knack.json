@@ -39,6 +39,12 @@
       "image_sha256": "016635419aedaf9b32cf2751f760b01767accb3fa9b6718074d9c4f39dabf0b7",
       "game_slug": "knack",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "knack",
+      "evidence_urls": ["https://github.com/AbdelmoumenDeghbouche/knack_pc"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -3,7 +3,7 @@
   "listing": {
     "id": "wtf-psp-recomp-sp00nznet-wtf-work-time-fun-game-sharing-microgames",
     "name": "WTF: Work Time Fun (game-sharing microgames) — wtf-psp-recomp (sp00nznet)",
-    "original_game_title": "WTF: Work Time Fun (game-sharing microgames)",
+    "original_game_title": "WTF: Work Time Fun",
     "summary": "Lumberjack reaches the paycheck, and Pendemonium is reported playable. The main EBOOT has not been attempted. Audio-device output is absent. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/wtf-psp-recomp",
     "platforms": [],
@@ -35,6 +35,12 @@
       "image_sha256": "7af25015548d76253fecaf429aa0da1599675ee854f4464adeafa56e69e6b023",
       "game_slug": "wtf-work-time-fun",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wtf-work-time-fun",
+      "evidence_urls": ["https://github.com/sp00nznet/wtf-psp-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

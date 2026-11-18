@@ -38,6 +38,15 @@
         }
       ],
       "help_url": "https://github.com/Solessfir/OpenVyruz/blob/50531e25bc669c540ec462cb479dd3399803605b/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "vyruz-destruction-of-the-untel-empire",
+      "evidence_urls": [
+        "https://github.com/Solessfir/OpenVyruz/blob/50531e25bc669c540ec462cb479dd3399803605b/README.md",
+        "https://github.com/Solessfir/OpenVyruz"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

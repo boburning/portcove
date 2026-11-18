@@ -42,6 +42,15 @@
         }
       ],
       "help_url": "https://colobot.info/download-colobot-gold/"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "colobot",
+      "evidence_urls": [
+        "https://colobot.info/download-colobot-gold/",
+        "https://github.com/colobot/colobot"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

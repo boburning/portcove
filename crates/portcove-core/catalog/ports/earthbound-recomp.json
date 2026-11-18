@@ -45,6 +45,15 @@
       "image_sha256": "0b09d1c1987b4353b9a00a4ab2ab99083745d22f78036996bab7c2d99b380c01",
       "game_slug": "earthbound",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "earthbound",
+      "evidence_urls": [
+        "https://github.com/nickclyde/EarthBoundRecomp/blob/fe1155dc26ffc40df36a8003dd0e639e17af3349/README.md",
+        "https://github.com/nickclyde/EarthBoundRecomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

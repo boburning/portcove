@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/LightVelox/sotc-vibe-pc"
     },
-    "issue_number": 3063
+    "issue_number": 3063,
+    "original_game": {
+      "format_version": 1,
+      "id": "shadow-of-the-colossus",
+      "evidence_urls": ["https://github.com/LightVelox/sotc-vibe-pc"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

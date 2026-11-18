@@ -45,7 +45,17 @@
       "warnings": [
         "Select NSMBW.exe with the complete Windows folder and compat/ retained, using your own extracted USA SMNE01 revision 1. Preserve Documents/MarioWiiSaveData or the existing portable/legacy data root; a CPU handoff can outlive Portcove’s activity."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "new-super-mario-bros-wii",
+      "evidence_urls": [
+        "https://github.com/WitherBlitz/NSMB-Wii-Recompilation/blob/aa7cf830837358d241e734e94741405c7c824ab2/README.md",
+        "https://github.com/WitherBlitz/NSMB-Wii-Recompilation"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "New Super Mario Bros. Wii"
   },
   "upstream_lineage": {
     "format_version": 1,

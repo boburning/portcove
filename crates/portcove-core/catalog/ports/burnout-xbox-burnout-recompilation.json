@@ -12,7 +12,7 @@
     },
     "name": "Burnout (Xbox) (Burnout Recompilation)",
     "summary": "Register the completed original Burnout Xbox native Windows launcher and preserve its separate build, settings and save folders.",
-    "original_game_title": "Burnout (Xbox)",
+    "original_game_title": "Burnout",
     "project_url": "https://github.com/Heromachine/Burnout-Recompilation",
     "platforms": [],
     "availability": "unknown",
@@ -49,6 +49,12 @@
           "instruction": "Retain applicable project and bundled-component notices, including the separate xboxrecomp MIT, xemu-derived GPL and tool licences. These do not grant original-game rights or permission to redistribute the locally generated game DLL. Removing registration preserves all external files. Portcove offers no external update, backup, rollback, conversion, migration, preparation or deletion. This early release has upstream-reported looping scrape audio and lighting limitations; those are not claimed repaired or independently tested here."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "burnout",
+      "evidence_urls": ["https://github.com/Heromachine/Burnout-Recompilation"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

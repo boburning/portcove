@@ -46,6 +46,15 @@
           "instruction": "See https://github.com/ForkedInTime/keeperfx-tux-edition/blob/v1.4.0.6103/docs/faq.md for edition-specific setup and save compatibility."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dungeon-keeper",
+      "evidence_urls": [
+        "https://github.com/ForkedInTime/keeperfx-tux-edition/blob/v1.4.0.6103/docs/install.md",
+        "https://github.com/ForkedInTime/keeperfx-tux-edition"
+      ],
+      "source_editions": []
     }
   }
 }

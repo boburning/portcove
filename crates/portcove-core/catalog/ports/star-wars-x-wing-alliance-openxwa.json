@@ -49,6 +49,15 @@
     "download_asset_hints": {
       "linux-x86-64": ["-linux-x86_64-release.tar.xz"],
       "macos-aarch64": ["-macos-arm64-release.dmg"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-x-wing-alliance",
+      "evidence_urls": [
+        "https://github.com/elyosh/OpenXWA/blob/9ff0e22109264629288401726589f4c1a901bc73/README.md",
+        "https://github.com/elyosh/OpenXWA"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

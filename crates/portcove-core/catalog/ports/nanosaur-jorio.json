@@ -45,6 +45,15 @@
         }
       ],
       "help_url": "https://github.com/jorio/Nanosaur/blob/v1.4.4/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "nanosaur",
+      "evidence_urls": [
+        "https://github.com/jorio/Nanosaur/blob/v1.4.4/README.md",
+        "https://github.com/jorio/Nanosaur"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

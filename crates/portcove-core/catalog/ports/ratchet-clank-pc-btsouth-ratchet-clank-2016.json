@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/btsouth/ratchet-clank-pc"
     },
-    "issue_number": 3467
+    "issue_number": 3467,
+    "original_game": {
+      "format_version": 1,
+      "id": "ratchet-and-clank-2016",
+      "evidence_urls": ["https://github.com/btsouth/ratchet-clank-pc"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -48,5 +54,10 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "separate",
+    "reason": "The exact source contract targets the 2016 reimagining, distinct from the original 2002 adventure.",
+    "evidence_urls": ["https://github.com/btsouth/ratchet-clank-pc"]
   }
 }

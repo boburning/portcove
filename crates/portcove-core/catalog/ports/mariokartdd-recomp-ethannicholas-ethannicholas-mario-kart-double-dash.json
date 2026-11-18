@@ -35,6 +35,12 @@
       "image_sha256": "5fd4283973677bbd9f95a76b63dd21418cbf292a48b490a93206a6ffacbaf7d8",
       "game_slug": "mario-kart-double-dash",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-kart-double-dash",
+      "evidence_urls": ["https://github.com/ethannicholas/mariokartdd-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

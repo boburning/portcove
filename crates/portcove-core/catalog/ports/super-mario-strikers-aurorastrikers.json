@@ -31,6 +31,16 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/Saffsanity/AuroraStrikers#readme"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-strikers",
+      "evidence_urls": [
+        "https://github.com/Saffsanity/AuroraStrikers#readme",
+        "https://github.com/Saffsanity/AuroraStrikers"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Super Mario Strikers"
   }
 }

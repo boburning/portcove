@@ -42,6 +42,15 @@
         "This guide follows the selected upstream source and release descriptions. Portcove has not checked the archive’s contents or checksum, installed prerequisites, or tested launch, graphics, gameplay or restoring real saves."
       ],
       "help_url": "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp#readme"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pac-man-championship-edition",
+      "evidence_urls": [
+        "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp",
+        "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp#readme"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -53,6 +53,16 @@
           "instruction": "Keep the complete creating player and prepared original, plus every effective SDK user/profile/save/configuration/mod/cache/log/backup and custom root. No complete per-user save location is established by this bounded title-source read. Preserve existing paths and compatibility; the package working directory alone is insufficient to identify all player data."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "project-gotham-racing-4",
+      "evidence_urls": [
+        "https://github.com/beatrixzy/PGR4-Recomp/releases",
+        "https://github.com/beatrixzy/PGR4-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Project Gotham Racing 4"
   }
 }

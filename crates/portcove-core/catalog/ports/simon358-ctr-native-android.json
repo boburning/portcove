@@ -32,6 +32,16 @@
       "warnings": [],
       "help_url": "https://github.com/Simon358/ctr-native-android/blob/Android-Build4/README.md"
     },
-    "release_url": "https://github.com/Simon358/ctr-native-android/releases"
+    "release_url": "https://github.com/Simon358/ctr-native-android/releases",
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-team-racing",
+      "evidence_urls": [
+        "https://github.com/Simon358/ctr-native-android/blob/Android-Build4/README.md",
+        "https://github.com/Simon358/ctr-native-android"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Crash Team Racing"
   }
 }

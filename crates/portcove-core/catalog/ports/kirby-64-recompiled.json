@@ -41,6 +41,17 @@
           "instruction": "Preserve saves/NK4E.us.bin and the general.json, graphics.json, controls.json and sound.json files under the effective Kirby64Recompiled profile. On Linux this is normally ~/.config/Kirby64Recompiled. An APP_FOLDER_PATH override or portable.txt changes the location. Back up the full effective folder with the player closed."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kirby-64-the-crystal-shards",
+      "evidence_urls": [
+        "https://github.com/Kirby64Ret/Kirby64Recomp#readme",
+        "https://github.com/Kirby64Ret/Kirby64Recomp/blob/480ed7e2a3160087bbe5f680f08e601eef7a4d69/README.md",
+        "https://github.com/Kirby64Ret/Kirby64Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Kirby 64: The Crystal Shards"
   }
 }

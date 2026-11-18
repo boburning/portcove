@@ -44,6 +44,16 @@
         "The Apolyton Edition is a community project. Activision did not make or support it."
       ],
       "help_url": "https://github.com/civctp2/civctp2/blob/Apolyton-Edition-2025-01-20/README.md#building-on-linux"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "call-to-power-ii",
+      "evidence_urls": [
+        "https://github.com/civctp2/civctp2/blob/Apolyton-Edition-2025-01-20/README.md#clone-and-complete-your-working-copy",
+        "https://github.com/civctp2/civctp2/blob/Apolyton-Edition-2025-01-20/README.md#building-on-linux",
+        "https://github.com/civctp2/civctp2"
+      ],
+      "source_editions": []
     }
   }
 }

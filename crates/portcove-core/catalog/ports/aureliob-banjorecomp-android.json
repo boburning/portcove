@@ -32,6 +32,16 @@
       "warnings": [],
       "help_url": "https://github.com/AurelioB/BanjoRecomp-Android/blob/android-v0.1.1/README.md"
     },
-    "release_url": "https://github.com/AurelioB/BanjoRecomp-Android/releases"
+    "release_url": "https://github.com/AurelioB/BanjoRecomp-Android/releases",
+    "original_game": {
+      "format_version": 1,
+      "id": "banjo-kazooie",
+      "evidence_urls": [
+        "https://github.com/AurelioB/BanjoRecomp-Android/blob/android-v0.1.1/README.md",
+        "https://github.com/AurelioB/BanjoRecomp-Android"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Banjo-Kazooie"
   }
 }

@@ -63,5 +63,13 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The authored source/setup scope explicitly permits Doom or Freedoom originals, with per-IWAD game/save choices. This broad engine record is not scoped to one original game.",
+    "evidence_urls": [
+      "https://flathub.org/apps/net.odamex.Odamex",
+      "https://github.com/odamex/odamex"
+    ]
   }
 }

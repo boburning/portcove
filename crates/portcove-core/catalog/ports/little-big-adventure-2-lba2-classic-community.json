@@ -45,6 +45,15 @@
         }
       ],
       "help_url": "https://github.com/LBALab/lba2-classic-community/blob/v0.13.2/README.md#game-data"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "little-big-adventure-2",
+      "evidence_urls": [
+        "https://github.com/LBALab/lba2-classic-community/blob/v0.13.2/README.md#game-data",
+        "https://github.com/LBALab/lba2-classic-community"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

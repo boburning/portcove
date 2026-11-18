@@ -35,6 +35,12 @@
       "image_sha256": "3b0748c7ef37ddf198ce6a7d5e8c7319870568e66b88a1db5320be70193e7877",
       "game_slug": "wwe-2k14",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wwe-2k14",
+      "evidence_urls": ["https://github.com/PromethenDev/wwe2k14-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

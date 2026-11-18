@@ -43,6 +43,15 @@
     "download_asset_hints": {
       "macos-x86-64": ["-mac.dmg"],
       "macos-aarch64": ["-mac.dmg"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "caesar-iii",
+      "evidence_urls": [
+        "https://github.com/bvschaik/julius#readme",
+        "https://github.com/bvschaik/julius"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

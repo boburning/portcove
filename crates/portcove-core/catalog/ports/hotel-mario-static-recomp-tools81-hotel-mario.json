@@ -35,6 +35,12 @@
       "image_sha256": "ad51cb009f668f663e1718221d6a1555b7bc2ae5eecd36238820a43f39c6397f",
       "game_slug": "hotel-mario",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "hotel-mario",
+      "evidence_urls": ["https://github.com/tools81/hotel-mario-static-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

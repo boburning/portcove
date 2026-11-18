@@ -17,6 +17,13 @@
       "image_sha256": "b28aec1d921e30d7321767e5cdd69be46340bb0df5ab1cd1e0dd8b6ba7e82692",
       "game_slug": "crash-bandicoot-2-cortex-strikes-back",
       "match_kind": "underlying-game"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-bandicoot-2-cortex-strikes-back",
+      "evidence_urls": ["https://github.com/Zumbo06/Crash2Recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Crash Bandicoot 2: Cortex Strikes Back"
   }
 }

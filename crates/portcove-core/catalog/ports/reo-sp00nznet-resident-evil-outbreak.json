@@ -35,6 +35,12 @@
       "image_sha256": "699dcde274fd49d4b7b7cc670b8a1d4554adc35e73b636612f48e6721867fff1",
       "game_slug": "resident-evil-outbreak",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-outbreak",
+      "evidence_urls": ["https://github.com/sp00nznet/reo"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

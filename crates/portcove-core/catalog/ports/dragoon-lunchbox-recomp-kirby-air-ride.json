@@ -35,6 +35,12 @@
       "image_sha256": "fccbb3ccfb6c3f3a4bd9b5c1d6d8bc40a8f5c0725f661748937c93781a72fd7d",
       "game_slug": "kirby-air-ride",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kirby-air-ride",
+      "evidence_urls": ["https://github.com/lunchbox-recomp/dragoon"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

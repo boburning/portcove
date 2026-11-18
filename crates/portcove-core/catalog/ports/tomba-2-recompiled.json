@@ -46,7 +46,17 @@
         "Use the USA Tomba2Recomp.exe and preserve its cards plus the separate seamless-loading cache. Italian mappings, imported-character mods and complete native coverage require their own evidence."
       ]
     },
-    "download_block_reason": "Portcove downloads are paused until permission for the bundled disc-derived native cache is established or upstream supplies an appropriately licensed replacement package. You can add a complete copy you are permitted to use."
+    "download_block_reason": "Portcove downloads are paused until permission for the bundled disc-derived native cache is established or upstream supplies an appropriately licensed replacement package. You can add a complete copy you are permitted to use.",
+    "original_game": {
+      "format_version": 1,
+      "id": "tomba-2",
+      "evidence_urls": [
+        "https://github.com/mstan/Tomba2Recomp/blob/97709516d657480ea66cbe2473d9fbae5986ca81/README.md",
+        "https://github.com/mstan/Tomba2Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Tomba! 2"
   },
   "route_facts_v1": {
     "format_version": 1,

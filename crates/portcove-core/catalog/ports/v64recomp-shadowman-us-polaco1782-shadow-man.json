@@ -45,6 +45,12 @@
       "image_sha256": "2c5afd7f5e12334727d08e2199881cb9ef98cd1c0ea10b6a5863ad76b8b2bd9e",
       "game_slug": "shadow-man",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "shadow-man",
+      "evidence_urls": ["https://github.com/polaco1782/v64recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

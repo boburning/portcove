@@ -35,6 +35,12 @@
       "image_sha256": "0e3051c1509f1afe97c30193d3643d4b09b73c3720ee25babf3a7ebd28911abf",
       "game_slug": "vagrant-story",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "vagrant-story",
+      "evidence_urls": ["https://github.com/mobius/psx-vagrantstory-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

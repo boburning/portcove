@@ -47,7 +47,13 @@
       "windows-x86-64": ["shantae-recomp-", "-windows-x64.zip"],
       "linux-x86-64": ["shantae-recomp-", "-linux-x86_64.tar.gz"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "shantae",
+      "evidence_urls": ["https://github.com/vibecodekun/shantaerecomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

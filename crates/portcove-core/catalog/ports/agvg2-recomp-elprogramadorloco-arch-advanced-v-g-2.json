@@ -35,6 +35,12 @@
       "image_sha256": "69b686463e2c3154293d8aa69c20fef5ebb483da4d191ddd9fa9ef9753187eb6",
       "game_slug": "advanced-vg-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "advanced-v-g-2",
+      "evidence_urls": ["https://github.com/elprogramadorloco-arch/agvg2-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

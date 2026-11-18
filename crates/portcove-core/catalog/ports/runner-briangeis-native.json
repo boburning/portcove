@@ -62,6 +62,15 @@
         }
       ],
       "help_url": "https://github.com/briangeis/runner/releases/tag/v1.0.0#first-run"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "runner",
+      "evidence_urls": [
+        "https://github.com/briangeis/runner/releases/tag/v1.0.0#first-run",
+        "https://github.com/briangeis/runner"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

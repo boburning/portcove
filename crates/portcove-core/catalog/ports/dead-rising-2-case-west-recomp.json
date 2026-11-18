@@ -53,6 +53,16 @@
         }
       ]
     },
-    "download_block_reason": "Portcove downloads are paused because the package includes shader pre-warm data recorded from the game and recipes for patching the game’s own shaders. They can resume when upstream publishes a package that creates them from your own game files."
+    "download_block_reason": "Portcove downloads are paused because the package includes shader pre-warm data recorded from the game and recipes for patching the game’s own shaders. They can resume when upstream publishes a package that creates them from your own game files.",
+    "original_game": {
+      "format_version": 1,
+      "id": "dead-rising-2-case-west",
+      "evidence_urls": [
+        "https://github.com/wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+        "https://github.com/wivi514/Dead_Rising_2_Case_West_Xenon_Recomp/releases/tag/v1.1.2"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Dead Rising 2: Case West"
   }
 }

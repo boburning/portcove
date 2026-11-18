@@ -35,6 +35,12 @@
       "image_sha256": "1342bdbcc6616dcef7d7cac7824afa94f9e20913bf9ea90d9c45008c57635c6a",
       "game_slug": "shin-megami-tensei-nine",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "shin-megami-tensei-nine",
+      "evidence_urls": ["https://github.com/gymzatan/smt-nine-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

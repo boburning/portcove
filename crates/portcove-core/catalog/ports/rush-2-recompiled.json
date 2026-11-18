@@ -45,6 +45,16 @@
       "warnings": [
         "Select Rush2Recompiled.exe and preserve its current marker/root and 32 KiB Controller Pak. Optional imported games, source permissions and other implementations’ acceptance do not carry over."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "rush-2-extreme-racing-usa",
+      "evidence_urls": [
+        "https://github.com/bryantmh/rush2recompiled/blob/cd1ea58eda9f6040c5b85df717d936a89af64598/README.md",
+        "https://github.com/bryantmh/rush2recompiled"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Rush 2: Extreme Racing USA"
   }
 }

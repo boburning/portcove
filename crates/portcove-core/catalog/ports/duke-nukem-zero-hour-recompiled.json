@@ -46,6 +46,15 @@
           "instruction": "If you already use an upstream-managed copy, preserve ~/.config/DNZHRecompiled on Linux, the DNZHRecompiled profile under ~/Library/Application Support on Mac, or your actual custom profile. For Flatpak also keep ~/.var/app/io.github.dnzhrecomp.dnzhrecomp. Back up the original, saves, mods and settings before replacing it. Portcove-managed installs keep their data in the Portcove profile and do not adopt these folders."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "duke-nukem-zero-hour",
+      "evidence_urls": [
+        "https://github.com/sonicdcer/DNZHRecomp#readme",
+        "https://gitlab.com/sonicdcer/DNZHRecomp"
+      ],
+      "source_editions": []
     }
   },
   "managed_setup_platform_warnings": {

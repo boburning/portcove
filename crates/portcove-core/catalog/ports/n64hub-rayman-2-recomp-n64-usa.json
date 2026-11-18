@@ -41,7 +41,16 @@
     "download_asset_hints": {
       "windows-x86-64": ["Rayman2Recompiled-", "-windows-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "rayman-2-the-great-escape",
+      "evidence_urls": [
+        "https://github.com/n64hub/rayman-2-recomp/blob/4cd56ce325977de3d9014af3e682596fcd664ea9/README.md",
+        "https://github.com/n64hub/rayman-2-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "route_facts_v1": {
     "format_version": 1,

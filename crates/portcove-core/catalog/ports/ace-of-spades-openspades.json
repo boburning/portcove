@@ -38,6 +38,12 @@
       ],
       "warnings": [],
       "help_url": "https://openspades.yvt.jp/"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ace-of-spades",
+      "evidence_urls": ["https://openspades.yvt.jp/", "https://github.com/yvt/openspades"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

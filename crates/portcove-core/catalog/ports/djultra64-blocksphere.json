@@ -32,7 +32,16 @@
       "warnings": [],
       "help_url": "https://github.com/djultra64/Blocksphere#readme"
     },
-    "original_game_title": "Tetrisphere"
+    "original_game_title": "Tetrisphere",
+    "original_game": {
+      "format_version": 1,
+      "id": "tetrisphere",
+      "evidence_urls": [
+        "https://github.com/djultra64/Blocksphere#readme",
+        "https://github.com/djultra64/Blocksphere"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

@@ -35,6 +35,12 @@
       "image_sha256": "3024381e8592e07d46b85973b0da246d3cded4cc442aa81a9d8c831cbb2654b4",
       "game_slug": "mario-kart-arcade-gp",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-kart-arcade-gp",
+      "evidence_urls": ["https://github.com/sp00nznet/mka"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

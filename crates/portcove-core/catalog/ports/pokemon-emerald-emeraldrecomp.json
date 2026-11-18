@@ -53,7 +53,16 @@
       "help_url": "https://github.com/mstan/EmeraldRecomp/releases"
     },
     "original_game_title": "Pokémon Emerald",
-    "platforms": ["linux-x86-64"]
+    "platforms": ["linux-x86-64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-emerald",
+      "evidence_urls": [
+        "https://github.com/mstan/EmeraldRecomp/releases",
+        "https://github.com/mstan/EmeraldRecomp"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

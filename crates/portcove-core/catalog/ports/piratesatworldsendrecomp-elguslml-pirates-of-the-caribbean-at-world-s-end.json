@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/ElGuslml/PiratesAtWorldsEndRecomp"
     },
-    "issue_number": 3140
+    "issue_number": 3140,
+    "original_game": {
+      "format_version": 1,
+      "id": "pirates-of-the-caribbean-at-worlds-end",
+      "evidence_urls": ["https://github.com/ElGuslml/PiratesAtWorldsEndRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

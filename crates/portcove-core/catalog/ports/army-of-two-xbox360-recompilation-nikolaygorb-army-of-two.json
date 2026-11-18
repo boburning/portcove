@@ -35,6 +35,12 @@
       "image_sha256": "c18a22095f16a0cd9efc70383ce92291ff1b70f3aad6b7037630e51501c3c3c8",
       "game_slug": "army-of-two",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "army-of-two",
+      "evidence_urls": ["https://github.com/nikolaygorb/ArmyOfTwoRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

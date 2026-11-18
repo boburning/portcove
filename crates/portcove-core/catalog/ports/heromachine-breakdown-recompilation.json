@@ -49,6 +49,16 @@
       "warnings": [
         "Version 0.2.2 is early and incomplete. Upstream reports looping background music, slow Retry/loading and late textures."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "breakdown",
+      "evidence_urls": [
+        "https://github.com/Heromachine/Breakdown-Recompilation",
+        "https://github.com/Heromachine/Breakdown-Recompilation/blob/473b7d22c6c24b74f4bf424ecfff3cc1355c6a5a/README.md"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Breakdown"
   }
 }

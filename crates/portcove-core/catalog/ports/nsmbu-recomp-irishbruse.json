@@ -49,7 +49,17 @@
       "warnings": [
         "Select the completed native game rather than the GUI installer: the installer can exit while the actual game continues."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "new-super-mario-bros-u",
+      "evidence_urls": [
+        "https://github.com/nsmbu-recomp/nsmbu-recomp/blob/8495be501f133b57a9070511d2178e810b8eceee/README.md",
+        "https://github.com/nsmbu-recomp/nsmbu-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "New Super Mario Bros. U"
   },
   "upstream_lineage": {
     "format_version": 1,

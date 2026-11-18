@@ -55,6 +55,16 @@
           "instruction": "Preserve the complete saves/ folder, legacy save copies, preferences, mods/ including 3d_marcas.txt, captures and custom packs. The selected runtime uses wario_land_sm3_dx_v12 for saves; upstream owns save-slot replacement/deletion and all compatibility decisions. Save or mod compatibility across other ports, builds or editions is not established."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wario-land-super-mario-land-3",
+      "evidence_urls": [
+        "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/README.md",
+        "https://github.com/GABRIELNNK/Bigodao"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Wario Land: Super Mario Land 3"
   }
 }

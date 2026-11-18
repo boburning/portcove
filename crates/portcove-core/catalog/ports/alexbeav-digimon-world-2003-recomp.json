@@ -53,6 +53,15 @@
           "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "digimon-world-2003",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

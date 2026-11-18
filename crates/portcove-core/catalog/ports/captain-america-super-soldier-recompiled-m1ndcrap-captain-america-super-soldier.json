@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/m1ndcrap/Captain-America-Super-Soldier-Recompiled"
     },
-    "issue_number": 3305
+    "issue_number": 3305,
+    "original_game": {
+      "format_version": 1,
+      "id": "captain-america-super-soldier",
+      "evidence_urls": ["https://github.com/m1ndcrap/Captain-America-Super-Soldier-Recompiled"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -51,6 +51,15 @@
       "image_sha256": "65ef1720b7965db3771aac24988a968e06ec445171d385d5015d5631945147ba",
       "game_slug": "virtua-fighter-recomp",
       "match_kind": "port"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "virtua-fighter",
+      "evidence_urls": [
+        "https://github.com/mr-finster/vf1-recomp",
+        "https://github.com/mr-finster/vf1-recomp/blob/9586e1433366f8af6aa80659dc1f9f45291a086d/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -48,5 +48,10 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "unresolved",
+    "reason": "The exact HD Ver. Xbox360 original is identified, but retained source facts do not settle its relationship to the separately cataloged PS1 Heritage for the Future adaptation (which can have different content). Review direct publisher/original-product evidence before making a shared original-game assignment; franchise similarity and an HD suffix alone are insufficient.",
+    "evidence_urls": ["https://github.com/UNREALWINS/jojo-hd-recompiled"]
   }
 }

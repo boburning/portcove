@@ -35,6 +35,12 @@
       "image_sha256": "c874dfe0b4eb144c7c3d04785716f307858577e6c661d2dde313109a6d4221ff",
       "game_slug": "peggle-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "peggle-2-xbox-live-arcade",
+      "evidence_urls": ["https://github.com/macprotips/peggle2-mac"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

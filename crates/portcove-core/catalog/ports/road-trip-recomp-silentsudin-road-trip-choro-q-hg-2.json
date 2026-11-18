@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/silentsudin/RoadTripAdventure-recomp"
     },
-    "issue_number": 3062
+    "issue_number": 3062,
+    "original_game": {
+      "format_version": 1,
+      "id": "road-trip-choro-q-hg-2",
+      "evidence_urls": ["https://github.com/silentsudin/RoadTripAdventure-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

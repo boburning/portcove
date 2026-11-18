@@ -79,7 +79,11 @@ import {
 } from "../view-model";
 import { BrandMascot, BrandWordmark } from "./Brand";
 import { BrandMotif, EmptyState, Icon } from "./ui";
-import type { NativeSourceDragState } from "../native-source-drop";
+import type {
+  NativeSourceDragState,
+  NativeSourceGameDrop,
+  ExactNativeSourceDrop,
+} from "../native-source-drop";
 import { ArtworkFrame, artworkDisplayNotice } from "./Artwork";
 import { useArtwork, useArtworkVisibility } from "../artwork";
 import { Button } from "./ui/button";
@@ -183,6 +187,12 @@ function browserResultAvailability(
   };
 }
 
+export interface GameSourceDropReview {
+  pending?: NativeSourceGameDrop | undefined;
+  select: (drop: ExactNativeSourceDrop) => void;
+  dismiss: () => void;
+}
+
 function browserResultCountLabel({
   view,
   visiblePorts,
@@ -197,9 +207,9 @@ function browserResultCountLabel({
   declaredCandidates: CatalogEntry[] | undefined;
 }) {
   if (view === "catalog") {
-    // Each card is one game; port counts and grouping facts belong on the game page.
+    // Explicit game identities and unresolved project entries have different scopes.
     const groups = groupCatalog(catalogUniverse ?? declaredCandidates ?? ports, visiblePorts);
-    return `${groups.length} ${groups.length === 1 ? "game" : "games"}`;
+    return groupCountLabel(groups);
   }
   if (view === "library") {
     const groups = groupCatalog(catalogUniverse ?? ports, visiblePorts);
@@ -336,6 +346,7 @@ function usePortBrowser({
   clearFilters,
   loading,
   nativeSourceDrag = idleNativeSourceDrag,
+  gameSourceDropReview,
   collectionLayout = "covers",
   setCollectionLayout,
   collectionLayoutFailure,
@@ -376,6 +387,7 @@ function usePortBrowser({
   clearFilters?: (() => void) | undefined;
   loading: boolean;
   nativeSourceDrag?: NativeSourceDragState;
+  gameSourceDropReview?: GameSourceDropReview | undefined;
 }) {
   const [organizationViews, setOrganizationViews] = useState({ library: "all", catalog: "all" });
   const organizationKey = view === "catalog" ? "catalog" : "library";
@@ -504,6 +516,7 @@ function usePortBrowser({
     steamBatch,
     loading,
     nativeSourceDrag,
+    gameSourceDropReview,
     collectionLayout,
     setCollectionLayout,
     collectionLayoutFailure,
@@ -743,6 +756,7 @@ function PortBrowserView({
         loading={model.loadingResults}
         unavailable={model.resultsUnavailable}
         nativeSourceDrag={model.nativeSourceDrag}
+        gameSourceDropReview={model.gameSourceDropReview}
         devicePlatform={model.queryContext?.devicePlatform}
       />
     </div>
@@ -841,6 +855,7 @@ function BrowserResults({
   loading,
   unavailable,
   nativeSourceDrag,
+  gameSourceDropReview,
   devicePlatform,
 }: {
   devicePlatform?: PortDefinition["platforms"][number] | undefined;
@@ -866,6 +881,7 @@ function BrowserResults({
   loading: boolean;
   unavailable: boolean;
   nativeSourceDrag: NativeSourceDragState;
+  gameSourceDropReview?: GameSourceDropReview | undefined;
 }) {
   if (loading && ports.length === 0) return <LoadingState />;
   if (unavailable && ports.length === 0) return null;
@@ -895,6 +911,9 @@ function BrowserResults({
         favorites={favorites}
         onFavoriteToggle={onFavoriteToggle}
         nativeSourceDrag={nativeSourceDrag}
+        pendingGameDrop={gameSourceDropReview?.pending}
+        onGameDropSelect={gameSourceDropReview?.select}
+        onGameDropDismiss={gameSourceDropReview?.dismiss}
         devicePlatform={devicePlatform}
       />
     );
@@ -915,7 +934,7 @@ function BrowserResults({
         statuses={statuses}
         organization={organization}
         onSelect={onSelect}
-        renderPort={(port) => (
+        renderPort={(port, presentationPort) => (
           <PortCard
             layout={layout}
             favorites={favorites}
@@ -924,6 +943,7 @@ function BrowserResults({
             restoreAfter={restoreAfter}
             key={port.id}
             port={port}
+            presentationPort={presentationPort}
             status={statuses.get(port.id)}
             readiness={portReadiness(statuses.get(port.id))}
             onSelect={onSelect}
@@ -1136,6 +1156,7 @@ type CardState = {
 };
 
 type PortCardProps = {
+  presentationPort?: CatalogEntry | undefined;
   organization?: Organization | undefined;
   restoreAfter: (button: HTMLElement, action: () => Promise<boolean>) => Promise<void>;
   layout: CollectionLayout;
@@ -1155,6 +1176,7 @@ const idleNativeSourceDrag: NativeSourceDragState = { active: false, pathCount: 
 
 /** Memoized: a grid re-renders only cards whose port, status or shared inputs changed. */
 const PortCard = memo(function PortCard({
+  presentationPort,
   organization,
   restoreAfter,
   layout,
@@ -1222,6 +1244,7 @@ const PortCard = memo(function PortCard({
   return (
     <LibraryEntry
       {...{
+        presentationPort,
         port,
         status,
         state,
@@ -1245,6 +1268,7 @@ const PortCard = memo(function PortCard({
 
 function LibraryEntry({
   port,
+  presentationPort = port,
   status,
   state,
   layout,
@@ -1263,6 +1287,7 @@ function LibraryEntry({
 }: Pick<
   PortCardProps,
   | "port"
+  | "presentationPort"
   | "status"
   | "layout"
   | "onSelect"
@@ -1281,7 +1306,7 @@ function LibraryEntry({
   favoriteMenu: ReactNode;
 }) {
   const { element: artworkElement, visible } = useArtworkVisibility();
-  const { display: artwork } = useArtwork(port.id, "cover", visible);
+  const { display: artwork } = useArtwork(presentationPort.id, "cover", visible);
   const artworkNotice = artworkDisplayNotice(artwork);
   return (
     <article
@@ -1310,7 +1335,7 @@ function LibraryEntry({
           <ArtworkFrame
             element={artworkElement}
             display={artwork}
-            portId={port.id}
+            portId={presentationPort.id}
             visible={visible}
             identityArtwork
             className="card-art collection-art"
@@ -1321,7 +1346,7 @@ function LibraryEntry({
               aria-level={2}
               className="collection-title font-semibold wrap-anywhere"
             >
-              {gameTitle(port)}
+              {gameTitle(presentationPort)}
             </span>{" "}
             <span
               className="collection-project block wrap-anywhere text-[var(--color-text-secondary)]"
@@ -1772,25 +1797,25 @@ function BrowserQuickViews({
     );
   };
   const views: { view: LibraryQuickView; label: string; description: string }[] = [
-    { view: "all", label: "All", description: "Every game in this library scope" },
+    { view: "all", label: "All", description: "Every port in this library scope" },
     ...(favorites
       ? [
           {
             view: "favorites" as const,
             label: "Favorites",
-            description: "Games you marked as favorites",
+            description: "Ports you marked as favorites",
           },
         ]
       : []),
     {
       view: "attention",
       label: "Needs attention",
-      description: "Games that need setup, files or repair before they can play",
+      description: "Ports that need setup, files or repair before they can play",
     },
     {
       view: "updates",
       label: "Updates",
-      description: "Games with an update available or downloaded and ready to apply",
+      description: "Ports with an update available or downloaded and ready to apply",
     },
   ];
   const enabled = (view: LibraryQuickView) =>
@@ -1872,7 +1897,7 @@ function BrowserQuickViews({
               : `${description}.`}
             {/* Favorites already names its count. */}
             {view !== "favorites" &&
-              ` ${typeof count === "number" ? `${count} ${count === 1 ? "game" : "games"}` : "Count unavailable"}`}
+              ` ${typeof count === "number" ? `${count} ${count === 1 ? "port" : "ports"}` : "Count unavailable"}`}
           </span>
         );
       })}
@@ -1991,7 +2016,7 @@ function collectionViewLabel(
 }
 
 function libraryResultCount(visible: number, installed: number) {
-  return `${visible} of ${installed} in your library`;
+  return `${visible} of ${installed} ${installed === 1 ? "port" : "ports"} in your library`;
 }
 
 function CollectionLayoutToggle({
@@ -2366,7 +2391,7 @@ function BrowserLastPlayed({
 
 function browserResultCount(view: View, count: number) {
   return view === "library"
-    ? `${count} in your library`
+    ? `${count} ${count === 1 ? "port" : "ports"} in your library`
     : `${count} ${count === 1 ? "port" : "ports"}`;
 }
 

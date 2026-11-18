@@ -45,6 +45,15 @@
         }
       ],
       "help_url": "https://github.com/tmewett/BrogueCE/blob/v1.15.1/README.md#playing"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "brogue",
+      "evidence_urls": [
+        "https://github.com/tmewett/BrogueCE/blob/v1.15.1/README.md#playing",
+        "https://github.com/tmewett/BrogueCE"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

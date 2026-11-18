@@ -49,6 +49,16 @@
           "instruction": "Run the upstream Windows Debug build first to generate the Android build inputs, then use the Gradle instructions with NDK 29.0.14206865. The ARM64 app requires Android 9 or later with Vulkan 1.1. Select your own ROM with the app’s file picker. The app validates and imports it. Preserve the effective com.rs64recomp.app files folder and its saves, mods and roguesq_touch.json. The app can fall back to internal storage."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-rogue-squadron",
+      "evidence_urls": [
+        "https://github.com/MikeSemicolonD/RogueSquadron64Recomp/blob/bee164655638263b7a748236bdeab411e9394afe/docs/guides/building-all-platforms.md",
+        "https://github.com/MikeSemicolonD/RogueSquadron64Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Star Wars: Rogue Squadron"
   }
 }

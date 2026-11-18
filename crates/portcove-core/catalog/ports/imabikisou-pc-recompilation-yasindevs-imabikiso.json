@@ -35,6 +35,12 @@
       "image_sha256": "faa9e616726e198393649ff41f5f03420d78722b63168e1c33eefb42d0ba4c6d",
       "game_slug": "imabikisou",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "imabikiso",
+      "evidence_urls": ["https://github.com/yasindevs/imabikisou-pc"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

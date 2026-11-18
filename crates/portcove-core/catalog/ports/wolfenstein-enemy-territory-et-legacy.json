@@ -53,6 +53,15 @@
           "instruction": "The reviewed 2.86.2 release includes Windows x86 and x86-64, Linux i386, x86-64 and AArch64, and Mac Intel and Apple silicon packages. The engine targets ET 2.60b compatibility. The original game data keeps its own license. Put pak0.pk3 and any required pak1.pk3 and pak2.pk3 in etmain/."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wolfenstein-enemy-territory",
+      "evidence_urls": [
+        "https://github.com/etlegacy/etlegacy/tree/e12f07957cd0b5fae5f83cea24412ee334ea999a",
+        "https://github.com/etlegacy/etlegacy"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

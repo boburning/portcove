@@ -45,6 +45,16 @@
       "warnings": [
         "The native mw2-launcher.exe frontend preserves ordinary upstream setup and mode choices; existing direct mw2-sp.exe/mw2-mp.exe registrations remain available. Portcove tracks only the selected program. Preserve game/, saves/ and .env, close actual games/helpers before changes."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "call-of-duty-modern-warfare-2",
+      "evidence_urls": [
+        "https://github.com/PaulCombal/mw2-recompiled",
+        "https://github.com/PaulCombal/mw2-recompiled/blob/f42aa5596dd7f11c50df1d3d48b90085a8581384/README.md"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Call of Duty: Modern Warfare 2"
   }
 }

@@ -16,7 +16,13 @@
       "game_slug": "opengoal-jak-3",
       "match_kind": "port"
     },
-    "issue_number": 116
+    "issue_number": 116,
+    "original_game": {
+      "format_version": 1,
+      "id": "jak-3",
+      "evidence_urls": ["https://github.com/open-goal/jak-project"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/b4ttycre4se/Spider-Man-3-Recomp"
     },
-    "issue_number": 3233
+    "issue_number": 3233,
+    "original_game": {
+      "format_version": 1,
+      "id": "spider-man-3",
+      "evidence_urls": ["https://github.com/b4ttycre4se/Spider-Man-3-Recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

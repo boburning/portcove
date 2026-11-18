@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/nikolaygorb/FuseRecomp"
     },
-    "issue_number": 3221
+    "issue_number": 3221,
+    "original_game": {
+      "format_version": 1,
+      "id": "fuse",
+      "evidence_urls": ["https://github.com/nikolaygorb/FuseRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

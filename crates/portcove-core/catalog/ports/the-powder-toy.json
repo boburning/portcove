@@ -48,6 +48,15 @@
         }
       ],
       "help_url": "https://powdertoy.co.uk/FAQ.html"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-powder-toy",
+      "evidence_urls": [
+        "https://powdertoy.co.uk/FAQ.html",
+        "https://github.com/The-Powder-Toy/The-Powder-Toy"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

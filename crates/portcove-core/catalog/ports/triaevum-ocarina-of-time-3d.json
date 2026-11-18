@@ -48,6 +48,16 @@
         "Managed Forge generation/activation, interrupted recovery, update/rollback, private-data migration and GPU cache regeneration remain unresolved/unoffered stronger operations. Existing generated-output registration does not mark those conditions solved or make speculative console-family infrastructure a prerequisite for this native handoff.",
         "Component terms remain separate: selected LICENSE_SCOPE excludes iMMERSE from the general GPL grant and records TriAevum-exclusive nontransferable redistribution permission; NVIDIA NGX/DLSS and other components retain their own terms. This guide covers only an already permitted working private copy, not redistribution clearance."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-ocarina-of-time-3d",
+      "evidence_urls": [
+        "https://github.com/coccofresco/TriAevum/blob/a56f9649747a46655728f217abda9c51c66b11ba/README.md",
+        "https://github.com/coccofresco/TriAevum"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "The Legend of Zelda: Ocarina of Time 3D"
   }
 }

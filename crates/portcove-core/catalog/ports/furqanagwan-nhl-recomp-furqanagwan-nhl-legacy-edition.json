@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/furqanagwan/nhl"
     },
-    "issue_number": 3134
+    "issue_number": 3134,
+    "original_game": {
+      "format_version": 1,
+      "id": "nhl-legacy-edition",
+      "evidence_urls": ["https://github.com/furqanagwan/nhl"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

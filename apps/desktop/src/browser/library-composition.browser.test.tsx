@@ -216,7 +216,7 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   const launch = vi.spyOn(desktopApi, "launch");
   expect(document.querySelector(".library-query-tools #port-search")).not.toBeNull();
   expect(document.querySelector(".header-tools #port-search")).toBeNull();
-  expect(document.body.textContent).toContain("12 in your library");
+  expect(document.body.textContent).toContain("12 ports in your library");
   const portCard = (id: string) =>
     page.elementLocator(
       document
@@ -234,7 +234,7 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   await page.getByRole("textbox", { name: "Search your library" }).fill("Super Mario 64");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
   const summary = document.querySelector(".collection-result-summary")!;
-  expect(summary.textContent).toContain("2 of 12 in your library");
+  expect(summary.textContent).toContain("2 of 12 ports in your library");
   expect(document.querySelectorAll('[role="status"][aria-label="Search results"]')).toHaveLength(1);
   expect(document.querySelectorAll(".collection-result-summary")).toHaveLength(1);
   expect(document.querySelectorAll(".collection-result-summary button")).toHaveLength(1);
@@ -326,10 +326,10 @@ it.each(["dark", "light"])(
     }
     await expect
       .element(group.getByRole("radio", { name: "All", exact: true }))
-      .toHaveAccessibleDescription("Every game in this library scope. 12 games");
+      .toHaveAccessibleDescription("Every port in this library scope. 12 ports");
     await expect
       .element(group.getByRole("radio", { name: "Needs attention", exact: true }))
-      .toHaveAccessibleDescription(/Games that need setup, files or repair/);
+      .toHaveAccessibleDescription(/Ports that need setup, files or repair/);
     expect(getComputedStyle(group.element().querySelector(".browse-count")!).display).toBe("none");
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
     await page.getByRole("button", { name: "Manage collections", exact: true }).click();
@@ -376,7 +376,7 @@ it("names exact port choices from their visible identity and readiness inside gr
   expect(document.querySelectorAll("[data-discover-port-ids]")).toHaveLength(11);
   await expect
     .element(page.getByRole("status", { name: "Search results", exact: true }))
-    .toHaveTextContent("11 games");
+    .toHaveTextContent("1 game + 10 ungrouped projects");
   await userEvent.click(group.querySelector<HTMLButtonElement>(".discover-game-identity")!);
   const dialog = page.getByRole("dialog", { name: "Super Mario 64", exact: true });
   await expect.element(dialog).toBeVisible();
@@ -697,7 +697,7 @@ for (const theme of ["dark", "light"]) {
       expect(bounds.top).toBeGreaterThanOrEqual(visibleTop);
       expect(bounds.bottom).toBeLessThanOrEqual(visibleBottom);
     }
-    expect(project.textContent).toContain("2 separate port projects");
+    expect(project.textContent).toContain("2 options");
     expect(identity.textContent).toContain("Super Mario 64");
     expect(identity.querySelectorAll("button")).toHaveLength(0);
     expect(workspace.scrollWidth).toBeLessThanOrEqual(workspace.clientWidth + 1);

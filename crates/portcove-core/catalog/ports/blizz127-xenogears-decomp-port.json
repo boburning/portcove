@@ -40,6 +40,15 @@
       ],
       "help_url": "https://github.com/Blizz127/xenogears-decomp-port/blob/33a7260a242b23079836a178943ce8b8e25325b6/README.md"
     },
-    "download_block_reason": "Published r5 includes transcribed retail tables and code from an upstream decompilation with no published license; its parent MIT grant excludes that work. Resolve permission for the affected package scope or supply a reviewed released replacement that removes it. Future-source fixes do not establish a repaired downloadable artifact. Permitted existing copies remain external."
+    "download_block_reason": "Published r5 includes transcribed retail tables and code from an upstream decompilation with no published license; its parent MIT grant excludes that work. Resolve permission for the affected package scope or supply a reviewed released replacement that removes it. Future-source fixes do not establish a repaired downloadable artifact. Permitted existing copies remain external.",
+    "original_game": {
+      "format_version": 1,
+      "id": "xenogears",
+      "evidence_urls": [
+        "https://github.com/Blizz127/xenogears-decomp-port/blob/33a7260a242b23079836a178943ce8b8e25325b6/README.md",
+        "https://github.com/Blizz127/xenogears-decomp-port"
+      ],
+      "source_editions": []
+    }
   }
 }

@@ -35,6 +35,12 @@
       "image_sha256": "e26f1da077b98cb165b58872ed67b9a4b904cfa2a331ce1687609e8d91922f64",
       "game_slug": "2014-fifa-world-cup-brazil",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "2014-fifa-world-cup-brazil",
+      "evidence_urls": ["https://github.com/HossEz/fifa-world-cup-2014-recompiled"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -53,7 +53,16 @@
         }
       ]
     },
-    "original_game_title": "Caesar III"
+    "original_game_title": "Caesar III",
+    "original_game": {
+      "format_version": 1,
+      "id": "caesar-iii",
+      "evidence_urls": [
+        "https://github.com/Keriew/augustus#running-the-game",
+        "https://github.com/Keriew/augustus"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

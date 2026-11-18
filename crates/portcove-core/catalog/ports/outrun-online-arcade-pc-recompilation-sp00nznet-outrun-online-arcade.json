@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/sp00nznet/outrun"
     },
-    "issue_number": 3299
+    "issue_number": 3299,
+    "original_game": {
+      "format_version": 1,
+      "id": "outrun-online-arcade",
+      "evidence_urls": ["https://github.com/sp00nznet/outrun"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

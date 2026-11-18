@@ -35,6 +35,12 @@
       "image_sha256": "8ac290eb748a3fbe81782db53f5ef91467b64f55842801c8591b6a703e7d6850",
       "game_slug": "jersey-devil",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "jersey-devil",
+      "evidence_urls": ["https://github.com/mstan/JerseyDevilRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

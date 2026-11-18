@@ -43,6 +43,15 @@
         "The inspected tagged source starts unauthenticated loopback debug control. Transfer Pak and GB Tower can write separately configured cartridge saves; preserve the actual paths and creating runtimes. No actual game or Transfer Pak execution has been qualified."
       ],
       "help_url": "https://github.com/mstan/PokemonStadiumRecomp/releases/tag/v0.4.7-beta"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-stadium",
+      "evidence_urls": [
+        "https://github.com/mstan/PokemonStadiumRecomp/releases/tag/v0.4.7-beta",
+        "https://github.com/mstan/PokemonStadiumRecomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

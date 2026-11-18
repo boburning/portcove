@@ -35,6 +35,12 @@
       "image_sha256": "618c3934a7cc6ea3c3db0c3fb229b793cb861cea2c55cdf6e304a0faa79517a5",
       "game_slug": "army-of-two-the-40th-day",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "army-of-two-the-40th-day",
+      "evidence_urls": ["https://github.com/eu-maxwelllucas/Libre40"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

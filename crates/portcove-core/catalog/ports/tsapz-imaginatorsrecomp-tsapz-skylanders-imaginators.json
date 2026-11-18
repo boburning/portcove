@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/tsapZ/ImaginatorsRecomp"
     },
-    "issue_number": 3150
+    "issue_number": 3150,
+    "original_game": {
+      "format_version": 1,
+      "id": "skylanders-imaginators",
+      "evidence_urls": ["https://github.com/tsapZ/ImaginatorsRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

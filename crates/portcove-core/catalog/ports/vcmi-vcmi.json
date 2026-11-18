@@ -69,6 +69,12 @@
       "linux-x86-64": ["VCMI-Linux-x64.AppImage"],
       "macos-x86-64": ["VCMI-macOS-intel.dmg"],
       "macos-aarch64": ["VCMI-macOS-arm.dmg"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "heroes-of-might-and-magic-iii",
+      "evidence_urls": ["https://vcmi.eu/download/", "https://github.com/vcmi/vcmi"],
+      "source_editions": []
     }
   },
   "integration": {

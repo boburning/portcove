@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/thefixinhixon/PacificRimRecomp"
     },
-    "issue_number": 3249
+    "issue_number": 3249,
+    "original_game": {
+      "format_version": 1,
+      "id": "pacific-rim-the-video-game",
+      "evidence_urls": ["https://github.com/thefixinhixon/PacificRimRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

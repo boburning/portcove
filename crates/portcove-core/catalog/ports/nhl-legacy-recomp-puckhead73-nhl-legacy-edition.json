@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/puckhead73/nhl-legacy-recomp"
     },
-    "issue_number": 3133
+    "issue_number": 3133,
+    "original_game": {
+      "format_version": 1,
+      "id": "nhl-legacy-edition",
+      "evidence_urls": ["https://github.com/puckhead73/nhl-legacy-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

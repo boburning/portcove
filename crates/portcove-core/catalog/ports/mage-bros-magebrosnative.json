@@ -46,6 +46,15 @@
         }
       ],
       "help_url": "https://github.com/Exo-MDR-CD2000/MageBrosNative/blob/v0.4.47/README.md#getting-started"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mage-bros",
+      "evidence_urls": [
+        "https://github.com/Exo-MDR-CD2000/MageBrosNative/blob/v0.4.47/README.md#getting-started",
+        "https://github.com/Exo-MDR-CD2000/MageBrosNative"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

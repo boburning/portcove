@@ -53,6 +53,12 @@
     "release_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/releases/tag/1.1-stable",
     "download_asset_hints": {
       "linux-x86-64": ["Linux.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-bros",
+      "evidence_urls": ["https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public"],
+      "source_editions": []
     }
   },
   "integration": {

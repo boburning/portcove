@@ -43,6 +43,15 @@
     "release_url": "https://github.com/andrei-drexler/ironwail/releases",
     "download_asset_hints": {
       "linux-x86-64": ["ironwail-", "-linux-x64.tar.gz"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "quake",
+      "evidence_urls": [
+        "https://github.com/andrei-drexler/ironwail/tree/1eabd0df21130e55d94496c7af177e2dcbed75df",
+        "https://github.com/andrei-drexler/ironwail"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

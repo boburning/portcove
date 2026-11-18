@@ -45,6 +45,13 @@
         }
       ]
     },
-    "recommended_download_channel": "beta"
+    "recommended_download_channel": "beta",
+    "original_game": {
+      "format_version": 1,
+      "id": "40-winks",
+      "evidence_urls": ["https://github.com/Faderz48/40-Winks-PC-Port/tree/v0.1.7-alpha#readme"],
+      "source_editions": []
+    },
+    "original_game_title": "40 Winks"
   }
 }

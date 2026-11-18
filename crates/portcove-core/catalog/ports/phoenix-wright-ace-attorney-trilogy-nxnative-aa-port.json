@@ -53,5 +53,10 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "This upstream route targets the original PhoenixWright trilogy collection, containing three distinct original adventures.",
+    "evidence_urls": ["https://github.com/armyja/nxnative-aa-port"]
   }
 }

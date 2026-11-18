@@ -46,6 +46,15 @@
       "image_sha256": "d747e957ba90854d10c87f4356cad1347fe138f7037eb9c82b6d0df649af98a2",
       "game_slug": "yoshis-cookie",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "yoshis-cookie",
+      "evidence_urls": [
+        "https://github.com/mstan/YoshisCookieRecomp/releases",
+        "https://github.com/mstan/YoshisCookieRecomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

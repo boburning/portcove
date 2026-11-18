@@ -26,7 +26,13 @@
       "game_slug": "bomberman-party-edition",
       "match_kind": "underlying-game"
     },
-    "issue_number": 74
+    "issue_number": 74,
+    "original_game": {
+      "format_version": 1,
+      "id": "bomberman-party-edition",
+      "evidence_urls": ["https://github.com/TechnicallyComputers/BombermanPartyEditionRecomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

@@ -50,6 +50,15 @@
           "instruction": "The documented profile stays beside d.exe: settings.ini, saves/slot1.state through slot8.state and d.log. Preserve the entire saves/ directory, metadata/thumbnails, settings, diagnostics, temporary files, mods, backups and any actual custom/external root, plus the full creating runtime and selected original disc images. State compatibility depends on game.dll code/data layout; upstream version-survival claims are not Portcove real-save qualification. Keep the matching old DLL and runtime with states before replacement. Do not migrate DOS saves or delete originals on the basis of this registration. Preserve any existing D_SAVE_DIR override and its actual state files; Portcove does not set or own that external location."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "d",
+      "evidence_urls": [
+        "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp",
+        "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp/blob/9e8d7f28bb78a71dcccceb92019037e5cca12955/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

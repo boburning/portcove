@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/vs-sr-dev/pc-demolitionman"
     },
-    "issue_number": 3594
+    "issue_number": 3594,
+    "original_game": {
+      "format_version": 1,
+      "id": "demolition-man-3do",
+      "evidence_urls": ["https://github.com/vs-sr-dev/pc-demolitionman"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

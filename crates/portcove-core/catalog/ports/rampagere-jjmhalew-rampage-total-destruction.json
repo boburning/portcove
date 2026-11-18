@@ -36,6 +36,12 @@
       "image_sha256": "cb27ac5e4002ec6828cff6049627b0260199326470b45360860a66476782a31a",
       "game_slug": "rampage-total-destruction",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "rampage-total-destruction",
+      "evidence_urls": ["https://github.com/jjmhalew/RampageRE"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

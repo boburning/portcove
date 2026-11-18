@@ -1,3 +1,9 @@
+import { requireOriginalGameDecision } from "./catalog-game-review.mts";
+import {
+  checkedAuthoredPort,
+  readCatalogSource,
+  assembleCatalogRecords,
+} from "./catalog-authoring.mts";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { readFileSync, statSync, writeFileSync } from "node:fs";
@@ -416,6 +422,17 @@ function main() {
   }
   const portPath = join(root, "crates/portcove-core/catalog/ports", `${id}.json`);
   const promoted = promotePort(JSON.parse(readFileSync(portPath, "utf8")), { ...options, layouts });
+  const reviewed = checkedAuthoredPort(promoted, id);
+  const catalogRoot = dirname(dirname(portPath));
+  const source = readCatalogSource(catalogRoot);
+  requireOriginalGameDecision(reviewed, source.records);
+  const shared: unknown = JSON.parse(
+    readFileSync(join(catalogRoot, "catalog-shared.json"), "utf8"),
+  );
+  assembleCatalogRecords(
+    shared,
+    source.records.map((record) => (record.listing.id === id ? reviewed : record)),
+  );
 
   // Every refusal above happens before the first write.
   const fixturePath = join(

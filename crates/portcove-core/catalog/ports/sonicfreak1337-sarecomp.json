@@ -45,6 +45,16 @@
       "warnings": [
         "Add only the installed game.exe after the recommended Windows v0.52.0 setup. Keep the exact PAL GDI/three-track input, versioned application, content binding and active user-data/content roots; unresolved Windows startup failures remain upstream."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-adventure",
+      "evidence_urls": [
+        "https://github.com/sonicfreak1337/SARecomp/blob/40b160792a68232fb94c35ef7f2dea35b462b300/README.md",
+        "https://github.com/sonicfreak1337/SARecomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Sonic Adventure"
   }
 }

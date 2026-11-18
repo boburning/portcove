@@ -35,6 +35,12 @@
       "image_sha256": "7ebbba5b5ef5ea28ea5ebc8fb7aeb812c03e022d94178646d2bd3611c877f58b",
       "game_slug": "nhl-2k8",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "nhl-2k8",
+      "evidence_urls": ["https://github.com/anishchandra24/NHL2K8-Recompiled"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/itsbybanshee/wwe2k16-pc"
     },
-    "issue_number": 3225
+    "issue_number": 3225,
+    "original_game": {
+      "format_version": 1,
+      "id": "wwe-2k16",
+      "evidence_urls": ["https://github.com/itsbybanshee/wwe2k16-pc"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

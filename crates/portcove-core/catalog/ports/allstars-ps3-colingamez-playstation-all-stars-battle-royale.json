@@ -35,6 +35,12 @@
       "image_sha256": "3b7bcfd6060f32dde0dc68cd462d682a87c0dc0fdbbf91176ca34c56541ef35d",
       "game_slug": "playstation-all-stars-battle-royale",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "playstation-all-stars-battle-royale",
+      "evidence_urls": ["https://github.com/ColinGamez/allstars-ps3"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -49,6 +49,15 @@
           "instruction": "Upstream/player owns toolchain setup, ROM generation, rebuilding and runtime replacement. Windows settings, EEPROM, backup RAM and logs use %APPDATA%/daytona-recomp/daytona93 or daytona, with a separate <set>-<profile> folder when --profile is used; preserve launcher.ini, ioboard_eeprom.bin, backup_ram.bin, daytona.log and every active profile. Retain the entire working project, originals and old complete player before updating/rebuilding, then review/relink changed selected bytes. Removing registration preserves external files; Portcove does not own backups, rollback, save migration, compatibility or deletion."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "daytona-usa-sega-model-2-arcade",
+      "evidence_urls": [
+        "https://github.com/alphanu1/daytona-arcade-recomp",
+        "https://github.com/alphanu1/daytona-arcade-recomp/blob/f32c48ff9b9bb41ecc7a25d9998c281b9bd0952c/docs/getting-started.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

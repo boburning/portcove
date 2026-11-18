@@ -36,6 +36,12 @@
       "image_sha256": "15dfae51362adcb9bd02da3a121a05e1d9ff7ac00cfb3f95c96dd92a08fdc69b",
       "game_slug": "pangya-fantasy-golf",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pangya-fantasy-golf",
+      "evidence_urls": ["https://github.com/kromossomom-debug/pangya-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

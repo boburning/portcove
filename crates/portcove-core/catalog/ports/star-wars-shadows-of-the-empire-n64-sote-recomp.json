@@ -40,6 +40,16 @@
       "warnings": [
         "The release’s MIT grant applies to eligible project code. Use a copy and bundled components you are already permitted to use. Fresh package acquisition remains held."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-shadows-of-the-empire",
+      "evidence_urls": [
+        "https://github.com/GTTeancum/SotE-Recomp/releases/tag/0.9.8",
+        "https://github.com/GTTeancum/SotE-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Star Wars: Shadows of the Empire"
   }
 }

@@ -49,7 +49,16 @@
         }
       ]
     },
-    "original_game_title": "Doom 64"
+    "original_game_title": "Doom 64",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom-64",
+      "evidence_urls": [
+        "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced#readme",
+        "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

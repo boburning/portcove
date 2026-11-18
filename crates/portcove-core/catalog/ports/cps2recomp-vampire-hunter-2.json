@@ -12,7 +12,7 @@
     },
     "name": "Vampire Hunter2: Darkstalkers Revenge (CPS-2 Recomp)",
     "summary": "Play Vampire Hunter2: Darkstalkers Revenge using your own matching arcade originals.",
-    "original_game_title": "Vampire Hunter2: Darkstalkers Revenge",
+    "original_game_title": "Vampire Hunter 2",
     "project_url": "https://github.com/tmcleroy/cps2recomp",
     "availability": "packages",
     "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vhunt2/README.md",
@@ -54,6 +54,15 @@
           "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "vampire-hunter-2",
+      "evidence_urls": [
+        "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vhunt2/README.md",
+        "https://github.com/tmcleroy/cps2recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

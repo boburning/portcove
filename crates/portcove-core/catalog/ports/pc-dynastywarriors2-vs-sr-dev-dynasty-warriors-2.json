@@ -35,6 +35,12 @@
       "image_sha256": "69bf084487980117c548e2806cfbedbf6e2097527d26e9424a7c134269e457b0",
       "game_slug": "dynasty-warriors-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dynasty-warriors-2",
+      "evidence_urls": ["https://github.com/vs-sr-dev/pc-dynastywarriors2"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -53,6 +53,16 @@
           "instruction": "For Linux x86-64, use the official v0.0.7 TAR.XZ, keep the complete folder and run OpenTIE with Vulkan, glibc 2.35 or newer and libstdc++ with GLIBCXX_3.4.29. For Apple silicon, copy OpenTIE.app out of the official v0.0.7 ARM64 DMG and use macOS 13 or newer with Metal. Use a copy you are already permitted to use. Follow the same TIE95 or TIE98 original-data setup, preserve the actual TotallyOpen/OpenTIE profile, and maintain each copy upstream."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-tie-fighter",
+      "evidence_urls": [
+        "https://github.com/elyosh/OpenTIE/blob/8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11/README.md",
+        "https://github.com/elyosh/OpenTIE"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Star Wars: TIE Fighter"
   }
 }

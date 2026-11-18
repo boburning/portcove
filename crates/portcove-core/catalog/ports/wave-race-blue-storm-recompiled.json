@@ -49,6 +49,16 @@
           "instruction": "Follow build-visionos.sh on a Mac with Xcode 26 and the visionOS SDK. Use your own Apple development team and paired headset in Developer Mode. Select the owned image in Files or use upstream’s push option. Keep the disc, memory card, settings and logs in the app’s Documents folder."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wave-race-blue-storm",
+      "evidence_urls": [
+        "https://github.com/ethannicholas/bluestorm-recomp/blob/3d864805fb781354d59c95a5a9715302b62984ab/README.md",
+        "https://github.com/ethannicholas/bluestorm-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Wave Race: Blue Storm"
   }
 }

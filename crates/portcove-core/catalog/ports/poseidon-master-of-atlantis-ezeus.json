@@ -59,7 +59,16 @@
         }
       ]
     },
-    "platforms": ["macos-x86-64", "macos-aarch64"]
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "poseidon-master-of-atlantis",
+      "evidence_urls": [
+        "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta",
+        "https://github.com/MaurycyLiebner/eZeus"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

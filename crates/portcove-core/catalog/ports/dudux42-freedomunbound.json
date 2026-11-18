@@ -62,6 +62,15 @@
           "instruction": "The launcher separately stores logs under %LOCALAPPDATA%/FreedomUnbound/logs or its actual -LogDirectory root, including launcher-startup.log and session stdout/stderr/session.json. Its script prunes old timestamped session directories beyond the newest ten; preserve any needed diagnostics before upstream maintenance. Upstream and you own preparation, runtime replacement/recovery and all external files. Removing registration preserves them; no external update, backup, rollback, migration or deletion is offered. Preserve PortableKit and all separate library/font/mod terms; those grants do not supply Capcom/Sony original rights."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "monster-hunter-freedom-unite",
+      "evidence_urls": [
+        "https://github.com/Dudux42/FreedomUnbound/blob/d07c6d61a4517af5dc60db5b9aa2d9abb276f0a4/README.md",
+        "https://github.com/Dudux42/FreedomUnbound"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

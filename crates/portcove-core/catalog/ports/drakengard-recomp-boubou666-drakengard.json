@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/boubou666/Drakengard_Recomp"
     },
-    "issue_number": 3057
+    "issue_number": 3057,
+    "original_game": {
+      "format_version": 1,
+      "id": "drakengard",
+      "evidence_urls": ["https://github.com/boubou666/Drakengard_Recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

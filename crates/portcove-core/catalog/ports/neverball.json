@@ -52,6 +52,12 @@
         }
       ],
       "help_url": "https://play.neverball.org/"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "neverball",
+      "evidence_urls": ["https://play.neverball.org/", "https://github.com/Neverball/neverball"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

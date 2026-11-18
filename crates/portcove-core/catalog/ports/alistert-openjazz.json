@@ -39,7 +39,17 @@
       ],
       "help_url": "https://github.com/AlisterT/openjazz#readme"
     },
-    "original_game_title": "Jazz Jackrabbit"
+    "original_game_title": "Jazz Jackrabbit",
+    "original_game": {
+      "format_version": 1,
+      "id": "jazz-jackrabbit",
+      "evidence_urls": [
+        "https://github.com/AlisterT/openjazz/blob/20260301/README.md",
+        "https://github.com/AlisterT/openjazz#readme",
+        "https://github.com/AlisterT/openjazz"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

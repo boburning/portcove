@@ -50,6 +50,15 @@
         }
       ],
       "help_url": "https://github.com/OverkillLabs3/driveclub-recomp/blob/3e7f6d8543f8a426fdbbb323cf822f36b5c3a11a/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "driveclub",
+      "evidence_urls": [
+        "https://github.com/OverkillLabs3/driveclub-recomp/blob/3e7f6d8543f8a426fdbbb323cf822f36b5c3a11a/README.md",
+        "https://github.com/OverkillLabs3/driveclub-recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

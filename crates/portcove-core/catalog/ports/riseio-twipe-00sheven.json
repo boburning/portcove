@@ -17,6 +17,16 @@
       "image_sha256": "2848315056f40f067a70a18fed6418b8fb17459a399c55198ab55d06b4945cbf",
       "game_slug": "james-bond-007-the-world-is-not-enough",
       "match_kind": "underlying-game"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-world-is-not-enough",
+      "evidence_urls": [
+        "https://github.com/riseio/TWIPE_00Sheven/blob/0fd6c00060b6a5da7b838a1b7f38f359d6762688/README.md",
+        "https://github.com/riseio/TWIPE_00Sheven"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "The World Is Not Enough"
   }
 }

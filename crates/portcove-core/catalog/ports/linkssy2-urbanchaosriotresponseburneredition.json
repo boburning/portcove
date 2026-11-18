@@ -45,6 +45,15 @@
           "instruction": "Keep all of GameData, especially xbe-runtime, settings.toml, hdd profiles, imported game files, translations, optional voices, mods and learned shader caches. The 0.08 Play route uses portable GameData and does not fall back to the older AppData installation. Upstream setup owns any first-import legacy copy; registration does not recreate it. For upstream replacement, keep the old copy and copy your GameData beside the new complete launchers as upstream documents. Relink changed selected executable bytes after review."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "urban-chaos-riot-response",
+      "evidence_urls": [
+        "https://github.com/linkssy2/UrbanChaosRiotResponseBurnerEdition",
+        "https://github.com/linkssy2/UrbanChaosRiotResponseBurnerEdition/blob/935131bc2c01b3f4a78686541890f5f1f07d51fc/launcher/burner-xbe/README-release.txt"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

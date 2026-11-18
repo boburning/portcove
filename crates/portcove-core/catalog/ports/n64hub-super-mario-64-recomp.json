@@ -38,6 +38,15 @@
         "Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
       ],
       "references": []
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-64",
+      "evidence_urls": [
+        "https://github.com/HarbourMasters/Ghostship/blob/aefb89b85e7b78daff62b491ebb2669d2d9270f0/README.md",
+        "https://github.com/n64hub/super-mario-64-recomp/blob/a3240c9beed89341b29957cea0cea076fe04b6dc/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

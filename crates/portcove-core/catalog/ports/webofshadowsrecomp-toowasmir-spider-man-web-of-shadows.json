@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/toowasmir/WebOfShadowsRecomp"
     },
-    "issue_number": 3131
+    "issue_number": 3131,
+    "original_game": {
+      "format_version": 1,
+      "id": "spider-man-web-of-shadows",
+      "evidence_urls": ["https://github.com/toowasmir/WebOfShadowsRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

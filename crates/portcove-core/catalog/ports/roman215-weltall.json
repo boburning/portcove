@@ -47,6 +47,15 @@
       "warnings": [
         "Keep the full Unreal package, supported originals and actual Weltall data. Select the native Shipping entry; bootstrap, optional patches, movie-audio formats and save imports have separate scope."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "xenogears",
+      "evidence_urls": [
+        "https://github.com/Roman215/Weltall/blob/1cb16a61505ca87088105325549f218b7d8cb8dd/README.md",
+        "https://github.com/Roman215/Weltall"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

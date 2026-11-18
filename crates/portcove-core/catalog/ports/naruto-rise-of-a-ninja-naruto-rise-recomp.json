@@ -47,6 +47,15 @@
       "warnings": [
         "Keep active data, explicit guest roots, selection descriptors and migration journals. The media-ID/cryptographic original digest and all native/gameplay observations remain Unknown."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "naruto-rise-of-a-ninja",
+      "evidence_urls": [
+        "https://github.com/jorjbarbosa/naruto-rise-recomp/blob/421bd5500059cf2d00f37276949d51db767f76b8/README.md",
+        "https://github.com/jorjbarbosa/naruto-rise-recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

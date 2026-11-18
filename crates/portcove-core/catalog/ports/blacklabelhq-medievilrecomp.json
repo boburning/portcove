@@ -49,7 +49,16 @@
     },
     "original_game_title": "MediEvil",
     "release_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/releases",
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "medievil",
+      "evidence_urls": [
+        "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md",
+        "https://github.com/BlackLabelHQ/MediEvilRecomp"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

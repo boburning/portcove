@@ -32,6 +32,16 @@
       "warnings": [],
       "help_url": "https://github.com/Edwin2929/sma3-recomp-android./blob/Descarga/README.md"
     },
-    "release_url": "https://github.com/Edwin2929/sma3-recomp-android./releases"
+    "release_url": "https://github.com/Edwin2929/sma3-recomp-android./releases",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-world-2-yoshis-island",
+      "evidence_urls": [
+        "https://github.com/Edwin2929/sma3-recomp-android./blob/Descarga/README.md",
+        "https://github.com/Edwin2929/sma3-recomp-android."
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Super Mario World 2: Yoshi's Island"
   }
 }

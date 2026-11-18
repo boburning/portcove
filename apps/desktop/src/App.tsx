@@ -92,7 +92,11 @@ import {
 import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
 import { GameAlternatives } from "./features/browsing/GameAlternatives";
-import { PortBrowser, SteamBatchLibraryAction } from "./components/PortBrowser";
+import {
+  type GameSourceDropReview,
+  PortBrowser,
+  SteamBatchLibraryAction,
+} from "./components/PortBrowser";
 import { ListingDetailPanel } from "./components/ListingDetailPanel";
 import { SelfServiceSetup } from "./components/SelfServiceSetup";
 import { catalogEntries, usesSelfServiceDetail } from "./features/browsing/catalog-entry";
@@ -465,9 +469,48 @@ function useWorkspace(props: WorkspaceProps) {
     },
     [openIntake],
   );
-  const nativeSourceDrag = useNativeSourceDrop((drop) =>
-    openSourceIntake(drop.portId, drop.profileId, drop.paths),
-  );
+  const [groupDrop, setGroupDrop] = useState<{
+    request: { gameId: string; paths: string[] };
+    generation: number;
+    catalog: typeof data.catalog;
+    listings: typeof data.listingCatalog;
+  }>();
+  const pendingGroupDrop =
+    groupDrop?.generation === bootstrap.generation &&
+    groupDrop.catalog === data.catalog &&
+    groupDrop.listings === data.listingCatalog
+      ? groupDrop.request
+      : undefined;
+  const gameSourceDropReview: GameSourceDropReview = {
+    pending: pendingGroupDrop,
+    dismiss: () => setGroupDrop(undefined),
+    select: (drop) => {
+      const port = data.catalog?.ports.find((candidate) => candidate.id === drop.portId);
+      if (
+        !pendingGroupDrop ||
+        !port ||
+        gameGroupId(model.entries.find((entry) => entry.id === port.id) ?? port) !==
+          pendingGroupDrop.gameId ||
+        port.source_profile !== drop.profileId
+      )
+        return;
+      setGroupDrop(undefined);
+      openSourceIntake(drop.portId, drop.profileId, pendingGroupDrop.paths);
+    },
+  };
+  const nativeSourceDrag = useNativeSourceDrop((drop) => {
+    if ("gameId" in drop) {
+      setGroupDrop({
+        request: drop,
+        generation: bootstrap.generation,
+        catalog: data.catalog,
+        listings: data.listingCatalog,
+      });
+    } else {
+      setGroupDrop(undefined);
+      openSourceIntake(drop.portId, drop.profileId, drop.paths);
+    }
+  });
   const selectedPort = data.statuses.some(
     (status) => status.port_id === ui.selectedId && status.external_runtime?.user_selected,
   )
@@ -628,6 +671,7 @@ function useWorkspace(props: WorkspaceProps) {
     view: ui.view,
     recent: model.recent,
     games: paletteGames,
+    preferredPortByGame: organization.snapshot?.preferred_port_by_game,
     installedCount: model.overview.installed,
     busy: Boolean(operations.busy),
     setView: setPrimaryView,
@@ -898,6 +942,7 @@ function useWorkspace(props: WorkspaceProps) {
         switchLibrary={switchLibraryWithContext}
         resetLibrary={resetLibraryWithContext}
         nativeSourceDrag={nativeSourceDrag}
+        gameSourceDropReview={gameSourceDropReview}
         hostToolActions={hostToolActions}
         applicationUpdates={
           <ApplicationUpdateSettings
@@ -1450,6 +1495,7 @@ function CurrentView({
   switchLibrary,
   resetLibrary,
   nativeSourceDrag,
+  gameSourceDropReview,
   hostToolActions,
   applicationUpdates,
   openPortDetails,
@@ -1473,6 +1519,7 @@ function CurrentView({
   switchLibrary: (path: string) => Promise<void>;
   resetLibrary: () => Promise<void>;
   nativeSourceDrag: ReturnType<typeof useNativeSourceDrop>;
+  gameSourceDropReview: GameSourceDropReview;
   hostToolActions: HostToolActions;
   applicationUpdates: ReactNode;
   openPortDetails: (portId: string, originKey?: string, destination?: DetailDestination) => void;
@@ -1610,6 +1657,7 @@ function CurrentView({
       }}
       loading={!data.catalog}
       nativeSourceDrag={nativeSourceDrag}
+      gameSourceDropReview={gameSourceDropReview}
     />
   );
 }

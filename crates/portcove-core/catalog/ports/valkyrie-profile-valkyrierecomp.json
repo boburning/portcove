@@ -45,6 +45,16 @@
       "warnings": [
         "Attach the completed product EXE, not its forwarding setup host. Preserve both original discs and actual cards; between-run disc selection does not establish mid-session swaps or a full multi-disc playthrough."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "valkyrie-profile",
+      "evidence_urls": [
+        "https://github.com/Ed1z19/ValkyrieRecomp/blob/200a7a15c4718740c2a573e44535657f662d004b/README.md",
+        "https://github.com/Ed1z19/ValkyrieRecomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Valkyrie Profile"
   }
 }

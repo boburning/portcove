@@ -271,7 +271,7 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
       let primary: Error | undefined;
       let restoration: Error | undefined;
       try {
-        // The implementation-choice prompt has no port ID attribute on its Use
+        // The implementation-choice prompt has no port ID attribute on its Choose
         // button. Its stable closed-pair position is guarded by exact visible
         // action text; a changed DOM/action fails instead of crediting another CTA.
         assert.equal((await browser.findElements(By.css(action))).length, 1);
@@ -377,7 +377,7 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
     const choose = async (id: (typeof pair)[number]) => {
       const value = await read();
       const port = required(required(value.workspace.catalog).ports.find((item) => item.id === id));
-      await click(button(`Use ${gameProjectLabel(port) || port.name}`));
+      await click(button(`Choose ${gameProjectLabel(port) || port.name}`));
       await browser.wait(
         async () => (await read()).organization.preferred_port_by_game?.[gameId] === id,
         15_000,
@@ -538,7 +538,7 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
         "ambiguous",
         `${groupSelector} > article .collection-title`,
         `${groupSelector} > article .collection-actions > div:nth-child(2) > button`,
-        `Use ${gameProjectLabel(chosenDefinition) || chosenDefinition.name}`,
+        `Choose ${gameProjectLabel(chosenDefinition) || chosenDefinition.name}`,
       );
       await choose(portId);
       const chosenAction = `article:has([data-detail-origin="library:card:${portId}"]) button.library-card-play`;
@@ -603,14 +603,14 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
         required(available.workspace.catalog).ports.find((item) => item.id === pair[0]),
       );
       await browser.wait(
-        until.elementLocated(button(`Use ${gameProjectLabel(first) || first.name}`)),
+        until.elementLocated(button(`Choose ${gameProjectLabel(first) || first.name}`)),
         15_000,
       );
       await captureInstalledState(
         "qualifying-filtered",
         `${groupSelector} > article .collection-title`,
         `${groupSelector} > article .collection-actions > div:first-child > button`,
-        `Use ${gameProjectLabel(first) || first.name}`,
+        `Choose ${gameProjectLabel(first) || first.name}`,
       );
       await alternatives();
       await click(By.css(`[data-detail-origin="library:alternative:${portId}"]`));

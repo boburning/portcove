@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/elprogramadorloco-arch/asuka100-recomp"
     },
-    "issue_number": 3509
+    "issue_number": 3509,
+    "original_game": {
+      "format_version": 1,
+      "id": "asuka-120-final",
+      "evidence_urls": ["https://github.com/elprogramadorloco-arch/asuka100-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

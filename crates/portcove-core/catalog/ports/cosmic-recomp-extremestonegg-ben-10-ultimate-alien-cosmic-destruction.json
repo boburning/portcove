@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/ExtremestoneGG/Cosmic-Recompi"
     },
-    "issue_number": 3181
+    "issue_number": 3181,
+    "original_game": {
+      "format_version": 1,
+      "id": "ben-10-ultimate-alien-cosmic-destruction",
+      "evidence_urls": ["https://github.com/ExtremestoneGG/Cosmic-Recompi"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -35,6 +35,16 @@
         }
       ],
       "help_url": "https://github.com/maximilianoide/sin-punishment-recompiled#readme"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "sin-and-punishment",
+      "evidence_urls": [
+        "https://github.com/maximilianoide/sin-punishment-recompiled#readme",
+        "https://github.com/maximilianoide/sin-punishment-recompiled"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Sin and Punishment"
   }
 }

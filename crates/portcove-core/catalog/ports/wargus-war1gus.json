@@ -56,6 +56,16 @@
     },
     "download_asset_hints": {
       "windows-x86-64": ["War1gus-portable-", ".exe"]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "warcraft-orcs-and-humans",
+      "evidence_urls": [
+        "https://wargus.github.io/war1gus.html",
+        "https://github.com/Wargus/war1gus"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Warcraft: Orcs & Humans"
   }
 }

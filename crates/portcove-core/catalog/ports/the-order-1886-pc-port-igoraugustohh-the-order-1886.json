@@ -35,6 +35,12 @@
       "image_sha256": "544d18f4edcca4f00fbbf5accc8484fbce5d20ef517b824cd156248c06b25830",
       "game_slug": "the-order-1886",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-order-1886",
+      "evidence_urls": ["https://github.com/IgorAugustoHH/The-Order-1886-PC-Port"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

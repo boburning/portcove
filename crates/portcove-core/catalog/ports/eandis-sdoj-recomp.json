@@ -47,7 +47,16 @@
       "windows-x86-64": ["sdoj.recomp.", ".win-amd64.zip"],
       "linux-x86-64": ["sdoj.recomp.", ".linux-amd64.tar.gz"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "dodonpachi-saidaioujou",
+      "evidence_urls": [
+        "https://github.com/eandis/SDOJ-Recomp",
+        "https://github.com/eandis/SDOJ-Recomp/blob/cf0afe107d02fa16980e8c8f90a5969aafac81a7/README.md"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",
