@@ -394,7 +394,7 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
                   />
                 ))}
               <ModSetupPackages
-                key={selected.profile.id}
+                key={JSON.stringify(["packages", selected.profile.id])}
                 selected={selected}
                 disabled={changing || blocked}
                 setEnabled={(nativeId, value) =>
@@ -508,7 +508,7 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
               )}
               {view.provider && (
                 <ModProviderBrowser
-                  key={selected.profile.id}
+                  key={JSON.stringify(["provider", selected.profile.id])}
                   portId={portId}
                   provider={view.provider}
                   generation={generation}
