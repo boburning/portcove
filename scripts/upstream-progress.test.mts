@@ -260,3 +260,32 @@ void test("dated report rows expose staleness and reject unsafe optional stored 
   assert.equal(record?.latest_attempt, "failed");
   assert.equal(record?.freshness, "stale");
 });
+
+void test("malformed stored provider and metric objects cannot stall optional report rendering", () => {
+  const row = parseProgress(source, report());
+  const malformedRecords = [
+    { ...row, provider: { toString: null } },
+    { ...row, metrics: [{ ...row.metrics[0], kind: { toString: null } }] },
+  ];
+  for (const malformed of malformedRecords) {
+    const record = JSON.parse(JSON.stringify(malformed)) as typeof row;
+    assert.deepEqual(
+      visibleProgress([
+        {
+          subject_key: progressKey(source),
+          payload: { status: "observed", record },
+          checked_at: "2026-11-17T00:00:00Z",
+        },
+      ]),
+      [],
+    );
+  }
+  assert.throws(
+    () =>
+      validateProgressSources({
+        format_version: 1,
+        sources: [{ ...source, provider: { toString: null } }],
+      }),
+    /reviewed project/u,
+  );
+});

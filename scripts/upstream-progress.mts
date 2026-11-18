@@ -99,8 +99,9 @@ export function validateProgressSources(value: unknown): ProgressSource[] {
       !/^[a-z0-9][a-z0-9-]{0,127}$/u.test(row.game_key) ||
       typeof row.version !== "string" ||
       !/^[A-Za-z0-9_.-]{1,40}$/u.test(row.version) ||
+      typeof row.provider !== "string" ||
       !["bytematch", "decompdev", "frogress", "project-report", "project-csv"].includes(
-        String(row.provider),
+        row.provider,
       ) ||
       !https(row.evidence_url) ||
       !text(row.methodology) ||
@@ -115,7 +116,7 @@ export function validateProgressSources(value: unknown): ProgressSource[] {
         !["matching-code", "decompiled-code", "linked-code"].includes(String(row.metric_kind)))
     )
       throw new Error("Frogress source needs an exact reviewed measure");
-    if (["project-report", "project-csv"].includes(String(row.provider)) && !https(row.report_url))
+    if (["project-report", "project-csv"].includes(row.provider) && !https(row.report_url))
       throw new Error("Project report requires a reviewed HTTPS endpoint");
     if (
       row.provider === "project-csv" &&
@@ -462,8 +463,9 @@ export function validProgressRecord(value: unknown): value is ProgressRecord {
     !/^[a-z0-9][a-z0-9-]{0,127}$/u.test(value.game_key) ||
     typeof value.version !== "string" ||
     !/^[A-Za-z0-9_.-]{1,40}$/u.test(value.version) ||
+    typeof value.provider !== "string" ||
     !["bytematch", "decompdev", "frogress", "project-report", "project-csv"].includes(
-      String(value.provider),
+      value.provider,
     ) ||
     !https(value.source_url) ||
     !https(value.evidence_url) ||
@@ -485,13 +487,14 @@ export function validProgressRecord(value: unknown): value is ProgressRecord {
     for (const m of value.metrics) {
       if (
         !isRecord(m) ||
+        typeof m.kind !== "string" ||
         ![
           "matching-code",
           "decompiled-code",
           "fuzzy-similarity",
           "linked-code",
           "matched-functions",
-        ].includes(String(m.kind)) ||
+        ].includes(m.kind) ||
         typeof m.value !== "string" ||
         !(m.numerator === null || typeof m.numerator === "string") ||
         !(m.denominator === null || typeof m.denominator === "string")
