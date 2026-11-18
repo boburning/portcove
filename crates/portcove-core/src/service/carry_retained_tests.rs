@@ -134,4 +134,33 @@ async fn carry_respects_other_retained_declarations_for_new_files_and_recorded_r
     let after = [&active, &target].map(|install| crate::carry_ledger::load(&library.connection().unwrap(), &install.id).unwrap()["legacy/removed.txt"].clone());
     assert_eq!(before, after, "excluded lineage stays frozen");
     assert_eq!(service.status(ID).unwrap().active.unwrap().id, active.id);
+
+    // A current non-owning registration route has no executable hints. It
+    // must not impose new execution qualification on this retained pair.
+    let mut external = Catalog::embedded().unwrap().port("dkr-r").unwrap().clone();
+    external.id = ID.into();
+    assert!(external.executable_hints.is_empty());
+    let mut document = serde_json::to_value(catalog().authoritative_document()).unwrap();
+    document["ports"][0] = serde_json::to_value(external).unwrap();
+    service.replace_catalog_for_test(Catalog::from_json(&document.to_string()).unwrap());
+    fs::remove_file(active.path.join("current-only/fresh.txt")).unwrap();
+    fs::remove_file(active.path.join("now_profile.txt")).unwrap();
+    fs::write(
+        active.path.join("external-notes.txt"),
+        b"retained route still works",
+    )
+    .unwrap();
+    let outcome = service
+        .carry_unknown_files(&active, &target)
+        .unwrap()
+        .unwrap();
+    assert_eq!(outcome.carried, ["external-notes.txt"]);
+    assert_eq!(
+        fs::read(target.path.join("external-notes.txt")).unwrap(),
+        b"retained route still works"
+    );
+    assert_eq!(
+        fs::read(target.path.join("legacy/removed.txt")).unwrap(),
+        old
+    );
 }

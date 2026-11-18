@@ -24,7 +24,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::carry_ledger::{self, StoredRow};
 use crate::carry_plan::{self, CarryAction, CarryRow, PathInput, PlannedPath, RowChange, RowState};
 use crate::carry_step::{self, CarryStop, Inspected, Listings};
-use crate::{InstallQualification, InstallRecord, Platform, PortcoveError, Result};
+use crate::{InstallRecord, PortcoveError, Result};
 
 use super::PortcoveService;
 
@@ -119,7 +119,8 @@ impl PortcoveService {
         let active_qualification = self.installed_mutability_qualification(active)?;
         let target_qualification = self.installed_mutability_qualification(target)?;
         let (source_root, source_exclusions) = active_qualification.carry_exclusions(active)?;
-        let (target_root, mut exclusions) = target_qualification.carry_exclusions(target)?;
+        let (target_root, mut exclusions) = target_qualification
+            .carry_exclusions_with_current(target, self.catalog.port(&active.port_id).ok())?;
         // Rule 9 includes declarations from every retained installation, even
         // one that is neither the active copy nor this switch's target.
         exclusions
@@ -131,21 +132,6 @@ impl PortcoveService {
         exclusions
             .generated_metadata
             .extend(source_exclusions.generated_metadata);
-        // Excluding a current declaration is conservative: it grants neither
-        // mutability nor migration rights to an older installed contract.
-        let platform = Platform::current()?;
-        if let Ok(current) = self.catalog.port(&active.port_id)
-            && current.platforms.contains(&platform)
-        {
-            let (_, current_exclusions) =
-                InstallQualification::from_port(current, platform)?.carry_exclusions(target)?;
-            exclusions
-                .declared_paths
-                .extend(current_exclusions.declared_paths);
-            exclusions
-                .declared_patterns
-                .extend(current_exclusions.declared_patterns);
-        }
         for retained in self.library.installs_for_port(&active.port_id)? {
             if retained.id == active.id || retained.id == target.id {
                 continue;

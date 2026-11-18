@@ -332,6 +332,18 @@ impl InstallQualification {
         &self,
         install: &InstallRecord,
     ) -> Result<(PathBuf, crate::carry_plan::CarryExclusions)> {
+        self.carry_exclusions_with_current(install, None)
+    }
+
+    /// Current declarations only exclude carry paths. Interpret them in this
+    /// retained installation's coordinates without qualifying a new executable
+    /// or granting current mutability, migration or replacement authority.
+    pub(crate) fn carry_exclusions_with_current(
+        &self,
+        install: &InstallRecord,
+        current: Option<&PortDefinition>,
+    ) -> Result<(PathBuf, crate::carry_plan::CarryExclusions)> {
+        let current = current.filter(|port| port.platforms.contains(&self.platform));
         let selected = install.path.join(&install.selected_executable);
         let persistent = self.persistence_root(&install.path, &selected);
         let working = self.runtime_root(&install.path, &selected);
@@ -347,10 +359,20 @@ impl InstallQualification {
         let declared_paths = self
             .persistent_paths
             .iter()
+            .chain(
+                current
+                    .into_iter()
+                    .flat_map(|port| crate::persistence::declared_paths(port, self.platform)),
+            )
             .filter_map(|relative| reroot(&persistent.join(relative)))
             .chain(
                 self.runtime_mutable_paths
                     .iter()
+                    .chain(
+                        current
+                            .into_iter()
+                            .flat_map(|port| &port.runtime_mutable_paths),
+                    )
                     .filter_map(|relative| reroot(&working.join(relative))),
             )
             .filter(|path| !path.is_empty())
@@ -358,10 +380,20 @@ impl InstallQualification {
         let declared_patterns = self
             .persistent_file_patterns
             .iter()
+            .chain(
+                current
+                    .into_iter()
+                    .flat_map(|port| &port.persistent_file_patterns),
+            )
             .map(|pattern| (None, pattern.clone()))
             .chain(
                 self.runtime_mutable_file_patterns
                     .iter()
+                    .chain(
+                        current
+                            .into_iter()
+                            .flat_map(|port| &port.runtime_mutable_file_patterns),
+                    )
                     .map(|pattern| (working_directory.clone(), pattern.clone())),
             )
             .collect();
