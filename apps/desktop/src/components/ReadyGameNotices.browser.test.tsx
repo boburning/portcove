@@ -297,3 +297,31 @@ it("wraps exact long names and versions without expanding the settings grid", as
   expect(frame.textContent).toContain(version);
   expect(frame.scrollWidth).toBeLessThanOrEqual(frame.clientWidth + 1);
 });
+
+it("keeps an out-of-page notice until its saved choice changes", async () => {
+  const assess = vi.mocked(desktopApi.assessPortIntents);
+  assess.mockResolvedValueOnce({
+    ...assessed,
+    not_assessed: 1,
+    assessments: assessed.assessments.slice(0, 1),
+  });
+  assess.mockResolvedValue({
+    ...assessed,
+    not_assessed: 1,
+    assessments: assessed.assessments.slice(1),
+  });
+  const intents = vi
+    .spyOn(desktopApi, "portIntents")
+    .mockResolvedValueOnce([
+      { format_version: 1, port_id: "new-game", mode: "notify", updated_at: 1 },
+    ])
+    .mockResolvedValue([]);
+  await root.rerender(<ReadyGameNotices generation={1} ports={ports} />);
+  await expect.poll(text).toContain("New Game is ready to install.");
+  await act(async () => announceReadyNoticePreferenceChange());
+  await expect.poll(text).toContain("Old Game has an update available");
+  expect(text()).toContain("New Game is ready to install.");
+  await act(async () => announceReadyNoticePreferenceChange());
+  await expect.poll(text).not.toContain("New Game is ready to install.");
+  expect(intents).toHaveBeenCalledWith(1);
+});

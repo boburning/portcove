@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 67;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 68;
 
 struct Migration {
     version: i64,
@@ -425,7 +425,33 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_67,
         verify: crate::profile::verify_selection_migration,
     },
+    Migration {
+        version: 68,
+        name: "remembered game assessment cursors",
+        apply: migration_68,
+        verify: verify_migration_68,
+    },
 ];
+
+fn migration_68(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE port_intent_assessment_cursor (
+            purpose TEXT PRIMARY KEY CHECK(purpose IN ('readiness', 'standing_setup')),
+            port_id TEXT NOT NULL,
+            revision INTEGER NOT NULL
+        ) STRICT;
+        INSERT INTO port_intent_assessment_cursor VALUES ('readiness', '', 0), ('standing_setup', '', 0);",
+    )?;
+    verify_migration_68(transaction)
+}
+
+fn verify_migration_68(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "port_intent_assessment_cursor",
+        &["purpose", "port_id", "revision"],
+    )
+}
 
 fn migration_67(transaction: &Transaction<'_>) -> Result<()> {
     // Older restore code can publish an unchecked projection or clean up
