@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { cdp, page, userEvent } from "vite-plus/test/browser";
+import type {} from "vite-plus/test/browser-playwright";
 import { cleanup, render } from "vitest-browser-react";
 import App from "../App";
 import { desktopApi } from "../api";
@@ -235,6 +236,66 @@ async function actions(name: string, primary: string) {
   inside(cancel);
   inside(button(primary).element());
 }
+function technicalSummaryGeometry() {
+  const title = page.getByText("Technical details", { exact: true }).element();
+  const summary = title.closest("summary");
+  const column = title.parentElement;
+  const icon = summary?.querySelector("svg");
+  if (!summary || !column || !icon)
+    throw new Error("Technical details requires its actual summary, text column and icon");
+  const titleRange = document.createRange();
+  titleRange.selectNodeContents(title);
+  const firstLine = titleRange.getClientRects().item(0);
+  if (!firstLine) throw new Error("Technical details title has no rendered first line");
+  const textRange = document.createRange();
+  textRange.selectNodeContents(column);
+  const bounds = summary.getBoundingClientRect();
+  const iconBounds = icon.getBoundingClientRect();
+  const style = getComputedStyle(summary);
+  const trailingEdge =
+    style.direction === "rtl"
+      ? bounds.left + Number.parseFloat(style.paddingLeft)
+      : bounds.right - Number.parseFloat(style.paddingRight);
+  return {
+    summary,
+    bounds,
+    iconBounds,
+    firstLine,
+    trailingEdge,
+    iconTrailingEdge: style.direction === "rtl" ? iconBounds.left : iconBounds.right,
+    textColumn: column.getBoundingClientRect(),
+    textFragments: [...textRange.getClientRects()],
+  };
+}
+function expectTechnicalSummaryFits() {
+  const {
+    summary,
+    bounds,
+    iconBounds,
+    firstLine,
+    trailingEdge,
+    iconTrailingEdge,
+    textColumn,
+    textFragments,
+  } = technicalSummaryGeometry();
+  expect(iconBounds.width).toBeGreaterThan(0);
+  expect(iconBounds.height).toBeGreaterThan(0);
+  expect(iconBounds.left).toBeGreaterThanOrEqual(bounds.left);
+  expect(iconBounds.right).toBeLessThanOrEqual(bounds.right);
+  expect(iconBounds.top).toBeGreaterThanOrEqual(bounds.top);
+  expect(iconBounds.bottom).toBeLessThanOrEqual(bounds.bottom);
+  expect(Number.isFinite(trailingEdge)).toBe(true);
+  expect(Math.abs(iconTrailingEdge - trailingEdge)).toBeLessThanOrEqual(1);
+  expect(
+    Math.abs((iconBounds.top + iconBounds.bottom) / 2 - (firstLine.top + firstLine.bottom) / 2),
+  ).toBeLessThanOrEqual(2);
+  expect(textFragments.length).toBeGreaterThan(0);
+  for (const fragment of textFragments) {
+    expect(fragment.left).toBeGreaterThanOrEqual(textColumn.left - 1);
+    expect(fragment.right).toBeLessThanOrEqual(textColumn.right + 1);
+  }
+  expect(summary.scrollWidth).toBeLessThanOrEqual(summary.clientWidth + 1);
+}
 async function openOutput(color: "dark" | "light", width: number, height: number) {
   const current = await mount("output", color, width, height);
   expect(
@@ -246,6 +307,7 @@ async function openOutput(color: "dark" | "light", width: number, height: number
   await page.getByText("Folder for a future install", { exact: true }).click(action);
   const input = page.getByRole("textbox", { name: "Folder for future installs", exact: true });
   await capture("future-folder-expanded", input.element());
+  expectTechnicalSummaryFits();
   const path = "F:/Synthetic review only/" + "long-folder-name/".repeat(12);
   await input.fill(path, action);
   await button("Review future folder").click(action);

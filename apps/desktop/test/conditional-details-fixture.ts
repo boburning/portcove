@@ -21,7 +21,7 @@ export function conditionalDetailsFixture(configuration: ConditionalDetailsConfi
     : undefined;
   const longPath =
     "F:/Synthetic presentation only/" + "Harbor Adventure and the Forgotten Islands/".repeat(5);
-  const status = structuredClone(workspace("details").statuses[0]!);
+  const status = globalThis.structuredClone(workspace("details").statuses[0]);
   if (!status.active) throw new Error("The maintained details fixture requires a recorded install");
   status.port_id = port.id;
   status.active.port_id = port.id;
@@ -69,7 +69,7 @@ export function conditionalDetailsFixture(configuration: ConditionalDetailsConfi
       Object.entries(expected).some(([key, value]) => args[key] !== value)
     )
       throw new Error(`${command}: unexpected exact fixture arguments`);
-    calls.push({ command, args: structuredClone(args) });
+    calls.push({ command, args: globalThis.structuredClone(args) });
   };
   const forbidden = (command: string): never => {
     forbiddenCalls.push(command);
@@ -88,10 +88,10 @@ export function conditionalDetailsFixture(configuration: ConditionalDetailsConfi
   });
   const snapshot = (): WorkspaceSnapshot => {
     const value = workspace("details");
-    value.catalog.ports = [structuredClone(port)];
-    value.catalog.source_profiles = profile ? [structuredClone(profile)] : [];
-    value.catalog.source_catalog = structuredClone(sourceCatalog);
-    value.statuses = [structuredClone(status)];
+    value.catalog.ports = [globalThis.structuredClone(port)];
+    value.catalog.source_profiles = profile ? [globalThis.structuredClone(profile)] : [];
+    value.catalog.source_catalog = globalThis.structuredClone(sourceCatalog);
+    value.statuses = [globalThis.structuredClone(status)];
     value.listing_catalog = null;
     value.listing_statuses = [];
     value.pending_setups = [];
@@ -241,7 +241,7 @@ export function conditionalDetailsFixture(configuration: ConditionalDetailsConfi
         destination_root: args.path,
         installs: [
           {
-            install: structuredClone(status.active!),
+            install: globalThis.structuredClone(status.active!),
             destination_path: args.path + "/fixture-install",
             active: true,
             previous: false,

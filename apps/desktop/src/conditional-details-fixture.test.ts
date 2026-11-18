@@ -4,7 +4,7 @@ import {
   conditionalDetailsFixture,
   type ConditionalDetailsConfiguration,
 } from "../test/conditional-details-fixture";
-import { transportValue } from "./transport-values.mts";
+import { transportValue } from "../scripts/transport-values.mts";
 
 const configurations: ConditionalDetailsConfiguration[] = ["output", "carried-small"];
 for (const configuration of configurations) {
