@@ -198,6 +198,10 @@ async fn carry_excludes_active_only_generated_metadata_even_with_recorded_lineag
         .install(ID, None, None, None, true, |_| {})
         .await
         .unwrap();
+    // Native archive acquisition does not run launch preparation. Create the
+    // marker through Core's actual preparation path, without executing a player.
+    let prepared = service.prepare_launch(ID, None).unwrap();
+    assert_eq!(prepared.executable, active.executable);
     assert_eq!(fs::read(active.path.join("portable.txt")).unwrap(), b"");
 
     // Admit the different historical definition independently. This is a carry
