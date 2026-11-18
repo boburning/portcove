@@ -2646,6 +2646,10 @@ An undeclared file is a hazard when it is a link, reparse point or other non-reg
 `package_layout::is_unknown_file_hazard`; the Electron rule is
 `install::electron_resources`, because Electron loads `resources/app`,
 `resources/app.asar` or `resources/default_app.asar`, whichever it finds first.
+Package recognition and unknown-file matching use ASCII case-insensitive folder
+and archive names. Carry exclusions use that same target manifest to exclude
+the entire resource folder, including nested additions and ledger removals;
+folders outside it do not acquire this exclusion.
 
 Every other undeclared regular file is an unknown player-side file, such as a
 settings file a game writes beside itself. `VerificationReport` keeps it out of
@@ -2661,7 +2665,10 @@ links, and new names on the reviewed loader-read list in
 proxy DLLs (`dinput8`, `d3d9`, `d3d11`, `dxgi`, `dsound`, `winmm`, `version`,
 `xinput1_3` and similar), `ReShade.ini`, `dxvk.conf`, `enblocal.ini`, the
 NES/SNES-recomp developer-listener switch `debug.ini`, and
-`*.exe.config`, `*.exe.manifest` and `*.exe.local`, case-insensitively. The
+`*.exe.config`, Mono `*.dll.config`, `*.exe.manifest` and `*.exe.local`,
+case-insensitively. Mono's per-assembly configuration can redirect native
+library loading; ordinary `.config` files and backup suffixes are not added
+to the loader-read list. The
 list also covers Godot `override.cfg`, CPython `pyvenv.cfg` and `*._pth`, .NET
 `*.runtimeconfig.dev.json`, numbered proxies such as `xaudio2_9` and
 `d3dcompiler_47`, and undeclared portable markers (`portable.txt` and the
@@ -2732,7 +2739,14 @@ check. Too little free space (the larger of 1 GiB and 2% kept) carries nothing
 and the switch goes ahead; a modified active version carries nothing and
 records `source_modified`; a locked or changed file, or a partial earlier carry
 the switch can't finish, holds. The step has no cancellation or progress yet,
-and the outcome is recorded but not yet shown (T2-3).
+and the recorded outcome is exposed by `PortStatus.carried_files` (T2-3)
+only while its target is active. The bulk status query joins the known-format
+outcome with a byte bound before loading its JSON; malformed and future
+disclosure rows do not break status. Complete counts and observed copy/space
+bytes are recorded before path examples are truncated. Legacy rows retain
+unknown totals. CLI status and Desktop version details show this historical
+result, distinguish unavailable source coordinates and never recheck files or
+grant a file mutation through the disclosure.
 
 An explicit backup and removal (review and execution) copy every unknown file
 and need only the space for the whole backup (owner decision, November 15,

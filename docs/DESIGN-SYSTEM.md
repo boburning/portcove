@@ -35,8 +35,7 @@ selection scope, including filtered-out entries in supported Steam commands.
 
 Library covers use content-driven columns with a preferred minimum of 11.25rem,
 giving six columns at the matched 1440px desktop viewport with the normal interface
-size and full sidebar. At desktop widths of 761px and above with height 673–800px,
-Library uses a 10rem minimum. Whole-image
+size and full sidebar in tall windows. Whole-image
 2:3 artwork caps at 220 CSS pixels, and identity and overlay controls share that
 width. Below 760px the preferred minimum is 10rem; 360–480px windows use two
 flexible columns with a 12px gap and no artwork cap, while narrower windows use
@@ -47,10 +46,10 @@ In short or narrow windows, a single visible Library cover uses spare grid width
 to place its identity beside the portrait. Its status and primary action follow
 in a footer spanning the card. A sole multi-port group uses the same layout and keeps
 its other implementations below the selected port or choice prompt.
-At effective heights up to 672px, multiple Library covers use a 20rem preferred
+At effective heights up to 800px, multiple Library covers use a 20rem preferred
 column minimum and place identity beside a contained portrait. Their status and
 primary actions span the card below. This keeps the first row actionable in a
-960×640 window while retaining larger artwork than compact Rows.
+960×640, 1280×800 and 1366×768 windows while retaining larger artwork than compact Rows.
 Poster cover cards reserve two readable lines for both title and project (the project reserves one line in desktop windows up to 760px high and expands on hover and keyboard focus), aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
 40em. Footer actions stay beside the dominant status without overlapping it. A ready card's Play pairs a triangle with a compact signature-red labeled button, so the primary action is recognizable on arrival; its accessible name adds the game and project ("Play: Title · Project"), as do View task and the setup/review actions. Readiness stays a compact text-and-icon cue, and updates remain secondary while the game is playable. Routine Stable is omitted from Library card chips; a non-Stable channel or a channel that differs from the selected one stays visible. Discover cards likewise omit the chip when Stable is the only offered channel and the selected channel is Stable or unset; Preview, Rolling and mixed channels stay, and the comparison dialog shows every offered channel. With an observed device target, Discover cards omit platform chips and show “Not available for Platform” only when a port lists platforms that exclude this device; without a device target the platforms stay listed. The single-port “Why this port?” view omits setup, file and update rows and the “No platform/update channel is listed” lines when they have no value; several ports keep every row aligned for comparison (#5058 F3, F5). Release-channel and platform chips and filter options are neutral: semantic green means ready to play and blue means selection or a link, so a kept update is a neutral status with its icon; original-system identity colors remain (#5058 V2). “Update saved for later” stays, because a kept version may reuse local bytes without a download. (Supersedes the quiet bordered repeated Play; see #5058 L4–L5.) Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
 The quick views read as underlined navigation above the search/filter toolbar.
@@ -286,6 +285,7 @@ build targets, operating-system minima or publication qualification.
 - `html[data-theme]` is the runtime theme marker and activates Tailwind `dark:` variants. `html[lang]`, `html[dir]`, and Base UI's `DirectionProvider` are now driven together by the [desktop localization owner](LOCALIZATION.md), including for portaled controls. New layout rules use logical properties and mixed-direction technical values keep an explicit direction.
 - Shared Button intent is explicit: neutral `default`, signature-red `primary` for the dominant Play/Install/Apply action, blue `selected`, and danger-semantic `destructive`. All retain the shared gold focus signal and 36px compact and 40px ordinary/large minimum heights. Dialog owns the semantic scrim without backdrop blur; Dialog and Select use logical positioning and spacing where direction matters.
 - Recovery fields retain visible labels in their accessible names. Manual report copying has a localized label, and failed exit-code copying leaves the exact code visible with an announced retry instruction. Copy feedback belongs to the current library generation and launch. The command palette includes a visible Close action alongside its keyboard/controller hints. Operation progress uses a system-color border for its fill in forced colors, preserving the user's palette and the existing reduced-motion behavior.
+- The retained clipboard fallback always removes its temporary text field, including when copying throws. It restores the original connected focus and unchanged text selection without overriding a copy handler's deliberate focus move. Best-effort restoration does not change the copy result; modern clipboard permission refusals remain failures rather than invoking the legacy mechanism.
 - Graphite and warm controller-gray surfaces carry most of the interface. In the light theme, navigation is darker than the warm workspace and elevated surfaces are brighter. Blue means selected or interactive, yellow means keyboard/controller focus or rare emphasis, green means healthy or complete, and red is reserved for Portcove's signature and dangerous or critical action.
 - Text uses four sizes: 13px for metadata and chips (`--text-2xs`/`--text-xs`), 14px for body (`--text-sm`), 16px for card and game titles (`--text-md`), plus the page and section heading sizes; weights are 400 and 600 (#5058 V1).
 - Single-select strips, including Library quick views, Activity sections and detail tabs, share the selected treatment: selection fill plus an underline in the current color; option cards such as the theme picker keep their outline and tick (#5058 V3).
@@ -559,6 +559,8 @@ Controller input explicitly enables the gold focus outline; browser keyboard heu
 
 Vertical navigation visits the nearest visual row before considering horizontal alignment. Entering a new control group starts at its first control, so headers cannot skip filters, the first port card, or account actions. Within a card grid, vertical movement preserves the column. Search and Commands share the 42-pixel control height; search focus outlines the complete field including its icon and shortcut. External links use the desktop's system-browser bridge, which accepts only reviewed HTTPS project and GitHub device-login destinations and preserves the shared child-process environment policy.
 
+External-link failure feedback belongs to the latest attempt for the current destination and opener. A superseded response cannot replace newer feedback. Changing that context clears the old error while preserving the anchor and keyboard focus; it does not cancel a browser-open request already sent to the desktop.
+
 Portcove targets dense desktop use and a minimum 960-pixel-wide Tauri window. At narrower supported widths, the shell reduces nonessential labels and column count before hiding technical data. Reduced-motion preference removes nonessential transitions and progress animation.
 
 ## Game artwork
@@ -641,9 +643,10 @@ wrap and remain accessible in full.
 At desktop windows up to 760px high (from 761px width, including the 1280×720
 reference), chrome rhythm tightens across the toolbar, header, quick views and
 query rows. Poster covers reserve one project line instead of two and expand on
-focus. At heights of 673–800px, Library poster columns use a 10rem preferred
-minimum and retain the 220px artwork cap. At heights up to 672px, multiple Library
-covers use the horizontal portrait-and-identity composition described above.
+focus. At heights up to 50rem (800px at the default browser text size), multiple
+Library covers use the horizontal portrait-and-identity composition described
+above, matching the singleton cover's height boundary. This keeps first-row
+identity, readiness and actions together when listing platform chips wrap.
 Ordinary/tall and compact width rules retain their existing density. Rem-based
 minimums honor whole-interface enlargement. Poster layouts retain the effective
 24px cover-to-title gap and title/project reservations; horizontal covers use
