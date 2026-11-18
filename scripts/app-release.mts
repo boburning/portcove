@@ -201,6 +201,12 @@ function bundleName(version: string, suffix: string) {
   return `Portcove_${version}${suffix}`;
 }
 
+function updaterSignature(bytes: string, filename: string) {
+  const signature = bytes.trim();
+  if (!signature) throw new Error(`missing signed updater asset signature in ${filename}`);
+  return signature;
+}
+
 export function collectAppReleaseBundles(
   root: string,
   dist: string,
@@ -218,6 +224,7 @@ export function collectAppReleaseBundles(
   files.set(download, path.join(bundle, target.download.directory, download));
   files.set(updater, source);
   files.set(`${updater}.sig`, `${source}.sig`);
+  updaterSignature(readFileSync(`${source}.sig`, "utf8"), path.basename(source));
   mkdirSync(dist, { recursive: true });
   for (const [filename, from] of files) copyFileSync(from, path.join(dist, filename));
 }
@@ -237,7 +244,10 @@ export function buildFeed(options: {
     const name = bundleName(options.version, updater.suffix);
     // The published release's asset set is verified separately; the feed needs its signatures.
     if (!files.has(`${name}.sig`)) throw new Error(`missing signed updater asset ${name}`);
-    const signature = readFileSync(path.join(options.assetsDir, `${name}.sig`), "utf8").trim();
+    const signature = updaterSignature(
+      readFileSync(path.join(options.assetsDir, `${name}.sig`), "utf8"),
+      name,
+    );
     for (const platform of updater.aliases)
       platforms[platform] = { signature, url: `${options.downloadBase}/${name}` };
   }
@@ -390,6 +400,7 @@ export const nightlyLookback = 100;
  * first-parent commit of `origin/main` that is newer than every commit carrying a
  * `v*` or `nightly-*` tag. On a busy `main` the newest commit often has no finished
  * `CI` run yet (pending runs are replaced), so an older reviewed commit is used.
+ * The selected commit must support the reusable workflow's packaging profile.
  * The version follows the chosen commit's `Cargo.toml` workspace version.
  * The tag only names the release: signing is admitted by the `main` ref of the
  * nightly run, never by this tag.
@@ -419,14 +430,27 @@ export async function nightlyPreview(
     }
     const conclusion = await ci(sha);
     if (conclusion === "success") {
-      commit = sha;
-      break;
+      let script = "";
+      try {
+        script = git(["show", `${sha}:scripts/app-release.mts`]);
+      } catch {
+        // Older source may predate the tag release workflow.
+      }
+      if (
+        script.includes('command === "build-matrix"') &&
+        script.includes('command === "collect-bundles"')
+      ) {
+        commit = sha;
+        break;
+      }
+      seen.push(`${sha.slice(0, 9)} predates the release profile`);
+      continue;
     }
     seen.push(`${sha.slice(0, 9)} got '${conclusion || "none"}'`);
   }
   if (!commit)
     return {
-      skipped: `CI has not succeeded on any of the latest ${candidates.length} main commits (${seen.join("; ")})`,
+      skipped: `No eligible CI-green candidate among any of the latest ${candidates.length} main commits (${seen.join("; ")})`,
     };
   const workspaceVersion = parseWorkspaceVersion(git(["show", `${commit}:Cargo.toml`]));
   const tags = listVersionTags(run);
@@ -819,6 +843,8 @@ export async function publishRelease(options: {
 }) {
   const expected = readdirSync(options.distDir).sort();
   await assertAppReleaseAssets(options.version, expected);
+  for (const name of expected.filter((entry) => entry.endsWith(".sig")))
+    updaterSignature(readFileSync(path.join(options.distDir, name), "utf8"), name);
   const api = await client(options.token);
   const uploads = await client(options.token, "https://uploads.github.com");
   let release = await findRelease(api, options.tag);
@@ -902,6 +928,7 @@ export async function downloadPublishedSignatures(
     if (!response.ok) throw new Error(`download of ${asset.name} failed with ${response.status}`);
     const bytes = Buffer.from(await response.arrayBuffer());
     if (bytes.length > 4096) throw new Error(`${asset.name} exceeds the signature bound`);
+    if (exactProfile) updaterSignature(bytes.toString("utf8"), asset.name);
     writeFileSync(path.join(dir, asset.name), bytes);
   }
 }

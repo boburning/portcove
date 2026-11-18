@@ -445,6 +445,7 @@ function nightlyRunner(state: {
   describe?: string | null;
   history?: string[];
   tagged?: Record<string, string>;
+  preProfile?: string[];
   workspace?: string;
 }) {
   const head = "c".repeat(40);
@@ -456,7 +457,13 @@ function nightlyRunner(state: {
     if (args[0] === "rev-parse") return head;
     if (args[0] === "rev-list") return history.join("\n");
     if (args[0] === "show") {
-      shown.push(args[1]!);
+      const spec = args[1]!;
+      if (spec.endsWith(":scripts/app-release.mts")) {
+        return state.preProfile?.some((sha) => spec.startsWith(sha))
+          ? 'command === "stamp"'
+          : 'command === "build-matrix"; command === "collect-bundles"';
+      }
+      shown.push(spec);
       return `[workspace]\nmembers = []\n\n[workspace.package]\nversion = "${state.workspace ?? "0.1.0"}"\n`;
     }
     if (args[0] === "tag" && args[1] === "--points-at")
@@ -477,6 +484,15 @@ const conclusions =
   (map: Record<string, string>) =>
   (sha: string): Promise<string> =>
     Promise.resolve(map[sha] ?? "");
+
+void test("a green pre-profile ancestor cannot strand a nightly preview tag", async () => {
+  const old = "d".repeat(40);
+  const fake = nightlyRunner({ preProfile: [old] });
+  const result = await nightlyPreview(conclusions({ [old]: "success" }), fake.run);
+  assert.ok("skipped" in result);
+  assert.match(result.skipped, /ddddddddd predates the release profile/u);
+  assert.ok(!fake.calls.some((call) => call[1] === "push" || call[2] === "-a"));
+});
 
 void test("the nightly preview tags a CI-green untagged main once and lists its new commits", async () => {
   const ok = nightlyRunner({});
@@ -1086,7 +1102,13 @@ void test("collects the universal bundle and preserves a one-platform CLI invent
     () => collectAppReleaseBundles(root, dist, "macos-universal", version),
     /Portcove\.app\.tar\.gz\.sig/u,
   );
-  await writeFile(path.join(bundle, "macos/Portcove.app.tar.gz.sig"), "signature");
+  const signaturePath = path.join(bundle, "macos/Portcove.app.tar.gz.sig");
+  await writeFile(signaturePath, "  \n");
+  assert.throws(
+    () => collectAppReleaseBundles(root, dist, "macos-universal", version),
+    /missing signed updater asset signature/u,
+  );
+  await writeFile(signaturePath, "signature");
   collectAppReleaseBundles(root, dist, "macos-universal", version);
   assert.deepEqual((await readdir(dist)).sort(), [dmg, updater, `${updater}.sig`].sort());
 
