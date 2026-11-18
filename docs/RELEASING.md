@@ -16,10 +16,14 @@ calls the shared jobs in
 
 1. Refuse inputs that disagree with the version's channel, tag or signing
    environment.
-2. Stamp the version, then build and sign the Windows NSIS installer and CLI
-   ZIP, the Linux AppImage, and the universal macOS app and DMG. Signing uses the
-   Tauri updater key. macOS builds are ad-hoc signed.
-3. Publish an immutable GitHub Release with every asset and `SHA256SUMS`.
+2. Stamp the version, then build the Windows NSIS installer, Linux AppImage,
+   and universal macOS app and DMG. Sign the updater assets with the Tauri
+   updater key. macOS builds are ad-hoc signed. Build and smoke-test standalone
+   CLI archives from the same source and version for Windows x86-64, Linux
+   x86-64, and both Apple Silicon and Intel macOS.
+3. Check the complete asset set before publishing the immutable GitHub Release.
+   `SHA256SUMS` covers the Desktop packages, updater payloads and signatures,
+   and standalone CLI archives.
 4. Write `latest.json` to `updates/<channel>/latest.json` on the `gh-pages`
    branch, which GitHub Pages serves. Older feeds are never overwritten by a
    lower version.
