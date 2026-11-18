@@ -6,23 +6,46 @@ use uuid::Uuid;
 
 use crate::{catalog::CatalogCommand, schema::SchemaContract};
 
-pub(crate) fn profile_command_capabilities() -> Vec<String> {
-    let cli = Cli::command();
-    let Some(profile) = cli
-        .find_subcommand("profile")
-        .filter(|command| !command.is_hide_set())
-    else {
-        return Vec::new();
-    };
-    let group = profile.get_name();
-    std::iter::once(group.to_owned())
-        .chain(
-            profile
-                .get_subcommands()
-                .filter(|command| !command.is_hide_set())
-                .map(|command| format!("{group}.{}", command.get_name())),
-        )
-        .collect()
+/// Derive public identifiers from the parser. The named compatibility markers
+/// describe existing reviewed command pairs that older clients negotiate.
+pub(crate) fn registered_command_capabilities() -> Vec<String> {
+    fn visit(parent: &str, command: &clap::Command, commands: &mut Vec<String>) {
+        for child in command
+            .get_subcommands()
+            .filter(|child| !child.is_hide_set())
+        {
+            let name = child.get_name();
+            let id = if parent.is_empty() {
+                name.to_owned()
+            } else {
+                format!("{parent}.{name}")
+            };
+            commands.push(if id == "remove-preview" {
+                "remove.preview".into()
+            } else {
+                id.clone()
+            });
+            visit(&id, child, commands);
+        }
+    }
+
+    let mut commands = Vec::new();
+    visit("", &Cli::command(), &mut commands);
+    for (marker, required) in [
+        ("external.review", ["external.preview", "external.register"]),
+        (
+            "installation.review",
+            ["installation.plan", "installation.run"],
+        ),
+    ] {
+        if required
+            .iter()
+            .all(|id| commands.iter().any(|command| command == id))
+        {
+            commands.push(marker.into());
+        }
+    }
+    commands
 }
 
 // Derive the descriptions from the same commands used by the parser. The groups
