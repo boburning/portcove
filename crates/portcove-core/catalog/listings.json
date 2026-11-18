@@ -41952,6 +41952,51 @@
       }
     },
     {
+      "id": "midtown-madness-3-lakshya16157",
+      "name": "Midtown Madness 3 / lakshya16157",
+      "summary": "Race in a native Windows or Linux build prepared from your own Midtown Madness 3 Xbox disc image.",
+      "project_url": "https://github.com/lakshya16157/midtown-madness-3-PC-Native",
+      "original_game_title": "Midtown Madness 3",
+      "issue_number": 5988,
+      "listed_at": "2026-11-18",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "MM3-Setup.exe"
+        ],
+        "linux-x86-64": [
+          "MM3-Linux-x86_64.tar.gz"
+        ]
+      },
+      "release_url": "https://github.com/lakshya16157/midtown-madness-3-PC-Native/releases/tag/v2.8.1",
+      "setup_url": "https://github.com/lakshya16157/midtown-madness-3-PC-Native/blob/v2.8.1/README.md#install-and-play",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game from your Xbox disc image",
+            "instruction": "On Windows, use MM3-Setup.exe. On Linux, extract the tarball and run sh install.sh from the extracted MM3-Linux folder. Linux needs Python 3.9 or newer, a Vulkan driver, and python3-tk if you use the setup window. Use your own original USA or Europe/Australia disc image. Check the release’s supported disc notes for other regions."
+          },
+          {
+            "title": "Play again and reopen settings",
+            "instruction": "Use the installed Midtown Madness 3 shortcut. For Steam or another frontend that accepts scripts, use mm3_recomp.exe on Windows or play-midtown-madness-3.sh on Linux. Add --play to start the game directly or --settings to open settings."
+          }
+        ],
+        "references": [
+          {
+            "title": "Back up the installation’s player data",
+            "instruction": "Your saves stay in game_files inside the installation. Keep that folder and display.ini, launcher.ini and language.ini. On Windows, use the project’s update control. On Linux, download the new tarball from the project and install it over the existing installation to keep saves and settings."
+          }
+        ],
+        "warnings": [
+          "Back up the game’s files yourself before replacing or removing an installation."
+        ]
+      }
+    },
+    {
       "id": "midtown-madness-3-static-recompilation-taxidriverhk-midtown-madness-3",
       "name": "Midtown Madness 3 — Midtown Madness 3 — Static Recompilation (taxidriverhk)",
       "original_game_title": "Midtown Madness 3",
@@ -55317,6 +55362,48 @@
       }
     },
     {
+      "id": "rtrainsim-openrts",
+      "name": "RTrainSim / openRTS",
+      "summary": "Drive trains in a native Windows build using the routes and rolling stock from your own RTrainSim installation.",
+      "project_url": "https://github.com/SmileDoge/openRTS",
+      "original_game_title": "RTrainSim",
+      "issue_number": 5782,
+      "listed_at": "2026-11-18",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "openRTS-windows-x64-",
+          ".zip"
+        ]
+      },
+      "release_url": "https://github.com/SmileDoge/openRTS/releases/tag/v0.22.0",
+      "setup_url": "https://github.com/SmileDoge/openRTS/blob/v0.22.0/INSTALL_EN.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Open the start menu",
+            "instruction": "Extract the ZIP and open openrts_game.exe from the extracted folder. Install the x64 Microsoft Visual C++ Redistributable if needed. The project requires a graphics driver with Vulkan or DirectX 12."
+          },
+          {
+            "title": "Choose your RTrainSim folder",
+            "instruction": "In the start menu, set the folder of your own RTrainSim installation with routes and rolling stock. The menu remembers the folder. Return to openrts_game.exe to choose a route or save, or open Settings to change the folder."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep saves and settings",
+            "instruction": "The default profile is %LOCALAPPDATA%/openRTS. If you use the project’s portable.txt marker, the profile stays beside the program. Open the profile from the project’s Settings and back it up separately. It holds viewer_state.ini, saves grouped by route and RTS_TAPES. The project’s start menu handles updates and lets you turn off checks at startup."
+          }
+        ],
+        "warnings": [
+          "Portcove does not back up this project’s profile."
+        ]
+      }
+    },
+    {
       "id": "rumble-roses-xx-pc-recomp-unofficial-jesustaylo-rumble-roses-xx",
       "artwork": {
         "game_id": 7167,
@@ -58294,8 +58381,20 @@
       "project_url": "https://github.com/hedge-dev/UnleashedRecomp",
       "issue_number": 126,
       "listed_at": "2026-10-23",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "UnleashedRecomp-Windows.zip"
+        ],
+        "linux-x86-64": [
+          "UnleashedRecomp-Flatpak.zip"
+        ]
+      },
+      "release_url": "https://github.com/hedge-dev/UnleashedRecomp/releases/tag/v1.0.3",
       "setup_url": "https://github.com/hedge-dev/UnleashedRecomp",
       "artwork": {
         "game_id": 333920,
@@ -58323,6 +58422,16 @@
           {
             "title": "Retain upstream ownership and every effective profile",
             "instruction": "Upstream remains the single engine/data-preparation owner. Preserve the complete creating installation, original base/update/DLC inputs, mods and all effective profiles before deliberate compatible changes. Default Windows settings are in the Roaming AppData UnleashedRecomp directory, with config.toml and save/SYS-DATA; a portable.txt beside the player switches the profile to its executable directory. Hedge Mod Manager can redirect saves, including mlsave or another configured path. Preserve both old/new roots before changing portable mode. A failed Windows known-folder lookup can leave relative profile paths, so preserve the actual effective location. Upstream’s version-replacement guidance is not a Portcove promise of cross-version save or mod compatibility; relink and review any changed selected executable."
+          }
+        ],
+        "references": [
+          {
+            "title": "Install the Linux Flatpak through your system",
+            "instruction": "The Linux x86-64 ZIP contains io.github.hedge_dev.unleashedrecomp.flatpak. Extract and install that bundle with your system’s Flatpak tools. Open it once to supply your original files, then reopen the installed application. The Windows executable registration above is a separate route."
+          },
+          {
+            "title": "Keep your Flatpak data when updating",
+            "instruction": "The game installs its original-file data under ~/.var/app/io.github.hedge_dev.unleashedrecomp/data. Back up that folder and the active save profile. The game normally uses ~/.config/UnleashedRecomp for settings and saves. Keep any different save path chosen by your mod manager. Update with the project’s new Flatpak bundle and keep application data when replacing the old version."
           }
         ],
         "warnings": [
@@ -63120,11 +63229,6 @@
       "project_url": "https://github.com/teeworlds/teeworlds",
       "issue_number": 6509,
       "listed_at": "2026-11-16",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64"
-      ],
       "availability": "packages",
       "release_url": "https://www.teeworlds.com/?page=downloads",
       "setup_url": "https://www.teeworlds.com/?page=docs",
@@ -63132,12 +63236,24 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Install the client",
-            "instruction": "On Windows, extract the publisher ZIP and open teeworlds.exe. On Linux, install Teeworlds through your package manager or unpack the publisher archive and launch teeworlds from its folder. The community Flathub package is available on Linux x64 and ARM64. The publisher’s Mac disk image contains an Intel client."
+            "title": "Add the Windows client to Portcove",
+            "instruction": "After extracting the complete official Windows x64 ZIP, select teeworlds.exe and its containing folder. Keep the data folder and the accompanying files together. Leave launch options empty, review the details, and add the game. Choose Play separately. teeworlds_srv.exe is the dedicated server, not the client."
+          },
+          {
+            "title": "Add the Linux client to Portcove",
+            "instruction": "Select the teeworlds client from your complete Linux x64 package and use its containing folder as the start folder. A distribution package normally installs it at /usr/games/teeworlds; install its data package and dependencies through the same package manager. Leave launch options empty. Update the installation through upstream or your package manager. The separate community Flathub client is available on Linux x64 and ARM64; install and update that copy through Flatpak rather than selecting a Flatpak launcher as a native executable."
+          },
+          {
+            "title": "Add the Intel Mac client to Portcove",
+            "instruction": "Copy the complete Teeworlds.app from the publisher disk image into Applications and open it normally once. In Portcove, select /Applications/Teeworlds.app/Contents/MacOS/teeworlds, use its containing folder as the start folder, and leave launch options empty. Keep the complete app bundle together. Teeworlds Server.app is a separate dedicated server. The later teeworlds.exe choice applies to Windows; Mac uses the native file inside Teeworlds.app. The bundled 0.7.5 Intel runtime requires macOS 10.13 or later; Portcove has its own system requirements."
           },
           {
             "title": "Play and record a match",
             "instruction": "The Teeworlds 0.7 client connects to Teeworlds 0.7 servers. In a match, press F1 and enter record followed by a demo name. Enter stoprecord to finish, then open the recording from Demos."
+          },
+          {
+            "title": "Select the prepared player",
+            "instruction": "Select teeworlds.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
         "warnings": [
@@ -63147,10 +63263,23 @@
           {
             "title": "Find your data folder",
             "instruction": "The defaults are %APPDATA%/Teeworlds on Windows, ~/Library/Application Support/Teeworlds on Mac, and ~/.local/share/teeworlds on Linux. On Linux, the game prefers an existing ~/.teeworlds folder or uses $XDG_DATA_HOME/teeworlds if XDG_DATA_HOME is set. For the Flathub installation, check ~/.var/app/com.teeworlds.Teeworlds/.teeworlds. If you changed storage.cfg, use its save location."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: Windows %APPDATA%/Teeworlds settings07.cfg, demos, maps and skins; Linux ~/.local/share/teeworlds, existing ~/.teeworlds or $XDG_DATA_HOME/teeworlds; Intel Mac ~/Library/Application Support/Teeworlds and any storage.cfg save path; the save location selected by storage.cfg, and any custom maps or skins kept with the installation. Back up these locations separately; registration does not migrate or certify their compatibility."
           }
         ],
         "help_url": "https://www.teeworlds.com/?page=docs"
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64"
+      ]
     },
     {
       "id": "tekken-3-tekken3recomp",
