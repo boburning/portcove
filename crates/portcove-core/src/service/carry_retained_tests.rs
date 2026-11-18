@@ -276,12 +276,16 @@ async fn carry_runtime_mutability_uses_working_directory_not_persistence_root() 
     ))));
     let mut service = build_service(library.clone(), provider.clone());
     let mut document = serde_json::to_value(catalog().authoritative_document()).unwrap();
+    document["ports"][0]["adapter"] = serde_json::json!("staged-source-portable");
     document["ports"][0]["launch_from_install_root"] = serde_json::json!(true);
     document["ports"][0]["runtime_subdirectory"] = serde_json::json!("runtime");
     document["ports"][0]["runtime_mutable_paths"] = serde_json::json!(["cache"]);
     document["ports"][0]["runtime_mutable_file_patterns"] =
         serde_json::json!([{"prefix":"dyn_", "suffix":".tmp"}]);
     service.replace_catalog_for_test(Catalog::from_json(&document.to_string()).unwrap());
+    assert!(crate::persistence::ready_staged_archive(
+        service.catalog.port(ID).unwrap()
+    ));
     let active = service
         .install(ID, None, None, None, true, |_| {})
         .await
