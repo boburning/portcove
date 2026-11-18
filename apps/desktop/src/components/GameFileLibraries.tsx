@@ -24,7 +24,7 @@ import type {
   SourceRecord,
 } from "../types";
 import { errorText, formatBytes, isCancellation, type DetailDestination } from "../view-model";
-import { focusableControls } from "../focus";
+import { focusableControls, focusAndReveal, navigationScope } from "../focus";
 import { OperationCancellation } from "./OperationCancellation";
 import { PreliminarySourceSelections } from "./PreliminarySourceSelections";
 import {
@@ -1087,7 +1087,44 @@ export function GameFileLibraries({
   const accepts = () => owner.current === generation;
   const viewCompletion = useCompletedScanView(scanState, view, setError);
   const [notice, setNotice] = useState<string>();
-  const [batchPorts, setBatchPorts] = useState<string[]>();
+  const [batchReview, setBatchReview] = useState<{
+    portIds: string[];
+    origin: HTMLButtonElement;
+    owner: HTMLElement;
+    generation: number;
+  }>();
+  const pendingBatchReturn = useRef<
+    | {
+        review: NonNullable<typeof batchReview>;
+        departing: HTMLElement | null;
+      }
+    | undefined
+  >(undefined);
+  const currentBatchReview = batchReview?.generation === generation ? batchReview : undefined;
+  useLayoutEffect(() => {
+    const pending = pendingBatchReturn.current;
+    pendingBatchReturn.current = undefined;
+    if (!pending || batchReview || pending.review.generation !== generation) return;
+    const { review, departing } = pending;
+    if (
+      !review.owner.isConnected ||
+      (document.activeElement !== document.body && !departing?.contains(document.activeElement))
+    )
+      return;
+    const controls = focusableControls(review.owner);
+    const target = controls.includes(review.origin)
+      ? review.origin
+      : (controls[0] ?? heading.current);
+    if (
+      !target?.isConnected ||
+      !navigationScope().contains(target) ||
+      target.closest("[inert], [hidden], [aria-hidden=true]") ||
+      !target.getClientRects().length ||
+      getComputedStyle(target).visibility === "hidden"
+    )
+      return;
+    focusAndReveal(target, { centerBeforeFocus: true });
+  }, [batchReview, generation]);
   const [removingId, setRemovingId] = useState<string>();
   const [reviewedPlan, setReviewedPlan] = useState<{
     generation: number;
@@ -1408,19 +1445,29 @@ export function GameFileLibraries({
         busy={Boolean(busy) || Boolean(plan)}
         onOpenPort={openPort}
         onAddToLibrary={(portIds) => void addToLibrary(portIds)}
-        onReviewInstall={(portIds) => setBatchPorts(portIds)}
+        onReviewInstall={(portIds, origin, owner) => {
+          pendingBatchReturn.current = undefined;
+          setBatchReview({ portIds, origin, owner, generation });
+        }}
         focusFallback={() => heading.current}
       />
     </>
   );
   const renderInstallBatch = () => (
     <InstallBatchPanel
-      key={batchPorts?.join("\n") ?? ""}
+      key={`${generation}:${currentBatchReview?.portIds.join("\n") ?? ""}`}
       generation={generation}
       ports={ports}
-      portIds={batchPorts}
+      portIds={currentBatchReview?.portIds}
+      reviewOrigin={currentBatchReview?.origin}
+      onCancelReview={(departing) => {
+        if (!currentBatchReview || !accepts()) return;
+        pendingBatchReturn.current = { review: currentBatchReview, departing };
+        setBatchReview(undefined);
+      }}
       onDone={() => {
-        setBatchPorts(undefined);
+        if (!accepts()) return;
+        setBatchReview(undefined);
         void onAdded?.();
       }}
     />
