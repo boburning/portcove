@@ -549,6 +549,22 @@ evidence. Unrelated catalog payloads are omitted only after the assertions;
 codec bounds and all data/save/operation checks remain unchanged. The earlier
 scenario summary does not establish retained-artifact or rendered acceptance.
 
+The secondary-panel job `135122626691` completed owned DAT cancellation and focus
+return, then the helper refused the implemented **Choose a DAT file** Open dialog
+before input. The finite same-scenario audit also identified its existing recipe
+and saves Open titles and metadata/saves Save titles missing from that guard.
+Only these exact title/action pairs are added. Save defaults to denied unless
+the trusted scenario explicitly supplies its owned output root; the wrapper binds
+it to the existing fixture scope, and PowerShell requires an absent literal JSON
+leaf directly under that existing non-reparse parent. Missing/unowned parents,
+traversal, existing targets, device/wildcard names, unrelated titles and wrong
+actions fail before field input. The path is rechecked before Save; the helper
+never confirms overwrite or invokes Yes as part of Save. Process/creation/window
+identity, exact owned fields/buttons, single-action readback/dismissal and existing
+timeouts remain in force. Linux contracts verify fixture validation and producer
+titles; the existing Windows-only AST/input witness covers the actual guarded
+PowerShell blocks. Those Windows checks and native flows require later execution.
+
 The November 17 Linux Heavy Rust calibration raises the parent's adopting-reaper
 exit wait from 5 to 30 seconds. A guarded desktop build at `95f11af1` returned
 payload status 0 and eventually published a positive quiescence receipt, but its

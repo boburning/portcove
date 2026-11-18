@@ -5,6 +5,7 @@ param(
     [Parameter(Mandatory, ParameterSetName='Confirmation')][string]$ExpectedText,
     [Parameter(Mandatory, ParameterSetName='Confirmation')][string]$Button,
     [Parameter(ParameterSetName='Confirmation')][string]$FilePath,
+    [Parameter(ParameterSetName='Confirmation')][string]$OwnedSaveRoot,
     [Parameter(ParameterSetName='Confirmation')][string]$DirectoryPath,
     [Parameter(ParameterSetName='Confirmation')][string]$ScreenshotPath,
     [Parameter(Mandatory, ParameterSetName='Observation')][switch]$ObservePicker,
@@ -365,11 +366,32 @@ $windowScope = 'owned-exact-target'
 $nativeLibraryButton = $null
 $nativeLibraryWindowHandle = $null
 if ($FilePath -and $DirectoryPath) { throw 'Choose only one native picker input.' }
+if ($OwnedSaveRoot -and (-not $FilePath -or $Button -cne 'Save')) { throw 'Owned save roots apply only to Save file input.' }
+function Resolve-OwnedSaveTarget([string]$Target, [string]$OwnedRoot) {
+    if (-not $OwnedRoot -or -not [IO.Path]::IsPathRooted($OwnedRoot) -or -not [IO.Path]::IsPathRooted($Target)) { throw 'Save requires an explicit absolute owned fixture root and target.' }
+    if (($Target -split '[\\/]') -contains '..' -or ($OwnedRoot -split '[\\/]') -contains '..') { throw 'Save paths must not contain traversal.' }
+    $parent = (Resolve-Path -LiteralPath $OwnedRoot -ErrorAction Stop).Path
+    $parentItem = Get-Item -LiteralPath $parent -Force -ErrorAction Stop
+    if ($parentItem.PSProvider.Name -cne 'FileSystem' -or -not $parentItem.PSIsContainer -or ($parentItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Save root must be an existing non-reparse fixture directory.' }
+    $targetPath = [IO.Path]::GetFullPath($Target)
+    if (-not [string]::Equals([IO.Path]::GetDirectoryName($targetPath), $parent, [StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetExtension($targetPath) -ine '.json') { throw 'Save target must be a JSON leaf directly inside the owned fixture root.' }
+    $leaf = [IO.Path]::GetFileName($targetPath)
+    if ($leaf.IndexOfAny([IO.Path]::GetInvalidFileNameChars()) -ge 0 -or $leaf -match '^(?i:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)') { throw 'Save target must be a literal non-device file leaf.' }
+    if ((Get-Item -LiteralPath $targetPath -Force -ErrorAction SilentlyContinue) -or (Test-Path -LiteralPath $targetPath -ErrorAction Stop)) { throw 'Owned Save must not overwrite an existing target.' }
+    return $targetPath
+}
 if ($FilePath) {
     Assert-ExactConfirmationWindow $window
-    if ($Button -ne 'Open' -or $Title -notin @('Choose local artwork', 'Choose game files', 'Choose ZIP file', 'Choose BIOS file')) { throw 'File input is limited to artwork, game-file, and BIOS pickers.' }
-    $selected = (Resolve-Path -LiteralPath $FilePath).Path
-    if (-not [IO.File]::Exists($selected)) { throw 'Owned picker fixture is not a file.' }
+    $openTitles = @('Choose local artwork', 'Choose game files', 'Choose ZIP file', 'Choose BIOS file', 'Choose a DAT file', 'Open setup recipe…', 'Import saves')
+    $saveTitles = @('Export library information', 'Export saves')
+    $saveFile = $Button -ceq 'Save' -and $Title -cin $saveTitles
+    if ($Button -ceq 'Open' -and $Title -cin $openTitles) {
+        if ($OwnedSaveRoot) { throw 'Open does not accept a save root.' }
+        $selected = (Resolve-Path -LiteralPath $FilePath).Path
+        if (-not [IO.File]::Exists($selected)) { throw 'Owned picker fixture is not a file.' }
+    } elseif ($saveFile) {
+        $selected = Resolve-OwnedSaveTarget $FilePath $OwnedSaveRoot
+    } else { throw 'File input is limited to exact supported Open or owned Save pickers.' }
     $fields = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'File name:' })
     if ($fields.Count -ne 1 -or $fields[0].Current.ProcessId -ne $applicationId) { throw 'Expected one exact owned file-name field.' }
     $fileValue = $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
@@ -491,10 +513,11 @@ $fileSelection = $null
 if ($FilePath) {
     Write-ObservationProgress 'file-input-readback'
     Assert-ExactConfirmationWindow $window
+    if ($saveFile -and (Resolve-OwnedSaveTarget $FilePath $OwnedSaveRoot) -cne $selected) { throw 'Owned save target changed before Save.' }
     $freshFields = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'File name:' })
     if ($freshFields.Count -ne 1 -or $freshFields[0].Current.ProcessId -ne $applicationId -or
         $freshFields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -cne $selected) {
-        throw 'Owned file-name field changed before Open; no input permitted.'
+        throw 'Owned file-name field changed before its action; no input permitted.'
     }
     $fileSelection = [pscustomobject]@{ field_readback_matches = $true; window_handle = $selectedWindowHandle; closed = $false; close_samples = @() }
 }
@@ -520,6 +543,6 @@ if ($FilePath) {
         if ($livePickers.Count -eq 0) { $fileSelection.closed = $true; break }
         Start-Sleep -Milliseconds 100
     } while ([DateTime]::UtcNow -lt $closeDeadline)
-    if (-not $fileSelection.closed) { throw 'Owned file picker did not close after one Open action.' }
+    if (-not $fileSelection.closed) { throw 'Owned file picker did not close after its single reviewed action.' }
 }
 [pscustomobject]@{ application_pid = $applicationId; driver_pid = $DriverProcessId; application_path = $applicationFull; title = $Title; window_scope = $windowScope; button = $Button; text = $text; selected_file = $FilePath; selected_directory = $DirectoryPath; file_selection = $fileSelection; screenshot = $screenshotObservation } | ConvertTo-Json -Depth 4 -Compress
