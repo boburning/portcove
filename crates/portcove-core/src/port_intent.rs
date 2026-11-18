@@ -319,7 +319,7 @@ impl Library {
             [purpose.key()],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )?;
-        let total = snapshot.query_row(
+        let total: usize = snapshot.query_row(
             &format!("SELECT COUNT(*) FROM port_intents WHERE {ASSESSABLE_INTENTS}"),
             [],
             |row| row.get(0),
