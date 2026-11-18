@@ -220,6 +220,19 @@ const gameId = "the-legend-of-zelda-majoras-mask";
 const pair = ["2ship2harkinian", "zelda64-recomp"] as const;
 const groupSelector = `[data-detail-return-group="game:${gameId}"]`;
 
+/** Record definition and listing delivery independently; neither status substitutes for the other. */
+export async function readGameFirstCatalogProvenance(invoke: ScenarioInvoke) {
+  const catalog_status = transportValue(
+    "catalog_status",
+    fixtureSuccess(await invoke("get_catalog_status")),
+  );
+  const listing_delivery_status = transportValue(
+    "listing_delivery_status",
+    fixtureSuccess(await invoke("get_listing_delivery_status")),
+  );
+  return { catalog_status, listing_delivery_status };
+}
+
 /** Repeat only explicitly stale reads or independently confirmed transitions; never replay an action. */
 export async function readGameFirstObservation(invoke: ScenarioInvoke, readbacks: unknown[]) {
   let initial: { generation: number; library_root: string | null } | undefined;
@@ -487,7 +500,7 @@ export async function gameFirstScenarios({
       families: Object.keys(relationships.expected.families).length,
       audited_records: production.provenance.length,
       catalog_digest: before.workspace.catalog_digest ?? null,
-      catalog_status: fixtureSuccess(await invoke("get_catalog_status")),
+      ...(await readGameFirstCatalogProvenance(invoke)),
       provenance: production.provenance,
     });
     readbacks.push({

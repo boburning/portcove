@@ -3112,8 +3112,12 @@ try {
       packageEvidence: required(packageEvidence),
     });
     assertOwnedBoundaryRequests(requests);
-    const { readGameFirstObservation, readGameFirstRelationships, inspectGameFirstRelationships } =
-      await import("./desktop-game-first-test.mts");
+    const {
+      readGameFirstObservation,
+      readGameFirstRelationships,
+      inspectGameFirstRelationships,
+      readGameFirstCatalogProvenance,
+    } = await import("./desktop-game-first-test.mts");
     const readbacks: unknown[] = [];
     const report: Record<string, unknown> = {
       outcome: "failed",
@@ -3130,7 +3134,7 @@ try {
       report.audited_revision = relationships.expected.audited_revision;
       const observation = await readGameFirstObservation(invoke, readbacks);
       report.catalog_digest = observation.workspace.catalog_digest ?? null;
-      report.catalog_status = success(await invoke("get_catalog_status"));
+      Object.assign(report, await readGameFirstCatalogProvenance(invoke));
       report.generation = observation.bootstrap.generation;
       const production = inspectGameFirstRelationships(
         observation.workspace,

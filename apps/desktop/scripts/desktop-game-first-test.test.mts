@@ -8,6 +8,7 @@ import {
   gameFirstPresentationFamilies,
   observeGameFirstCaptureReadiness,
   readGameFirstObservation,
+  readGameFirstCatalogProvenance,
 } from "./desktop-game-first-test.mts";
 import { failureReport, portStatus, installedLaunchStatus } from "../src/test-fixtures.ts";
 import { transportValue } from "./transport-values.mts";
@@ -110,6 +111,69 @@ const attemptCommands = [
   "get_statuses",
   "get_bootstrap_status",
 ];
+
+test("catalog provenance reads both actual definition and independently selected listing statuses", async () => {
+  const catalog = {
+    provenance: {
+      origin: "embedded",
+      catalog_sha256: "a".repeat(64),
+      expires_at: null,
+      fallback_reasons: [],
+      key_id: null,
+      sequence: null,
+    },
+    trusted_keys: [],
+    highest_sequence: 0,
+    updates_enabled: false,
+    can_rollback: false,
+    can_use_cached: false,
+    state_sha256: "b".repeat(64),
+  };
+  const listing = {
+    delivery_schema: 1,
+    revision: 17,
+    selected: true,
+    anchor_sha256: "c".repeat(64),
+    repository_root_sha256: "d".repeat(64),
+    target_sha256: "e".repeat(64),
+    expires_at: "2026-12-01T00:00:00Z",
+    listing_count: 1500,
+    withdrawn_ids: ["withdrawn-fixture-project"],
+    fallback_reason: null,
+  };
+  const calls: string[] = [];
+  const invoke: ScenarioInvoke = async (command) => {
+    calls.push(command);
+    if (command === "get_catalog_status") return success(catalog);
+    assert.equal(command, "get_listing_delivery_status");
+    return success(listing);
+  };
+  const observed = await readGameFirstCatalogProvenance(invoke);
+  assert.deepEqual(calls, ["get_catalog_status", "get_listing_delivery_status"]);
+  assert.equal(observed.catalog_status, catalog);
+  assert.equal(observed.listing_delivery_status, listing);
+  assert.equal(observed.catalog_status.provenance.origin, "embedded");
+  assert.equal(observed.listing_delivery_status.selected, true);
+  for (const reply of [
+    undefined,
+    refusal(),
+    { ok: true },
+    success(null),
+    success({}),
+    success({ ...listing, selected: "true" }),
+  ]) {
+    const attempts: string[] = [];
+    await assert.rejects(() =>
+      readGameFirstCatalogProvenance(async (command) => {
+        attempts.push(command);
+        if (command === "get_catalog_status") return success(catalog);
+        assert.equal(command, "get_listing_delivery_status");
+        return reply;
+      }),
+    );
+    assert.deepEqual(attempts, ["get_catalog_status", "get_listing_delivery_status"]);
+  }
+});
 
 test("a stale workspace refusal retries the full read and returns fresh organization/status joins", async () => {
   const fixture = reads([refusal(), success(workspace)]);
