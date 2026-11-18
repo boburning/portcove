@@ -67,6 +67,7 @@ export function GroupedLibrary({
   resultsReady?: boolean;
   queryKey?: string;
 }) {
+  const { t } = useAppTranslation("browsing");
   const generation = useOperationPresentation()?.generation;
   const currentGeneration = useRef(generation);
 
@@ -142,7 +143,7 @@ export function GroupedLibrary({
         layout={layout}
         generation={generation}
         overlayPin={menuPin}
-        label="Library entries"
+        label={t("library.label")}
         onMountDestination={(group, target) => {
           if (target.originKey?.startsWith("library:alternative:")) expand(group.id, true);
         }}

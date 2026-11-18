@@ -109,6 +109,7 @@ export default defineConfig({
     // Technical design-system, ARIA and HTML/SVG rendering-hint literals, never player copy.
     ignoredAttributes: [
       "align",
+      "collection",
       "aria-live",
       "aria-atomic",
       "aria-autocomplete",

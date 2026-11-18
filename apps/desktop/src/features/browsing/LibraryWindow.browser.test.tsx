@@ -221,7 +221,8 @@ it.each(["covers", "rows"] as const)(
     control.focus();
     await frames();
     const before = control.getBoundingClientRect().top;
-    const reordered = [...ports.slice(181), ...ports.slice(0, 181)];
+    // Keep the destination away from either scroll boundary so equal offsets are attainable.
+    const reordered = [...ports.slice(150), ...ports.slice(0, 150)];
     await draw({ layout, matching: reordered });
     await expect
       .poll(async () => {
