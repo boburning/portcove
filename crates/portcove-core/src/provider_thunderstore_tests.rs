@@ -388,6 +388,7 @@ fn a_backport_published_after_a_newer_release_is_not_an_update() {
         download_url: String::new(),
         claimed_md5: None,
         archived: false,
+        status_unknown: None,
         claimed_scan: None,
         thunderstore_dependencies: None,
     };

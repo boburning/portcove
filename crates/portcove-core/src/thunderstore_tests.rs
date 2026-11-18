@@ -275,3 +275,32 @@ fn only_reviewed_communities_are_bound() {
     );
     assert_eq!(thunderstore_community("shipwright"), None);
 }
+
+#[test]
+fn thunderstore_flags_distinguish_absent_null_malformed_and_boolean() {
+    use crate::ProviderStatusUnknown::{Malformed, Null, Omitted};
+    for (raw, expected, flag) in [
+        (None, Some(Omitted), false),
+        (Some(Value::Null), Some(Null), false),
+        (Some(json!("false")), Some(Malformed), false),
+        (Some(json!(true)), None, true),
+        (Some(json!(false)), None, false),
+    ] {
+        let mut candidate = version(WEB, "Owner", "Timer", "1.0.0", "2026-11-02T00:00:00Z", true);
+        let mut project = package(WEB, "Owner", "Timer", Vec::new());
+        if let Some(raw) = raw {
+            candidate["is_active"] = raw.clone();
+            project["is_deprecated"] = raw;
+        } else {
+            candidate.as_object_mut().unwrap().remove("is_active");
+            project.as_object_mut().unwrap().remove("is_deprecated");
+        }
+        project["versions"] = json!([candidate]);
+        let listing = parse_listing(&json!([project]), "zelda-64-recompiled", WEB).unwrap();
+        let parsed = &listing[0];
+        assert_eq!(parsed.status_unknown, expected);
+        assert_eq!(parsed.obsolete, flag);
+        assert_eq!(parsed.files[0].status_unknown, expected);
+        assert_eq!(parsed.files[0].archived, !flag);
+    }
+}

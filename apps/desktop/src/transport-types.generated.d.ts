@@ -963,6 +963,10 @@ export type PortableSaveRelation = ("no-local-progress" | "already-current") | "
 export type RecipeModSettingValue = number | string;
 export type ProfileRecoveryProgress = "keep_current";
 /**
+ * Why a provider's eligibility flag could not be determined.
+ */
+export type ProviderStatusUnknown = "omitted" | "null" | "malformed";
+/**
  * How current an observation is. A confirmed empty result is `Fresh`; an outage
  * that falls back to earlier data is `Stale`, never an empty list.
  */
@@ -5927,6 +5931,10 @@ export interface ProviderProject {
   profile_url: string;
   project_id: string;
   provider: string;
+  /**
+   * Present when the wire response did not establish project eligibility.
+   */
+  status_unknown?: ProviderStatusUnknown | null;
   submitter: string | null;
   /**
    * File records the adapter could not read. Non-zero means the file list is
@@ -5964,6 +5972,10 @@ export interface ProviderFileCandidate {
   file_id: string;
   file_name: string;
   size: number;
+  /**
+   * Present when the wire response did not establish archival status.
+   */
+  status_unknown?: ProviderStatusUnknown | null;
   /**
    * Exact provider coordinates, independent of native loader requirements.
    * Absent for providers that do not supply this field.
@@ -6081,6 +6093,10 @@ export interface ProviderProject1 {
   profile_url: string;
   project_id: string;
   provider: string;
+  /**
+   * Present when the wire response did not establish project eligibility.
+   */
+  status_unknown?: ProviderStatusUnknown | null;
   submitter: string | null;
   /**
    * File records the adapter could not read. Non-zero means the file list is

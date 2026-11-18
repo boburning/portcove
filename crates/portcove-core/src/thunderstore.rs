@@ -284,6 +284,7 @@ fn parse_version(
         return None;
     }
     let dependencies = parse_dependencies(value["dependencies"].as_array()?)?;
+    let active = crate::mod_provider::provider_status_flag(value, "is_active");
     Some(ProviderFileCandidate {
         file_id: version.to_owned(),
         file_name,
@@ -292,7 +293,8 @@ fn parse_version(
         download_url,
         claimed_md5: None,
         // An inactive version is no longer offered by the community.
-        archived: !value["is_active"].as_bool().unwrap_or(false),
+        archived: !active.unwrap_or(false),
+        status_unknown: active.err(),
         claimed_scan: None,
         thunderstore_dependencies: Some(dependencies),
     })
@@ -321,9 +323,10 @@ fn parse_package(value: &Value, community: &str, web_root: &str) -> Option<Provi
     };
     let latest = files
         .iter()
-        .filter(|file| !file.archived)
+        .filter(|file| !file.archived && file.status_unknown.is_none())
         .max_by_key(|file| file.added_at)
         .map(|file| file.file_id.clone());
+    let deprecated = crate::mod_provider::provider_status_flag(value, "is_deprecated");
     Some(ProviderProject {
         provider: PROVIDER.into(),
         profile_url: format!("{web_root}/c/{community}/p/{namespace}/{name}/"),
@@ -333,7 +336,8 @@ fn parse_package(value: &Value, community: &str, web_root: &str) -> Option<Provi
         // The community listing is the binding: every package in it belongs to it.
         game_id: Some(community.to_owned()),
         updated_at: timestamp(&value["date_updated"]).unwrap_or_default(),
-        obsolete: value["is_deprecated"].as_bool().unwrap_or(false),
+        obsolete: deprecated.unwrap_or(false),
+        status_unknown: deprecated.err(),
         submitter: Some(sanitize_text(namespace)),
         files,
         unreadable_files: u32::try_from(unreadable_files).unwrap_or(u32::MAX),
@@ -413,6 +417,11 @@ pub(crate) fn resolve_dependencies<'a>(
                 project.files.iter().filter(|file| file.file_id == file_id),
                 &with_coordinate,
             )?;
+            if project.status_unknown.is_some() || file.status_unknown.is_some() {
+                return Err(with_coordinate(PortcoveError::verification(
+                    crate::mod_provider::UNKNOWN_PROVIDER_ELIGIBILITY,
+                )));
+            }
             if project.obsolete || file.archived {
                 return Err(with_coordinate(PortcoveError::unsupported(
                     "the exact Thunderstore package version is no longer offered",

@@ -42,6 +42,7 @@
       "conflictsHeading": "يغيّر الملفات نفسها التي تغيّرها تعديلاتك الأخرى",
       "digests": "SHA-256 للتنزيل <download />؛ المراجعة <review />.",
       "downloading": "جارٍ تنزيل {{file}} وفحصه…",
+      "eligibilityUnknown": "لم يؤكد المزوّد التوفّر. راجع صفحة المشروع، ثم حدّث القائمة.",
       "entry": "<name />",
       "entryVersion": "<name /> (<version />)",
       "file": "<file /> ({{size}})",
