@@ -3674,3 +3674,84 @@ void test(
     );
   },
 );
+
+void test(
+  "research progress retains precise history, quiet repeats, failures and project opt-outs",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const { collectProgress } = await import("./upstream-progress.mts");
+    const { progressCollectionSql } = await import("./maintenance-progress.mts");
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("progress");
+    migrate(store.owner);
+    const source = {
+      repository: "fixture/project",
+      game_key: "fixture-game",
+      version: "US",
+      provider: "decompdev" as const,
+      evidence_url: "https://decomp.dev/fixture/project",
+      methodology: "objdiff matched bytes",
+      reconsider: {
+        condition: "Review the recorded matching milestone hold",
+        metric: "matching-code" as const,
+        threshold: 90,
+      },
+    };
+    const body = (n: number) =>
+      JSON.stringify({
+        owner: "fixture",
+        repo: "project",
+        default_version: "US",
+        commit: { sha: "a".repeat(40), timestamp: "2026-11-17T00:00:00Z" },
+        measures: { matched_code_percent: n, matched_code: n, total_code: 100 },
+      });
+    const save = async (n: number, status = 200, optOut = false) => {
+      const ticket = acquireCollection(store.owner);
+      const collection = await collectProgress([{ ...source, opt_out: optOut }], async () => ({
+        status,
+        text: body(n),
+      }));
+      runSql(
+        store.owner,
+        ["BEGIN;", ...progressCollectionSql(collection, "fixture", ticket), "COMMIT;"].join("\n"),
+      );
+    };
+    const query = (sql: string): unknown => JSON.parse(runSql(store.owner, sql).trim()) as unknown;
+    await save(89);
+    assert.equal(buildReport(store.owner).progress?.length, 1);
+    const original = buildReport(store.owner).progress?.[0]?.checked_at;
+    await save(89);
+    assert.equal(
+      query("SELECT count(*) FROM portcove_maintenance.observations;"),
+      1,
+      "unchanged content writes no duplicate observations",
+    );
+    assert.deepEqual(buildDigest(store.owner).entries, []);
+    await save(91);
+    await save(89);
+    assert.equal(query("SELECT count(*) FROM portcove_maintenance.subject_transitions;"), 3);
+    assert.equal(buildDigest(store.owner).entries.length, 2);
+    assert.equal(buildDigest(store.owner).entries.at(-1)?.returns_to_earlier_result, true);
+    const good = buildReport(store.owner).progress?.[0]?.checked_at;
+    await save(50, 503);
+    assert.equal(
+      buildReport(store.owner).progress?.[0]?.checked_at,
+      good,
+      "failed source does not refresh last good observation",
+    );
+    assert.equal(buildReport(store.owner).progress?.[0]?.metrics[0]?.numerator, "89");
+    assert.ok(original);
+    await save(50, 200, true);
+    assert.deepEqual(buildReport(store.owner).progress, []);
+    assert.deepEqual(
+      buildDigest(store.owner).entries,
+      [],
+      "opt-out suppresses pending historical notifications",
+    );
+    assert.doesNotMatch(
+      renderHtml(buildReport(store.owner)),
+      /fixture\/project/u,
+      "opted-out progress does not leak through history rendering",
+    );
+  },
+);

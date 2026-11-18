@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { CheckCircle2, Wrench } from "lucide-react";
 import { Trans } from "react-i18next";
 import { Icon } from "../../components/ui";
@@ -14,21 +15,29 @@ import {
   type browsePortPresentation,
 } from "./browse-presentation";
 
-/** Exact-port cached facts and descriptions, shared by singleton discovery and comparison. */
-export function BrowsePortObservations({
-  port,
-  status,
-  observation,
-  descriptionId,
-  noticeChoice,
-}: {
+type BrowsePortObservationsProps = {
   port: CatalogEntry;
   status: PortStatus | undefined;
   observation: ReturnType<typeof browsePortPresentation>;
   descriptionId: string;
   noticeChoice?: LibraryOrganization["update_notices"][string] | undefined;
-}) {
+};
+
+/** Exact-port cached facts and descriptions, shared by singleton discovery and comparison. */
+export function BrowsePortObservations(props: BrowsePortObservationsProps) {
   const { t } = useAppTranslation("browsing");
+  return <BrowsePortObservationsContent {...props} t={t} />;
+}
+
+/** Reuse the containing card's locale subscription when one already exists. */
+export function BrowsePortObservationsContent({
+  port,
+  status,
+  observation,
+  descriptionId,
+  noticeChoice,
+  t,
+}: BrowsePortObservationsProps & { t: TFunction<"browsing"> }) {
   const { state, input, setup } = observation;
   const release = currentUpdateSnapshot(status)?.check.release;
   const hiddenNotice = updateNoticeHidden(

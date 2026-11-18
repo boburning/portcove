@@ -193,3 +193,26 @@ it("keeps pending setup membership and finish-setup visible with unknown platfor
   expect(platform.unavailablePortIds).toEqual([listing.id]);
   expect(platform.unknownCounts?.platforms["windows-x86-64"]).toBe(1);
 });
+
+it("preserves matches and availability when the caller does not need facet counts", () => {
+  const sibling = { ...port, id: "sibling", name: port.name };
+  const queryContext = {
+    ...context([{ ...known, platform: null }]),
+    catalogUniverse: [port, sibling],
+  };
+  for (const filter of [
+    { version: 1 },
+    { version: 1, portOptions: ["multiple"] },
+    { version: 1, platforms: ["linux-x86-64"] },
+    { version: 2 },
+  ]) {
+    const full = evaluateCatalogQuery([port], filter, queryContext);
+    const matches = evaluateCatalogQuery([port], filter, queryContext, {
+      includeFacetCounts: false,
+    });
+    expect(matches.state).toBe(full.state);
+    expect(matches.ports).toEqual(full.ports);
+    expect(matches.matchingContexts).toEqual(full.matchingContexts);
+    expect(matches.counts.platforms).toEqual({});
+  }
+});

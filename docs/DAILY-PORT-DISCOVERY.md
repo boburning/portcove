@@ -459,11 +459,14 @@ successful clock; an expired entry is not evidence of project deletion.
 
 ### Curated list leads
 
-`collect` first reads three public curated lists through the bounded discovery
+`collect` first reads four public curated lists through the bounded discovery
 transport: the Decomp Buddy finds feed
 (`https://tanookistudios.com/decomp-buddy/finds.json`, 8 MiB cap), portsdr.com
 (`port-card` Repository links, 4 MiB cap) and the Alexbeav PS1 catalog
-(`catalog-data.js`, read as text and never executed, 1 MiB cap). Decomp Buddy's
+(`catalog-data.js`, read as text and never executed, 1 MiB cap), and RecompSoftware's
+`data/projects/games.json` (8 MiB cap). RecompSoftware first resolves `main` to
+an immutable commit, then reads that exact revision; its successful clock retains
+the source URL, revision and SHA-256 of received content. Decomp Buddy's
 aggregated catalog is not read; its finds feed plus the two original lists
 cover it. Each list is read at most once per run, again seven days after its
 last complete collection, and only while twenty-two requests (the research
@@ -485,7 +488,7 @@ After list collection, at most eight uncovered GitHub hints per run, newest
 first, receive one primary `repos/{owner}/{name}` metadata read while eighteen
 requests remain. A hint is covered when a canonical issue upstream, reviewed
 catalog lineage URL or a retained lead's current repository path names it;
-covered hints are never read. Historical lead aliases do not cover a hint,
+unchanged covered hints are never read. Historical lead aliases do not cover a hint,
 because another repository can reuse an old path. Only an answer for the listed
 path joins the ordinary lead queue, through the same immutable-ID rules as
 search results. The discovery SDK refuses redirects, so a renamed or transferred
@@ -497,6 +500,27 @@ path is a failed read retried after one day. Admission, budget, quota,
 rate-limit, deadline, credential (HTTP 401), server (HTTP 5xx), retry-exhaustion
 and scope refusals, and any unclassified error, stop resolution and mark no hint.
 A list read refused for budget or quota stays due; other list failures wait.
+RecompSoftware retains each source slug, subject, category, method, status,
+targets, original-copy flag and latest-release claim within its repository hint.
+Shared repositories receive one metadata read while keeping their independent
+source-entry associations. These are external claims, including category
+`games`; none establishes a reviewed game identity or playable runtime. Upstream
+summaries and code are not copied. No repository/data license was found in the
+reviewed `e981757f31fdb58b85e546069cf303daac56cc61` tree, so these parsers are
+independent implementations and retained facts require primary-source research.
+
+The already consumed review snapshot is the bootstrap baseline. If a first
+collection observes a newer revision, it also reads the pinned reviewed snapshot
+before comparing claims. A new slug or changed method, target, original-copy
+requirement, status or release claim queues one primary research handoff even
+when the repository already has a canonical issue. Removed entries and missing
+associations remain retained; absence is not upstream-deletion evidence.
+A failed or partial read retains last-good content and clocks. Identical claims
+stay quiet. A retained lead consumes the changed claim without another repository
+read, and `lead-dispose` acknowledges it after the existing primary research and
+canonical overlap guards. The recorded hold/resume condition is retained for that
+review. New/changed claims cannot grant support or reverse a deliberate deferral.
+
 Resolved leads record `external_lists` provenance and then follow the unchanged
 ranking, research, disposition and intake guards. Non-GitHub hints remain manual
 research hints. The lead summary's `external` entry reports each list's last

@@ -344,6 +344,7 @@ export default interface Resources {
       "chosen": "<name/> · Your choice",
       "chosenOutside": "<name/> · Your choice · Outside current filters",
       "independence": "Choosing a project does not select a release, transfer saves or replace another installation.",
+      "label": "Library entries",
       "outside": "<name/> · Outside current filters",
       "portCount_one": "{{count, number}} port",
       "portCount_other": "{{count, number}} ports",
@@ -2147,6 +2148,11 @@ export default interface Resources {
       "review": "Review restore",
       "title": "Restore from a library copy",
       "trust": "<strong>Use an export you trust.</strong> Review its source, destination, required space, installed versions, saved file locations, and copied files before restoring it."
+    },
+    "steamGridDb": {
+      "readAgain": "Check setup again",
+      "readFailed": "Couldn't check SteamGridDB setup. Check again to see whether a key is saved.",
+      "reading": "Checking SteamGridDB setup…"
     },
     "supportReport": {
       "collecting": "Collecting available diagnostics…",

@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
 import type { PortStatus } from "../../types";
 import { portActionPresentation } from "../port-actions/port-action-presentation";
 import { pendingInvocationConflict, type InvocationRecord } from "./invocation-state";
@@ -10,7 +10,8 @@ export function OperationPresentationProvider({
   pending,
   children,
 }: PresentationOwner & { children: ReactNode }) {
-  return <OperationPresentation value={{ generation, pending }}>{children}</OperationPresentation>;
+  const owner = useMemo(() => ({ generation, pending }), [generation, pending]);
+  return <OperationPresentation value={owner}>{children}</OperationPresentation>;
 }
 export const useOperationPresentation = () => useContext(OperationPresentation);
 

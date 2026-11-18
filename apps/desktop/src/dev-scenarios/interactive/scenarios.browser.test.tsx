@@ -1,3 +1,4 @@
+import { inspectLibraryGroups } from "../../browser/discover-test-helpers";
 import { startDevelopmentScenarios } from "../start";
 import { act } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
@@ -229,7 +230,21 @@ it("uses a viewport-bound demo workspace across resizing and preserves embedded 
   expect(document.scrollingElement!.scrollHeight).toBeGreaterThan(900);
   await click("Reset journey");
   expect(new URL(window.location.href).searchParams.get("embed")).toBe("1");
-  await vi.waitFor(() => expect(document.querySelectorAll(".collection-entry")).toHaveLength(60));
+  await vi.waitFor(() =>
+    expect(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")).toBe(
+      "60",
+    ),
+  );
+  const indices = [
+    2,
+    ...Array.from({ length: 14 }, (_, n) => 4 * n + 6),
+    ...Array.from({ length: 14 }, (_, n) => 4 * n + 4),
+    ...Array.from({ length: 14 }, (_, n) => 4 * n + 5),
+    0,
+    1,
+    ...Array.from({ length: 15 }, (_, n) => 4 * n + 3),
+  ];
+  await inspectLibraryGroups(indices.map((index) => [`collection-${index}`]));
 });
 
 it("returns to the exact older recovery activity after opening its game", async () => {

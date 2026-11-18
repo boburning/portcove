@@ -193,6 +193,10 @@ pub struct PortPresentation {
     /// release or library identity. Explicit original_game metadata owns display grouping.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub original_game_title: Option<String>,
+    /// Optional descriptive implementation methods and dependencies. Malformed or future
+    /// content is unavailable as explanation and never changes operation authority.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub implementation: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub original_game: Option<OriginalGameIdentity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1126,6 +1130,10 @@ pub struct PortListing {
     pub project_url: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub original_game_title: Option<String>,
+    /// Optional descriptive implementation methods and dependencies. Malformed or future
+    /// content is unavailable as explanation and never changes operation authority.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub implementation: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub original_game: Option<OriginalGameIdentity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2643,7 +2651,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7, 8, 9, 10, 11],
+            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12],
             port_capability_schema: Some(1),
             artwork_handoff_schema: Some(crate::ARTWORK_HANDOFF_SCHEMA),
             operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,

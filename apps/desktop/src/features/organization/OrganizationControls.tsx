@@ -366,6 +366,7 @@ export function SaveGameButton({
     <Button
       size={card ? "icon-sm" : "sm"}
       className={card ? "collection-art-action collection-save" : undefined}
+      data-collection-control="save-game"
       title={saved ? t("save.removeTitle") : t("save.title")}
       variant={saved ? "selected" : "ghost"}
       data-focusable
@@ -417,6 +418,7 @@ export function OrganizationMenuItems({
   return (
     <>
       <Menu.Item
+        data-collection-control="visibility"
         className={itemClass}
         disabled={!snapshot || organization.busy}
         onClick={() =>
@@ -434,6 +436,7 @@ export function OrganizationMenuItems({
           return (
             <Menu.CheckboxItem
               key={id}
+              data-collection-control={`collection:${id}`}
               className={itemClass}
               checked={member}
               disabled={organization.busy}

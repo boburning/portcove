@@ -1818,6 +1818,11 @@ IDs retain their shape, and older incapable readers refuse the directory while
 retaining their last-good selection. This is data compatibility, not a publisher
 grant or permission to acquire or execute a package.
 
+Listing format 12 adds optional implementation methods and shared dependencies.
+Earlier-format exports omit that inert envelope while preserving setup facts and
+acquisition restrictions. A format-12 publication needs compatible reader coverage;
+this implementation does not authorize a protected publication or change its keys.
+
 Listing formats 9 (first-listed dates) and 10 (funding links) follow the same rule.
 A delivered directory declares one format for the whole snapshot, so publishing at
 format 10 stops listing updates for every reader that understands at most format 9:
