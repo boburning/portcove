@@ -309,7 +309,8 @@ export function GameComparisonEvidence({
               <div key={dimension.dimension}>
                 <dt className="font-medium">{dimensions[dimension.dimension]}</dt>
                 <dd>
-                  {dimension.state === "known"
+                  {dimension.state === "known" &&
+                  (dimension.dimension === "controls" || dimension.dimension === "setup")
                     ? candidate.evidence.find(
                         (record) =>
                           record.disposition === "current" &&
