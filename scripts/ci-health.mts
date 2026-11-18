@@ -1007,7 +1007,12 @@ export async function collectThroughput(
       jobExecution: distribution(jobs.map(({ execution }) => execution)),
     });
     const workflowCreationToChecks = observed.flatMap(({ run, jobs }) => {
-      if (run.name !== "CI" || run.event !== "pull_request" || run.run_attempt !== 1) return [];
+      if (
+        run.path !== ".github/workflows/ci.yml" ||
+        run.event !== "pull_request" ||
+        run.run_attempt !== 1
+      )
+        return [];
       const times = required.map((context) => {
         const matches = jobs.filter(({ name }) => name === context);
         return matches.length === 1 && matches[0]?.conclusion === "success"
@@ -1041,15 +1046,11 @@ export async function collectThroughput(
           (secondsBetween(run.created_at, later.created_at) ?? 0) > 0,
       )?.created_at;
       if (typeof staleAfter !== "string") return [];
-      return [
-        Math.max(
-          0,
-          secondsBetween(
-            Date.parse(staleAfter) > Date.parse(startedAt) ? staleAfter : startedAt,
-            completedAt,
-          ) ?? 0,
-        ),
-      ];
+      const overlap = secondsBetween(
+        Date.parse(staleAfter) > Date.parse(startedAt) ? staleAfter : startedAt,
+        completedAt,
+      );
+      return overlap !== null && overlap > 0 ? [overlap] : [];
     });
     const cancelled = runs.filter(({ conclusion }) => conclusion === "cancelled");
     return {
@@ -1063,6 +1064,17 @@ export async function collectThroughput(
         head: run.head_sha,
       })),
       outcomes: sampleCounts(runs, ({ conclusion, status }) => conclusion ?? status),
+      sampledRunStates: sampleCounts(sample, ({ status }) => status),
+      jobCoverage: {
+        listed: observed.reduce((total, { jobs }) => total + jobs.length, 0),
+        withoutRunner: observed.reduce(
+          (total, { jobs }) =>
+            total + jobs.filter((job) => job.conclusion !== "skipped" && !job.runner_id).length,
+          0,
+        ),
+        withRunner: measuredJobs.length,
+        withoutExecutionTiming: measuredJobs.filter(({ execution }) => execution === null).length,
+      },
       workflows: demand.map(([workflow, count]) => {
         const matching = runs.filter((run) => workflowName(run) === workflow);
         const jobs = measuredJobs.filter(
@@ -1085,7 +1097,7 @@ export async function collectThroughput(
           ),
         };
       }),
-      staleRunnerExecutionLowerBound: staleIntervals.length
+      observedPostReplacementExecution: staleIntervals.length
         ? {
             jobs: staleIntervals.length,
             seconds: staleIntervals.reduce((total, seconds) => total + seconds, 0),
@@ -1151,7 +1163,8 @@ export async function collectThroughput(
       "Job delays use API creation and runner start, which do not prove a scheduling cause.",
       "Run depth is a point observation. GitHub does not report repository runner quota usage or wait reasons here.",
       "Timings cover a bounded sample of latest attempts. Cancelled execution is observed runner time, not billed or proven stale time.",
-      "The stale runner estimate counts sampled execution after a later CI run for a different head of the same uniquely associated PR. Timing outside the window is unavailable.",
+      "Current and prior windows have different time to finish. Use the run-state and job-coverage counts when comparing their timing.",
+      "Post-replacement execution measures overlap after a later different-head CI run of the same uniquely associated PR. It does not know whether a later push restored the original head.",
       "Required-check latency starts at CI run creation, since exact push receipt and PR commit acceptance time are unavailable.",
     ],
     current,
@@ -1168,7 +1181,7 @@ function renderThroughput(report: Awaited<ReturnType<typeof collectThroughput>>)
       .map(([key, count]) => `${key}=${count ?? "unavailable"}`)
       .join(", ")}.`,
     "",
-    "| Two-hour window | Runs | Runs with job reads | Job creation to start p50 / p90 / p95 | Job execution p50 / p90 | CI creation to five passing checks p50 |",
+    "| Two-hour window | Runs | Sampled runs / unassigned jobs | Job creation to start p50 / p90 / p95 | Job execution p50 / p90 | CI creation to five passing checks p50 |",
     "| --- | ---: | ---: | --- | --- | --- |",
     ...(
       [
@@ -1178,7 +1191,7 @@ function renderThroughput(report: Awaited<ReturnType<typeof collectThroughput>>)
     ).map(([label, row]) => {
       const wait = row.jobCreationToStart;
       const execution = row.jobExecution;
-      return `| ${label} | ${row.runCount} | ${row.sampledRuns.length} | ${[wait.p50Seconds, wait.p90Seconds, wait.p95Seconds].map(duration).join(" / ")} | ${[execution.p50Seconds, execution.p90Seconds].map(duration).join(" / ")} | ${duration(row.workflowCreationToChecks.p50Seconds)} |`;
+      return `| ${label} | ${row.runCount} | ${row.sampledRuns.length} / ${row.jobCoverage.withoutRunner} | ${[wait.p50Seconds, wait.p90Seconds, wait.p95Seconds].map(duration).join(" / ")} | ${[execution.p50Seconds, execution.p90Seconds].map(duration).join(" / ")} | ${duration(row.workflowCreationToChecks.p50Seconds)} |`;
     }),
     "",
     ...report.limitations.map((line) => `- ${line}`),

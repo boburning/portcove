@@ -799,7 +799,7 @@ void test("throughput keeps timed runner jobs, same-head gate latency, and stale
   });
   assert.equal(report.current.jobCreationToStart.count, 6);
   assert.equal(report.current.workflowCreationToChecks.p50Seconds, 40);
-  assert.deepEqual(report.current.staleRunnerExecutionLowerBound, { jobs: 1, seconds: 15 });
+  assert.deepEqual(report.current.observedPostReplacementExecution, { jobs: 1, seconds: 15 });
   assert.equal(report.current.runnerPlatforms.Windows?.jobExecution.p50Seconds, 35);
   assert.equal(report.prior.jobExecution.p50Seconds, null);
 });

@@ -839,10 +839,11 @@ The existing Maintenance inventory workflow also runs `node scripts/ci-health.mt
 --throughput` on its collect runner. The Actions summary compares the last two
 hours with the same period 24 hours earlier. The existing maintenance report
 artifact contains `ci-throughput.json` with run counts by workflow, sampled job
-timings by OS, cancellation duration, observed stale job time and point-in-time
+timings by OS, cancellation duration, observed job time after a replacement and point-in-time
 queue depth. Job creation to runner start can include dependency and scheduler
 delay. Required-check timing starts at creation of the PR CI run and uses the
-five passing jobs from its first attempt. Missing observations remain null.
+five passing jobs from its first attempt. Missing observations remain null. The sample counts show how much recent work
+had yet to acquire a runner.
 The November 18 baseline records the audited workflow definitions, run IDs and
 sample boundaries in [the Actions inventory](../evidence/actions-throughput-baseline-2026-11-18.json).
 
