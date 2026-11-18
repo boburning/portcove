@@ -846,6 +846,11 @@ checksum files, foreign platforms and processor mismatches remain excluded from
 recommendations. Explain the actual upstream setup and its update/data owner in
 the authored guide; downloading an installer never runs it.
 
+An extensionless native Linux executable can be recommended as a direct file
+when the reviewed hint names the entire asset and its filename identifies Linux.
+The existing processor checks still apply. Keep the author's setup instructions
+for making the file executable and preparing original game files.
+
 A ready native archive with reviewed disposable runtime writes may instead fit
 the existing `staged-source-portable` adapter; it does not require a source
 profile or build step. A ready archive may also receive one explicitly declared
