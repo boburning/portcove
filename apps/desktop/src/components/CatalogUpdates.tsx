@@ -1,3 +1,4 @@
+import { CatalogFallbackReason } from "./CatalogFallbackReason";
 import { SettingsRow } from "./ui/patterns";
 import { useEffect, useId, useRef, useState } from "react";
 import { desktopApi } from "../api";
@@ -145,53 +146,6 @@ export function CatalogOrigin({ provenance }: { provenance?: CatalogProvenance |
       ))}
     </>
   );
-}
-
-function CatalogFallbackReason({
-  reason,
-  code,
-  position,
-  count,
-}: {
-  reason: string;
-  code?: string | null | undefined;
-  position: number;
-  count: number;
-}) {
-  const { t } = useAppTranslation("catalogUpdates");
-  return (
-    <div className="catalog-fallback-reason">
-      <p>{catalogFallbackSummary(t, code)}</p>
-      <details>
-        <summary
-          data-focusable
-          aria-label={t("custom.fallbackDetailsLabel", { position, total: count })}
-        >
-          {t("custom.technicalDetails")}
-        </summary>
-        <code className="[overflow-wrap:anywhere]">{reason}</code>
-      </details>
-    </div>
-  );
-}
-
-function catalogFallbackSummary(t: TFunction<"catalogUpdates">, code: string | null | undefined) {
-  switch (code) {
-    case "selected_definition_unavailable":
-      return t("custom.fallbackNotLoaded");
-    case "listing_directory_unavailable":
-      return t("listings.builtIn");
-    case "replay_floor":
-      return t("custom.fallbackReplay");
-    case "untrusted_key":
-      return t("custom.fallbackUntrusted");
-    case "signature_invalid":
-      return t("custom.fallbackSignature");
-    case "invalid_validity":
-      return t("custom.fallbackExpired");
-    default:
-      return t("custom.fallbackGeneric");
-  }
 }
 
 function CatalogUpdatesDialog({

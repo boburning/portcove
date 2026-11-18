@@ -88,6 +88,20 @@ pub enum CatalogFallbackCode {
     ListingDirectoryUnavailable,
 }
 
+impl CatalogFallbackCode {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Unknown => "unknown",
+            Self::ReplayFloor => "replay_floor",
+            Self::UntrustedKey => "untrusted_key",
+            Self::SignatureInvalid => "signature_invalid",
+            Self::InvalidValidity => "invalid_validity",
+            Self::SelectedDefinitionUnavailable => "selected_definition_unavailable",
+            Self::ListingDirectoryUnavailable => "listing_directory_unavailable",
+        }
+    }
+}
+
 impl PortcoveError {
     pub(crate) fn with_catalog_fallback(mut self, code: CatalogFallbackCode) -> Self {
         self.failure.catalog_fallback = Some(code);

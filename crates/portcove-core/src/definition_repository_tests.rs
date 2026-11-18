@@ -1822,6 +1822,18 @@ async fn nested_timestamp_signature_verification_reports_its_catalog_code() {
         error.catalog_fallback(),
         Some(crate::CatalogFallbackCode::SignatureInvalid)
     );
+    let report = error.report();
+    assert_eq!(
+        report
+            .details
+            .get("catalog_fallback_code")
+            .map(String::as_str),
+        Some("signature_invalid"),
+    );
+    assert_eq!(
+        report.message,
+        "definition repository authentication failed"
+    );
 }
 
 #[tokio::test]
