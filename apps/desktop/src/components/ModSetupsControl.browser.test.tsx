@@ -689,6 +689,52 @@ it("shows the exact runtime and offers a direct switch to clean play", async () 
   expect(use).toHaveBeenCalledWith("shipwright", "default", 7);
 });
 
+it("offers a present clean setup while retaining known runtime failures and Core refusals", async () => {
+  const data = view();
+  const { inventory, live } = data;
+  const [defaultSetup, customized] = inventory?.profiles ?? [];
+  if (!inventory || !live || !defaultSetup || !customized)
+    throw new Error("The fixture must have two setup revisions.");
+  inventory.profiles = [
+    {
+      ...defaultSetup,
+      build_availability: "present",
+      revision: { ...defaultSetup.revision, packages: [], orderings: [] },
+    },
+    { ...customized, build_availability: "held" },
+    {
+      ...customized,
+      profile: { ...customized.profile, id: "missing", display_name: "Missing files" },
+      revision: { ...customized.revision, profile_id: "missing" },
+      build_availability: "missing",
+    },
+  ];
+  live.profile_id = customized.profile.id;
+  live.revision = customized.profile.current_revision;
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(data);
+  const use = vi
+    .spyOn(desktopApi, "useModSetup")
+    .mockRejectedValue(new Error("The installed runtime changed. Review this setup again."));
+  const host = await render();
+  const clean = page.getByRole("button", { name: "Switch to clean play" });
+  const row = clean.element().closest("li");
+  expect(row?.textContent).toContain(
+    "Installed game files are checked before play or copying this setup.",
+  );
+  expect(row?.textContent).not.toContain("runtime needs attention");
+  expect(host.textContent?.match(/This setup’s runtime needs attention\./g)).toHaveLength(2);
+  expect(host.textContent).not.toContain("verified");
+  await expect
+    .element(page.getByRole("button", { name: "Create clean setup…" }))
+    .not.toBeInTheDocument();
+  await clean.click();
+  expect(use).toHaveBeenCalledExactlyOnceWith("shipwright", "default", 7);
+  await expect
+    .element(page.getByRole("alert"))
+    .toHaveTextContent("The installed runtime changed. Review this setup again.");
+  expect(host.textContent).not.toContain("Now using");
+});
+
 it("keeps setup changes disabled during a file picker and leaves a dismissed picker alone", async () => {
   vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
   let closePicker: (value: null) => void = () => {};
@@ -1192,85 +1238,88 @@ it("wraps a long file review and clears it when that file leaves the same setup 
   expect(inspect).toHaveBeenCalledTimes(3);
 });
 
-it("creates a named clean setup when the current runtime is verified and none is ready", async () => {
-  const withBuild = (entry: ReturnType<typeof setup>) => ({
-    ...entry,
-    build_availability: "verified",
-    revision: {
-      ...entry.revision,
-      build: {
-        port_id: "shipwright",
-        install_id: "exact",
-        artifact: { asset_name: "ship-exact.zip" },
+it.each(["verified", "present"] as const)(
+  "creates a named clean setup when the current runtime is %s and none is ready",
+  async (buildAvailability) => {
+    const withBuild = (entry: ReturnType<typeof setup>) => ({
+      ...entry,
+      build_availability: buildAvailability,
+      revision: {
+        ...entry.revision,
+        build: {
+          port_id: "shipwright",
+          install_id: "exact",
+          artifact: { asset_name: "ship-exact.zip" },
+        },
       },
-    },
-  });
-  const source = withBuild(setup("default", "Default", 3, [["hd.o2r", true]]));
-  const clean = withBuild(setup("fresh", "Weekend clean", 1, []));
-  const withProfiles = (profiles: (typeof source)[]) =>
-    view({ inventory: { port_id: "shipwright", profiles } } as unknown as Partial<ModSetupsView>);
-  const revised = withBuild(setup("default", "Default", 4, [["hd.o2r", true]]));
-  let current = source;
-  let created = false;
-  vi.spyOn(desktopApi, "modSetups").mockImplementation(async () =>
-    withProfiles(created ? [current, clean] : [current]),
-  );
-  const create = vi
-    .spyOn(desktopApi, "createCleanModSetup")
-    .mockRejectedValueOnce(new Error("The library is temporarily unavailable. Try again."))
-    .mockImplementationOnce(async () => {
-      current = revised;
-      throw new Error("The source setup changed. Review it before trying again.");
-    })
-    .mockImplementation(async () => {
-      created = true;
-      return clean.profile as Awaited<ReturnType<typeof desktopApi.createCleanModSetup>>;
     });
-  const activate = vi.spyOn(desktopApi, "useModSetup");
-  await render();
+    const source = withBuild(setup("default", "Default", 3, [["hd.o2r", true]]));
+    const clean = withBuild(setup("fresh", "Weekend clean", 1, []));
+    const withProfiles = (profiles: (typeof source)[]) =>
+      view({ inventory: { port_id: "shipwright", profiles } } as unknown as Partial<ModSetupsView>);
+    const revised = withBuild(setup("default", "Default", 4, [["hd.o2r", true]]));
+    let current = source;
+    let created = false;
+    vi.spyOn(desktopApi, "modSetups").mockImplementation(async () =>
+      withProfiles(created ? [current, clean] : [current]),
+    );
+    const create = vi
+      .spyOn(desktopApi, "createCleanModSetup")
+      .mockRejectedValueOnce(new Error("The library is temporarily unavailable. Try again."))
+      .mockImplementationOnce(async () => {
+        current = revised;
+        throw new Error("The source setup changed. Review it before trying again.");
+      })
+      .mockImplementation(async () => {
+        created = true;
+        return clean.profile as Awaited<ReturnType<typeof desktopApi.createCleanModSetup>>;
+      });
+    const activate = vi.spyOn(desktopApi, "useModSetup");
+    await render();
 
-  const open = page.getByRole("button", { name: "Create clean setup…" });
-  await open.click();
-  const name = page.getByRole("textbox", { name: "Clean setup name" });
-  await expect.element(name).toHaveFocus();
-  await expect.element(page.getByText("ship-exact.zip")).toBeVisible();
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  expect(create).not.toHaveBeenCalled();
-  await expect.element(open).toHaveFocus();
+    const open = page.getByRole("button", { name: "Create clean setup…" });
+    await open.click();
+    const name = page.getByRole("textbox", { name: "Clean setup name" });
+    await expect.element(name).toHaveFocus();
+    await expect.element(page.getByText("ship-exact.zip")).toBeVisible();
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    expect(create).not.toHaveBeenCalled();
+    await expect.element(open).toHaveFocus();
 
-  await open.click();
-  await name.fill("  Weekend clean  ");
-  const submit = page.getByRole("button", { name: "Create setup", exact: true });
-  await submit.click();
-  const error = page.getByRole("alert");
-  await expect
-    .element(error)
-    .toHaveTextContent("The library is temporarily unavailable. Try again.");
-  expect(error.element().closest("form")).toBe(name.element().closest("form"));
-  await expect.element(name).toHaveValue("  Weekend clean  ");
-  await expect.element(submit).toHaveFocus();
-  await submit.click();
-  await expect.element(name).not.toBeInTheDocument();
-  await expect
-    .element(error)
-    .toHaveTextContent("The source setup changed. Review it before trying again.");
-  expect(error.element().closest("form")).toBeNull();
-  await expect.element(error).toHaveFocus();
+    await open.click();
+    await name.fill("  Weekend clean  ");
+    const submit = page.getByRole("button", { name: "Create setup", exact: true });
+    await submit.click();
+    const error = page.getByRole("alert");
+    await expect
+      .element(error)
+      .toHaveTextContent("The library is temporarily unavailable. Try again.");
+    expect(error.element().closest("form")).toBe(name.element().closest("form"));
+    await expect.element(name).toHaveValue("  Weekend clean  ");
+    await expect.element(submit).toHaveFocus();
+    await submit.click();
+    await expect.element(name).not.toBeInTheDocument();
+    await expect
+      .element(error)
+      .toHaveTextContent("The source setup changed. Review it before trying again.");
+    expect(error.element().closest("form")).toBeNull();
+    await expect.element(error).toHaveFocus();
 
-  await open.click();
-  await name.fill("  Weekend clean  ");
-  await submit.click();
-  expect(create.mock.calls).toEqual([
-    ["shipwright", "default", "Weekend clean", 3, 7],
-    ["shipwright", "default", "Weekend clean", 3, 7],
-    ["shipwright", "default", "Weekend clean", 4, 7],
-  ]);
-  expect(activate).not.toHaveBeenCalled();
-  await expect
-    .element(page.getByText("Created clean setup Weekend clean with fresh progress."))
-    .toBeVisible();
-  await expect.element(open).not.toBeInTheDocument();
-});
+    await open.click();
+    await name.fill("  Weekend clean  ");
+    await submit.click();
+    expect(create.mock.calls).toEqual([
+      ["shipwright", "default", "Weekend clean", 3, 7],
+      ["shipwright", "default", "Weekend clean", 3, 7],
+      ["shipwright", "default", "Weekend clean", 4, 7],
+    ]);
+    expect(activate).not.toHaveBeenCalled();
+    await expect
+      .element(page.getByText("Created clean setup Weekend clean with fresh progress."))
+      .toBeVisible();
+    await expect.element(open).not.toBeInTheDocument();
+  },
+);
 
 it("reviews removal before sending the exact setup revision to Core", async () => {
   vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());

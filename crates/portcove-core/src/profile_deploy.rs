@@ -2369,6 +2369,20 @@ pub struct ModSetupsView {
 
 impl PortcoveService {
     pub fn mod_setups(&self, port_id: &str) -> Result<ModSetupsView> {
+        self.mod_setups_with_inventory(port_id, |id| self.profile_inventory(id))
+    }
+
+    /// Desktop presentation checks runtime metadata, not immutable payload
+    /// contents. The public inspection and CLI view keep full verification.
+    pub fn preview_mod_setups(&self, port_id: &str) -> Result<ModSetupsView> {
+        self.mod_setups_with_inventory(port_id, |id| self.preview_profile_inventory(id))
+    }
+
+    fn mod_setups_with_inventory(
+        &self,
+        port_id: &str,
+        inventory: impl FnOnce(&str) -> Result<crate::ProfileInventory>,
+    ) -> Result<ModSetupsView> {
         self.catalog().port(port_id)?;
         let Ok(layout) = self.deploy_layout(port_id) else {
             return Ok(ModSetupsView {
@@ -2388,13 +2402,7 @@ impl PortcoveService {
         // Reviews abandoned without Cancel (a closed window, a changed setup)
         // leave staging; reading the setups is a regular point to prune it.
         self.prune_staged(&layout.store().join("staged"));
-        let inventory = {
-            // Inventory is a preview. Mutations and launch verify current bytes
-            // again; unchanged files may reuse the existing identity-bound digests.
-            // Keep this scope after staging cleanup and before other workers.
-            let _preview = crate::adapter::preview_digest::PreviewScope::enter();
-            self.profile_inventory(port_id)?
-        };
+        let inventory = inventory(port_id)?;
         let has_profiles = !inventory.profiles.is_empty();
         let held_updates = crate::provider_auto_update::held_updates(&layout, &inventory);
         let current_install_id = profile::active_install_id(&self.library.connection()?, port_id)?;
