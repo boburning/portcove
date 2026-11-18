@@ -735,6 +735,15 @@ interface, and the descriptor also exposes reviewed JSON settings in Portcove.
 The descriptor declares the persistent `saves` directory and other data to carry
 through a managed update. Portcove owns package replacement for this route.
 
+For a released package, a format-2 compatibility record can describe
+`launch_behavior.first_launch` and `launch_behavior.repeat_launch`. Bind each
+record to the platform, route, release and SHA-256 of the package you checked.
+Use `upstream-reported` for published setup instructions and `observed` for a
+recorded native result. The [Lost Odyssey listing](../crates/portcove-core/catalog/ports/lost-odyssey-recomp.json)
+shows a Windows ZIP that opens an importer on first launch and can reuse
+imported data on later launches. These facts describe the selected package.
+Portcove continues to check access to each operation when the player uses it.
+
 Start with the [minimal example](../examples/integrations/shipwright/basic.portcove.json)
 and run the [descriptor validator](#game-author-descriptors). With a reviewed
 integration and a clean library, supply the originals once, play, save and quit, then reopen
