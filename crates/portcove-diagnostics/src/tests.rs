@@ -399,7 +399,7 @@ fn late_validated_root_reaches_existing_handles_without_rebinding_or_enabling_lo
     let worker_root = expected.clone();
     let (release, wait) = mpsc::sync_channel(1);
     let (published, publication) = mpsc::sync_channel(1);
-    let (host, guard) = HostDiagnostics::bootstrap(
+    let (host, guard, worker) = HostDiagnostics::bootstrap_worker(
         Surface::Desktop,
         false,
         move |session, surface, support_directory| {
@@ -443,6 +443,13 @@ fn late_validated_root_reaches_existing_handles_without_rebinding_or_enabling_lo
     assert_eq!(exported.path.parent(), Some(expected.as_path()));
     assert!(!exported.manifest.library_available);
     assert!(!expected.with_file_name("other").exists());
+    let worker = worker.expect("bootstrap worker was not started");
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while !worker.is_finished() {
+        assert!(Instant::now() < deadline, "bootstrap worker did not finish");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    worker.join().unwrap();
     assert_eq!(
         retained.health().flush_state,
         writer::FlushState::Unavailable

@@ -280,7 +280,11 @@ impl HostDiagnostics {
         directory: &Path,
         surface: Surface,
         release: mpsc::Receiver<()>,
-    ) -> (Self, Option<writer::Guard>) {
+    ) -> (
+        Self,
+        Option<writer::Guard>,
+        Option<std::thread::JoinHandle<()>>,
+    ) {
         let directory = directory.to_owned();
         Self::bootstrap(
             surface,
@@ -299,6 +303,22 @@ impl HostDiagnostics {
         + Send
         + 'static,
     ) -> (Self, Option<writer::Guard>) {
+        let (host, guard, _worker) = Self::bootstrap_worker(surface, debug, prepare);
+        // Ordinary startup never joins potentially blocked diagnostic OS work.
+        (host, guard)
+    }
+
+    fn bootstrap_worker(
+        surface: Surface,
+        debug: bool,
+        prepare: impl FnOnce(uuid::Uuid, Surface, &OnceLock<PathBuf>) -> Option<Prepared>
+        + Send
+        + 'static,
+    ) -> (
+        Self,
+        Option<writer::Guard>,
+        Option<std::thread::JoinHandle<()>>,
+    ) {
         let mut host = Self::disabled(surface, debug);
         let session = host.session_id;
         let support_directory = Arc::clone(&host.support_directory);
@@ -313,20 +333,19 @@ impl HostDiagnostics {
                 // blocked preparation has returned. No writer runs on this thread.
                 let _ = sender.try_send(prepared);
             });
-        if worker.is_err() {
-            return (host, None);
-        }
-        // Never join a bootstrap thread that could still be inside an OS call.
-        drop(worker);
+        let Ok(worker) = worker else {
+            return (host, None, None);
+        };
         let result = receiver.recv_timeout(deadline.saturating_duration_since(Instant::now()));
         if Instant::now() >= deadline || matches!(result, Err(mpsc::RecvTimeoutError::Timeout)) {
             host.bootstrap_timed_out = true;
-            return (host, None);
+            return (host, None, Some(worker));
         }
-        match result {
+        let (host, guard) = match result {
             Ok(Some(prepared)) => host.start_prepared(prepared),
             Ok(None) | Err(_) => (host, None),
-        }
+        };
+        (host, guard, Some(worker))
     }
 
     fn disabled(surface: Surface, debug: bool) -> Self {

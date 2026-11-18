@@ -252,7 +252,7 @@ mod tests {
         let root = fs::canonicalize(temporary.path()).unwrap();
         let expected = root.join("diagnostics");
         let (release, wait) = std::sync::mpsc::sync_channel(1);
-        let (shared, guard) =
+        let (shared, guard, worker) =
             portcove_diagnostics::HostDiagnostics::start_in_with_delayed_preparation(
                 &expected,
                 portcove_diagnostics::Surface::Desktop,
@@ -282,6 +282,16 @@ mod tests {
         assert!(host.shared.session_directory().is_none());
         assert!(host.shared.bootstrap_timed_out());
         assert_eq!(host.shared.health().flush_state, FlushState::Unavailable);
+        let worker = worker.expect("bootstrap worker was not started");
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        while !worker.is_finished() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "bootstrap worker did not finish"
+            );
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        worker.join().unwrap();
     }
 
     #[test]
