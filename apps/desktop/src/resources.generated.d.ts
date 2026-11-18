@@ -1741,7 +1741,7 @@ export default interface Resources {
       "label": "Microsoft runtimes",
       "missing": "Windows is most likely missing something this game needs to start:",
       "nextAction": "Install the listed runtimes from Microsoft, then recheck here.",
-      "present": "The checked runtimes are installed. Select Play to try the game again.",
+      "present": "The checked runtimes are installed. Try launching the game again.",
       "recheck": "Recheck runtimes",
       "unconfirmed": "Portcove could not confirm that all required runtimes are installed. You can recheck again.",
       "visualCpp2010": "Microsoft Visual C++ 2010 Redistributable",
