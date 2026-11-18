@@ -65,6 +65,8 @@ for (const key of [
   "SystemRoot",
   "WINDIR",
   "PATH",
+  "PATHEXT",
+  "ComSpec",
   "TEMP",
   "TMP",
   "USERPROFILE",
@@ -73,6 +75,11 @@ for (const key of [
   "PORTCOVE_RESOURCE_RESERVATION",
 ])
   if (process.env[key]) environment[key] = process.env[key];
+if (config.ui_helper)
+  assert(
+    environment.PATHEXT?.split(";").some((x) => x.toLowerCase() === ".exe"),
+    "Windows executable resolution environment is required for the owned UI observer",
+  );
 // Existing hosted native precedent: this VM has no physical audio endpoint.
 environment.SDL_AUDIODRIVER = "dummy";
 environment.SDL_RENDER_DRIVER = "software";
