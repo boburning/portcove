@@ -9,6 +9,7 @@ import {
   positiveId,
   slugPattern,
   validArtworkMapping,
+  validArtworkCollection,
   validIgdbRegionalCover,
   type IgdbRegionalCover,
 } from "./catalog-cover-mapping.mts";
@@ -63,6 +64,7 @@ export function assertPreparedArtwork(
 ): asserts catalog is PreparedArtworkCatalog {
   for (const port of catalog.ports) {
     const artwork = port.presentation?.artwork;
+    collectionCovers(port);
     if (artwork !== undefined && !validArtworkMapping(artwork))
       throw new Error("Prepared artwork does not satisfy its mapping contract.");
   }
@@ -107,6 +109,11 @@ interface ArtworkException {
   http_status?: 410;
 }
 type ArtworkChecks =
+  | {
+      scope: "reviewed-cover-collection";
+      members: { image_id: string; content: ImageContent }[];
+      live_refresh_passed: boolean;
+    }
   | { scope: "retained-accepted-mapping"; download_repeated: false }
   | { scope: "retained-accepted-mapping"; live_refresh_passed: false }
   | {
@@ -125,6 +132,7 @@ export interface ArtworkRecord {
   role: "cover";
   reason: string;
   mapping: IgdbArtwork | null;
+  collection?: IgdbArtwork[];
   checks: ArtworkChecks | null;
   exceptions: ArtworkException[];
 }
@@ -719,6 +727,22 @@ function applyGoneImageFallbacks(
   const byId = new Map(records.map((record) => [record.port_id, record]));
   const invalidated: string[] = [];
   for (const port of catalog.ports) {
+    if (withdrawCollectionCovers(port, context.goneImages)) {
+      invalidated.push(port.id);
+      const record = byId.get(port.id);
+      if (record?.collection) {
+        const remaining = collectionCovers(port);
+        if (remaining.length) record.collection = remaining;
+        else {
+          delete record.collection;
+          if (record.reason.startsWith("accepted-mapping")) context.metrics.reused--;
+          else context.metrics.selected--;
+          record.reason = "generated-fallback";
+          record.checks = null;
+          context.metrics.fallback++;
+        }
+      }
+    }
     const mapping = port.presentation?.artwork;
     if (!validArtworkMapping(mapping)) continue;
     if (!mapping || !context.goneImages.has(mapping.image_id)) continue;
@@ -823,6 +847,7 @@ export async function prepareCatalogArtwork(
     const rawSupplied = isRecord(options.identities) ? options.identities[port.id] : undefined;
     const supplied = isRecord(rawSupplied) ? rawSupplied : undefined;
     const priorPort = accepted.get(port.id);
+    const members = collectionCovers(port);
     const regional = port.igdb_regional_cover ?? priorPort?.igdb_regional_cover;
     if (regional !== undefined && !validIgdbRegionalCover(regional))
       throw new Error(`Invalid authored regional cover: ${port.id}`);
@@ -830,6 +855,8 @@ export async function prepareCatalogArtwork(
       throw new Error(`Regional cover needs new source review: ${port.id}`);
     const reused = reusableMapping(port, priorPort, supplied);
     if (!workset.has(port.id)) {
+      if (JSON.stringify(members) !== JSON.stringify(priorPort ? collectionCovers(priorPort) : []))
+        throw new Error(`Changed collection identity outside selected workset: ${port.id}`);
       const prior = accepted.get(port.id)?.presentation?.artwork;
       const mapping = port.presentation?.artwork;
       if (
@@ -837,6 +864,87 @@ export async function prepareCatalogArtwork(
         (mapping !== undefined && !reused)
       )
         throw new Error(`Changed artwork identity outside selected workset: ${port.id}`);
+      continue;
+    }
+    if (members.length) {
+      const same =
+        priorPort &&
+        port.name === priorPort.name &&
+        port.project_url === priorPort.project_url &&
+        port.source_profile === priorPort.source_profile &&
+        JSON.stringify(port.underlying_game ?? null) ===
+          JSON.stringify(priorPort.underlying_game ?? null) &&
+        JSON.stringify(members) === JSON.stringify(collectionCovers(priorPort));
+      if (!same) {
+        if (port.presentation) delete port.presentation.collection_covers;
+        context.metrics.fallback++;
+        await completed(
+          {
+            port_id: port.id,
+            role: "cover",
+            reason: "collection-mapping-review-required",
+            mapping: null,
+            checks: null,
+            exceptions: [exception("underlying-game", "collection-mapping-review-required")],
+          },
+          port,
+        );
+        continue;
+      }
+      const exceptions: ArtworkException[] = [];
+      const observed: { image_id: string; content: ImageContent }[] = [];
+      const refreshing = refresh.has(port.id);
+      if (refreshing) {
+        for (const cover of members) {
+          const content = await inspectCoverContent(
+            cover.image_id,
+            cover.match_kind,
+            context,
+            exceptions,
+          );
+          if (content?.sha256 === cover.image_sha256) {
+            context.goneImages.delete(cover.image_id);
+            observed.push({ image_id: cover.image_id, content });
+          } else if (content)
+            exceptions.push({
+              ...exception(cover.match_kind, "collection-image-digest-changed"),
+              image_id: cover.image_id,
+            });
+        }
+      }
+      withdrawCollectionCovers(port, context.goneImages);
+      const remaining = collectionCovers(port);
+      const passed =
+        remaining.length > 0 &&
+        remaining.every((cover) => observed.some((value) => value.image_id === cover.image_id));
+      if (remaining.length) context.metrics.reused++;
+      else context.metrics.fallback++;
+      await completed(
+        {
+          port_id: port.id,
+          role: "cover",
+          mapping: null,
+          ...(remaining.length ? { collection: remaining } : {}),
+          reason: !remaining.length
+            ? "generated-fallback"
+            : !refreshing
+              ? "accepted-mapping-collection-reused"
+              : passed
+                ? "accepted-mapping-collection-refreshed"
+                : "accepted-mapping-collection-retained-after-unavailable-refresh",
+          checks: !remaining.length
+            ? null
+            : refreshing
+              ? {
+                  scope: "reviewed-cover-collection",
+                  members: observed,
+                  live_refresh_passed: passed,
+                }
+              : { scope: "retained-accepted-mapping", download_repeated: false },
+          exceptions,
+        },
+        port,
+      );
       continue;
     }
     if (reused && !refresh.has(port.id)) {
@@ -1668,6 +1776,29 @@ export function withdrawCompanionCover(port: ArtworkPort, gone: ReadonlySet<stri
   return true;
 }
 
+export function collectionCovers(port: ArtworkPort): IgdbArtwork[] {
+  const covers = port.presentation?.collection_covers;
+  if (covers === undefined) return [];
+  if (
+    !validArtworkCollection(covers) ||
+    port.presentation?.artwork != null ||
+    port.presentation?.companion_cover != null
+  )
+    throw new Error(
+      "A reviewed cover collection requires one to four distinct mappings and no individual cover.",
+    );
+  return covers;
+}
+
+export function withdrawCollectionCovers(port: ArtworkPort, gone: ReadonlySet<string>) {
+  const covers = collectionCovers(port);
+  const remaining = covers.filter((cover) => !gone.has(cover.image_id));
+  if (remaining.length === covers.length || !port.presentation) return false;
+  if (remaining.length) port.presentation.collection_covers = remaining;
+  else delete port.presentation.collection_covers;
+  return true;
+}
+
 function removeWithdrawnCatalogMedia(
   catalog: ArtworkCatalog,
   records: HeroMediaRecord[],
@@ -1677,6 +1808,7 @@ function removeWithdrawnCatalogMedia(
   // and records completed earlier in this batch.
   const companions = [];
   for (const port of catalog.ports) {
+    if (withdrawCollectionCovers(port, gone)) companions.push(port.id);
     if (withdrawCompanionCover(port, gone)) companions.push(port.id);
     const artwork = port.presentation?.artwork;
     if (validArtworkMapping(artwork) && gone.has(artwork.image_id) && port.presentation)

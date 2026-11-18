@@ -951,6 +951,63 @@
 }
 
 @layer utilities {
+  @media (height <= 42rem) {
+    .collection-covers:not(.discover-grid) {
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+    }
+    .collection-covers
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):not(:only-child) {
+      --collection-art-limit: min(40%, clamp(6rem, 16vw, 9rem));
+      width: min(100%, 26rem);
+    }
+    .collection-covers > [data-library-game-id]:not(:only-child) > .collection-cover {
+      width: 100%;
+    }
+    .collection-covers
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):not(:only-child)
+      :is(.collection-identity, .collection-art, .library-entry-footer) {
+      width: 100%;
+    }
+    .collection-covers
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):not(:only-child)
+      .collection-identity {
+      grid-template-columns: var(--collection-art-limit) minmax(0, 1fr);
+      align-items: start;
+      gap: var(--space-3);
+    }
+    .collection-covers
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):not(:only-child)
+      .collection-personal-actions {
+      max-inline-size: var(--collection-art-limit);
+      flex-wrap: wrap;
+      gap: var(--space-1);
+      padding-inline: min(var(--space-2), 1vi);
+    }
+    .collection-covers
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):not(:only-child)
+      .collection-caption {
+      padding-block-start: 0;
+    }
+    .collection-covers
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):not(:only-child)
+      :is(.collection-title, .collection-project, .library-entry-chips) {
+      min-block-size: 0;
+    }
+    .collection-covers
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):not(:only-child)
+      .collection-title {
+      margin-block-start: 0;
+    }
+    .collection-covers
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):not(:only-child)
+      .collection-identity:not(:focus-visible)
+      .collection-project {
+      display: -webkit-box;
+    }
+  }
+}
+
+@layer utilities {
   .collection-cover .library-entry-footer .collection-state {
     min-block-size: 30px;
   }

@@ -592,7 +592,8 @@ it("keeps focus inside the command palette at both Tab boundaries", async () => 
   await trigger.click();
   const dialog = page.getByRole("dialog");
   const search = dialog.getByRole("combobox", { name: "Search commands" });
-  const last = dialog.getByText("Navigation help", { exact: true });
+  const last = dialog.getByRole("button", { name: "Close", exact: true });
+  const help = dialog.getByText("Navigation help", { exact: true });
   await expect.element(search).toHaveFocus();
   const popup = dialog.element();
   const escaped: EventTarget[] = [];
@@ -604,6 +605,10 @@ it("keeps focus inside the command palette at both Tab boundaries", async () => 
     for (const query of ["", "unmatched palette input"]) {
       await search.fill(query);
       await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+      await expect.element(last).toHaveFocus();
+      await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+      await expect.element(help).toHaveFocus();
+      await userEvent.keyboard("{Tab}");
       await expect.element(last).toHaveFocus();
       await userEvent.keyboard("{Tab}");
       await expect.element(search).toHaveFocus();

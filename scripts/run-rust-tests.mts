@@ -241,8 +241,10 @@ async function closeChildTree(
 ) {
   const platform = dependencies.platform ?? process.platform;
   const runSync = dependencies.spawnSync ?? spawnSync;
+  // Linux must finish its bounded descendant drain and durable receipt publication
+  // before exiting; a slow flush can exceed the drain's own five-second budget.
   const waitMilliseconds =
-    dependencies.treeWaitMilliseconds === undefined ? 5_000 : dependencies.treeWaitMilliseconds;
+    dependencies.treeWaitMilliseconds ?? (platform === "linux" ? 30_000 : 5_000);
   if (platform === "linux") {
     // The direct child is the adopting reaper, not the registered payload group.
     // Pipe loss asks that ancestor to close only its own anchored Node group.

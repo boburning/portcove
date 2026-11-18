@@ -1,7 +1,8 @@
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
-import { act } from "react";
+import { act, useState } from "react";
 import { cleanup, render } from "vitest-browser-react/pure";
+import { GameHero } from "../components/GameHero";
 import { PortBrowser } from "../components/PortBrowser";
 import { ArtworkProvider } from "../artwork";
 import { desktopApi } from "../api";
@@ -325,7 +326,13 @@ it.for(["library", "catalog"] as const)(
       expect(rect.height / rect.width).toBeCloseTo(1.5, 2);
       const identity = frame.closest<HTMLElement>(".collection-identity, .discover-game-identity")!;
       const title = identity.querySelector<HTMLElement>(".collection-title")!;
-      expect(title.getBoundingClientRect().top).toBeGreaterThanOrEqual(rect.bottom - 0.5);
+      const titleBounds = title.getBoundingClientRect();
+      const horizontal = view === "library" && matchMedia("(height <= 42rem)").matches;
+      expect(titleBounds.top).toBeGreaterThanOrEqual((horizontal ? rect.top : rect.bottom) - 0.5);
+      expect(
+        !horizontal || (titleBounds.left >= rect.right && titleBounds.top < rect.bottom),
+        JSON.stringify({ horizontal, artwork: rect, title: titleBounds }),
+      ).toBe(true);
       identity.focus();
       for (const text of identity.querySelectorAll<HTMLElement>(
         ".collection-title, .collection-project",
@@ -558,13 +565,21 @@ async function assertPortraitLayout(
       width: rect.width,
       height: rect.height,
       metadataTop: element.nextElementSibling!.getBoundingClientRect().top,
+      metadataLeft: element.nextElementSibling!.getBoundingClientRect().left,
+      top: rect.top,
+      right: rect.right,
       bottom: rect.bottom,
     };
   });
   console.log(JSON.stringify({ view, theme, viewport: [width, height], frames }));
   for (const frame of frames) {
     expect(frame.height / frame.width).toBeCloseTo(1.5, 2);
-    expect(frame.metadataTop).toBeGreaterThanOrEqual(frame.bottom - 0.5);
+    const horizontal = view === "library" && matchMedia("(height <= 42rem)").matches;
+    expect(frame.metadataTop).toBeGreaterThanOrEqual((horizontal ? frame.top : frame.bottom) - 0.5);
+    expect(
+      !horizontal || (frame.metadataLeft >= frame.right && frame.metadataTop < frame.bottom),
+      JSON.stringify({ horizontal, frame }),
+    ).toBe(true);
   }
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
   const projectRows = [...document.querySelectorAll<HTMLElement>(".collection-project")];
@@ -649,3 +664,287 @@ async function assertPortraitLayout(
   }
   return { frames, fallback };
 }
+
+it.for([2, 4] as const)(
+  "renders %s verified collection covers in Discover and Details",
+  async (count, context) => {
+    const port = { ...ports[0]!, id: "collection-preview", name: "Collection project" };
+    const covers = Array.from({ length: count }, (_, index) => ({
+      game_id: index + 1,
+      cover_id: index + 1,
+      image_id: `collection${index}`,
+      image_sha256: (index + 1).toString(16).repeat(64),
+      game_slug: `game-${index}`,
+      match_kind: "underlying-game" as const,
+    }));
+    const listings = {
+      format_version: 11,
+      listings: [
+        {
+          id: port.id,
+          name: port.name,
+          summary: port.summary,
+          project_url: port.project_url,
+          platforms: [],
+          availability: "packages" as const,
+          collection_covers: covers,
+        },
+      ],
+    };
+    vi.spyOn(desktopApi, "artwork").mockResolvedValue(artworkState(port.id, "cover", 3));
+    vi.spyOn(desktopApi, "collectionCoverThumbnail").mockImplementation(async (_id, sha256) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 144;
+      canvas.height = 192;
+      const ink = canvas.getContext("2d")!;
+      ink.fillStyle = ["#a43232", "#536a7a", "#52784a", "#b48036"][
+        Number.parseInt(sha256[0]!, 16) - 1
+      ]!;
+      ink.fillRect(0, 0, 144, 192);
+      ink.fillStyle = "white";
+      ink.font = "bold 18px sans-serif";
+      ink.fillText(`GAME ${sha256[0]}`, 24, 70);
+      return {
+        asset_sha256: sha256,
+        choice_revision: 3,
+        png_base64: canvas.toDataURL("image/png").split(",")[1]!,
+      };
+    });
+    await page.viewport(960, 720);
+    await render(
+      <ArtworkProvider generation={7} listings={listings}>
+        <PortBrowser
+          view="catalog"
+          ports={[port]}
+          statuses={new Map()}
+          overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+          filter="all"
+          setFilter={() => {}}
+          onSelect={() => {}}
+          onContinue={() => {}}
+          loading={false}
+        />
+        <PortBrowser
+          view="library"
+          ports={[port]}
+          statuses={
+            new Map([
+              [
+                port.id,
+                { ...portStatus(), port_id: port.id, active: { ...install, port_id: port.id } },
+              ],
+            ])
+          }
+          overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 0 }}
+          filter="all"
+          setFilter={() => {}}
+          onSelect={() => {}}
+          onContinue={() => {}}
+          loading={false}
+        />
+        <GameHero port={port} variant="detail">
+          <h1>Collection project</h1>
+        </GameHero>
+      </ArtworkProvider>,
+    );
+    const frame = document.querySelector<HTMLElement>(".collection-art")!;
+    frame.scrollIntoView();
+    await expect.poll(() => frame.querySelectorAll("img").length).toBe(count);
+    document.querySelector(".game-hero")!.scrollIntoView({ block: "center" });
+    await expect
+      .poll(() => document.querySelectorAll(".game-hero-collection img").length)
+      .toBe(count);
+    document.querySelector(".port-card-library")!.scrollIntoView({ block: "center" });
+    await expect
+      .poll(() => document.querySelectorAll(".port-card-library .collection-art img").length)
+      .toBe(count);
+    for (const img of frame.querySelectorAll("img")) {
+      await expect.poll(() => img.naturalWidth).toBeGreaterThan(0);
+      expect(getComputedStyle(img).objectFit).toBe("contain");
+    }
+    expect(frame.dataset.artworkSource).toBe("igdb_cover_collection");
+    expect(desktopApi.collectionCoverThumbnail).toHaveBeenCalledTimes(count);
+    for (const cover of covers)
+      expect(desktopApi.collectionCoverThumbnail).toHaveBeenCalledWith(
+        port.id,
+        cover.image_sha256,
+        3,
+        7,
+      );
+    await captureTargetScreenshot(
+      frame,
+      `../../../../outputs/uiux-game-titles/collection-${count}-wide.png`,
+      `collection-${count}-wide`,
+      context,
+    );
+    await page.viewport(390, 844);
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390);
+    await captureTargetScreenshot(
+      frame,
+      `../../../../outputs/uiux-game-titles/collection-${count}-narrow.png`,
+      `collection-${count}-narrow`,
+      context,
+    );
+  },
+);
+
+it.for(["local", "unavailable-local", "partial"] as const)(
+  "preserves collection precedence and degradation: %s",
+  async (mode) => {
+    const port = { ...ports[0]!, id: "collection-choice", name: "Collection choice" };
+    const covers = [1, 2, 3, 4].map((index) => ({
+      game_id: index,
+      cover_id: index,
+      image_id: `choice${index}`,
+      image_sha256: index.toString(16).repeat(64),
+      game_slug: `choice-${index}`,
+      match_kind: "underlying-game" as const,
+    }));
+    const listings = {
+      format_version: 11,
+      listings: [
+        {
+          id: port.id,
+          name: port.name,
+          summary: port.summary,
+          project_url: port.project_url,
+          platforms: [],
+          availability: "packages" as const,
+          collection_covers: covers,
+        },
+      ],
+    };
+    const primary = artworkState(port.id, "cover", 3, mode !== "partial");
+    if (mode === "unavailable-local") primary.availability = "unavailable";
+    vi.spyOn(desktopApi, "artwork").mockResolvedValue(primary);
+    const canvas = document.createElement("canvas");
+    canvas.width = 144;
+    canvas.height = 192;
+    const ink = canvas.getContext("2d")!;
+    ink.fillStyle = "#a43232";
+    ink.fillRect(0, 0, 144, 192);
+    const thumbnail = (sha: string) => ({
+      asset_sha256: sha,
+      choice_revision: 3,
+      png_base64: canvas.toDataURL("image/png").split(",")[1]!,
+    });
+    const local = vi.spyOn(desktopApi, "artworkThumbnail");
+    if (mode === "unavailable-local") local.mockRejectedValue(new Error("Selected image missing"));
+    else local.mockResolvedValue(thumbnail("a".repeat(64)));
+    const load = vi
+      .spyOn(desktopApi, "collectionCoverThumbnail")
+      .mockImplementation(async (_id, sha) => {
+        if (sha === covers[1]!.image_sha256) throw new Error("Offline");
+        return thumbnail(sha);
+      });
+    await render(
+      <ArtworkProvider generation={1} listings={listings}>
+        <PortBrowser
+          view="catalog"
+          ports={[port]}
+          statuses={new Map()}
+          overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+          filter="all"
+          setFilter={() => {}}
+          onSelect={() => {}}
+          onContinue={() => {}}
+          loading={false}
+        />
+      </ArtworkProvider>,
+    );
+    const frame = document.querySelector<HTMLElement>(".collection-art")!;
+    frame.scrollIntoView();
+    await expect
+      .poll(() => frame.querySelectorAll("img").length)
+      .toBe(mode === "partial" ? 3 : mode === "local" ? 1 : 0);
+    await expect
+      .poll(() => document.body.textContent?.includes("Image unavailable") ?? false)
+      .toBe(mode === "unavailable-local");
+    expect(load).toHaveBeenCalledTimes(mode === "partial" ? 4 : 0);
+  },
+);
+
+it("invalidates in-flight collection previews when only a member mapping changes", async () => {
+  const port = { ...ports[0]!, id: "collection-change", name: "Changing collection" };
+  const cover = (index: number) => ({
+    game_id: index,
+    cover_id: index,
+    image_id: `changed${index}`,
+    image_sha256: index.toString(16).repeat(64),
+    game_slug: `changed-${index}`,
+    match_kind: "underlying-game" as const,
+  });
+  const colours = ["#a43232", "#536a7a", "#52784a"];
+  const previews = colours.map((colour) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 144;
+    canvas.height = 192;
+    const ink = canvas.getContext("2d")!;
+    ink.fillStyle = colour;
+    ink.fillRect(0, 0, 144, 192);
+    return canvas.toDataURL("image/png");
+  });
+  const seen = new Set<string>();
+  const release: (() => void)[] = [];
+  vi.spyOn(desktopApi, "artwork").mockResolvedValue(artworkState(port.id, "cover", 3));
+  const load = vi
+    .spyOn(desktopApi, "collectionCoverThumbnail")
+    .mockImplementation(async (_id, sha) => {
+      const index = Number.parseInt(sha[0]!, 16) - 1;
+      if (!seen.has(sha) && index < 2) {
+        seen.add(sha);
+        await new Promise<void>((resolve) => release.push(resolve));
+      }
+      return { asset_sha256: sha, choice_revision: 3, png_base64: previews[index]!.split(",")[1]! };
+    });
+  function Harness() {
+    const [changed, setChanged] = useState(false);
+    const listings = {
+      format_version: 11,
+      listings: [
+        {
+          id: port.id,
+          name: port.name,
+          summary: port.summary,
+          project_url: port.project_url,
+          platforms: [],
+          availability: "packages" as const,
+          collection_covers: [cover(1), cover(changed ? 3 : 2)],
+        },
+      ],
+    };
+    return (
+      <ArtworkProvider generation={1} listings={listings}>
+        <button onClick={() => setChanged(true)}>Change collection</button>
+        <PortBrowser
+          view="catalog"
+          ports={[port]}
+          statuses={new Map()}
+          overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+          filter="all"
+          setFilter={() => {}}
+          onSelect={() => {}}
+          onContinue={() => {}}
+          loading={false}
+        />
+      </ArtworkProvider>
+    );
+  }
+  await render(<Harness />);
+  const frame = document.querySelector<HTMLElement>(".collection-art")!;
+  frame.scrollIntoView();
+  await expect.poll(() => load.mock.calls.length).toBe(2);
+  await page.getByRole("button", { name: "Change collection" }).click();
+  await expect
+    .poll(() => Array.from(frame.querySelectorAll("img")).map((img) => img.src))
+    .toEqual([previews[0], previews[2]]);
+  await act(async () => {
+    for (const finish of release) finish();
+    await new Promise((resolve) => setTimeout(resolve));
+  });
+  expect(Array.from(frame.querySelectorAll("img")).map((img) => img.src)).toEqual([
+    previews[0],
+    previews[2],
+  ]);
+  expect(load).toHaveBeenCalledTimes(4);
+});

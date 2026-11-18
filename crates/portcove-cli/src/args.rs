@@ -1482,7 +1482,11 @@ pub(crate) enum GameFileRootCommand {
     #[command(
         after_help = "Search one with source discover --root PATH --profile PROFILE_ID, or save it with source roots add PATH. Listing never saves a folder, registers files or changes anything in a store's folder."
     )]
-    Stores,
+    Stores {
+        /// Select a known original-file profile for a store bundle's candidate folder.
+        #[arg(long = "profile")]
+        profile_id: Option<String>,
+    },
     /// Save one available folder; adding the same folder again is idempotent.
     Add {
         /// Available folder to remember for future scans; adding it does not register its files.

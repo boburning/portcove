@@ -77,7 +77,9 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         listing.funding_urls = None;
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
-            format_version: if listing.compatibility.is_some() {
+            format_version: if listing.collection_covers.is_some() {
+                4
+            } else if listing.compatibility.is_some() {
                 3
             } else if listing
                 .manual_setup
@@ -116,7 +118,9 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
             .manual_setup
             .as_ref()
             .is_some_and(|guide| !guide.references.is_empty());
-        if !matches!(retained.format_version, 1..=3)
+        if !matches!(retained.format_version, 1..=4)
+            || (retained.format_version == 4 && retained.listing.collection_covers.is_none())
+            || (retained.format_version < 4 && retained.listing.collection_covers.is_some())
             || (retained.format_version == 3 && retained.listing.compatibility.is_none())
             || (retained.format_version < 3 && retained.listing.compatibility.is_some())
             || (retained.format_version == 1 && has_references)

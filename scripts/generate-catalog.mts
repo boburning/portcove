@@ -396,7 +396,7 @@ const acceptedArtwork = {
         ...(igdb_regional_cover ? { igdb_regional_cover } : {}),
         name: listing.name,
         project_url: listing.project_url,
-        presentation: { artwork: listing.artwork },
+        presentation: { artwork: listing.artwork, collection_covers: listing.collection_covers },
       })),
   ],
 };

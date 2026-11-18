@@ -737,6 +737,15 @@ specifies request bounds, version semantics, and independent trust checks.
 
 ## Local artwork ownership
 
+Core validates bounded constituent-game `collection_covers` and resolves each requested
+member from the current or retained listing, with the expected digest and local Cover
+choice revision. Any explicit local choice suppresses the collection. Tauri delegates
+through the existing generation guard and remote-thumbnail worker pool. React fits the
+available covers using the shared artwork cache, visibility subscriptions and remote
+request queue; catalog changes invalidate every member's display identity. Reference
+retention and exact-image withdrawal include collection members. This creates no durable
+choice, image store or destination-export authority.
+
 The optional destination-artwork handoff (schema 4) is also Core-owned. Read-only
 CLI adapters export exact library/port/revision/asset bindings, accepted provenance
 and explicit static-role availability. Validated durable local Cover originals
@@ -2935,6 +2944,12 @@ readable store metadata otherwise, and the CLI guide documents that limit. CLI `
 `get_store_game_installs` command expose the same Core result, and Desktop **Find
 required files** loads it only when the player asks and uses a chosen folder as
 the ordinary search folder.
+Selected setup may pass an optional known source-profile identity through the
+same adapters to Core. Core filters reviewed original-folder hints before
+canonicalization; this does not change the store-report shape or file admission.
+In particular, the Steam Blake Stone anthology needs that context to choose
+one game's child folder. Generic store discovery leaves its hint absent.
+Linked or conflicting store locations cannot acquire a hint through this context.
 
 ## Install transaction
 

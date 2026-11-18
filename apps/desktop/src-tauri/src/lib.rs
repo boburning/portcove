@@ -1508,9 +1508,14 @@ async fn get_game_file_root_match_profiles(
 async fn get_store_game_installs(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
+    profile_id: Option<String>,
 ) -> DesktopResult<portcove_core::StoreGameInstalls> {
     blocking_service_at_generation(state.inner().clone(), generation, move |service| {
-        service.store_game_installs().map_err(Into::into)
+        match profile_id.as_deref() {
+            Some(profile_id) => service.store_game_installs_for_profile(profile_id),
+            None => service.store_game_installs(),
+        }
+        .map_err(Into::into)
     })
     .await
 }
@@ -3164,6 +3169,7 @@ pub fn run() -> std::process::ExitCode {
             artwork::get_artwork,
             artwork::get_artwork_thumbnail,
             artwork::get_companion_cover_thumbnail,
+            artwork::get_collection_cover_thumbnail,
             artwork::get_catalog_media_thumbnail,
             artwork::import_artwork,
             artwork::reset_artwork,

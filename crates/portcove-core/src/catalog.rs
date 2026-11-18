@@ -11,6 +11,34 @@ use crate::{
 
 pub(crate) mod listings;
 
+pub(crate) fn validate_cover_collection(
+    covers: Option<&[crate::IgdbArtwork]>,
+    has_individual_cover: bool,
+) -> Result<()> {
+    if let Some(covers) = covers {
+        if has_individual_cover || !(1..=4).contains(&covers.len()) {
+            return Err(PortcoveError::usage(
+                "a cover collection needs one to four members and no individual cover",
+            ));
+        }
+        let mut games = HashSet::new();
+        let mut records = HashSet::new();
+        let mut images = HashSet::new();
+        let mut digests = HashSet::new();
+        if covers.iter().any(|cover| {
+            !games.insert(cover.game_id)
+                || !records.insert(cover.cover_id)
+                || !images.insert(&cover.image_id)
+                || !digests.insert(&cover.image_sha256)
+        }) {
+            return Err(PortcoveError::usage(
+                "cover collection members must be distinct",
+            ));
+        }
+    }
+    Ok(())
+}
+
 // A `static` keeps one copy of the bytes; a `const` may be duplicated per use.
 pub(crate) static EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
 
@@ -906,10 +934,15 @@ impl Catalog {
                         port.id
                     )));
                 }
+                validate_cover_collection(
+                    presentation.collection_covers.as_deref(),
+                    presentation.artwork.is_some() || presentation.companion_cover.is_some(),
+                )?;
                 for artwork in presentation
                     .artwork
                     .iter()
                     .chain(&presentation.companion_cover)
+                    .chain(presentation.collection_covers.iter().flatten())
                 {
                     if artwork.game_id == 0
                         || artwork.cover_id == 0

@@ -40,7 +40,6 @@ export function LaunchFailureNotice({
     key: string;
     view: LaunchSessionView | null;
   } | null>(null);
-  const [copiedFor, setCopiedFor] = useState<string | null>(null);
   const { t } = useAppTranslation("launch");
   useEffect(() => {
     let current = true;
@@ -66,7 +65,6 @@ export function LaunchFailureNotice({
     loadedView && currentInstall !== undefined && loadedView.install_id === currentInstall
       ? loadedView
       : null;
-  const copied = failure !== null && copiedFor === failure.id;
   const explanation = failure?.exit_explanation;
   if (!failure || !explanation) return null;
   return (
@@ -86,14 +84,10 @@ export function LaunchFailureNotice({
         />
       </p>
       <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          onClick={() => {
-            void copyText(explanation.raw_code).then(() => setCopiedFor(failure.id));
-          }}
-        >
-          {copied ? t("failure.copied") : t("failure.copyExitCode")}
-        </Button>
+        <ExitCodeCopy
+          key={`${requestKey}:${failure.id}:${explanation.raw_code}`}
+          code={explanation.raw_code}
+        />
         <ReportProblem portId={portId} generation={generation} problemOnly />
         {openActivity && (
           <Button variant="outline" onClick={openActivity}>
@@ -113,5 +107,33 @@ export function LaunchFailureNotice({
         )}
       </div>
     </section>
+  );
+}
+
+/** Copy feedback belongs to this exact launch, independent of later notice reads. */
+function ExitCodeCopy({ code }: { code: string }) {
+  const { t } = useAppTranslation("launch");
+  const [state, setState] = useState<"idle" | "copying" | "copied" | "failed">("idle");
+  return (
+    <>
+      <Button
+        variant="outline"
+        aria-busy={state === "copying"}
+        onClick={() => {
+          setState("copying");
+          void copyText(code).then(
+            () => setState("copied"),
+            () => setState("failed"),
+          );
+        }}
+      >
+        {state === "copied" ? t("failure.copied") : t("failure.copyExitCode")}
+      </Button>
+      {state === "failed" && (
+        <p role="alert" className="basis-full text-sm text-pc-danger-foreground">
+          {t("failure.copyFailed")}
+        </p>
+      )}
+    </>
   );
 }
