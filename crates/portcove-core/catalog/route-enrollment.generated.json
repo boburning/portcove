@@ -281,6 +281,20 @@
       "managed_native": true
     },
     {
+      "port_id": "teeworlds",
+      "prepared_player": {
+        "executable": "teeworlds.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "Windows %APPDATA%/Teeworlds settings07.cfg, demos, maps and skins",
+          "Linux ~/.local/share/teeworlds, existing ~/.teeworlds or $XDG_DATA_HOME/teeworlds",
+          "the save location selected by storage.cfg, and any custom maps or skins kept with the installation"
+        ]
+      },
+      "managed_native": false
+    },
+    {
       "port_id": "tekrantgaming-muppet-racemania-recompiled",
       "prepared_player": {
         "executable": "MuppetRaceMania.exe",
