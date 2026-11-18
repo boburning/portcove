@@ -201,12 +201,16 @@ it.each([true, false])(
     const card = () => document.querySelector(`button[data-detail-game-id="${listing.id}"]`);
     await expect.poll(() => card()?.checkVisibility()).toBe(true);
     await page.elementLocator(card()!).click();
-    await page.getByRole("tab", { name: "Overview", exact: true }).click();
-    const entry = page.getByRole("button", { name: "Use an existing installation", exact: true });
+    const overview = page.getByRole("tab", { name: "Overview", exact: true });
     const editor = page.getByRole("heading", { name: "Launch details", exact: true });
-    await expect.element(editor).not.toBeVisible();
+    const editorInAnyPanel = page.getByText("Launch details", { exact: true });
+    await expect.element(overview).toBeVisible();
+    await expect.element(editorInAnyPanel).not.toBeInTheDocument();
+    await overview.click();
+    const entry = page.getByRole("button", { name: "Use an existing installation", exact: true });
     await expect.poll(() => entry.query()?.checkVisibility() ?? false).toBe(promoted);
     if (!promoted) await page.getByRole("tab", { name: "Game files", exact: true }).click();
+    await expect.element(editorInAnyPanel).not.toBeInTheDocument();
     await entry.click();
     await expect
       .element(page.getByRole("tab", { name: "Game files", exact: true }))
@@ -218,6 +222,6 @@ it.each([true, false])(
     await expect.element(entry).toHaveAttribute("aria-expanded", "true");
     await expect
       .element(page.getByText("Download another version", { exact: true }))
-      .not.toBeVisible();
+      .not.toBeInTheDocument();
   },
 );
