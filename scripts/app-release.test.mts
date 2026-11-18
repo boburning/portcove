@@ -1257,3 +1257,23 @@ void test("lists the complete provider inventory at 999, 1000 and 1001 releases"
     assert.equal(endpoints.length - observed, 1, "retry reads the known ID directly");
   }
 });
+
+void test("nightly failures are independently reported without release-signing authority", async () => {
+  const monitor = await readWorkflow("nightly-failure-report.yml");
+  assert.deepEqual(monitor.on.workflow_run, {
+    workflows: ["Nightly preview"],
+    types: ["completed"],
+  });
+  assert.deepEqual(monitor.permissions, {});
+  assert.deepEqual(monitor.jobs.report!.permissions, { actions: "read", issues: "write" });
+  assert.match(monitor.jobs.report!.if ?? "", /head_repository\.full_name == github\.repository/u);
+  const steps = monitor.jobs.report!.steps!;
+  assert.equal(steps.length, 1);
+  const script = steps[0]!.run!;
+  assert.match(script, /actions\/runs\/\$RUN_ID\/jobs/u);
+  assert.match(script, /--assignee boburning/u);
+  assert.match(script, /gh issue edit/u);
+  assert.match(script, /gh issue reopen/u);
+  assert.match(script, /No failed step identified|Not identified in job metadata/u);
+  assert.doesNotMatch(script, /secrets\.|actions\/checkout|publish --tag/u);
+});
