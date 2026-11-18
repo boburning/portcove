@@ -46,6 +46,12 @@ function link(url: unknown, label: string) {
 function rows(value: unknown): Record<string, unknown>[] {
   return Array.isArray(value) ? value.filter(isRecord).slice(0, 128) : [];
 }
+function guideEntries(value: unknown) {
+  return rows(value).map((step) => ({
+    title: text(step.title),
+    instruction: text(step.instruction),
+  }));
+}
 function parse(bytes: Buffer): Record<string, unknown> {
   if (bytes.length > maximumInput || !Buffer.from(bytes.toString("utf8"), "utf8").equals(bytes))
     throw new Error("public catalog input exceeds UTF-8 byte bound");
@@ -78,6 +84,7 @@ export interface PublicCatalogEntry {
   availability: string;
   download_block_reason?: string;
   setup: { title: string; instruction: string }[];
+  setup_notes?: { title: string; instruction: string }[];
   limitations: string[];
   declared_platforms: string[];
   installation_method?: string;
@@ -324,10 +331,10 @@ export function projectPublicCatalog(request: {
         ...(typeof raw.download_block_reason === "string"
           ? { download_block_reason: text(raw.download_block_reason) }
           : {}),
-        setup: rows(guide.steps).map((step) => ({
-          title: text(step.title),
-          instruction: text(step.instruction),
-        })),
+        setup: guideEntries(guide.steps),
+        ...(Array.isArray(guide.references) && guide.references.length
+          ? { setup_notes: guideEntries(guide.references) }
+          : {}),
         limitations: strings(guide.warnings),
         declared_platforms: strings(port?.platforms),
         ...(typeof presentation.installation_method === "string"
@@ -387,7 +394,10 @@ function shell(title: string, body: string, projection: PublicCatalogProjection,
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark light"><title>${escapePublicHtml(title)} · Portcove</title><link rel="stylesheet" href="${prefix}catalog.css"></head><body><a class="skip" href="#main">Skip to content</a><header><a class="brand" href="${prefix}index.html">Portcove</a><nav aria-label="Primary"><a href="${prefix}index.html">Explore games</a><a href="https://github.com/boburning/portcove">About Portcove</a></nav></header><main id="main"><p class="notice"><strong>Development catalog.</strong> These pages describe repository data. Published delivery has not been checked; installation and gameplay availability must be checked in the app.</p>${body}</main><footer><p>Catalog captured <time datetime="${escapePublicHtml(projection.observed_at)}">${escapePublicHtml(projection.observed_at)}</time> · ${link(projection.source_url, `Source ${projection.source_revision.slice(0, 12)}`)}</p><p>Optional descriptions can be dated or incomplete. This site works without live GitHub requests and does not select, install or update games.</p><details><summary>Input identities</summary><dl><dt>Listings SHA-256</dt><dd><code>${projection.listings_sha256}</code></dd><dt>Catalog SHA-256</dt><dd><code>${projection.catalog_sha256}</code></dd></dl></details></footer></body></html>`;
 }
 function implementation(entry: PublicCatalogEntry) {
-  return `<article id="${entry.id}"><h2>${escapePublicHtml(entry.name)}</h2><p>${escapePublicHtml(entry.summary)}</p><dl><dt>Original game files</dt><dd>${safeList(entry.original_requirements)}${entry.editions.length ? `<p>Reviewed source editions:</p>${safeList(entry.editions.map((edition) => `${edition.title} · ${edition.system}`))}` : "<p>Source edition identity has not been reviewed.</p>"}</dd><dt>Target platforms reported upstream</dt><dd>${safeList(entry.platforms)}</dd><dt>Implementation method</dt><dd>${entry.methods.length ? list(entry.methods.map((method) => `${escapePublicHtml(methodName(method.kind))}${method.note ? ` — ${escapePublicHtml(method.note)}` : ""}${evidence(method.evidence_urls)}`)) : "<p>Not recorded.</p>"}</dd><dt>Portcove integration in development</dt><dd>${entry.declared_platforms.length ? `<p>${escapePublicHtml(entry.installation_method ?? "Declared integration")}</p>${safeList(entry.declared_platforms)}` : "<p>Descriptive listing only. No managed definition in this input.</p>"}</dd><dt>Published delivery</dt><dd>Not checked. A repository definition does not establish an available published route.</dd><dt>Upstream availability claim</dt><dd>${escapePublicHtml(entry.availability)}${entry.download_block_reason ? `<p>${escapePublicHtml(entry.download_block_reason)}</p>` : ""}<p>A release may contain research reports rather than a playable package.</p></dd></dl><h3>Setup</h3>${entry.setup.length ? `<ol>${entry.setup.map((step) => `<li><strong>${escapePublicHtml(step.title)}</strong><p>${escapePublicHtml(step.instruction)}</p></li>`).join("")}</ol>` : "<p>Follow the project’s setup instructions.</p>"}<h3>Limitations and evidence</h3>${safeList(entry.limitations)}${safeList(entry.qualification)}<p>Check declarations describe their original scope; they do not establish current gameplay, save compatibility or a different platform.</p>${entry.dependencies.length ? `<h3>Shared tools and runtimes</h3>${list(entry.dependencies.map((dependency) => `${link(dependency.project_url, dependency.name)} · ${escapePublicHtml(dependency.kind)} · ${escapePublicHtml(dependency.confidence)}${dependency.version_scope ? `<p>Applies to: ${escapePublicHtml(dependency.version_scope)}</p>` : ""}${dependency.note ? `<p>${escapePublicHtml(dependency.note)}</p>` : ""}${evidence(dependency.evidence_urls)}`))}` : ""}<p class="links">${link(entry.project_url, "Project")}${entry.setup_url ? ` · ${link(entry.setup_url, "Setup instructions")}` : ""}${entry.release_url ? ` · ${link(entry.release_url, "Upstream releases")}` : ""}</p><details><summary>Game identity sources</summary>${evidence(entry.identity_evidence)}${entry.editions.map((edition) => `<p>${escapePublicHtml(edition.title)}</p>${evidence(edition.evidence_urls)}`).join("")}</details></article>`;
+  const notes = entry.setup_notes?.length
+    ? `<details><summary>Setup notes</summary><dl>${entry.setup_notes.map((note) => `<dt>${escapePublicHtml(note.title)}</dt><dd>${escapePublicHtml(note.instruction)}</dd>`).join("")}</dl></details>`
+    : "";
+  return `<article id="${entry.id}"><h2>${escapePublicHtml(entry.name)}</h2><p>${escapePublicHtml(entry.summary)}</p><dl><dt>Original game files</dt><dd>${safeList(entry.original_requirements)}${entry.editions.length ? `<p>Reviewed source editions:</p>${safeList(entry.editions.map((edition) => `${edition.title} · ${edition.system}`))}` : "<p>Source edition identity has not been reviewed.</p>"}</dd><dt>Target platforms reported upstream</dt><dd>${safeList(entry.platforms)}</dd><dt>Implementation method</dt><dd>${entry.methods.length ? list(entry.methods.map((method) => `${escapePublicHtml(methodName(method.kind))}${method.note ? ` — ${escapePublicHtml(method.note)}` : ""}${evidence(method.evidence_urls)}`)) : "<p>Not recorded.</p>"}</dd><dt>Portcove integration in development</dt><dd>${entry.declared_platforms.length ? `<p>${escapePublicHtml(entry.installation_method ?? "Declared integration")}</p>${safeList(entry.declared_platforms)}` : "<p>Descriptive listing only. No managed definition in this input.</p>"}</dd><dt>Published delivery</dt><dd>Not checked. A repository definition does not establish an available published route.</dd><dt>Upstream availability claim</dt><dd>${escapePublicHtml(entry.availability)}${entry.download_block_reason ? `<p>${escapePublicHtml(entry.download_block_reason)}</p>` : ""}<p>A release may contain research reports rather than a playable package.</p></dd></dl><h3>Setup</h3>${entry.setup.length ? `<ol>${entry.setup.map((step) => `<li><strong>${escapePublicHtml(step.title)}</strong><p>${escapePublicHtml(step.instruction)}</p></li>`).join("")}</ol>` : "<p>Follow the project’s setup instructions.</p>"}${notes}<h3>Limitations and evidence</h3>${safeList(entry.limitations)}${safeList(entry.qualification)}<p>Check declarations describe their original scope; they do not establish current gameplay, save compatibility or a different platform.</p>${entry.dependencies.length ? `<h3>Shared tools and runtimes</h3>${list(entry.dependencies.map((dependency) => `${link(dependency.project_url, dependency.name)} · ${escapePublicHtml(dependency.kind)} · ${escapePublicHtml(dependency.confidence)}${dependency.version_scope ? `<p>Applies to: ${escapePublicHtml(dependency.version_scope)}</p>` : ""}${dependency.note ? `<p>${escapePublicHtml(dependency.note)}</p>` : ""}${evidence(dependency.evidence_urls)}`))}` : ""}<p class="links">${link(entry.project_url, "Project")}${entry.setup_url ? ` · ${link(entry.setup_url, "Setup instructions")}` : ""}${entry.release_url ? ` · ${link(entry.release_url, "Upstream releases")}` : ""}</p><details><summary>Game identity sources</summary>${evidence(entry.identity_evidence)}${entry.editions.map((edition) => `<p>${escapePublicHtml(edition.title)}</p>${evidence(edition.evidence_urls)}`).join("")}</details></article>`;
 }
 function comparison(entries: PublicCatalogEntry[]) {
   if (entries.length < 2) return "";

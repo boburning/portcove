@@ -6,7 +6,11 @@ publication. They do not become the planning authority after generation. See
 [`docs/RELEASING.md`](../RELEASING.md) and generate a new snapshot when the
 release state changes.
 
-## Published technical previews
+For current versioned previews, nightlies and platform-specific packages, use
+the [download guide](../DOWNLOADS.md#published-previews) and
+[GitHub Releases](https://github.com/boburning/portcove/releases).
+
+## Historical Alpha release notes
 
 - [Portcove 0.1.0-alpha.2](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2)
   — [reviewed notes](0.1.0-alpha.2-release-notes.md)

@@ -3,7 +3,7 @@
   "listing": {
     "id": "blade-ii-the-return-of-evil-blade2-mobile",
     "name": "Blade II: The Return of Evil (blade2-mobile)",
-    "summary": "An experimental Blade II-specific Apple ARM64 native-code and Horizon/NVN-to-Metal compatibility project. The project reports Mac levels 1–3 and the first boss at 60 FPS, with audio, cutscenes, controllers and saving; these are its own limited observations. iOS has not been run on a physical device, although its ARM64 shell compiles. There is no observed release package or Windows/Linux route. Local extract_game.sh, patch_nso for sdk/subsdk0/main, shader preparation and mac_app_blade.sh generate an app/DMG. Use your own XCI and prod.keys or extracted ExeFS/RomFS. The example is title 01009cc00e224000 with update v131072; the exact accepted range is unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "Build Blade II: The Return of Evil for Apple silicon Mac from your own Switch game. The project reports playing levels 1–3 and the first boss with sound and saves. The iOS build has not been tested on a physical device.",
     "original_game_title": "Blade II: The Return of Evil",
     "project_url": "https://github.com/ha7rock/blade2-mobile",
     "listed_at": "2026-10-25",
@@ -18,7 +18,27 @@
       "game_slug": "blade-ii-the-return-of-evil",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2979
+    "issue_number": 2979,
+    "manual_setup": {
+      "help_url": "https://github.com/ha7rock/blade2-mobile",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Provide your own XCI and prod.keys, or extracted ExeFS and RomFS. The project’s example uses title 01009cc00e224000 with update v131072. Other accepted versions are unconfirmed."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Follow the Mac source guide to prepare the game modules and shaders locally, then use mac_app_blade.sh to create an app or disk image. The project has no published player package."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The project reports Mac cutscenes, controller input and 60 FPS in the tested levels. Its iOS shell compiles for ARM64. Windows and Linux routes are unconfirmed."
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

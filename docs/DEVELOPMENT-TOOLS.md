@@ -2340,6 +2340,8 @@ with selection preserved. No validator, preparation, acquisition, gameplay,
 physical-storage or Linux execution is claimed. The existing preliminary
 review-only scenario remains separately selectable.
 
+### Select a native scenario and profile
+
 With no selector, `desktop-verify` uses the `smoke` profile. Exact `--scenario`
 flags are repeatable and mutually exclusive with `--profile`; selection is normalized
 in catalog order. The pure `scripts/desktop-execution-plan.mts` supplies fixture
@@ -2442,6 +2444,8 @@ preparation and actual-device evidence gaps belong to #51/#217 for the Public be
 follow-up, Required before 1.0; they consume the shared engine baseline without
 becoming #993 initial-beta closure conditions. Do not stop fixture development or
 turn missing evidence into a pass.
+
+### Choose a verification profile
 
 The curated profiles are:
 
@@ -2566,6 +2570,8 @@ registration removal preserves the complete postgame inventory. Failure cleanup
 can signal only a separately captured, verified game process tree. This journey
 does not establish human gameplay, an installed package, Linux qualification or
 catalog support admission. Keep any earlier failed receipts and their limits.
+
+### Capture a game-first scenario
 
 Game-first visual captures scroll to one complete identified target, then let the
 shared settled-capture owner wait for fresh, stable geometry before taking its
@@ -2855,6 +2861,8 @@ native scenarios always execute in a fresh evidence directory. The run metadata
 records whether frontend bytes were rebuilt or reused, while source revision and
 `--require-clean` evidence remain independent and unchanged.
 
+### Coordinate focus and session ownership
+
 Every native run can take focus and send input. The shared lock serializes
 Portcove qualification runners across worktrees, but it cannot prevent unrelated
 user input. Announce the foreground run and establish an uncontended window.
@@ -3042,6 +3050,8 @@ retry plus refresh recovery, not upstream availability, game compatibility,
 gameplay or human acceptance.
 Core/component tests and human acceptance remain separate. An incomplete report is
 not full desktop qualification.
+
+### Restart and recover a Windows test session
 
 Windows restart checks capture the exact driver-owned application and child
 process identities before closing the session. Before reusing its WebView profile,
