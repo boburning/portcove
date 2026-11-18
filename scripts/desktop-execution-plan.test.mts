@@ -2170,3 +2170,74 @@ void test("standing setup keeps both restart inventories separate from final cle
   assert.deepEqual(names, ["standing-original-return", "standing-retained", "backup-focus"]);
   assert.equal(new Set(names).size, 3, "All session inventories must remain exclusive");
 });
+
+void test("batch restart preserves its inventory separately from final session cleanup", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function restartApplication(");
+  const end = source.indexOf("// Interrupt only this harness", start);
+  assert.ok(start >= 0 && end > start);
+  for (const scenario of ["native-reviewed-discovery-setup-batch", "native-backup-delete-focus"]) {
+    const names: string[] = [];
+    const context = {
+      assert,
+      process: { platform: "win32" },
+      selection: { selected_scenarios: [scenario] },
+      linuxSelectedSession: false,
+      historySession: false,
+      savedLibraryRecoverySession: false,
+      hostPublicationSession: false,
+      identityBoundSession: true,
+      interruptedPreparationSession: false,
+      reviewedWorkflowSession: false,
+      executionPlan: { fixtures: { acquisitionJourney: false } },
+      cleanupName: "backup-focus",
+      requiresReadOnlyRestart: () => true,
+      captureBackupFocusCleanup: (name: string) => {
+        names.push(name);
+        return "owned-inventory";
+      },
+      readFile: async () => "{}",
+      readNativeProcessSnapshot: (value: unknown) => value,
+      validateBackupFocusInventory: () => {},
+      stopBackupFocusDriver: () => {},
+      connect: () => {},
+      driverBrowser: () => {},
+      ownedSession: {
+        restart: async ({
+          capture,
+          prepare,
+        }: {
+          capture: () => Promise<void>;
+          prepare: unknown;
+        }) => {
+          assert.equal(prepare, undefined);
+          await capture();
+          return "restarted";
+        },
+      },
+    };
+    runInNewContext(
+      `${source.slice(start, end)}\nglobalThis.restart = restartApplication;`,
+      context,
+    );
+    const restart: unknown = Reflect.get(context, "restart");
+    assert.ok(typeof restart === "function");
+    assert.equal(await Reflect.apply(restart, undefined, ["native-batch-retained"]), "restarted");
+    assert.deepEqual(names, [
+      scenario === "native-reviewed-discovery-setup-batch"
+        ? "native-batch-retained"
+        : "backup-focus",
+    ]);
+    if (scenario === "native-reviewed-discovery-setup-batch") {
+      context.captureBackupFocusCleanup(context.cleanupName);
+      assert.equal(
+        new Set(names).size,
+        2,
+        "restart and final inventory paths must remain distinct",
+      );
+    }
+  }
+});

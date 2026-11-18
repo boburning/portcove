@@ -1073,3 +1073,56 @@ function requiredSources<T>(value: T | null): T {
   if (!value) throw new Error("Selected fixture source is required");
   return value;
 }
+
+/** Two independently installed portable integrations; the PS1 selection fixture stays separate. */
+export async function prepareReviewedSetupBatchFixture(
+  fixture: Awaited<ReturnType<typeof createInstallFixture>>,
+) {
+  const sources = requiredSources(fixture.sourceJourney);
+  if (
+    fixture.completionJourney ||
+    fixture.preliminaryJourney ||
+    fixture.requests.length !== 0 ||
+    fixture.port.id !== INSTALL_FIXTURE_PORT_ID ||
+    fixture.port.adapter !== "libultraship-portable" ||
+    fixture.refreshPort.id !== INSTALL_REFRESH_FIXTURE_PORT_ID ||
+    fixture.refreshPort.adapter !== "psx-recomp-managed"
+  )
+    throw new Error("Reviewed batch requires an unused standalone source-selection fixture");
+  const current = catalog(JSON.parse(await readFile(fixture.catalogPath, "utf8")));
+  const primary = current.ports.find((port) => port.id === fixture.port.id);
+  const peerIndex = current.ports.findIndex((port) => port.id === fixture.refreshPort.id);
+  const gameContracts = current.source_catalog.contracts.filter(
+    (contract) => contract.port_id === fixture.port.id,
+  );
+  const game = gameContracts[0];
+  if (
+    !primary ||
+    primary.adapter !== "libultraship-portable" ||
+    primary.source_profile !== sources.profiles[0] ||
+    peerIndex < 0 ||
+    gameContracts.length !== 1 ||
+    !game ||
+    game.role !== "game" ||
+    game.profile_id !== sources.profiles[0]
+  )
+    throw new Error("Reviewed batch requires the original portable game contract");
+  const peer = {
+    ...structuredClone(fixture.port),
+    id: fixture.refreshPort.id,
+    name: fixture.refreshPort.name,
+    summary: "Second isolated portable integration sharing the registered original.",
+  };
+  current.ports[peerIndex] = peer;
+  current.source_catalog.contracts = current.source_catalog.contracts.filter(
+    (contract) => contract.port_id !== peer.id,
+  );
+  current.source_catalog.contracts.push({
+    ...structuredClone(game),
+    id: `${peer.id}-game`,
+    port_id: peer.id,
+  });
+  await writeFile(fixture.catalogPath, `${JSON.stringify(current, null, 2)}\n`);
+  Object.assign(fixture.refreshPort, peer);
+  delete fixture.refreshPort.bios_source_profile;
+}

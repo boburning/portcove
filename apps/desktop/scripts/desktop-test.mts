@@ -120,6 +120,7 @@ import {
 import {
   createInstallFixture,
   prepareLargeSetupReviewFixture,
+  prepareReviewedSetupBatchFixture,
 } from "./desktop-install-fixture.mts";
 import {
   createExternalRuntimeFixture,
@@ -1790,7 +1791,8 @@ async function restartApplication(
             acquisitionRestart ||
             interruptedPreparationSession ||
             reviewedWorkflowSession ||
-            selection.selected_scenarios.includes("native-standing-setup-source-return")
+            selection.selected_scenarios.includes("native-standing-setup-source-return") ||
+            selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch")
             ? name
             : cleanupName,
         );
@@ -2633,6 +2635,8 @@ try {
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
       ...(values["preparation-tool"] ? { preparationTool: values["preparation-tool"] } : {}),
     });
+    if (selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch"))
+      await prepareReviewedSetupBatchFixture(installFixture);
     if (selection.selected_scenarios.includes("native-large-discovery-setup-review")) {
       largeSetupReviewFixture = await prepareLargeSetupReviewFixture(installFixture, revision);
       for (const original of largeSetupReviewFixture.originals)
