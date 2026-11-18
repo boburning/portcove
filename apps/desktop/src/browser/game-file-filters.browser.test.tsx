@@ -98,6 +98,14 @@ function Session({ library, catalog }: { library: string; catalog: CatalogDocume
     catalog,
     sources: [],
     statuses: [],
+    browsing: {
+      schema_version: 1,
+      library: { id: "opaque-core", root: "/private-game-files" },
+      host_platform: "windows-x86-64",
+      contexts: [],
+      retained_metadata_complete: false,
+      workspace_binding_sha256: "a".repeat(64),
+    },
     generation,
     libraryKey: library,
   });

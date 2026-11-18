@@ -11,6 +11,7 @@ import type {
   ActivityRecord,
   DesktopError,
   OperationEvent,
+  CatalogBrowsingSnapshot,
   PortDefinition,
   PortStatus,
   ReadinessBlocker,
@@ -257,15 +258,20 @@ export interface SourceRequirement {
   }>;
 }
 
-const platformLabels: Record<string, string> = {
+type MachinePlatform = CatalogBrowsingSnapshot["host_platform"];
+const platformLabels: Record<MachinePlatform, string> = {
   "windows-x86-64": "Windows",
   "linux-x86-64": "Linux",
   "macos-x86-64": "macOS Intel",
   "macos-aarch64": "Apple silicon",
 };
 
+export const machinePlatforms = Object.keys(platformLabels) as MachinePlatform[];
+
 export function platformLabel(value: string) {
-  const label = Object.hasOwn(platformLabels, value) ? platformLabels[value] : undefined;
+  const label = Object.hasOwn(platformLabels, value)
+    ? platformLabels[value as MachinePlatform]
+    : undefined;
   return label ?? "Unknown platform";
 }
 
