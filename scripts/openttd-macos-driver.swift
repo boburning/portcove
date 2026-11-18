@@ -179,7 +179,11 @@ do {
     if dataset == "fresh" { args += ["-G", "12345", "-g"] }
     else {
         let save = root.appendingPathComponent("fresh/profile/save/autosave/exit.sav")
-        saveHash = try digest(save)
+        let first = try JSONSerialization.jsonObject(with: Data(contentsOf: native.appendingPathComponent("fresh-result.json"))) as! [String: Any]
+        guard let recordedHash = first["save_sha256"] as? String,
+              let recordedBytes = first["save_bytes"] as? NSNumber else { throw ProbeFailure(message: "First native save receipt is absent") }
+        try require(try digest(save) == recordedHash && save.resourceValues(forKeys: [.fileSizeKey]).fileSize == recordedBytes.intValue, "First native save identity changed before replay")
+        saveHash = recordedHash
         let copy = profile.appendingPathComponent("input.sav")
         try fm.copyItem(at: save, to: copy)
         try require(try digest(copy) == saveHash, "Save copy differs")
