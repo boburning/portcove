@@ -2927,6 +2927,16 @@ rules still match the recorded inputs. That does not claim the collection stayed
 the scan; the snapshot is local evidence, not a watcher, source registration, setup
 intent, or permission to mutate or install anything.
 
+Setup review asks Core for the registered matches of every current saved scan,
+including a scan that fits entirely in its preview. Core reads the scan, roots,
+catalog binding and current registrations in one transaction. Profile, content
+digest and source path must match. On Windows only, the existing absolute-path
+comparison accepts ordinary and verbatim disk/UNC spellings while preserving
+case and path components. Returned matches use the saved registration spelling;
+the registration itself is never rewritten. Other copies with the same digest
+remain distinct. React consumes this result without deciding filesystem identity,
+and installation review still verifies the current source before authorization.
+
 CLI and Tauri expose that same foreground scan, its normal operation events, and
 nullable snapshot readback. They accept only core's typed limits and do not add a
 second candidate store or freshness decision. Desktop Settings presents the

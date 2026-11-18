@@ -505,9 +505,10 @@ impl PortcoveService {
             let Some((port_id, expected)) = claimed else {
                 break;
             };
-            let outcome = self
-                .run_install_batch_item(&port_id, &expected, &mut emit)
-                .await;
+            // Keep the installation future out of every enclosing batch and
+            // standing-setup future on ordinary Windows worker stacks.
+            let outcome =
+                Box::pin(self.run_install_batch_item(&port_id, &expected, &mut emit)).await;
             self.library.update_install_batch(batch_id, |record| {
                 if let Some(item) = record.items.iter_mut().find(|item| {
                     item.port_id == port_id && item.state == InstallBatchItemState::Running

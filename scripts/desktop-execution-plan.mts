@@ -13,6 +13,9 @@ import type { DesktopSelection } from "./desktop-scenarios.mts";
 // Shared display-identity, review-presentation and staged-layout helpers are runtime imports.
 // Package/lock files are reproduction inputs, never claims of executed source.
 export const nativeTransportReceiptSources = Object.freeze([
+  "apps/desktop/scripts/desktop-standing-setup-test.mts",
+  "apps/desktop/scripts/desktop-standing-pass-observer.mts",
+  "apps/desktop/scripts/desktop-setup-batch-test.mts",
   "apps/desktop/scripts/desktop-scenario-state.mts",
   "apps/desktop/scripts/desktop-cover-observations.mts",
   "apps/desktop/scripts/desktop-scenario-outcomes.mts",
@@ -145,6 +148,9 @@ export function planDesktopExecution(
     (platform === "win32" &&
       selection.selected_scenarios.includes("native-retained-contract-repair-state")) ||
     selection.selected_scenarios.includes("native-selected-setup-completion") ||
+    selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch") ||
+    selection.selected_scenarios.includes("native-standing-setup-source-return") ||
+    selection.selected_scenarios.includes("native-large-discovery-setup-review") ||
     selection.selected_scenarios.includes("native-startup-network-diagnostic") ||
     selection.selected_scenarios.includes("native-external-runtime-review") ||
     backupFocusSession ||
@@ -443,7 +449,12 @@ export function planDesktopExecution(
     executed.has("native-preliminary-source-review") || preliminarySetupJourney;
   const hashResumeJourney = executed.has("native-saved-folder-hash-resume");
   const sourceJourney =
-    executed.has("native-saved-folder-selected-setup") || preliminaryJourney || hashResumeJourney;
+    executed.has("native-saved-folder-selected-setup") ||
+    executed.has("native-reviewed-discovery-setup-batch") ||
+    executed.has("native-standing-setup-source-return") ||
+    executed.has("native-large-discovery-setup-review") ||
+    preliminaryJourney ||
+    hashResumeJourney;
   const completionJourney = executed.has("native-selected-setup-completion");
   const updateReviewJourney = executed.has("native-game-update-review");
   const roles = [
@@ -486,6 +497,10 @@ export function planDesktopExecution(
       members: roles.filter(({ id }) =>
         [
           "native-saved-folder-selected-setup",
+          "native-reviewed-discovery-setup-batch",
+          "native-standing-setup-source-return",
+
+          "native-large-discovery-setup-review",
           "native-preliminary-source-review",
           "native-preliminary-selected-setup",
           "native-saved-folder-hash-resume",

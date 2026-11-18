@@ -673,9 +673,9 @@ impl Library {
         let mut result = GameFileScanRegisteredMatches::default();
         {
             let mut statement = transaction.prepare(
-                "SELECT matches.kind, matches.record_json, sources.sha256
+                "SELECT matches.kind, matches.record_json, sources.path, sources.sha256
                  FROM game_file_scan_matches AS matches
-                 JOIN sources ON sources.profile_id=matches.profile_id AND sources.path=matches.path
+                 JOIN sources ON sources.profile_id=matches.profile_id
                  WHERE matches.scan_id=?1
                  ORDER BY matches.kind, matches.ordinal",
             )?;
@@ -683,25 +683,42 @@ impl Library {
             while let Some(row) = rows.next()? {
                 let kind: u8 = row.get(0)?;
                 let record: String = row.get(1)?;
-                let registered_sha256: String = row.get(2)?;
+                let registered_path: String = row.get(2)?;
+                let registered_sha256: String = row.get(3)?;
                 let invalid = |error: serde_json::Error| {
                     PortcoveError::state("stored scan match is invalid")
                         .detail("cause", error.to_string())
                 };
                 if kind == GameFileScanMatchKind::Exact.row_kind() {
-                    let candidate: crate::SourceRecord =
+                    let mut candidate: crate::SourceRecord =
                         serde_json::from_str(&record).map_err(invalid)?;
-                    if candidate.sha256 == registered_sha256 {
+                    if candidate.sha256 == registered_sha256
+                        && scan_path_matches_registration(
+                            &candidate.path,
+                            Path::new(&registered_path),
+                        )
+                    {
+                        // Publish the admitted spelling, without rewriting the
+                        // durable registration or teaching adapters path identity.
+                        candidate.path = PathBuf::from(&registered_path);
                         result.candidates.push(candidate);
                     }
                 } else {
-                    let inspection: crate::SourceInspection =
+                    let mut inspection: crate::SourceInspection =
                         serde_json::from_str(&record).map_err(invalid)?;
-                    if inspection
-                        .record
-                        .as_ref()
-                        .is_some_and(|source| source.sha256 == registered_sha256)
-                    {
+                    if inspection.record.as_mut().is_some_and(|source| {
+                        if source.sha256 != registered_sha256
+                            || !scan_path_matches_registration(
+                                &source.path,
+                                Path::new(&registered_path),
+                            )
+                        {
+                            return false;
+                        }
+                        source.path = PathBuf::from(&registered_path);
+                        true
+                    }) {
+                        inspection.path = PathBuf::from(&registered_path);
                         result.preliminary_selections.push(inspection);
                     }
                 }
@@ -985,6 +1002,24 @@ fn require_available_root(path: &Path) -> Result<PathBuf> {
 // A registration may preserve the spelling supplied by the player while
 // saved folders are canonicalized. The folder may be offline, so compare
 // path components without asking the filesystem to resolve either path.
+fn scan_path_matches_registration(scanned: &Path, registered: &Path) -> bool {
+    if scanned == registered {
+        return true;
+    }
+    #[cfg(windows)]
+    {
+        // Only ordinary/verbatim absolute disk or UNC spelling equivalence.
+        // Preserve case and components; no symlink resolution or byte admission.
+        crate::path::comparable_windows_absolute(scanned)
+            .zip(crate::path::comparable_windows_absolute(registered))
+            .is_some_and(|(scanned, registered)| scanned == registered)
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
+}
+
 fn registered_path_inside_saved_root(path: &Path, root: &Path) -> bool {
     #[cfg(windows)]
     {
@@ -1029,6 +1064,30 @@ fn validate_id(id: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn scan_registration_aliases_preserve_case_components_and_device_boundaries() {
+        let disk = PathBuf::from(["D:", "Games", "game.z64"].join("\\"));
+        let verbatim = PathBuf::from(["", "", "?", "D:", "Games", "game.z64"].join("\\"));
+        let unc = PathBuf::from(["", "", "Host", "Share", "game.z64"].join("\\"));
+        let verbatim_unc =
+            PathBuf::from(["", "", "?", "UNC", "Host", "Share", "game.z64"].join("\\"));
+        assert!(scan_path_matches_registration(&verbatim, &disk));
+        assert!(scan_path_matches_registration(&verbatim_unc, &unc));
+        for components in [
+            vec!["D:", "Games", "other.z64"],
+            vec!["D:", "games", "game.z64"],
+            vec!["D:", "Games", "child", "..", "game.z64"],
+            vec!["D:Games", "game.z64"],
+            vec!["", "", ".", "D:", "Games", "game.z64"],
+        ] {
+            assert!(!scan_path_matches_registration(
+                &verbatim,
+                &PathBuf::from(components.join("\\"))
+            ));
+        }
+    }
 
     #[cfg(windows)]
     #[test]

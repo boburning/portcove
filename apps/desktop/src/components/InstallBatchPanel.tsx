@@ -1,7 +1,8 @@
 import type { TFunction } from "i18next";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
+import { focusAndReveal, navigationScope } from "../focus";
 import { useAppTranslation } from "../localization";
 import { errorText, formatBytes } from "../view-model";
 import type { InstallBatchRecord, InstallBatchReview, PortDefinition } from "../types";
@@ -64,12 +65,16 @@ export function InstallBatchPanel({
   generation,
   ports,
   portIds,
+  reviewOrigin,
+  onCancelReview,
   onDone,
 }: {
   generation: number;
   ports: PortDefinition[];
   /** Games to review now, or undefined to only offer continuing an unfinished batch. */
   portIds: string[] | undefined;
+  reviewOrigin?: HTMLElement | undefined;
+  onCancelReview?: ((panel: HTMLElement | null) => void) | undefined;
   onDone: () => void;
 }) {
   // The parent remounts this panel for each new selection, so a selection
@@ -77,14 +82,37 @@ export function InstallBatchPanel({
   const [phase, setPhase] = useState<Phase>(
     portIds?.length ? { kind: "reviewing" } : { kind: "idle" },
   );
+  const panel = useRef<HTMLElement>(null);
+  const reviewHeading = useRef<HTMLHeadingElement>(null);
+  const entered = useRef(false);
+  useLayoutEffect(() => {
+    if (entered.current) return;
+    entered.current = true;
+    const target = reviewHeading.current;
+    if (
+      !portIds?.length ||
+      !target?.isConnected ||
+      target.closest("[inert], [hidden], [aria-hidden=true]") ||
+      !target.getClientRects().length ||
+      getComputedStyle(target).visibility === "hidden" ||
+      !navigationScope().contains(target) ||
+      (document.activeElement !== document.body && document.activeElement !== reviewOrigin)
+    )
+      return;
+    // Entry belongs to this explicit selection, never to later plan completion.
+    focusAndReveal(target, { centerBeforeFocus: true });
+  }, [portIds, reviewOrigin]);
   const { t } = useAppTranslation("installation");
   const [unfinished, setUnfinished] = useState<InstallBatchRecord>();
   const [error, setError] = useState<string>();
   const [confirming, setConfirming] = useState(false);
   const activeConfirmation = useRef<number | undefined>(undefined);
-  const owner = useRef(generation);
-  useEffect(() => {
+  const owner = useRef<number | undefined>(generation);
+  useLayoutEffect(() => {
     owner.current = generation;
+    return () => {
+      owner.current = undefined;
+    };
   }, [generation]);
   const accepts = (expected: number) => owner.current === expected;
   const name = (id: string) => ports.find((port) => port.id === id)?.name ?? id;
@@ -147,6 +175,7 @@ export function InstallBatchPanel({
           waiting.map((item) => ({ port_id: item.port_id, origin: "game_file_discovery" })),
           expected,
         );
+      if (!accepts(expected)) return;
       if (!ready.length) {
         if (accepts(expected)) onDone();
         return;
@@ -164,7 +193,7 @@ export function InstallBatchPanel({
     } finally {
       if (activeConfirmation.current === expected) {
         activeConfirmation.current = undefined;
-        setConfirming(false);
+        if (accepts(expected)) setConfirming(false);
       }
     }
   };
@@ -181,7 +210,12 @@ export function InstallBatchPanel({
   if (phase.kind === "idle" && !error && !unfinished) return null;
 
   return (
-    <section aria-label={t("batch.label")} className="install-batch col-span-full">
+    <section ref={panel} aria-label={t("batch.label")} className="install-batch col-span-full">
+      {portIds?.length && (
+        <h3 ref={reviewHeading} tabIndex={-1}>
+          {t("batch.label")}
+        </h3>
+      )}
       {error && <p role="alert">{error}</p>}
       {phase.kind === "idle" && unfinished && (
         <div className="grid justify-items-start gap-3">
@@ -198,7 +232,7 @@ export function InstallBatchPanel({
           name={name}
           confirming={confirming}
           onConfirm={(review) => void confirm(review)}
-          onCancel={onDone}
+          onCancel={() => (onCancelReview ? onCancelReview(panel.current) : onDone())}
         />
       )}
       {phase.kind === "running" && (

@@ -2260,6 +2260,50 @@ The receipt binds the actual executables, source, screenshots and positive
 owned-process closure. This case does not establish native picker, setup
 execution, gameplay, physical storage or Linux acceptance.
 
+`just desktop-verify --scenario native-reviewed-discovery-setup-batch --require-clean`
+selects one standalone Windows journey. The CLI first seeds an isolated saved
+folder and two inert source registrations. Desktop scans the folder and lets the
+operator select two compatible integrations. The scenario cancels one batch
+review before selecting both games again and confirming their installation.
+Both portable-package fixtures share the admitted game source. The other source
+registration remains an unchanged custody control; this case does not execute
+the separate PS1 preparation fixture.
+It checks the installed files and retained installation identities after an
+application restart. Original files, source registrations and saved folders stay
+intact. Launch history stays empty. Reports include screenshots and positive
+owned-process closure. This fixture does not establish native picker, real-game,
+gameplay or physical-storage acceptance.
+
+`just desktop-verify --scenario native-standing-setup-source-return --require-clean`
+selects one standalone Windows journey. The CLI seeds an isolated saved folder
+and inert originals before their owned directory becomes unavailable. Desktop
+saves one Set up when ready choice. An observer records the actual automatic
+pass without changing its request or response. The pass must name the missing
+saved folder and leave attempts, batches and downloads unchanged.
+After positive process exit, the restart owner restores the same directory.
+Normal startup then installs only the selected integration. The scenario checks
+the files, consent and retained identities after another restart. No game starts.
+This fixture does not establish SMB reconnect, physical storage, real-game or
+gameplay acceptance. A failed run retains the unavailable original directory
+rather than restoring it while the consented app is still live.
+
+`just desktop-verify --scenario native-large-discovery-setup-review --require-clean`
+selects one standalone Windows or Linux review journey outside routine profiles.
+The private-X11 wrapper derives both waits from the selected harness budget:
+this case retains its ten-minute deadline, an eleven-minute harness wait, and
+an eleven-minute-thirty-second launcher wait for failure capture and positive joins.
+An isolated CLI saves one root and registers 21 distinct inert originals, with
+25 identical copies of each original. Desktop continues the bounded scan to
+525 retained matches, exceeding the 512-match Core preview, then selects all
+20 independent eligible games before loading
+the remaining result page, and leaves one game's two implementations unselected.
+Keyboard activation opens the exact twenty-game review and cancels it. No batch,
+download, installation or launch may occur; original files and registrations stay
+unchanged. The native receipt includes the scan identity, selected plans, counts,
+screenshots and ordinary harness process cleanup. It does not establish native
+picker, retail, gameplay or physical-storage acceptance. Execution of a reviewed
+batch is qualified separately.
+
 `just desktop-verify --scenario native-selected-setup-completion --require-clean`
 selects the standalone owned-input journey on Windows: bounded two-port
 review, actual individual installation cancellation/retry and inert preparation,

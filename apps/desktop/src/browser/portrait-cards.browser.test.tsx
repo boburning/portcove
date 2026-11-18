@@ -291,14 +291,20 @@ it.for([
           )
           .toBe(true);
       }
+      // Exercise neutral layout measurement after a card was hovered.
+      if (view === "library") {
+        const identity = document.querySelectorAll<HTMLElement>(".collection-identity").item(4);
+        await userEvent.hover(identity);
+      }
       window.scrollTo(0, 0);
       await document.fonts.ready;
-      // A pointer left over a cover must not redefine the resting-grid measurement.
-      await page
-        .elementLocator(
-          document.querySelector<HTMLElement>(".collection-identity, .discover-game-identity")!,
-        )
-        .hover();
+      // The Library case already hovered its fourth card above. Exercise the
+      // Discover hover too before the shared helper measures the neutral grid.
+      if (view === "catalog") {
+        await page
+          .elementLocator(document.querySelector<HTMLElement>(".discover-game-identity")!)
+          .hover();
+      }
       const { frames, fallback } = await assertPortraitLayout(view, theme, width, height);
       await page.screenshot({
         path: `../../../../outputs/uiux-game-titles/after-${view}-${theme}-${width}-${frames[0]!.width}x${frames[0]!.height}-top.png`,
@@ -595,22 +601,27 @@ it.each([
   },
 );
 
+async function settlePortraitPointer() {
+  await userEvent.hover(document.documentElement, { position: { x: 1, y: 1 } });
+  await expect
+    .poll(() => {
+      const frames = [...document.querySelectorAll<HTMLElement>(".collection-art")];
+      return (
+        frames.length > 0 &&
+        !document.querySelector(".collection-identity:hover, .discover-game-identity:hover") &&
+        frames.every((frame) => getComputedStyle(frame).transform === "none")
+      );
+    })
+    .toBe(true);
+}
+
 async function assertPortraitLayout(
   view: "library" | "catalog",
   theme: string,
   width: number,
   height: number,
 ) {
-  // Hover deliberately lifts a cover. Clear the pointer and let that transition
-  // settle before comparing the untransformed grid, including after a resize.
-  await page.elementLocator(document.body).hover({ position: { x: 1, y: 1 } });
-  await expect
-    .poll(() =>
-      [...document.querySelectorAll<HTMLElement>(".collection-art")].every(
-        (element) => getComputedStyle(element).transform === "none",
-      ),
-    )
-    .toBe(true);
+  await settlePortraitPointer();
   const frames = [...document.querySelectorAll<HTMLElement>(".collection-art")].map((element) => {
     const rect = element.getBoundingClientRect();
     return {
@@ -845,6 +856,7 @@ it.for([2, 4] as const)(
         3,
         7,
       );
+    await settlePortraitPointer();
     await captureTargetScreenshot(
       frame,
       `../../../../outputs/uiux-game-titles/collection-${count}-wide.png`,
@@ -853,6 +865,7 @@ it.for([2, 4] as const)(
     );
     await page.viewport(390, 844);
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390);
+    await settlePortraitPointer();
     await expectContainedOriginals(frame, count);
     await expectContainedOriginals(hero, count);
     await expectContainedOriginals(library, count);
