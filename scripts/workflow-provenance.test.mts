@@ -92,11 +92,11 @@ void test("slice3 Windows recovery binds fixed sources and scenarios without bil
     }),
     [
       {
-        source: "e6146c65cc0dfdede1b503244165ca007f97692f",
+        source: "e38e108b17d7942957bf97269cfc8a675facec21",
         scenario: "native-standing-setup-source-return",
       },
       {
-        source: "e6146c65cc0dfdede1b503244165ca007f97692f",
+        source: "e38e108b17d7942957bf97269cfc8a675facec21",
         scenario: "native-large-discovery-setup-review",
       },
     ],
@@ -1980,7 +1980,7 @@ void test("Linux large review binds source and controller and publishes an outsi
     ),
   );
   const job = record(record(record(workflow).jobs).linux_preparation_continuity);
-  const sourceHead = "e6146c65cc0dfdede1b503244165ca007f97692f";
+  const sourceHead = "e38e108b17d7942957bf97269cfc8a675facec21";
   assert.equal(record(job.env).SOURCE_HEAD, sourceHead);
   assert.equal(record(job.env).CONTROLLER_HEAD, "${{ github.sha }}");
   assert.equal(job["timeout-minutes"], 90);
