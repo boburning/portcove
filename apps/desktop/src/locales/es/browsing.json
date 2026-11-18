@@ -48,10 +48,10 @@
     },
     "compareMatching": "Compara las adaptaciones coincidentes para ver sus propios requisitos de configuración y su estado de instalación.",
     "drop": {
+      "checkWith": "Comprobar archivos con <name/>",
+      "choose": "Elige una opción para comprobar estos archivos. Cada opción comprueba sus propios requisitos.",
       "hover": "Arrastra aquí para comprobar este juego",
       "release": "Suelta para comprobar",
-      "choose": "Elige una opción para comprobar estos archivos. Cada opción comprueba sus propios requisitos.",
-      "checkWith": "Comprobar archivos con <name/>",
       "review": "Suelta para elegir una opción y comprobar archivos"
     },
     "favorite": {

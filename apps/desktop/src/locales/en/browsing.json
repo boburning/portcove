@@ -48,10 +48,10 @@
     },
     "compareMatching": "Compare the matching ports for their own setup requirements and installation status.",
     "drop": {
+      "checkWith": "Check files with <name/>",
+      "choose": "Choose an option to check these files. Each option checks its own file requirements.",
       "hover": "Drop to check for this game",
       "release": "Release to check",
-      "choose": "Choose an option to check these files. Each option checks its own file requirements.",
-      "checkWith": "Check files with <name/>",
       "review": "Drop to choose an option and check files"
     },
     "favorite": {
