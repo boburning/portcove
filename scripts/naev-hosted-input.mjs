@@ -36,30 +36,51 @@ assert(
     meta.name === `windows-rust-tests-${run}-${attempt}`,
 );
 async function download(url, file, cap, expected, auth = false) {
-  let r = await fetch(url, {
-    headers: auth ? headers : {},
-    redirect: auth ? "manual" : "follow",
-    signal: AbortSignal.timeout(120000),
-  });
-  if (auth) {
-    assert([301, 302, 303, 307, 308].includes(r.status));
-    const target = r.headers.get("location");
-    assert(target?.startsWith("https://"));
-    r = await fetch(target, { signal: AbortSignal.timeout(120000) });
-  }
-  assert(r.ok, "Input download failed");
-  const chunks = [];
+  const started = Date.now();
+  const budget = file === "naev-0.13.5-win64.exe" ? 300000 : 120000;
   let bytes = 0;
-  for await (const chunk of r.body) {
-    bytes += chunk.length;
-    assert(bytes <= cap, "Input byte budget exceeded");
-    chunks.push(chunk);
+  const diagnostic = (outcome, extra = {}) =>
+    writeFile(
+      path.join(evidence, "download-" + file + ".json"),
+      JSON.stringify(
+        { file, budget_ms: budget, bytes, elapsed_ms: Date.now() - started, outcome, ...extra },
+        null,
+        2,
+      ),
+    );
+  await diagnostic("started");
+  try {
+    let r = await fetch(url, {
+      headers: auth ? headers : {},
+      redirect: auth ? "manual" : "follow",
+      signal: AbortSignal.timeout(budget),
+    });
+    if (auth) {
+      assert([301, 302, 303, 307, 308].includes(r.status));
+      const target = r.headers.get("location");
+      assert(target?.startsWith("https://"));
+      r = await fetch(target, { signal: AbortSignal.timeout(budget) });
+    }
+    assert(r.ok, "Input download failed");
+    const chunks = [];
+    for await (const chunk of r.body) {
+      bytes += chunk.length;
+      assert(bytes <= cap, "Input byte budget exceeded");
+      chunks.push(chunk);
+    }
+    const b = Buffer.concat(chunks),
+      sha = createHash("sha256").update(b).digest("hex");
+    assert.equal(sha, expected, "Input identity differs");
+    await writeFile(path.join(root, file), b, { flag: "wx" });
+    await diagnostic("passed", { sha256: sha });
+    return { bytes, sha256: sha };
+  } catch (error) {
+    await diagnostic("failed", {
+      error_name: error.name,
+      message: String(error.message).slice(0, 2048),
+    });
+    throw error;
   }
-  const b = Buffer.concat(chunks),
-    sha = createHash("sha256").update(b).digest("hex");
-  assert.equal(sha, expected, "Input identity differs");
-  await writeFile(path.join(root, file), b, { flag: "wx" });
-  return { bytes, sha256: sha };
 }
 await download(
   api + "/actions/artifacts/" + artifact + "/zip",
