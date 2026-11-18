@@ -92,16 +92,8 @@ void test("slice3 Windows recovery binds fixed sources and scenarios without bil
     }),
     [
       {
-        source: "bef33268008ec30c24dc3c6b2e884c2770f6e00b",
-        scenario: "native-reviewed-discovery-setup-batch",
-      },
-      {
-        source: "bef33268008ec30c24dc3c6b2e884c2770f6e00b",
+        source: "ad0188a6ffcfb4f6957f0f310a08f21e81c07352",
         scenario: "native-standing-setup-source-return",
-      },
-      {
-        source: "bef33268008ec30c24dc3c6b2e884c2770f6e00b",
-        scenario: "native-large-discovery-setup-review",
       },
     ],
   );
@@ -120,6 +112,9 @@ void test("slice3 Windows recovery binds fixed sources and scenarios without bil
       isRecord(step) && step.name === "Provision source-pinned packages and native prerequisites",
   );
   assert.ok(runtimeProvision >= 0 && driverBootstrap > runtimeProvision);
+  assert.equal(record(job.env).CORE_ONLY_DIAGNOSTIC, "true");
+  assert.equal(record(job.steps[runtimeProvision]).if, "env.CORE_ONLY_DIAGNOSTIC != 'true'");
+  assert.equal(record(job.steps[driverBootstrap]).if, "env.CORE_ONLY_DIAGNOSTIC != 'true'");
   const block = nativeDesignCompatibilityWorkflow
     .split("\n  slice3_windows_recovery:")[1]
     ?.split("\n  hosted_selected:")[0];
@@ -130,6 +125,12 @@ void test("slice3 Windows recovery binds fixed sources and scenarios without bil
   assert.match(block, /qualification_checkpoint::tests/);
   assert.match(block, /--scenario \$env:SCENARIO --require-clean/);
   assert.match(block, /native-backup-evidence.mts emit/);
+  assert.match(block, /--exact --show-output --color never/);
+  assert.match(block, /native_acceptance = \$false/);
+  assert.match(
+    block,
+    /if \(\$env:CORE_ONLY_DIAGNOSTIC -ne 'true'\) \{\n            node scripts\/desktop-verify/,
+  );
   assert.doesNotMatch(
     block,
     /upload-artifact|rust-cache|actions\/cache|cache: pnpm|inputs\.execution_binding/,
