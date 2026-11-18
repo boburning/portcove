@@ -159,7 +159,11 @@ export function installSecondaryPanelProbe(options: SecondaryPanelProbeOptions) 
       revision: 1,
       expectedPreviewSha256: sha,
     },
-    acquire_mod_recipe_package: { profileId: setupId, nativeId: fixtures.modName, serializedPlan: fixtures.recipe.serialized_plan },
+    acquire_mod_recipe_package: {
+      profileId: setupId,
+      nativeId: fixtures.modName,
+      serializedPlan: fixtures.recipe.serialized_plan,
+    },
     browse_provider_mods: { page: 1 },
     get_provider_project: { projectId: "42" },
     plan_provider_install: { profileId: setupId, projectId: "42", fileId: "10" },

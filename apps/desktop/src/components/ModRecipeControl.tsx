@@ -54,7 +54,10 @@ export function ModRecipeControl({
     };
   }, [portId, generation]);
   useEffect(() => () => onBusyChange(false), [onBusyChange]);
-  const showReview = (next?: OutputDesktopRecipeImportReview, trigger: HTMLElement | null = null) => {
+  const showReview = (
+    next?: OutputDesktopRecipeImportReview,
+    trigger: HTMLElement | null = null,
+  ) => {
     focusReviewFrom.current = document.activeElement === trigger ? trigger : null;
     setReview(next);
   };

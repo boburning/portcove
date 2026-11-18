@@ -11,7 +11,10 @@ import type {
   ModSetupView,
   ModSetupsView,
 } from "../types";
-import type { TransportOutputs, OutputDesktopRecipeImportReview } from "../transport-types.generated";
+import type {
+  TransportOutputs,
+  OutputDesktopRecipeImportReview,
+} from "../transport-types.generated";
 import { sourceProfile } from "../test-fixtures";
 import { ModFilePreservationControl } from "./ModFilePreservationControl";
 import { ModSetupsControl } from "./ModSetupsControl";
@@ -23,7 +26,11 @@ vi.mock("../features/game-file-discovery/use-standing-setup", { spy: true });
 type RecipeImportPlan = TransportOutputs["recipe_import_plan"];
 
 function recipeReview(plan: RecipeImportPlan): OutputDesktopRecipeImportReview {
-  return { plan, serialized_plan: JSON.stringify(plan), setting_values: plan.recipe.settings?.map((setting) => String(setting.value)) ?? [] };
+  return {
+    plan,
+    serialized_plan: JSON.stringify(plan),
+    setting_values: plan.recipe.settings?.map((setting) => String(setting.value)) ?? [],
+  };
 }
 
 const mounted: { root: Root; host: HTMLElement }[] = [];
@@ -1500,7 +1507,11 @@ it("opens an exact recipe review and creates a separately named setup", async ()
       uncaptured: [],
       packages: [],
       orderings: [],
-      settings: [{ native_id: "buffer.nrm", option_id: "buffer_size", value: 2048 }, { native_id: "precise.nrm", option_id: "count", value: 9007199254740992 }, { native_id: "precise.nrm", option_id: "zero", value: 0 }],
+      settings: [
+        { native_id: "buffer.nrm", option_id: "buffer_size", value: 2048 },
+        { native_id: "precise.nrm", option_id: "count", value: 9007199254740992 },
+        { native_id: "precise.nrm", option_id: "zero", value: 0 },
+      ],
       runtime: { platform: "windows-x86-64" },
     },
     runtime: { name: "runtime", status: "available", detail: "The exact runtime is installed." },
@@ -1515,7 +1526,8 @@ it("opens an exact recipe review and creates a separately named setup", async ()
   await expect.element(page.getByRole("heading", { name: "Recipe review" })).toHaveFocus();
   expect(inspect).toHaveBeenCalledWith("shipwright", "/picked/setup.json", 7);
   await page.getByText("Recipe inputs and details").click();
-  for (const value of plan.setting_values) await expect.element(page.getByText(value, { exact: true })).toBeVisible();
+  for (const value of plan.setting_values)
+    await expect.element(page.getByText(value, { exact: true })).toBeVisible();
   const create = page.getByRole("button", { name: "Create setup from recipe" });
   await expect.element(create).toBeDisabled();
   await page.getByRole("textbox", { name: "Name for the new setup" }).fill("Shared setup");
@@ -1540,20 +1552,26 @@ it("leaves focus where the player moved it during recipe inspection", async () =
   const setupHeading = host.querySelector("h3");
   setupHeading?.focus();
   await act(async () =>
-    finish(recipeReview({
-      can_apply: false,
-      holds: [],
-      originals: [],
-      packages: [],
-      recipe: {
-        identity_sha256: "a".repeat(64),
-        uncaptured: [],
+    finish(
+      recipeReview({
+        can_apply: false,
+        holds: [],
+        originals: [],
         packages: [],
-        orderings: [],
-        runtime: { platform: "windows-x86-64" },
-      },
-      runtime: { name: "runtime", status: "available", detail: "The exact runtime is installed." },
-    } as unknown as RecipeImportPlan)),
+        recipe: {
+          identity_sha256: "a".repeat(64),
+          uncaptured: [],
+          packages: [],
+          orderings: [],
+          runtime: { platform: "windows-x86-64" },
+        },
+        runtime: {
+          name: "runtime",
+          status: "available",
+          detail: "The exact runtime is installed.",
+        },
+      } as unknown as RecipeImportPlan),
+    ),
   );
   await expect.element(page.getByRole("heading", { name: "Recipe review" })).toBeVisible();
   expect(document.activeElement).toBe(setupHeading);
@@ -1690,7 +1708,12 @@ it.each(["accepted", "refused"] as const)(
       },
       runtime: { name: "runtime", status: "available", detail: "The exact runtime is installed." },
     } as unknown as RecipeImportPlan);
-    const held = recipeReview({ ...plan.plan, can_apply: false, acquisitions: [], provider_checks: ["retro.nrm"] });
+    const held = recipeReview({
+      ...plan.plan,
+      can_apply: false,
+      acquisitions: [],
+      provider_checks: ["retro.nrm"],
+    });
     vi.spyOn(desktopApi, "inspectModRecipe").mockResolvedValue(held);
     const acquire = vi.spyOn(desktopApi, "acquireModRecipePackage").mockResolvedValue(plan);
     const discard = vi.spyOn(desktopApi, "discardModRecipeReview").mockResolvedValue(undefined);
@@ -1730,22 +1753,24 @@ it.each(["accepted", "refused"] as const)(
 it("explains how to check provider files when the game has no selected setup", async () => {
   vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view({ inventory: null, live: null }));
   vi.spyOn(picker, "pickModRecipePath").mockResolvedValue("/picked/setup.json");
-  vi.spyOn(desktopApi, "inspectModRecipe").mockResolvedValue(recipeReview({
-    can_apply: false,
-    holds: [],
-    originals: [],
-    packages: [{ name: "retro.nrm", status: "unavailable", detail: "Review version 2." }],
-    provider_checks: ["retro.nrm"],
-    plan_sha256: "a".repeat(64),
-    recipe: {
-      identity_sha256: "a".repeat(64),
-      uncaptured: [],
-      packages: [],
-      orderings: [],
-      runtime: { platform: "windows-x86-64" },
-    },
-    runtime: { name: "runtime", status: "available", detail: "The exact runtime is installed." },
-  } as unknown as RecipeImportPlan));
+  vi.spyOn(desktopApi, "inspectModRecipe").mockResolvedValue(
+    recipeReview({
+      can_apply: false,
+      holds: [],
+      originals: [],
+      packages: [{ name: "retro.nrm", status: "unavailable", detail: "Review version 2." }],
+      provider_checks: ["retro.nrm"],
+      plan_sha256: "a".repeat(64),
+      recipe: {
+        identity_sha256: "a".repeat(64),
+        uncaptured: [],
+        packages: [],
+        orderings: [],
+        runtime: { platform: "windows-x86-64" },
+      },
+      runtime: { name: "runtime", status: "available", detail: "The exact runtime is installed." },
+    } as unknown as RecipeImportPlan),
+  );
   await render();
   await page.getByRole("button", { name: "Open setup recipe…" }).click();
 
@@ -1761,22 +1786,24 @@ it("keeps exact recipe identifiers, details and provider actions inside a narrow
   vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
   vi.spyOn(picker, "pickModRecipePath").mockResolvedValue("/picked/setup.json");
   const nativeId = `retro-${"y".repeat(117)}.nrm`;
-  vi.spyOn(desktopApi, "inspectModRecipe").mockResolvedValue(recipeReview({
-    can_apply: false,
-    holds: [],
-    originals: [],
-    packages: [{ name: nativeId, status: "unavailable", detail: "Review the exact file." }],
-    provider_checks: [nativeId],
-    plan_sha256: "a".repeat(64),
-    recipe: {
-      identity_sha256: "b".repeat(64),
-      uncaptured: [],
-      packages: [{ native_id: nativeId, enabled: true }],
-      orderings: [{ domain: "asset-override", native_ids: [nativeId] }],
-      runtime: { platform: "windows-x86-64" },
-    },
-    runtime: { name: "runtime", status: "available", detail: "The exact runtime is installed." },
-  } as unknown as RecipeImportPlan));
+  vi.spyOn(desktopApi, "inspectModRecipe").mockResolvedValue(
+    recipeReview({
+      can_apply: false,
+      holds: [],
+      originals: [],
+      packages: [{ name: nativeId, status: "unavailable", detail: "Review the exact file." }],
+      provider_checks: [nativeId],
+      plan_sha256: "a".repeat(64),
+      recipe: {
+        identity_sha256: "b".repeat(64),
+        uncaptured: [],
+        packages: [{ native_id: nativeId, enabled: true }],
+        orderings: [{ domain: "asset-override", native_ids: [nativeId] }],
+        runtime: { platform: "windows-x86-64" },
+      },
+      runtime: { name: "runtime", status: "available", detail: "The exact runtime is installed." },
+    } as unknown as RecipeImportPlan),
+  );
   const host = await render();
   host.style.width = "296px";
   await page.getByRole("button", { name: "Open setup recipe…" }).click();

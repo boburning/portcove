@@ -170,7 +170,11 @@ test("every declared secondary mutation is refused without reaching Core", async
     ],
     [
       "apply_mod_recipe",
-      { displayName: "Owned presentation copy", serializedPlan: options.fixtures.recipe.serialized_plan, allowCode: false },
+      {
+        displayName: "Owned presentation copy",
+        serializedPlan: options.fixtures.recipe.serialized_plan,
+        allowCode: false,
+      },
     ],
     [
       "apply_provider_install",
