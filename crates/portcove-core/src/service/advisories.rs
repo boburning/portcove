@@ -20,6 +20,25 @@ pub struct CapabilityAdvisory {
     pub observed_at: u64,
     pub evidence: String,
     pub workaround: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub launch_behavior: Option<LaunchBehavior>,
+}
+
+/// What the selected upstream entry point does, separately from Portcove's launch action.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum LaunchEntryBehavior {
+    StartsGameDirectly,
+    OpensProjectLauncher,
+    AsksForGameFiles,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LaunchBehavior {
+    pub first_launch: LaunchEntryBehavior,
+    pub repeat_launch: LaunchEntryBehavior,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -70,10 +89,15 @@ impl CapabilityAdvisory {
                 .id
                 .bytes()
                 .all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
-            && matches!(
+            && (matches!(
                 self.route.as_str(),
                 "managed" | "accepted-external" | "existing-copy" | "user-selected"
-            )
+            ) || (self.route == "upstream-setup" && self.launch_behavior.is_some()))
+            && (self.launch_behavior.is_none()
+                || (self.feature == CapabilityFeature::Launch
+                    && self.release.is_some()
+                    && self.artifact_sha256.is_some()
+                    && matches!(self.evidence.as_str(), "observed" | "upstream-reported")))
             && matches!(
                 self.evidence.as_str(),
                 "observed" | "upstream-reported" | "manual-requirement"
@@ -98,6 +122,25 @@ impl CapabilityAdvisory {
     }
 }
 
+impl Envelope {
+    fn valid(&self) -> bool {
+        let mut ids = std::collections::BTreeSet::new();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        matches!(self.format_version, 1 | 2)
+            && self.records.len() <= 64
+            && (self.format_version == 1
+                || self.records.iter().any(|r| r.launch_behavior.is_some()))
+            && self.records.iter().all(|r| {
+                r.valid()
+                    && (self.format_version == 2 || r.launch_behavior.is_none())
+                    && r.observed_at <= now
+                    && ids.insert(r.id.as_str())
+            })
+    }
+}
+
 impl PortCapabilityReport {
     pub(super) fn add_advisories(&mut self, listing: &PortListing, status: &PortStatus) {
         let Some(value) = listing.compatibility.as_ref() else {
@@ -111,7 +154,7 @@ impl PortCapabilityReport {
         if value
             .get("format_version")
             .and_then(serde_json::Value::as_u64)
-            .is_some_and(|v| v != 1)
+            .is_some_and(|v| !matches!(v, 1 | 2))
         {
             self.advisory_state = "unsupported-version".into();
             return;
@@ -120,17 +163,7 @@ impl PortCapabilityReport {
             self.advisory_state = "invalid".into();
             return;
         };
-        let mut ids = std::collections::BTreeSet::new();
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |d| d.as_secs());
-        if envelope.format_version != 1
-            || envelope.records.len() > 64
-            || envelope
-                .records
-                .iter()
-                .any(|r| !r.valid() || r.observed_at > now || !ids.insert(r.id.clone()))
-        {
+        if !envelope.valid() {
             self.advisory_state = "invalid".into();
             return;
         }
@@ -224,15 +257,5 @@ pub(super) fn reviewed_advisory_url(listing: &PortListing, url: &str) -> bool {
     let Ok(envelope) = serde_json::from_value::<Envelope>(value.clone()) else {
         return false;
     };
-    let mut ids = std::collections::BTreeSet::new();
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| d.as_secs());
-    envelope.format_version == 1
-        && envelope.records.len() <= 64
-        && envelope
-            .records
-            .iter()
-            .all(|r| r.valid() && r.observed_at <= now && ids.insert(r.id.clone()))
-        && envelope.records.iter().any(|r| r.provenance == url)
+    envelope.valid() && envelope.records.iter().any(|r| r.provenance == url)
 }

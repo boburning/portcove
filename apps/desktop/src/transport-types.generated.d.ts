@@ -819,6 +819,10 @@ export type CapabilityFeature =
   | "audio"
   | "performance"
   | "save-compatibility";
+/**
+ * What the selected upstream entry point does, separately from Portcove's launch action.
+ */
+export type LaunchEntryBehavior = "starts-game-directly" | "opens-project-launcher" | "asks-for-game-files" | "unknown";
 export type PendingSetupState = "downloaded" | "attention-required";
 export type OutputListingStatuses = PortListingStatus[];
 /**
@@ -4990,6 +4994,7 @@ export interface CapabilityAdvisory {
   explanation: string;
   feature: CapabilityFeature;
   id: string;
+  launch_behavior?: LaunchBehavior | null;
   /**
    * Unix seconds. A newer date never proves an earlier failure is fixed.
    */
@@ -4999,6 +5004,10 @@ export interface CapabilityAdvisory {
   release: string | null;
   route: string;
   workaround: string | null;
+}
+export interface LaunchBehavior {
+  first_launch: LaunchEntryBehavior;
+  repeat_launch: LaunchEntryBehavior;
 }
 export interface PortCapabilityRoute {
   features: PortCapabilityFeature[];
