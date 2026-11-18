@@ -381,12 +381,16 @@ it("plays the distinct duplicate port from details and returns to its filtered r
     .toBe(originId);
 });
 
-it("retires an accepted grouped file drop when Discover becomes empty", async () => {
+async function openGroupedFileReview(favoritesOnly = false) {
   await page.viewport(1366, 768);
   const snapshot = groupedCollectionSnapshot();
   snapshot.catalog.ports[0]!.source_profile = "first-fixture-source";
   snapshot.catalog.ports[1]!.source_profile = "second-fixture-source";
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+  if (favoritesOnly) {
+    vi.spyOn(desktopApi, "favoritePorts").mockResolvedValue(["collection-1"]);
+    vi.spyOn(desktopApi, "setPortFavorite").mockResolvedValue(undefined);
+  }
   let acceptDrop!: Parameters<typeof nativeSourceDrop.useNativeSourceDrop>[0];
   vi.spyOn(nativeSourceDrop, "useNativeSourceDrop").mockImplementation((accept) => {
     acceptDrop = accept;
@@ -394,13 +398,23 @@ it("retires an accepted grouped file drop when Discover becomes empty", async ()
   });
   await mount("dark", "collection", 11);
   await page.getByRole("button", { name: "Discover", exact: true }).click();
+  if (favoritesOnly) await page.getByRole("button", { name: "Favorites 1", exact: true }).click();
   const group = await mountDiscoverPort("collection-1");
   const gameId = group.dataset.sourceDropGameId;
   expect(gameId).toBe("game:fixture-super-mario-64");
   await act(async () => acceptDrop({ gameId: gameId!, paths: ["D:/Game.z64"] }));
   const review = page.getByRole("dialog", { name: "Super Mario 64", exact: true });
   await expect.element(review).toBeVisible();
+  return review;
+}
 
+async function expectEmptyDiscover() {
+  await expect.poll(() => document.querySelector("main .empty-state")).not.toBeNull();
+  await expect.poll(() => document.querySelector('[data-virtual-collection="catalog"]')).toBeNull();
+}
+
+it("retires an accepted grouped file drop after an empty search", async () => {
+  const review = await openGroupedFileReview();
   const search = document.querySelector<HTMLInputElement>("#port-search")!;
   const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
   // Drive the collection query while the modal owns foreground focus.
@@ -408,11 +422,32 @@ it("retires an accepted grouped file drop when Discover becomes empty", async ()
     setValue.call(search, "a query with no fixture matches");
     search.dispatchEvent(new Event("input", { bubbles: true }));
   });
-  await expect
-    .poll(() => document.querySelector('[data-virtual-collection="discover"]'))
-    .toBeNull();
+  await expectEmptyDiscover();
   await expect.element(review).not.toBeInTheDocument();
   await page.getByRole("textbox", { name: /Search/ }).fill("Super Mario 64");
+  await mountDiscoverPort("collection-1");
+  await expect.element(review).not.toBeInTheDocument();
+});
+
+it("retires an accepted grouped file drop after a view switch", async () => {
+  const review = await openGroupedFileReview();
+  const libraryButton = [...document.querySelectorAll("button")].find(
+    (button) => button.textContent?.trim() === "Library",
+  )!;
+  await act(async () => libraryButton.click());
+  await expect.element(page.getByRole("textbox", { name: "Search your library" })).toBeVisible();
+  await expect.element(review).not.toBeInTheDocument();
+  await page.getByRole("button", { name: "Discover", exact: true }).click();
+  await mountDiscoverPort("collection-1");
+  await expect.element(review).not.toBeInTheDocument();
+});
+
+it("retires an accepted grouped file drop after removing the last favorite", async () => {
+  const review = await openGroupedFileReview(true);
+  await review.getByRole("button", { name: /Favorite.*Mario modern port/ }).click();
+  await expectEmptyDiscover();
+  await expect.element(review).not.toBeInTheDocument();
+  await page.getByRole("button", { name: "Favorites 0", exact: true }).click();
   await mountDiscoverPort("collection-1");
   await expect.element(review).not.toBeInTheDocument();
 });

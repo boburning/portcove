@@ -15,7 +15,7 @@ import {
 } from "../features/organization/OrganizationControls";
 import { GroupedDiscover, IdentityChips } from "../features/browsing/GroupedDiscover";
 import { GroupedLibrary, useLibraryMenu } from "../features/browsing/GroupedLibrary";
-import { groupCatalog, groupCountLabel } from "../features/browsing/original-game";
+import { gameGroupId, groupCatalog, groupCountLabel } from "../features/browsing/original-game";
 import { PortSearch } from "./PortSearch";
 import { controlFocus, floatingMotion } from "./ui/control-style";
 import { gameTitle, gameProjectLabel, gameIdentityLabel } from "../port-identity";
@@ -444,6 +444,18 @@ function usePortBrowser({
     view === "catalog",
     catalogUniverse ?? ports,
   );
+  const pendingGameDrop = gameSourceDropReview?.pending;
+  const dismissGameDrop = gameSourceDropReview?.dismiss;
+  const dropInResults =
+    pendingGameDrop !== undefined &&
+    view === "catalog" &&
+    resultsReady &&
+    !loadingResults &&
+    !resultsUnavailable &&
+    visiblePorts.some((port) => gameGroupId(port) === pendingGameDrop.gameId);
+  useEffect(() => {
+    if (pendingGameDrop && !dropInResults) dismissGameDrop?.();
+  }, [dismissGameDrop, dropInResults, pendingGameDrop]);
   const { activeQuickView, quickViewCounts } = browserQuickViews({
     favorites,
     libraryReadiness,
@@ -519,7 +531,7 @@ function usePortBrowser({
     steamBatch,
     loading,
     nativeSourceDrag,
-    gameSourceDropReview,
+    gameSourceDropReview: dropInResults ? gameSourceDropReview : undefined,
     collectionLayout,
     setCollectionLayout,
     collectionLayoutFailure,
