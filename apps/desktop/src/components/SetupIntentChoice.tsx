@@ -125,6 +125,7 @@ function BoundSetupIntentChoice({ portId, generation, installed = false }: Props
         .map((choice) => (
           <label key={choice.mode} className="flex cursor-pointer items-start gap-3">
             <input
+              className="shrink-0"
               aria-label={choice.label}
               aria-describedby={`${name}-${choice.mode}`}
               type="radio"

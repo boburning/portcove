@@ -243,6 +243,21 @@ it.each([
     await page.getByRole("tab", { name: "Game files", exact: true }).click();
     const field = choices().element();
     document.documentElement.dataset.theme = theme;
+    const expectAlignedChoices = () => {
+      const geometry = radios().map((radio) => {
+        const bounds = radio.getBoundingClientRect();
+        const copy = radio.nextElementSibling?.getBoundingClientRect();
+        if (!copy) throw new Error("Expected radio label copy");
+        return { width: bounds.width, height: bounds.height, copyLeft: copy.left };
+      });
+      expect(geometry).toHaveLength(4);
+      for (const item of geometry) {
+        expect(item.width).toBeGreaterThanOrEqual(12);
+        expect(item.width).toBeCloseTo(item.height, 0);
+        expect(item.width).toBeCloseTo(geometry[0]!.width, 1);
+        expect(item.copyLeft).toBeCloseTo(geometry[0]!.copyLeft, 1);
+      }
+    };
     const expectContainedRecovery = async (target: HTMLElement | SVGElement) => {
       const bounds = field.getBoundingClientRect();
       expect(bounds.left).toBeGreaterThanOrEqual(0);
@@ -258,6 +273,7 @@ it.each([
     await expect.element(choices().getByRole("status")).toHaveTextContent("Reading choices…");
     expect(radios().every((radio) => radio.disabled && !radio.checked)).toBe(true);
     field.scrollIntoView({ block: "center", inline: "nearest" });
+    expectAlignedChoices();
     await captureParityState("setup-intent-initial-reading");
     await act(async () => first.reject(new Error(diagnostic)));
     await expect.element(choices().getByRole("status")).not.toBeInTheDocument();
@@ -293,6 +309,7 @@ it.each([
     expect(read.mock.calls).toEqual([[1], [1]]);
     await expect.element(page.elementLocator(button.element())).toHaveFocus();
     await expectContainedRecovery(recovery);
+    expectAlignedChoices();
     await captureParityState("setup-intent-read-recovered");
   },
 );
