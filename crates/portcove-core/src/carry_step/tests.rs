@@ -769,11 +769,11 @@ fn a_read_only_destination_holds_publication_and_preserves_both_copies() {
     struct RestorePermissions(PathBuf, fs::Permissions);
     impl Drop for RestorePermissions {
         fn drop(&mut self) {
-            fs::set_permissions(&self.0, self.1.clone()).unwrap();
+            let _ = fs::set_permissions(&self.0, self.1.clone());
         }
     }
     let original = fs::metadata(&path).unwrap().permissions();
-    let _restore = RestorePermissions(path.clone(), original.clone());
+    let restore = RestorePermissions(path.clone(), original.clone());
     let mut readonly = original;
     readonly.set_readonly(true);
     fs::set_permissions(&path, readonly).unwrap();
@@ -789,6 +789,7 @@ fn a_read_only_destination_holds_publication_and_preserves_both_copies() {
     assert_eq!(fs::read(&path).unwrap(), old);
     assert!(fs::metadata(&path).unwrap().permissions().readonly());
     assert_eq!(fs::read_dir(&fixture.target).unwrap().count(), 1);
+    fs::set_permissions(&path, restore.1.clone()).unwrap();
 }
 
 #[cfg(windows)]
@@ -879,7 +880,7 @@ fn a_windows_short_directory_alias_is_not_a_publication_parent() {
     write(&fixture.source, &relative, b"source data");
     let (_, staged) = run(&fixture, &[&relative], PLENTY);
     let staged = staged.unwrap();
-    assert_eq!(staged.written(), [&relative]);
+    assert_eq!(staged.written(), [relative.as_str()]);
     assert_eq!(staged.publish().unwrap(), [relative.clone()]);
     assert!(!fixture.target.join(long).join("new.txt").exists());
     assert_eq!(
