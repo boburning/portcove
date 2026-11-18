@@ -4,6 +4,7 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "body-harvest-recompiled",
     "doom-3-classic-dhewm3",
     "dune-ii-dune-dynasty",
+    "ecwolf-wolfenstein3d",
     "elasota-aerofoil",
     "gamebreaker20xx-fullrumble-ps1-slus01068",
     "gothic-ii-night-of-the-raven-opengothic",
@@ -41,6 +42,11 @@ fn prepared_guide_adoption_declared_doom_3_classic_dhewm3() {
 #[test]
 fn prepared_guide_adoption_declared_dune_ii_dune_dynasty() {
     assert_declarative_prepared_player_route("dune-ii-dune-dynasty");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_ecwolf_wolfenstein3d() {
+    assert_declarative_prepared_player_route("ecwolf-wolfenstein3d");
 }
 
 #[test]

@@ -26996,6 +26996,63 @@
       }
     },
     {
+      "id": "ecwolf-wolfenstein3d",
+      "project_url": "https://maniacsvault.net/ecwolf/",
+      "name": "Wolfenstein 3D (ECWolf)",
+      "summary": "Play Wolfenstein 3D with ECWolf using your original game files or the public shareware. Set up an installation you maintain, then add it to Portcove.",
+      "issue_number": 6767,
+      "listed_at": "2026-11-18",
+      "original_game_title": "Wolfenstein 3D",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "setup_url": "https://maniacsvault.net/ecwolf/download.php",
+      "release_url": "https://maniacsvault.net/ecwolf/download.php",
+      "recommended_download_channel": "stable",
+      "manual_setup": {
+        "help_url": "https://maniacsvault.net/ecwolf/download.php",
+        "steps": [
+          {
+            "title": "Prepare the Windows player and Wolfenstein game files",
+            "instruction": "Download the official Windows x64 ECWolf ZIP and extract the complete package. Keep ecwolf.exe, ecwolf.pk3 and the accompanying files together. For the public Wolfenstein 3D 1.4 shareware, extract wolf3d14.zip and copy its eight .WL1 files beside ecwolf.exe. Keep your original download separately. WOLF3D.EXE and CATALOG.EXE from the old DOS distribution are not the ECWolf player. The ecwolf.exe selection step below applies to Windows."
+          },
+          {
+            "title": "Set up the Linux package",
+            "instruction": "Install the official matching Ubuntu amd64 package with your system package manager so its dependencies and system data are present. Put the complete matching .WL1 data set in ~/.config/ecwolf, or the ecwolf folder below your XDG_CONFIG_HOME. Preserve the filenames and their case. Select /usr/games/ecwolf and its containing folder in Portcove; enter --data and WL1 as two separate arguments. Review the details, add the game, then choose Play. Use the system package manager or upstream to update this installation."
+          },
+          {
+            "title": "Use the upstream Mac app",
+            "instruction": "Use the official universal Mac app from the DMG and put matching game data in ~/Library/Application Support/ECWolf. Open the upstream app directly. Keep ~/Library/Preferences/ecwolf.cfg and ~/Documents/ECWolf/Savegames backed up separately, together with any chosen custom paths. This Mac route uses upstream setup and updates."
+          },
+          {
+            "title": "Select the prepared player",
+            "instruction": "Select ecwolf.exe and use its containing folder as the working directory. Enter these literal argument values in order, one array item per argument: [\"--data\",\"WL1\"]. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+          }
+        ],
+        "warnings": [
+          "Keep your actual saves, settings, original game files, mods and their creating ECWolf version backed up with the game closed before changing versions. Save compatibility with another version or engine is not established."
+        ],
+        "references": [
+          {
+            "title": "Android and other processor builds",
+            "instruction": "The official download page also offers Android APKs, Windows ARM64 and Linux ARM packages. Choose the matching upstream build and follow its setup notes. Upstream warns that Android support is buggy; check its system-version notes before installing. Android installation, updates and saved data stay with the app and the player. Portcove desktop registration does not manage these other host routes."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: Windows Roaming AppData/ECWolf settings and Windows Saved Games/ECWolf progress, including upstream fallback locations; Linux XDG configuration/ecwolf and data/ecwolf/savegames folders; original game files, mods and any explicit --config or --savedir locations. Back up these locations separately; registration does not migrate or certify their compatibility."
+          }
+        ]
+      }
+    },
+    {
       "id": "edf2027-edf-3-recompilation-from-the-360-version-v0-3-0-beta-invisivel46-earth-defense-force-2017",
       "name": "Earth Defense Force 2017 — EDF2027: EDF 3 recompilation from the 360 version (v0.3.0-beta) (invisivel46)",
       "original_game_title": "Earth Defense Force 2017",

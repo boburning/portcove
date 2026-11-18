@@ -1975,7 +1975,10 @@ official package, require a catalog-pinned immutable tree, inspect unrelated
 external contents or acquire ownership of them. Runtime replacement belongs to
 the player or selected upstream launcher. Only launch and registration removal
 are offered; external installation, save and settings files remain untouched by
-removal. The launched program can make its normal writes; this is no sandbox.
+removal. The launched program can make its normal writes; this is no sandbox. The
+[ECWolf reference](reference/ecwolf.md) records an official-package example with
+separate non-owning Windows/Linux registration, upstream Mac/Android setup and
+external data locations.
 
 Supervision and launch results describe the selected native program; only a
 definition with the reviewed Windows tracked handoff also waits for in-folder
