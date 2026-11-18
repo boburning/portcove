@@ -1,4 +1,11 @@
 @layer components {
+  /* Align the shared chevron with the first line while retaining the hit area. */
+  .paddedDisclosure {
+    padding-block: var(--space-3);
+  }
+  .paddedDisclosure::before {
+    inset-block-start: calc(var(--space-3) + 0.5lh - 0.3em);
+  }
   /* Whole-image fitting and fallback artwork geometry have one local owner. */
   .image {
     position: relative;

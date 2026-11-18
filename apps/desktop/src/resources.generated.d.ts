@@ -56,7 +56,8 @@ export default interface Resources {
       "checking": "Checking for updates…",
       "current": "Portcove is up to date. Last checked {{checked}}.",
       "notChecked": "Portcove hasn’t checked for updates yet.",
-      "title": "Status"
+      "title": "Status",
+      "updating": "Updating Portcove…"
     }
   },
   "backups": {

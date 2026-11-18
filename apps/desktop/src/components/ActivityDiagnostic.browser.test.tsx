@@ -9,6 +9,9 @@ import { desktopApi } from "../api";
 import { copyText } from "../clipboard";
 import type { ActivityDiagnostic as Diagnostic } from "../types";
 import { failureReport } from "../test-fixtures";
+import App from "../App";
+import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
+import { LocalizationProvider } from "../localization";
 import { ActivityDiagnostic } from "./ActivityDiagnostic";
 
 vi.mock("../clipboard", () => ({
@@ -35,6 +38,7 @@ const fixture = (): [Diagnostic[number]] => [
 ];
 let root: RenderResult;
 let host: HTMLDivElement;
+let transport: ReturnType<typeof installInteractiveTransport> | undefined;
 beforeEach(async () => {
   vi.mocked(copyText).mockReset().mockResolvedValue(undefined);
   host = document.createElement("div");
@@ -42,6 +46,10 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   await cleanup();
+  transport?.dispose();
+  transport = undefined;
+  host.remove();
+  localStorage.clear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   document.documentElement.removeAttribute("data-theme");
@@ -458,5 +466,85 @@ it("shows the preparation log in the current language and keeps captured output 
     ]);
   } finally {
     await localization.changeLanguage("en");
+  }
+});
+
+it("keeps retained log recovery and manual copy in the actual Activity task details", async () => {
+  await page.viewport(960, 800);
+  document.documentElement.dataset.theme = "dark";
+  host.id = "root";
+  transport = installInteractiveTransport("activity", (message) => {
+    throw new Error(message);
+  });
+  let rejectRefresh!: (value: unknown) => void;
+  let resolveRefresh!: (value: Diagnostic) => void;
+  const refresh = new Promise<Diagnostic>((resolve, reject) => {
+    resolveRefresh = resolve;
+    rejectRefresh = reject;
+  });
+  const capture = fixture();
+  capture[0].activity_id = "fixture-retained-harbor";
+  const read = vi
+    .spyOn(desktopApi, "activityDiagnostic")
+    .mockResolvedValueOnce(capture)
+    .mockReturnValueOnce(refresh);
+  vi.mocked(copyText).mockRejectedValueOnce(new Error("Controlled clipboard refusal."));
+  try {
+    await root.rerender(
+      <LocalizationProvider api={desktopApi}>
+        <App />
+      </LocalizationProvider>,
+    );
+    await page
+      .getByRole("navigation", { name: "Primary navigation", exact: true })
+      .getByRole("button", { name: "Activity", exact: true })
+      .click();
+    await expect
+      .poll(() => document.querySelector('[data-activity-id="fixture-retained-harbor"]'))
+      .not.toBeNull();
+    const row = page.elementLocator(
+      document.querySelector('[data-activity-id="fixture-retained-harbor"]')!,
+    );
+    await row.getByText("Task details", { exact: true }).click();
+    await row.getByText("View preparation log", { exact: true }).click();
+    await expect
+      .element(row.getByRole("textbox", { name: "Preparation standard output", exact: true }))
+      .toHaveValue(capture[0].stdout.text);
+    await row.getByRole("button", { name: "Refresh captured log", exact: true }).click();
+    await expect
+      .element(row.getByRole("button", { name: "Refresh captured log", exact: true }))
+      .toBeDisabled();
+    const pending = row.getByText(
+      "Reading the retained log… Showing the last loaded capture while the current log is checked.",
+      { exact: true },
+    );
+    await expect.element(pending).toBeVisible();
+    pending.element().scrollIntoView({ block: "center", inline: "nearest" });
+    await captureParityState("activity-app-retained-log-refresh-pending");
+    const error = failureReport();
+    error.presentation.summary = "The retained log could not be read.";
+    await act(async () => rejectRefresh(error));
+    const refusal = row.getByText(error.presentation.summary, { exact: true });
+    await expect.element(refusal).toBeVisible();
+    refusal.element().scrollIntoView({ block: "center", inline: "nearest" });
+    await captureParityState("activity-app-retained-log-refresh-refused");
+    await page.viewport(430, 780);
+    document.documentElement.dataset.theme = "light";
+    await row.getByRole("button", { name: "Copy retained log", exact: true }).click();
+    const manual = row.getByRole("textbox", { name: "Retained log for manual copy", exact: true });
+    await expect.element(manual).toHaveValue(JSON.stringify(capture, null, 2));
+    const field = manual.element();
+    field.scrollIntoView({ block: "center", inline: "nearest" });
+    const bounds = field.getBoundingClientRect();
+    expect(bounds.top).toBeGreaterThanOrEqual(0);
+    expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+    expect(read.mock.calls).toEqual([
+      ["fixture-retained-harbor", 1],
+      ["fixture-retained-harbor", 1],
+    ]);
+    await captureParityState("activity-app-retained-log-manual-copy");
+  } finally {
+    await act(async () => resolveRefresh(capture));
   }
 });
