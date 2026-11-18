@@ -30,6 +30,7 @@ struct OwnedProcess {
     let path: String
     let parent: Int32
     let uid: UInt32
+    let cpu: Int32?
 }
 var commands: [(Process, OwnedProcess?)] = []
 func inspect(_ pid: Int32) throws -> OwnedProcess? {
@@ -44,7 +45,10 @@ func inspect(_ pid: Int32) throws -> OwnedProcess? {
     let length = bytes.withUnsafeMutableBytes { proc_pidpath(pid, $0.baseAddress, UInt32($0.count)) }
     try require(length > 0 && length < 4096, "Executable path unavailable")
     let path = URL(fileURLWithPath: String(cString: bytes)).resolvingSymlinksInPath().path
-    return OwnedProcess(pid: pid, identity: "macos-start-time:\(info.pbi_start_tvsec):\(info.pbi_start_tvusec)", path: path, parent: Int32(info.pbi_ppid), uid: info.pbi_uid)
+    var architecture = proc_archinfo()
+    let architectureSize = Int32(MemoryLayout<proc_archinfo>.size)
+    let architectureCount = withUnsafeMutablePointer(to: &architecture) { proc_pidinfo(pid, PROC_PIDARCHINFO, 0, $0, architectureSize) }
+    return OwnedProcess(pid: pid, identity: "macos-start-time:\(info.pbi_start_tvsec):\(info.pbi_start_tvusec)", path: path, parent: Int32(info.pbi_ppid), uid: info.pbi_uid, cpu: architectureCount == architectureSize ? architecture.p_cputype : nil)
 }
 func live(_ process: OwnedProcess) throws {
     guard let now = try inspect(process.pid) else { throw ProbeFailure(message: "Owned process has exited") }
@@ -121,7 +125,7 @@ func capture(_ name: String, _ process: OwnedProcess) throws {
     try require(wait(command, 10) && command.terminationStatus == 0, "Owned window capture failed")
     let image = try Data(contentsOf: output)
     try require(image.count < 4 * 1024 * 1024 && image.starts(with: [137,80,78,71,13,10,26,10]), "Window capture is not a bounded PNG")
-    try write("\(name)-window", ["pid": process.pid, "identity": process.identity, "window": window.id, "title": window.title, "width": window.width, "height": window.height, "screenshot_sha256": try digest(output)])
+    try write("\(name)-window", ["pid": process.pid, "identity": process.identity, "cpu_type": process.cpu as Any? ?? NSNull(), "window": window.id, "title": window.title, "width": window.width, "height": window.height, "screenshot_sha256": try digest(output)])
 }
 func key(_ code: CGKeyCode, _ flags: CGEventFlags, _ process: OwnedProcess, _ supervisor: OwnedProcess) throws {
     try live(supervisor)
@@ -138,6 +142,10 @@ func key(_ code: CGKeyCode, _ flags: CGEventFlags, _ process: OwnedProcess, _ su
 func snapshot(_ roots: [URL]) throws -> [String: String] {
     var result: [String: String] = [:]
     for (index, root) in roots.enumerated() {
+        if try root.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true {
+            result["\(index)/\(root.lastPathComponent)"] = try digest(root)
+            continue
+        }
         guard let enumerator = fm.enumerator(at: root, includingPropertiesForKeys: [.isSymbolicLinkKey, .isRegularFileKey]) else { throw ProbeFailure(message: "External snapshot root is absent") }
         for case let file as URL in enumerator {
             let values = try file.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey])
@@ -228,13 +236,15 @@ do {
         try require(try digest(originalSave) == saveHash && digest(copiedSave) == saveHash, "Save replay modified an input")
     }
     try require(try snapshot([package]) == packageBefore, "Player modified publisher package bytes")
-    let before = try snapshot([package, profile])
+    let globals = (input["initially_absent_global_paths"] as? [String] ?? []).map { URL(fileURLWithPath: $0) }.filter { fm.fileExists(atPath: $0.path) }
+    let externalRoots = [package, profile] + globals
+    let before = try snapshot(externalRoots)
     try write("external-before-removal", before)
     let removal = try cliJSON("removal-preview", ["external", "removal-preview", port])
     guard let removalHash = removal["preview_sha256"] as? String else { throw ProbeFailure(message: "Removal preview identity absent") }
     _ = try cliJSON("remove", ["external", "remove", port, "--expected-preview", removalHash, "--yes"])
     let status = try cliJSON("removed-status", ["status", port])
-    let after = try snapshot([package, profile])
+    let after = try snapshot(externalRoots)
     try write("external-after-removal", after)
     try require(before == after && (status["external_runtime"] == nil || status["external_runtime"] is NSNull), "Registration removal changed external bytes or retained registration")
     try write("result", ["phase": "complete-pending-image-inspection", "native_exit": 0, "save_bytes": saveSize, "save_sha256": try digest(save), "input_save_sha256": saveHash as Any? ?? NSNull(), "preserved_files": before.count, "scope": "Real generated-map save/reopen in separate private profiles; screenshots require inspection; no economic progress, audio, physical controls, Tauri or managed maintenance claim"])
@@ -262,6 +272,7 @@ for (command, identity) in commands where command.isRunning {
         _ = wait(command, 5)
     }
 }
-let allExited = commands.allSatisfy { !$0.0.isRunning } && ((try? gone(child)) == true)
+let nativeClosed = execution == nil || (child != nil && (try? gone(child)) == true)
+let allExited = commands.allSatisfy { !$0.0.isRunning } && nativeClosed
 try? write("cleanup", ["all_owned_processes_exited": allExited, "forced_cleanup": forced, "root_exited": execution == nil || execution?.isRunning == false, "child_exited": (try? gone(child)) == true, "input_scope": "event-local key flags only; no modifier-down state", "acceptance": failed == nil && !forced && allExited])
 exit(failed == nil && !forced && allExited ? 0 : 1)

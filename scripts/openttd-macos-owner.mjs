@@ -13,7 +13,7 @@ try {
     const [code]=await once(child,'close');
     const cleanup=JSON.parse(await readFile(`${native}/${dataset}-cleanup.json`,'utf8').catch(()=>'null'));
     closed=cleanup?.all_owned_processes_exited===true;
-    status=code??1;
+    status=code===0&&closed?0:(code||1);
     if(status!==0||!closed) break;
   }
 } finally {
