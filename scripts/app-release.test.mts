@@ -1274,13 +1274,14 @@ void test("nightly reporter isolates issue permissions and replays the triggerin
   const job = monitor.jobs.report!;
   assert.deepEqual(job.permissions, { actions: "read", checks: "read", issues: "write" });
   assert.match(job.if ?? "", /head_repository\.full_name == github\.repository/u);
+  const step = job.steps?.[0];
   assert.equal(job.steps?.length, 1);
-  const step = job.steps![0]!;
+  assert.ok(step);
   assert.match(step.uses ?? "", /^actions\/github-script@[a-f0-9]{40}$/u);
   const script = step.with?.script;
-  assert.equal(typeof script, "string");
-  assert.doesNotMatch(String(script), /secrets\.|actions\/checkout|publish --tag/u);
-  const execute = new Script("(async () => {\n" + script + "\n})()");
+  assert.ok(typeof script === "string");
+  assert.doesNotMatch(script, /secrets\.|actions\/checkout|publish --tag/u);
+  const execute = new Script(`(async () => {\n${script}\n})()`);
 
   const run = {
     id: 44324930784,
