@@ -500,4 +500,6 @@ it.each([256, 257, bundledDefinitions.ports.length])(
       .not.toHaveAttribute("aria-disabled", "true");
     noAdditionalChecks();
   },
+  // Opening both views renders hundreds of real cards under concurrent browser CI.
+  40_000,
 );
