@@ -99,7 +99,7 @@ function StaysLocal({ entries }: { entries: PortableSaveExportPreview["stays_loc
   if (!entries.length) return null;
   return (
     <details className="text-sm">
-      <summary className="cursor-pointer py-1">
+      <summary className="disclosure-pad-1 cursor-pointer">
         Stays on this device ({entries.length} {entries.length === 1 ? "item" : "items"})
       </summary>
       <ul className="m-0 grid gap-1 pl-5">

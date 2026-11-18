@@ -151,7 +151,7 @@ export function SourceIdentityPanel({
       <details className="source-technical border-t border-pc-border">
         <summary
           data-focusable
-          className="cursor-pointer py-3 font-medium text-pc-interactive-foreground"
+          className="disclosure-pad-3 cursor-pointer font-medium text-pc-interactive-foreground"
         >
           File details and test results
         </summary>
@@ -304,7 +304,7 @@ function ApplicationResult({
       <details className="source-technical border-t border-pc-border">
         <summary
           data-focusable
-          className="cursor-pointer py-3 font-medium text-pc-interactive-foreground"
+          className="disclosure-pad-3 cursor-pointer font-medium text-pc-interactive-foreground"
         >
           Test results for this port
         </summary>

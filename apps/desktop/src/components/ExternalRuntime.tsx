@@ -912,7 +912,7 @@ function RuntimeArgumentEditor(
 ) {
   return (
     <details>
-      <summary data-focusable className="cursor-pointer py-2 font-medium">
+      <summary data-focusable className="disclosure-pad-2 cursor-pointer font-medium">
         Advanced launch options
       </summary>
       {model.preserveStructuredArguments ? (

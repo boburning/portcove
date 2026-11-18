@@ -799,7 +799,7 @@ export function SteamBatchLibraryAction({
   return (
     <>
       <details className="collection-tools text-xs text-pc-muted-foreground" data-focus-group>
-        <summary data-focusable className="cursor-pointer py-2">
+        <summary data-focusable className="disclosure-pad-2 cursor-pointer">
           Library tools
         </summary>
         <p>

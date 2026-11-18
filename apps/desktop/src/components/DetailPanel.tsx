@@ -1111,7 +1111,7 @@ function UpdatesGroup({
         </>
       )}
       <details className="mt-4">
-        <summary data-focusable className="cursor-pointer py-2 text-sm font-medium">
+        <summary data-focusable className="disclosure-pad-2 cursor-pointer text-sm font-medium">
           Future update preferences
         </summary>
         <p className="text-xs text-pc-muted-foreground">
@@ -1249,7 +1249,9 @@ function SavesStorageGroup({
         onChanged={() => void retryBackupRead?.()}
       />
       <details className="text-sm">
-        <summary className="cursor-pointer py-2 font-medium">Coverage and recorded rules</summary>
+        <summary className="disclosure-pad-2 cursor-pointer font-medium">
+          Coverage and recorded rules
+        </summary>
         <SavesAndSettingsSummary port={port} status={status} />
         <TrustStrip status={status} />
       </details>
@@ -2058,7 +2060,7 @@ function SourceFileDetails({ source }: { source?: SourceRecord | undefined }) {
     <details className="source-technical border-t border-pc-border">
       <summary
         data-focusable
-        className="cursor-pointer py-3 font-medium text-pc-interactive-foreground"
+        className="disclosure-pad-3 cursor-pointer font-medium text-pc-interactive-foreground"
       >
         File details
       </summary>
