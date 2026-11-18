@@ -60412,6 +60412,122 @@
       }
     },
     {
+      "id": "freeorion",
+      "name": "FreeOrion",
+      "summary": "Explore the galaxy, develop colonies and lead a space empire in FreeOrion. Prepare the upstream client, then add it to Portcove.",
+      "project_url": "https://github.com/freeorion/freeorion",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "freeorion/freeorion",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Prepare the complete official FreeOrion Windows installation or matching Intel/Apple Silicon FreeOrion.app. Windows selects FreeOrion.exe and its parent. Mac selects the native FreeOrion in the complete, literally named FreeOrion.app/Contents/MacOS folder and its parent. For the reviewed Ubuntu x64 0.5.1.2-1 packages, install freeorion/freeorion-data and dependencies, select /usr/lib/freeorion/freeorion with working folder /usr/share/games/freeorion; /usr/games/freeorion is a shell wrapper. Keep all server/AI executables, libraries and data; leave ordinary launch arguments empty, review the details, then choose Play separately. Portcove tracks the selected graphical player; upstream server/AI processes can finish shutdown later or stay separately hosted. Wait for actual writers to exit before backups or file changes. Upstream/player own updates, servers, saves, settings, mods, backups and removal. Registration removal preserves all external files; managed acquisition, update, backup, rollback and deletion are not offered.",
+        "original_game_title": "FreeOrion",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install the stable client",
+              "instruction": "On 64-bit Windows, run the official setup program and follow its installer prompts. The 0.5.1.2 installer filename says Win32 and contains a 64-bit client. On Mac, choose the Intel or Apple Silicon disk image and copy the complete FreeOrion app into Applications. The current package needs macOS 10.15 or newer on Intel and macOS 11 or newer on Apple Silicon. For Intel or Apple Silicon Mac registration, keep its name FreeOrion.app and select /Applications/FreeOrion.app/Contents/MacOS/FreeOrion with its containing folder. Keep the whole bundle and leave ordinary launch arguments empty. Review the details, add the client and choose Play. The later FreeOrion.exe selection step applies to Windows."
+            },
+            {
+              "title": "Use your Linux package manager",
+              "instruction": "On Ubuntu x64, install matching freeorion and freeorion-data packages with all dependencies. In the reviewed 0.5.1.2-1 package, select the native /usr/lib/freeorion/freeorion and set /usr/share/games/freeorion as the working folder, with no arguments. Keep the sibling server/AI programs and package data/libraries installed. /usr/games/freeorion is a shell wrapper, not the native selection. Review the details, add the client and choose Play. Other distributions can use different paths; verify their complete native installation first. Flathub remains a separate option: install and run org.freeorion.FreeOrion through Flatpak, which owns its runtime and updates. Do not select Flatpak’s internal /app/bin path as a host-native program. Update through the same package manager."
+            },
+            {
+              "title": "Keep your saves and settings",
+              "instruction": "Close FreeOrion and any separately hosted local servers before backing up. A local server and its AI can finish shutdown after the client closes; wait for their exit before copying or changing the installation or data. Copy the FreeOrion folder under %APPDATA% on Windows or ~/Library/Application Support on Mac. On Linux, keep the freeorion folders under ~/.config and ~/.local/share, using your configured XDG folders if they differ. For Flathub, keep ~/.var/app/org.freeorion.FreeOrion. Also keep any separate save directory you chose in the game."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select FreeOrion.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/freeorion/freeorion/blob/v0.5.1.2/README.md",
+          "references": [
+            {
+              "title": "Client and server ownership",
+              "instruction": "Portcove tracks the graphical client you select. FreeOrion starts its own server and AI processes for games; a local server you host can stay separate after the client closes. Portcove does not take ownership of those servers or certify that every companion has stopped. You and upstream own installation, updates, saves, settings, mods, backups and removal. Removing the registration preserves all external files. The current official release has no Android package or native Windows ARM64 build."
+            },
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: Windows %APPDATA%/FreeOrion saves, settings and mods; Linux XDG configuration and data/freeorion folders, or ~/.config/freeorion and ~/.local/share/freeorion; Mac ~/Library/Application Support/FreeOrion settings, saves and mods; every custom save or user-data location; separately running upstream servers and AI retain their own writes. Back up these locations separately; registration does not migrate or certify their compatibility."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 91478,
+          "cover_id": 135704,
+          "image_id": "co2wpk",
+          "image_sha256": "b5cb9428cbeaa20e1860f0a9d2313ea10e2437eddb94f94626b14be768b24f96",
+          "game_slug": "freeorion",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "gearhead-garage-opengg",
       "name": "Gearhead Garage: The Virtual Mechanic (OpenGG)",
       "summary": "Explore Gearhead Garage: The Virtual Mechanic (OpenGG) and follow the upstream project for requirements, downloads and setup.",

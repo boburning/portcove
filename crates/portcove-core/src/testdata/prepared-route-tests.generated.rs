@@ -6,6 +6,7 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "dune-ii-dune-dynasty",
     "ecwolf-wolfenstein3d",
     "elasota-aerofoil",
+    "freeorion",
     "gamebreaker20xx-fullrumble-ps1-slus01068",
     "gothic-ii-night-of-the-raven-opengothic",
     "heroes-of-might-and-magic-ii-fheroes2",
@@ -54,6 +55,11 @@ fn prepared_guide_adoption_declared_ecwolf_wolfenstein3d() {
 #[test]
 fn prepared_guide_adoption_declared_elasota_aerofoil() {
     assert_declarative_prepared_player_route("elasota-aerofoil");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_freeorion() {
+    assert_declarative_prepared_player_route("freeorion");
 }
 
 #[test]
