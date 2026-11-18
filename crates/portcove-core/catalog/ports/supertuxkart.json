@@ -51,6 +51,15 @@
         }
       ],
       "help_url": "https://supertuxkart.net/Download.html"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "supertuxkart",
+      "evidence_urls": [
+        "https://supertuxkart.net/Download.html",
+        "https://github.com/supertuxkart/stk-code"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

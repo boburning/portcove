@@ -41,6 +41,16 @@
           "instruction": "Upstream’s Launcher and patcher own runtime replacement. On Windows, normal saves/settings/achievements and launcher state use %LOCALAPPDATA%/Zelda_LA, with SaveFiles/ under that profile; existing portable.txt mode instead uses the game folder. Mods normally stay in the game folder’s Mods/; an AppImage uses its external Zelda_LA/Mods profile. Preserve the actual profile, mods and permitted original assets before updating and keep the old working copy until progress is checked. Registration grants no managed Update, Backup or Rollback; removing it preserves all external files."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-link-s-awakening-dx-hd",
+      "evidence_urls": [
+        "https://gitlab.com/bighead.0/ladxhd_updated/-/blob/718195bf972cb3fd87ed73af88e44899197d7a0e/README.md",
+        "https://gitlab.com/bighead.0/ladxhd_updated"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "The Legend of Zelda: Link's Awakening DX HD"
   }
 }

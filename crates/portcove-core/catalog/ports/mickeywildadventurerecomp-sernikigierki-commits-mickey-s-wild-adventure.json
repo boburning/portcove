@@ -35,6 +35,12 @@
       "image_sha256": "b166621bc297d161c3f56b4f824fe8b43b0834d1baef7247e4873240994a3616",
       "game_slug": "mickeys-wild-adventure",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mickey-s-wild-adventure",
+      "evidence_urls": ["https://github.com/sernikigierki-commits/Mickeywildadventurerecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

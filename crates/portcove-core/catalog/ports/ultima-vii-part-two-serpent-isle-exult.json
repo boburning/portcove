@@ -63,7 +63,13 @@
       ]
     },
     "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
-    "release_url": "https://exult.info/download.html"
+    "release_url": "https://exult.info/download.html",
+    "original_game": {
+      "format_version": 1,
+      "id": "ultima-vii-part-two-serpent-isle",
+      "evidence_urls": ["https://exult.info/docs.html", "https://github.com/exult/exult"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -43,6 +43,16 @@
     "download_asset_hints": {
       "macos-x86-64": ["-macos-arm64-x64.dmg"],
       "macos-aarch64": ["-macos-arm64-x64.dmg"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "carmageddon",
+      "evidence_urls": [
+        "https://github.com/dethrace-labs/dethrace/blob/v0.10.1/README.md",
+        "https://github.com/dethrace-labs/dethrace#readme",
+        "https://github.com/dethrace-labs/dethrace"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

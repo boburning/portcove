@@ -38,7 +38,15 @@
         "A profile that points outside its local autoload or music-pack folders must be preserved and corrected before Play. Portcove does not rewrite existing settings."
       ]
     },
-    "variant_label": "PC"
+    "variant_label": "PC",
+    "original_game": {
+      "format_version": 1,
+      "id": "heretic",
+      "evidence_urls": [
+        "https://github.com/chocolate-doom/chocolate-doom/blob/chocolate-doom-3.1.1/src/heretic/d_main.c"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

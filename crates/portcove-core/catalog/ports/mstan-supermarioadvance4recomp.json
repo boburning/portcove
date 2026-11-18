@@ -47,9 +47,21 @@
         }
       ]
     },
-    "original_game_title": "Super Mario Advance 4: Super Mario Bros. 3"
+    "original_game_title": "Super Mario Bros. 3",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-bros-3",
+      "evidence_urls": [
+        "https://github.com/mstan/SuperMarioAdvance4Recomp#readme",
+        "https://github.com/mstan/SuperMarioAdvance4Recomp"
+      ],
+      "source_editions": []
+    }
   },
-  "gba_staged_archive_v1": { "game_code": "AX4E", "versioned_mods": false },
+  "gba_staged_archive_v1": {
+    "game_code": "AX4E",
+    "versioned_mods": false
+  },
   "integration": {
     "support_tier": "beta",
     "channels": ["beta"],

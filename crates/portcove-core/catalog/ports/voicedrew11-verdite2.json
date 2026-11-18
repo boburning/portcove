@@ -10,7 +10,7 @@
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Voicedrew11/verdite2",
-    "original_game_title": "King's Field",
+    "original_game_title": "King's Field (US)",
     "manual_setup": {
       "help_url": "https://github.com/Voicedrew11/verdite2/blob/15c54b244d592f92d85f11f3f20c3d929193f0db/README.md",
       "steps": [
@@ -54,6 +54,25 @@
       "game_slug": "kings-field",
       "match_kind": "underlying-game"
     },
-    "release_url": "https://github.com/Voicedrew11/verdite2/releases/tag/v0.6.1"
+    "release_url": "https://github.com/Voicedrew11/verdite2/releases/tag/v0.6.1",
+    "original_game": {
+      "format_version": 1,
+      "id": "kings-field-ii",
+      "evidence_urls": [
+        "https://github.com/Voicedrew11/verdite2/blob/46b54e89156041c36c803516f2a486da91148a69/README.md",
+        "https://github.com/Voicedrew11/verdite2/blob/15c54b244d592f92d85f11f3f20c3d929193f0db/README.md",
+        "https://github.com/Voicedrew11/verdite2"
+      ],
+      "source_editions": []
+    }
+  },
+  "original_game_review": {
+    "disposition": "separate",
+    "reason": "Verdite2 explicitly requires North American SLUS00158: US King’s Field, the international title of Japan King’s FieldII. This is distinct from the 1994 Japan original, whose Alexbeav scaffold target remains unresolved.",
+    "evidence_urls": [
+      "https://github.com/Voicedrew11/verdite2/blob/46b54e89156041c36c803516f2a486da91148a69/README.md",
+      "https://github.com/Voicedrew11/verdite2/blob/15c54b244d592f92d85f11f3f20c3d929193f0db/README.md",
+      "https://github.com/Voicedrew11/verdite2"
+    ]
   }
 }

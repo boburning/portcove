@@ -35,6 +35,12 @@
       "image_sha256": "e11eb5ef8e0bb1011064fb732e4ac69f6673ce951366af080f2c92da1ce76bef",
       "game_slug": "silent-hill-origins",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "silent-hill-origins-ps2",
+      "evidence_urls": ["https://github.com/SirBraga/silent-hill-origins-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

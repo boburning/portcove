@@ -36,6 +36,14 @@
       "warnings": [
         "Back up the game’s files yourself before replacing or removing an installation."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "midtown-madness-3",
+      "evidence_urls": [
+        "https://github.com/lakshya16157/midtown-madness-3-PC-Native/blob/v2.8.1/README.md"
+      ],
+      "source_editions": []
     }
   }
 }

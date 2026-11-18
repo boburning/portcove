@@ -45,6 +45,16 @@
       "warnings": [
         "Select this fork’s BloodborneLauncher.exe in the intact v0.8.0 release root with your own decrypted CUSA03173 v1.09. Preserve user/, bbport.ini, bblauncher_settings.json and all helper context; AVX/OSXSAVE and Vulkan requirements remain."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "bloodborne",
+      "evidence_urls": [
+        "https://github.com/Mrsuss60/bloodborne_pc_windows_port/blob/2cc3764f59c3256955207604c6c6098739b932b6/README.md",
+        "https://github.com/Mrsuss60/bloodborne_pc_windows_port"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Bloodborne"
   }
 }

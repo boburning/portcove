@@ -18,7 +18,13 @@
       "game_slug": "amped-2",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2626
+    "issue_number": 2626,
+    "original_game": {
+      "format_version": 1,
+      "id": "amped-2",
+      "evidence_urls": ["https://github.com/bertibertig/Amped2-Recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

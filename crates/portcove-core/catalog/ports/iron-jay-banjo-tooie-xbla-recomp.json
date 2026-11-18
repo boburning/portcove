@@ -42,6 +42,15 @@
         "This guide follows upstream source instructions. Portcove has not run original-data preparation, generation, compilation or the game, or checked the resulting build, dependency compatibility, files, saves or source correspondence. The packaged Windows launcher starts another process and exits; use the completed native build described above. Source and component downloads require their own applicable permissions."
       ],
       "help_url": "https://github.com/iron-jay/banjo_tooie_xbla_recomp#building-from-source"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "banjo-tooie",
+      "evidence_urls": [
+        "https://github.com/iron-jay/banjo_tooie_xbla_recomp#building-from-source",
+        "https://github.com/iron-jay/banjo_tooie_xbla_recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

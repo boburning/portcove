@@ -45,6 +45,16 @@
       "warnings": [
         "Select Initial D Arcade Stage 3 Recompiled.exe with the complete v2489 product folder and your own matching CHD/PIC preparation. Preserve game files, every card, custom music, settings and logs; the runtime and setup scripts require their upstream context."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "initial-d-arcade-stage-3",
+      "evidence_urls": [
+        "https://github.com/distilledorion-sketch/Initial-D-Arcade-Stage-3-Native-SH-4-Recompilation-WIP-",
+        "https://github.com/distilledorion-sketch/Initial-D-Arcade-Stage-3-Native-SH-4-Recompilation-WIP-/blob/682d821f8aef1a3135a46665677ddfdc8ee646f6/README.md"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Initial D Arcade Stage 3"
   }
 }

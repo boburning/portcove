@@ -26,7 +26,13 @@
       "game_slug": "bomberman-fantasy-race",
       "match_kind": "underlying-game"
     },
-    "issue_number": 73
+    "issue_number": 73,
+    "original_game": {
+      "format_version": 1,
+      "id": "bomberman-fantasy-race",
+      "evidence_urls": ["https://github.com/TechnicallyComputers/Bomberman-Fantasy-Race-Recomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

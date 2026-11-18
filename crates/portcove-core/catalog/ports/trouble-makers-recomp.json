@@ -16,7 +16,13 @@
       "game_slug": "mischief-makers",
       "match_kind": "underlying-game"
     },
-    "issue_number": 104
+    "issue_number": 104,
+    "original_game": {
+      "format_version": 1,
+      "id": "mischief-makers",
+      "evidence_urls": ["https://github.com/ThiagoLira/trouble-makers-pc-recomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

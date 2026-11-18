@@ -35,6 +35,12 @@
       "image_sha256": "debf6fda35ec9fe983119ab6da79b18bf28e386bdd68230597c7f04436679a52",
       "game_slug": "top-gun-fire-at-will",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "top-gun-fire-at-will",
+      "evidence_urls": ["https://github.com/TanookiStudios/TopGunFireAtWillRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

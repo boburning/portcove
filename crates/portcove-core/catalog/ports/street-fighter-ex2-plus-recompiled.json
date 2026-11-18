@@ -57,6 +57,13 @@
       "linux-x86-64": ["sfex2p-", "-linux-x64.zip"],
       "macos-x86-64": ["sfex2p-", "-macos-x64.zip"],
       "macos-aarch64": ["sfex2p-", "-macos-arm64.zip"]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "street-fighter-ex2-plus",
+      "evidence_urls": ["https://github.com/strider973/Street-Fighter-EX2-Plus-Recompiled"],
+      "source_editions": []
+    },
+    "original_game_title": "Street Fighter EX2 Plus"
   }
 }

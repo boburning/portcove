@@ -35,6 +35,12 @@
       "image_sha256": "f83183d23e9c2d6cc223ab2ae9ad67c6c8ec7fdfc88be36779c60722d3309037",
       "game_slug": "breath-of-fire-iv",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "breath-of-fire-iv",
+      "evidence_urls": ["https://github.com/plaught-armor/bof4-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

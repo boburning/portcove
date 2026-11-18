@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/TheBozos/SoulCaliburIII_Recomp"
     },
-    "issue_number": 3033
+    "issue_number": 3033,
+    "original_game": {
+      "format_version": 1,
+      "id": "soulcalibur-iii",
+      "evidence_urls": ["https://github.com/TheBozos/SoulCaliburIII_Recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

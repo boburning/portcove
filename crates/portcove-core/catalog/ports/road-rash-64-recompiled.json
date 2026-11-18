@@ -62,6 +62,15 @@
           "instruction": "Upstream or you provide that external copy’s runtime updates; Portcove registration removal leaves every external file untouched and does not grant managed Backup or Rollback."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "road-rash-64",
+      "evidence_urls": [
+        "https://github.com/linkssy2/RoadRash64Recompiled/blob/v1.5.0/docs/PLAYER_PACKAGE.md",
+        "https://github.com/linkssy2/RoadRash64Recompiled"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

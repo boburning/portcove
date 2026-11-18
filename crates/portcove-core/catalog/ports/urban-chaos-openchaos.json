@@ -61,6 +61,15 @@
           "instruction": "Keep the effective OpenChaos profile, saves, settings and crash logs, the complete original and working game folders, and any files written to a custom location. Early crashes or failed profile lookup can leave files in the working folder. Linux and Mac setup and replacement are yours to manage."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "urban-chaos",
+      "evidence_urls": [
+        "https://github.com/UltimaBeaR/OpenChaos/tree/b893450a04c9ae2a7f6b6cf6eaefe10fcf2562ad",
+        "https://github.com/UltimaBeaR/OpenChaos"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

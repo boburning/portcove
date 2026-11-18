@@ -59,6 +59,15 @@
     "download_asset_hints": {
       "macos-x86-64": ["xash3d-fwgs-apple-amd64.tar.xz"],
       "macos-aarch64": ["xash3d-fwgs-apple-arm64.tar.xz"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "half-life",
+      "evidence_urls": [
+        "https://github.com/FWGS/xash3d-fwgs",
+        "https://github.com/FWGS/xash3d-fwgs/tree/a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

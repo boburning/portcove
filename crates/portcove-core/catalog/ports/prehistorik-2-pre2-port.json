@@ -47,6 +47,12 @@
           "instruction": "If you already have permission to use the Android ARM64 package, use its folder picker to import your own SQZ and TRK files. The app stores settings and level progress with its imported copy. Verify a separate copy of pre2native_settings.json and pre2native_progress.json before clearing app data or uninstalling."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "prehistorik-2",
+      "evidence_urls": ["https://github.com/missingno7/pre2_port"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

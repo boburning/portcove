@@ -59,5 +59,13 @@
       "project_url": "https://github.com/sp00nznet/redalert2-recomp"
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The exact build procedure creates separate RedAlert2 game.exe1.006 and Yuri’sRevenge gamemd.exe1.001 players with separate Play choices. Preserve combined base/expansion player scope.",
+    "evidence_urls": [
+      "https://github.com/sp00nznet/redalert2-recomp/blob/main/docs/building.md",
+      "https://github.com/sp00nznet/redalert2-recomp"
+    ]
   }
 }

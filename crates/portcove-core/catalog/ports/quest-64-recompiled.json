@@ -16,7 +16,13 @@
       "game_slug": "quest-64",
       "match_kind": "underlying-game"
     },
-    "issue_number": 89
+    "issue_number": 89,
+    "original_game": {
+      "format_version": 1,
+      "id": "quest-64",
+      "evidence_urls": ["https://github.com/Rainchus/Quest64-Recomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

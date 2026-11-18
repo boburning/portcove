@@ -12,7 +12,7 @@
     },
     "name": "BLACK (Xbox) (black-pc)",
     "summary": "Attach an independently permitted, prepared BLACK Windows installation using Spark198rus’s title-specific original-x86 compatibility runtime. This is direct Xbox-code execution with replacement services, not static recompilation; Linux uses Wine rather than a native Linux player.",
-    "original_game_title": "BLACK (Xbox)",
+    "original_game_title": "BLACK",
     "project_url": "https://github.com/Spark198rus/black-pc",
     "platforms": [],
     "availability": "unknown",
@@ -46,6 +46,15 @@
       "warnings": [
         "Use one of the exact NTSC-U/PAL XBE hashes, keep blackrt.dll with the x86 stub, and preserve the virtual hard disk before upstream replacement."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "black",
+      "evidence_urls": [
+        "https://github.com/Spark198rus/black-pc/blob/b826153997907272dd555b8ec63b6a54fcde0600/README.md",
+        "https://github.com/Spark198rus/black-pc"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

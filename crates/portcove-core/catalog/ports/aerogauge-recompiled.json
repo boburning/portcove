@@ -49,6 +49,15 @@
           "instruction": "Use Back up saves in the Android launcher to export EEPROM and Controller Pak files. Keep the exported ZIP separately before changing signing identity, clearing app data or uninstalling."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "aerogauge",
+      "evidence_urls": [
+        "https://github.com/alondero/aerogauge-recomp#readme",
+        "https://github.com/alondero/aerogauge-recomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

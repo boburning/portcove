@@ -35,6 +35,12 @@
       "image_sha256": "e2cf3b016cb466218d2370569f5a6cdc1ff8f3edade374a424212a208061aa93",
       "game_slug": "flow",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "flow",
+      "evidence_urls": ["https://github.com/sp00nznet/flow"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

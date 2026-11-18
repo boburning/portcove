@@ -35,6 +35,12 @@
       "image_sha256": "7dde0c758b6b26eb38cb74dc769dea77889f535cd79e535df24f7a5014459419",
       "game_slug": "tsumu-light",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tsumu-light",
+      "evidence_urls": ["https://github.com/mstan/TsumuLightRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -35,6 +35,12 @@
       "image_sha256": "243ece6c8ab605ee2eb8dc104865838a89a7eabb079adc02a816102b1bfacf0b",
       "game_slug": "gravity-rush-remastered",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "gravity-rush-remastered",
+      "evidence_urls": ["https://github.com/Prathewsh/gravityrush_pc"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

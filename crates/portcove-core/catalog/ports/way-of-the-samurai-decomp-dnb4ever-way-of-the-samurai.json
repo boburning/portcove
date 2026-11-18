@@ -35,6 +35,12 @@
       "image_sha256": "0815a55716747a41b76673d9c4b05e6fdc99bdb382d1b7254e4f1b6d34d9f2c9",
       "game_slug": "way-of-the-samurai",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "way-of-the-samurai",
+      "evidence_urls": ["https://github.com/dnb4ever/way-of-the-samurai-decomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

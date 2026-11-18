@@ -18,7 +18,13 @@
       "game_slug": "hydro-thunder-hurricane",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2779
+    "issue_number": 2779,
+    "original_game": {
+      "format_version": 1,
+      "id": "hydro-thunder-hurricane",
+      "evidence_urls": ["https://github.com/monscriser/HydroThunderPORT"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

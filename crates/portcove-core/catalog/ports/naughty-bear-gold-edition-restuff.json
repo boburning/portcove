@@ -41,6 +41,16 @@
       "warnings": [
         "Use only an actual copy/components you are permitted to use. Preserve the complete creating runtime and every effective original, profile, mod, generated-code/cache and custom root before changes; another selected executable can share data."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "naughty-bear",
+      "evidence_urls": [
+        "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/releases/tag/release_v1.5.1",
+        "https://github.com/MaxDeadBear/NaughtyBear_ReStuff"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Naughty Bear"
   }
 }

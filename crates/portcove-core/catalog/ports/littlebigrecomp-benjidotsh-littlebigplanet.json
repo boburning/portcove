@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/benjidotsh/LittleBigRecomp"
     },
-    "issue_number": 3381
+    "issue_number": 3381,
+    "original_game": {
+      "format_version": 1,
+      "id": "littlebigplanet",
+      "evidence_urls": ["https://github.com/benjidotsh/LittleBigRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

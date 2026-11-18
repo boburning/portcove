@@ -22,6 +22,10 @@ export interface PaletteCommand {
   searchOnly?: boolean;
   /** False when the description is generic and should not widen search matches. */
   matchDescription?: boolean;
+  /** Exact option results used when the query does not match the parent game title. */
+  searchAlternatives?: PaletteCommand[];
+  /** Exact stable references take precedence over a similarly named game. */
+  exactQueries?: readonly string[];
   disabled?: boolean;
   action: () => void;
 }
@@ -260,12 +264,22 @@ function OpenCommandPalette({
 export function filterCommands(commands: PaletteCommand[], query: string) {
   const terms = normalizeGameSearchText(query.trim()).split(/\s+/).filter(Boolean);
   if (terms.length === 0) return commands.filter((command) => !command.searchOnly);
-  return commands.filter((command) => {
+  const exactQuery = query.trim().toLocaleLowerCase("en");
+  const exact = commands
+    .flatMap((command) => [command, ...(command.searchAlternatives ?? [])])
+    .filter((command) =>
+      command.exactQueries?.some((value) => value.toLocaleLowerCase("en") === exactQuery),
+    );
+  if (exact.length) return exact;
+  const matches = (command: PaletteCommand) => {
     const searchable = normalizeGameSearchText(
       `${command.label} ${command.matchDescription === false ? "" : command.description} ${command.keywords ?? ""}`,
     );
     return terms.every((term) => searchable.includes(term));
-  });
+  };
+  return commands.flatMap((command) =>
+    matches(command) ? [command] : (command.searchAlternatives?.filter(matches) ?? []),
+  );
 }
 
 function preferredCommandId(commands: PaletteCommand[]) {

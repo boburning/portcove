@@ -3,7 +3,7 @@
   "listing": {
     "id": "halogen-0xjjjjjj-champions-of-norrath",
     "name": "Champions of Norrath — halogen (0xjjjjjj)",
-    "original_game_title": "Champions of Norrath",
+    "original_game_title": "Champions of Norrath: Realms of EverQuest",
     "summary": "Upstream reports engine startup and the main menu, but lumpFind menu-asset defects block actual game output. Replaying a PCSX2 town dump does not establish gameplay rendered by this port. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/0xjjjjjj/halogen",
     "platforms": [],
@@ -35,6 +35,12 @@
       "image_sha256": "4a52060eb3d399ed2991973104639feefac00ac6cd61ba2673eafa30215d6fc2",
       "game_slug": "champions-of-norrath-realms-of-everquest",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "champions-of-norrath-realms-of-everquest",
+      "evidence_urls": ["https://github.com/0xjjjjjj/halogen"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

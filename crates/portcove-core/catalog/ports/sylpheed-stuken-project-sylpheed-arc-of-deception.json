@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/stuken/sylpheed"
     },
-    "issue_number": 3258
+    "issue_number": 3258,
+    "original_game": {
+      "format_version": 1,
+      "id": "project-sylpheed-arc-of-deception",
+      "evidence_urls": ["https://github.com/stuken/sylpheed"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

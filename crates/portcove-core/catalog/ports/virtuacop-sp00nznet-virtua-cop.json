@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/sp00nznet/virtuacop"
     },
-    "issue_number": 3444
+    "issue_number": 3444,
+    "original_game": {
+      "format_version": 1,
+      "id": "virtua-cop",
+      "evidence_urls": ["https://github.com/sp00nznet/virtuacop"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

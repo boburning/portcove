@@ -53,6 +53,15 @@
           "instruction": "The reconstruction uses the official web or PopCap Ultimate Collection Zuma.exe as its reference, SHA-256 51cf7bbc6df4a41ec137a52d4496c3149ba32c9ae2acc4653279d04c164809aa. The documented Windows scripts default to MSVC7. Match BASS 1.8 or 2.4 to the chosen build as described in setup."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "zuma-deluxe",
+      "evidence_urls": [
+        "https://github.com/kyle-sylvestre/CircleShootApp/tree/090dc13912c8bb2b0f55dbdf3c6ff79cfe694ef2",
+        "https://github.com/kyle-sylvestre/CircleShootApp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

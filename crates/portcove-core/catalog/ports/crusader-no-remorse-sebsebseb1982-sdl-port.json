@@ -47,6 +47,15 @@
       "warnings": [
         "The publisher owns the packages and setup. PortMaster is a separate Linux handheld route."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "crusader-no-remorse",
+      "evidence_urls": [
+        "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/blob/v1.41.2/README.md#running-the-game",
+        "https://github.com/sebsebseb1982/crusader-no-remorse-decomp"
+      ],
+      "source_editions": []
     }
   }
 }

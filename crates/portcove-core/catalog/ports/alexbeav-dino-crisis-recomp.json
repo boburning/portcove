@@ -47,6 +47,15 @@
           "instruction": "For the upstream Mac route, keep the complete working copy, original disc files, BIOS, saves and settings. Follow upstream instructions for replacement and keep a copy of the runtime that created your saves. Removing the Portcove registration preserves the external files."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dino-crisis",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

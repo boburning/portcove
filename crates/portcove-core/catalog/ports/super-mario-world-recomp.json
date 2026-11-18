@@ -46,6 +46,15 @@
         }
       ],
       "help_url": "https://github.com/mstan/SuperMarioWorldRecomp/releases/latest"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-world",
+      "evidence_urls": [
+        "https://github.com/mstan/SuperMarioWorldRecomp/releases/latest",
+        "https://github.com/mstan/SuperMarioWorldRecomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

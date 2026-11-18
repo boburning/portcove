@@ -26,7 +26,13 @@
       "game_slug": "metal-slug-x",
       "match_kind": "underlying-game"
     },
-    "issue_number": 81
+    "issue_number": 81,
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-slug-x",
+      "evidence_urls": ["https://github.com/TechnicallyComputers/Metal-Slug-X-Recomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

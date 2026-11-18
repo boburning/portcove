@@ -50,6 +50,16 @@
           "instruction": "Default Windows user files use AppData/Lilium Voyager; baseEF, client configuration, demos, screenshots, downloaded packages/mods and custom directories follow the actual fs_homepath/fs_game settings. Preserve the complete creating installation and every effective original/home/custom root. Failed home lookup or deliberate overrides can use installation-relative paths; never assume only the named default contains player files. Existing peers, server connectivity and multiplayer behavior are unqualified."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-trek-voyager-elite-force",
+      "evidence_urls": [
+        "https://github.com/clover-moe/lilium-voyager",
+        "https://github.com/clover-moe/lilium-voyager/tree/ec2cf1051a61b3b40f0ed37154cecca6f16f8eda"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Star Trek: Voyager – Elite Force"
   }
 }

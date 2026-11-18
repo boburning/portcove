@@ -36,6 +36,12 @@
       "image_sha256": "d46fe43b9724d682f0196ec35b4cb81a2e16663fce50e8e044fe40939617a814",
       "game_slug": "aegis-wing",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "aegis-wing",
+      "evidence_urls": ["https://github.com/CaiusCodes/Aegis-Wing-XBLA-PC-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

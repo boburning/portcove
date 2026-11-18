@@ -53,5 +53,10 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "This upstream route targets the ApolloJustice Trilogy collection, containing ApolloJustice, DualDestinies and SpiritOfJustice as distinct original games.",
+    "evidence_urls": ["https://github.com/armyja/nxnative-aa-port"]
   }
 }

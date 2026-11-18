@@ -48,6 +48,15 @@
         "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
         "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "prince-of-persia-dos",
+      "evidence_urls": [
+        "https://github.com/NagyD/SDLPoP/tree/3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+        "https://github.com/NagyD/SDLPoP"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/LevonFrench/Paranoiascape-Recompiled"
     },
-    "issue_number": 3398
+    "issue_number": 3398,
+    "original_game": {
+      "format_version": 1,
+      "id": "paranoia-scape",
+      "evidence_urls": ["https://github.com/LevonFrench/Paranoiascape-Recompiled"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

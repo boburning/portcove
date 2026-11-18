@@ -35,6 +35,12 @@
       "image_sha256": "55e7f580c65cfb6b37ff66237efe3c53cc2d8ade706808ea9a1c32549852a8de",
       "game_slug": "f-zero-gx",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "f-zero-gx",
+      "evidence_urls": ["https://github.com/ethannicholas/fzerogx-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

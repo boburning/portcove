@@ -40,6 +40,15 @@
       "warnings": [
         "These are upstream alpha builds. Linux and Windows require Vulkan. Mac requires Metal. Open the client named openprivateer for play. The separate openprivateer_server hosts multiplayer."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wing-commander-privateer",
+      "evidence_urls": [
+        "https://raw.githubusercontent.com/schlangz/openprivateer-project/build_20261113_0111/manual.pdf",
+        "https://github.com/schlangz/openprivateer-project"
+      ],
+      "source_editions": []
     }
   }
 }

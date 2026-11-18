@@ -46,6 +46,15 @@
       "warnings": [
         "Select the prepared Ace Combat 04.exe with the exact own disc path. Keep runtime/ and the runtime-specific saves together; do not use PCSX2 cards or infer full campaign acceptance from this beta."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ace-combat-04-shattered-skies",
+      "evidence_urls": [
+        "https://github.com/PresidentRaptor/Ace-Combat-04-PC-Port/blob/322ad0ea19fd1714c101d909bf8cdd9d0b0eb74f/README.md",
+        "https://github.com/PresidentRaptor/Ace-Combat-04-PC-Port"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

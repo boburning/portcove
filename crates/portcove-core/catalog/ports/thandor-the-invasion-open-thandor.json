@@ -40,6 +40,15 @@
       "warnings": [
         "Use the upstream installer and uninstaller for replacement. The project publishes a Windows x64 route. It supplies no Linux, Mac, or Android build."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "thandor-the-invasion",
+      "evidence_urls": [
+        "https://github.com/idkFoxes/open-thandor/blob/v1.0.7/docs/BUILDING.md#patch-installer",
+        "https://github.com/idkFoxes/open-thandor"
+      ],
+      "source_editions": []
     }
   }
 }

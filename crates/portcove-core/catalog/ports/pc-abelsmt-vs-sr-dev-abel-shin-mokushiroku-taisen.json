@@ -35,6 +35,12 @@
       "image_sha256": "424eea10675ca610a7315a9bc1bb0575ecb297dc317976b222ce7f93509af470",
       "game_slug": "abel-shin-mokushiroku-taisen",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "abel-shin-mokushiroku-taisen",
+      "evidence_urls": ["https://github.com/vs-sr-dev/pc-abelsmt"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

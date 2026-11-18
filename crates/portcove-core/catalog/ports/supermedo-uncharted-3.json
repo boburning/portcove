@@ -4,7 +4,7 @@
     "id": "supermedo-uncharted-3",
     "name": "Uncharted3: Drakes Deception — PS4 remaster (Supermedo uncharted_pc)",
     "summary": "Attach the prepared SuperMedo Windows collection launcher and explicitly choose Uncharted: Drake’s Deception before its Play action. These three title records share a mutable upstream launcher selection, not independent fixed command-line game selectors.",
-    "original_game_title": "Uncharted3: Drakes Deception",
+    "original_game_title": "Uncharted 3: Drake’s Deception",
     "artwork": {
       "game_id": 41876,
       "cover_id": 85167,
@@ -50,6 +50,15 @@
       "warnings": [
         "Choose Drake’s Deception in the shared upstream launcher before Play; the saved --play shortcut is collection-global and closing the GUI can leave a child running."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "uncharted-3-drakes-deception",
+      "evidence_urls": [
+        "https://github.com/Supermedo/uncharted_pc/blob/bbd1b3ac1019b22c332d059fda0cecb5a96c0bd9/README.md",
+        "https://github.com/Supermedo/uncharted_pc"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

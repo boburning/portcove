@@ -45,6 +45,12 @@
       "image_sha256": "d51269fe67527570a2fac654cca072f2d759f28f84bcf6e9969d89f602156d94",
       "game_slug": "turok-dinosaur-hunter",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "turok-dinosaur-hunter",
+      "evidence_urls": ["https://github.com/polaco1782/v64recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -4,7 +4,7 @@
     "id": "bc160201983-uncharted-2",
     "name": "Uncharted2: Among Thieves — PS4 remaster (bc160201983 Uncharted PC port)",
     "summary": "Attach an independently permitted, prepared Windows Nathan Drake Collection installation starting Uncharted: Among Thieves. The BilalReloaded launcher keeps title-specific settings; upstream owns preparation, runtime replacement and external player data.",
-    "original_game_title": "Uncharted2: Among Thieves",
+    "original_game_title": "Uncharted 2: Among Thieves",
     "artwork": {
       "game_id": 41877,
       "cover_id": 86368,
@@ -50,6 +50,15 @@
       "warnings": [
         "Keep the complete independently permitted collection installation and every player-data root; upstream maintenance can restart the launcher and must finish outside attachment."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "uncharted-2-among-thieves",
+      "evidence_urls": [
+        "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port/blob/6b2f6c5442f58b1dd895b1c46447f175e3f20e01/README.md",
+        "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

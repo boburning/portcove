@@ -34,6 +34,15 @@
           "instruction": "Flatpak settings, pilots and saves are under ~/.var/app/io.github.theforceengine.tfe/config/. Keep its data/ folder too if it contains your original files. A native Linux build normally uses ~/.local/share/TheForceEngine or the configured TFE_DATA_HOME. Keep your actual pilot, saves, settings, mods and original PC data before replacing the engine. Use Flathub or upstream for replacement. This Linux guide is separate from Portcove’s managed Windows route."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-dark-forces",
+      "evidence_urls": [
+        "https://github.com/TheForceEngine/TheForceEngine#linux",
+        "https://github.com/TheForceEngine/TheForceEngine"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

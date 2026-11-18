@@ -45,6 +45,12 @@
       "image_sha256": "ae2c75fb8a633f8b3d84e5db80db39307da3768cccbcedf73485bee7b3df70db",
       "game_slug": "1080-snowboarding",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "1080-snowboarding",
+      "evidence_urls": ["https://github.com/polaco1782/v64recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

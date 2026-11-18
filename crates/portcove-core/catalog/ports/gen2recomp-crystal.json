@@ -16,7 +16,13 @@
       "game_slug": "pokemon-crystal-version",
       "match_kind": "underlying-game"
     },
-    "issue_number": 100
+    "issue_number": 100,
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-crystal",
+      "evidence_urls": ["https://github.com/UNDERdecoded/Gen2Recomped"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

@@ -35,6 +35,12 @@
       "image_sha256": "8370752e2f25f6d787166c91d74c0f5a770016aea829f6be9c958428211db185",
       "game_slug": "die-hard-trilogy-2-viva-las-vegas",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "die-hard-trilogy-2-viva-las-vegas",
+      "evidence_urls": ["https://github.com/LevonFrench/PSX-Trilogy-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

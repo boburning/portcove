@@ -35,6 +35,12 @@
       "image_sha256": "9eea0d93c89ab8ad84d3ee7d0587e3771569d8b61da4650b1a8324b7b1877bdd",
       "game_slug": "the-queen-of-duellist",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-queen-of-duellist",
+      "evidence_urls": ["https://github.com/vs-sr-dev/pc-thequeenofduellist"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

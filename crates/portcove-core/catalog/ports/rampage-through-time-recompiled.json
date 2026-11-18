@@ -26,7 +26,13 @@
       "game_slug": "rampage-through-time",
       "match_kind": "underlying-game"
     },
-    "issue_number": 83
+    "issue_number": 83,
+    "original_game": {
+      "format_version": 1,
+      "id": "rampage-through-time",
+      "evidence_urls": ["https://github.com/TechnicallyComputers/Rampage---Through-Time-Recomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

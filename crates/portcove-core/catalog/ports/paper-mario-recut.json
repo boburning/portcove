@@ -16,7 +16,16 @@
       "game_slug": "paper-mario-recut",
       "match_kind": "port"
     },
-    "issue_number": 118
+    "issue_number": 118,
+    "original_game": {
+      "format_version": 1,
+      "id": "paper-mario",
+      "evidence_urls": [
+        "https://github.com/HarbourMasters/PaperBoat/blob/9dc47846b1a65775787e1b96f0252b0872a143ca/README.md",
+        "https://github.com/SMCGames/Paper-Mario-ReCut-Deprecated/blob/9987cc93dbdc9bdfcf1be7a1eb7aa5df70837f72/README.md"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

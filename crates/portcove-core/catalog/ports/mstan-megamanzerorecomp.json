@@ -50,9 +50,21 @@
       ],
       "help_url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/README.md"
     },
-    "original_game_title": "Mega Man Zero"
+    "original_game_title": "Mega Man Zero",
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-zero",
+      "evidence_urls": [
+        "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/README.md",
+        "https://github.com/mstan/MegaManZeroRecomp"
+      ],
+      "source_editions": []
+    }
   },
-  "gba_staged_archive_v1": { "game_code": "AZCE", "versioned_mods": true },
+  "gba_staged_archive_v1": {
+    "game_code": "AZCE",
+    "versioned_mods": true
+  },
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

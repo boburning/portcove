@@ -45,6 +45,12 @@
       "image_sha256": "7de30c51f8cf056993d7e51980b03535dd99a7e1964d7d8ca3e06077121db9d0",
       "game_slug": "duke-nukem-64",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "duke-nukem-64",
+      "evidence_urls": ["https://github.com/polaco1782/v64recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

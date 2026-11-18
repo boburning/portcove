@@ -3,7 +3,7 @@
   "listing": {
     "id": "roll-away-psx-pc-recomp-bitsandbreakpoints-roll-away-kula-world-kulaquest",
     "name": "Roll Away / Kula World / KulaQuest — roll-away-psx-pc-recomp (Bitsandbreakpoints)",
-    "original_game_title": "Roll Away / Kula World / KulaQuest",
+    "original_game_title": "Kula World",
     "summary": "The project describes a native playable game and title-screen/gameplay features for three regions. Completion of every level has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Bitsandbreakpoints/roll-away-psx-pc-recomp",
     "platforms": [],
@@ -35,6 +35,31 @@
       "image_sha256": "37b675caecfaeb258c2a58c28807beaf61851483616769b5c79f27d2bc84b185",
       "game_slug": "roll-away",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kula-world",
+      "evidence_urls": ["https://github.com/Bitsandbreakpoints/roll-away-psx-pc-recomp"],
+      "source_editions": [
+        {
+          "id": "kula-world-playstation-europe-sces-01000",
+          "title": "Kula World (Europe, SCES-01000)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/Bitsandbreakpoints/roll-away-psx-pc-recomp"]
+        },
+        {
+          "id": "kula-world-playstation-usa-slus-00724",
+          "title": "Roll Away (USA, SLUS-00724)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/Bitsandbreakpoints/roll-away-psx-pc-recomp"]
+        },
+        {
+          "id": "kula-world-playstation-japan-scps-10064",
+          "title": "KulaQuest (Japan, SCPS-10064)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/Bitsandbreakpoints/roll-away-psx-pc-recomp"]
+        }
+      ]
     }
   },
   "upstream_lineage": {

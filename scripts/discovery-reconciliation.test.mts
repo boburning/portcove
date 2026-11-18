@@ -516,3 +516,41 @@ void test("indexed frozen reconciliation exceeds 10000 candidates and canonical 
     /byte envelope/u,
   );
 });
+
+void test("original-game display cleanup retains the canonical issue's source-edition ownership", async () => {
+  const { reconcileDiscoveryIntakeIdentity } = await import("./discovery-intake-identity.mts");
+  const issue = {
+    number: 17,
+    title: "[Port] Original portable edition",
+    state: "CLOSED",
+    body: "Underlying game: **Super Mario Advance 2**.\nGitHub repository ID: 42.\n<!-- portcove-port -->\n<!-- portcove-upstream: https://github.com/original/game -->",
+  };
+  const record = {
+    format_version: 1 as const,
+    listing: {
+      id: "portable-edition",
+      name: "Portable project",
+      summary: "Retained portable source edition.",
+      project_url: "https://github.com/original/game",
+      issue_number: 17,
+      original_game_title: "Super Mario World",
+    },
+  };
+  const result = reconcileDiscoveryIntakeIdentity(
+    { ...candidate, game_key: "supermarioadvance2" },
+    [issue],
+    [record],
+    [],
+  );
+  assert.equal(result.disposition, "Existing canonical owner");
+  assert.deepEqual(result.issues, [17]);
+  assert.equal(
+    reconcileDiscoveryIntakeIdentity(
+      { ...candidate, game_key: "supermarioworld" },
+      [issue],
+      [record],
+      [],
+    ).disposition,
+    "Existing canonical owner",
+  );
+});

@@ -35,6 +35,12 @@
       "image_sha256": "3f073283b0abb724b426ef580bb2316c41b8a53695dc5d78438b124f6cf5d312",
       "game_slug": "gravity-rush-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "gravity-rush-2",
+      "evidence_urls": ["https://github.com/Prathewsh/gravityrush_pc"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

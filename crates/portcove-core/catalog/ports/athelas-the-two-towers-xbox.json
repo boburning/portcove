@@ -56,6 +56,15 @@
           "instruction": "This Athelas component is distinct from Gumpolas TooTawersRecomp (#2796), whose direct entry is twotowers_recomp.exe with its own settings, game_files and saves. Shared Xbox title/toolkit ancestry does not make the packages or profiles interchangeable. The selected package includes generated-HLSL shader warm-up seeds and pipeline records for this title, plus separately licensed components; keep their creating runtime and notices together. These are not a certificate for original disc bytes, source-to-binary reproduction, controller/gameplay behavior or save compatibility. First-version, rendering and other upstream limitations remain version-specific. No original game rights or another title’s acceptance are inherited."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-lord-of-the-rings-the-two-towers",
+      "evidence_urls": [
+        "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/dist-files/README.txt",
+        "https://github.com/Shagg88/Athelas"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

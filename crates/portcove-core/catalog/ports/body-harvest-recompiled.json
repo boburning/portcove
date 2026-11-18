@@ -48,7 +48,16 @@
         }
       ]
     },
-    "platforms": ["macos-x86-64", "macos-aarch64"]
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "body-harvest",
+      "evidence_urls": [
+        "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md",
+        "https://github.com/mcsoderh/BodyHarvestRecomp"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

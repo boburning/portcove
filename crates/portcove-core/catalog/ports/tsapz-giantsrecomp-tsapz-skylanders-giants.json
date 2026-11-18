@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/tsapZ/GiantsRecomp"
     },
-    "issue_number": 3154
+    "issue_number": 3154,
+    "original_game": {
+      "format_version": 1,
+      "id": "skylanders-giants",
+      "evidence_urls": ["https://github.com/tsapZ/GiantsRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

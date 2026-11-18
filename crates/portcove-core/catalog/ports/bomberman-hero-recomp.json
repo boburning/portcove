@@ -16,7 +16,13 @@
       "game_slug": "bomberman-hero",
       "match_kind": "underlying-game"
     },
-    "issue_number": 102
+    "issue_number": 102,
+    "original_game": {
+      "format_version": 1,
+      "id": "bomberman-hero",
+      "evidence_urls": ["https://github.com/RevoSucks/BMHeroRecomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

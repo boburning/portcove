@@ -35,6 +35,12 @@
       "image_sha256": "d88747f33cec4674b9737f929cd8f8c827e74de83dd6c4777f75aeae2df80cb2",
       "game_slug": "ultraman-fighting-evolution-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ultraman-fighting-evolution-3",
+      "evidence_urls": ["https://github.com/idiazraz/ufe3-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

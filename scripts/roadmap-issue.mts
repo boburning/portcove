@@ -255,9 +255,10 @@ export function findPortIssueDuplicates(
       ...upstreams,
       ...history.map((row) => normalizedUpstream(row.project_url)),
     ];
-    const knownGame =
-      authored?.listing.original_game_title ??
-      body.match(/^Underlying game: \*\*([^*\r\n]{1,256})\*\*/mu)?.[1];
+    const knownGames = [
+      authored?.listing.original_game_title,
+      body.match(/^Underlying game: \*\*([^*\r\n]{1,256})\*\*/mu)?.[1],
+    ].filter((game): game is string => Boolean(game));
     const separateIdentity =
       repositoryIdentity &&
       bodyIds.length <= 1 &&
@@ -266,8 +267,8 @@ export function findPortIssueDuplicates(
       ((!repositoryIds.includes(repositoryIdentity.id) &&
         !knownUpstreams.includes(candidateUpstream)) ||
         (repositoryIds.includes(repositoryIdentity.id) &&
-          knownGame &&
-          portGameKey(knownGame) !== portGameKey(repositoryIdentity.game)));
+          knownGames.length > 0 &&
+          !knownGames.some((game) => portGameKey(game) === portGameKey(repositoryIdentity.game))));
     const issueIdentity = ids[0] ?? keys[0] ?? titleIdentity;
     if (catalogId && ids.includes(catalogId)) reasons.push(`catalog ID ${catalogId}`);
     if (candidateKey && keys.includes(candidateKey)) reasons.push(`port key ${candidateKey}`);

@@ -35,6 +35,12 @@
       "image_sha256": "c1485289bbef18ec5521fc16575e7b386bcaa487a759d5362270f653fc9e1f5b",
       "game_slug": "galaga-legions-dx",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "galaga-legions-dx",
+      "evidence_urls": ["https://github.com/jedeyesniv-art/Galaga-Legions-DX-PC-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

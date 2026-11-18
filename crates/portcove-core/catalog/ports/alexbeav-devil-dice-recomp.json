@@ -60,6 +60,16 @@
       "macos-x86-64": ["devildice-", "-macos-x64.zip"],
       "windows-x86-64": ["devildice-", "-windows-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "devil-dice",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Devil Dice"
   }
 }

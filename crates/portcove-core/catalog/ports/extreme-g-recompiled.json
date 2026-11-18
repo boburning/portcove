@@ -16,7 +16,13 @@
       "game_slug": "extreme-g",
       "match_kind": "underlying-game"
     },
-    "issue_number": 72
+    "issue_number": 72,
+    "original_game": {
+      "format_version": 1,
+      "id": "extreme-g",
+      "evidence_urls": ["https://gitlab.com/sonicdcer/ExtremeGRecomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "stable",

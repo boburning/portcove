@@ -38,6 +38,14 @@
           "instruction": "AMD, Intel and integrated graphics are untested. Title flicker and memory growth remain, and the 60 FPS mode is experimental. The project offers no other desktop route."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-sword",
+      "evidence_urls": [
+        "https://github.com/raulzrrs/swsh-recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

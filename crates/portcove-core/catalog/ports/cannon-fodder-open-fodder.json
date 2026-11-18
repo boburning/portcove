@@ -57,6 +57,16 @@
           "instruction": "The installer can choose Documents/OpenFodder or an installation-local data layout. The complete root contains Data, Campaigns and Saves; openfodder.ini in the working directory can add other search paths. Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement. The original Amiga/DOS, demo and sequel data have separate preparation requirements."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "cannon-fodder",
+      "evidence_urls": [
+        "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/INSTALL.md",
+        "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/README.md",
+        "https://github.com/OpenFodder/openfodder"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

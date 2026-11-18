@@ -35,6 +35,12 @@
       "image_sha256": "34f5ea12174c809172ade265bf4ad1181002180eea97e8067604207be04e6548",
       "game_slug": "god-of-war-ascension",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war-ascension",
+      "evidence_urls": ["https://github.com/RichardFontoura/gowa-pc"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

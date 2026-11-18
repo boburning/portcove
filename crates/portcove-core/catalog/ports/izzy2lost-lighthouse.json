@@ -32,6 +32,16 @@
       "warnings": [],
       "help_url": "https://github.com/izzy2lost/Lighthouse/blob/1.0.2/README.md"
     },
-    "release_url": "https://github.com/izzy2lost/Lighthouse/releases"
+    "release_url": "https://github.com/izzy2lost/Lighthouse/releases",
+    "original_game": {
+      "format_version": 1,
+      "id": "banjo-kazooie",
+      "evidence_urls": [
+        "https://github.com/izzy2lost/Lighthouse/blob/1.0.2/README.md",
+        "https://github.com/izzy2lost/Lighthouse"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Banjo-Kazooie"
   }
 }

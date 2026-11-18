@@ -60,6 +60,16 @@
         }
       ]
     },
-    "download_block_reason": "Portcove downloads are paused because the package includes a shader cache built from the game’s own shaders. They can resume when upstream publishes a package that builds the cache from your own game files."
+    "download_block_reason": "Portcove downloads are paused because the package includes a shader cache built from the game’s own shaders. They can resume when upstream publishes a package that builds the cache from your own game files.",
+    "original_game": {
+      "format_version": 1,
+      "id": "condemned-2-bloodshot",
+      "evidence_urls": [
+        "https://github.com/psxrestore/Condemned2Recomp",
+        "https://github.com/psxrestore/Condemned2Recomp/releases"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Condemned 2: Bloodshot"
   }
 }

@@ -46,7 +46,13 @@
       "windows-x86-64": ["SnPRecompiled-", "-windows.zip"],
       "linux-x86-64": ["SnPRecompiled-", "-linux-x86_64.tar.gz"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "sin-and-punishment",
+      "evidence_urls": ["https://github.com/wootbeer/snprecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -60,7 +60,16 @@
         }
       ]
     },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "the-elder-scrolls-iii-morrowind",
+      "evidence_urls": [
+        "https://openmw.readthedocs.io/en/latest/manuals/installation/index.html",
+        "https://github.com/OpenMW/openmw"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

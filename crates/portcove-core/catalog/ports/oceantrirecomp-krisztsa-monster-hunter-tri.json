@@ -35,6 +35,12 @@
       "image_sha256": "abc8c2ce40aadbf898611d982cccfe3e2fcc6c4f531afb42fa6ef3d489190d92",
       "game_slug": "monster-hunter-tri",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "monster-hunter-tri",
+      "evidence_urls": ["https://github.com/krisztsa/OceanTriRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

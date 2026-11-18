@@ -45,6 +45,16 @@
       "warnings": [
         "Keep BlueWake.exe with its complete Windows release/build and your own GameCube USA revision 0 disc. Preserve the actual %APPDATA%/BlueWake or existing portable user folder, including GZLE01.card; Wii U HD and Dolphin save states are separate."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-the-wind-waker",
+      "evidence_urls": [
+        "https://github.com/chrissotraidis/bluewake/blob/edd88f15750211cca7a4596c9c5aa348f124efe3/README.md",
+        "https://github.com/chrissotraidis/bluewake"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "The Legend of Zelda: The Wind Waker"
   }
 }

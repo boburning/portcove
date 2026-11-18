@@ -53,6 +53,16 @@
           "instruction": "Keep the complete creating folder, assets tree and every actual SDK user, save, profile, configuration, mod, cache, log, backup and custom root. The inspected title does not override every SDK persistence default; the working directory alone does not establish complete save coverage. Keep existing effective paths and do not migrate another title or version’s saves."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "guitar-hero-warriors-of-rock",
+      "evidence_urls": [
+        "https://github.com/ronniecloud/re-wor",
+        "https://github.com/ronniecloud/re-wor/releases"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Guitar Hero: Warriors of Rock"
   }
 }

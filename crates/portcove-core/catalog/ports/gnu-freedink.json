@@ -42,6 +42,15 @@
         }
       ],
       "help_url": "https://www.gnu.org/software/freedink/"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dink-smallwood",
+      "evidence_urls": [
+        "https://formulae.brew.sh/formula/freedink",
+        "https://www.gnu.org/software/freedink/"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

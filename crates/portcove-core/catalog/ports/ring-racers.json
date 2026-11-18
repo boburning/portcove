@@ -42,6 +42,12 @@
       ],
       "warnings": [],
       "help_url": "https://www.kartkrew.org/"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dr-robotniks-ring-racers",
+      "evidence_urls": ["https://www.kartkrew.org/", "https://github.com/KartKrewDev/RingRacers"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -36,6 +36,12 @@
       "image_sha256": "3ba4da16afa9e01bea79676ad58485d8a927898e9f615b185e68c48eef18bfab",
       "game_slug": "disruptor",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "disruptor",
+      "evidence_urls": ["https://github.com/Phroster/DisruptorRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

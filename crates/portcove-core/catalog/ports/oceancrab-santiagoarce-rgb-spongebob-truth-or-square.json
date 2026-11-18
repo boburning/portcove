@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/santiagoarce-rgb/OceanCrab"
     },
-    "issue_number": 3108
+    "issue_number": 3108,
+    "original_game": {
+      "format_version": 1,
+      "id": "spongebob-truth-or-square",
+      "evidence_urls": ["https://github.com/santiagoarce-rgb/OceanCrab"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

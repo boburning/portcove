@@ -41,6 +41,13 @@
       "match_kind": "underlying-game"
     },
     "release_url": "https://github.com/freefrank/LostOdysseyRecomp/releases/tag/v1.1.0",
-    "download_block_reason": "Portcove downloads are on hold while the prepared runtime, save behavior and update ownership are verified."
+    "download_block_reason": "Portcove downloads are on hold while the prepared runtime, save behavior and update ownership are verified.",
+    "original_game": {
+      "format_version": 1,
+      "id": "lost-odyssey",
+      "evidence_urls": ["https://github.com/freefrank/LostOdysseyRecomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Lost Odyssey"
   }
 }

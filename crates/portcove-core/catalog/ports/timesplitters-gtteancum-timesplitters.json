@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/GTTeancum/Timesplitters"
     },
-    "issue_number": 3047
+    "issue_number": 3047,
+    "original_game": {
+      "format_version": 1,
+      "id": "timesplitters",
+      "evidence_urls": ["https://github.com/GTTeancum/Timesplitters"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

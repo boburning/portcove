@@ -33,6 +33,15 @@
         }
       ],
       "help_url": "https://github.com/karjonas/Puzzle-Moppet/blob/2026.09.30/README.md#releases"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "puzzle-moppet",
+      "evidence_urls": [
+        "https://github.com/karjonas/Puzzle-Moppet/blob/2026.09.30/README.md#releases",
+        "https://github.com/karjonas/Puzzle-Moppet"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

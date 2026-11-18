@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/tsapZ/SuperChargersRecomp"
     },
-    "issue_number": 3151
+    "issue_number": 3151,
+    "original_game": {
+      "format_version": 1,
+      "id": "skylanders-superchargers",
+      "evidence_urls": ["https://github.com/tsapZ/SuperChargersRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

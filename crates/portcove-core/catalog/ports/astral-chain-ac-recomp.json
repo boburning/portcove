@@ -38,6 +38,14 @@
           "instruction": "The Windows tests were scripted. An 8 GiB limit can stop longer sessions after around ten minutes. Linux x64 headless tests had crash and rendering issues. Linux desktop, sound and controllers are untested, and iOS work is paused."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "astral-chain",
+      "evidence_urls": [
+        "https://github.com/swaymun/AC-Recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

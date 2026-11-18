@@ -33,5 +33,13 @@
       "help_url": "https://github.com/wootbeer/jillandroid/blob/0.1/README.md"
     },
     "release_url": "https://github.com/wootbeer/jillandroid/releases"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The retained setup accepts the first episode or the complete trilogy. The publisher identifies Jill of the Jungle, Jill Goes Underground and Jill Saves the Prince as distinct included games; keep this multi-game player separate from a sole first-game identity.",
+    "evidence_urls": [
+      "https://github.com/wootbeer/jillandroid",
+      "https://www.gog.com/en/game/jill_of_the_jungle_the_complete_trilogy"
+    ]
   }
 }

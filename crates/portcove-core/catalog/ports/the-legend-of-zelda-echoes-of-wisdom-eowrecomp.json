@@ -38,6 +38,14 @@
           "instruction": "Windows x64 was cross-built without running setup or the game. The project has not confirmed full play, separate firmware requirements, region or exact hashes."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-echoes-of-wisdom",
+      "evidence_urls": [
+        "https://github.com/Nycolazs/EoWRecomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

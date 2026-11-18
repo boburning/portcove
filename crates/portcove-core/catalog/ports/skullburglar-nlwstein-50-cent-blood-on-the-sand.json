@@ -36,6 +36,12 @@
       "image_sha256": "eceead5ed2003999afafd86eb4aee5481caa3ba86536fa1201cee16eeb536755",
       "game_slug": "50-cent-blood-on-the-sand",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "50-cent-blood-on-the-sand",
+      "evidence_urls": ["https://github.com/nlwstein/skullburglar"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

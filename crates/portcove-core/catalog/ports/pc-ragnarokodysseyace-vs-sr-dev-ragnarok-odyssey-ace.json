@@ -35,6 +35,12 @@
       "image_sha256": "b1c36f1301ff556599efaf347bc41b9e8d2647c9c59b270d8b6effd50b39f4ea",
       "game_slug": "ragnarok-odyssey-ace",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ragnarok-odyssey-ace",
+      "evidence_urls": ["https://github.com/vs-sr-dev/pc-ragnarokodysseyace"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

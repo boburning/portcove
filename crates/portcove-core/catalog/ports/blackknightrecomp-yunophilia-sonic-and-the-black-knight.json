@@ -35,6 +35,12 @@
       "image_sha256": "ce6bfee1f52d74342b18fbbb216bd1dbe6ad21f4aa435ffc84d174f6cbc2a0cf",
       "game_slug": "sonic-and-the-black-knight",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-and-the-black-knight",
+      "evidence_urls": ["https://github.com/yunophilia/BlackKnightRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

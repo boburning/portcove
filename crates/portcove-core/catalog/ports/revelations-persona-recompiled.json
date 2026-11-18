@@ -16,7 +16,13 @@
       "game_slug": "revelations-persona",
       "match_kind": "underlying-game"
     },
-    "issue_number": 143
+    "issue_number": 143,
+    "original_game": {
+      "format_version": 1,
+      "id": "revelations-persona",
+      "evidence_urls": ["https://github.com/NJH-1001/RevPRecompile"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

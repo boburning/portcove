@@ -16,7 +16,13 @@
       "game_slug": "dr-mario-64",
       "match_kind": "underlying-game"
     },
-    "issue_number": 97
+    "issue_number": 97,
+    "original_game": {
+      "format_version": 1,
+      "id": "dr-mario-64",
+      "evidence_urls": ["https://github.com/theboy181/drmario64_recomp_plus"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

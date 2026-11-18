@@ -51,6 +51,15 @@
         }
       ],
       "help_url": "https://github.com/yancharkin/SpelunkyClassicHD/blob/1.2.2/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "spelunky-classic",
+      "evidence_urls": [
+        "https://github.com/yancharkin/SpelunkyClassicHD/blob/1.2.2/README.md",
+        "https://github.com/yancharkin/SpelunkyClassicHD"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

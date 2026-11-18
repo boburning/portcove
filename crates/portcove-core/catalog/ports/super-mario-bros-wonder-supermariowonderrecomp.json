@@ -38,6 +38,14 @@
           "instruction": "The project reports 60 FPS in a headless test and stretches at 35–40 FPS with a visible window. Later progress and fixes for rendering glitches are unconfirmed."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-bros-wonder",
+      "evidence_urls": [
+        "https://github.com/BluetufieBugado/SuperMarioWonderRecomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

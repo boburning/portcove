@@ -35,6 +35,12 @@
       "image_sha256": "ee96e971a3f788e94b1a18ac0b125ce15707ba43c3a728c4456f4c1d4b3d3ec6",
       "game_slug": "tom-clancy-s-ghost-recon-advanced-warfighter",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tom-clancys-ghost-recon-advanced-warfighter-xbox-360",
+      "evidence_urls": ["https://github.com/Juansolo457/graw360-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

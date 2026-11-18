@@ -43,6 +43,15 @@
         }
       ],
       "help_url": "https://github.com/ja2-stracciatella/ja2-stracciatella/blob/11e9430b67d788b73f7a57d22166e8b500c23dab/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "jagged-alliance-2",
+      "evidence_urls": [
+        "https://github.com/ja2-stracciatella/ja2-stracciatella",
+        "https://github.com/ja2-stracciatella/ja2-stracciatella/blob/11e9430b67d788b73f7a57d22166e8b500c23dab/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

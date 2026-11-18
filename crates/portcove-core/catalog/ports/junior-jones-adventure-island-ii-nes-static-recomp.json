@@ -51,6 +51,16 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/README.md"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "adventure-island-ii",
+      "evidence_urls": [
+        "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
+        "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/README.md"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Adventure Island II"
   }
 }

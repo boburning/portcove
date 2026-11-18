@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/ElGuslml/KameoRecomp"
     },
-    "issue_number": 3141
+    "issue_number": 3141,
+    "original_game": {
+      "format_version": 1,
+      "id": "kameo-elements-of-power",
+      "evidence_urls": ["https://github.com/ElGuslml/KameoRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

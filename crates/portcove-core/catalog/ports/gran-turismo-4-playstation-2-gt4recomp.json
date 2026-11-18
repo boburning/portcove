@@ -4,7 +4,7 @@
     "id": "gran-turismo-4-playstation-2-gt4recomp",
     "name": "Gran Turismo 4 (PlayStation 2) (GT4Recomp)",
     "summary": "Windows x64 GT4Recomp official launcher for an upstream-prepared Gran Turismo 4 USA v2.00 installation. Register GT4Recomp.exe; its normal owned session supplies renderer configuration, launches and watches the game, then returns to the launcher. Preserve installation data, AppData save libraries and legacy roots before its automatic migrations/cleanup.",
-    "original_game_title": "Gran Turismo 4 (PlayStation 2)",
+    "original_game_title": "Gran Turismo 4",
     "project_url": "https://github.com/moesuito/gt4-staticrecomp",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
@@ -69,7 +69,16 @@
     "download_asset_hints": {
       "windows-x86-64": ["GT4Recomp-Setup-", ".exe"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "gran-turismo-4",
+      "evidence_urls": [
+        "https://github.com/moesuito/gt4-staticrecomp",
+        "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/README.md"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

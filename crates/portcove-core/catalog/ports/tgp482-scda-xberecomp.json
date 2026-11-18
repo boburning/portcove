@@ -52,6 +52,15 @@
       "warnings": [
         "Use the complete original-Xbox Windows SCDA player and preserve scda.toml plus all hdd/profile roots. Portcove tracks the selected program only; a mission handoff can continue after its activity ends. Close actual games/helpers before upstream maintenance."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tom-clancys-splinter-cell-double-agent",
+      "evidence_urls": [
+        "https://github.com/TGP482/SCDA-XBERecomp/blob/ee5b44027bb99cdc11692b466f01d7930912240d/README.md",
+        "https://github.com/TGP482/SCDA-XBERecomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

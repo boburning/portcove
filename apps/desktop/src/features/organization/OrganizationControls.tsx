@@ -9,7 +9,7 @@ import { controlFocus } from "../../components/ui/control-style";
 import type { CatalogEntry } from "../browsing/catalog-entry";
 import { originalGame, gameGroupId } from "../browsing/original-game";
 import { useAppTranslation } from "../../localization";
-import { gameIdentityLabel } from "../../port-identity";
+import { gameTitle } from "../../port-identity";
 import type { useOrganization } from "./use-organization";
 
 export type Organization = ReturnType<typeof useOrganization>;
@@ -370,7 +370,7 @@ export function SaveGameButton({
       variant={saved ? "selected" : "ghost"}
       data-focusable
       aria-pressed={saved}
-      aria-label={t("save.label", { game: gameIdentityLabel(port) })}
+      aria-label={t("save.label", { game: gameTitle(port) })}
       disabled={!organization.snapshot || organization.busy}
       onClick={(event) => {
         const button = event.currentTarget;

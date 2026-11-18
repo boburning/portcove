@@ -47,6 +47,15 @@
           "instruction": "The reviewed Windows profile defaults to %LOCALAPPDATA%/Rush2049Recompiled. An existing portable.txt in the working folder selects that folder instead. Keep the creating mode and actual locations; adding or removing the marker does not migrate existing data. Keep the whole profile, cached original, all JSON settings, controller profiles, mods, generated textures and logs. Controller Pak files are saves/controllerpak_<port>.mpk under that profile. Preserve any actual linked save targets and their adjacent temporary files too; these remain external data. The normal log is rush2049.log with rush2049.old.log beside the settings. Preserve the complete runtime folder and any custom or external paths too. Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "san-francisco-rush-2049",
+      "evidence_urls": [
+        "https://github.com/n64hub/rush-2049-recomp/blob/a5edfda8a7656addfdb6f95d22942b8a1a85a3cb/README.md",
+        "https://github.com/n64hub/rush-2049-recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

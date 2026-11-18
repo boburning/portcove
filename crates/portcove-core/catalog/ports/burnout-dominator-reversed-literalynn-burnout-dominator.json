@@ -35,6 +35,12 @@
       "image_sha256": "4be2987549e59e48789e53f36769dd032d3fae3c213d25e1d8c3f0278f2848c0",
       "game_slug": "burnout-dominator",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "burnout-dominator",
+      "evidence_urls": ["https://github.com/literalynn/BurnoutDominatorReversed"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -35,6 +35,12 @@
       "image_sha256": "c0c582e2893ec5e8b7682ed8bb66f82be2c30590d38b67da0dd834767367b1e7",
       "game_slug": "mortal-kombat-vs-dc-universe",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mortal-kombat-vs-dc-universe",
+      "evidence_urls": ["https://github.com/KawaiiBunga/MKVDCU-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

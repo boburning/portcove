@@ -26,7 +26,13 @@
       "game_slug": "star-wars-masters-of-teras-kasi",
       "match_kind": "underlying-game"
     },
-    "issue_number": 80
+    "issue_number": 80,
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-masters-of-teras-kasi",
+      "evidence_urls": ["https://github.com/TechnicallyComputers/MastersOfTerasKasiRecomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

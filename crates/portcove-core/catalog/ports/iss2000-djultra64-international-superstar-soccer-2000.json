@@ -51,7 +51,13 @@
       "windows-x86-64": ["ISS2000-Windows-", ".zip"],
       "linux-x86-64": ["ISS2000-Linux-", ".zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "international-superstar-soccer-2000",
+      "evidence_urls": ["https://github.com/djultra64/ISS2000"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

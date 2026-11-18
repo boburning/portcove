@@ -46,6 +46,15 @@
       "warnings": [
         "Select the actual modern x86 GIAN07.exe and keep its executable-side resources/data. Vintage binaries, zero-byte placeholders and bounded replay checks have separate scope."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "seihou-densetsu-shuusou-gyoku",
+      "evidence_urls": [
+        "https://github.com/nmlgc/ssg/blob/dc63b340a7c184b456850972b89324d9a8f13c4f/README.md",
+        "https://github.com/nmlgc/ssg"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -35,6 +35,12 @@
       "image_sha256": "280b7b8e26e17685255e8353658be5d202ec691b48f52772a306c62088fd1428",
       "game_slug": "burnout-crash",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "burnout-crash",
+      "evidence_urls": ["https://github.com/kiesxoxo/burnout-crash-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

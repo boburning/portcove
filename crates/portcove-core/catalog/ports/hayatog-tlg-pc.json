@@ -51,6 +51,15 @@
       "warnings": [
         "Preserve the actual TLG-PC data-root pointer, separate launcher settings and every effective save/backup location; complete upstream preparation and restart/update paths outside attachment."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-last-guardian",
+      "evidence_urls": [
+        "https://github.com/HayatoG/tlg_pc",
+        "https://github.com/HayatoG/tlg_pc/blob/4825a991c2ac8fd8865b3c340a18b2f54628c0f0/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

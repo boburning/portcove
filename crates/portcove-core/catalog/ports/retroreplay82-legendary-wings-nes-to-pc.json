@@ -45,6 +45,16 @@
       "warnings": [
         "Select LegendaryWings.exe in the complete beta folder with your own compatible USA ROM in roms/. Preserve config.ini and saves/; the single state slot is replaced on save, and cross-build compatibility is unconfirmed."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "legendary-wings",
+      "evidence_urls": [
+        "https://github.com/retroreplay82/Legendary-Wings-NES-to-PC/blob/f571cefe5b0469437699ea73a31cd2ce508c3c22/README.md",
+        "https://github.com/retroreplay82/Legendary-Wings-NES-to-PC"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Legendary Wings"
   }
 }

@@ -64,7 +64,16 @@
         }
       ]
     },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "quake-iii-team-arena",
+      "evidence_urls": [
+        "https://ioquake3.org/help/players-guide/",
+        "https://github.com/ioquake/ioq3"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

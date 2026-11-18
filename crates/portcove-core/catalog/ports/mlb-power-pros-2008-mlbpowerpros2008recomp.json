@@ -46,6 +46,15 @@
       "warnings": [
         "This is a preparation-kit route: attach only the completed Game/MLBPowerPros2008.exe. Keep Data, portable UserData and separate roster-mod save sets; finish settings restarts upstream."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mlb-power-pros-2008",
+      "evidence_urls": [
+        "https://github.com/HopeAero/MLBPowerPros2008Recomp",
+        "https://github.com/HopeAero/MLBPowerPros2008Recomp/blob/da976a9e085b3b960a636fbaa2e7bcc123309485/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

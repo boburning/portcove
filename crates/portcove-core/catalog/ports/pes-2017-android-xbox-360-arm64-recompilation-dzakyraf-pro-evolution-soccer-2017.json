@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/dzakyraf/pes2017-recomp"
     },
-    "issue_number": 3180
+    "issue_number": 3180,
+    "original_game": {
+      "format_version": 1,
+      "id": "pro-evolution-soccer-2017",
+      "evidence_urls": ["https://github.com/dzakyraf/pes2017-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

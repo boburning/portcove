@@ -3,7 +3,7 @@
   "listing": {
     "id": "ssx3-120-brad-richardson-ssx-3-optional-ssx-tricky-course-import",
     "name": "SSX 3 (optional SSX Tricky course import) — ssx3-120 (brad-richardson)",
-    "original_game_title": "SSX 3 (optional SSX Tricky course import)",
+    "original_game_title": "SSX 3",
     "artwork": {
       "game_id": 4174,
       "cover_id": 77926,
@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/brad-richardson/ssx3-120"
     },
-    "issue_number": 3053
+    "issue_number": 3053,
+    "original_game": {
+      "format_version": 1,
+      "id": "ssx-3",
+      "evidence_urls": ["https://github.com/brad-richardson/ssx3-120"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

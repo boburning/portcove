@@ -59,5 +59,13 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "PuyoPuyoBox is a compilation containing multiple PuyoPuyo games/modes. Do not assign one included original as the complete collection identity.",
+    "evidence_urls": [
+      "https://github.com/kirby1237/PuyoPuyoBoxRecomp/blob/ea96779399aafe4c76ab240550737efe421177e1/README.md",
+      "https://github.com/kirby1237/PuyoPuyoBoxRecomp"
+    ]
   }
 }

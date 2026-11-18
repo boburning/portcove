@@ -42,6 +42,15 @@
     "original_game_title": "Sonic the Hedgehog 2",
     "download_asset_hints": {
       "linux-x86-64": ["v4-linux.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-the-hedgehog-2",
+      "evidence_urls": [
+        "https://github.com/RSDKModding/RSDKv4-Decompilation#readme",
+        "https://github.com/RSDKModding/RSDKv4-Decompilation"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

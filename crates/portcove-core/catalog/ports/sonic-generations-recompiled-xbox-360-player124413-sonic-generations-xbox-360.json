@@ -35,6 +35,12 @@
       "image_sha256": "fbf09b2310be210edf1ddf269a65e5b776c7c3495db3e989f2209de0d7660609",
       "game_slug": "sonic-generations",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-generations-xbox-360",
+      "evidence_urls": ["https://github.com/Player124413/Sonic-Generations-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

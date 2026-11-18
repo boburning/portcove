@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/dotGrx/TNA-IMPACT-Recomp"
     },
-    "issue_number": 3267
+    "issue_number": 3267,
+    "original_game": {
+      "format_version": 1,
+      "id": "tna-impact",
+      "evidence_urls": ["https://github.com/dotGrx/TNA-IMPACT-Recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -45,6 +45,16 @@
       "warnings": [
         "Select MarioTennisVirtualBoyRecomp.exe in the complete Windows release, supply the exact own cartridge dump and retain vbrecomp.cfg plus the whole saves/mods layout. Optional color and developer modes are not enabled by registration."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-s-tennis",
+      "evidence_urls": [
+        "https://github.com/mstan/MarioTennisVirtualBoyRecomp",
+        "https://github.com/mstan/MarioTennisVirtualBoyRecomp/blob/28995d368538559005aaaf9a78ab8e35eacecd71/README.md"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Mario's Tennis"
   }
 }

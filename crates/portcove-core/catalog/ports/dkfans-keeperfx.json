@@ -50,6 +50,15 @@
     },
     "original_game_title": "Dungeon Keeper",
     "release_url": "https://github.com/dkfans/keeperfx/releases",
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "dungeon-keeper",
+      "evidence_urls": [
+        "https://github.com/dkfans/keeperfx/wiki#installation-of-keeperfx",
+        "https://github.com/dkfans/keeperfx"
+      ],
+      "source_editions": []
+    }
   }
 }

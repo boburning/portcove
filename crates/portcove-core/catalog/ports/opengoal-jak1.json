@@ -16,7 +16,13 @@
       "game_slug": "opengoal-jak-and-daxter-the-precursor-legacy",
       "match_kind": "port"
     },
-    "issue_number": 114
+    "issue_number": 114,
+    "original_game": {
+      "format_version": 1,
+      "id": "jak-and-daxter-the-precursor-legacy",
+      "evidence_urls": ["https://github.com/open-goal/jak-project"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "stable",

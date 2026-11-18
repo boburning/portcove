@@ -35,6 +35,12 @@
       "image_sha256": "960531b11ba3dbb93643eb7818a7db983b02d801a5c185527b22a72bdb134971",
       "game_slug": "tekken-5-dark-resurrection-online",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tekken-5-dark-resurrection-online",
+      "evidence_urls": ["https://github.com/TheWishin/T5DROnline"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -35,6 +35,12 @@
       "image_sha256": "3c5c3d74b3f553cf177b40a1449c120d02d8071d8429d9e1aee64be049f0398c",
       "game_slug": "alter-echo",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "alter-echo",
+      "evidence_urls": ["https://github.com/WNBDEV/alter-echo-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

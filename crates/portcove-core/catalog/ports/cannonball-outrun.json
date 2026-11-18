@@ -48,6 +48,15 @@
       "help_url": "https://github.com/djyt/cannonball#readme"
     },
     "download_block_reason": "New package acquisition remains on hold pending accepted publisher-integrity, original ROM-set and applicable redistribution evidence. An existing permitted working copy can still be registered.",
-    "original_game_title": "OutRun"
+    "original_game_title": "OutRun",
+    "original_game": {
+      "format_version": 1,
+      "id": "outrun",
+      "evidence_urls": [
+        "https://github.com/djyt/cannonball#readme",
+        "https://github.com/djyt/cannonball"
+      ],
+      "source_editions": []
+    }
   }
 }

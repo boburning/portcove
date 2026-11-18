@@ -50,6 +50,16 @@
         }
       ],
       "help_url": "https://www.freecol.org/download.html"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "freecol",
+      "evidence_urls": [
+        "https://www.freecol.org/documentation/",
+        "https://www.freecol.org/download.html",
+        "https://github.com/FreeCol/freecol"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
