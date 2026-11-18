@@ -845,12 +845,18 @@ it.each([
         );
         for (const details of projectDetails) {
           // An expanded peer must not stretch a closed disclosure into a blank grid track.
-          const visible = document.createRange();
-          visible.selectNodeContents(details);
+          const children = details.open
+            ? [...details.children]
+            : [fixtureValue(details.querySelector(":scope > summary"), "project summary")];
+          const visible = children
+            .map((child) => child.getBoundingClientRect())
+            .filter((bounds) => bounds.width > 0 && bounds.height > 0);
+          expect(visible.length).toBeGreaterThan(0);
+          const contentHeight =
+            Math.max(...visible.map((bounds) => bounds.bottom)) -
+            Math.min(...visible.map((bounds) => bounds.top));
           expect(
-            Math.abs(
-              details.getBoundingClientRect().height - visible.getBoundingClientRect().height,
-            ),
+            Math.abs(details.getBoundingClientRect().height - contentHeight),
           ).toBeLessThanOrEqual(1);
         }
         return { status, footer, statusTop: statusBounds.top, actionTop: firstActionTop };
