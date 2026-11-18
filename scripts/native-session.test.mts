@@ -180,6 +180,91 @@ void test("ordinary Linux restart stops and joins its captured driver before rel
   }
 });
 
+void test("Linux driver stop preserves namespace retirement and never signals an exited root", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function stopDriver() {");
+  const end = source.indexOf("\nfunction stopBackupFocusDriver() {", start);
+  assert.ok(start >= 0 && end > start);
+  for (const outcome of [
+    "signaled",
+    "live",
+    "exited",
+    "selected-signaled",
+    "selected-live",
+  ] as const) {
+    const captured = new ChildProcess();
+    Object.defineProperty(captured, "pid", { value: 12345 });
+    if (outcome === "exited") Object.defineProperty(captured, "exitCode", { value: 0 });
+    if (outcome.includes("signaled"))
+      Object.defineProperty(captured, "signalCode", { value: "SIGTERM" });
+    const calls: unknown[] = [];
+    let beginPublication!: () => void;
+    const publicationStarted = new Promise<void>((resolve) => {
+      beginPublication = resolve;
+    });
+    let releasePublication!: () => void;
+    const publicationJoined = new Promise<void>((resolve) => {
+      releasePublication = resolve;
+    });
+    const selected = outcome.startsWith("selected");
+    const context = {
+      driver: captured,
+      linuxSelectedSession: selected,
+      identityBoundSession: false,
+      historySession: false,
+      linuxPublication: {
+        stop: async () => {
+          calls.push("publication-stop");
+          beginPublication();
+          await publicationJoined;
+        },
+      },
+      process: {
+        platform: "linux",
+        kill: (pid: number, signal: string) => {
+          calls.push({ pid, signal });
+          return true;
+        },
+      },
+    };
+    const stopValue: unknown = runInNewContext(`(${source.slice(start, end)})`, context);
+    assert.ok(typeof stopValue === "function");
+    const stop = stopValue as () => Promise<void>;
+    let settled = false;
+    const result = stop();
+    void result.then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      },
+    );
+    if (selected) {
+      await publicationStarted;
+      assert.equal(
+        settled,
+        false,
+        "Namespace publication retirement must finish before stop returns",
+      );
+      assert.deepEqual(calls, ["publication-stop"]);
+      releasePublication();
+    }
+    await result;
+    assert.deepEqual(
+      calls,
+      selected
+        ? ["publication-stop"]
+        : outcome === "live"
+          ? [{ pid: -12345, signal: "SIGTERM" }]
+          : [],
+    );
+  }
+});
+
 void test(
   "marked helper observation retains actual OS exits without inventing or forcing them",
   { skip: process.platform !== "win32" },

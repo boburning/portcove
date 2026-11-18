@@ -616,7 +616,12 @@ async function stopDriver() {
     stopBackupFocusDriver();
     return;
   }
-  if (!driver?.pid || driver.exitCode !== null) return;
+  if (
+    !driver?.pid ||
+    driver.exitCode !== null ||
+    (process.platform === "linux" && driver.signalCode !== null)
+  )
+    return;
   if (historySession) {
     assert.ok(historyInventory, "History cleanup cannot signal without captured driver identity");
     if (!(await historyDriverStillOwned(historyInventory))) return;
