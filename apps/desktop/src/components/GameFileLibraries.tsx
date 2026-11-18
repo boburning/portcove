@@ -615,50 +615,59 @@ function CompletedScan({
         </Button>
       )}
       {more.error && <p role="alert">{more.error}</p>}
-      {report.issues.map((issue, index) => {
-        const path = issue.path;
-        const choices = issue.direct_check_profiles?.length
-          ? ports.filter(
-              (port) =>
-                port.source_profile && issue.direct_check_profiles?.includes(port.source_profile),
-            )
-          : [];
-        return (
-          <div key={`${path}:${index}`}>
-            <p>
-              {issue.message}{" "}
-              {path && (
-                <code dir="ltr" className="path-value whitespace-normal">
-                  {path}
-                </code>
-              )}
-            </p>
-            {path &&
-              choices.length > 0 &&
-              readConfirmed &&
-              snapshot.freshness === "inputs_match" && (
-                <details>
-                  <summary data-focusable className="cursor-pointer">
-                    Check this file
-                  </summary>
-                  <p>Choose the game this disc belongs to.</p>
-                  <div className="flex flex-wrap gap-2">
-                    {choices.map((port) => (
-                      <Button
-                        key={port.id}
-                        variant="outline"
-                        disabled={busy || workspaceRefreshFailed}
-                        onClick={() => review({ path, profile_id: port.source_profile! })}
-                      >
-                        Check for {gameIdentityLabel(port)}
-                      </Button>
-                    ))}
-                  </div>
-                </details>
-              )}
-          </div>
-        );
-      })}
+      {report.issues.length > 0 && (
+        <ul aria-label="Folder search issues" className="mt-3 grid min-w-0 list-none gap-2 p-0">
+          {report.issues.map((issue, index) => {
+            const profile = profiles.find((profile) => profile.id === issue.profile_id);
+            const path = issue.path;
+            const choices = issue.direct_check_profiles?.length
+              ? ports.filter(
+                  (port) =>
+                    port.source_profile &&
+                    issue.direct_check_profiles?.includes(port.source_profile),
+                )
+              : [];
+            return (
+              <li className="min-w-0" key={`${path}:${index}`}>
+                <p className="min-w-0 wrap-anywhere">
+                  {issue.profile_id && (
+                    <strong>{profile?.label.trim() ? profile.label : issue.profile_id}: </strong>
+                  )}
+                  {issue.message}{" "}
+                  {path && (
+                    <code dir="ltr" className="path-value whitespace-normal">
+                      {path}
+                    </code>
+                  )}
+                </p>
+                {path &&
+                  choices.length > 0 &&
+                  readConfirmed &&
+                  snapshot.freshness === "inputs_match" && (
+                    <details>
+                      <summary data-focusable className="cursor-pointer">
+                        Check this file
+                      </summary>
+                      <p>Choose the game this disc belongs to.</p>
+                      <div className="flex flex-wrap gap-2">
+                        {choices.map((port) => (
+                          <Button
+                            key={port.id}
+                            variant="outline"
+                            disabled={busy || workspaceRefreshFailed}
+                            onClick={() => review({ path, profile_id: port.source_profile! })}
+                          >
+                            Check for {gameIdentityLabel(port)}
+                          </Button>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
       {report.issues_omitted > 0 && <p>{report.issues_omitted} more scan issues were omitted.</p>}
     </section>
   );

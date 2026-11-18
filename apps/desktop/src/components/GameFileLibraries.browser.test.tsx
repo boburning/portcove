@@ -4,6 +4,7 @@ import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../test-fixtures";
+import { currentSourceCatalog } from "../catalog-test-fixtures";
 import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -357,6 +358,181 @@ it.each(
       expect(desktopApi.importSource).not.toHaveBeenCalled();
     } finally {
       await act(async () => finish?.(completed));
+      await root.rerender(null);
+      transport.dispose();
+      if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = oldTheme;
+      await page.viewport(oldViewport.width, oldViewport.height);
+    }
+  },
+);
+
+function expectWholeFolderIssueList(
+  expected: { identity: string | null; message: string; path: string | null }[],
+) {
+  const list = page.getByRole("list", { name: "Folder search issues", exact: true }).element();
+  list.scrollIntoView({ block: "center" });
+  const rows = [...list.querySelectorAll(":scope > li")];
+  expect(rows).toHaveLength(expected.length);
+  for (const [index, issue] of expected.entries()) {
+    const row = fixtureValue(rows[index], "reported folder issue");
+    expect(row.querySelector("strong")?.textContent ?? null).toBe(
+      issue.identity === null ? null : `${issue.identity}: `,
+    );
+    expect(row.textContent).toContain(issue.message);
+    expect(row.querySelector("code")?.textContent ?? null).toBe(issue.path);
+    const range = document.createRange();
+    range.selectNodeContents(fixtureValue(row.querySelector("p"), "issue message and path"));
+    const bounds = row.getBoundingClientRect();
+    for (const line of range.getClientRects()) {
+      expect(line.left).toBeGreaterThanOrEqual(bounds.left - 1);
+      expect(line.right).toBeLessThanOrEqual(bounds.right + 1);
+    }
+  }
+  const bounds = list.getBoundingClientRect();
+  requireCompleteCaptureTarget(
+    {
+      target: "whole folder search issue list",
+      target_count: 1,
+      visible: true,
+      rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+      viewport: { width: innerWidth, height: innerHeight },
+    },
+    "whole folder search issue list",
+  );
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth);
+  return list;
+}
+
+it.each(["dark", "light"] as const)(
+  "identifies every saved-folder issue in the actual Settings consumer in %s",
+  async (theme) => {
+    const oldTheme = document.documentElement.dataset.theme;
+    const oldViewport = { width: innerWidth, height: innerHeight };
+    const transport = installInteractiveTransport("library", (message) => {
+      throw new Error(message);
+    });
+    const ids = [
+      "blue-dragon",
+      "dark-forces-pc-complete-installed-data",
+      "doom-3-classic-pc-131-pk4",
+      "doom-3-roe-classic-pc-131-pk4",
+      "twilight-princess",
+    ];
+    const catalog = currentSourceCatalog();
+    const profiles = ids.map((id) => {
+      const identity = fixtureValue(
+        catalog.identities.find((entry) => entry.id === id),
+        id,
+      );
+      return { ...sourceProfile(), id, label: identity.label };
+    });
+    const message = "Folder search can't find files for this requirement. Choose them directly.";
+    const issues = ids.map((profile_id) => ({ profile_id, path: null, message }));
+    const report = { ...snapshot.report, candidates: [], limits_reached: [], issues };
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({ ...snapshot, report });
+    const port = {
+      ...portDefinition(),
+      id: "sample",
+      name: "Disc game",
+      source_profile: "blank-profile",
+    };
+    const review = vi
+      .spyOn(desktopApi, "planSourceImport")
+      .mockRejectedValue(new Error("Fixture direct check finished"));
+    try {
+      await page.viewport(1028, 750);
+      document.documentElement.dataset.theme = theme;
+      await root.rerender(
+        <GameFileScanProvider generation={1}>
+          <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
+            <Sidebar
+              view="settings"
+              setView={vi.fn()}
+              installedCount={0}
+              updateCount={0}
+              activities={[]}
+            />
+            <main className="workspace-main min-h-0 w-full min-w-0 overflow-auto pb-12 max-[75rem]:pb-10">
+              <SettingsView
+                category="game-files"
+                generation={1}
+                ports={[port]}
+                statuses={new Map()}
+                sourceProfiles={[
+                  ...profiles,
+                  { ...sourceProfile(), id: "blank-profile", label: "  " },
+                ]}
+                sources={[]}
+                installedCount={0}
+                sourceRequirementsState="available"
+              />
+            </main>
+          </div>
+        </GameFileScanProvider>,
+      );
+      await expect
+        .element(page.getByRole("list", { name: "Folder search issues", exact: true }))
+        .toBeVisible();
+      await document.fonts.ready;
+      expectWholeFolderIssueList(
+        profiles.map((profile) => ({ identity: profile.label, message, path: null })),
+      );
+      await captureParityState("game-files-requirement-issues");
+
+      const path = "D:/Games/original disc whose exact path remains available.iso";
+      const unknownProfile = "u".repeat(128);
+      const variants = [
+        { profile_id: unknownProfile, path: null, message },
+        {
+          profile_id: "blank-profile",
+          path: null,
+          message: "The selected requirement could not be checked.",
+        },
+        {
+          profile_id: null,
+          path,
+          message: "File exceeds the scan size limit.",
+          direct_check_profiles: [port.source_profile],
+        },
+      ];
+      vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
+        ...snapshot,
+        report: { ...report, issues: variants },
+      });
+      await click("Refresh folders");
+      await expect.element(page.getByText(unknownProfile, { exact: false })).toBeVisible();
+      const list = expectWholeFolderIssueList(
+        variants.map((issue) => ({
+          identity: issue.profile_id,
+          message: issue.message,
+          path: issue.path,
+        })),
+      );
+      const direct = page.getByText("Check this file", { exact: true });
+      await direct.click();
+      await expect
+        .element(page.getByRole("button", { name: "Check for Disc game", exact: true }))
+        .toBeEnabled();
+      expect(list.querySelector("code")?.getAttribute("dir")).toBe("ltr");
+      expectWholeFolderIssueList(
+        variants.map((issue) => ({
+          identity: issue.profile_id,
+          message: issue.message,
+          path: issue.path,
+        })),
+      );
+      await captureParityState("game-files-requirement-issue-fallbacks");
+      await click("Check for Disc game");
+      expect(review).toHaveBeenCalledExactlyOnceWith(
+        port.source_profile,
+        path,
+        "use_current_location",
+      );
+      expect(desktopApi.importSource).not.toHaveBeenCalled();
+      expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
+      expect(picker.pickGameFileFolder).not.toHaveBeenCalled();
+    } finally {
       await root.rerender(null);
       transport.dispose();
       if (oldTheme === undefined) delete document.documentElement.dataset.theme;

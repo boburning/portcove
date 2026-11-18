@@ -556,6 +556,10 @@ Exact scan candidates use their actual Settings-row width: below 38rem, actions
 follow the full-width identity and exact path; at wider widths, keep the bounded
 18rem action column. This applies to both streaming and completed matches,
 including a medium window with both navigation sidebars visible.
+Saved-folder scan issues retain each reported requirement’s catalog profile label,
+falling back to its exact profile ID when the label is unavailable or blank.
+Path-only issues keep their full path without inventing a requirement identity;
+each original message and any bounded direct-check action remain beside it.
 Use the saved update-policy choice verbatim in summaries. Separate an unchecked
 port, a successful last check with no update, an available update, an update
 saved for later whose activation still needs core checks, and a failed or
