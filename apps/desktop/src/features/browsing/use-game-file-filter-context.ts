@@ -43,7 +43,7 @@ export function useGameFileFilterContext({
     contextKey: key,
     generation,
     request: () => (catalog ? gameFileFilterRequest(catalog.ports, selection) : undefined),
-    refusal: "catalog_too_large",
+    refusal: "catalog_mismatch",
     accept: (snapshot, request, library, now) => {
       const accepted = gameFileFilterContext(snapshot, request, library, libraryKey ?? "", now);
       if (!accepted) throw new GameFileCheckError("catalog_mismatch");

@@ -880,6 +880,7 @@ fn late_channel_or_instance_drift_discards_the_private_refresh_result() {
                     elapsed: &elapsed,
                     maximum: std::time::Duration::from_secs(30),
                     operation: Some(&operation),
+                    browsing: false,
                 },
                 || {
                     if let Some(mut install) = install {
@@ -921,6 +922,7 @@ fn late_source_change_during_projection_is_checked_before_refresh_publication() 
             elapsed: &elapsed,
             maximum: std::time::Duration::from_secs(30),
             operation: Some(&operation),
+            browsing: false,
         },
         || {
             std::fs::write(&record.path, b"changed")?;
@@ -955,6 +957,7 @@ fn deadline_after_projection_discards_result_before_publication() {
             elapsed: &elapsed,
             maximum: std::time::Duration::from_secs(30),
             operation: Some(&operation),
+            browsing: false,
         },
         || {
             clock.store(30_001, Ordering::SeqCst);
@@ -999,6 +1002,7 @@ fn cancellation_after_inspection_waits_for_the_actual_blocking_refresh_worker() 
                 elapsed: &elapsed,
                 maximum: std::time::Duration::from_secs(30),
                 operation: Some(&operation),
+                browsing: false,
             },
             || {
                 entered.send(()).unwrap();
@@ -1063,6 +1067,7 @@ fn tracked_refresh_settles_cancellation_only_after_worker_exit() {
         worker_service.refresh_game_file_query_tracked(
             &request,
             |event| events.send(event).unwrap(),
+            false,
             || {
                 eprintln!(
                     "tracked-refresh-cancellation phase=worker-held elapsed_ms={}",
@@ -1140,4 +1145,60 @@ fn refresh_request_rejects_client_authored_observation_batches() {
     let mut value = serde_json::to_value(request).unwrap();
     value["batch"] = serde_json::to_value(batch).unwrap();
     assert!(serde_json::from_value::<GameFileQueryRefreshRequest>(value).is_err());
+}
+
+#[test]
+fn browsing_refresh_traverses_the_bundled_definitions_under_one_operation() {
+    let (_temporary, service, _) = service_fixture();
+    let ordered: Vec<_> = service
+        .catalog()
+        .ports()
+        .iter()
+        .rev()
+        .map(|port| GameFileRouteRequest {
+            port_id: port.id.clone(),
+            platform: Platform::WindowsX86_64,
+            channel: ReleaseChannel::Stable,
+            route: GameFileRouteKind::ManagedInstall,
+        })
+        .collect();
+    assert!(ordered.len() > 257);
+    let mut binding = None;
+    for count in [256, 257, ordered.len()] {
+        let request = GameFileQueryRefreshRequest {
+            routes: ordered[..count].to_vec(),
+            limits: refresh_limits(),
+            maximum_age_seconds: 300,
+        };
+        let mut events = Vec::new();
+        let start = std::time::Instant::now();
+        let snapshot = service
+            .refresh_browsing_game_file_query_with_progress(&request, |event| events.push(event))
+            .unwrap();
+        eprintln!(
+            "bundled browsing projection: {count} routes in {:?}",
+            start.elapsed()
+        );
+        assert_eq!(snapshot.routes.len(), count);
+        for (projected, requested) in snapshot.routes.iter().zip(&request.routes) {
+            assert_eq!(projected.port_id, requested.port_id);
+            assert_eq!(projected.platform, requested.platform);
+            assert_eq!(projected.channel, requested.channel);
+            assert_eq!(projected.route, requested.route);
+        }
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].operation_id, events[1].operation_id);
+        assert_eq!(
+            snapshot.library,
+            service.library().identity_record().unwrap()
+        );
+        let original = binding.get_or_insert_with(|| snapshot.catalog_binding_sha256.clone());
+        assert_eq!(*original, snapshot.catalog_binding_sha256);
+        if count > 256 {
+            let error = service
+                .refresh_game_file_query_with_progress(&request, |_| unreachable!())
+                .unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Usage);
+        }
+    }
 }

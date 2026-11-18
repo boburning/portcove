@@ -4,7 +4,7 @@ import {
   openAdvancedFilters as openAdvancedPanel,
 } from "../../test/filter-fields";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
@@ -20,7 +20,13 @@ import { useDetailWorkspaceNavigation } from "../features/app-shell/use-detail-w
 import { useLibraryBrowsingContext } from "../features/app-shell/use-library-browsing-context";
 import { useGameFileFilterContext } from "../features/browsing/use-game-file-filter-context";
 import { portDefinition } from "../test-fixtures";
-import type { GameFileQueryRefreshRequest, GameFileQuerySnapshot, PortStatus } from "../types";
+import type {
+  CatalogDocument,
+  GameFileQueryRefreshRequest,
+  GameFileQuerySnapshot,
+  PortStatus,
+} from "../types";
+import bundledCatalog from "../../../../crates/portcove-core/catalog/catalog.json";
 import { filterPorts, summarizeLibrary } from "../view-model";
 import "../styles/index.css";
 
@@ -36,9 +42,9 @@ const ports = ["Complete", "Missing", "Checking", "Empty", "Unknown"]
     channels: ["stable", "beta"] as const,
   }))
   .map((port) => ({ ...port, platforms: [...port.platforms], channels: [...port.channels] }));
-const catalog = { schema_version: 2, ports };
+const fixtureCatalog = { schema_version: 2, ports };
+const bundledDefinitions = bundledCatalog as CatalogDocument;
 const empty = new Map<string, PortStatus>();
-const availableIds = new Set(ports.map((port) => port.id));
 const remember = () => {};
 const switchLibrary = async () => {};
 const response = (request: GameFileQueryRefreshRequest): GameFileQuerySnapshot => ({
@@ -76,7 +82,9 @@ const response = (request: GameFileQueryRefreshRequest): GameFileQuerySnapshot =
   })),
 });
 
-function Session({ library }: { library: string }) {
+function Session({ library, catalog }: { library: string; catalog: CatalogDocument }) {
+  const ports = catalog.ports;
+  const availableIds = useMemo(() => new Set(ports.map((port) => port.id)), [ports]);
   const { ui, workspace } = useLibraryBrowsingContext({
     root: library,
     remember,
@@ -144,6 +152,7 @@ function Session({ library }: { library: string }) {
           view={ui.view}
           ports={filterPorts(ports, empty, ui.view, ui.filter, ui.query, ui.catalogSort, context)}
           catalogFilterCandidates={filterPorts(ports, empty, "catalog", "all", ui.query)}
+          libraryFilterCandidates={ports}
           queryContext={context}
           gameFileQuery={observation}
           statuses={empty}
@@ -164,7 +173,7 @@ function Session({ library }: { library: string }) {
     </main>
   );
 }
-function Fixture() {
+function Fixture({ catalog = fixtureCatalog }: { catalog?: CatalogDocument } = {}) {
   const [library, setLibrary] = useState("/game-filter-library-a");
   return (
     <DirectionProvider direction="ltr">
@@ -177,7 +186,7 @@ function Fixture() {
       >
         Switch library
       </button>
-      <Session key={library} library={library} />
+      <Session key={library} library={library} catalog={catalog} />
     </DirectionProvider>
   );
 }
@@ -403,3 +412,40 @@ it("retains catalog history through Catalog/Library section navigation without i
   await expect.element(page.getByLabelText("Catalog check history")).toBeInTheDocument();
   noAdditionalChecks();
 });
+
+it.each([256, 257, bundledDefinitions.ports.length])(
+  "uses complete bundled route coverage for %i definitions in Discover and Library",
+  async (count) => {
+    const catalog = { ...bundledDefinitions, ports: bundledDefinitions.ports.slice(0, count) };
+    vi.mocked(desktopApi.refreshGameFileQuery).mockImplementation(async (request) => ({
+      ...response(request),
+      routes: request.routes.map((route, index) => ({
+        ...route,
+        state: index === count - 1 ? "no_files_required" : "needs_checking",
+        reason: index === count - 1 ? "explicit_empty_requirements" : "observation_unavailable",
+        contract_id: null,
+        identity: null,
+        source_instance_sha256: null,
+        route_definition_sha256: "e".repeat(64),
+        route_instance_sha256: null,
+      })),
+    }));
+    flushSync(() => root.render(<Fixture catalog={catalog} />));
+    await openAdvancedFilters("Filters (0)");
+    await expect
+      .element(await filterChoice("No files to add in Portcove (unavailable)"))
+      .toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(button("Check game-file filters"));
+    await expect.element(await filterChoice("No files to add in Portcove (1)")).toBeEnabled();
+    expect(
+      vi
+        .mocked(desktopApi.refreshGameFileQuery)
+        .mock.calls[0]?.[0].routes.map((route) => route.port_id),
+    ).toEqual(catalog.ports.map((port) => port.id));
+    await closeFilters();
+    await userEvent.click(button("Go to Library"));
+    await openAdvancedFilters("Filters (0)");
+    await expect.element(await filterChoice("No files to add in Portcove (1)")).toBeEnabled();
+    noAdditionalChecks();
+  },
+);

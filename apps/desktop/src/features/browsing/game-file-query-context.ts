@@ -174,14 +174,13 @@ export interface GameFileFilterContext {
   byPort: ReadonlyMap<string, GameFileQuerySnapshot["routes"][number]>;
 }
 
-/** One explicit bounded request for the complete accepted catalog. No subset or automatic chunking. */
+/** One Core operation for the complete accepted catalog, with a shared inspection budget. */
 export function gameFileFilterRequest(
   ports: readonly PortDefinition[],
   selection: Omit<Route, "port_id">,
 ): GameFileQueryRefreshRequest | undefined {
   if (
     ports.length === 0 ||
-    ports.length > 256 ||
     new Set(ports.map((port) => port.id)).size !== ports.length ||
     ports.some((port) => !port.id || new TextEncoder().encode(port.id).length > 128)
   )
@@ -208,7 +207,6 @@ export function gameFileFilterContext(
   if (
     !libraryKey ||
     request.routes.length === 0 ||
-    request.routes.length > 256 ||
     snapshot.routes?.length !== request.routes.length ||
     new Set(request.routes.map((route) => route.port_id)).size !== request.routes.length
   )
