@@ -22,6 +22,7 @@ import {
   rollbackWitnessWithinLibrary,
   waitForReviewedUpdateAction,
   reachLibraryFooterAction,
+  libraryFooterCaptureReady,
 } from "./desktop-preparation-test.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 
@@ -442,4 +443,24 @@ test("native Library footer refuses an unrelated origin or a Tab path that skips
     /was not reached through its Tab order/u,
   );
   assert.equal(tabs, 3);
+});
+
+test("native Library footer capture requires a positive finite focus ring", () => {
+  const ready = {
+    footerFocused: true,
+    documentFocused: true,
+    fullyVisible: true,
+    zoom: "200",
+    ring: 4,
+  };
+  assert.equal(libraryFooterCaptureReady(ready), true);
+  for (const ring of [0, -1, Number.NaN, Number.POSITIVE_INFINITY])
+    assert.equal(libraryFooterCaptureReady({ ...ready, ring }), false);
+  for (const state of [
+    { footerFocused: false },
+    { documentFocused: false },
+    { fullyVisible: false },
+    { zoom: "100" },
+  ])
+    assert.equal(libraryFooterCaptureReady({ ...ready, ...state }), false);
 });

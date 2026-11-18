@@ -1062,18 +1062,18 @@ export function libraryFooterKeyboardPoint(originSelector: string) {
   const card = origin.closest(".collection-entry");
   if (!card) throw new Error("Library action has no owning card");
   const footer = card.querySelector<HTMLButtonElement>(
-    '.library-entry-footer button:not(:disabled):not([aria-disabled="true"])',
+    '.library-entry-footer .library-card-action:not(:disabled):not([aria-disabled="true"])',
   );
   if (!footer) throw new Error("The owned Library card has no enabled primary action");
   const rectangle = footer.getBoundingClientRect();
   const workspace = document.querySelector('main[data-focus-region="workspace"]');
   const clip = workspace?.getBoundingClientRect();
   const style = getComputedStyle(footer);
+  const outlineWidth = Number.parseFloat(style.outlineWidth || "0");
   const ring =
-    style.outlineStyle === "none"
+    style.outlineStyle === "none" || !Number.isFinite(outlineWidth) || outlineWidth <= 0
       ? 0
-      : Number.parseFloat(style.outlineWidth || "0") +
-        Math.max(0, Number.parseFloat(style.outlineOffset || "0"));
+      : outlineWidth + Math.max(0, Number.parseFloat(style.outlineOffset || "0"));
   return {
     originFocused: document.activeElement === origin,
     withinCard: card.contains(document.activeElement),
@@ -1104,6 +1104,23 @@ export function libraryFooterKeyboardPoint(originSelector: string) {
       rectangle.left - ring >= Math.max(0, clip?.left ?? 0) - 1 &&
       rectangle.right + ring <= Math.min(innerWidth, clip?.right ?? innerWidth) + 1,
   };
+}
+
+export function libraryFooterCaptureReady(point: {
+  footerFocused: boolean;
+  documentFocused: boolean;
+  fullyVisible: boolean;
+  zoom: string | null;
+  ring: number;
+}) {
+  return (
+    point.footerFocused &&
+    point.documentFocused &&
+    point.fullyVisible &&
+    point.zoom === "200" &&
+    Number.isFinite(point.ring) &&
+    point.ring > 0
+  );
 }
 
 /** Observe one owned Library action and retain its exact visual evidence. */
@@ -1175,14 +1192,12 @@ export async function captureLibraryAction(
   await browser.wait(
     async () => {
       const point = await executeBrowserScript(browser, libraryFooterKeyboardPoint, selector);
-      return (
-        point.footerFocused && point.documentFocused && point.fullyVisible && point.zoom === "200"
-      );
+      return libraryFooterCaptureReady(point);
     },
     5_000,
     "The Tab-reached Library primary action and its focus ring must fit at200%",
   );
-  const footerSelector = `.collection-entry:has(${selector}) .library-entry-footer button:not(:disabled):not([aria-disabled="true"])`;
+  const footerSelector = `.collection-entry:has(${selector}) .library-entry-footer .library-card-action:not(:disabled):not([aria-disabled="true"])`;
   const footerCapture = await captureSettledVisual({
     browser,
     output,
@@ -1194,11 +1209,7 @@ export async function captureLibraryAction(
     readiness: async () => {
       const point = await executeBrowserScript(browser, libraryFooterKeyboardPoint, selector);
       return {
-        ready:
-          point.footerFocused &&
-          point.documentFocused &&
-          point.fullyVisible &&
-          point.zoom === "200",
+        ready: libraryFooterCaptureReady(point),
         point,
         tabPresses: reached.tabPresses,
         feedbackFixture: "Owned DOM-only artwork feedback; imported artwork remains available",

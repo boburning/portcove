@@ -35,8 +35,7 @@ selection scope, including filtered-out entries in supported Steam commands.
 
 Library covers use content-driven columns with a preferred minimum of 11.25rem,
 giving six columns at the matched 1440px desktop viewport with the normal interface
-size and full sidebar. At desktop widths of 761px and above with height 673–800px,
-Library uses a 10rem minimum. Whole-image
+size and full sidebar in tall windows. Whole-image
 2:3 artwork caps at 220 CSS pixels, and identity and overlay controls share that
 width. Below 760px the preferred minimum is 10rem; 360–480px windows use two
 flexible columns with a 12px gap and no artwork cap, while narrower windows use
@@ -47,10 +46,10 @@ In short or narrow windows, a single visible Library cover uses spare grid width
 to place its identity beside the portrait. Its status and primary action follow
 in a footer spanning the card. A sole multi-port group uses the same layout and keeps
 its other implementations below the selected port or choice prompt.
-At effective heights up to 672px, multiple Library covers use a 20rem preferred
+At effective heights up to 800px, multiple Library covers use a 20rem preferred
 column minimum and place identity beside a contained portrait. Their status and
 primary actions span the card below. This keeps the first row actionable in a
-960×640 window while retaining larger artwork than compact Rows.
+960×640, 1280×800 and 1366×768 windows while retaining larger artwork than compact Rows.
 Poster cover cards reserve two readable lines for both title and project (the project reserves one line in desktop windows up to 760px high and expands on hover and keyboard focus), aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
 40em. Footer actions stay beside the dominant status without overlapping it. A ready card's Play pairs a triangle with a compact signature-red labeled button, so the primary action is recognizable on arrival; its accessible name adds the game and project ("Play: Title · Project"), as do View task and the setup/review actions. Readiness stays a compact text-and-icon cue, and updates remain secondary while the game is playable. Routine Stable is omitted from Library card chips; a non-Stable channel or a channel that differs from the selected one stays visible. Discover cards likewise omit the chip when Stable is the only offered channel and the selected channel is Stable or unset; Preview, Rolling and mixed channels stay, and the comparison dialog shows every offered channel. With an observed device target, Discover cards omit platform chips and show “Not available for Platform” only when a port lists platforms that exclude this device; without a device target the platforms stay listed. The single-port “Why this port?” view omits setup, file and update rows and the “No platform/update channel is listed” lines when they have no value; several ports keep every row aligned for comparison (#5058 F3, F5). Release-channel and platform chips and filter options are neutral: semantic green means ready to play and blue means selection or a link, so a kept update is a neutral status with its icon; original-system identity colors remain (#5058 V2). “Update saved for later” stays, because a kept version may reuse local bytes without a download. (Supersedes the quiet bordered repeated Play; see #5058 L4–L5.) Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
 The quick views read as underlined navigation above the search/filter toolbar.
