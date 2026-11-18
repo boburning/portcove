@@ -243,6 +243,16 @@ fn decode(port_id: &str, json: &str) -> Result<PortIntent> {
     Ok(record)
 }
 
+struct IntentAssessmentRow {
+    port_id: String,
+    age: i64,
+    record_json: String,
+}
+
+const ASSESSABLE_INTENTS: &str = "CASE WHEN json_valid(record_json)
+    THEN json_extract(record_json, '$.mode') IN ('notify', 'set_up_when_ready')
+    ELSE 0 END";
+
 impl Library {
     /// Whether this game has a lifecycle operation (an install, update or
     /// data change) that hasn't finished or recovered yet. Such a game is left
@@ -279,6 +289,57 @@ impl Library {
                 }
             })
             .collect())
+    }
+
+    fn intent_assessment_pass(&self) -> Result<(Vec<IntentAssessmentRow>, usize)> {
+        let mut connection = self.connection()?;
+        let snapshot = connection.transaction()?;
+        let total = snapshot.query_row(
+            &format!("SELECT COUNT(*) FROM port_intents WHERE {ASSESSABLE_INTENTS}"),
+            [],
+            |row| row.get(0),
+        )?;
+        let selected = {
+            let mut statement = snapshot.prepare(&format!(
+                "SELECT port_id, updated_at, record_json FROM port_intents
+                 WHERE {ASSESSABLE_INTENTS} ORDER BY updated_at, port_id LIMIT ?1"
+            ))?;
+            statement
+                .query_map([MAX_PORT_INTENT_ASSESSMENTS], |row| {
+                    Ok(IntentAssessmentRow {
+                        port_id: row.get(0)?,
+                        age: row.get(1)?,
+                        record_json: row.get(2)?,
+                    })
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+        snapshot.commit()?;
+        Ok((selected, total))
+    }
+
+    fn advance_intent_assessment(&self, rows: &[IntentAssessmentRow]) -> Result<()> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let latest: i64 = transaction.query_row(
+            "SELECT COALESCE(MAX(updated_at), 0) FROM port_intents",
+            [],
+            |row| row.get(0),
+        )?;
+        let next = Self::now().max(latest.checked_add(1).ok_or_else(|| {
+            PortcoveError::state("remembered game assessment order was exhausted")
+        })?);
+        for row in rows {
+            // The column also receives the edit time from older clients. Move the
+            // visited row to the back without rewriting the player's choice or
+            // overwriting an intervening edit or a different assessment pass.
+            transaction.execute(
+                "UPDATE port_intents SET updated_at=?1 WHERE port_id=?2 AND updated_at=?3 AND record_json=?4",
+                params![next, row.port_id, row.age, row.record_json],
+            )?;
+        }
+        transaction.commit()?;
+        Ok(())
     }
 
     /// Whether ready notices are shown. On unless the player turned them off.
@@ -523,33 +584,30 @@ impl PortcoveService {
         None
     }
 
-    /// Reassesses every remembered notify or set-up-when-ready choice with the
-    /// ordinary first-install planner, so changed files, catalog contracts and
-    /// prerequisites are reflected without reselecting anything. Reads only.
+    /// Reassesses a bounded pass of remembered choices. Large sets persist
+    /// their scheduling order; assessment does not change the saved choice.
     pub async fn assess_port_intents(&self) -> Result<PortIntentAssessments> {
-        let intents = self
-            .library
-            .port_intents()?
-            .into_iter()
-            .filter(|intent| {
-                matches!(
-                    intent.mode,
-                    PortIntentMode::Notify | PortIntentMode::SetUpWhenReady
-                )
-            })
-            .collect::<Vec<_>>();
-        let not_assessed = intents.len().saturating_sub(MAX_PORT_INTENT_ASSESSMENTS);
+        let (selected, total) = self.library.intent_assessment_pass()?;
         let ready_notices_enabled = self.library.ready_notices_enabled()?;
-        let mut assessments = Vec::new();
-        for intent in intents.into_iter().take(MAX_PORT_INTENT_ASSESSMENTS) {
+        let mut assessments = Vec::with_capacity(selected.len());
+        for row in &selected {
+            let intent = match decode(&row.port_id, &row.record_json) {
+                Ok(intent) => intent,
+                Err(error) => {
+                    tracing::warn!(port_id = %row.port_id, error = %error.message, "skipping unreadable game intent");
+                    continue;
+                }
+            };
             let mut assessment = self.assess_port_intent(&intent).await;
-            // Only a notice is withheld. Readiness, the choice and any
-            // set-up-when-ready game stay exactly as they were.
             if !ready_notices_enabled && assessment.mode == PortIntentMode::Notify {
                 assessment.newly_ready = false;
             }
             assessments.push(assessment);
         }
+        if total > MAX_PORT_INTENT_ASSESSMENTS {
+            self.library.advance_intent_assessment(&selected)?;
+        }
+        let not_assessed = total.saturating_sub(assessments.len());
         Ok(PortIntentAssessments {
             assessments,
             not_assessed: u32::try_from(not_assessed).unwrap_or(u32::MAX),
@@ -1271,6 +1329,62 @@ mod tests {
             .set_port_intent(PORT, PortIntentMode::DiscoverOnly)
             .unwrap();
         assert!(service.port_intents().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn assessment_reaches_the_513th_choice_after_restart_and_preserves_edits() {
+        let (temporary, service) = ready_service().await;
+        for index in 0..MAX_PORT_INTENT_ASSESSMENTS {
+            let id = format!("fixture-{index:03}");
+            service
+                .library
+                .update_port_intent_with(&id, false, |record, now| {
+                    *record = Some(PortIntent::new(&id, PortIntentMode::Notify, now));
+                })
+                .unwrap();
+        }
+        service
+            .set_port_intent(PORT, PortIntentMode::Notify)
+            .unwrap();
+        let selected = service.library.intent_assessment_pass().unwrap().0;
+        assert_eq!(selected.len(), 512);
+        assert!(selected.iter().all(|row| row.port_id != PORT));
+        let first = service.assess_port_intents().await.unwrap();
+        assert_eq!(first.assessments.len(), 512);
+        assert_eq!(first.not_assessed, 1);
+        service
+            .library
+            .update_port_intent_with("fixture-000", false, |record, _| {
+                record.as_mut().unwrap().mode = PortIntentMode::Ignored;
+            })
+            .unwrap();
+        service
+            .library
+            .advance_intent_assessment(&selected)
+            .unwrap();
+        let edited = service
+            .port_intents()
+            .unwrap()
+            .into_iter()
+            .find(|intent| intent.port_id == "fixture-000")
+            .unwrap();
+        assert_eq!(edited.mode, PortIntentMode::Ignored);
+
+        drop(service);
+        let service = service_with_release(
+            Library::open(temporary.path().join("library")).unwrap(),
+            "v1",
+        );
+        let second = service.assess_port_intents().await.unwrap();
+        let reached = &second.assessments[0];
+        assert_eq!(reached.port_id, PORT);
+        assert!(matches!(reached.readiness, PortReadiness::Ready { .. }));
+        assert!(
+            second
+                .assessments
+                .iter()
+                .all(|intent| intent.port_id != "fixture-000")
+        );
     }
 
     #[tokio::test]
