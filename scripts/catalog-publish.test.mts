@@ -1,3 +1,8 @@
+import {
+  record as fixtureRecord,
+  records as fixtureRecords,
+  requiredFixture,
+} from "./fixtures/catalog-generator-fixtures.mts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -401,4 +406,201 @@ void test("catalog keys reach only one signing step per role, from main", async 
       name,
     );
   }
+});
+
+void test("observer output is delivered as bounded compatible descriptive data with quiet replay and last-good retention", async () => {
+  const { fixtureListing, fixturePolicy, fixtureDelivery } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const policy = fixturePolicy();
+  const canonical = { format_version: 11, listings: [fixtureListing] };
+  const first = projectListingDelivery(canonical, [policy.listing_update], null);
+  assert.deepEqual(first.bytes, fixtureDelivery());
+  const generated = readFileSync(
+    new URL(
+      "../crates/portcove-core/src/testdata/listing-observation-delivery.generated.json",
+      import.meta.url,
+    ),
+  );
+  assert.deepEqual(
+    first.bytes,
+    generated,
+    "Core's signed-consumer fixture must be actual maintained producer output",
+  );
+  const document = fixtureRecord(JSON.parse(first.bytes.toString()));
+  const directory = fixtureRecord(document.directory);
+  const firstListing = requiredFixture(fixtureRecords(directory.listings)[0]);
+  assert.equal(directory.format_version, 11);
+  assert.equal(firstListing.implementation, undefined);
+  assert.deepEqual(firstListing.download_asset_hints, fixtureListing.download_asset_hints);
+  assert.deepEqual(firstListing.upstream_observation, policy.listing_update.upstream_observation);
+  const before = structuredClone(canonical);
+  for (const candidates of [
+    [],
+    [policy.listing_update],
+    [
+      {
+        ...policy.listing_update,
+        upstream_observation: {
+          ...policy.listing_update.upstream_observation,
+          status: "incomplete",
+          releases: [],
+        },
+      },
+    ],
+  ]) {
+    const replay = projectListingDelivery(canonical, candidates, first.bytes);
+    assert.equal(replay.changed, false);
+    assert.equal(replay.revision, first.revision);
+    assert.deepEqual(replay.bytes, first.bytes);
+  }
+  assert.deepEqual(canonical, before);
+  const current = {
+    ...fixtureListing,
+    download_block_reason: "Resolve current original-file requirements",
+  };
+  const corrected = projectListingDelivery(
+    { format_version: 11, listings: [current] },
+    [policy.listing_update],
+    first.bytes,
+  );
+  const correctedDocument = fixtureRecord(JSON.parse(corrected.bytes.toString()));
+  const row = requiredFixture(
+    fixtureRecords(fixtureRecord(correctedDocument.directory).listings)[0],
+  );
+  assert.equal(row.download_block_reason, current.download_block_reason);
+  assert.equal(
+    row.upstream_observation,
+    undefined,
+    "a changed canonical declaration cannot reuse earlier observations",
+  );
+  assert.equal(corrected.revision, first.revision + 1);
+});
+
+void test("observation publication retains applicable earlier rows before admitting fresh rows into the fixed byte budget", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const old = fixturePolicy().listing_update;
+  const first = projectListingDelivery(
+    { format_version: 11, listings: [fixtureListing] },
+    [old],
+    null,
+  );
+  const nextListing = { ...fixtureListing, id: "another-project", summary: "x".repeat(20000) };
+  const next = { ...fixturePolicy(nextListing).listing_update };
+  const capped = projectListingDelivery(
+    { format_version: 11, listings: [fixtureListing, nextListing] },
+    [next, old],
+    first.bytes,
+    0,
+    first.bytes.length + 100,
+  );
+  assert.deepEqual(capped.bytes, first.bytes);
+  assert.equal(capped.changed, false);
+  assert.deepEqual(
+    capped.omitted.map((value) => value.id),
+    ["another-project"],
+  );
+  assert.equal(capped.delivered_records, 1);
+  assert.equal(capped.canonical_records, 2);
+});
+
+void test("only the dynamic listing target is excluded from fixed input comparison", async () => {
+  const { sameStaticPublicationTargets } = await import("./catalog-publish.mts");
+  const fixed = { "definitions/index.json": "a".repeat(64) };
+  assert.equal(
+    sameStaticPublicationTargets(fixed, {
+      ...fixed,
+      "policy/official/catalog.listings.json": "b".repeat(64),
+    }),
+    true,
+  );
+  assert.equal(
+    sameStaticPublicationTargets(fixed, {
+      ...fixed,
+      "policy/official/unexpected.json": "b".repeat(64),
+    }),
+    false,
+  );
+  assert.equal(
+    sameStaticPublicationTargets(
+      { ...fixed, "policy/official/catalog.listings.json": "c".repeat(64) },
+      { ...fixed, "policy/official/catalog.listings.json": "b".repeat(64) },
+    ),
+    false,
+  );
+});
+
+void test("last-good data must be referenced in the verified role and exact physical inventory", async (t) => {
+  const { fixtureDelivery } = await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { verifiedPriorListing, listingDeliveryTarget } =
+    await import("./listing-observation-delivery.mts");
+  const { createHash } = await import("node:crypto");
+  const prior = temp(t),
+    bytes = fixtureDelivery(),
+    sha = createHash("sha256").update(bytes).digest("hex");
+  const target = `targets/${sha}.${listingDeliveryTarget}`;
+  site(prior, { [listingDeliveryTarget]: sha });
+  put(prior, target, bytes.toString());
+  const report = {
+    schema_version: 1,
+    authority: "none",
+    files: [{ target, sha256: sha, bytes: bytes.length }],
+  };
+  assert.deepEqual(await verifiedPriorListing(prior, report), bytes);
+  await assert.rejects(verifiedPriorListing(prior, { ...report, files: [] }), /not referenced/u);
+  put(prior, target, bytes.toString() + " ");
+  await assert.rejects(verifiedPriorListing(prior, report), /bytes differ/u);
+  site(prior, {});
+  assert.equal(
+    await verifiedPriorListing(prior, report),
+    null,
+    "an unreferenced historical target blob is never selected",
+  );
+});
+
+void test("completed source observations stay bound to current canonical provider, hints and route facts", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { completedListingCandidates } = await import("./listing-observation-delivery.mts");
+  const { checkpoint, progress, keyOf } =
+    await import("./fixtures/upstream-checkpoint-fixture.mts");
+  const policy = fixturePolicy(),
+    canonical = { format_version: 11, listings: [fixtureListing] };
+  const state = checkpoint({
+    [keyOf("owner/game")]: progress("owner/game", [], {
+      repository_id: 42,
+      last_complete_facts_sha256: policy.facts_sha256,
+      last_complete_policies: [policy],
+    }),
+  });
+  const input = {
+    revision: "existing-observer-run-fixture",
+    config_sha256: "a".repeat(64),
+    checkpoint: state,
+    catalog: { ports: [], listings: [fixtureListing] },
+  };
+  assert.equal(completedListingCandidates(input, { ports: [] }, canonical).length, 1);
+  const moved = { ...fixtureListing, project_url: "https://github.com/new/game" };
+  assert.equal(
+    completedListingCandidates(input, { ports: [] }, { format_version: 12, listings: [moved] })
+      .length,
+    0,
+  );
+  const hinted = { ...fixtureListing, download_asset_hints: { "windows-x86-64": ["changed"] } };
+  assert.equal(
+    completedListingCandidates(input, { ports: [] }, { format_version: 12, listings: [hinted] })
+      .length,
+    0,
+  );
+  assert.equal(
+    completedListingCandidates(
+      input,
+      { ports: [{ id: fixtureListing.id, release: { repository: "owner/game" } }] },
+      canonical,
+    ).length,
+    0,
+    "an observation of a listing cannot acquire a new managed-route binding",
+  );
 });

@@ -205,11 +205,14 @@ player data follows the retained persistence contract; outside data remains
 outside managed backups. Removing a setup reminder or external registration never
 transfers managed replacement/removal rights.
 
-`catalog inspect-listings --path FILE` validates an inert format-1 listing
+`catalog inspect-listings --path FILE` validates an inert versioned listing
 projection before opening a Library. Validation neither installs an integration
 nor signs, accepts or publishes that file. Machine consumers negotiate
 `catalog.listings`, `setup.*` and `external.select-relink` through capabilities and
 use the exported DTOs; these additions do not relax `PortDefinition`.
+An optional `--format-version N` exports that exact validated input through Core’s
+existing compatibility projection, without opening a library. The default keeps
+the input’s format; unsupported exports are refused.
 
 ### Exact-package registration
 

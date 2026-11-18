@@ -423,23 +423,28 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         return Ok(ExitCode::SUCCESS);
     }
     if let Commands::Catalog {
-        command: CatalogCommand::InspectListings { path },
+        command:
+            CatalogCommand::InspectListings {
+                path,
+                format_version,
+            },
     } = &cli.command
     {
         let file = std::fs::File::open(path)?;
         let mut bytes = String::new();
         file.take(8 * 1024 * 1024 + 1).read_to_string(&mut bytes)?;
-        render_read_success(
-            mode,
-            "catalog.inspect-listings",
-            portcove_core::CatalogListingDocument::from_json(&bytes)?,
-            |document| {
-                format!(
-                    "Validated {} descriptive listings.",
-                    document.listings.len()
-                )
-            },
-        )?;
+        let document = portcove_core::CatalogListingDocument::from_json(&bytes)?;
+        let document = if let Some(version) = format_version {
+            document.export_format(*version)?
+        } else {
+            document
+        };
+        render_read_success(mode, "catalog.inspect-listings", document, |document| {
+            format!(
+                "Validated {} descriptive listings.",
+                document.listings.len()
+            )
+        })?;
         return Ok(ExitCode::SUCCESS);
     }
     if let Commands::Catalog {

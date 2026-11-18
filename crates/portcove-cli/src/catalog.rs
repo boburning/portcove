@@ -156,6 +156,9 @@ pub(crate) enum CatalogCommand {
         /// Inert versioned listings JSON file to inspect.
         #[arg(long)]
         path: PathBuf,
+        /// Export this validated directory for a supported strict reader.
+        #[arg(long)]
+        format_version: Option<u32>,
     },
     /// Inspect a fixed local managed-definition publication bundle without authority or library writes.
     InspectDefinitionPublication {

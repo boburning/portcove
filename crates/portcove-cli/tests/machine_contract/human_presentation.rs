@@ -430,3 +430,106 @@ fn implementation_descriptions_export_with_an_explicit_legacy_reader_fence() {
         assert_eq!(&expected, exported, "listing {}", original["id"]);
     }
 }
+
+#[test]
+fn inert_supplied_listing_export_preserves_the_upstream_guide_instead_of_merging_managed_setup() {
+    let temporary = tempfile::tempdir().unwrap();
+    let home = temporary.path().join("home");
+    std::fs::create_dir(&home).unwrap();
+    let authored: Value = serde_json::from_str(include_str!(
+        "../../../portcove-core/catalog/ports/alexbeav-diablo-recomp.json"
+    ))
+    .unwrap();
+    let mut supplied = authored["listing"].clone();
+    supplied["implementation"] =
+        serde_json::json!({"format_version":999,"future":"inert explanation"});
+    let document = serde_json::json!({"format_version":12,"listings":[supplied]});
+    let parsed = portcove_core::CatalogListingDocument::from_json(&document.to_string()).unwrap();
+    let expected_guide = serde_json::to_value(&parsed.listings[0].manual_setup).unwrap();
+    let embedded = portcove_core::Catalog::embedded().unwrap();
+    let managed_guide = serde_json::to_value(
+        &embedded
+            .port("alexbeav-diablo-recomp")
+            .unwrap()
+            .presentation
+            .as_ref()
+            .unwrap()
+            .manual_setup,
+    )
+    .unwrap();
+    assert_ne!(
+        expected_guide, managed_guide,
+        "the representative must distinguish the upstream guide from managed setup"
+    );
+    assert!(
+        expected_guide
+            .to_string()
+            .contains("Choose the official Mac ZIP")
+    );
+    let input = temporary.path().join("supplied-listings.json");
+    std::fs::write(&input, document.to_string()).unwrap();
+    let invoke = |arguments: &[&str]| {
+        command(temporary.path())
+            .env("HOME", &home)
+            .env("USERPROFILE", &home)
+            .env("APPDATA", &home)
+            .env("LOCALAPPDATA", &home)
+            .env("XDG_CONFIG_HOME", &home)
+            .env("XDG_DATA_HOME", &home)
+            .env("XDG_CACHE_HOME", &home)
+            .env("XDG_STATE_HOME", &home)
+            .current_dir(temporary.path())
+            .args(arguments)
+            .output()
+            .unwrap()
+    };
+    let ordinary = invoke(&[
+        "--json",
+        "catalog",
+        "inspect-listings",
+        "--path",
+        input.to_str().unwrap(),
+    ]);
+    assert!(ordinary.status.success(), "{ordinary:?}");
+    assert_eq!(super::json_stdout(&ordinary)["data"]["format_version"], 12);
+    assert!(
+        super::json_stdout(&ordinary)["data"]["listings"][0]
+            .get("implementation")
+            .is_some()
+    );
+    let legacy = invoke(&[
+        "--json",
+        "catalog",
+        "inspect-listings",
+        "--path",
+        input.to_str().unwrap(),
+        "--format-version",
+        "11",
+    ]);
+    assert!(legacy.status.success(), "{legacy:?}");
+    let legacy = super::json_stdout(&legacy);
+    assert_eq!(legacy["data"]["format_version"], 11);
+    assert!(
+        legacy["data"]["listings"][0]
+            .get("implementation")
+            .is_none()
+    );
+    assert_eq!(
+        legacy["data"]["listings"][0]["manual_setup"],
+        expected_guide
+    );
+    let unsupported = invoke(&[
+        "--json",
+        "catalog",
+        "inspect-listings",
+        "--path",
+        input.to_str().unwrap(),
+        "--format-version",
+        "999",
+    ]);
+    assert!(!unsupported.status.success());
+    assert!(
+        !temporary.path().join("library").exists(),
+        "every supplied-file projection stays before library opening"
+    );
+}

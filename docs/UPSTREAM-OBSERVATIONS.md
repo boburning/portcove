@@ -1185,8 +1185,42 @@ repeated shared-observation reads and subsequent exact preview reads. This
 is a browse-workflow measurement, not a forecast of managed library updates,
 live production latency or payload-download savings. Existing signed listing
 delivery supplies the reusable projection; this change creates no additional
-feed, account, scheduler or publication grant. Production enrichment still
-requires the existing protected candidate acceptance and delivery path.
+feed, account, scheduler or publication grant.
+
+The current CI-green main catalog publisher derives the existing
+`policy/official/catalog.listings.json` target from the canonical directory plus
+completed policies in the existing observer checkpoint artifact. The maintained
+artifact reader binds the source workflow, run, commit, configuration and digest.
+Only `upstream_observation` may differ from the current canonical row. Changes to
+the repository, hints, restrictions, setup or operational route invalidate reuse.
+Core exports the exact supplied directory to format 11 before enrichment; this
+preserves its original guide and current strict-reader compatibility, while the
+authored directory and public browse projection retain format 12 metadata.
+
+Prior observations are reused only after the existing compiled repository
+verifier succeeds, the exact logical target is referenced by its role, and its
+physical bytes match the verified hash and length. Unavailable or partial source
+reads preserve applicable prior facts and original clocks. Identical directories
+retain exact bytes and revision. The unchanged signer still verifies the entire
+prior repository and historical revision bounds before renewal. Publication uses
+the existing official-policy namespace and keys.
+
+The target remains a partial directory under the existing eight-MiB limit. It
+admits whole canonical rows, prioritizes prior rows before new observations, and
+never drops requirements to make a row fit. Omissions and source exceptions appear
+in `observation-projection.json` beside the publication evidence; omission does not
+mean withdrawal or complete provider coverage. Existing scheduled renewals refresh
+optional observations, while unrelated main commits do not become changed solely
+because the fixed source bundle omits this derived target.
+
+The maintained snapshot codec has a finite 180-second validation harness ceiling.
+The previous 60-second budget failed during a real retained-checkpoint decode and
+re-encode. Provider request deadlines, artifact/record byte bounds, Brotli window
+checks, original observation expiry and cancellation checks remain independent.
+Optional source failure does not prevent publication of the canonical bundle.
+The generated Core fixture is produced by `projectListingObservation` and the same
+target builder, then signed and reopened through the real cache in the Core test;
+its synthetic fixed clock is not a live provider or production acceptance claim.
 
 ## Optional research-progress observations
 

@@ -240,6 +240,19 @@ export function sameTargets(a: Record<string, string>, b: Record<string, string>
   return keys.join("\n") === Object.keys(b).sort().join("\n") && keys.every((k) => a[k] === b[k]);
 }
 
+/** The sole dynamic descriptive target is derived after the conditional build.
+ * Scheduled/manual publications refresh its existing observer input; canonical
+ * input changes are also detected by the public-catalog source fingerprint. */
+export function sameStaticPublicationTargets(
+  bundle: Record<string, string>,
+  published: Record<string, string>,
+) {
+  const previous = { ...published };
+  if (!Object.hasOwn(bundle, "policy/official/catalog.listings.json"))
+    delete previous["policy/official/catalog.listings.json"];
+  return sameTargets(bundle, previous);
+}
+
 /** True when the published timestamp is absent or expires within `hours`. */
 export function renewalDue(site: string | null, now: Date, hours: number) {
   if (!site || !existsSync(path.join(site, "metadata", "timestamp.json"))) return true;
@@ -317,10 +330,12 @@ async function main(argv: string[]) {
     write(path.join(work, "context.json"), contextConfig(work, new Date()));
     write(path.join(work, "assembly.json"), assemblyConfig);
   } else if (command === "unchanged") {
-    // Prints true when the published site already serves exactly this bundle.
+    // Compare fixed reviewed inputs; the sole derived listing target refreshes on the existing cadence.
     const site = flag(args, "prior");
     const published = site === "none" || !existsSync(site) ? {} : publishedTargets(site);
-    console.log(String(sameTargets(bundleTargets(flag(args, "bundle")), published)));
+    console.log(
+      String(sameStaticPublicationTargets(bundleTargets(flag(args, "bundle")), published)),
+    );
   } else if (command === "renewal-due") {
     const site = flag(args, "prior");
     console.log(

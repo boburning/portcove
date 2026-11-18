@@ -106,6 +106,19 @@ jobs:
       - name: Build the catalog tools
         if: steps.decide.outputs.publish == 'true'
         run: cargo build --locked --release -p portcove-cli -p portcove-release-tools
+      - name: Project completed shared observations into the existing descriptive target
+        if: steps.decide.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          node scripts/listing-observation-delivery.mts \
+            --bundle release/catalog-publication/bundle \
+            --canonical crates/portcove-core/catalog/listings.json \
+            --catalog crates/portcove-core/catalog/catalog.json \
+            --prior "$PRIOR" --output "$RUNNER_TEMP/observation-bundle" \
+            --cli target/release/portcove --tools target/release/portcove-release-tools \
+            --root crates/portcove-core/catalog/official-definition-root.json \
+            --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json
+          echo "BUNDLE=$RUNNER_TEMP/observation-bundle/bundle" >> "$GITHUB_ENV"
       - name: Inspect the bundle and plan the next versions
         id: prepare
         if: steps.decide.outputs.publish == 'true'
@@ -117,13 +130,14 @@ jobs:
             XDG_CONFIG_HOME="$scratch/config" XDG_CACHE_HOME="$scratch/cache" \
             XDG_DATA_HOME="$scratch/data" XDG_STATE_HOME="$scratch/state" \
             target/release/portcove --json catalog inspect-definition-publication \
-            release/catalog-publication/bundle > "$RUNNER_TEMP/inspection.stdout"
+            "$BUNDLE" > "$RUNNER_TEMP/inspection.stdout"
           node scripts/catalog-publish.mts prepare --work "$RUNNER_TEMP/catalog-work" \
             --root crates/portcove-core/catalog/official-definition-root.json \
             --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json \
-            --bundle release/catalog-publication/bundle \
+            --bundle "$BUNDLE" \
             --inspection-stdout "$RUNNER_TEMP/inspection.stdout" \
             --prior "$PRIOR" >> "$GITHUB_OUTPUT"
+          cp "$RUNNER_TEMP/observation-bundle/report.json" "$RUNNER_TEMP/catalog-work/observation-projection.json"
           mkdir -p "$RUNNER_TEMP/catalog-tools"
           cp target/release/portcove-release-tools "$RUNNER_TEMP/catalog-tools/"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

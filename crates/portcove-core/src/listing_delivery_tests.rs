@@ -763,3 +763,60 @@ async fn signed_shared_observation_reopens_into_offline_preliminary_download_bro
     );
     assert!(service.catalog().port("new-unmanaged-port").is_err());
 }
+
+#[tokio::test]
+async fn observer_produced_target_reaches_signed_cache_and_preliminary_browse_without_a_route_grant()
+ {
+    // Node's maintained contract recreates these exact bytes through the real
+    // projectListingObservation and publication builder, from synthetic provider
+    // facts. The fixed source clock is explicit; no fresh/live upstream claim.
+    let produced: Value = serde_json::from_str(include_str!(
+        "testdata/listing-observation-delivery.generated.json"
+    ))
+    .unwrap();
+    assert_eq!(produced["directory"]["format_version"], 11);
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let root = publish(&fixture, &key, 1, &produced).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let service = PortcoveService::new(Library::open(library.root()).unwrap()).unwrap();
+    let listing = service.catalog().listing("new-unmanaged-port").unwrap();
+    assert!(
+        listing.implementation.is_none(),
+        "format-11 readers never meet the new inert key"
+    );
+    assert!(service.catalog().port("new-unmanaged-port").is_err());
+    let provider = crate::GithubReleaseProvider::with_api_root("https://api.github.com").unwrap();
+    let at = |value| {
+        time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339).unwrap()
+    };
+    let (candidates, coverage, _, selected) = provider
+        .observed_catalog_download_options(
+            listing,
+            None,
+            crate::ReleaseChannel::Stable,
+            None,
+            at("2026-11-10T01:00:00Z"),
+        )
+        .unwrap();
+    assert_eq!(selected, Some(7));
+    assert_eq!(
+        candidates[0].asset_id,
+        crate::CatalogDownloadAssetId::Github(11)
+    );
+    assert!(!coverage.release_history_complete);
+    assert!(
+        provider
+            .observed_catalog_download_options(
+                listing,
+                None,
+                crate::ReleaseChannel::Stable,
+                None,
+                at("2026-11-11T01:00:00Z")
+            )
+            .is_none(),
+        "expiry cannot be advanced by signed delivery or cache reads"
+    );
+}
