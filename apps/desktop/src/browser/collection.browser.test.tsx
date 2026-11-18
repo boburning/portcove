@@ -10,6 +10,7 @@ import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import App from "../App";
+import { navigationScope } from "../focus";
 import { PortBrowser } from "../components/PortBrowser";
 import { desktopApi } from "../api";
 import { artworkState } from "../test-fixtures";
@@ -505,8 +506,12 @@ it.each(["dark", "light"])(
     await page.viewport(390, 844);
     await mount(theme);
     const navigation = page.getByRole("button", { name: "Open navigation", exact: true });
-    if (navigation.query()) await navigation.click();
+    await navigation.click();
     await page.getByRole("button", { name: "Discover", exact: true }).click();
+    // Let the narrow navigation dialog finish its normal focus return before a
+    // new collection operation takes ownership of the workspace.
+    await expect.poll(() => navigationScope()).toBe(document);
+    await expect.element(navigation).toHaveFocus();
     const order = [2, 6, 10, 4, 8, 5, 9, 0, 1, 3, 7, 11].map((index) => [`collection-${index}`]);
     await inspectDiscoverGroups(order, (card) => {
       const left = card.getBoundingClientRect().left;

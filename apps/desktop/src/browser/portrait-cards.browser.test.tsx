@@ -972,10 +972,10 @@ it("contains both staggered originals in an actual narrow App hero and Library",
     );
     document.documentElement.dataset.theme = "dark";
     await expect
-      .poll(() =>
-        document.querySelector(`.collection-entry button[data-detail-game-id="${port.id}"]`),
-      )
+      .poll(() => document.querySelector("[data-virtual-collection=library]"))
       .not.toBeNull();
+    // This exact title can begin outside the narrow Library's mounted window.
+    await mountLibraryPort(port.id);
     const identity = document.querySelector<HTMLButtonElement>(
       `.collection-entry button[data-detail-game-id="${port.id}"]`,
     )!;

@@ -385,9 +385,9 @@ it.each(["Library", "Discover"])("names and restores the known %s origin", async
   const back = page.getByRole("button", { name: `Back to ${origin}`, exact: true });
   await expect.element(back).toBeVisible();
   await back.click();
-  expect(document.activeElement?.getAttribute("data-detail-origin")).toMatch(
-    new RegExp(`^${origin === "Library" ? "library" : "catalog"}:`),
-  );
+  await expect
+    .poll(() => document.activeElement?.getAttribute("data-detail-origin"))
+    .toMatch(new RegExp(`^${origin === "Library" ? "library" : "catalog"}:`));
 });
 
 it("clears search inline, returns focus and retains the declared platform constraint", async () => {

@@ -696,13 +696,37 @@ for (const theme of ["dark", "light"]) {
     await mount(theme, "collection", 11);
     await page.getByRole("button", { name: "Discover", exact: true }).click();
     await expect.poll(() => document.querySelectorAll(".collection-art").length).toBe(11);
-    const group = discoverGroupForPort("collection-1");
-    const artwork = group.querySelector<HTMLElement>(".collection-art")!;
-    const ordinary = artwork.getBoundingClientRect();
+    const ordinary = discoverGroupForPort("collection-1")
+      .querySelector<HTMLElement>(".collection-art")!
+      .getBoundingClientRect();
     document.documentElement.style.fontSize = "32px";
+    // Font reflow can replace complete virtual rows. Wait for current DOM to
+    // settle, then resolve the logical group instead of retaining its old node.
     await expect
-      .poll(() => artwork.getBoundingClientRect().width)
-      .toBeLessThanOrEqual(Math.max(ordinary.width, 260));
+      .poll(async () => {
+        const group = discoverGroupForPort("collection-1");
+        const artwork = group.querySelector<HTMLElement>(".collection-art")!;
+        const before = artwork.getBoundingClientRect();
+        await act(async () => {
+          await new Promise(requestAnimationFrame);
+          await new Promise(requestAnimationFrame);
+        });
+        const after = artwork.getBoundingClientRect();
+        return (
+          artwork.isConnected &&
+          group === discoverGroupForPort("collection-1") &&
+          before.width === after.width &&
+          before.height === after.height &&
+          after.width > 0 &&
+          after.width <= Math.max(ordinary.width, 260)
+        );
+      })
+      .toBe(true);
+    const group = await mountDiscoverPort("collection-1");
+    const artwork = group.querySelector<HTMLElement>(".collection-art")!;
+    expect(artwork.getBoundingClientRect().width).toBeLessThanOrEqual(
+      Math.max(ordinary.width, 260),
+    );
     expect(
       artwork.getBoundingClientRect().height / artwork.getBoundingClientRect().width,
     ).toBeCloseTo(1.5);
