@@ -2661,7 +2661,10 @@ links, and new names on the reviewed loader-read list in
 proxy DLLs (`dinput8`, `d3d9`, `d3d11`, `dxgi`, `dsound`, `winmm`, `version`,
 `xinput1_3` and similar), `ReShade.ini`, `dxvk.conf`, `enblocal.ini`, the
 NES/SNES-recomp developer-listener switch `debug.ini`, and
-`*.exe.config`, `*.exe.manifest` and `*.exe.local`, case-insensitively. The
+`*.exe.config`, Mono `*.dll.config`, `*.exe.manifest` and `*.exe.local`,
+case-insensitively. Mono's per-assembly configuration can redirect native
+library loading; ordinary `.config` files and backup suffixes are not added
+to the loader-read list. The
 list also covers Godot `override.cfg`, CPython `pyvenv.cfg` and `*._pth`, .NET
 `*.runtimeconfig.dev.json`, numbered proxies such as `xaudio2_9` and
 `d3dcompiler_47`, and undeclared portable markers (`portable.txt` and the

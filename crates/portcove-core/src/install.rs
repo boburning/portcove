@@ -5342,6 +5342,9 @@ const LOADER_CONFIG_NAMES: &[&str] = &[
 /// - `*.exe.config`: .NET application configuration, which can redirect
 ///   assembly binding and probing (learn.microsoft.com, "Configuring apps by
 ///   using configuration files").
+/// - `*.dll.config`: Mono per-assembly configuration can redirect P/Invoke
+///   library loading (mono-project.com, "Interop with Native Libraries",
+///   "Library Names").
 /// - `*.exe.manifest`: an external side-by-side application manifest the
 ///   Windows loader reads for DLL activation contexts (learn.microsoft.com,
 ///   "Application manifests").
@@ -5361,6 +5364,7 @@ pub(crate) fn is_loader_sensitive_name(name: &std::ffi::OsStr) -> bool {
         || PORTABLE_MARKER_NAMES.contains(&name.as_str())
         || [
             ".exe.config",
+            ".dll.config",
             ".exe.manifest",
             ".exe.local",
             ".runtimeconfig.dev.json",
@@ -7415,6 +7419,7 @@ mod tests {
             "enblocal.ini",
             "debug.ini",
             "game.exe.config",
+            "Engine.DLL.CONFIG",
             "Game.exe.manifest",
             "game.exe.local",
         ] {
@@ -7458,6 +7463,8 @@ mod tests {
             "DXVK.conf",
             "enblocal.ini",
             "Game.exe.config",
+            "Engine.dll.config",
+            "ENGINE.DLL.CONFIG",
             "game.EXE.manifest",
             "game.exe.local",
             "override.cfg",
@@ -7485,6 +7492,9 @@ mod tests {
             "reshadepreset.ini",
             "dxvk.conf.txt",
             ".exe.config",
+            ".dll.config",
+            "engine.dll.config.bak",
+            "engine.dll.config.json",
             "app.config",
             "enbseries.ini",
             "xaudio2_.ini",
