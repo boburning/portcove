@@ -21,10 +21,10 @@ export const externalLeadLists = [
   },
   {
     id: "recompsoftware",
-    url: "https://raw.githubusercontent.com/andrewnakas/recompsoftware/main/data/projects/games.json",
     format: "recompsoftware-json",
     cap: 8 * 1024 * 1024,
     revision_repository: "andrewnakas/recompsoftware",
+    repository_id: 1418451069,
     revision_path: "data/projects/games.json",
     reviewed_revision: "e981757f31fdb58b85e546069cf303daac56cc61",
   },
@@ -330,7 +330,7 @@ export function parseRecompSoftwareCatalog(text: string): ParsedExternalList {
   return { entries: [...entries.values()].sort((a, b) => a.key.localeCompare(b.key)), unlinked };
 }
 
-/** Revision is resolved before the bounded raw read; URLs never follow mutable main afterward. */
+/** Revision is resolved before the bounded raw read; The raw read uses the immutable revision. */
 export function bindExternalListSource(
   parsed: ParsedExternalList,
   text: string,
