@@ -282,7 +282,7 @@ it("keeps an unfamiliar phase neutral and preserves its exact copied log", async
   vi.spyOn(desktopApi, "activityDiagnostic").mockResolvedValue(capture);
   await root.rerender(<ActivityDiagnostic activityId="owned" generation={1} />);
   await open();
-  expect(host.querySelector("h3")?.textContent).toBe("Preparation log");
+  expect(host.querySelector("h4")?.textContent).toBe("Preparation log");
   expect(host.textContent).not.toContain("Game setup");
   await click("Copy retained log");
   expect(JSON.parse(vi.mocked(copyText).mock.calls.at(-1)![0])).toEqual(capture);
@@ -453,7 +453,7 @@ it("shows the preparation log in the current language and keeps captured output 
     await root.rerender(<ActivityDiagnostic activityId="owned" generation={1} />);
     expect(host.querySelector("summary")?.textContent).toBe("عرض سجل التحضير");
     await open();
-    await expect.poll(() => host.querySelector("h3")?.textContent).toBe("تشغيل إعداد اللعبة");
+    await expect.poll(() => host.querySelector("h4")?.textContent).toBe("إعداد اللعبة");
     expect(host.textContent).toContain("حُذف بعض الإخراج لأنه تجاوز حد الالتقاط البالغ");
     const fields = [...host.querySelectorAll<HTMLTextAreaElement>("textarea")];
     expect(fields.map((field) => field.value)).toEqual([
@@ -511,7 +511,13 @@ it("keeps retained log recovery and manual copy in the actual Activity task deta
       .element(row.getByRole("textbox", { name: "Preparation standard output", exact: true }))
       .toHaveValue(capture[0].stdout.text);
     await expect
-      .element(row.getByRole("heading", { name: "Game setup", exact: true }))
+      .element(row.getByRole("heading", { name: "Game setup", level: 4, exact: true }))
+      .toBeVisible();
+    await expect
+      .element(row.getByRole("heading", { name: "Standard output", level: 5, exact: true }))
+      .toBeVisible();
+    await expect
+      .element(row.getByRole("heading", { name: "Standard error", level: 5, exact: true }))
       .toBeVisible();
     expect(row.element().textContent).toContain("Both output streams ended.");
     expect(row.element().textContent).not.toContain("Running game setup");

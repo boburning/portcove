@@ -119,13 +119,13 @@ function ActivityDiagnosticSession({
       {capture?.map((phase) => (
         <section key={phase.phase} className="mt-4 grid min-w-0 gap-3">
           <div className="grid gap-1">
-            <h3 className="text-sm font-semibold">
+            <h4 className="text-sm font-semibold">
               {phase.phase === "preparation.extract"
                 ? t("diagnostic.phase.extract")
                 : phase.phase === "preparation.setup"
                   ? t("diagnostic.phase.setup")
                   : t("diagnostic.phase.other")}
-            </h3>
+            </h4>
             <p>{phase.complete ? t("diagnostic.complete") : t("diagnostic.incomplete")}</p>
             {(phase.stdout.truncated || phase.stderr.truncated) && (
               <p>{t("diagnostic.truncated", { limit: formatBytes(phase.stream_limit_bytes) })}</p>
@@ -137,14 +137,14 @@ function ActivityDiagnosticSession({
             </p>
           </div>
           <div className="grid min-w-0 gap-1">
-            <h4 className="text-xs font-semibold">{t("diagnostic.stdout")}</h4>
+            <h5 className="text-xs font-semibold">{t("diagnostic.stdout")}</h5>
             <ReadOnlyTextField
               label={t("diagnostic.stdoutLabel")}
               value={phase.stdout.text || t("diagnostic.stdoutEmpty")}
             />
           </div>
           <div className="grid min-w-0 gap-1">
-            <h4 className="text-xs font-semibold">{t("diagnostic.stderr")}</h4>
+            <h5 className="text-xs font-semibold">{t("diagnostic.stderr")}</h5>
             <ReadOnlyTextField
               label={t("diagnostic.stderrLabel")}
               value={phase.stderr.text || t("diagnostic.stderrEmpty")}
