@@ -1,4 +1,21 @@
 {
   "format_version": 1,
-  "entries": []
+  "entries": [
+    {
+      "port_id": "timesplitters-gtteancum-timesplitters",
+      "platform": "windows-x86-64",
+      "sha256": "c61f695ee3e96943aefbbcc48fd961b29505403908e51696d3bf62fa2827381e",
+      "rules": 2,
+      "reason": "The Windows ZIP includes the separately published matching v1.1 native Xbox port build as a setup companion. The flagged Xbox program has identical bytes in both packages. The required retail original is a PS2 disc supplied by the player.",
+      "evidence": "https://github.com/boburning/portcove/issues/3047"
+    },
+    {
+      "port_id": "midtown-madness-3-static-recompilation-taxidriverhk-midtown-madness-3",
+      "platform": "windows-x86-64",
+      "sha256": "f600f2d5080172fcfff6824e15c25c274bbc9c233db1d3d057ecbe3ab96d70c2",
+      "rules": 2,
+      "reason": "The only signal is xboxrecomp/tools/conformance/test.xbe, the 4,176-byte SYNTH test fixture. The member hash matches the test fixture in the exact v0.1.0 xboxrecomp submodule revision.",
+      "evidence": "https://github.com/boburning/portcove/issues/3455"
+    }
+  ]
 }
