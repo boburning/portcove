@@ -1,5 +1,6 @@
+import { mountCollectionDestination, hasCollectionNavigation } from "../../collection-navigation";
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { focusAndReveal, focusRegion } from "../../focus";
+import { focusAndReveal, focusRegion, navigationScope } from "../../focus";
 import { scrollWorkspaceTo, workspaceScrollTop } from "../../workspace-scroll";
 import type { DetailDestination } from "../../view-model";
 import type { DetailOpening } from "../game-details/detail-sections";
@@ -11,6 +12,7 @@ type DetailReturn = {
   originKey: string | undefined;
   ancestorOriginKey: string | undefined;
   scrollTop: number;
+  viewportTop: number | undefined;
   token: number;
 };
 
@@ -20,6 +22,22 @@ export function useDetailWorkspaceNavigation(
   availablePortIds?: ReadonlySet<string>,
 ) {
   const sequence = useRef(0);
+  const restoring = useRef(false);
+  useEffect(() => {
+    const cancel = () => {
+      if (restoring.current) {
+        ++sequence.current;
+        restoring.current = false;
+      }
+    };
+    for (const name of ["pointerdown", "keydown", "wheel", "touchstart"])
+      document.addEventListener(name, cancel, true);
+    return () => {
+      cancel();
+      for (const name of ["pointerdown", "keydown", "wheel", "touchstart"])
+        document.removeEventListener(name, cancel, true);
+    };
+  }, []);
   const current = useRef<DetailReturn | undefined>(undefined);
   const [opening, setOpening] = useState<DetailOpening>();
   const openingToken = opening?.token;
@@ -43,6 +61,7 @@ export function useDetailWorkspaceNavigation(
           exactTrigger?.parentElement?.closest<HTMLElement>("[data-detail-origin]")?.dataset
             .detailOrigin,
         scrollTop: workspaceScrollTop(workspace.current),
+        viewportTop: trigger?.getBoundingClientRect().top,
         token,
       };
       scrollWorkspaceTo(workspace.current, 0);
@@ -77,8 +96,33 @@ export function useDetailWorkspaceNavigation(
       current.current = undefined;
       setOpening(undefined);
       setSelectedId(undefined);
-      window.requestAnimationFrame(() => {
-        if (sequence.current !== transition || current.current) return;
+      restoring.current = true;
+      const restore = async () => {
+        const active = document.activeElement;
+        const valid = () =>
+          sequence.current === transition &&
+          !current.current &&
+          document.activeElement === active &&
+          navigationScope() === document;
+        if (!valid()) return;
+        const element = workspace.current;
+        if (
+          element &&
+          !(await mountCollectionDestination(
+            element,
+            {
+              originKey: origin.originKey,
+              portId: origin.returnPortId,
+              groupKey: origin.groupKey,
+              scrollTop: origin.scrollTop,
+              viewportTop: origin.viewportTop,
+            },
+            valid,
+          ))
+        )
+          return;
+        if (!valid()) return;
+        restoring.current = false;
         const target = origin.originKey
           ? document.querySelector<HTMLElement>(
               `[data-detail-origin="${CSS.escape(origin.originKey)}"]`,
@@ -108,9 +152,13 @@ export function useDetailWorkspaceNavigation(
         ) {
           disclosure.open = true;
         }
-        scrollWorkspaceTo(workspace.current, origin.scrollTop);
+        if (!element || !hasCollectionNavigation(element))
+          scrollWorkspaceTo(workspace.current, origin.scrollTop);
         if (returnTarget) focusAndReveal(returnTarget);
         else focusRegion("workspace");
+      };
+      window.requestAnimationFrame(() => {
+        void restore();
       });
     },
     [setSelectedId, workspace],
@@ -127,6 +175,7 @@ export function useDetailWorkspaceNavigation(
   const invalidate = useCallback(() => {
     const origin = current.current;
     ++sequence.current;
+    restoring.current = false;
     current.current = undefined;
     setOpening(undefined);
     return origin;

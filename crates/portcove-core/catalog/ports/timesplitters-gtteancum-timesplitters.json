@@ -16,7 +16,7 @@
     "project_url": "https://github.com/GTTeancum/Timesplitters",
     "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64", "linux-x86-64"],
-    "availability": "unknown",
+    "availability": "packages",
     "setup_url": "https://github.com/GTTeancum/Timesplitters",
     "manual_setup": {
       "steps": [
@@ -33,7 +33,17 @@
         "The project describes native recompilation with four-player multiplayer screenshots and controller/save claims. Linux was tested under WSL.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/GTTeancum/Timesplitters"
+      "help_url": "https://github.com/GTTeancum/Timesplitters",
+      "references": [
+        {
+          "title": "Prepare your disc once and keep the memory cards",
+          "instruction": "Open timesplitters.exe on Windows or ./timesplitters on Linux from the extracted folder. Put your own USA SLUS-200.90 PS2 dump in that folder. Choose Launch game to extract it on the first run. Later launches reuse game-data. Keep all of game-data, including mc0 and mc1, and keep timesplitters.ini when you replace the upstream package. The Linux build needs glibc 2.43 or later, OpenGL 3.3 and X11."
+        },
+        {
+          "title": "Start directly using saved Linux settings",
+          "instruction": "After completing upstream setup, use ./timesplitters --no-launcher to resume with the saved settings. Open ./timesplitters without the switch to return to the settings launcher."
+        }
+      ]
     },
     "issue_number": 3047,
     "original_game": {
@@ -50,6 +60,11 @@
           ]
         }
       ]
+    },
+    "release_url": "https://github.com/GTTeancum/Timesplitters/releases/tag/v1.1",
+    "download_asset_hints": {
+      "windows-x86-64": ["TimeSplitters-Recomp-", "windows.zip"],
+      "linux-x86-64": ["TimeSplitters-Recomp-", "linux-x86_64.tar.gz"]
     }
   },
   "upstream_lineage": {
