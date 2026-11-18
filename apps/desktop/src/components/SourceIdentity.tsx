@@ -306,7 +306,7 @@ function ApplicationResult({
           data-focusable
           className="cursor-pointer py-3 font-medium text-pc-interactive-foreground"
         >
-          File details and test results
+          Test results for this port
         </summary>
         <small className="text-[var(--color-text-muted)]">
           {application.contract.authority_ref}

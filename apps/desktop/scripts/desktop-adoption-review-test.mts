@@ -93,7 +93,7 @@ export async function adoptionReviewScenario({
     const { button, click } = reviewControls(browser);
     const dialog = By.css('[aria-labelledby="adopt-title"]');
     await click(button("Add games"));
-    await click(By.css('button[aria-label="Use an existing installation"]'));
+    await click(button("Use an existing installation"));
     const trigger = button("Copy an existing installation");
     await click(trigger);
     await browser.wait(until.elementLocated(dialog), 15_000);
