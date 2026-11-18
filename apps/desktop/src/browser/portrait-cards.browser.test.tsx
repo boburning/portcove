@@ -2,15 +2,21 @@ import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { act, useState } from "react";
 import { cleanup, render } from "vitest-browser-react/pure";
+import App from "../App";
 import { GameHero } from "../components/GameHero";
 import { PortBrowser } from "../components/PortBrowser";
 import { ArtworkProvider } from "../artwork";
 import { desktopApi } from "../api";
 import { artworkState, portDefinition, portStatus } from "../test-fixtures";
-import { install } from "../dev-scenarios/interactive/scenarios";
+import { install, workspace } from "../dev-scenarios/interactive/scenarios";
+import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
+import { initializeLocalization, LocalizationProvider } from "../localization";
 import type { PortStatus, PortDefinition } from "../types";
 import { useGamepadNavigation } from "../gamepad";
 import { captureTargetScreenshot } from "./capture-target";
+import { captureParityState } from "../../test/parity-capture";
+
+let transport: ReturnType<typeof installInteractiveTransport> | undefined;
 
 const names = [
   "Ready game",
@@ -65,12 +71,41 @@ const statuses = new Map<string, PortStatus>(
 
 afterEach(async () => {
   await cleanup();
+  transport?.dispose();
+  transport = undefined;
+  document.getElementById("root")?.remove();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   delete document.documentElement.dataset.theme;
   delete document.documentElement.dataset.inputMode;
   document.documentElement.style.removeProperty("font-size");
+  localStorage.clear();
 });
+
+async function expectContainedOriginals(frame: HTMLElement, count: number) {
+  await expect
+    .poll(
+      () =>
+        [...frame.querySelectorAll("img")].filter(
+          (image) => image.complete && image.naturalWidth > 0,
+        ).length,
+    )
+    .toBe(count);
+  const bounds = frame.getBoundingClientRect();
+  expect(bounds.width).toBeGreaterThan(0);
+  expect(bounds.height).toBeGreaterThan(0);
+  for (const image of frame.querySelectorAll("img")) {
+    const box = image.getBoundingClientRect();
+    const evidence = JSON.stringify({
+      frame: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+      image: { x: box.x, y: box.y, width: box.width, height: box.height },
+    });
+    expect(box.left, evidence).toBeGreaterThanOrEqual(bounds.left - 1);
+    expect(box.right, evidence).toBeLessThanOrEqual(bounds.right + 1);
+    expect(box.top, evidence).toBeGreaterThanOrEqual(bounds.top - 1);
+    expect(box.bottom, evidence).toBeLessThanOrEqual(bounds.bottom + 1);
+  }
+}
 
 it.for(["paired", "unavailable", "local"] as const)(
   "renders a combined Discover entry with %s covers",
@@ -166,6 +201,7 @@ it.for(["paired", "unavailable", "local"] as const)(
       Math.abs(left.width - right.width) < 1,
     );
     expect(staggered).toBe(mode === "paired");
+    await expectContainedOriginals(frame, mode === "paired" ? 2 : 1);
   },
 );
 
@@ -762,6 +798,11 @@ it.for([2, 4] as const)(
       await expect.poll(() => img.naturalWidth).toBeGreaterThan(0);
       expect(getComputedStyle(img).objectFit).toBe("contain");
     }
+    const hero = document.querySelector<HTMLElement>(".game-hero-collection")!;
+    const library = document.querySelector<HTMLElement>(".port-card-library .collection-art")!;
+    await expectContainedOriginals(frame, count);
+    await expectContainedOriginals(hero, count);
+    await expectContainedOriginals(library, count);
     expect(frame.dataset.artworkSource).toBe("igdb_cover_collection");
     expect(desktopApi.collectionCoverThumbnail).toHaveBeenCalledTimes(count);
     for (const cover of covers)
@@ -779,14 +820,116 @@ it.for([2, 4] as const)(
     );
     await page.viewport(390, 844);
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390);
+    await expectContainedOriginals(frame, count);
+    await expectContainedOriginals(hero, count);
+    await expectContainedOriginals(library, count);
     await captureTargetScreenshot(
       frame,
       `../../../../outputs/uiux-game-titles/collection-${count}-narrow.png`,
       `collection-${count}-narrow`,
       context,
     );
+    await captureTargetScreenshot(
+      hero,
+      `../../../../outputs/uiux-game-titles/collection-${count}-narrow-hero.png`,
+      `collection-${count}-narrow-hero`,
+      context,
+    );
   },
 );
+
+it("contains both staggered originals in an actual narrow App hero and Library", async () => {
+  await page.viewport(430, 780);
+  initializeLocalization(["en"]);
+  const snapshot = workspace("collection");
+  const port = snapshot.catalog.ports[0]!;
+  const covers = [1, 2].map((index) => ({
+    game_id: index,
+    cover_id: index,
+    image_id: `paired-fixture-${index}`,
+    image_sha256: index.toString().repeat(64),
+    game_slug: `paired-fixture-${index}`,
+    match_kind: "underlying-game" as const,
+  }));
+  port.presentation = { ...port.presentation!, collection_covers: covers };
+  transport = installInteractiveTransport("collection", (message) => {
+    throw new Error(message);
+  });
+  vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+  vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) => artworkState(id, slot, 3));
+  const thumbnails = vi
+    .spyOn(desktopApi, "collectionCoverThumbnail")
+    .mockImplementation(async (_id, digest) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 160;
+      canvas.height = 240;
+      const ink = canvas.getContext("2d")!;
+      ink.fillStyle = digest === covers[0]!.image_sha256 ? "#9e443f" : "#536a7a";
+      ink.fillRect(0, 0, canvas.width, canvas.height);
+      ink.strokeStyle = "white";
+      ink.lineWidth = 6;
+      ink.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+      ink.fillStyle = "white";
+      ink.font = "bold 16px sans-serif";
+      ink.fillText("SYNTHETIC", 12, 105);
+      ink.fillText(`MEMBER ${digest[0]}`, 12, 130);
+      return {
+        asset_sha256: digest,
+        choice_revision: 3,
+        png_base64: canvas.toDataURL("image/png").split(",")[1]!,
+      };
+    });
+  const root = document.createElement("div");
+  root.id = "root";
+  document.body.append(root);
+  await render(
+    <LocalizationProvider api={desktopApi}>
+      <App />
+    </LocalizationProvider>,
+    { container: root },
+  );
+  document.documentElement.dataset.theme = "dark";
+  await expect
+    .poll(() =>
+      document.querySelector(`.collection-entry button[data-detail-game-id="${port.id}"]`),
+    )
+    .not.toBeNull();
+  const identity = document.querySelector<HTMLButtonElement>(
+    `.collection-entry button[data-detail-game-id="${port.id}"]`,
+  )!;
+  const card = identity.closest<HTMLElement>(".collection-entry")!;
+  const library = card.querySelector<HTMLElement>(".collection-art")!;
+  library.scrollIntoView({ block: "center" });
+  await expectContainedOriginals(library, 2);
+  document.documentElement.dataset.theme = "dark";
+  await captureParityState("paired-originals-narrow-library");
+  await page.elementLocator(identity).click();
+  await expect
+    .poll(() => document.querySelector(".game-hero-detail .game-hero-collection"))
+    .not.toBeNull();
+  const hero = document.querySelector<HTMLElement>(".game-hero-detail .game-hero-collection")!;
+  hero.scrollIntoView({ block: "center", inline: "nearest" });
+  await expectContainedOriginals(hero, 2);
+  const bounds = hero.getBoundingClientRect();
+  expect(bounds.width).toBeCloseTo(288, 0);
+  expect(bounds.height).toBeCloseTo(144, 0);
+  expect(bounds.top).toBeGreaterThanOrEqual(0);
+  expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(innerWidth);
+  const [first, second] = [...hero.querySelectorAll("img")].map((image) => {
+    const box = image.getBoundingClientRect();
+    expect(box.width / box.height).toBeCloseTo(image.naturalWidth / image.naturalHeight, 2);
+    return box;
+  });
+  expect(first!.top).toBeLessThan(second!.top);
+  expect(first!.right).toBeLessThan(second!.left);
+  for (const cover of covers)
+    expect(thumbnails).toHaveBeenCalledWith(port.id, cover.image_sha256, 3, 1);
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+  document.documentElement.dataset.theme = "dark";
+  await captureParityState("paired-originals-narrow-app-hero");
+});
 
 it.for(["local", "unavailable-local", "partial"] as const)(
   "preserves collection precedence and degradation: %s",
