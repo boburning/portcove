@@ -334,6 +334,65 @@ export function VirtualCollectionRows({
     const token = ++work.current;
     mounting.current = token;
     const requested = model.current;
+    // Temporary bounded fresh-cache diagnostic; remove after hosted trace capture.
+    const debug = (phase: string, extra: Record<string, unknown> = {}) => {
+      if (!document.getElementById("DEBUG-perf-mount")) return;
+      const owner = latest.current.geometry.owner;
+      const items = latest.current.virtualizer.getVirtualItems();
+      const index = discoverDestinationIndex(model.current.groups, target);
+      const rowIndex = index < 0 ? -1 : Math.floor(index / latest.current.geometry.columns);
+      const neighbors = [rowIndex - 2, rowIndex - 1, rowIndex].map((index) => {
+        const row = element.querySelector<HTMLElement>(`[data-collection-row="${index}"]`);
+        const item = items.find((item) => item.index === index);
+        return {
+          index,
+          model: item && { key: item.key, start: item.start, size: item.size },
+          dom: row && {
+            connected: row.isConnected,
+            top: row.getBoundingClientRect().top,
+            height: row.getBoundingClientRect().height,
+            styleTop: row.style.top,
+          },
+        };
+      });
+      element.dispatchEvent(
+        new CustomEvent("DEBUG-perf-mount", {
+          bubbles: true,
+          detail: {
+            phase,
+            token,
+            epoch,
+            intent: intent.current,
+            work: work.current,
+            target,
+            generation: requested.generation,
+            queryKey: requested.queryKey,
+            ready: model.current.ready,
+            owner: owner === document.scrollingElement ? "document" : owner?.tagName,
+            scroll: owner?.scrollTop,
+            maximum: owner ? owner.scrollHeight - owner.clientHeight : undefined,
+            geometry: {
+              columns: latest.current.geometry.columns,
+              margin: latest.current.geometry.margin,
+              width: latest.current.geometry.width,
+            },
+            rangeCount: items.length,
+            range: items
+              .slice(0, 12)
+              .map(({ index, key, start, size }) => ({ index, key, start, size })),
+            neighbors,
+            viewport: { width: innerWidth, height: innerHeight },
+            ownerBounds: owner && {
+              top: owner.getBoundingClientRect().top,
+              bottom: owner.getBoundingClientRect().bottom,
+              clientHeight: owner.clientHeight,
+            },
+            ...extra,
+          },
+        }),
+      );
+    };
+    debug("start");
     setDestinationPin(undefined);
     latest.current.virtualizer.cancelScroll();
     const eligible = () =>
@@ -352,9 +411,21 @@ export function VirtualCollectionRows({
     const accepted = model.current;
     const valid = () => eligible() && accepted.structure === model.current.structure;
     const index = discoverDestinationIndex(accepted.groups, target);
+    debug("resolved", {
+      index,
+      group: accepted.groups[index]?.id,
+      rowIndex: index < 0 ? undefined : Math.floor(index / latest.current.geometry.columns),
+      branch:
+        target.viewportTop !== undefined
+          ? "viewport"
+          : target.scrollTop !== undefined
+            ? "scroll"
+            : "index",
+    });
     if (index < 0 && (target.originKey || target.portId || target.groupKey)) {
       if (target.scrollTop !== undefined) scrollWorkspaceTo(workspace(), target.scrollTop);
       if (mounting.current === token) mounting.current = 0;
+      debug("unresolved-return", { valid: valid() });
       return valid();
     }
     if (index >= 0) accepted.onMountDestination?.(accepted.groups[index]!, target);
@@ -377,12 +448,28 @@ export function VirtualCollectionRows({
             ? undefined
             : element.querySelector<HTMLDivElement>(`[data-collection-row="${rowIndex}"]`);
         if (rowIndex !== undefined && !row) continue;
+        const rowObservation = () => ({
+          connected: row?.isConnected,
+          index: row?.dataset.collectionRow,
+          top: row?.getBoundingClientRect().top,
+          height: row?.getBoundingClientRect().height,
+          styleTop: row?.style.top,
+          cards: [...(row?.querySelectorAll<HTMLElement>("[data-detail-return-group]") ?? [])]
+            .slice(0, 4)
+            .map((card) => ({
+              group: card.dataset.detailReturnGroup,
+              top: card.getBoundingClientRect().top,
+              height: card.getBoundingClientRect().height,
+            })),
+        });
+        debug("before-measure", { row: rowObservation() });
         if (row) latest.current.virtualizer.measureElement(row);
         latest.current.virtualizer.cancelScroll();
         // Measurement changes TanStack's model before React commits the matching
         // row position. Read the anchor only after that measured commit.
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         if (!valid()) break;
+        debug("measured-commit", { valid: valid(), row: rowObservation() });
         if (row && !row.isConnected) continue;
         let aligned: (() => boolean) | undefined;
         if (target.viewportTop !== undefined && row) {
@@ -399,6 +486,14 @@ export function VirtualCollectionRows({
           if (anchor && owner) {
             const viewportTop = target.viewportTop;
             const desired = owner.scrollTop + anchor.getBoundingClientRect().top - viewportTop;
+            debug("align", {
+              row: rowObservation(),
+              group: card?.dataset.detailReturnGroup,
+              anchor: anchor.dataset.detailOrigin ?? anchor.dataset.detailReturnGroup,
+              top: anchor.getBoundingClientRect().top,
+              viewportTop,
+              desired,
+            });
             owner.scrollTo({ top: desired });
             aligned = () => {
               if (!anchor.isConnected || latest.current.geometry.owner !== owner) return false;
@@ -417,14 +512,29 @@ export function VirtualCollectionRows({
         if (!valid()) break;
         // Newly visible rows may replace estimates after the scroll. Acknowledge
         // the current committed offset, or measure/correct again while still owned.
-        if ((!row || row.isConnected) && (!aligned || aligned())) return true;
+        const alignment = aligned?.();
+        const acknowledged = (!row || row.isConnected) && (alignment ?? true);
+        debug("decision", {
+          valid: valid(),
+          row: rowObservation(),
+          alignment,
+          acknowledged,
+        });
+        if (acknowledged) return true;
       }
       return false;
     } finally {
+      debug("finally");
       if (mounting.current === token) mounting.current = 0;
       if (work.current === token) latest.current.virtualizer.cancelScroll();
       requestAnimationFrame(() => {
-        if (mounted.current && work.current === token) setDestinationPin(undefined);
+        if (mounted.current && work.current === token) {
+          debug("release-pin");
+          setDestinationPin(undefined);
+          requestAnimationFrame(() => {
+            if (mounted.current && work.current === token) debug("released-pin-commit");
+          });
+        }
       });
     }
   }, []);

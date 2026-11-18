@@ -248,19 +248,69 @@ it("uses document scrolling when the workspace is in narrow flow", async () => {
 });
 
 it("restores a reading game's viewport offset across a fresh measurement cache", async () => {
-  await render("rows");
-  await mountDestination({ portId: "game-1200" });
-  await act(async () => details(1200)!.focus());
-  const anchor = captureCollectionDestination(workspace)!;
-  const top = card(1200)!.getBoundingClientRect().top;
-  const scrollTop = workspace.scrollTop;
-  await act(async () => root.render(<Fixture key="new-measurements" layout="rows" />));
-  workspace = host.querySelector("main")!;
-  await frames();
-  expect(await mountDestination({ ...anchor, scrollTop })).toBe(true);
-  expect(Math.abs(card(1200)!.getBoundingClientRect().top - top)).toBeLessThan(1);
-  await frames();
-  expect(Math.abs(card(1200)!.getBoundingClientRect().top - top)).toBeLessThan(1);
+  const marker = document.createElement("div");
+  marker.id = "DEBUG-perf-mount";
+  marker.hidden = true;
+  document.body.append(marker);
+  const events: unknown[] = [];
+  let dropped = 0;
+  const record = (value: unknown) => {
+    if (events.length < 64) events.push(value);
+    else dropped++;
+  };
+  const listen = (event: Event) => record((event as CustomEvent<unknown>).detail);
+  document.addEventListener("DEBUG-perf-mount", listen);
+  const observe = (phase: string, extra: Record<string, unknown> = {}) => {
+    const current = card(1200);
+    record({
+      phase,
+      scroll: workspace?.scrollTop,
+      maximum: workspace ? workspace.scrollHeight - workspace.clientHeight : undefined,
+      card: current && {
+        connected: current.isConnected,
+        group: current.dataset.detailReturnGroup,
+        top: current.getBoundingClientRect().top,
+        height: current.getBoundingClientRect().height,
+        row: current.closest<HTMLElement>("[data-collection-row]")?.dataset.collectionRow,
+      },
+      active: (document.activeElement as HTMLElement | null)?.dataset.detailOrigin,
+      ...extra,
+    });
+  };
+  const trace = () => `[DEBUG-perf-mount] ${JSON.stringify({ events, dropped })}`;
+  try {
+    await render("rows");
+    const initial = await mountDestination({ portId: "game-1200" });
+    observe("initial-mount-result", { accepted: initial });
+    await act(async () => details(1200)!.focus());
+    const anchor = captureCollectionDestination(workspace)!;
+    const top = card(1200)!.getBoundingClientRect().top;
+    const scrollTop = workspace.scrollTop;
+    observe("captured", { anchor, top, scrollTop });
+    await act(async () => root.render(<Fixture key="new-measurements" layout="rows" />));
+    workspace = host.querySelector("main")!;
+    await frames();
+    observe("fresh-before-mount");
+    const destination = { ...anchor, scrollTop };
+    const accepted = await mountDestination(destination);
+    observe("fresh-mount-result", { accepted, destination });
+    const acknowledgedOffset = Math.abs(card(1200)!.getBoundingClientRect().top - top);
+    await frames();
+    observe("post-ack-frames");
+    const settledOffset = Math.abs(card(1200)!.getBoundingClientRect().top - top);
+    await frames();
+    observe("later-frames");
+    expect(accepted, trace()).toBe(true);
+    expect(acknowledgedOffset, trace()).toBeLessThan(1);
+    expect(settledOffset, trace()).toBeLessThan(1);
+  } catch (error) {
+    observe("failure");
+    throw error;
+  } finally {
+    document.removeEventListener("DEBUG-perf-mount", listen);
+    marker.remove();
+    console.info(trace());
+  }
 });
 
 it("waits for the accepted deferred query before mounting a restored destination", async () => {
