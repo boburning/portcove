@@ -113,11 +113,15 @@ void test("the workflow installs the locked dependencies its script imports befo
   assert.ok(run > install, "dependencies must be installed before the script runs");
   assert.match(workflow, /--ignore-scripts/u);
   assert.match(workflow, /--ignore-pnpmfile/u);
+  assert.match(workflow, /types: \[synchronize, reopened, ready_for_review\]/u);
+  const ci = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  assert.match(ci, /^run-name: .*github.event_name == 'pull_request' && format\('CI for pull request \{0\}', github.event.pull_request.number\)/mu);
 });
 
-void test("runs GitHub left without pull_requests match by head branch and repository", () => {
-  const bare = (id: number, branch: string, repository: string) => ({
+void test("runs without pull_requests must match the CI run name, branch, and repository", () => {
+  const bare = (id: number, branch: string, repository: string, title = "CI for pull request 7") => ({
     id,
+    display_title: title,
     head_branch: branch,
     head_repository: { full_name: repository },
     pull_requests: [],
@@ -129,6 +133,8 @@ void test("runs GitHub left without pull_requests match by head branch and repos
       bare(5, "feature/x", "fork/repo"),
       bare(6, "other", "owner/repo"),
       bare(9, "feature/x", "owner/repo"),
+      bare(10, "feature/x", "owner/repo", "CI for pull request 8"),
+      bare(2, "feature/x", "owner/repo", "Legacy PR title"),
     ],
   };
   assert.equal(ownRunId(listing, pull), 9);

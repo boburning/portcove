@@ -2461,7 +2461,7 @@ const workflowTests = new Map([
     ["scripts/updater-artifact-inventory.test.mts", "scripts/release-payload-signing.test.mts"],
   ],
   ["pr-conventions.yml", ["scripts/pr-conventions.test.mts"]],
-  ["closing-inventory.yml", ["scripts/pr-delivery.test.mts"]],
+  ["closing-inventory.yml", ["scripts/pr-delivery.test.mts", "scripts/pr-conventions.test.mts"]],
   ["ci-supersede.yml", ["scripts/ci-supersede.test.mts"]],
 ]);
 

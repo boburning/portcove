@@ -23,7 +23,8 @@ jobs:
   inventory:
     name: closing-inventory
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Keep the original inventory time allowance plus the bounded advisory step.
+    timeout-minutes: 13
     steps:
       - name: Check out the trusted base contract
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -37,9 +38,19 @@ jobs:
         with:
           node-version-file: .node-version
       - name: Install trusted locked metadata dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - name: Compare GitHub's closing inventory with the body keywords
+        id: inventory
+        timeout-minutes: 3
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: node scripts/closing-inventory.mts
+      - name: Report advisory PR conventions
+        if: ${{ !cancelled() && (steps.inventory.outcome == 'success' || steps.inventory.outcome == 'failure') }}
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node scripts/pr-conventions.mts --pr "$PR_NUMBER"

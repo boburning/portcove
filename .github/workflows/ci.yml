@@ -1,4 +1,7 @@
 name: CI
+# The Actions API can omit pull_requests. Give direct PR runs a stable identity that
+# the trusted supersession helper can read without guessing from a shared head branch.
+run-name: ${{ github.event_name == 'pull_request' && format('CI for pull request {0}', github.event.pull_request.number) || 'CI' }}
 
 on:
   pull_request:

@@ -2,7 +2,8 @@ name: PR conventions (advisory)
 
 on:
   pull_request_target:
-    types: [opened, edited, synchronize, reopened, converted_to_draft, ready_for_review]
+    # Closing inventory reports conventions on the other automatic PR events.
+    types: [converted_to_draft]
   workflow_dispatch:
     inputs:
       pr_number:
@@ -35,7 +36,7 @@ jobs:
         with:
           node-version-file: .node-version
       - name: Install trusted locked metadata dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - name: Report advisory findings
         env:
           GH_TOKEN: ${{ github.token }}

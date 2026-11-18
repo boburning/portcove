@@ -5,16 +5,17 @@ import { GitHubApiError, sanitizeOperationError } from "./github-operation.mts";
 
 const repository = "boburning/portcove";
 const root = `https://api.github.com/repos/${repository}/actions`;
-const activeStatuses = ["queued", "in_progress", "waiting"] as const;
+const activeStatuses = ["requested", "queued", "pending", "in_progress", "waiting"] as const;
 
 interface RunRef {
   id: number;
   pullRequests: number[];
+  displayTitle: string | undefined;
   headBranch: string | undefined;
   headRepository: string | undefined;
 }
 
-/** The pull request a run belongs to; runs GitHub left without `pull_requests` match by head branch and repository. */
+/** The pull request that supplied the event. */
 export interface PullRequestIdentity {
   number: number;
   headRef?: string | undefined;
@@ -25,6 +26,7 @@ function belongs(run: RunRef, pull: PullRequestIdentity) {
   if (run.pullRequests.includes(pull.number)) return true;
   return (
     run.pullRequests.length === 0 &&
+    run.displayTitle === `CI for pull request ${pull.number}` &&
     pull.headRef !== undefined &&
     pull.headRepository !== undefined &&
     run.headBranch === pull.headRef &&
@@ -45,6 +47,7 @@ function runRefs(value: unknown): RunRef[] {
       pullRequests: pulls.flatMap((pull: unknown) =>
         isRecord(pull) && typeof pull.number === "number" ? [pull.number] : [],
       ),
+      displayTitle: typeof run.display_title === "string" ? run.display_title : undefined,
       headBranch: typeof run.head_branch === "string" ? run.head_branch : undefined,
       headRepository: typeof repository === "string" ? repository : undefined,
     };
@@ -216,11 +219,12 @@ async function main() {
       return { consumeBytes() {}, settle() {} };
     },
   });
+  const branch = pull.headRef ? `&branch=${encodeURIComponent(pull.headRef)}` : "";
   const list = async (query: string) =>
     (
       await sdk.request({
         method: "GET",
-        url: `${root}/workflows/ci.yml/runs?event=pull_request&${query}&per_page=100`,
+        url: `${root}/workflows/ci.yml/runs?event=pull_request${branch}&${query}&per_page=100`,
         request: { portcove: { replay: "safe-read", attempts: 0 } },
       })
     ).data as unknown;
@@ -281,8 +285,7 @@ async function main() {
     });
     return;
   }
-  const listings: unknown[] = [];
-  for (const status of activeStatuses) listings.push(await list(`status=${status}`));
+  const listings = await Promise.all(activeStatuses.map((status) => list(`status=${status}`)));
   for (const run of supersededRunIds(listings, own, pull)) {
     console.log(`Cancelling superseded run ${run}`);
     try {
