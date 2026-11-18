@@ -355,14 +355,14 @@ describe("per-game install folder", () => {
         onChanged={changed}
       />,
     );
-    const caption = fixtureValue(container.querySelector("code"), "current folder caption");
+    const readStatus = page.getByText("Loading current folder…", { exact: true }).element();
     const input = fixtureValue(container.querySelector("input"), "folder draft input");
-    expect(caption.textContent).toBe("Loading current folder…");
+    expect(readStatus.textContent).toBe("Loading current folder…");
     expect(input.disabled).toBe(true);
     await act(async () => {
       initial.reject(new Error("Current folder read failed"));
     });
-    expect(caption.textContent).toBe("Current folder unavailable");
+    expect(readStatus.textContent).toBe("Current folder unavailable");
     expect(document.body.textContent).toContain("Current folder read failed");
     expect(input.disabled).toBe(true);
     expect(button("Review future folder").disabled).toBe(true);
@@ -382,7 +382,7 @@ describe("per-game install folder", () => {
     expect(document.activeElement).toBe(retry);
     await click("Reading current folder…");
     expect(read).toHaveBeenCalledTimes(2);
-    expect(caption.textContent).toBe("Loading current folder…");
+    expect(readStatus.textContent).toBe("Loading current folder…");
     expect(document.body.textContent).not.toContain("Current folder read failed");
     expect(input.disabled).toBe(true);
     await act(async () => {
@@ -390,7 +390,7 @@ describe("per-game install folder", () => {
     });
     expect(document.activeElement).toBe(retry);
     expect(button("Retry current folder")).toBe(retry);
-    expect(caption.textContent).toBe("Current folder unavailable");
+    expect(readStatus.textContent).toBe("Current folder unavailable");
     expect(document.body.textContent).toContain("Retry read failed");
     await click("Retry current folder");
     expect(read).toHaveBeenCalledTimes(3);
@@ -401,6 +401,7 @@ describe("per-game install folder", () => {
       reloaded.resolve(defaultLocation("sample", currentPath));
       await reloaded.promise;
     });
+    const caption = fixtureValue(container.querySelector("code"), "loaded current folder path");
     expect(caption.textContent).toBe(currentPath);
     expect(document.activeElement).toBe(caption);
     expect(retry.isConnected).toBe(false);
@@ -427,6 +428,128 @@ describe("per-game install folder", () => {
     expect(reset).not.toHaveBeenCalled();
     expect(move).not.toHaveBeenCalled();
     expect(changed).not.toHaveBeenCalled();
+  });
+
+  it("preserves a same-session draft and ignores a held read after the folder scope changes", async () => {
+    const oldGeneration = deferred<PortOutputLocation>();
+    const currentScope = deferred<PortOutputLocation>();
+    const initialPath = "F:/Recorded/Sample";
+    const draft = "G:/Unsubmitted/Sample";
+    const stalePath = "H:/Departed/Sample";
+    const currentPath = "I:/Recorded/Other";
+    const read = vi
+      .spyOn(desktopApi, "outputLocation")
+      .mockResolvedValueOnce(defaultLocation("sample", initialPath))
+      .mockReturnValueOnce(oldGeneration.promise)
+      .mockReturnValueOnce(currentScope.promise);
+    const changed = vi.fn();
+    const applying = vi.fn();
+    const replacementChanged = vi.fn();
+    const replacementApplying = vi.fn();
+    const expectLoading = () => {
+      expect(page.getByText("Loading current folder…", { exact: true }).element().textContent).toBe(
+        "Loading current folder…",
+      );
+      const input = fixtureValue(container.querySelector("input"), "new-session folder draft");
+      expect(input.value).toBe("");
+      expect(input.disabled).toBe(true);
+      expect(container.querySelector("code")).toBeNull();
+      expect(button("Review future folder").disabled).toBe(true);
+    };
+    try {
+      await render(
+        <OutputLocationControl
+          portId="sample"
+          generation={7}
+          onChanged={changed}
+          onApplying={applying}
+        />,
+      );
+      await changePath(draft);
+      await render(
+        <OutputLocationControl
+          portId="sample"
+          generation={7}
+          busy="Owned parent operation"
+          onChanged={replacementChanged}
+          onApplying={replacementApplying}
+        />,
+      );
+      const sameSession = fixtureValue(
+        container.querySelector("input"),
+        "same-session folder draft",
+      );
+      expect(sameSession.value).toBe(draft);
+      expect(sameSession.disabled).toBe(true);
+      expect(read).toHaveBeenCalledExactlyOnceWith("sample", 7);
+      expect(desktopApi.outputRelocationStatus).toHaveBeenCalledExactlyOnceWith("sample", 7);
+      await render(
+        <OutputLocationControl
+          portId="sample"
+          generation={7}
+          onChanged={replacementChanged}
+          onApplying={replacementApplying}
+        />,
+      );
+      expect(sameSession.value).toBe(draft);
+      expect(sameSession.disabled).toBe(false);
+      expect(read).toHaveBeenCalledTimes(1);
+      expect(desktopApi.previewOutputLocation).toHaveBeenCalledExactlyOnceWith(
+        "sample",
+        initialPath,
+        7,
+      );
+
+      // No caller key: the public control owns the port/generation session boundary.
+      await render(<OutputLocationControl portId="sample" generation={8} />);
+      expectLoading();
+      expect(document.body.textContent).not.toContain(initialPath);
+      expect(read).toHaveBeenCalledTimes(2);
+      expect(read).toHaveBeenLastCalledWith("sample", 8);
+      await render(<OutputLocationControl portId="other" generation={8} />);
+      expectLoading();
+      expect(read).toHaveBeenCalledTimes(3);
+      expect(read).toHaveBeenLastCalledWith("other", 8);
+      await act(async () => {
+        oldGeneration.resolve(defaultLocation("sample", stalePath));
+        await oldGeneration.promise;
+      });
+      expectLoading();
+      expect(document.body.textContent).not.toContain(stalePath);
+      expect(read).toHaveBeenCalledTimes(3);
+      expect(desktopApi.previewOutputLocation).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        currentScope.resolve(defaultLocation("other", currentPath));
+        await currentScope.promise;
+      });
+      expect(container.querySelector("code")?.textContent).toBe(currentPath);
+      const currentInput = fixtureValue(
+        container.querySelector("input"),
+        "current-scope folder draft",
+      );
+      expect(currentInput.value).toBe(currentPath);
+      expect(currentInput.disabled).toBe(false);
+      expect(document.body.textContent).not.toContain(stalePath);
+      expect(read.mock.calls).toEqual([
+        ["sample", 7],
+        ["sample", 8],
+        ["other", 8],
+      ]);
+      expect(desktopApi.outputRelocationStatus).toHaveBeenCalledTimes(3);
+      expect(desktopApi.previewOutputLocation).toHaveBeenCalledTimes(2);
+      expect(desktopApi.previewOutputLocation).toHaveBeenLastCalledWith("other", currentPath, 8);
+      expect(changed).not.toHaveBeenCalled();
+      expect(replacementChanged).not.toHaveBeenCalled();
+      expect(applying).not.toHaveBeenCalled();
+      expect(replacementApplying).not.toHaveBeenCalled();
+    } finally {
+      // Release and join both owned reads even if an earlier assertion interrupts the case.
+      await act(async () => {
+        oldGeneration.resolve(defaultLocation("sample", stalePath));
+        currentScope.resolve(defaultLocation("other", currentPath));
+        await Promise.all([oldGeneration.promise, currentScope.promise]);
+      });
+    }
   });
 
   it("keeps keyboard focus outside the folder control when a held retry succeeds", async () => {
@@ -476,7 +599,9 @@ describe("per-game install folder", () => {
     expect(document.activeElement).toBe(keepReading.element());
     expect(help.element().contains(document.activeElement)).toBe(true);
     expect(retry.isConnected).toBe(true);
-    expect(container.querySelector("code")?.textContent).toBe("Current folder unavailable");
+    expect(
+      page.getByText("Current folder unavailable", { exact: true }).element().textContent,
+    ).toBe("Current folder unavailable");
     expect(read).toHaveBeenCalledTimes(2);
   });
 

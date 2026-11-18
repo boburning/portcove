@@ -1,6 +1,14 @@
 import { countMessage } from "../localization";
 import { ActionRow, MetadataGrid } from "./ui/patterns";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { AlertTriangle, FolderOpen, HardDrive, RotateCcw, ShieldCheck } from "lucide-react";
 import { desktopApi } from "../api";
 import { pickGameOutputFolder } from "../file-picker";
@@ -43,21 +51,29 @@ function OutputFact({ label, children }: { label: string; children: ReactNode })
   );
 }
 
-export function OutputLocationControl({
-  portId,
-  gameName,
-  generation,
-  busy,
-  onChanged,
-  onApplying,
-}: {
+type OutputLocationProps = {
   portId: string;
   gameName?: string | undefined;
   generation: number;
   busy?: string | undefined;
   onChanged?: (() => void) | undefined;
   onApplying?: (applying: boolean) => void;
-}) {
+};
+
+export function OutputLocationControl(props: OutputLocationProps) {
+  return (
+    <BoundOutputLocationControl key={JSON.stringify([props.portId, props.generation])} {...props} />
+  );
+}
+
+function BoundOutputLocationControl({
+  portId,
+  gameName,
+  generation,
+  busy,
+  onChanged,
+  onApplying,
+}: OutputLocationProps) {
   const [location, setLocation] = useState<PortOutputLocation>();
   const [draft, setDraft] = useState("");
   const [currentPreview, setCurrentPreview] = useState<OutputDestinationPreview>();
@@ -127,8 +143,6 @@ export function OutputLocationControl({
         ? { request: currentRequest, scope: navigationScope(), removedWhileFocused: false }
         : undefined;
       currentInspection.current += 1;
-      setPending("load");
-      setError(undefined);
       void Promise.all([
         desktopApi.outputLocation(portId, generation),
         desktopApi.outputRelocationStatus(portId, generation),
@@ -150,18 +164,21 @@ export function OutputLocationControl({
     [generation, inspectCurrentDestination, portId],
   );
 
+  const finishApplying = useEffectEvent(() => {
+    if (!applying.current) return;
+    applying.current = false;
+    onApplying?.(false);
+  });
+
   useEffect(() => {
     loadLocation();
     return () => {
       request.current += 1;
       currentInspection.current += 1;
       loadFocusRequest.current = undefined;
-      if (applying.current) {
-        applying.current = false;
-        onApplying?.(false);
-      }
+      finishApplying();
     };
-  }, [loadLocation, onApplying]);
+  }, [loadLocation]);
 
   useLayoutEffect(() => {
     if (pending === "load") return;
@@ -367,16 +384,21 @@ export function OutputLocationControl({
           {source}
         </span>
       </div>
-      <code
-        ref={currentFolder}
-        tabIndex={-1}
-        dir="ltr"
-        className={outputCodeClass}
-        title={location?.effective_output_directory}
-      >
-        {location?.effective_output_directory ??
-          (pending === "load" ? "Loading current folder…" : "Current folder unavailable")}
-      </code>
+      {location ? (
+        <code
+          ref={currentFolder}
+          tabIndex={-1}
+          dir="ltr"
+          className={outputCodeClass}
+          title={location.effective_output_directory}
+        >
+          {location.effective_output_directory}
+        </code>
+      ) : (
+        <p className="m-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2 text-xs text-[var(--color-interactive-text)]">
+          {pending === "load" ? "Loading current folder…" : "Current folder unavailable"}
+        </p>
+      )}
       {!location && (
         <ActionRow>
           <Button
@@ -387,7 +409,10 @@ export function OutputLocationControl({
             aria-busy={pending === "load"}
             focusableWhenDisabled={pending === "load"}
             onClick={() => {
-              if (pending !== "load") loadLocation(true);
+              if (pending === "load") return;
+              setPending("load");
+              setError(undefined);
+              loadLocation(true);
             }}
           >
             <Icon glyph={RotateCcw} />
