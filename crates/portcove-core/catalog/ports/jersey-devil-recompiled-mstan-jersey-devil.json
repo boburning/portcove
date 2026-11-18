@@ -7,7 +7,8 @@
     "summary": "Prepare your own USA Jersey Devil disc with the publisher’s Windows x64 player (v0.3.3) or Linux x86-64 AppImage (v0.3.2). Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/mstan/JerseyDevilRecomp",
     "platforms": [
-      "windows-x86-64"
+      "windows-x86-64",
+      "linux-x86-64"
     ],
     "availability": "packages",
     "setup_url": "https://github.com/mstan/JerseyDevilRecomp",

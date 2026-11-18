@@ -36054,7 +36054,8 @@
       "summary": "Prepare your own USA Jersey Devil disc with the publisher’s Windows x64 player (v0.3.3) or Linux x86-64 AppImage (v0.3.2). Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/mstan/JerseyDevilRecomp",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/mstan/JerseyDevilRecomp",
@@ -40243,8 +40244,11 @@
       "original_game_title": "Mario Kart 8 Deluxe",
       "project_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp",
       "listed_at": "2026-10-25",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp/releases",
       "artwork": {
         "game_id": 26764,
