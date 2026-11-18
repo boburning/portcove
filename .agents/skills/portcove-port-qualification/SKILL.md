@@ -20,8 +20,10 @@ Use `route_facts_v1` for a reviewed Windows prepared player basename,
 executable-parent working directory, literal arguments and external data
 locations. Prepared-player facts can also describe the independent external
 route of a staged-source archive. The optional `managed_native` subshape covers
-NativePortable GitHub integrations without a Core source binding. Keep upstream
-original-file setup, bespoke actions and immediate warnings explicit.
+NativePortable GitHub integrations with no Core source binding or with a source
+profile, nonempty runtime source set and explicit managed setup. Follow the
+[managed-native requirements and example](../../../docs/CATALOG.md#choose-a-reusable-authoring-route).
+Keep upstream original-file setup, bespoke actions and immediate warnings explicit.
 
 Use `gba_staged_archive_v1` separately for the managed Windows staged GitHub
 archive with the reviewed GBA picker and writer layout. Supply the game code and

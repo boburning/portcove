@@ -3,7 +3,7 @@
   "listing": {
     "id": "final-fantasy-resonance-ffresonancerecomp",
     "name": "FINAL FANTASY RESONANCE (FFResonanceRecomp)",
-    "summary": "An experimental FINAL FANTASY RESONANCE port running statically rewritten ARM64 code on Apple Silicon with nxnative-based NVN-to-Metal support. The project reports early title, story, town and battle play at 60 FPS. Eight of 73496 shaders fail; compute effects are missing, night scenes are dark and crashes remain possible. There are no releases. The make build source route needs Xcode MetalToolchain, Homebrew, .NET, Python and 60 GB of space, with an estimated two-hour first shader build. Only Apple Silicon M1+ with macOS 26+ is supported; Intel Mac, Windows and Linux are explicitly unsupported. Use your own base NSP 0100606026F12000 and 1.0.1 update NSP 0100606026F12800 v65536, plus prod.keys. Rewritten code, shaders and icons stay local. Firmware needs, region and hashes are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "An early FINAL FANTASY RESONANCE port for Apple silicon Macs on macOS 26 or later. Build locally with your own Switch game and 1.0.1 update. The project reports early town and battle play. Missing effects, dark night scenes and crashes remain.",
     "original_game_title": "FINAL FANTASY RESONANCE",
     "project_url": "https://github.com/tomasvivaldi/FFResonanceRecomp",
     "listed_at": "2026-10-25",
@@ -18,7 +18,27 @@
       "game_slug": "final-fantasy-resonance",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2953
+    "issue_number": 2953,
+    "manual_setup": {
+      "help_url": "https://github.com/tomasvivaldi/FFResonanceRecomp",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Use your own base NSP 0100606026F12000 and 1.0.1 update NSP 0100606026F12800 v65536, plus prod.keys. The project has not confirmed firmware needs, region or file hashes."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Follow the project’s make build instructions on an M1 or later Mac. Install the Xcode Metal toolchain, Homebrew, .NET and Python and allow 60 GB of disk space. The first shader build is estimated at two hours. Keep the rewritten game code, shaders and icons on your own device."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The project reports early play at 60 FPS with eight shader failures out of 73,496. It offers no release package and excludes Intel Mac, Windows and Linux."
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
