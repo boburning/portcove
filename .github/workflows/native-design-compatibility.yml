@@ -5,14 +5,14 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: ecwolf-public-originals-${{ github.ref }}
+  group: teeworlds-native-client-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  ecwolf-windows-lifecycle:
+  teeworlds-windows-lifecycle:
     runs-on: windows-2022
     timeout-minutes: 30
     env:
-      PORTCOVE_PRODUCT_SOURCE: d458d1a47c0736235ae6f949b41e3831e6f0ce47
+      PORTCOVE_PRODUCT_SOURCE: ea0a65e61a025776c9d58d549696175b12a69659
       PORTCOVE_CONTROLLER_SOURCE: ${{ github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -26,51 +26,35 @@ jobs:
           git diff --exit-code
           if($LASTEXITCODE -ne 0){throw 'Controller is dirty'}
           $root=Join-Path 'C:\pcv' "$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
-          $native=Join-Path $root 'evidence/desktop-verify/ecwolf/native'
+          $native=Join-Path $root 'evidence/desktop-verify/teeworlds/native'
           New-Item -ItemType Directory -Path $native | Out-Null
           $session=@{controller=$env:PORTCOVE_CONTROLLER_SOURCE;product=$env:PORTCOVE_PRODUCT_SOURCE;run=$env:GITHUB_RUN_ID;attempt=$env:GITHUB_RUN_ATTEMPT;os=[Environment]::OSVersion.VersionString;os_arch=[Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();process_arch=[Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString();session=[Diagnostics.Process]::GetCurrentProcess().SessionId;interactive=[Environment]::UserInteractive;powershell=$PSVersionTable.PSVersion.ToString();image=$env:ImageVersion}
           $session|ConvertTo-Json|Set-Content (Join-Path $native 'session.json') -Encoding utf8
           if(-not $session.interactive -or $session.session -le 0){throw 'No existing interactive session: no native acceptance performed'}
           $roaming=[Environment]::GetFolderPath([Environment+SpecialFolder]::ApplicationData)
-          "ECWOLF_KNOWN_ROAMING=$roaming\ECWolf"|Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          Add-Type @'
-          using System;
-          using System.Runtime.InteropServices;
-          public static class ECWolfFolders {
-            [DllImport("shell32.dll")] static extern int SHGetKnownFolderPath(ref Guid id, uint flags, IntPtr token, out IntPtr path);
-            public static string SavedGames() {
-              var id = new Guid("4C5C32FF-BB9D-43B0-B5B4-2D72E54EAAA4");
-              IntPtr p; int code=SHGetKnownFolderPath(ref id,0x8000,IntPtr.Zero,out p);
-              if(code!=0) Marshal.ThrowExceptionForHR(code);
-              try{return Marshal.PtrToStringUni(p);}finally{Marshal.FreeCoTaskMem(p);}
-            }
-          }
-          '@
-          $saves=[ECWolfFolders]::SavedGames()
-          if(-not [IO.Path]::IsPathFullyQualified($saves)){throw 'Saved Games Known Folder unavailable'}
-          "ECWOLF_KNOWN_SAVES=$saves\ECWolf"|Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "TEEWORLDS_KNOWN_ROAMING=$roaming\Teeworlds"|Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: d458d1a47c0736235ae6f949b41e3831e6f0ce47
+          ref: ea0a65e61a025776c9d58d549696175b12a69659
           path: product
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .node-version
           package-manager-cache: false
-      - name: Verify the ordinary producer and public original inputs
+      - name: Verify the ordinary producer and complete upstream client package
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if((git -C product rev-parse HEAD) -ne $env:PORTCOVE_PRODUCT_SOURCE){throw 'Product source differs'}
-          node scripts/ecwolf-hosted-input.mjs
+          node scripts/teeworlds-hosted-input.mjs
           if($LASTEXITCODE -ne 0){throw 'Input binding failed; no game executed'}
       - name: Execute exact Core CLI and real game lifecycle with native admission
         shell: pwsh
         run: |
-          $root=(Get-Content -Raw ecwolf-native-root.txt).Trim()
-          node scripts/ecwolf-hosted-admission.mjs (Join-Path $root 'native-config.json')
+          $root=(Get-Content -Raw teeworlds-native-root.txt).Trim()
+          node scripts/teeworlds-hosted-admission.mjs (Join-Path $root 'native-config.json')
           if($LASTEXITCODE -ne 0){throw 'Native lifecycle incomplete or failed; inspect retained evidence'}
       - name: Retain bounded real evidence in ordinary job logs
         if: always()
