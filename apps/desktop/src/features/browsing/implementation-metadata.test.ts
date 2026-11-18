@@ -9,6 +9,7 @@ import { evaluateCatalogQuery } from "./catalog-query";
 import { portDefinition } from "../../test-fixtures";
 import type { CatalogEntry } from "./catalog-entry";
 import type { PortListing } from "../../types";
+import { catalogEntries } from "./catalog-entry";
 
 function realEntry(id: string): CatalogEntry {
   const authored = JSON.parse(
@@ -79,6 +80,48 @@ it("keeps absent, malformed and future optional metadata unavailable without hid
       dependencies: [],
     }),
   ).toBeUndefined();
+});
+it("uses effective Core listing corrections and clears without restoring managed presentation", () => {
+  const original = realEntry("zelda64-recomp");
+  const definition = portDefinition();
+  definition.id = original.id;
+  definition.presentation = {
+    ...definition.presentation!,
+    implementation: original.presentation?.implementation,
+  };
+  const catalog = { schema_version: 1, ports: [definition], source_profiles: [] };
+  const definitionOnly = catalogEntries(catalog, undefined, [], [])[0]!;
+  expect(implementationMethodKinds(definitionOnly)).toEqual(["static-recompilation"]);
+  for (const correction of [
+    { value: undefined, kinds: [] },
+    { value: null, kinds: [] },
+    { value: { format_version: 999, methods: [], dependencies: [] }, kinds: [] },
+    {
+      value: {
+        format_version: 1,
+        methods: [{ kind: "source-port", evidence_urls: ["https://example.com/correction"] }],
+        dependencies: [],
+      },
+      kinds: ["source-port"],
+    },
+  ]) {
+    const effective = { ...original.listing!, implementation: correction.value };
+    const entry = catalogEntries(
+      catalog,
+      { format_version: 12, listings: [effective] },
+      [],
+      [],
+    )[0]!;
+    expect(entry.presentation?.implementation).toEqual(original.presentation?.implementation);
+    expect(implementationMethodKinds(entry)).toEqual(correction.kinds);
+    expect(
+      evaluateCatalogQuery([entry], { version: 1, implementationMethods: ["static-recompilation"] })
+        .ports,
+    ).toEqual([]);
+    expect(evaluateCatalogQuery([entry], { version: 1 }).ports).toEqual([entry]);
+    expect(entry.definition).toBe(definition);
+    expect(entry.release).toBe(definition.release);
+  }
 });
 it("represents a shared runtime independently of the original game and preserves uncertain relationships", () => {
   const runtime = {

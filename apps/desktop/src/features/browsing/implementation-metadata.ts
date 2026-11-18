@@ -87,8 +87,10 @@ export function readImplementationMetadata(value: unknown): ImplementationMetada
   return methods.length || dependencies.length ? { methods, dependencies } : undefined;
 }
 export function implementationMetadata(port: CatalogEntry) {
+  // Core's effective listing includes accepted corrections and explicit clears.
+  // Only a definition without a listing needs its presentation fallback.
   return readImplementationMetadata(
-    port.presentation?.implementation ?? port.listing?.implementation,
+    port.listing ? port.listing.implementation : port.presentation?.implementation,
   );
 }
 export function implementationMethodKinds(port: CatalogEntry): string[] {

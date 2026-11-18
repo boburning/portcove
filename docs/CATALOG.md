@@ -62,6 +62,9 @@ An accepted strict definition's explicit description takes precedence over a
 bundled description. A bundled fallback is used only for the same project URL
 and full original-game identity, so an accepted scope correction cannot inherit
 another project's or edition's explanation.
+Desktop consumes the effective Core listing when present, including a cleared or
+unsupported description. It uses definition presentation only when no listing is
+available; it cannot restore a description that Core has cleared.
 Changing only this explanatory envelope does not invalidate a retained upstream
 release observation: the observer declaration hash excludes it.
 
