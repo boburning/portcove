@@ -20,7 +20,7 @@
       "steps": [
         {
           "title": "Open the project launcher",
-          "instruction": "Extract the archive for your system and open MarioGolfRecompiled.exe on Windows or MarioGolfRecompiled on Linux from the extracted folder. Keep the assets beside the program. Linux needs glibc 2.35 or newer, a Vulkan driver, GTK 3 and FreeType."
+          "instruction": "Extract the archive for your system and open MarioGolfRecompiled.exe on Windows or MarioGolfRecompiled on Linux from the extracted folder. Keep the assets beside the program. Windows needs the Visual C++ 2015–2022 x64 Redistributable. Linux needs glibc 2.35 or newer, a Vulkan driver, GTK 3 and FreeType."
         },
         {
           "title": "Load your original game",
@@ -30,7 +30,7 @@
       "references": [
         {
           "title": "Keep your tournaments and settings",
-          "instruction": "The project uses %LOCALAPPDATA%/MarioGolfRecompiled on Windows and ~/.config/MarioGolfRecompiled on Linux by default. Keep the actual profile if you use the project’s portable.txt marker or a Linux APP_FOLDER_PATH override. The project reports resuming a saved tournament after restart. You maintain the downloaded program and should back up the profile separately."
+          "instruction": "The project uses %LOCALAPPDATA%/MarioGolfRecompiled on Windows and ~/.config/MarioGolfRecompiled on Linux by default. Keep the actual profile if you use the project’s portable.txt marker or a Linux APP_FOLDER_PATH override. The project reports that Save and Quit writes tournament progress. Resuming it after restart remains unverified. You maintain the downloaded program and should back up the profile separately."
         }
       ],
       "warnings": ["The project’s game saves and settings stay outside Portcove’s backups."]

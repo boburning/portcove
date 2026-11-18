@@ -21,7 +21,7 @@
       "steps": [
         {
           "title": "Prepare the game in Recompia",
-          "instruction": "Extract the package for your system and open its launcher. Select your own Pokémon Pokopia game data at version 2.0.1a, then choose Set up. The launcher assembles the game and translates shaders on your computer. You can pause and continue setup from the launcher."
+          "instruction": "Extract the package for your system. Open PokopiaLauncher.exe on Windows, PokopiaLauncher.AppImage on Linux, or PokopiaLauncher on Apple silicon Mac. Select your own Pokémon Pokopia game data at version 2.0.1a, then choose Set up. The launcher assembles the game and translates shaders on your computer. You can pause and continue setup from the launcher."
         },
         {
           "title": "Return to the launcher to Play",
@@ -31,7 +31,7 @@
       "references": [
         {
           "title": "Use the upstream update and save controls",
-          "instruction": "Use Recompia’s Update and Set up again controls when it asks to rebuild. Keep the save folder set in pkp.ini and any separate co-op save folders. Recompia says its update retains saves and shaders. Back them up separately from Portcove."
+          "instruction": "Use Recompia’s Update and Set up again controls when it asks to rebuild. Solo saves default to the save folder inside the game directory. Keep the actual folder if you changed save_dir in pkp.ini or set NXRT_FS_SAVE_DIR. Keep any separate co-op save folders as well. Recompia says its update retains saves and shaders. Back them up separately from Portcove."
         },
         {
           "title": "Choose the native Linux ARM64 package",

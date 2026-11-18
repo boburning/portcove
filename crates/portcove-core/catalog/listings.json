@@ -28327,7 +28327,7 @@
         "steps": [
           {
             "title": "Open the project launcher",
-            "instruction": "Extract the archive for your system and open FZeroXRecompiled.exe on Windows or FZeroXRecompiled on Linux from the extracted folder. Keep the assets beside the program. Linux needs glibc 2.35 or newer, a Vulkan driver, GTK 3 and FreeType."
+            "instruction": "Extract the archive for your system and open FZeroXRecompiled.exe on Windows or FZeroXRecompiled on Linux from the extracted folder. Keep the assets beside the program. Windows needs the Visual C++ 2015–2022 x64 Redistributable. Linux needs glibc 2.35 or newer, a Vulkan driver, GTK 3 and FreeType."
           },
           {
             "title": "Load your original game",
@@ -43886,7 +43886,7 @@
         "steps": [
           {
             "title": "Open the project launcher",
-            "instruction": "Extract the archive for your system and open MarioGolfRecompiled.exe on Windows or MarioGolfRecompiled on Linux from the extracted folder. Keep the assets beside the program. Linux needs glibc 2.35 or newer, a Vulkan driver, GTK 3 and FreeType."
+            "instruction": "Extract the archive for your system and open MarioGolfRecompiled.exe on Windows or MarioGolfRecompiled on Linux from the extracted folder. Keep the assets beside the program. Windows needs the Visual C++ 2015–2022 x64 Redistributable. Linux needs glibc 2.35 or newer, a Vulkan driver, GTK 3 and FreeType."
           },
           {
             "title": "Load your original game",
@@ -43896,7 +43896,7 @@
         "references": [
           {
             "title": "Keep your tournaments and settings",
-            "instruction": "The project uses %LOCALAPPDATA%/MarioGolfRecompiled on Windows and ~/.config/MarioGolfRecompiled on Linux by default. Keep the actual profile if you use the project’s portable.txt marker or a Linux APP_FOLDER_PATH override. The project reports resuming a saved tournament after restart. You maintain the downloaded program and should back up the profile separately."
+            "instruction": "The project uses %LOCALAPPDATA%/MarioGolfRecompiled on Windows and ~/.config/MarioGolfRecompiled on Linux by default. Keep the actual profile if you use the project’s portable.txt marker or a Linux APP_FOLDER_PATH override. The project reports that Save and Quit writes tournament progress. Resuming it after restart remains unverified. You maintain the downloaded program and should back up the profile separately."
           }
         ],
         "warnings": [
@@ -49480,7 +49480,7 @@
         "steps": [
           {
             "title": "Prepare the game in Recompia",
-            "instruction": "Extract the package for your system and open its launcher. Select your own Pokémon Pokopia game data at version 2.0.1a, then choose Set up. The launcher assembles the game and translates shaders on your computer. You can pause and continue setup from the launcher."
+            "instruction": "Extract the package for your system. Open PokopiaLauncher.exe on Windows, PokopiaLauncher.AppImage on Linux, or PokopiaLauncher on Apple silicon Mac. Select your own Pokémon Pokopia game data at version 2.0.1a, then choose Set up. The launcher assembles the game and translates shaders on your computer. You can pause and continue setup from the launcher."
           },
           {
             "title": "Return to the launcher to Play",
@@ -49490,7 +49490,7 @@
         "references": [
           {
             "title": "Use the upstream update and save controls",
-            "instruction": "Use Recompia’s Update and Set up again controls when it asks to rebuild. Keep the save folder set in pkp.ini and any separate co-op save folders. Recompia says its update retains saves and shaders. Back them up separately from Portcove."
+            "instruction": "Use Recompia’s Update and Set up again controls when it asks to rebuild. Solo saves default to the save folder inside the game directory. Keep the actual folder if you changed save_dir in pkp.ini or set NXRT_FS_SAVE_DIR. Keep any separate co-op save folders as well. Recompia says its update retains saves and shaders. Back them up separately from Portcove."
           },
           {
             "title": "Choose the native Linux ARM64 package",

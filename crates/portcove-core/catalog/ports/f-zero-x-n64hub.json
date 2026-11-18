@@ -20,7 +20,7 @@
       "steps": [
         {
           "title": "Open the project launcher",
-          "instruction": "Extract the archive for your system and open FZeroXRecompiled.exe on Windows or FZeroXRecompiled on Linux from the extracted folder. Keep the assets beside the program. Linux needs glibc 2.35 or newer, a Vulkan driver, GTK 3 and FreeType."
+          "instruction": "Extract the archive for your system and open FZeroXRecompiled.exe on Windows or FZeroXRecompiled on Linux from the extracted folder. Keep the assets beside the program. Windows needs the Visual C++ 2015–2022 x64 Redistributable. Linux needs glibc 2.35 or newer, a Vulkan driver, GTK 3 and FreeType."
         },
         {
           "title": "Load your original game",
