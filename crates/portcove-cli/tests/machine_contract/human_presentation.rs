@@ -371,27 +371,15 @@ fn setup_references_reach_human_current_and_explicit_legacy_consumers() {
 fn implementation_descriptions_export_with_an_explicit_legacy_reader_fence() {
     let temporary = tempfile::tempdir().unwrap();
     let home = temporary.path().join("isolated-home");
-    let config = home.join("config");
-    let cache = home.join("cache");
-    let data = home.join("data");
-    let state = home.join("state");
-    for directory in [&home, &config, &cache, &data, &state] {
-        std::fs::create_dir_all(directory).unwrap();
-    }
+    std::fs::create_dir_all(&home).unwrap();
     let read = |arguments: &[&str]| {
+        // The helper supplies explicit preferences and library paths. Keep
+        // platform directory discovery intact while isolating the runtime lease.
         let output = command(temporary.path())
             .env(
                 "PORTCOVE_APPLICATION_RUNTIME_LOCK",
                 home.join("application-runtime.lock"),
             )
-            .env("HOME", &home)
-            .env("USERPROFILE", &home)
-            .env("APPDATA", &config)
-            .env("LOCALAPPDATA", &cache)
-            .env("XDG_CONFIG_HOME", &config)
-            .env("XDG_CACHE_HOME", &cache)
-            .env("XDG_DATA_HOME", &data)
-            .env("XDG_STATE_HOME", &state)
             .current_dir(temporary.path())
             .args(arguments)
             .output()
