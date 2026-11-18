@@ -111,6 +111,128 @@ it.each(["dark", "light"] as const)(
   },
 );
 
+function expectManualSummaryGeometry(label: Element, direction: "ltr" | "rtl") {
+  const summary = fixtureValue(label.closest("summary"), "manual summary");
+  const text = fixtureValue(summary.querySelector<HTMLElement>(":scope > span"), "summary text");
+  const icon = fixtureValue(summary.querySelector<SVGSVGElement>(":scope > svg"), "manual chevron");
+  summary.scrollIntoView({ block: "center", behavior: "instant" });
+  const bounds = summary.getBoundingClientRect();
+  const textBounds = text.getBoundingClientRect();
+  const iconBounds = icon.getBoundingClientRect();
+  const style = getComputedStyle(summary);
+  const titleRange = document.createRange();
+  titleRange.selectNodeContents(label);
+  const firstLine = fixtureValue([...titleRange.getClientRects()][0], "first title line");
+  const trailingDistance =
+    direction === "rtl"
+      ? Math.abs(iconBounds.left - bounds.left - parseFloat(style.paddingLeft))
+      : Math.abs(bounds.right - parseFloat(style.paddingRight) - iconBounds.right);
+  expect(trailingDistance).toBeLessThanOrEqual(1);
+  expect(
+    Math.abs((iconBounds.top + iconBounds.bottom) / 2 - (firstLine.top + firstLine.bottom) / 2),
+  ).toBeLessThanOrEqual(2);
+  expect(iconBounds.width).toBeGreaterThan(0);
+  expect(iconBounds.height).toBeGreaterThan(0);
+  expect(iconBounds.left).toBeGreaterThanOrEqual(bounds.left);
+  expect(iconBounds.right).toBeLessThanOrEqual(bounds.right);
+  expect(iconBounds.top).toBeGreaterThanOrEqual(bounds.top);
+  expect(iconBounds.bottom).toBeLessThanOrEqual(bounds.bottom);
+  const textRange = document.createRange();
+  textRange.selectNodeContents(text);
+  for (const line of textRange.getClientRects()) {
+    expect(line.left).toBeGreaterThanOrEqual(textBounds.left - 1);
+    expect(line.right).toBeLessThanOrEqual(textBounds.right + 1);
+  }
+  expect(summary.scrollWidth).toBeLessThanOrEqual(summary.clientWidth + 1);
+  expect(bounds.top).toBeGreaterThanOrEqual(0);
+  expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+}
+
+it.each(
+  ([430, 960] as const).flatMap((width) =>
+    (["dark", "light"] as const).flatMap((theme) =>
+      (["ltr", "rtl"] as const).map((direction) => ({ width, theme, direction })),
+    ),
+  ),
+)(
+  "keeps actual manual summaries attached to their first text row in $theme $direction at $width",
+  async ({ width, theme, direction }) => {
+    const oldTheme = document.documentElement.dataset.theme;
+    const oldViewport = { width: innerWidth, height: innerHeight };
+    const folderError = "Owned manual-summary folder read unavailable";
+    const read = vi.spyOn(desktopApi, "outputLocation").mockRejectedValue(new Error(folderError));
+    const relocation = vi.spyOn(desktopApi, "outputRelocationStatus").mockResolvedValue(null);
+    const apply = vi
+      .spyOn(desktopApi, "setOutputLocation")
+      .mockRejectedValue(new Error("No apply expected"));
+    const reset = vi
+      .spyOn(desktopApi, "resetOutputLocation")
+      .mockRejectedValue(new Error("No reset expected"));
+    const props = {
+      ...installedSourceDetail("opengoal-jak1", "not_checked", ["preparation_required"]),
+      source: undefined,
+      sourcePath: "",
+    };
+    props.status.readiness.pending_setup = true;
+    props.actions.install = vi.fn();
+    props.actions.reviewInstall = vi.fn();
+    try {
+      await page.viewport(width, 780);
+      document.documentElement.dataset.theme = theme;
+      await render(
+        <div dir={direction} style={{ inlineSize: width === 430 ? 260 : 704 }}>
+          <DetailPanel {...props} busy="Owned operation still pending" />
+        </div>,
+      );
+      await document.fonts.ready;
+      for (const [tab, title] of [
+        ["Game files", "Game-file requirements and setup"],
+        ["Manage", "Folder for a future install"],
+        ["Manage", "Technical details"],
+      ] as const) {
+        await page.getByRole("tab", { name: tab, exact: true }).click();
+        const control = page.getByText(title, { exact: true });
+        await expect.element(control).toBeVisible();
+        const label = control.element();
+        const summary = fixtureValue(label.closest("summary"), "manual summary");
+        const details = fixtureValue(summary.closest("details"), "manual details");
+        const originalOpen = details.open;
+        expectManualSummaryGeometry(label, direction);
+        summary.focus();
+        await userEvent.keyboard("{Enter}");
+        expect(details.open).toBe(!originalOpen);
+        expect(document.activeElement).toBe(summary);
+        expectManualSummaryGeometry(label, direction);
+        await userEvent.keyboard("{Enter}");
+        expect(details.open).toBe(originalOpen);
+        expect(document.activeElement).toBe(summary);
+        expectManualSummaryGeometry(label, direction);
+        if (direction === "ltr" && tab === "Game files")
+          await captureParityState("detail-manual-requirements-trailing-chevron");
+      }
+      await page.getByText("Folder for a future install", { exact: true }).click();
+      await expect.element(page.getByText(folderError, { exact: false })).toBeVisible();
+      const technical = page.getByText("Technical details", { exact: true }).element();
+      expectManualSummaryGeometry(technical, direction);
+      if (direction === "ltr") await captureParityState("detail-manual-summary-trailing-chevron");
+      expect(apply).not.toHaveBeenCalled();
+      expect(reset).not.toHaveBeenCalled();
+      expect(props.actions.install).not.toHaveBeenCalled();
+      expect(props.actions.reviewInstall).not.toHaveBeenCalled();
+      expect(props.actions.launch).not.toHaveBeenCalled();
+      expect(props.inspectSource).not.toHaveBeenCalled();
+    } finally {
+      read.mockRestore();
+      relocation.mockRestore();
+      apply.mockRestore();
+      reset.mockRestore();
+      if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = oldTheme;
+      await page.viewport(oldViewport.width, oldViewport.height);
+    }
+  },
+);
+
 function installedSourceDetail(
   id: string,
   health: SourceHealth,

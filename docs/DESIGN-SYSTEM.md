@@ -9,6 +9,9 @@ primitive. They remain selectable, exact and left to right. Break long values
 across available lines without leaving an extended Windows prefix alone above
 the drive or UNC location. Preserve each consumer's existing typography and
 surface; this presentation rule never normalizes or changes a stored path.
+Loading and unavailable messages are ordinary UI copy, not path values. They
+use normal word wrapping; only an actual path uses code styling and forced
+left-to-right direction.
 
 ## Required-file discovery
 
@@ -34,6 +37,15 @@ Current and reviewed output destinations summarize all existing eligibility chec
 Raw filesystem availability cannot announce passed checks when ownership or
 validation refuses the folder. Full, unavailable and unknown results remain
 explicit; the host retains apply authorization and preimage checks.
+
+Install-folder reads belong to the exact port and library generation. A new
+scope starts a fresh loading session; ordinary rerenders in the same scope keep
+the player's draft. An unavailable initial read offers a read-only retry through
+the existing metadata APIs, including while unrelated work is busy. Path changes
+retain their existing review, busy and readiness guards. Loading, unavailable and
+loaded information stay distinct. Retry completion transfers focus only while
+it still owns the current navigation scope; a player who moved to another control
+or dialog keeps that focus.
 
 ## Library and Discover covers and compact rows
 
@@ -191,6 +203,11 @@ settings), including reviewed GameBanana installs for games with a binding. Vers
 checks, candidate decisions, staged activation, rollback, future preferences and
 private notice choices. Manage owns installation/location/artwork/Steam/CLI,
 verification/removal and the existing reviewed managed-route transition. Unsupported routes state their actual limits and keep upstream links.
+
+Manual disclosure summaries reserve a trailing icon column. Their title and
+secondary information wrap within the remaining text column, keeping the icon
+beside the first title line in compact, wide and right-to-left layouts. Native
+summary semantics, keyboard behavior and focus indicators remain intact.
 
 A concise attention strip exposes relevant exceptions and running work; its action
 opens the owning section. An available update does not change the current playable
