@@ -41,7 +41,8 @@
         "Keep saves with their creating game and runtime. Changing engines or game editions does not convert saved games.",
         "A profile that points outside its local autoload or music-pack folders must be preserved and corrected before Play. Portcove does not rewrite existing settings."
       ]
-    }
+    },
+    "variant_label": "PC"
   },
   "integration": {
     "support_tier": "beta",
@@ -106,7 +107,19 @@
     "runtime_mutable_paths": [
       "stdout.txt",
       "stderr.txt"
-    ]
+    ],
+    "presentation": {
+      "installation_method": "staged-game-files",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "chocolate-hexen-pc-iwad",
+          "label": "Hexen PC IWAD (selected original or demo editions)",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

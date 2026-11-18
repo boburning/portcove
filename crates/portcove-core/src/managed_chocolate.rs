@@ -533,6 +533,21 @@ mod tests {
     }
 
     #[test]
+    fn relative_windows_paths_require_the_complete_closed_v38_recipe() {
+        let mut port = port();
+        crate::runtime_path_policy::validate(&port).unwrap();
+        assert_eq!(
+            crate::runtime_path_policy::minimum_capability(&port),
+            CAPABILITY
+        );
+        port.managed_initialization = None;
+        assert!(crate::runtime_path_policy::validate(&port).is_err());
+        port.managed_initialization = Some(ManagedInitialization::ChocolateFamilyPortableV1);
+        port.launch_arguments.push("-savedir".into());
+        assert!(crate::runtime_path_policy::validate(&port).is_err());
+    }
+
+    #[test]
     fn upstream_configuration_grammar_cannot_hide_a_profile_escape() {
         for bytes in [
             b"".as_slice(),

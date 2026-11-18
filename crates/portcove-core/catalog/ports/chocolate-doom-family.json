@@ -33,6 +33,10 @@
       "help_url": "https://www.chocolate-doom.org/wiki/index.php/Downloads",
       "references": [
         {
+          "title": "Heretic and Strife on Windows",
+          "instruction": "The official release also offers separate chocolate-heretic and chocolate-strife Windows ZIPs. Keep each player, setup utility and DLLs together in an installation you maintain. Supply the matching Heretic IWAD, or the Strife IWAD and its accompanying voice data. These upstream alternatives retain their own setup, updates and data ownership; this managed Doom entry does not convert them into managed routes."
+        },
+        {
           "title": "Install a distribution package on Linux or Mac",
           "instruction": "Use your Linux distribution’s chocolate-doom package for all four players. Debian packages are available on x86-64 and ARM64. On Intel or Apple Silicon Mac, use brew install chocolate-doom on a supported Homebrew host. Run the matching chocolate-doom, chocolate-heretic, chocolate-hexen or chocolate-strife command. Your package manager owns updates."
         },
@@ -54,7 +58,8 @@
       "linux-x86-64",
       "macos-x86-64",
       "macos-aarch64"
-    ]
+    ],
+    "variant_label": "PC"
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -131,6 +136,18 @@
     "runtime_mutable_paths": [
       "stdout.txt",
       "stderr.txt"
-    ]
+    ],
+    "presentation": {
+      "installation_method": "staged-game-files",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "chocolate-doom-pc-iwad",
+          "label": "Doom PC IWAD (selected original or demo editions)",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
   }
 }

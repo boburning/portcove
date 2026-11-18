@@ -56,3 +56,10 @@ Publisher asset digests authenticate the selected Windows archives. Tagged
 source, inert package inspection, deterministic Core fixtures and execution of
 the packaged players are separate evidence scopes. The owning issues retain
 native results and remaining acceptance; this document does not establish them.
+
+The source applicability retained here names the reviewed 3.1.1 archives. The
+existing reusable source policy requires the separate provider-bound archive-data
+version-27 contract; this recipe does not widen that policy. Dynamic release
+selectors remain in use, but a future release does not inherit a source-matching
+or qualification claim from this receipt. Shared maintenance owners retain that
+follow-up; no zero-routine-maintenance claim is made for the gap.

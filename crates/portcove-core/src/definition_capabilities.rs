@@ -1135,6 +1135,31 @@ mod tests {
     }
 
     #[test]
+    fn chocolate_profile_v38_is_refused_by_the_previous_staged_inventory() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version < 38
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("staged-source-portable", 38, 38), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_with_inventory(&request("staged-source-portable", 37, 37), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("staged-source-portable", 38, 38))
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
     fn provider_bound_runtime_policies_require_v21_and_preserve_direct_v19() {
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()

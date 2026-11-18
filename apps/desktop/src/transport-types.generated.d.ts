@@ -410,7 +410,8 @@ export type LaunchDiscChoice = "psx-settings-selected";
 /**
  * Closed initialization recipes, never catalog-supplied scripts or file contents.
  */
-export type ManagedInitialization = "tfe-dark-forces-v1.22.420" | "tfe-dark-forces-portable-v1";
+export type ManagedInitialization =
+  "tfe-dark-forces-v1.22.420" | "tfe-dark-forces-portable-v1" | "chocolate-family-portable-v1";
 /**
  * Preserve complete mod package versions without replacing packaged defaults.
  * This grants neither executable trust nor mod/save compatibility.

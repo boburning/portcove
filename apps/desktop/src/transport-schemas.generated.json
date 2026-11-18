@@ -6265,7 +6265,8 @@
         "description": "Closed initialization recipes, never catalog-supplied scripts or file contents.",
         "enum": [
           "tfe-dark-forces-v1.22.420",
-          "tfe-dark-forces-portable-v1"
+          "tfe-dark-forces-portable-v1",
+          "chocolate-family-portable-v1"
         ],
         "type": "string"
       },
@@ -36178,7 +36179,8 @@
         "description": "Closed initialization recipes, never catalog-supplied scripts or file contents.",
         "enum": [
           "tfe-dark-forces-v1.22.420",
-          "tfe-dark-forces-portable-v1"
+          "tfe-dark-forces-portable-v1",
+          "chocolate-family-portable-v1"
         ],
         "type": "string"
       },
@@ -53744,7 +53746,8 @@
         "description": "Closed initialization recipes, never catalog-supplied scripts or file contents.",
         "enum": [
           "tfe-dark-forces-v1.22.420",
-          "tfe-dark-forces-portable-v1"
+          "tfe-dark-forces-portable-v1",
+          "chocolate-family-portable-v1"
         ],
         "type": "string"
       },
