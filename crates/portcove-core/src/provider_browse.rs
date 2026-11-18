@@ -23,7 +23,7 @@ pub struct ProviderBrowsePage {
     pub port_id: String,
     /// The game's catalog name, for presentation.
     pub game_name: String,
-    /// Highest page known from this response, including any continuation.
+    /// Highest page browsing offers.
     pub last_page: u32,
     /// Records on this page the provider labels as another game; not listed.
     pub other_game_records: u32,

@@ -740,7 +740,7 @@ pub(crate) fn provider_browse_text(result: &portcove_core::ProviderBrowsePage) -
                 .unwrap_or_default()
         ));
     }
-    if !page.complete && !page.projects.is_empty() {
+    if !page.complete {
         if page.page < result.last_page {
             lines.push(format!(
                 "More mods: `portcove profile provider-browse {} --page {}`.",
@@ -1756,7 +1756,7 @@ mod provider_text_tests {
         };
         let empty = provider_browse_text(&page(Vec::new(), 41, 4, false));
         assert!(empty.contains("No mods on this page."));
-        assert!(!empty.contains("--page 5"));
+        assert!(empty.contains("provider-browse shipwright --page 5"));
         let unknown = provider_browse_text(&page(vec![project(false, 0, false)], 0, 1, false));
         assert!(unknown.contains("total unknown"));
         assert!(unknown.contains("provider-browse shipwright --page 2"));
