@@ -36,16 +36,17 @@ async fn carry_respects_other_retained_declarations_for_new_files_and_recorded_r
         .install(ID, None, None, None, true, |_| {})
         .await
         .unwrap();
-    let relative = retained
-        .path
-        .strip_prefix(retained_library.versions_dir())
-        .unwrap();
+    // Published Windows paths can carry the verbatim prefix while the Library
+    // was opened with an ordinary spelling. Compare filesystem coordinates.
+    let historical_root = fs::canonicalize(&retained.path).unwrap();
+    let historical_versions = fs::canonicalize(retained_library.versions_dir()).unwrap();
+    let relative = historical_root.strip_prefix(&historical_versions).unwrap();
     let retained_path = library.versions_dir().join(relative);
     drop(historical);
     drop(retained_library);
     fs::create_dir_all(retained_path.parent().unwrap()).unwrap();
-    fs::rename(&retained.path, &retained_path).unwrap();
-    retained.path = retained_path;
+    fs::rename(&historical_root, &retained_path).unwrap();
+    retained.path = fs::canonicalize(&retained_path).unwrap();
     library.register_install(&retained, false).unwrap();
     let mut current = serde_json::to_value(catalog().authoritative_document()).unwrap();
     current["ports"][0]["persistent_paths"]
