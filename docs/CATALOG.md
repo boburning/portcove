@@ -70,7 +70,7 @@ release observation: the observer declaration hash excludes it.
 
 ## Descriptive compatibility advisories
 
-The optional `listing.compatibility` format-1 envelope belongs to the existing
+The optional `listing.compatibility` envelope belongs to the existing
 single per-port authored record. Use existing generated setup warnings and exact
 recommendation observations first; no bulk backfill is required. This envelope
 contains only remaining descriptive facts, never acquisition restrictions,
@@ -85,6 +85,13 @@ An artifact digest requires its actual release. The envelope is bounded to
 observations uses format 8. Authoring rejects malformed, future, unknown
 and command-bearing content. Runtime interpretation makes invalid or future
 optional content unavailable without changing operation eligibility.
+
+Format 1 carries general advisories. Format 2 requires at least one launch
+record with `launch_behavior.first_launch` and `launch_behavior.repeat_launch`.
+Each stage uses `starts-game-directly`, `opens-project-launcher`,
+`asks-for-game-files`, or `unknown`. Both stages describe the same platform,
+route, release and package SHA-256. Use `upstream-setup` for a documented setup
+route outside Portcove. Record any repeat-launch preconditions in the explanation.
 
 Route-wide management facts need no invented artifact identity. Version-specific
 failures retain their exact release/artifact/edition scope; a date or a missing
