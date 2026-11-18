@@ -1200,6 +1200,11 @@ freshness, file health and evidence provenance remain in each project's existing
 explanation. Advisory context remains distinct from setup/launch checks, and
 shared compatibility cautions are stated once rather than repeated on every card.
 
+Compatibility and project-implementation disclosures shrink within their actual
+detail or comparison column. Long release, edition, artifact and dependency
+identifiers wrap without truncation; complete evidence remains selectable and
+keyboard disclosure controls remain reachable in compact windows.
+
 ## Prototype presentation alignment
 
 The October 29 pass retains the v58-based prototype’s graphite hierarchy: quiet
