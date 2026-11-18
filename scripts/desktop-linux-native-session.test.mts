@@ -29,6 +29,7 @@ import { isRecord } from "./runtime-values.mts";
 import { executionAdmission } from "./retained-evidence.mts";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
+import type { acquireNativeSessionLock } from "./native-session-lock.mts";
 const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 void test(
@@ -105,6 +106,15 @@ void test("private-X11 input checks outlive the former minute and still refuse f
       xvfb: "/xvfb",
       xkbcomp: "/xkbcomp",
     };
+    const lease: {
+      owner: Pick<Awaited<ReturnType<typeof acquireNativeSessionLock>>["owner"], "token">;
+      release: () => Promise<void>;
+    } = {
+      owner: { token: "owned" },
+      release: async () => {
+        events.push("lease-released");
+      },
+    };
     const context = {
       assert,
       path: path.posix,
@@ -124,12 +134,7 @@ void test("private-X11 input checks outlive the former minute and still refuse f
       readLinuxX11Configuration: async () => ({ config, identities: [] }),
       mkdtemp: async () => "/owned/output/runtime",
       chmod: async () => {},
-      acquireNativeSessionLock: async () => ({
-        token: "owned",
-        release: async () => {
-          events.push("lease-released");
-        },
-      }),
+      acquireNativeSessionLock: async () => lease,
       linuxX11ExecutionBudgets,
       retainedEvidenceRoot: () => "/retained",
       AbortSignal: {
