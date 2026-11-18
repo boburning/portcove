@@ -98,7 +98,10 @@ export async function waitForSourceIntakeRestoration(
   assert.equal(current.ready, true);
   assert.equal(current.error, null);
   assert.ok(current.library_root !== null);
-  const canonical = (root: string) => path.toNamespacedPath(path.resolve(root));
+  const canonical = (root: string) => {
+    const resolved = path.toNamespacedPath(path.resolve(root));
+    return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+  };
   const root = canonical(current.library_root);
   assert.ok(
     ownedLibraries.some((owned) => canonical(owned) === root),

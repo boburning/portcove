@@ -47,10 +47,12 @@ void test("source restoration requires a settled current owned workspace through
     `
       import {runInNewContext} from 'node:vm';
       const {waitForSourceIntakeRestoration: ready} = await import(entry);
-      const [original, other, foreign, changed, moved, snapshot] = inertTransportReply.map(item => item.value);
-      for (const mode of ['original', 'other', 'lost-response', 'foreign', 'read-refused',
+      const [original, other, foreign, changed, moved, caseVariant, snapshot] = inertTransportReply.map(item => item.value);
+      for (const mode of ['original', 'other', 'lost-response',
+                          ...(process.platform === 'win32' ? ['owned-case'] : []), 'foreign', 'read-refused',
                           'generation-changed', 'root-changed', 'loading', 'stale-renderer']) {
-        const current = mode === 'original' ? original : mode === 'foreign' ? foreign : other;
+        const current = mode === 'original' ? original : mode === 'foreign' ? foreign
+          : mode === 'owned-case' ? caseVariant : other;
         const after = mode === 'generation-changed' ? changed : mode === 'root-changed' ? moved : current;
         let rendererGeneration = mode === 'lost-response' ? original.generation : current.generation;
         let refreshes = 0, samples = 0, waits = 0, bootstrapReads = 0;
@@ -92,7 +94,7 @@ void test("source restoration requires a settled current owned workspace through
           assert.equal(waits, 0, 'do not accept renderer readiness before the actual read settles');
           release();
         }
-        const accepted = ['original', 'other', 'lost-response'].includes(mode);
+        const accepted = ['original', 'other', 'lost-response', 'owned-case'].includes(mode);
         if (accepted) {
           const result = await check;
           assert.deepEqual(result, {generation:current.generation, library_root:current.library_root});
@@ -111,6 +113,7 @@ void test("source restoration requires a settled current owned workspace through
       { command: "desktop_bootstrap_status", value: bootstrap(2, "foreign-library") },
       { command: "desktop_bootstrap_status", value: bootstrap(3, "owned-other") },
       { command: "desktop_bootstrap_status", value: bootstrap(2, "owned-original") },
+      { command: "desktop_bootstrap_status", value: bootstrap(2, "OWNED-OTHER") },
       { command: "desktop_workspace_snapshot", value: workspace },
     ],
   );
