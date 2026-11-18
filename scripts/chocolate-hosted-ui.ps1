@@ -88,6 +88,12 @@ function Capture([string]$label) {
  try{$graphics.CopyFromScreen($rect.Left,$rect.Top,0,0,$bitmap.Size);$bitmap.Save((Join-Path $Evidence "$Prefix-$label.png"),[Drawing.Imaging.ImageFormat]::Png)}finally{$graphics.Dispose();$bitmap.Dispose()}
  $steps.Add(@{capture=$label;at=[DateTime]::UtcNow.ToString('o');width=$width;height=$height})
 }
+function Owned-ExitWindow([IntPtr]$previous) {
+ if(-not $bound -or $ownedGame.HasExited -or [OmnispeakWindow]::Created($gameHandle) -ne $boundCreated){return [IntPtr]::Zero}
+ $next=[OmnispeakWindow]::Find([uint32]$ownedGame.Id)
+ if($next -eq [IntPtr]::Zero -or $next -eq $previous -or [OmnispeakWindow]::Title($next) -ne 'Chocolate Doom 3.1.1'){return [IntPtr]::Zero}
+ return $next
+}
 function Key([int]$vk,[bool]$expectExit=$false) {
  Assert-Owned
  try{[OmnispeakWindow]::KeyOwned($window,[uint32]$ownedGame.Id,[ushort]$vk)}catch{
@@ -126,7 +132,19 @@ try {
  }else{
   Key 114;Capture 'load-menu';Key 13;Start-Sleep -Seconds 2;Capture 'loaded'
  }
- Key 121;Capture 'quit-confirmation';Key 89 $true
+ Key 121;Capture 'quit-confirmation'
+ $gameWindow=$window
+ try{Key 89 $true}catch{
+  if(-not [OmnispeakWindow]::InputReleased -or (Owned-ExitWindow $gameWindow) -eq [IntPtr]::Zero){throw}
+ }
+ # Upstream's default I_Endoom opens a new same-process text window and waits for a key.
+ # Do not change the player's configuration or send keys to an unrelated foreground window.
+ $exitDeadline=[DateTime]::UtcNow.AddSeconds(25)
+ while(-not $ownedGame.HasExited -and [DateTime]::UtcNow -lt $exitDeadline){
+  $ending=Owned-ExitWindow $gameWindow
+  if($ending -ne [IntPtr]::Zero){$window=$ending;Assert-Owned;Capture 'exit-screen';Key 13 $true;break}
+  Start-Sleep -Milliseconds 100
+ }
  if(-not $ownedRoot.WaitForExit(20000) -or -not $ownedGame.WaitForExit(5000)){throw 'Normal owned exit not established'}
  $final=Read-Launch
  if($ownedRoot.ExitCode -ne 0 -or $final.outcome -ne 'succeeded' -or $final.exit_code -ne 0){throw 'Core launch did not report normal success'}
