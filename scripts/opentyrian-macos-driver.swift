@@ -200,7 +200,7 @@ func snapshot(_ roots: [URL], package: URL, sandbox: URL) throws -> [String: Str
     return result
 }
 func snapshotSelfTest() throws {
-    let temporary = fm.temporaryDirectory.appendingPathComponent("portcove-snapshot-" + UUID().uuidString)
+    let temporary = fm.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent("portcove-snapshot-" + UUID().uuidString)
     try fm.createDirectory(at: temporary, withIntermediateDirectories: false)
     defer { try? fm.removeItem(at: temporary) }
     let package = temporary.appendingPathComponent("package")
