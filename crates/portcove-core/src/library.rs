@@ -3467,6 +3467,22 @@ impl Library {
         Ok((installs, metrics))
     }
 
+    pub(crate) fn installs_for_port(&self, port_id: &str) -> Result<Vec<InstallRecord>> {
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT id, port_id, version, path, channel, installed_at, verified, staged,
+                    artifact_name, artifact_sha256, artifact_size, manifest_sha256,
+                    selected_executable, runtime_json
+             FROM installs WHERE port_id=?1 ORDER BY rowid",
+        )?;
+        let rows = statement.query_map([port_id], StoredInstallRow::from_row)?;
+        rows.map(|row| {
+            row.map_err(Into::into)
+                .and_then(StoredInstallRow::into_record)
+        })
+        .collect()
+    }
+
     pub(crate) fn port_install_paths(&self, port_id: &str) -> Result<Vec<PathBuf>> {
         let connection = self.connection()?;
         let mut statement = connection.prepare(
@@ -4993,6 +5009,11 @@ mod tests {
             library.port_install_paths("target").unwrap(),
             [temporary.path().join("target")]
         );
+        let installs = library.installs_for_port("target").unwrap();
+        assert_eq!(installs.len(), 1);
+        assert_eq!(installs[0].id, "target-install");
+        assert!(library.installs_for_port("absent").unwrap().is_empty());
+        assert!(library.installs_for_port("unrelated").is_err());
         assert!(library.all_installs().is_err());
     }
 

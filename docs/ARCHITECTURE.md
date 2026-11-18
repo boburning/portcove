@@ -2729,8 +2729,9 @@ records each version's carried or recorded digests and lineage, never bytes.
 A copy in the target is replaced or removed only when it is a recorded,
 unchanged ancestor of the source's file, or Portcove's own interrupted
 placement from that source; every other difference keeps both copies. Paths
-either version declares, the target's package members and folders, generated
-metadata, loader-read names, Portcove metadata, unsafe or short names, case
+the current definition or any retained installation declares, the target's
+package members and folders, generated metadata from both active and target
+versions, loader-read names, Portcove metadata, unsafe or short names, case
 collisions, links and sensitive entries are never carried. Pending rows are
 committed before anything is written; copies are staged beside each
 destination, verified against the plan's approved digests and published only
