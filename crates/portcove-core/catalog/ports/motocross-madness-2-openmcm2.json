@@ -1,0 +1,41 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "motocross-madness-2-openmcm2",
+    "name": "Motocross Madness 2 / OpenMCM2",
+    "summary": "Play Motocross Madness 2 on Windows, Linux or Mac. OpenMCM2 can import your game files or use the project's separately offered free graphics.",
+    "project_url": "https://github.com/crspytopgn/openmcm2",
+    "original_game_title": "Motocross Madness 2",
+    "issue_number": 5837,
+    "listed_at": "2026-11-18",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "download_asset_hints": {
+      "windows-x86-64": ["openmcm2-", "-windows-x86_64.zip"],
+      "linux-x86-64": ["openmcm2-", "-linux-x86_64.tar.gz"],
+      "macos-x86-64": ["openmcm2-", "-macos-x86_64.zip"],
+      "macos-aarch64": ["openmcm2-", "-macos-arm64.zip"]
+    },
+    "release_url": "https://github.com/crspytopgn/openmcm2/releases/tag/v0.6.5",
+    "setup_url": "https://github.com/crspytopgn/openmcm2/blob/v0.6.5/README.md#playing",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Open the upstream launcher",
+          "instruction": "Extract the complete archive and open mm2-launcher on Linux, mm2-launcher.exe on Windows or OpenMCM2.app on Mac. Graphics use Vulkan on Linux, DirectX 12 or Vulkan on Windows, and Metal on Mac. For the original graphics, select your own Motocross Madness 2 CD image, disc or installed GAME folder in the launcher."
+        },
+        {
+          "title": "Play again with the saved setup",
+          "instruction": "After the launcher copies the game files, choose graphics settings and press Play. To play with the separate Free Pack, choose free graphics when the launcher asks; it downloads the pack. On a later launch, the launcher supports --play to start with saved settings. Open it normally to change settings or reimport."
+        }
+      ],
+      "references": [
+        {
+          "title": "Keep the OpenMCM2 profile",
+          "instruction": "The launcher copies the original GAME folder under %APPDATA%/MM2 on Windows, ~/.local/share/mm2 on Linux or ~/Library/Application Support/MM2 on Mac. Keep the user folder before replacing the program. The upstream launcher can add tracks and maintain its own free graphics pack."
+        }
+      ],
+      "warnings": ["Portcove does not manage this program's updates or back up its user folder."]
+    }
+  }
+}

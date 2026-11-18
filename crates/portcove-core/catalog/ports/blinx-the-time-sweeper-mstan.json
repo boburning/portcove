@@ -1,0 +1,41 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "blinx-the-time-sweeper-mstan",
+    "name": "Blinx: The Time Sweeper / BlinxRecomp",
+    "summary": "Play Blinx using your NTSC-U Xbox game files. The publisher's Windows and Linux beta has been tested through World 2.",
+    "project_url": "https://github.com/mstan/BlinxRecomp",
+    "original_game_title": "Blinx: The Time Sweeper",
+    "issue_number": 5922,
+    "listed_at": "2026-11-18",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "download_asset_hints": {
+      "windows-x86-64": ["BlinxRecomp-windows-x64-", ".zip"],
+      "linux-x86-64": ["BlinxRecomp-", "-linux-x86_64.AppImage"]
+    },
+    "release_url": "https://github.com/mstan/BlinxRecomp/releases/tag/v0.5.7",
+    "setup_url": "https://github.com/mstan/BlinxRecomp/blob/v0.5.7/README.md#getting-started",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Open the beta launcher",
+          "instruction": "On Windows, extract the complete ZIP into a writable folder and open Start Game.exe. On Linux x86-64, make the AppImage executable and open it on a host with Vulkan 1.3. The upstream Linux baseline is Ubuntu 24.04."
+        },
+        {
+          "title": "Import your own NTSC-U original",
+          "instruction": "Skip the optional console files if you want a fresh local console identity. Choose your own supported NTSC-U ISO or XISO in the launcher. The importer shows progress and can cancel. It remembers the selected game and reuses its disc cache. If you select an extracted default.xbe instead, keep its complete original game folder. Choose your controller under Player 1 and start the game in the launcher."
+        }
+      ],
+      "references": [
+        {
+          "title": "Keep saves and console identity",
+          "instruction": "Reopen the launcher to play again or change the controller and mods. On Windows keep the complete data folder beside the launcher, including its disc cache and console identity, when replacing the beta. On Linux the default is ~/.local/share/xboxllr/xbox-4d530013/data. Preserve the same XDG_DATA_HOME if you set a custom path, and back up any selected external save folder or HDD image separately. Keep any companion .xboxllr profile."
+        }
+      ],
+      "warnings": [
+        "Back up your existing console identity and saves before changing the game's profile. Portcove does not update this beta or back up its profile."
+      ]
+    }
+  }
+}
