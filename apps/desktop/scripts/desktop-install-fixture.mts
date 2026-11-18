@@ -974,7 +974,7 @@ export async function createInstallFixture({
 
 /** Prelaunch-only expansion for the finite native retained-page review case.
  * Distinct bytes identify 21 games; only the last game has two implementations.
- * Four copies per game put the retained inventory beyond its 64-row preview. */
+ * Twenty-five copies per game exceed the 512-match Core preview before UI paging. */
 export async function prepareLargeSetupReviewFixture(
   fixture: Awaited<ReturnType<typeof createInstallFixture>>,
   revision: string,
@@ -1020,7 +1020,7 @@ export async function prepareLargeSetupReviewFixture(
       gap,
     );
     const copies: string[] = [];
-    for (let copy = 0; copy < 4; copy++) {
+    for (let copy = 0; copy < 25; copy++) {
       const file = path.join(owned.directory, `large-${ordinal}-copy-${copy}.pcgame`);
       await writeFile(file, bytes, { flag: "wx" });
       copies.push(file);
@@ -1066,7 +1066,12 @@ export async function prepareLargeSetupReviewFixture(
     }
   }
   await writeFile(fixture.catalogPath, `${JSON.stringify(current, null, 2)}\n`);
-  return { eligiblePorts, choicePorts, originals, exactMatches: originals.length * 4 };
+  return {
+    eligiblePorts,
+    choicePorts,
+    originals,
+    exactMatches: originals.reduce((total, original) => total + original.copies.length, 0),
+  };
 }
 
 function requiredSources<T>(value: T | null): T {

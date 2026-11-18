@@ -142,12 +142,17 @@ export async function largeSetupReviewScenario(
       assert.ok(complete);
       assert.equal(complete.matches?.scan_id, partial.matches?.scan_id);
       assert.ok((complete.coverage?.batches ?? 0) > 1);
-      assert.equal(complete.report.candidates.length, 64);
+      // Continuation accumulates the bounded Core preview; UI pages follow that preview.
+      assert.deepEqual(complete.limits, partial.limits);
+      assert.equal(complete.report.candidates.length, 512);
       const preview = await browser.wait(
         until.elementLocated(By.css("[data-match-preview-notice]")),
         30_000,
       );
-      assert.match(await preview.getText(), /Showing 64 of 84 matches/u);
+      assert.match(
+        await preview.getText(),
+        new RegExp(`Showing 512 of ${largeReview.exactMatches} matches`, "u"),
+      );
       await keyboardActivate(button("Select all 20 eligible"));
       await browser.wait(until.elementLocated(button("Review installing 20 selected")), 30_000);
       for (const id of largeReview.choicePorts)
@@ -163,6 +168,19 @@ export async function largeSetupReviewScenario(
         ),
         true,
       );
+      const rows = By.css('[aria-label="Saved folder scan results"] [data-completed-candidate]');
+      assert.equal((await browser.findElements(rows)).length, 512);
+      const previewNames = new Set(
+        complete.report.candidates.map((item) => path.basename(item.path)),
+      );
+      const omittedName = largeReview.originals
+        .flatMap((original) => original.copies)
+        .map((file) => path.basename(file))
+        .find((name) => !previewNames.has(name));
+      assert.ok(omittedName);
+      assert.match(omittedName, /^large-\d{2}-copy-\d+\.pcgame$/u);
+      const omittedRow = By.css(`[data-completed-candidate][data-path$="${omittedName}"]`);
+      assert.equal((await browser.findElements(omittedRow)).length, 0);
       await screenshot("native-large-selected-before-paging");
       await keyboardActivate(button("Show more matches"));
       await browser.wait(
@@ -170,9 +188,8 @@ export async function largeSetupReviewScenario(
           (await browser.findElements(By.css("[data-match-preview-notice]"))).length === 0,
         30_000,
       );
-      assert.ok(
-        (await browser.findElement(By.css("body")).getText()).includes("large-20-copy-3.pcgame"),
-      );
+      assert.equal((await browser.findElements(rows)).length, largeReview.exactMatches);
+      assert.equal((await browser.findElements(omittedRow)).length, 1);
       assert.equal((await browser.findElements(button("Review installing 20 selected"))).length, 1);
       await keyboardActivate(button("Review installing 20 selected"));
       const panel = await browser.wait(

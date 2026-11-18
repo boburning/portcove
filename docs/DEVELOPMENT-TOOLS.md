@@ -2282,12 +2282,13 @@ rather than restoring it while the consented app is still live.
 
 `just desktop-verify --scenario native-large-discovery-setup-review --require-clean`
 selects one standalone Windows or Linux review journey outside routine profiles.
-The private-X11 wrapper allows the selected harness budget plus 60 seconds for
-failure capture and positive process joins, with a four-minute minimum. This
-case keeps its ten-minute inner budget and has an eleven-minute outer wait.
+The private-X11 wrapper derives both waits from the selected harness budget:
+this case retains its ten-minute deadline, an eleven-minute harness wait, and
+an eleven-minute-thirty-second launcher wait for failure capture and positive joins.
 An isolated CLI saves one root and registers 21 distinct inert originals, with
-four identical copies of each original. Desktop continues the bounded scan to
-84 retained matches, selects all 20 independent eligible games before loading
+25 identical copies of each original. Desktop continues the bounded scan to
+525 retained matches, exceeding the 512-match Core preview, then selects all
+20 independent eligible games before loading
 the remaining result page, and leaves one game's two implementations unselected.
 Keyboard activation opens the exact twenty-game review and cancels it. No batch,
 download, installation or launch may occur; original files and registrations stay

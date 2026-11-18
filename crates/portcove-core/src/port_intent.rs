@@ -993,6 +993,104 @@ mod tests {
         (temporary, service_with_release(library, "v1"))
     }
 
+    #[test]
+    fn standing_setup_installs_on_default_worker_stack() {
+        const CHILD: &str = "PORTCOVE_STANDING_STACK_CHILD";
+        if std::env::var(CHILD).as_deref() != Ok("1") {
+            let temporary = tempfile::tempdir().unwrap();
+            let log_path = temporary.path().join("standing-worker.log");
+            let log = std::fs::File::create(&log_path).unwrap();
+            let mut child = crate::ChildProcessPolicy::native_command(
+                crate::ChildProcessClass::HostTool,
+                &std::env::current_exe().unwrap(),
+            )
+            .unwrap()
+            .args([
+                "--exact",
+                "service::port_intent::tests::standing_setup_installs_on_default_worker_stack",
+                "--nocapture",
+            ])
+            .env(CHILD, "1")
+            .env_remove("PORTCOVE_GITHUB_TOKEN")
+            .env_remove("GH_TOKEN")
+            .env_remove("GITHUB_TOKEN")
+            .stdin(std::process::Stdio::null())
+            .stdout(log.try_clone().unwrap())
+            .stderr(log)
+            .spawn()
+            .unwrap();
+            let started = std::time::Instant::now();
+            let observation = loop {
+                match child.try_wait() {
+                    Ok(Some(_)) => break Ok(()),
+                    Ok(None) => {}
+                    Err(error) => break Err(format!("could not observe standing worker: {error}")),
+                }
+                if started.elapsed() >= std::time::Duration::from_secs(60) {
+                    break Err("standing worker exceeded 60 seconds".to_owned());
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            };
+            if observation.is_err() {
+                let _ = child.kill();
+            }
+            // Join the exact child before consuming its log or cleaning the fixture.
+            let status = child.wait().unwrap();
+            let stdout = std::fs::read_to_string(&log_path).unwrap();
+            assert!(observation.is_ok(), "{observation:?}\n{stdout}");
+            assert!(
+                status.success(),
+                "standing worker status={status:?}\n{stdout}"
+            );
+            assert!(stdout.contains("running 1 test"), "{stdout}");
+            assert!(
+                stdout.contains("PORTCOVE_STANDING_WORKER_COMPLETED"),
+                "{stdout}"
+            );
+            return;
+        }
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
+        let (_temporary, service) = runtime.block_on(ready_service());
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        eprintln!("[DEBUG-standing-stack] fixture-created; inactive retained release");
+        let handle = runtime.handle().clone();
+        std::thread::Builder::new()
+            .name("standing-install-stack-regression".into())
+            .stack_size(2 * 1024 * 1024)
+            .spawn(move || {
+                eprintln!("[DEBUG-standing-stack] entered worker; before-first-pass");
+                handle.block_on(async move {
+                    let result = service.run_standing_setup(|_| {}).await.unwrap();
+                    assert_eq!(result.batches.len(), 1);
+                    assert_eq!(
+                        result.batches[0].items[0].state,
+                        InstallBatchItemState::Ready
+                    );
+                    assert!(service.status(PORT).unwrap().active.is_some());
+                    eprintln!("[DEBUG-standing-stack] first-ready; before-repeat");
+                    assert!(
+                        service
+                            .run_standing_setup(|_| {})
+                            .await
+                            .unwrap()
+                            .batches
+                            .is_empty()
+                    );
+                    eprintln!("[DEBUG-standing-stack] repeat-completed");
+                });
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+        println!("PORTCOVE_STANDING_WORKER_COMPLETED");
+    }
+
     #[tokio::test]
     async fn unreadable_game_setup_queue_does_not_abort_the_standing_pass() {
         let (_temporary, service) = ready_service().await;

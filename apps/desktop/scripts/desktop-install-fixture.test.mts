@@ -49,7 +49,7 @@ test("large native review uses distinct game bytes, retained copies and one unre
     const large = await prepareLargeSetupReviewFixture(fixture, "a".repeat(40));
     assert.equal(large.eligiblePorts.length, 20);
     assert.equal(large.choicePorts.length, 2);
-    assert.equal(large.exactMatches, 84);
+    assert.equal(large.exactMatches, 525);
     assert.equal(new Set(large.originals.map((item) => item.sha256)).size, 21);
     const authored = await readFixtureCatalog(fixture.catalogPath);
     const introduced = authored.ports.filter((port) => port.id.startsWith("desktop-large-review-"));
@@ -69,7 +69,7 @@ test("large native review uses distinct game bytes, retained copies and one unre
       20,
     );
     for (const original of large.originals) {
-      assert.equal(original.copies.length, 4);
+      assert.equal(original.copies.length, 25);
       for (const file of original.copies)
         assert.equal(
           createHash("sha256")
