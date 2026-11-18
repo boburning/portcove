@@ -10,7 +10,6 @@ public static class OmnispeakWindow {
  [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
  [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
  [DllImport("user32.dll",EntryPoint="MapVirtualKeyW",ExactSpelling=true)] static extern uint MapVirtualKey(uint code,uint type);
- [DllImport("user32.dll")] static extern bool SetCursorPos(int x,int y);
  [DllImport("user32.dll",SetLastError=true)] static extern uint SendInput(uint n,Input[] i,int size);
  [StructLayout(LayoutKind.Sequential)] struct Key {public ushort vk,scan;public uint flags,time;public UIntPtr extra;}
  [StructLayout(LayoutKind.Explicit,Size=32)] struct Union {[FieldOffset(0)]public Key key;}
@@ -20,7 +19,11 @@ public static class OmnispeakWindow {
   uint owner;GetWindowThreadProcessId(h,out owner);if(owner!=pid)throw new Exception("Key target owner differs");
   if(!SetForegroundWindow(h) && GetForegroundWindow()!=h)throw new Exception("Owned window could not become foreground");
   if(GetForegroundWindow()!=h)throw new Exception("Owned key target is not foreground");
-  Rect r;if(!GetWindowRect(h,out r)||!SetCursorPos(r.Right-8,r.Bottom-8))throw new Exception("Owned cursor placement failed");
+  // Give SDL time to process its focus event before sending the first key.
+  // Keyboard ownership follows foreground/PID identity; do not warp the mouse.
+  System.Threading.Thread.Sleep(300);
+  GetWindowThreadProcessId(h,out owner);
+  if(owner!=pid || GetForegroundWindow()!=h)throw new Exception("Owned key target changed while focus settled");
   if(Marshal.SizeOf(typeof(Input))!=40)throw new Exception("Unsupported native input ABI");
   uint extended = (vk>=0x25 && vk<=0x28) ? 1u : 0u;
   uint scan=MapVirtualKey(vk,0);
@@ -138,14 +141,13 @@ try {
  Capture 'startup'
  if($TitleMode -eq 'fresh'){
   Key 27;Capture 'main-menu';Key 13;Capture 'new-game-menu';Key 13;Key 13
-  if([IO.Path]::GetFileName($ExpectedPlayer) -eq 'chocolate-hexen.exe'){Key 13}
   Start-Sleep -Seconds 2;Capture 'level'
   Key 113;Capture 'save-menu';Key 13
   foreach($vk in @(67,79,86,69)){Key $vk}
   Capture 'save-name';Key 13;Start-Sleep -Seconds 1;Capture 'saved'
  }else{
   if([IO.Path]::GetFileName($ExpectedPlayer) -eq 'chocolate-hexen.exe'){
-   # Hexen's title screen requires Main -> Game Files -> Load Game; F3 is not active there.
+   # Use the explicit Game Files -> Load Game path so each menu is visible in evidence.
    Key 27;Capture 'reopen-main-menu';Key 40;Key 40;Capture 'game-files-selection'
    Key 13;Capture 'game-files-menu';Key 13;Capture 'load-menu';Key 13
   }else{Key 114;Capture 'load-menu';Key 13}
