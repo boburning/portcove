@@ -1420,6 +1420,9 @@ pub struct ExternalRuntimeRecord {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortStatus {
+    /// Recorded file preservation during the switch to the current active version.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub carried_files: Option<crate::CarriedFilesStatus>,
     /// Owned archive acquisition, separate from a staged or active runtime.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub acquisition: Option<GameUpdateAcquisition>,

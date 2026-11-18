@@ -1891,6 +1891,13 @@ pub(crate) fn statuses(statuses: &[PortStatus], catalog: &portcove_core::Catalog
         format!("{summary}\nActions:\n{actions}")
     };
     for status in statuses {
+        if let Some(carried) = &status.carried_files {
+            output.push_str(&format!(
+                "\nFiles kept during the version switch for {}:\n{}",
+                port_name(catalog, &status.port_id),
+                carried_files(carried),
+            ));
+        }
         if let Some(readiness) = &status.readiness {
             if readiness.blockers.contains(&LaunchBlocker::MissingRuntime) {
                 output.push_str(&format!("\nNext step for {}: Using the same library, run portcove update {} to acquire the required catalog runtime. Core checks current eligibility before applying it.", port_name(catalog, &status.port_id), clean(&status.port_id)));
@@ -1904,6 +1911,97 @@ pub(crate) fn statuses(statuses: &[PortStatus], catalog: &portcove_core::Catalog
         }
     }
     output
+}
+
+fn carried_files(status: &portcove_core::CarriedFilesStatus) -> String {
+    let outcome = &status.outcome;
+    let mut lines = vec![format!("  Active version: {}", clean(&status.to_version))];
+    if outcome.source_modified {
+        lines.push(
+            "  Files were left with the earlier version because its program files changed.".into(),
+        );
+    }
+    if outcome.insufficient_space {
+        lines.push(
+            "  Files were left with the earlier version because there was not enough free space."
+                .into(),
+        );
+        if let Some(count) = outcome.not_carried_count {
+            lines.push(format!("  Files left because of low space: {count}"));
+        }
+    }
+    for (label, examples, count) in [
+        (
+            "Copied",
+            &outcome.carried,
+            outcome.counts.as_ref().map(|counts| counts.carried),
+        ),
+        (
+            "Unchanged copies removed",
+            &outcome.removed,
+            outcome.counts.as_ref().map(|counts| counts.removed),
+        ),
+        (
+            "Different copies kept separately",
+            &outcome.kept_separately,
+            outcome.counts.as_ref().map(|counts| counts.kept_separately),
+        ),
+        (
+            "Could not be read",
+            &outcome.source_unreadable,
+            outcome
+                .counts
+                .as_ref()
+                .map(|counts| counts.source_unreadable),
+        ),
+        (
+            "Supplied by the new version",
+            &outcome.new_version_ships_file,
+            outcome
+                .counts
+                .as_ref()
+                .map(|counts| counts.new_version_ships_file),
+        ),
+    ] {
+        if count == Some(0) && examples.is_empty() {
+            continue;
+        }
+        lines.push(format!(
+            "  {label}: {}",
+            count.map_or_else(
+                || "complete count not recorded".into(),
+                |count| count.to_string()
+            )
+        ));
+        lines.extend(examples.iter().map(|path| format!("    {}", clean(path))));
+        if count.is_none_or(|count| count > examples.len() as u64) {
+            lines.push("    Only recorded path examples are listed.".into());
+        }
+    }
+    for (label, bytes) in [
+        ("Bytes copied", outcome.carried_bytes),
+        ("Space required at the switch", outcome.required_bytes),
+        ("Space available at the switch", outcome.available_bytes),
+    ] {
+        if let Some(bytes) = bytes {
+            lines.push(format!("  {label}: {}", format_bytes(bytes)));
+        }
+    }
+    if let Some(path) = &status.from_path {
+        lines.push(format!(
+            "  Earlier version folder: {}",
+            clean(&path.display().to_string())
+        ));
+    } else {
+        lines.push(
+            "  The earlier version is no longer recorded; its files were not rechecked.".into(),
+        );
+    }
+    lines.push(format!(
+        "  Active version folder: {}",
+        clean(&status.to_path.display().to_string())
+    ));
+    lines.join("\n")
 }
 
 pub(crate) fn definition_reason(
@@ -4464,6 +4562,36 @@ mod tests {
             "staged": null
         }))
         .unwrap()
+    }
+
+    #[test]
+    fn carried_file_disclosure_preserves_unknown_counts_and_missing_source_coordinates() {
+        let recorded = portcove_core::CarriedFilesStatus {
+            from_install_id: "removed-source".into(),
+            to_install_id: "target".into(),
+            from_version: None,
+            from_path: None,
+            to_version: "2.0".into(),
+            to_path: PathBuf::from("target-folder"),
+            outcome: portcove_core::CarriedFileOutcome {
+                kept_separately: vec!["notes\nwith-control.txt".into()],
+                insufficient_space: true,
+                required_bytes: Some(2_048),
+                available_bytes: Some(1_024),
+                ..Default::default()
+            },
+        };
+        let text = super::carried_files(&recorded);
+        assert!(text.contains("complete count not recorded"));
+        assert!(!text.contains("kept separately: 1"));
+        assert!(text.contains("Space required at the switch: 2.0 KiB"));
+        assert!(text.contains("Space available at the switch: 1.0 KiB"));
+        assert!(text.contains("earlier version is no longer recorded"));
+        assert!(!text.contains("notes\nwith-control.txt"));
+        assert_eq!(
+            recorded.outcome.kept_separately[0],
+            "notes\nwith-control.txt"
+        );
     }
 
     #[test]
