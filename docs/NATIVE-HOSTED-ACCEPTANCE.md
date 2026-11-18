@@ -260,9 +260,23 @@ retain 90. #6840 measured about 74 minutes of cold setup/build, in addition to t
 existing Linux private-X11 route runs only selected setup completion with the
 qualification application, Core qualification CLI and owned probe. Its observation
 step allows 20 minutes for the maintained 1,170-second nested maximum plus cleanup
-room; the job allows 90 minutes. Product, network, cancellation and cleanup
+room; the job allows 100 minutes. Product, network, cancellation and cleanup
 assertions remain unchanged. These are finite validation envelopes, not a grant of
 physical-device, minimum-OS, installed-package or gameplay acceptance.
+
+Run `44395415654/1` stopped before the selected journey or application build:
+the package index succeeded, but APT package downloads exhausted the 600-second
+install budget (exit 124; about 610.5 seconds including the index update).
+The Linux prerequisite step now passes the maintained archive-mirror preference
+before installation and allows 1,200 seconds for APT inside a 30-minute step.
+The extra ten minutes also raises the job from 90 to 100 minutes, preserving the
+original ten-minute non-install allowance and remaining 70-minute job allowance.
+The existing mirror preference rewrites supported Azure mirror entries; it does
+not guarantee replacement of the observed EC2 mirror. The download latency's
+precise cause remains unknown. Install timeout statuses 124/137 still refuse a
+mirror retry on possibly interrupted package state; any intentional recovery
+uses a fresh runner. Namespace withdrawal and lossless evidence recovery passed
+for the failed attempt, without establishing native application acceptance.
 
 The shared hosted Windows preparation also serves the presentation jobs.
 Public `windows-2022` registers WebView2 below the application's floor, so the

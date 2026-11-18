@@ -279,7 +279,7 @@ jobs:
     if: ${{ inputs.operation == 'linux-preparation-continuity' && inputs.runner == 'ubuntu-24.04' && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}
     name: Linux selected setup completion
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 100
     env:
       SOURCE_HEAD: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
       SOURCE_TREE: f5de79fcc3a823d8b17dfaf3b878cd365d466900
@@ -338,9 +338,9 @@ jobs:
         timeout-minutes: 3
         run: node scripts/run-rust-tests.mts --guard-command node scripts/desktop-linux-namespace-preflight.mts
       - name: Install the existing disposable Linux prerequisites
-        timeout-minutes: 20
+        timeout-minutes: 30
         run: |
-          ./scripts/install-linux-desktop-prerequisites.sh --include-webdriver --install-timeout-seconds=600
+          ./scripts/install-linux-desktop-prerequisites.sh --include-webdriver --prefer-archive-mirror --install-timeout-seconds=1200
           version=$(node -p "require('./.config/tool-bootstrap.json').desktop.tauri_driver")
           cargo install tauri-driver --locked --version "$version" \
             --root "$RUNNER_TEMP/slice3-native-driver" \

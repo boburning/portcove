@@ -55,6 +55,10 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { parse as parseYaml } from "yaml";
 import { recoverBackupEvidence } from "./native-backup-evidence.mts";
+import {
+  prerequisiteInvocation,
+  prerequisiteOperations,
+} from "./fixtures/linux-prerequisites-fixture.mts";
 
 import {
   buildWorkflowProvenance,
@@ -1970,12 +1974,46 @@ void test("Linux selected completion binds source and controller and publishes a
   );
   const job = record(record(record(workflow).jobs).linux_preparation_continuity);
   assert.equal(job["runs-on"], "ubuntu-24.04");
-  assert.equal(job["timeout-minutes"], 90);
+  assert.equal(job["timeout-minutes"], 100);
   assert.equal(record(job.env).SOURCE_HEAD, "6c01ccf660a2e9412e0e5106e820e226ae76fd9e");
   assert.equal(record(job.env).CONTROLLER_HEAD, "${{ github.sha }}");
   assert.ok(!Object.hasOwn(record(job.env), "PORTCOVE_RETAINED_EVIDENCE_DIR"));
   assert.ok(Array.isArray(job.steps));
   const steps: unknown[] = job.steps;
+  const prerequisiteStep = record(
+    required(
+      steps.find(
+        (value) => record(value).name === "Install the existing disposable Linux prerequisites",
+      ),
+    ),
+  );
+  assert.equal(prerequisiteStep["timeout-minutes"], 30);
+  const prerequisiteArgs = prerequisiteInvocation(
+    required(text(prerequisiteStep.run).split("\n")[0]),
+  );
+  assert.deepEqual(prerequisiteArgs, [
+    "--include-webdriver",
+    "--prefer-archive-mirror",
+    "--install-timeout-seconds=1200",
+  ]);
+  const prerequisitePlan = prerequisiteOperations(
+    String.raw`
+plan_desktop_prerequisites ubuntu 24.04 "$@"
+printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
+`,
+    prerequisiteArgs,
+  );
+  assert.equal(prerequisitePlan.status, 0, prerequisitePlan.stderr);
+  assert.deepEqual(prerequisitePlan.stdout.slice(0, -1).split("\0"), ["1200s", "true"]);
+  // Preserve the original ten-minute non-install allowance and seventy-minute remaining job.
+  assert.equal(Number(prerequisiteStep["timeout-minutes"]) * 60 - 1200, 600);
+  assert.equal(Number(job["timeout-minutes"]) - Number(prerequisiteStep["timeout-minutes"]), 70);
+  const observationStep = record(
+    required(
+      steps.find((value) => record(value).name === "Observe the exact selected setup completion"),
+    ),
+  );
+  assert.equal(observationStep["timeout-minutes"], 20);
   const nodeSetup = record(
     required(
       steps.find(
