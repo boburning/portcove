@@ -353,11 +353,6 @@ impl crate::PortcoveService {
             },
             |(snapshot, batch)| {
                 fence.checkpoint()?;
-                if fence.browsing && crate::Library::now() > snapshot.expires_at {
-                    return Err(PortcoveError::conflict(
-                        "game-file observation expired during refresh",
-                    ));
-                }
                 self.validate_game_file_batch(batch)?;
                 visit_routes(self, requests, fence, |index, request, selected| {
                     if current_catalog.bind(&selected, request)? != initial_bindings[index] {
@@ -367,6 +362,11 @@ impl crate::PortcoveService {
                     }
                     Ok(())
                 })?;
+                if fence.browsing && crate::Library::now() > snapshot.expires_at {
+                    return Err(PortcoveError::conflict(
+                        "game-file observation expired during refresh",
+                    ));
+                }
                 fence.checkpoint()
             },
         )?;

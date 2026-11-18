@@ -21,6 +21,7 @@ import { useLibraryBrowsingContext } from "../features/app-shell/use-library-bro
 import { useGameFileFilterContext } from "../features/browsing/use-game-file-filter-context";
 import { portDefinition } from "../test-fixtures";
 import type {
+  CatalogBrowsingSnapshot,
   CatalogDocument,
   GameFileQueryRefreshRequest,
   GameFileQuerySnapshot,
@@ -101,7 +102,36 @@ function Session({ library, catalog }: { library: string; catalog: CatalogDocume
     libraryKey: library,
   });
   const navigation = useDetailWorkspaceNavigation(workspace, ui.setSelectedId, availableIds);
-  const context = { library: { id: library, statuses: empty }, gameFiles: observation.context };
+  const browsing = useMemo((): CatalogBrowsingSnapshot | undefined => {
+    if (catalog === fixtureCatalog) return undefined;
+    return {
+      schema_version: 1,
+      library: { id: "opaque-core", root: library },
+      host_platform: "windows-x86-64",
+      retained_metadata_complete: true,
+      workspace_binding_sha256: "a".repeat(64),
+      contexts: ports.map((port, index) => ({
+        port_id: port.id,
+        context_id: (index + 1).toString(16).padStart(64, "0"),
+        definition_sha256: "e".repeat(64),
+        route: "managed_install",
+        platform: index === 0 ? "linux-x86-64" : "windows-x86-64",
+        channel: "stable",
+        port_member: false,
+        member_context: false,
+        instance_sha256: null,
+        installation_id: null,
+        installation_method: null,
+        release_version: null,
+        artifact_sha256: null,
+      })),
+    };
+  }, [catalog, library, ports]);
+  const context = {
+    library: { id: library, statuses: empty },
+    gameFiles: observation.context,
+    browsing,
+  };
   const { setView } = ui;
   useEffect(() => setView("catalog"), [setView]);
   return (
@@ -417,12 +447,20 @@ it.each([256, 257, bundledDefinitions.ports.length])(
   "uses complete bundled route coverage for %i definitions in Discover and Library",
   async (count) => {
     const catalog = { ...bundledDefinitions, ports: bundledDefinitions.ports.slice(0, count) };
+    const identity = { id: "opaque-core", root: "/game-filter-library-a" };
+    vi.mocked(desktopApi.libraryIdentity).mockResolvedValue(identity);
     vi.mocked(desktopApi.refreshGameFileQuery).mockImplementation(async (request) => ({
       ...response(request),
+      library: identity,
       routes: request.routes.map((route, index) => ({
         ...route,
         state: index === count - 1 ? "no_files_required" : "needs_checking",
-        reason: index === count - 1 ? "explicit_empty_requirements" : "observation_unavailable",
+        reason:
+          index === 0
+            ? "route_not_offered"
+            : index === count - 1
+              ? "explicit_empty_requirements"
+              : "observation_unavailable",
         contract_id: null,
         identity: null,
         source_instance_sha256: null,
@@ -437,6 +475,9 @@ it.each([256, 257, bundledDefinitions.ports.length])(
       .toHaveAttribute("aria-disabled", "true");
     await userEvent.click(button("Check game-file filters"));
     await expect.element(await filterChoice("No files to add in Portcove (1)")).toBeEnabled();
+    await expect
+      .element(await filterChoice(`Needs checking (${count - 1})`))
+      .not.toHaveAttribute("aria-disabled", "true");
     expect(
       vi
         .mocked(desktopApi.refreshGameFileQuery)
@@ -446,6 +487,9 @@ it.each([256, 257, bundledDefinitions.ports.length])(
     await userEvent.click(button("Go to Library"));
     await openAdvancedFilters("Filters (0)");
     await expect.element(await filterChoice("No files to add in Portcove (1)")).toBeEnabled();
+    await expect
+      .element(await filterChoice(`Needs checking (${count - 1})`))
+      .not.toHaveAttribute("aria-disabled", "true");
     noAdditionalChecks();
   },
 );
