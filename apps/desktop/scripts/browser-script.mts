@@ -2,6 +2,7 @@ import type { WebDriver, WebElement } from "selenium-webdriver";
 
 /** Keep exact whole text; add aria-label and block primary labels without name overrides. */
 export function exactButtonXPath(label: string) {
+  if (label === "") return '//button[normalize-space(.)=""]';
   const value = label.includes('"')
     ? `concat(${label
         .split('"')

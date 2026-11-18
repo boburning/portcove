@@ -90,6 +90,28 @@ it("keeps native review button lookup exact for primary labels, accessible names
     legacy.setAttribute("aria-label", "Legacy fixture action: Example game");
     expect(matches("Legacy fixture action")).toEqual([legacy]);
     expect(matches("Legacy fixture action: Example game")).toEqual([legacy]);
+    const empty = add("");
+    const icon = add("");
+    icon.setAttribute("aria-label", "Icon fixture action");
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("aria-hidden", "true");
+    icon.append(svg);
+    const originalEmpty = document.evaluate(
+      '//button[normalize-space(.)=""]',
+      document,
+      null,
+      XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
+      null,
+    );
+    expect(matches("")).toEqual(
+      Array.from({ length: originalEmpty.snapshotLength }, (_, index) =>
+        originalEmpty.snapshotItem(index),
+      ),
+    );
+    expect(matches("")).toContain(empty);
+    expect(matches("")).toContain(icon);
+    expect(matches("")).not.toContain(legacy);
+    expect(matches("")).not.toContain(existing);
     const named = add("");
     named.setAttribute("aria-label", "Accessible fixture action");
     const strong = document.createElement("strong");
