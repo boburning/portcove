@@ -4,7 +4,7 @@
     "id": "jersey-devil-recompiled-mstan-jersey-devil",
     "name": "Jersey Devil — Jersey Devil Recompiled (mstan)",
     "original_game_title": "Jersey Devil",
-    "summary": "Prepare your own USA Jersey Devil disc with the publisher’s Windows x64 player. Portcove has not confirmed setup or gameplay.",
+    "summary": "Prepare your own USA Jersey Devil disc with the publisher’s Windows x64 player (v0.3.3) or Linux x86-64 AppImage (v0.3.2). Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/mstan/JerseyDevilRecomp",
     "platforms": [
       "windows-x86-64"
@@ -18,8 +18,8 @@
           "instruction": "Use your own USA SCUS94907 disc with all 45 tracks and boot executable SCUS_949.07."
         },
         {
-          "title": "Choose the upstream Windows package",
-          "instruction": "Extract the Windows x64 ZIP, start the upstream executable and choose the CUE file for your complete disc set. Follow the upstream setup guide and keep your original disc files separately."
+          "title": "Choose the upstream package",
+          "instruction": "On Windows x64, extract the v0.3.3 ZIP. On Linux x86-64, use the v0.3.2 AppImage and check its setup instructions. Start the upstream player and choose the CUE file for your complete disc set. Keep your original disc files separately."
         }
       ],
       "warnings": [
