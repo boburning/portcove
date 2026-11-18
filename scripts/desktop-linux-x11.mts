@@ -38,13 +38,6 @@ const source = fileURLToPath(import.meta.url);
 const root = fileURLToPath(new URL("../", import.meta.url));
 const scope =
   "Linux GTK/WebKit on ext4 with private authenticated virtual X11; no WSLg, physical display/controller or universal Linux qualification";
-
-export function linuxX11HarnessDeadlineMs(
-  selection: Parameters<typeof desktopHarnessDeadlineMs>[0],
-) {
-  // Let the selected harness finish its own failure capture and positive joins.
-  return Math.max(240_000, desktopHarnessDeadlineMs(selection) + 60_000);
-}
 type NativeLaunch = Awaited<ReturnType<typeof launchLinuxNativeSession>>;
 type DriverExit = Extract<NamespaceEvent, { kind: "driver-exited" }>;
 type Join = Awaited<ReturnType<NativeLaunch["stop"]>> | { outcome: "unknown"; message: string };
@@ -62,6 +55,7 @@ interface DisplayReceipt {
   format_version: number;
   scope: string;
   stage: X11Configuration["stage"];
+  execution_budgets_ms: ReturnType<typeof linuxX11ExecutionBudgets>;
   authorization: string;
   prerequisites: FileIdentity[];
   events: never[];
@@ -129,6 +123,15 @@ export function assertQualificationUidMap(callerUid: number, mapping: string) {
   assert.ok(Number.isSafeInteger(callerUid) && callerUid > 0 && callerUid < 0xffffffff);
   assert.equal(mapping.trim().replace(/\s+/gu, " "), `0 ${callerUid} 1`);
 }
+export function linuxX11ExecutionBudgets(config: Pick<X11Configuration, "stage" | "harness_args">) {
+  const harness =
+    config.stage === "harness"
+      ? desktopHarnessDeadlineMs(
+          resolveDesktopHarnessSelection(parseDesktopHarnessOptions(config.harness_args).values),
+        ) + 60_000
+      : 240_000;
+  return { harness, outer: harness + 30_000 };
+}
 export async function readLinuxX11Configuration(file: string) {
   const value: unknown = JSON.parse(await readFile(file, "utf8"));
   const config = configuration(value);
@@ -148,8 +151,7 @@ export async function readLinuxX11Configuration(file: string) {
     0xef53,
     "The proven route requires ext4 outputs",
   );
-  if (config.stage === "harness")
-    resolveDesktopHarnessSelection(parseDesktopHarnessOptions(config.harness_args).values);
+  linuxX11ExecutionBudgets(config);
   return { config, identities };
 }
 
@@ -202,6 +204,7 @@ async function virtualDisplay(config: X11Configuration, runtime: string) {
     format_version: 1,
     scope,
     stage: config.stage,
+    execution_budgets_ms: linuxX11ExecutionBudgets(config),
     authorization: "private cookie excluded from capture and receipts",
     prerequisites: await Promise.all(
       [config.xvfb, config.xkbcomp].map((file) => fileIdentity(file)),
@@ -359,10 +362,7 @@ async function virtualDisplay(config: X11Configuration, runtime: string) {
       program.child.stdout.pipe(process.stdout);
       program.child.stderr.pipe(process.stderr);
       await program.ready();
-      const selection = resolveDesktopHarnessSelection(
-        parseDesktopHarnessOptions(config.harness_args).values,
-      );
-      receipt.harness_exit = await waitExit(program, linuxX11HarnessDeadlineMs(selection));
+      receipt.harness_exit = await waitExit(program, receipt.execution_budgets_ms.harness);
       await close(program, "harness_join");
       program = undefined;
       assert.equal(receipt.harness_exit.code, 0);
@@ -541,7 +541,7 @@ export async function runLinuxX11(file: string) {
     launch.child.stdout.pipe(process.stdout);
     launch.child.stderr.pipe(process.stderr);
     await launch.ready();
-    const exit = await waitExit(launch, 270_000);
+    const exit = await waitExit(launch, linuxX11ExecutionBudgets(config).outer);
     const join = await launch.stop();
     launch = undefined;
     await writeFile(

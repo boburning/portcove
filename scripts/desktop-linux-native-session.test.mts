@@ -3,9 +3,8 @@ import "../apps/desktop/scripts/desktop-linux-native-session.native.test.mts";
 import {
   readLinuxX11Configuration,
   assertQualificationUidMap,
-  linuxX11HarnessDeadlineMs,
+  linuxX11ExecutionBudgets,
 } from "./desktop-linux-x11.mts";
-import { desktopHarnessDeadlineMs, resolveDesktopSelection } from "./desktop-scenarios.mts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { spawn, spawnSync } from "node:child_process";
@@ -30,19 +29,45 @@ import { isRecord } from "./runtime-values.mts";
 import { executionAdmission } from "./retained-evidence.mts";
 const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-void test("private X11 allows the declared large-review budget and cleanup without extending short cases", () => {
-  for (const scenario of [
-    "native-preparation-cancellation",
-    "native-linux-interrupted-preparation",
-    "native-large-discovery-setup-review",
-  ]) {
-    const selection = resolveDesktopSelection({ platform: "linux", scenarios: [scenario] });
-    const inner = desktopHarnessDeadlineMs(selection);
-    const outer = linuxX11HarnessDeadlineMs(selection);
-    assert.ok(outer >= inner + 60_000);
-    assert.equal(outer, scenario === "native-large-discovery-setup-review" ? 660_000 : 240_000);
-  }
-});
+void test(
+  "private-X11 waits contain the selected harness deadline and retain finite cleanup margins",
+  { skip: process.platform !== "linux" },
+  () => {
+    assert.deepEqual(
+      linuxX11ExecutionBudgets({
+        stage: "harness",
+        harness_args: ["--scenario", "native-design-system-compatibility"],
+      }),
+      { harness: 240_000, outer: 270_000 },
+    );
+    for (const scenario of [
+      "native-selected-setup-completion",
+      "native-saved-folder-selected-setup",
+      "native-large-discovery-setup-review",
+    ])
+      assert.deepEqual(
+        linuxX11ExecutionBudgets({ stage: "harness", harness_args: ["--scenario", scenario] }),
+        { harness: 660_000, outer: 690_000 },
+      );
+    assert.deepEqual(
+      linuxX11ExecutionBudgets({ stage: "gtk", harness_args: ["not-a-harness-option"] }),
+      { harness: 240_000, outer: 270_000 },
+    );
+    assert.throws(
+      () =>
+        linuxX11ExecutionBudgets({
+          stage: "harness",
+          harness_args: [
+            "--scenario",
+            "native-selected-setup-completion",
+            "--scenario",
+            "appearance-restart",
+          ],
+        }),
+      /requires one exact standalone scenario/u,
+    );
+  },
+);
 
 void test("media video observations retain verbose UTF-8 bytes outside the bounded control message", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-media-video-"));

@@ -981,6 +981,7 @@
             "Linux native startup refusal cannot establish successful session closure",
             "Malformed private transport after readiness remains a failed qualification after real join",
             "namespace startup failure retains bounded actual stderr and cannot establish custody",
+            "private-X11 waits contain the selected harness deadline and retain finite cleanup margins",
             "published readiness cannot hide a wrapper failure with failed persistence and a live child"
           ]
         }
