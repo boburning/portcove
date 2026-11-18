@@ -124,6 +124,20 @@ version.
   re-run skips the already tagged commit, and the next nightly with new commits
   takes the next N.
 
+**Failed-nightly reporting.** [`nightly-failure-report.yml`](../.github/workflows/nightly-failure-report.yml)
+listens for a completed Nightly preview run, independently of its build jobs.
+On failure or cancellation, it creates an assigned GitHub issue with the
+run/attempt, source commit, job outcomes, failed/cancelled step names when
+GitHub provides them, and direct job-log links. A rerun of the same run updates
+the existing issue instead of opening duplicates. A later successful run does
+not close an unresolved failure issue: verify the release assets and Preview
+feed before closing it. The reporter reads only GitHub Actions metadata; it
+does not check out the triggering commit, receive signing keys, or paste raw
+build logs into a public issue. The owner should enable GitHub notifications
+for assigned issues; email/push delivery depends on their account settings.
+A successful run that deliberately skips publication because there is no new
+eligible commit is not reported as a failure.
+
 **Withdrawing a release.** The owner runs
 [`withdraw-release.yml`](../.github/workflows/withdraw-release.yml) from `main`
 with a `version` such as `0.1.1` and an optional `replacement_note`. The job runs
