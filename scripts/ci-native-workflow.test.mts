@@ -311,7 +311,7 @@ void test("temporary native controller preserves exact remaining selections, art
       cli_required: execution.fixtures.owned,
       probe_required: execution.fixtures.owned,
     });
-    assert.equal(group.source, "c8a132183a70ef07742e21e304cdafe7e8e1f359");
+    assert.equal(group.source, "ab268eaa55eeb9b3777d17881314f09ffe8d1eef");
     requested.push(...scenarios);
   }
   assert.equal(requested.length, 23);

@@ -1971,7 +1971,7 @@ void test("Linux selected completion binds source and controller and publishes a
   const job = record(record(record(workflow).jobs).linux_preparation_continuity);
   assert.equal(job["runs-on"], "ubuntu-24.04");
   assert.equal(job["timeout-minutes"], 90);
-  assert.equal(record(job.env).SOURCE_HEAD, "c8a132183a70ef07742e21e304cdafe7e8e1f359");
+  assert.equal(record(job.env).SOURCE_HEAD, "ab268eaa55eeb9b3777d17881314f09ffe8d1eef");
   assert.equal(record(job.env).CONTROLLER_HEAD, "${{ github.sha }}");
   assert.ok(!Object.hasOwn(record(job.env), "PORTCOVE_RETAINED_EVIDENCE_DIR"));
   assert.ok(Array.isArray(job.steps));
@@ -2015,14 +2015,14 @@ void test("Linux selected completion binds source and controller and publishes a
     GITHUB_ENV: environmentFile,
     GITHUB_SHA: "b".repeat(40),
     CONTROLLER_HEAD: "b".repeat(40),
-    SOURCE_HEAD: "c8a132183a70ef07742e21e304cdafe7e8e1f359",
-    SOURCE_TREE: "f928a9186a2c89055ec62e301e11d5bdc544918f",
+    SOURCE_HEAD: "ab268eaa55eeb9b3777d17881314f09ffe8d1eef",
+    SOURCE_TREE: "5139527535156fa9d477a754300f8a1d6018157b",
   };
   const stubbedEnvironment = [
     "import cp from 'node:child_process';",
     "import {syncBuiltinESMExports} from 'node:module';",
     "cp.execFileSync=(command,args)=>{",
-    " if(command==='git')return args.includes('--porcelain')?'':args.includes('HEAD^{tree}')?'f928a9186a2c89055ec62e301e11d5bdc544918f':'c8a132183a70ef07742e21e304cdafe7e8e1f359';",
+    " if(command==='git')return args.includes('--porcelain')?'':args.includes('HEAD^{tree}')?'5139527535156fa9d477a754300f8a1d6018157b':'ab268eaa55eeb9b3777d17881314f09ffe8d1eef';",
     " if(['uname','pnpm','rustc'].includes(command))return 'fixture version';",
     " throw new Error('Unexpected environment command'); };",
     "syncBuiltinESMExports();",
