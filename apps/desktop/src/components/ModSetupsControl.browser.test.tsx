@@ -823,6 +823,29 @@ it("opens review for the exact project named by a saved automatic hold", async (
   expect(project).toHaveBeenCalledExactlyOnceWith("shipwright", "42", 7, "gamebanana");
 });
 
+it("browses only the selected provider when the game has two reviewed choices", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(
+    view({ providers: ["gamebanana", "thunderstore"] }),
+  );
+  const browse = vi.spyOn(desktopApi, "browseProviderMods").mockRejectedValue(new Error("offline"));
+  const host = await render();
+  expect(host.textContent).not.toContain("Find mods on");
+  expect(browse).not.toHaveBeenCalled();
+
+  await act(async () => button(host, "GameBanana").click());
+  expect(button(host, "GameBanana").getAttribute("aria-pressed")).toBe("true");
+  await act(async () => button(host, "Find mods on GameBanana…").click());
+  expect(browse).toHaveBeenNthCalledWith(1, "shipwright", 1, 7, "gamebanana");
+
+  await act(async () => button(host, "Thunderstore").click());
+  expect(button(host, "GameBanana").getAttribute("aria-pressed")).toBe("false");
+  expect(button(host, "Thunderstore").getAttribute("aria-pressed")).toBe("true");
+  expect(host.textContent).not.toContain("Find mods on GameBanana");
+  await act(async () => button(host, "Find mods on Thunderstore…").click());
+  expect(browse).toHaveBeenNthCalledWith(2, "shipwright", 1, 7, "thunderstore");
+  expect(browse).toHaveBeenCalledTimes(2);
+});
+
 it("shows the exact runtime and offers a direct switch to clean play", async () => {
   const data = view();
   const { inventory, live } = data;
