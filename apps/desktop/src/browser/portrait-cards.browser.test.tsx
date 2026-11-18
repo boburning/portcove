@@ -255,6 +255,11 @@ it.for([
           )
           .toBe(true);
       }
+      // Exercise neutral layout measurement after a card was hovered.
+      if (view === "library") {
+        const identity = document.querySelectorAll<HTMLElement>(".collection-identity").item(4);
+        await userEvent.hover(identity);
+      }
       window.scrollTo(0, 0);
       await document.fonts.ready;
       const { frames, fallback } = await assertPortraitLayout(view, theme, width, height);
@@ -553,12 +558,27 @@ it.each([
   },
 );
 
+async function settlePortraitPointer() {
+  await userEvent.hover(document.documentElement, { position: { x: 1, y: 1 } });
+  await expect
+    .poll(() => {
+      const frames = [...document.querySelectorAll<HTMLElement>(".collection-art")];
+      return (
+        frames.length > 0 &&
+        !document.querySelector(".collection-identity:hover, .discover-game-identity:hover") &&
+        frames.every((frame) => getComputedStyle(frame).transform === "none")
+      );
+    })
+    .toBe(true);
+}
+
 async function assertPortraitLayout(
   view: "library" | "catalog",
   theme: string,
   width: number,
   height: number,
 ) {
+  await settlePortraitPointer();
   const frames = [...document.querySelectorAll<HTMLElement>(".collection-art")].map((element) => {
     const rect = element.getBoundingClientRect();
     return {
@@ -771,6 +791,7 @@ it.for([2, 4] as const)(
         3,
         7,
       );
+    await settlePortraitPointer();
     await captureTargetScreenshot(
       frame,
       `../../../../outputs/uiux-game-titles/collection-${count}-wide.png`,
@@ -779,6 +800,7 @@ it.for([2, 4] as const)(
     );
     await page.viewport(390, 844);
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390);
+    await settlePortraitPointer();
     await captureTargetScreenshot(
       frame,
       `../../../../outputs/uiux-game-titles/collection-${count}-narrow.png`,
