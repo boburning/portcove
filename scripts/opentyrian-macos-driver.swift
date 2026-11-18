@@ -226,10 +226,10 @@ do {
     try capture("menu", game)
     NSRunningApplication(processIdentifier: game.pid)?.activate(options: [.activateIgnoringOtherApps])
     Thread.sleep(forTimeInterval: 0.5)
-    try key(12, .maskCommand, game, owner)
+    try key(53, [], game, owner) // Escape exits the title menu through upstream cleanup.
     if !wait(process, 20) {
         try? capture("quit-pending", game)
-        throw ProbeFailure(message: "Owned player did not complete after normal quit")
+        throw ProbeFailure(message: "Owned player did not complete after the title menu exit")
     }
     let final = try cliJSON("final-launch", ["launch", "show", request])
     let gameExited = try gone(game)
@@ -249,7 +249,7 @@ do {
     let after = try snapshot(externalRoots)
     try write("external-after-removal", after)
     try require(before == after && (status["external_runtime"] == nil || status["external_runtime"] is NSNull), "Registration removal changed external bytes or retained registration")
-    try write("result", ["phase": "complete-pending-image-inspection", "native_exit": 0, "profile_root": profile.path, "settings_bytes": settingsSize, "settings_sha256": try digest(settings), "preserved_entries": before.count, "external_link_contents": "not traversed or inspected", "scope": "Publisher universal Mac package menu, normal exit and fresh settings creation; screenshots require inspection; no mission gameplay, populated-save restoration, audio, physical controls, Tauri or managed maintenance claim"])
+    try write("result", ["phase": "complete-pending-image-inspection", "native_exit": 0, "quit_control": "title-menu Escape", "profile_root": profile.path, "settings_bytes": settingsSize, "settings_sha256": try digest(settings), "preserved_entries": before.count, "external_link_contents": "not traversed or inspected", "scope": "Publisher universal Mac package menu, normal exit and fresh settings creation; screenshots require inspection; no mission gameplay, populated-save restoration, audio, physical controls, Tauri or managed maintenance claim"])
 
 
 } catch {
