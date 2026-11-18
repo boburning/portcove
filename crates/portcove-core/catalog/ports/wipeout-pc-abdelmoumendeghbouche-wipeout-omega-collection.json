@@ -24,7 +24,7 @@
         }
       ],
       "warnings": [
-        "Upstream early-development status claims boot/menus/saves and HD/2048 races/results, with 110–150FPS reported in 2048 on RTX 4070 Laptop, not a full collection playthrough. New README reports extra render-resolution patches and experimental PS4 Pro mode GOW3_NEO=1 loading a race with correct picture since v0.2.3; not tested further. All HD/HD Fury/2048 event types are not yet tested, HDR RCAS fix awaits testing and new audio effects may have defects; PSVR is not planned. Linux builds from source without a package; do not infer Linux gameplay/CPU qualification. No Portcove runtime or completion qualification was performed.",
+        "Upstream early-development status claims boot/menus/saves and HD/2048 races/results, with 110–150FPS reported in 2048 on RTX 4070 Laptop, not a full collection playthrough. New README reports extra render-resolution patches and experimental PS4 Pro mode GOW3_NEO=1 loading a race with correct picture since v0.2.3; not tested further. All HD/HD Fury/2048 event types are not yet tested, HDR RCAS fix awaits testing and new audio effects may have defects; PSVR is not planned. The upstream Linux x86-64 AppImage is listed in the release; Linux gameplay and CPU compatibility remain unverified. No Portcove runtime or completion qualification was performed.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc"

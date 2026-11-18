@@ -23,7 +23,7 @@
         }
       ],
       "warnings": [
-        "Upstream reports menus and Instant Action/co-op loading, but 3D output is black. The campaign menu starts; mission startup remains unfinished.",
+        "Upstream reports campaign missions playable in v0.6. Earlier builds reported black 3D output and unfinished campaign startup. Check the v0.6 release notes for current limitations.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Juansolo457/graw360-recomp"
