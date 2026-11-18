@@ -67,6 +67,7 @@ export function InstallBatchPanel({
   portIds,
   reviewOrigin,
   onCancelReview,
+  onChanged,
   onDone,
 }: {
   generation: number;
@@ -75,6 +76,8 @@ export function InstallBatchPanel({
   portIds: string[] | undefined;
   reviewOrigin?: HTMLElement | undefined;
   onCancelReview?: ((panel: HTMLElement | null) => void) | undefined;
+  /** The workspace owner rereads Core and publishes refresh failure independently. */
+  onChanged?: (() => Promise<unknown>) | undefined;
   onDone: () => void;
 }) {
   // The parent remounts this panel for each new selection, so a selection
@@ -142,6 +145,15 @@ export function InstallBatchPanel({
       });
   }, [portIds, generation]);
 
+  const refreshChanged = async (expected: number) => {
+    if (!accepts(expected)) return;
+    try {
+      await onChanged?.();
+    } catch {
+      // Refresh feedback belongs to the workspace; preserve the batch's result/error.
+    }
+  };
+
   const run = async (batchId: string, total: number) => {
     const expected = generation;
     setError(undefined);
@@ -152,11 +164,14 @@ export function InstallBatchPanel({
       // Games another Portcove window is still installing keep the batch unfinished.
       setUnfinished(stillRunning(record) ? record : undefined);
       setPhase({ kind: "finished", record });
+      void refreshChanged(expected);
     } catch (value) {
       if (!accepts(expected)) return;
       setError(errorText(value));
       const record = await desktopApi.installBatch(batchId, expected).catch(() => null);
-      if (accepts(expected)) setPhase(record ? { kind: "finished", record } : { kind: "idle" });
+      if (!accepts(expected)) return;
+      setPhase(record ? { kind: "finished", record } : { kind: "idle" });
+      void refreshChanged(expected);
     }
   };
 
@@ -177,7 +192,8 @@ export function InstallBatchPanel({
         );
       if (!accepts(expected)) return;
       if (!ready.length) {
-        if (accepts(expected)) onDone();
+        void refreshChanged(expected);
+        onDone();
         return;
       }
       const batch = await desktopApi.startInstallBatch(
@@ -189,7 +205,10 @@ export function InstallBatchPanel({
       );
       if (accepts(expected)) void run(batch.id, batch.items.length);
     } catch (value) {
-      if (accepts(expected)) setError(errorText(value));
+      if (!accepts(expected)) return;
+      setError(errorText(value));
+      // A waiting game may already be saved, or a failed start may need readback.
+      void refreshChanged(expected);
     } finally {
       if (activeConfirmation.current === expected) {
         activeConfirmation.current = undefined;

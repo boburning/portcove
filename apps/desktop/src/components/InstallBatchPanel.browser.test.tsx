@@ -285,6 +285,7 @@ it.each(["hidden", "inert", "navigation"])(
 it("uses the read-only review cancellation callback without completion refresh", async () => {
   const onDone = vi.fn();
   const onCancelReview = vi.fn();
+  const onChanged = vi.fn(async () => undefined);
   await root.rerender(
     <InstallBatchPanel
       generation={1}
@@ -292,6 +293,7 @@ it("uses the read-only review cancellation callback without completion refresh",
       portIds={["first"]}
       onDone={onDone}
       onCancelReview={onCancelReview}
+      onChanged={onChanged}
     />,
   );
   await act(async () => {});
@@ -300,14 +302,73 @@ it("uses the read-only review cancellation callback without completion refresh",
     document.querySelector('[aria-label="Install selected games"]'),
   );
   expect(onDone).not.toHaveBeenCalled();
+  expect(onChanged).not.toHaveBeenCalled();
   expect(desktopApi.startInstallBatch).not.toHaveBeenCalled();
   expect(desktopApi.addGamesToLibrary).not.toHaveBeenCalled();
+});
+
+it("refreshes saved waiting games before dismissing their review", async () => {
+  const order: string[] = [];
+  const onChanged = vi.fn(async () => {
+    order.push("refresh");
+  });
+  const onDone = vi.fn(() => {
+    order.push("done");
+  });
+  vi.mocked(desktopApi.planInstallBatch).mockResolvedValue({
+    ...review,
+    items: [{ port_id: "third", hold: "Missing files" }],
+  });
+  vi.mocked(desktopApi.addGamesToLibrary).mockResolvedValue([]);
+  await root.rerender(
+    <InstallBatchPanel
+      generation={1}
+      ports={ports}
+      portIds={["third"]}
+      onChanged={onChanged}
+      onDone={onDone}
+    />,
+  );
+  await act(async () => {});
+  await act(async () => button("Add 1 to Library").click());
+  expect(order).toEqual(["refresh", "done"]);
+  expect(desktopApi.addGamesToLibrary).toHaveBeenCalledExactlyOnceWith(
+    [{ port_id: "third", origin: "game_file_discovery" }],
+    1,
+  );
+  expect(desktopApi.startInstallBatch).not.toHaveBeenCalled();
+});
+
+it("refreshes partially saved waiting games when starting the ready batch is refused", async () => {
+  const onChanged = vi.fn(async () => undefined);
+  const onDone = vi.fn();
+  const run = vi.spyOn(desktopApi, "runInstallBatch");
+  vi.mocked(desktopApi.addGamesToLibrary).mockResolvedValue([]);
+  vi.mocked(desktopApi.startInstallBatch).mockRejectedValue(new Error("Owned batch start refused"));
+  await root.rerender(
+    <InstallBatchPanel
+      generation={1}
+      ports={ports}
+      portIds={["first", "second", "third"]}
+      onChanged={onChanged}
+      onDone={onDone}
+    />,
+  );
+  await act(async () => {});
+  await act(async () => button("Add 3 to Library and install 2").click());
+  expect(text()).toContain("Owned batch start refused");
+  expect(onChanged).toHaveBeenCalledExactlyOnceWith();
+  expect(onDone).not.toHaveBeenCalled();
+  expect(desktopApi.addGamesToLibrary).toHaveBeenCalledTimes(1);
+  expect(desktopApi.startInstallBatch).toHaveBeenCalledTimes(1);
+  expect(run).not.toHaveBeenCalled();
 });
 
 it.each(["waiting", "mixed", "starting"])(
   "does not continue a detached %s confirmation after generation replacement",
   async (stage) => {
     const onDone = vi.fn();
+    const onChanged = vi.fn(async () => undefined);
     const run = vi.spyOn(desktopApi, "runInstallBatch");
     let finish!: () => void;
     const batch = {
@@ -343,6 +404,7 @@ it.each(["waiting", "mixed", "starting"])(
         ports={ports}
         portIds={["first", "third"]}
         onDone={onDone}
+        onChanged={onChanged}
       />,
     );
     await act(async () => {});
@@ -364,11 +426,13 @@ it.each(["waiting", "mixed", "starting"])(
         ports={ports}
         portIds={["second"]}
         onDone={onDone}
+        onChanged={onChanged}
       />,
     );
     await act(async () => finish());
     await vi.waitFor(() => expect(text()).toContain("Current review"));
     expect(onDone).not.toHaveBeenCalled();
+    expect(onChanged).not.toHaveBeenCalled();
     expect(run).not.toHaveBeenCalled();
     expect(desktopApi.startInstallBatch).toHaveBeenCalledTimes(stage === "starting" ? 1 : 0);
   },

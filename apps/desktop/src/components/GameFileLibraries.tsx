@@ -1465,10 +1465,10 @@ export function GameFileLibraries({
         pendingBatchReturn.current = { review: currentBatchReview, departing };
         setBatchReview(undefined);
       }}
+      onChanged={onAdded}
       onDone={() => {
         if (!accepts()) return;
         setBatchReview(undefined);
-        void onAdded?.();
       }}
     />
   );
