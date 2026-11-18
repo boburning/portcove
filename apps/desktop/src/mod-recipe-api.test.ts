@@ -9,14 +9,16 @@ it("returns the native recipe plan unchanged through inspect, acquisition, disca
   const serialized =
     '{"recipe":{"settings":[{"value":2048.0},{"value":9007199254740993},{"value":-0.0}]},"plan_sha256":"original"}';
   const acquired = serialized.replace('"original"', '"acquired"');
-  const envelope = (serialized_plan: string) =>
-    JSON.parse(
+  const envelope = (serialized_plan: string) => {
+    const plan: unknown = JSON.parse(serialized_plan);
+    return JSON.parse(
       JSON.stringify({
-        plan: JSON.parse(serialized_plan),
+        plan,
         serialized_plan,
         setting_values: ["2048.0", "9007199254740993", "-0.0"],
       }),
     ) as OutputDesktopRecipeImportReview;
+  };
   const invoke = vi.fn((command: string, _args: unknown) =>
     Promise.resolve(
       command === "inspect_mod_recipe"
