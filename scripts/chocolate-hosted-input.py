@@ -41,6 +41,8 @@ elif mode=='tar':
    with target.open('rb') as f:
     b=f.read(4096);off=struct.unpack_from('<I',b,0x3c)[0];assert b[:2]==b'MZ' and off+26<=len(b) and b[off:off+4]==b'PE\0\0' and struct.unpack_from('<H',b,off+4)[0]==0x8664
    found[key]={'sha256':digest(target),'bytes':target.stat().st_size,'archive_path':m.name}
+ # tarfile stops at end markers; consume remaining padding under the Node byte/deadline bounds.
+ while sys.stdin.buffer.read(65536):pass
  assert set(found)=={'cli','core'}
  (root/'executables.json').write_text(json.dumps(found,indent=2))
 elif mode=='originals':

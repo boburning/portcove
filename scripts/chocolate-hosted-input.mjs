@@ -88,23 +88,31 @@ const decoder = spawn(
 const parser = spawn("python", ["scripts/chocolate-hosted-input.py", "tar", root], {
   stdio: ["pipe", "inherit", "inherit"],
 });
-let decoded = 0;
+let decoded = 0,
+  pipeFailure = null;
+function stopExtraction(error) {
+  pipeFailure ??= String(error);
+  decoder.kill();
+  parser.kill();
+}
+decoder.on("error", stopExtraction);
+parser.on("error", stopExtraction);
+parser.stdin.on("error", stopExtraction);
+decoder.stdout.on("error", stopExtraction);
 decoder.stdout.on("data", (b) => {
   decoded += b.length;
   if (decoded > 4 * 1024 ** 3) {
-    decoder.kill();
-    parser.kill();
+    stopExtraction(new Error("Decoded archive byte budget exceeded"));
   }
 });
 decoder.stdout.pipe(parser.stdin);
 const timer = setTimeout(() => {
-  decoder.kill();
-  parser.kill();
+  stopExtraction(new Error("Archive extraction deadline exceeded"));
 }, 90000);
 const results = await Promise.all([once(decoder, "close"), once(parser, "close")]);
 clearTimeout(timer);
 assert(
-  decoded <= 4 * 1024 ** 3 && results.every(([c]) => c === 0),
+  pipeFailure === null && decoded <= 4 * 1024 ** 3 && results.every(([c]) => c === 0),
   "Bounded test-archive extraction failed",
 );
 const executables = JSON.parse(await readFile(path.join(root, "executables.json"), "utf8"));

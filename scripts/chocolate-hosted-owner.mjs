@@ -125,6 +125,12 @@ async function command(args, { raw = false } = {}) {
   });
   active = child;
   positiveExit = false;
+  let rootExited = false;
+  child.once("exit", () => {
+    rootExited = true;
+  });
+  // Root exit and inherited pipe closure are distinct observations on Windows.
+  const rootClosed = once(child, "close");
   let driver = null,
     driverOutcome = null;
   if (raw && config.ui_helper) {
@@ -174,10 +180,52 @@ async function command(args, { raw = false } = {}) {
     bytes += b.length;
     if (bytes < 16 * 1024 * 1024) err.push(b);
   });
-  const [code, signal] = await once(child, "close");
+  let code, signal, driven, deadline;
+  const timedOut = new Promise((_, reject) => {
+    deadline = setTimeout(
+      () => reject(new Error("Managed command/pipe drain deadline exceeded")),
+      raw ? 150000 : 120000,
+    );
+  });
+  const driverFailed = driverOutcome
+    ? driverOutcome.then((outcome) => {
+        if (outcome.code !== 0)
+          throw new Error("Owned UI driver failed; descendant exit requires retained proof");
+        return new Promise(() => {});
+      })
+    : new Promise(() => {});
+  try {
+    const outcomes = await Promise.race([
+      Promise.all([rootClosed, driverOutcome]),
+      driverFailed,
+      timedOut,
+    ]);
+    [code, signal] = outcomes[0];
+    driven = outcomes[1];
+  } catch (error) {
+    // Close only our reader handles. Never infer descendant exit from root exit,
+    // or kill by PID/name to make cleanup appear complete.
+    child.stdout.destroy();
+    child.stderr.destroy();
+    child.unref();
+    if (driver) {
+      driver.stderr.destroy();
+      driver.unref();
+    }
+    await writeFile(path.join(evidence, name + ".stdout.log"), Buffer.concat(out));
+    if (err.length) await writeFile(path.join(evidence, name + ".stderr.log"), Buffer.concat(err));
+    await record(name + "-incomplete", {
+      error: String(error),
+      root_exited: rootExited,
+      descendant_exit: "requires UI cleanup proof",
+      observed_bytes: bytes,
+    });
+    throw error;
+  } finally {
+    clearTimeout(deadline);
+  }
   active = null;
   positiveExit = true;
-  const driven = driverOutcome ? await driverOutcome : null;
   const stdout = Buffer.concat(out),
     stderr = Buffer.concat(err);
   await writeFile(path.join(evidence, name + ".stdout.log"), stdout);
