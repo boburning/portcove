@@ -51,7 +51,8 @@ updates in the published Alpha 2.
 ### Required desktop runtime
 
 The first-beta Windows baseline is Windows 11 26H2 x86-64 with normal security
-updates and the WebView2 Evergreen production Runtime, initially 155.0.4283.62
+updates and the WebView2 Evergreen production Runtime. The Windows installer and
+startup check use the same [reviewed minimum](../apps/desktop/src-tauri/tauri.conf.json), initially 155.0.4283.62
 or later. Keep Evergreen automatic updates enabled. The normal NSIS installer
 uses Tauri's Evergreen bootstrapper and minimum-version update behavior; an
 offline or failed runtime installation does not establish a usable application.

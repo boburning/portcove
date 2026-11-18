@@ -1,25 +1,39 @@
 //! The selected desktop engine floor, separate from compiler transform targets.
 
-#[cfg(windows)]
-const ENGINE_FLOOR: &[u32] = &[155, 0, 4283, 62];
 #[cfg(target_os = "linux")]
-const ENGINE_FLOOR: &[u32] = &[2, 52, 6];
+const LINUX_ENGINE_FLOOR: &str = "2.52.6";
 
-fn version_at_least(actual: &str, floor: &[u32]) -> bool {
-    let parts = actual
-        .split('.')
-        .map(str::parse::<u32>)
-        .collect::<Result<Vec<_>, _>>();
-    matches!(parts, Ok(parts) if parts.len() == floor.len() && parts.as_slice() >= floor)
+fn version_at_least(actual: &str, floor: &str) -> bool {
+    let parse = |version: &str| {
+        version
+            .split('.')
+            .map(str::parse::<u32>)
+            .collect::<Result<Vec<_>, _>>()
+    };
+    matches!(
+        (parse(actual), parse(floor)),
+        (Ok(actual), Ok(floor)) if actual.len() == floor.len() && actual >= floor
+    )
 }
 
-pub fn check() -> Result<(), String> {
+pub fn check(windows_minimum: Option<&str>) -> Result<(), String> {
+    #[cfg(windows)]
+    let floor = windows_minimum
+        .filter(|minimum| minimum.split('.').count() == 4 && version_at_least(minimum, minimum))
+        .ok_or_else(|| "This Portcove build lacks a valid WebView2 runtime minimum.".to_owned())?;
+    #[cfg(target_os = "linux")]
+    let floor = {
+        let _ = windows_minimum;
+        LINUX_ENGINE_FLOOR
+    };
     let version = tauri::webview_version().map_err(|error| {
         format!("Portcove could not find its required WebView runtime: {error}. Repair the runtime before starting Portcove.")
     })?;
-    if !version_at_least(&version, ENGINE_FLOOR) {
+    if !version_at_least(&version, floor) {
         #[cfg(windows)]
-        let remedy = "Install or update the WebView2 Evergreen production Runtime to 155.0.4283.62 or later; retain automatic updates.";
+        let remedy = format!(
+            "Install or update the WebView2 Evergreen production Runtime to {floor} or later and retain automatic updates."
+        );
         #[cfg(target_os = "linux")]
         let remedy = "Use updated Ubuntu 24.04 LTS with WebKitGTK 2.52.6 or later, or a current qualified Portcove AppImage.";
         return Err(format!(
@@ -59,10 +73,15 @@ mod tests {
     #[test]
     fn engine_floor_accepts_exact_and_newer_serviced_versions() {
         for version in ["2.52.6", "2.52.7", "2.54.0", "3.0.0"] {
-            assert!(version_at_least(version, &[2, 52, 6]));
+            assert!(version_at_least(version, "2.52.6"));
         }
-        assert!(version_at_least("155.0.4283.62", &[155, 0, 4283, 62]));
-        assert!(version_at_least("155.0.4283.63", &[155, 0, 4283, 62]));
+        for (version, accepted) in [
+            ("156.1.2.2", false),
+            ("156.1.2.3", true),
+            ("156.1.3.0", true),
+        ] {
+            assert_eq!(version_at_least(version, "156.1.2.3"), accepted);
+        }
     }
 
     #[test]
@@ -76,10 +95,10 @@ mod tests {
             "2.52.6-beta",
             "999999999999.0.0",
         ] {
-            assert!(!version_at_least(version, &[2, 52, 6]));
+            assert!(!version_at_least(version, "2.52.6"));
         }
-        for version in ["154.0.9999.99", "155.0.4283.60", "155.0.4283.62 dev"] {
-            assert!(!version_at_least(version, &[155, 0, 4283, 62]));
+        for version in ["0.0.0.0", "155.0.4283", "155.0.4283.62 dev"] {
+            assert!(!version_at_least(version, "156.1.2.3"));
         }
     }
 }
