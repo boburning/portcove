@@ -14,11 +14,7 @@ import {
   type Organization,
 } from "../features/organization/OrganizationControls";
 import { GroupedDiscover, IdentityChips } from "../features/browsing/GroupedDiscover";
-import {
-  GroupedLibrary,
-  useLibraryMenu,
-  type LibraryItem,
-} from "../features/browsing/GroupedLibrary";
+import { GroupedLibrary, useLibraryMenu } from "../features/browsing/GroupedLibrary";
 import { groupCatalog, groupCountLabel } from "../features/browsing/original-game";
 import { PortSearch } from "./PortSearch";
 import { controlFocus, floatingMotion } from "./ui/control-style";
@@ -920,9 +916,8 @@ function BrowserResults({
       statuses={statuses}
       organization={organization}
       onSelect={onSelect}
-      renderPort={(port, collectionItem) => (
+      renderPort={(port) => (
         <PortCard
-          collectionItem={collectionItem}
           layout={layout}
           favorites={favorites}
           onFavoriteToggle={onFavoriteToggle}
@@ -1141,7 +1136,6 @@ type CardState = {
 };
 
 type PortCardProps = {
-  collectionItem?: LibraryItem | undefined;
   organization?: Organization | undefined;
   restoreAfter: (button: HTMLElement, action: () => Promise<boolean>) => Promise<void>;
   layout: CollectionLayout;
@@ -1161,7 +1155,6 @@ const idleNativeSourceDrag: NativeSourceDragState = { active: false, pathCount: 
 
 /** Memoized: a grid re-renders only cards whose port, status or shared inputs changed. */
 const PortCard = memo(function PortCard({
-  collectionItem,
   organization,
   restoreAfter,
   layout,
@@ -1229,7 +1222,6 @@ const PortCard = memo(function PortCard({
   return (
     <LibraryEntry
       {...{
-        collectionItem,
         port,
         status,
         state,
@@ -1252,7 +1244,6 @@ const PortCard = memo(function PortCard({
 });
 
 function LibraryEntry({
-  collectionItem,
   port,
   status,
   state,
@@ -1271,7 +1262,6 @@ function LibraryEntry({
   onFavoriteToggle,
 }: Pick<
   PortCardProps,
-  | "collectionItem"
   | "port"
   | "status"
   | "layout"
@@ -1299,12 +1289,6 @@ function LibraryEntry({
         `port-card port-card-library collection-entry collection-${layout === "rows" ? "row" : "cover"} relative min-w-0`,
         dropTarget && "outline-3 outline-offset-2 outline-pc-ring outline-solid",
       )}
-      role={collectionItem ? "listitem" : undefined}
-      aria-posinset={collectionItem?.position}
-      aria-setsize={collectionItem?.total}
-      data-detail-return-group={collectionItem?.groupKey}
-      data-library-port-ids={collectionItem ? JSON.stringify(collectionItem.portIds) : undefined}
-      data-collection-singleton={collectionItem ? collectionItem.total === 1 : undefined}
       aria-label={`${gameIdentityLabel(port)}. ${state.label}.`}
       aria-describedby={input ? setupDescriptionId : undefined}
       data-source-drop-port-id={dropEligible ? port.id : undefined}
@@ -1503,6 +1487,7 @@ function PortCardStatus({
             variant="primary"
             size="xs"
             className="library-card-action library-card-play"
+            data-detail-origin={`${detailOrigin}:play`}
             disabled={Boolean(action.busy)}
             focusableWhenDisabled={Boolean(action.busy)}
             aria-busy={Boolean(action.busy)}

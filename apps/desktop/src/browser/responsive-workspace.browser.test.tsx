@@ -110,7 +110,7 @@ for (const theme of ["dark", "light"] as const) {
       await expect.poll(() => columns()).toBeGreaterThan(ordinaryColumns);
       const gameCards = () => [
         ...document.querySelectorAll<HTMLElement>(
-          view === "catalog" ? ".virtual-discover-row > .discover-game" : ".port-grid > *",
+          view === "catalog" ? ".virtual-discover-row > .discover-game" : "[data-library-port-ids]",
         ),
       ];
       await expect
@@ -138,7 +138,7 @@ for (const theme of ["dark", "light"] as const) {
         expect(art.height / art.width).toBeCloseTo(1.5, 2);
       }
       const wheelTarget = page
-        .getByRole("region", {
+        .getByRole(view === "library" ? "list" : "region", {
           name: view === "library" ? "Library entries" : "Discover games",
         })
         .getByRole("heading")

@@ -59,10 +59,14 @@ it.each(["Covers", "Compact rows"])(
         finish = resolve;
       }),
     );
-    const play = [
-      ...document.querySelectorAll<HTMLButtonElement>(".collection-actions button"),
-    ].find((button) => button.textContent?.trim() === "Play")!;
+    let play = [...document.querySelectorAll<HTMLButtonElement>(".collection-actions button")].find(
+      (button) => button.textContent?.trim() === "Play",
+    )!;
     expect(play).toBeDefined();
+    const origin = play.dataset.detailOrigin!;
+    expect(origin).toMatch(/^library:card:collection-\d+:play$/u);
+    const currentPlay = () =>
+      document.querySelector<HTMLButtonElement>(`[data-detail-origin="${CSS.escape(origin)}"]`);
     play.scrollIntoView({ block: "center" });
     play.focus({ preventScroll: true });
     play.click();
@@ -83,8 +87,14 @@ it.each(["Covers", "Compact rows"])(
     await captureParityState(`library-launch-pending-${layout === "Covers" ? "covers" : "rows"}`);
     finish({ processId: null, sessionId: "fixture-return-focus" });
     await expect
-      .poll(() => play.disabled || play.getAttribute("aria-disabled") === "true")
-      .toBe(false);
+      .poll(() => {
+        const current = currentPlay();
+        return Boolean(
+          current && !current.disabled && current.getAttribute("aria-disabled") !== "true",
+        );
+      })
+      .toBe(true);
+    play = currentPlay()!;
     expect(play.isConnected).toBe(true);
     expect(document.activeElement).toBe(play);
     let finishAgain!: (value: Awaited<ReturnType<typeof desktopApi.launch>>) => void;
@@ -99,7 +109,14 @@ it.each(["Covers", "Compact rows"])(
     const search = document.querySelector<HTMLInputElement>("#port-search")!;
     search.focus({ preventScroll: true });
     finishAgain({ processId: null, sessionId: "fixture-return-after-navigation" });
-    await expect.poll(() => play.getAttribute("aria-disabled")).not.toBe("true");
+    await expect
+      .poll(() => {
+        const current = currentPlay();
+        return Boolean(
+          current && !current.disabled && current.getAttribute("aria-disabled") !== "true",
+        );
+      })
+      .toBe(true);
     expect(document.activeElement).toBe(search);
   },
 );
@@ -535,6 +552,7 @@ it("opens details from a plain fact inside a narrow row's details outline", asyn
   });
   await mount("dark");
   await page.getByRole("button", { name: "Compact rows", exact: true }).click();
+  await mountLibraryPort("collection-0");
   const identity = document.querySelector<HTMLButtonElement>(
     '.collection-row [data-detail-game-id="collection-0"]',
   )!;

@@ -26,11 +26,12 @@ import type { CollectionLayout } from "./use-collection-layout";
 import { ArtworkFrame } from "../../components/Artwork";
 import { useArtwork, useArtworkVisibility } from "../../artwork";
 
-export type LibraryItem = {
+type LibraryItem = {
   groupKey: string;
   position: number;
   total: number;
   portIds: readonly string[];
+  matchingPortIds: readonly string[];
 };
 
 // The menu outlives a virtual row's regrouping and retains its trigger until the
@@ -61,7 +62,7 @@ export function GroupedLibrary({
   matching: readonly CatalogEntry[];
   statuses: ReadonlyMap<string, PortStatus>;
   organization?: Organization | undefined;
-  renderPort: (port: CatalogEntry, item?: LibraryItem) => ReactNode;
+  renderPort: (port: CatalogEntry) => ReactNode;
   onSelect: (portId: string, originKey?: string) => void;
   layout?: CollectionLayout;
   resultsReady?: boolean;
@@ -79,6 +80,7 @@ export function GroupedLibrary({
         position: index + 1,
         total: groups.length,
         portIds: group.ports.map((port) => port.id),
+        matchingPortIds: group.matchingPorts.map((port) => port.id),
       })),
     [groups],
   );
@@ -148,26 +150,15 @@ export function GroupedLibrary({
           if (target.originKey?.startsWith("library:alternative:")) expand(group.id, true);
         }}
       >
-        {(group, index) => {
-          const item = items[index]!;
-          return group.ports.length === 1 &&
-            resolveGameChoice(
-              group,
-              statuses,
-              organization?.snapshot
-                ? (organization.snapshot.preferred_port_by_game ?? {})
-                : undefined,
-            ).reason !== "stale" ? (
-            renderPort(group.matchingPorts[0]!, item)
-          ) : (
-            <LibraryGame
-              key={group.id}
-              {...{ group, item, statuses, organization, renderPort, onSelect, layout }}
-              expanded={expanded.has(group.id)}
-              onExpanded={(open) => expand(group.id, open)}
-            />
-          );
-        }}
+        {(group, index) => (
+          <LibraryGame
+            key={group.id}
+            {...{ group, statuses, organization, renderPort, onSelect, layout, t }}
+            item={items[index]!}
+            expanded={expanded.has(group.id)}
+            onExpanded={(open) => expand(group.id, open)}
+          />
+        )}
       </VirtualCollectionRows>
     </LibraryMenuContext.Provider>
   );
@@ -178,6 +169,7 @@ function LibraryGame({
   item,
   expanded,
   onExpanded,
+  t,
   statuses,
   organization,
   renderPort,
@@ -188,15 +180,15 @@ function LibraryGame({
   item: LibraryItem;
   expanded: boolean;
   onExpanded: (open: boolean) => void;
+  t: TFunction<"browsing">;
   statuses: ReadonlyMap<string, PortStatus>;
   organization: Organization | undefined;
   renderPort: (port: CatalogEntry) => ReactNode;
   onSelect: (portId: string, originKey?: string) => void;
   layout: CollectionLayout;
 }) {
-  const { t } = useAppTranslation("browsing");
   const preferences = organization?.snapshot?.preferred_port_by_game;
-  const root = useRef<HTMLElement>(null);
+  const root = useRef<HTMLDivElement>(null);
   const restore = (trigger: HTMLButtonElement) =>
     window.requestAnimationFrame(() => {
       if (ownsChoiceFocus(trigger, root.current)) root.current?.focus();
@@ -207,8 +199,9 @@ function LibraryGame({
     organization?.snapshot ? (preferences ?? {}) : undefined,
   );
   const first = group.matchingPorts[0]!;
+  const grouped = group.ports.length !== 1 || choice.reason === "stale";
   return (
-    <section
+    <div
       ref={root}
       tabIndex={-1}
       className="min-w-0"
@@ -218,6 +211,7 @@ function LibraryGame({
       aria-setsize={item.total}
       data-collection-singleton={item.total === 1}
       data-library-port-ids={JSON.stringify(item.portIds)}
+      data-library-matching-port-ids={JSON.stringify(item.matchingPortIds)}
       data-library-game-id={group.id}
       data-detail-return-group={group.id}
     >
@@ -226,52 +220,54 @@ function LibraryGame({
       ) : (
         <LibraryChoicePrompt {...{ group, first, choice, layout, organization, restore }} />
       )}
-      <details
-        open={expanded}
-        onToggle={(event) => onExpanded(event.currentTarget.open)}
-        className="mt-2 rounded-pc-md border border-pc-border px-3 py-2 text-sm"
-      >
-        <summary data-focusable data-collection-control="alternatives" className="cursor-pointer">
-          {t("library.allPorts", {
-            count: group.ports.length,
-            matching: group.matchingPorts.length,
-          })}
-        </summary>
-        <p className="my-2 text-xs text-pc-muted-foreground">{t("library.independence")}</p>
-        {group.ports.map((port) => (
-          <div key={port.id} className="grid gap-2 border-t border-pc-border py-3">
-            <p>
-              <AlternativeName
-                t={t}
-                name={gameProjectLabel(port) || port.name}
-                chosen={choice.preferredPortId === port.id}
-                outside={!group.matchingPorts.some((match) => match.id === port.id)}
-              />
-            </p>
-            <ImplementationFacts port={port} status={statuses.get(port.id)} />
-            <ImplementationChoice port={port} organization={organization} onSelected={restore} />
-            <Button
-              variant="ghost"
-              size="sm"
-              data-focusable
-              data-detail-origin={`library:alternative:${port.id}`}
-              onClick={() => onSelect(port.id, `library:alternative:${port.id}`)}
-            >
-              <Trans
-                t={t}
-                i18nKey="alternatives.view"
-                components={{ name: <bdi>{gameProjectLabel(port) || port.name}</bdi> }}
-              />
-            </Button>
-          </div>
-        ))}
-      </details>
-      {organization?.failure === "read" && (
+      {grouped && (
+        <details
+          open={expanded}
+          onToggle={(event) => onExpanded(event.currentTarget.open)}
+          className="mt-2 rounded-pc-md border border-pc-border px-3 py-2 text-sm"
+        >
+          <summary data-focusable data-collection-control="alternatives" className="cursor-pointer">
+            {t("library.allPorts", {
+              count: group.ports.length,
+              matching: group.matchingPorts.length,
+            })}
+          </summary>
+          <p className="my-2 text-xs text-pc-muted-foreground">{t("library.independence")}</p>
+          {group.ports.map((port) => (
+            <div key={port.id} className="grid gap-2 border-t border-pc-border py-3">
+              <p>
+                <AlternativeName
+                  t={t}
+                  name={gameProjectLabel(port) || port.name}
+                  chosen={choice.preferredPortId === port.id}
+                  outside={!group.matchingPorts.some((match) => match.id === port.id)}
+                />
+              </p>
+              <ImplementationFacts port={port} status={statuses.get(port.id)} />
+              <ImplementationChoice port={port} organization={organization} onSelected={restore} />
+              <Button
+                variant="ghost"
+                size="sm"
+                data-focusable
+                data-detail-origin={`library:alternative:${port.id}`}
+                onClick={() => onSelect(port.id, `library:alternative:${port.id}`)}
+              >
+                <Trans
+                  t={t}
+                  i18nKey="alternatives.view"
+                  components={{ name: <bdi>{gameProjectLabel(port) || port.name}</bdi> }}
+                />
+              </Button>
+            </div>
+          ))}
+        </details>
+      )}
+      {grouped && organization?.failure === "read" && (
         <p role="status" className="mt-2 text-xs text-pc-warning-foreground">
           {t("library.choiceReadFailed")}
         </p>
       )}
-    </section>
+    </div>
   );
 }
 

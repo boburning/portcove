@@ -591,7 +591,10 @@ plus independently retained focus, destination and open-overlay rows. The full
 logical group count and order remain available to navigation and return-focus
 restoration. Library alternatives retain their expanded state when their row
 leaves the viewport; returning to an alternative mounts and expands that exact
-group before focus restoration. Saved membership never implies installation.
+group before focus restoration. Accepted background reordering retains the logical
+reading anchor and exact focused control within the same query and generation;
+a newer player intent cancels restoration. Pending actions can retain focus while
+refusing activation. Saved membership never implies installation.
 Singleton styling follows the logical result count, including a final partial
 virtual row, and both layouts keep their existing responsive sizing rules.
 

@@ -102,6 +102,7 @@ async function draw(props: Parameters<typeof Fixture>[0] = {}) {
   await frames();
 }
 beforeEach(async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   fixture = browserFixture({ viewport: true });
   await page.viewport(1280, 800);
   host = document.createElement("div");
@@ -113,6 +114,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
   await fixture.dispose();
+  vi.unstubAllGlobals();
 });
 
 it.each(["covers", "rows"] as const)(
@@ -125,9 +127,11 @@ it.each(["covers", "rows"] as const)(
     );
     expect(document.querySelector('button[aria-label^="Play "]')).toBeNull();
     const first = await mountLibraryPort("library-0");
-    await userEvent.click(first.querySelector("summary")!);
+    await act(async () => {
+      await userEvent.click(first.querySelector("summary")!);
+    });
     await expect.poll(() => first.querySelector("details")?.open).toBe(true);
-    document.querySelector<HTMLButtonElement>("#outside-library")!.focus();
+    await act(async () => document.querySelector<HTMLButtonElement>("#outside-library")!.focus());
     await mountLibraryPort("library-200");
     await frames();
     expect(first.isConnected).toBe(false);
@@ -144,14 +148,18 @@ it("keeps an open menu's exact trigger mounted through scrolling, regrouping and
   await draw();
   const first = await mountLibraryPort("library-2");
   const origin = "library:card-more:library-2";
-  await userEvent.click(first.querySelector(`[data-detail-origin="${origin}"]`)!);
+  await act(async () => {
+    await userEvent.click(first.querySelector(`[data-detail-origin="${origin}"]`)!);
+  });
   await expect.element(page.getByRole("menu")).toBeVisible();
   await mountLibraryPort("library-200");
   expect(first.isConnected).toBe(true);
   await page.viewport(760, 800);
   await frames();
   await expect.element(page.getByRole("menu")).toBeVisible();
-  await userEvent.keyboard("{Escape}");
+  await act(async () => {
+    await userEvent.keyboard("{Escape}");
+  });
   await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
   await expect
     .poll(() => (document.activeElement as HTMLElement)?.dataset.detailOrigin)
@@ -189,9 +197,11 @@ it("mounts exact alternative returns and cancels obsolete query and generation w
     '[data-detail-origin="library:alternative:library-1"]',
   )!;
   expect(alternative.closest("details")!.open).toBe(true);
-  alternative.focus();
+  await act(async () => alternative.focus());
   expect(captureCollectionDestination(workspace)?.groupKey).toBe("game:game-0");
-  await userEvent.click(alternative);
+  await act(async () => {
+    await userEvent.click(alternative);
+  });
   expect(open).toHaveBeenCalledExactlyOnceWith("library-1", "library:alternative:library-1");
   for (const replacement of [
     { query: "new", generation: 1 },
@@ -218,7 +228,7 @@ it.each(["covers", "rows"] as const)(
     const card = await mountLibraryPort("library-180");
     const origin = "library:card:library-180";
     const control = card.querySelector<HTMLButtonElement>(`[data-detail-origin="${origin}"]`)!;
-    control.focus();
+    await act(async () => control.focus());
     await frames();
     const before = control.getBoundingClientRect().top;
     // Keep the destination away from either scroll boundary so equal offsets are attainable.
@@ -240,7 +250,7 @@ it.each(["covers", "rows"] as const)(
 it("yields pending structural restoration to a new explicit focus and scroll intent", async () => {
   await draw();
   const card = await mountLibraryPort("library-180");
-  card.querySelector<HTMLButtonElement>(".collection-identity")!.focus();
+  await act(async () => card.querySelector<HTMLButtonElement>(".collection-identity")!.focus());
   await frames();
   await act(async () => root.render(<Fixture matching={[...ports].reverse()} />));
   const outside = document.querySelector<HTMLButtonElement>("#outside-library")!;
@@ -254,4 +264,12 @@ it("yields pending structural restoration to a new explicit focus and scroll int
   await frames();
   expect(document.activeElement).toBe(outside);
   expect(workspace.scrollTop).toBe(0);
+});
+
+it("distinguishes a narrowed Library match from all alternatives in its logical game", async () => {
+  await draw({ matching: ports.slice(1, 2), query: "narrowed" });
+  await inspectLibraryGroups([["library-0", "library-1"]], () => {}, [["library-1"]]);
+  const group = await mountLibraryPort("library-1");
+  expect(group.querySelector('[data-detail-origin="library:card:library-0"]')).toBeNull();
+  expect(group.querySelectorAll(".collection-actions button")).toHaveLength(1);
 });

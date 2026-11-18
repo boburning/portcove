@@ -1,3 +1,4 @@
+import { mountLibraryPort } from "./discover-test-helpers";
 import axe from "axe-core";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -109,6 +110,7 @@ it("audits narrow dark navigation while preserving focus containment and return"
 
 it("audits the long-identity details state with all default rules", async (context) => {
   const root = await mount("dark", 320);
+  await mountLibraryPort("comparison-2");
   await page.getByRole("button", { name: /^View details for The Very Long Voyage/ }).click();
   await expect.element(page.getByRole("heading", { name: /^The Very Long Voyage/ })).toHaveFocus();
   const title = document.getElementById("port-detail-title")!;

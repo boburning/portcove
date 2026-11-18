@@ -1,4 +1,9 @@
-import { inspectDiscoverGroups, mountDiscoverPort } from "./discover-test-helpers";
+import {
+  inspectDiscoverGroups,
+  mountDiscoverPort,
+  inspectLibraryGroups,
+  mountLibraryPort,
+} from "./discover-test-helpers";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { act, useState } from "react";
@@ -319,7 +324,6 @@ it.for(["library", "catalog"] as const)(
         />
       </main>,
     );
-    const frames = [...document.querySelectorAll<HTMLElement>(".collection-art")];
     await userEvent.keyboard("{Tab}");
     const inspectFrame = (frame: HTMLElement) => {
       const rect = frame.getBoundingClientRect();
@@ -341,20 +345,23 @@ it.for(["library", "catalog"] as const)(
       }
       identity.blur();
     };
-    const inspectLibraryFrames = () => {
-      expect(frames).toHaveLength(100);
-      for (const frame of frames) inspectFrame(frame);
+    const inspectLibraryFrames = async () => {
+      expect(document.querySelectorAll(".collection-art").length).toBeLessThan(100);
+      await inspectLibraryGroups(
+        many.map((port) => [port.id]),
+        (card) => inspectFrame(card.querySelector<HTMLElement>(".collection-art")!),
+      );
     };
     if (view === "catalog") {
       await inspectDiscoverGroups(
         many.map(({ id }) => [id]),
         (card) => inspectFrame(card.querySelector<HTMLElement>(".collection-art")!),
       );
-    } else inspectLibraryFrames();
+    } else await inspectLibraryFrames();
     const lastFrame =
       view === "catalog"
         ? (await mountDiscoverPort("large-99")).querySelector<HTMLElement>(".collection-art")!
-        : frames[99]!;
+        : (await mountLibraryPort("large-99")).querySelector<HTMLElement>(".collection-art")!;
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(960);
     lastFrame
       .closest(".collection-identity, .discover-game-identity")!

@@ -80,6 +80,7 @@ export async function mountLibraryPort(portId: string) {
 export async function inspectLibraryGroups(
   expected: readonly (readonly string[])[],
   inspect: (card: HTMLElement, position: number) => void | Promise<void> = () => {},
+  matching: readonly (readonly string[])[] = expected,
 ) {
   const visited = new Set<number>();
   for (let index = 0; index < expected.length; index++) {
@@ -91,6 +92,7 @@ export async function inspectLibraryGroups(
       const position = Number(card.getAttribute("aria-posinset")) - 1;
       expect(card.getAttribute("aria-setsize")).toBe(String(expected.length));
       expect(JSON.parse(card.dataset.libraryPortIds!)).toEqual(expected[position]);
+      expect(JSON.parse(card.dataset.libraryMatchingPortIds!)).toEqual(matching[position]);
       if (!visited.has(position)) {
         await inspect(card, position);
         visited.add(position);

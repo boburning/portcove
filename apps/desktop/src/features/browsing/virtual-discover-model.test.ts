@@ -46,6 +46,8 @@ it("uses resolved CSS tracks as the column authority", () => {
 });
 
 it("resolves Library identity, menu and alternative origins without prefix collisions", () => {
+  expect(discoverDestinationIndex(groups, { originKey: "library:card:port-14:play" })).toBe(14);
+  expect(discoverDestinationIndex(groups, { originKey: "library:card:port-140:play" })).toBe(-1);
   for (const control of ["card", "card-more", "alternative"]) {
     expect(discoverDestinationIndex(groups, { originKey: `library:${control}:port-14` })).toBe(14);
     expect(discoverDestinationIndex(groups, { originKey: `library:${control}:port-140` })).toBe(-1);

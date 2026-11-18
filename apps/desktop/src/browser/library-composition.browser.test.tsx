@@ -552,6 +552,7 @@ it.each([
     expect(identity.scrollWidth).toBeLessThanOrEqual(identity.clientWidth + 1);
     for (const layout of ["Covers", "Compact rows"]) {
       await page.getByRole("button", { name: layout, exact: true }).click();
+      await mountLibraryPort(port.id);
       document.querySelector<HTMLButtonElement>(`[data-detail-game-id="${port.id}"]`)!.focus();
       expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
       const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
@@ -591,11 +592,9 @@ for (const theme of ["dark", "light"]) {
       document.querySelector("[data-library-port-ids]")!.getAttribute("aria-setsize"),
     );
     await mountLibraryPort("collection-59");
-    const action = [
-      ...document.querySelectorAll<HTMLButtonElement>(
-        ".collection-actions button[data-variant=outline]",
-      ),
-    ].at(-1)!;
+    const action = document.querySelector<HTMLButtonElement>(
+      '[data-detail-origin="library:card:collection-59:play"]',
+    )!;
     action.focus();
     action.scrollIntoView({ block: "center" });
     const main = document.querySelector<HTMLElement>(".app-shell > main")!;
@@ -1000,6 +999,12 @@ it.each([
     page.getByRole("button", { name: "Covers", exact: true }).element().focus();
     main.scrollTop = 0;
     window.scrollTo(0, 0);
+    await expect
+      .poll(() => {
+        const row = document.querySelector<HTMLElement>("[data-collection-row]");
+        return row?.querySelectorAll("[data-library-port-ids]").length;
+      })
+      .toBe(Math.min(renderedEntries, 3));
     const cards = [...document.querySelectorAll<HTMLElement>(".collection-cover")];
     const firstTop = cards[0]!.getBoundingClientRect().top;
     const firstRow = cards.filter(
@@ -1252,7 +1257,13 @@ it.each([false, true])(
 
     await expect.poll(() => document.querySelectorAll(".collection-cover").length).toBe(1);
     const cover = document.querySelector<HTMLElement>(".collection-cover")!;
-    expect(Boolean(cover.closest("section[data-library-game-id]"))).toBe(grouped);
+    expect(
+      (
+        JSON.parse(
+          cover.closest<HTMLElement>("[data-library-port-ids]")!.dataset.libraryPortIds!,
+        ) as string[]
+      ).length > 1,
+    ).toBe(grouped);
     const play = page.getByRole("button", { name: /^Play: Harbor Adventure/ });
     await expect.element(play).toBeVisible();
     const action = play.element().getBoundingClientRect();

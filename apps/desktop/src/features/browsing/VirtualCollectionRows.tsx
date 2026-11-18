@@ -28,6 +28,7 @@ type Anchor = {
         originKey: string | undefined;
         controlKey: string | undefined;
         control: number;
+        group: boolean;
       }
     | undefined;
 };
@@ -90,6 +91,7 @@ export function VirtualCollectionRows({
   });
   model.current = { structure, groups, rows, ready, queryKey, generation, onMountDestination };
   const reading = useRef<Anchor | undefined>(undefined);
+  const lastAccepted = useRef({ structure, queryKey, generation, layout });
   const regroup = useRef<Anchor | undefined>(undefined);
   const work = useRef(0);
   const mounting = useRef(0);
@@ -120,6 +122,7 @@ export function VirtualCollectionRows({
     gap: geometry.gap,
     scrollMargin: geometry.margin,
     rangeExtractor,
+    useAnimationFrameWithResizeObserver: true,
     initialRect: { width: 0, height: 800 },
   };
   // oxlint-disable-next-line react/incompatible-library -- Explicit compiler opt-out above; range reads are not memoized or passed to memoized children.
@@ -163,9 +166,12 @@ export function VirtualCollectionRows({
         focusedCard && focused
           ? {
               groupKey: focusedCard.dataset.detailReturnGroup!,
+              group: focused === focusedCard,
               originKey: focused.dataset.detailOrigin,
               controlKey: focused.dataset.collectionControl,
-              control: focusableControls(focusedCard).indexOf(focused),
+              control: focusableControls(focusedCard, { includeAriaDisabled: true }).indexOf(
+                focused,
+              ),
             }
           : undefined,
     };
@@ -234,7 +240,14 @@ export function VirtualCollectionRows({
     const scroll = () => {
       capture();
     };
-    const observer = new ResizeObserver(measure);
+    let measurementFrame = 0;
+    const observer = new ResizeObserver(() => {
+      if (measurementFrame) return;
+      measurementFrame = requestAnimationFrame(() => {
+        measurementFrame = 0;
+        measure();
+      });
+    });
     observer.observe(element);
     if (sizing.firstElementChild) observer.observe(sizing.firstElementChild);
     const shell = workspace();
@@ -252,6 +265,7 @@ export function VirtualCollectionRows({
       mounted.current = false;
       userIntent();
       observer.disconnect();
+      cancelAnimationFrame(measurementFrame);
       document.removeEventListener("focusin", focus, true);
       document.removeEventListener("scroll", scroll, true);
       window.removeEventListener("resize", measure);
@@ -265,7 +279,7 @@ export function VirtualCollectionRows({
     regroup.current = undefined;
     reading.current = undefined;
     capture();
-  }, [generation, capture]);
+  }, [generation, queryKey, capture]);
 
   // Geometry cache invalidation is separate from React structural row identity.
   useLayoutEffect(() => {
@@ -317,9 +331,13 @@ export function VirtualCollectionRows({
     if (index >= 0) accepted.onMountDestination?.(accepted.groups[index]!, target);
     const rowIndex = index < 0 ? undefined : Math.floor(index / latest.current.geometry.columns);
     setDestinationPin(index < 0 ? undefined : accepted.groups[index]!.id);
-    if (rowIndex !== undefined)
-      latest.current.virtualizer.scrollToIndex(rowIndex, { align: "auto" });
-    else if (target.scrollTop !== undefined) scrollWorkspaceTo(workspace(), target.scrollTop);
+    // A retained viewport anchor already specifies the desired position. Pin and
+    // measure it first; an intermediate index reveal can move a pointer target
+    // between press and release during ordinary focus/layout feedback.
+    if (rowIndex !== undefined) {
+      if (target.viewportTop === undefined)
+        latest.current.virtualizer.scrollToIndex(rowIndex, { align: "auto" });
+    } else if (target.scrollTop !== undefined) scrollWorkspaceTo(workspace(), target.scrollTop);
     // Acknowledge only a connected, measured row. The route owner rechecks its token afterwards.
     try {
       while (valid()) {
@@ -397,6 +415,23 @@ export function VirtualCollectionRows({
     });
   }, [mount, capture]);
 
+  // Accepted reordering can replace a complete row without changing its geometry.
+  // Reuse the reading/focus anchor captured before that commit, scoped to the same
+  // query and generation. The existing mount token yields to any newer intent.
+  useLayoutEffect(() => {
+    if (!ready) return;
+    const before = lastAccepted.current;
+    lastAccepted.current = { structure, queryKey, generation, layout };
+    if (
+      before.structure !== structure &&
+      before.queryKey === queryKey &&
+      before.generation === generation &&
+      before.layout === layout &&
+      !mounting.current
+    )
+      regroup.current ??= reading.current;
+  }, [ready, structure, queryKey, generation, layout]);
+
   useLayoutEffect(() => {
     const anchor = regroup.current;
     if (!anchor || !geometry.owner) {
@@ -405,7 +440,10 @@ export function VirtualCollectionRows({
     }
     regroup.current = undefined;
     const epoch = intent.current;
-    void mount({ groupKey: anchor.groupKey }, () => epoch === intent.current).then((accepted) => {
+    void mount(
+      { groupKey: anchor.groupKey, viewportTop: anchor.top },
+      () => epoch === intent.current,
+    ).then((accepted) => {
       if (!accepted) return;
       const card = [
         ...(root.current?.querySelectorAll<HTMLElement>("[data-detail-return-group]") ?? []),
@@ -414,22 +452,28 @@ export function VirtualCollectionRows({
       const focusedCard = [
         ...(root.current?.querySelectorAll<HTMLElement>("[data-detail-return-group]") ?? []),
       ].find((item) => item.dataset.detailReturnGroup === anchor.focus?.groupKey);
-      const controls = focusedCard ? focusableControls(focusedCard) : [];
-      const control = anchor.focus
-        ? (controls.find((item, index) =>
-            anchor.focus!.originKey
-              ? item.dataset.detailOrigin === anchor.focus!.originKey
-              : anchor.focus!.controlKey
-                ? item.dataset.collectionControl === anchor.focus!.controlKey
-                : index === anchor.focus!.control,
-          ) ?? controls[0])
-        : undefined;
+      // Pending actions can retain DOM focus while refusing activation. Navigation
+      // still excludes them; restoration must preserve that exact existing origin.
+      const controls = focusedCard
+        ? focusableControls(focusedCard, { includeAriaDisabled: true })
+        : [];
+      const control = anchor.focus?.group
+        ? focusedCard
+        : anchor.focus
+          ? (controls.find((item, index) =>
+              anchor.focus!.originKey
+                ? item.dataset.detailOrigin === anchor.focus!.originKey
+                : anchor.focus!.controlKey
+                  ? item.dataset.collectionControl === anchor.focus!.controlKey
+                  : index === anchor.focus!.control,
+            ) ?? controls[0])
+          : undefined;
       const owner = latest.current.geometry.owner;
       owner?.scrollTo({ top: owner.scrollTop + card.getBoundingClientRect().top - anchor.top });
       control?.focus({ preventScroll: true });
       capture();
     });
-  }, [geometry, capture, mount]);
+  }, [geometry, structure, ready, capture, mount]);
 
   useLayoutEffect(() => {
     const element = root.current;
@@ -525,8 +569,9 @@ export function VirtualCollectionRows({
     items.length === 0 && !geometry.owner
       ? rows.slice(0, 4).map((row, index) => ({ key: row.key, index, start: index * 560 }))
       : [];
+  const Container = collection === "library" ? "div" : "section";
   return (
-    <section
+    <Container
       ref={root}
       aria-label={label}
       role={collection === "library" ? "list" : undefined}
@@ -558,6 +603,6 @@ export function VirtualCollectionRows({
           )}
         </div>
       ))}
-    </section>
+    </Container>
   );
 }
