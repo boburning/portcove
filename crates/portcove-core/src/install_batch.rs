@@ -556,6 +556,31 @@ impl PortcoveService {
         }
     }
 
+    #[cfg(test)]
+    pub(super) fn diagnostic_install_batch_future_bytes(&self) -> [(&'static str, usize); 2] {
+        fn bytes<C, F>(_: &C) -> usize
+        where
+            C: FnOnce() -> F,
+        {
+            std::mem::size_of::<F>()
+        }
+        let mut emit = |_: OperationEvent| {};
+        let item = {
+            let emitter = &mut emit;
+            let thunk = move || {
+                let emitter = emitter;
+                self.run_install_batch_item("unused", "unused", emitter)
+            };
+            bytes(&thunk)
+        };
+        let apply = {
+            let emitter = &mut emit;
+            let thunk = move || self.apply_game_install("unused", "unused", emitter);
+            bytes(&thunk)
+        };
+        [("batch_item", item), ("apply_game_install", apply)]
+    }
+
     async fn run_install_batch_item(
         &self,
         port_id: &str,

@@ -1124,6 +1124,12 @@ mod tests {
 
     #[test]
     fn standing_setup_installs_on_default_worker_stack() {
+        fn future_bytes<C, F>(_: &C) -> usize
+        where
+            C: FnOnce() -> F,
+        {
+            std::mem::size_of::<F>()
+        }
         const CHILD: &str = "PORTCOVE_STANDING_STACK_CHILD";
         if std::env::var(CHILD).as_deref() != Ok("1") {
             let temporary = tempfile::tempdir().unwrap();
@@ -1176,6 +1182,12 @@ mod tests {
                 stdout.contains("PORTCOVE_STANDING_WORKER_COMPLETED"),
                 "{stdout}"
             );
+            for line in stdout
+                .lines()
+                .filter(|line| line.starts_with("PORTCOVE_STANDING_"))
+            {
+                println!("{line}");
+            }
             return;
         }
         let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -1200,42 +1212,108 @@ mod tests {
         service
             .set_port_intent(STACK_PORT, PortIntentMode::SetUpWhenReady)
             .unwrap();
+        eprintln!("PORTCOVE_STANDING_STACK_PHASE fixture_and_preplan_complete");
+        let measured = &service;
+        eprintln!(
+            "PORTCOVE_STANDING_FUTURE_BYTES standing_setup {}",
+            future_bytes(&|| measured.run_standing_setup(|_| {}))
+        );
+        let mut measured_emit = |_: OperationEvent| {};
+        {
+            let emitter = &mut measured_emit;
+            let thunk = move || {
+                let emitter = emitter;
+                measured.run_standing_game_setup(emitter)
+            };
+            eprintln!(
+                "PORTCOVE_STANDING_FUTURE_BYTES game_pass {}",
+                future_bytes(&thunk)
+            );
+        }
+        {
+            let emitter = &mut measured_emit;
+            let thunk = move || {
+                let emitter = emitter;
+                measured.standing_setup_one(STACK_PORT, "unused", emitter)
+            };
+            eprintln!(
+                "PORTCOVE_STANDING_FUTURE_BYTES standing_one {}",
+                future_bytes(&thunk)
+            );
+        }
+        {
+            let emitter = &mut measured_emit;
+            let thunk = move || measured.run_install_batch("unused", emitter);
+            eprintln!(
+                "PORTCOVE_STANDING_FUTURE_BYTES batch {}",
+                future_bytes(&thunk)
+            );
+        }
+        {
+            let busy = std::collections::BTreeSet::<String>::new();
+            let mut handled = std::collections::BTreeSet::<String>::new();
+            let mut batches = Vec::<InstallBatchRecord>::new();
+            let mut failures = Vec::<crate::StandingSetupFailure>::new();
+            let refs = (
+                &busy,
+                &mut handled,
+                &mut batches,
+                &mut failures,
+                &mut measured_emit,
+            );
+            let thunk = move || {
+                let (busy, handled, batches, failures, emitter) = refs;
+                measured.run_root_setup(busy, handled, batches, failures, emitter)
+            };
+            eprintln!(
+                "PORTCOVE_STANDING_FUTURE_BYTES root_pass {}",
+                future_bytes(&thunk)
+            );
+        }
+        for (name, count) in service.diagnostic_install_batch_future_bytes() {
+            eprintln!("PORTCOVE_STANDING_FUTURE_BYTES {name} {count}");
+        }
         let handle = runtime.handle().clone();
+        let operation = move || async move {
+            eprintln!("PORTCOVE_STANDING_STACK_PHASE before_first_pass");
+            let result = service.run_standing_setup(|_| {}).await;
+            eprintln!("PORTCOVE_STANDING_STACK_PHASE first_pass_returned");
+            let result = result.unwrap();
+            assert_eq!(result.batches.len(), 1);
+            assert_eq!(
+                result.batches[0].items[0].state,
+                InstallBatchItemState::Ready
+            );
+            let installed = service.status(STACK_PORT).unwrap().active.unwrap();
+            assert_eq!(
+                std::fs::read(installed.path.join(&executable)).unwrap(),
+                program
+            );
+            assert!(service.verify(STACK_PORT).unwrap().valid);
+            let request = requests
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap();
+            assert!(request.starts_with("GET /runtime.tar.gz "), "{request}");
+            eprintln!("PORTCOVE_STANDING_STACK_PHASE before_repeat");
+            let again = service.run_standing_setup(|_| {}).await;
+            eprintln!("PORTCOVE_STANDING_STACK_PHASE repeat_returned");
+            assert!(again.unwrap().batches.is_empty());
+            assert_eq!(
+                service.status(STACK_PORT).unwrap().active.unwrap().id,
+                installed.id
+            );
+            assert!(requests.try_recv().is_err());
+        };
+        eprintln!(
+            "PORTCOVE_STANDING_FUTURE_BYTES worker_wrapper {}",
+            future_bytes(&operation)
+        );
         std::thread::Builder::new()
             .name("standing-install-stack-regression".into())
             .stack_size(2 * 1024 * 1024)
             .spawn(move || {
-                handle.block_on(async move {
-                    let result = service.run_standing_setup(|_| {}).await.unwrap();
-                    assert_eq!(result.batches.len(), 1);
-                    assert_eq!(
-                        result.batches[0].items[0].state,
-                        InstallBatchItemState::Ready
-                    );
-                    let installed = service.status(STACK_PORT).unwrap().active.unwrap();
-                    assert_eq!(
-                        std::fs::read(installed.path.join(&executable)).unwrap(),
-                        program
-                    );
-                    assert!(service.verify(STACK_PORT).unwrap().valid);
-                    let request = requests
-                        .recv_timeout(std::time::Duration::from_secs(5))
-                        .unwrap();
-                    assert!(request.starts_with("GET /runtime.tar.gz "), "{request}");
-                    assert!(
-                        service
-                            .run_standing_setup(|_| {})
-                            .await
-                            .unwrap()
-                            .batches
-                            .is_empty()
-                    );
-                    assert_eq!(
-                        service.status(STACK_PORT).unwrap().active.unwrap().id,
-                        installed.id
-                    );
-                    assert!(requests.try_recv().is_err());
-                });
+                eprintln!("PORTCOVE_STANDING_STACK_PHASE constrained_worker_entered");
+                handle.block_on(operation());
             })
             .unwrap()
             .join()
