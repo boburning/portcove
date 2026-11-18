@@ -21716,7 +21716,15 @@
           "A profile that points outside its local autoload or music-pack folders must be preserved and corrected before Play. Portcove does not rewrite existing settings."
         ]
       },
-      "variant_label": "PC"
+      "variant_label": "PC",
+      "original_game": {
+        "format_version": 1,
+        "id": "heretic",
+        "evidence_urls": [
+          "https://github.com/chocolate-doom/chocolate-doom/blob/chocolate-doom-3.1.1/src/heretic/d_main.c"
+        ],
+        "source_editions": []
+      }
     },
     {
       "id": "chocolate-hexen",
@@ -21761,7 +21769,15 @@
           "A profile that points outside its local autoload or music-pack folders must be preserved and corrected before Play. Portcove does not rewrite existing settings."
         ]
       },
-      "variant_label": "PC"
+      "variant_label": "PC",
+      "original_game": {
+        "format_version": 1,
+        "id": "hexen",
+        "evidence_urls": [
+          "https://github.com/chocolate-doom/chocolate-doom/blob/chocolate-doom-3.1.1/src/hexen/h2_main.c"
+        ],
+        "source_editions": []
+      }
     },
     {
       "id": "chrissotraidis-bluewake",
@@ -31545,6 +31561,15 @@
             "instruction": "You and upstream own the external copy's data: Windows Roaming AppData/ECWolf settings and Windows Saved Games/ECWolf progress, including upstream fallback locations; Linux XDG configuration/ecwolf and data/ecwolf/savegames folders; original game files, mods and any explicit --config or --savedir locations. Back up these locations separately; registration does not migrate or certify their compatibility."
           }
         ]
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "wolfenstein-3d",
+        "evidence_urls": [
+          "https://maniacsvault.net/ecwolf/",
+          "https://maniacsvault.net/ecwolf/download.php"
+        ],
+        "source_editions": []
       }
     },
     {
@@ -33063,6 +33088,14 @@
         "warnings": [
           "The project’s game saves and settings stay outside Portcove’s backups."
         ]
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "f-zero-x",
+        "evidence_urls": [
+          "https://github.com/n64hub/f-zero-x-recomp/blob/v0.1.16/README.md"
+        ],
+        "source_editions": []
       }
     },
     {
@@ -51417,6 +51450,14 @@
         "warnings": [
           "The project’s game saves and settings stay outside Portcove’s backups."
         ]
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "mario-golf-nintendo-64",
+        "evidence_urls": [
+          "https://github.com/n64hub/mario-golf-recomp/blob/v0.1.28/README.md"
+        ],
+        "source_editions": []
       }
     },
     {
@@ -57885,6 +57926,15 @@
         "warnings": [
           "Keep a separate backup before switching between solo and co-op setups. Co-op uses a separate save and starts from the beginning."
         ]
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "pokemon-pokopia",
+        "evidence_urls": [
+          "https://github.com/Dittobyte/Recompia",
+          "https://github.com/Dittobyte/Recompia/blob/v0.15.0/launcher/README.md"
+        ],
+        "source_editions": []
       }
     },
     {

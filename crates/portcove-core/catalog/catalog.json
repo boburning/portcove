@@ -56823,6 +56823,14 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Heretic",
+        "original_game": {
+          "format_version": 1,
+          "id": "heretic",
+          "evidence_urls": [
+            "https://github.com/chocolate-doom/chocolate-doom/blob/chocolate-doom-3.1.1/src/heretic/d_main.c"
+          ],
+          "source_editions": []
+        },
         "variant_label": "PC",
         "manual_setup": {
           "steps": [
@@ -56932,6 +56940,14 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Hexen",
+        "original_game": {
+          "format_version": 1,
+          "id": "hexen",
+          "evidence_urls": [
+            "https://github.com/chocolate-doom/chocolate-doom/blob/chocolate-doom-3.1.1/src/hexen/h2_main.c"
+          ],
+          "source_editions": []
+        },
         "variant_label": "PC",
         "manual_setup": {
           "steps": [
@@ -62082,6 +62098,15 @@
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Prepare the official ECWolf package and the complete matching Wolfenstein 3D game data through upstream setup. Windows x64 uses ecwolf.exe and its containing folder; Linux x64 uses the installed /usr/games/ecwolf and its parent. Select --data and WL1 as separate arguments for the prepared shareware set. Review the executable and launch details, then choose Play separately. The player/upstream owns runtime updates and all external originals, mods, saves and settings. Registration removal preserves external files; managed installation, update, backup, rollback and deletion are not offered.",
         "original_game_title": "Wolfenstein 3D",
+        "original_game": {
+          "format_version": 1,
+          "id": "wolfenstein-3d",
+          "evidence_urls": [
+            "https://maniacsvault.net/ecwolf/",
+            "https://maniacsvault.net/ecwolf/download.php"
+          ],
+          "source_editions": []
+        },
         "manual_setup": {
           "help_url": "https://maniacsvault.net/ecwolf/download.php",
           "steps": [

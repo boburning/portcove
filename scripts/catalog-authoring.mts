@@ -95,6 +95,7 @@ export interface AuthoredPort extends Record<string, unknown> {
   /** Reviewed provenance; never projected into runtime definitions or listings. */
   upstream_lineage?: UpstreamLineage;
   release_maintenance?: { reason: string; reconsider_when: string };
+  /** Explicit repository grouping disposition; never a runtime identity fallback. */
   original_game_review?: OriginalGameReview;
 }
 
