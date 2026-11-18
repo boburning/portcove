@@ -6,6 +6,68 @@ authoring. The [definition contract](DEFINITION-DELIVERY.md#implemented-engine-c
 owns engine negotiation; detailed port examples and dated receipts below retain
 their original scope and do not establish another port's admission or support.
 
+## Implementation methods and shared dependencies
+
+The optional `listing.implementation` format-1 envelope explains upstream work.
+It projects into descriptive listings and managed presentation, separately from
+`installation_method`, original-game/source-edition identity, target platforms,
+release availability and qualification. It cannot grant an operation, transfer
+save compatibility, select a package or replace an implementation.
+
+`methods` contains at most eight distinct evidence-backed claims. The vocabulary
+is `static-recompilation`, `matching-decompilation`, `non-matching-decompilation`,
+`source-port`, `engine-reimplementation` and `other`; projects may combine methods.
+Each claim includes `evidence_urls` (one to eight credential-free HTTPS links)
+and an optional explanation `note`. Do not infer clean-room development from a
+rewrite, or matching status from a source port. Unknown methods are unavailable
+as explanations; they do not make allowed setup or launch unavailable.
+
+`dependencies` contains at most sixteen distinct relationships. `kind` separates
+`toolchain`, `runtime`, `library` and `source-preparation`; `project_url` identifies
+the dependency independently of the game or implementation. Retain its `name`,
+`confidence` (`confirmed`, `inferred` or `contradicted`), `evidence_urls`, relevant
+`version_scope` and optional `note`. Confirmation needs attributable upstream
+build/dependency documentation. A text mention may justify an inferred research
+lead. Contradiction is displayed explicitly and never becomes a dependency grant.
+Existing reviewed `upstream_lineage` remains the separate authority for forks,
+successors and relocations; explicit original-game IDs still group alternatives.
+
+The representative Majora’s Mask comparison describes 2Ship2Harkinian as a source
+port using libultraship and ZAPDTR, and Zelda 64: Recompiled as static recompilation
+using N64: Recompiled and RT64. Evidence is pinned to each inspected upstream source
+revision. These descriptions do not revise either port’s supported source editions,
+platforms, package identities or setup routes. Desktop shows them under **How this
+project works** in details and comparison; **Implementation technique** is a
+separate filter from installation method. No provider request is needed to read it.
+
+ScummVM illustrates the runtime distinction: an individual game keeps its own
+reviewed original-game ID and source editions, while a `runtime` relationship may
+explain **Engine reimplementation · ScummVM**. There are no ScummVM game records
+in the inspected baseline, so this change exercises that shape in a fixture rather
+than inventing an integration or grouping all ScummVM games together.
+
+Descriptions require listing format 12. Formats 5 through 11 exported for older
+strict readers omit only this inert field; ordinary requirements and restrictions
+remain. Retained user-selected listings omit the field too, preserving their
+established envelope versions and compatibility with earlier strict readers.
+Core retains malformed/future optional envelopes without interpreting them;
+Desktop ignores unsupported envelope versions, unknown kinds and unsafe links.
+Authoring remains strict. Older documents may omit the field entirely.
+An incoming signed directory below format 12 preserves an existing implementation
+description only when the project URL and full original-game identity, including
+source editions, match exactly. Other delivered fields still replace their prior
+values. A format-12 omission clears the description; a changed project or game
+scope does not inherit it. This compatibility rule grants no operational rights.
+An accepted strict definition's explicit description takes precedence over a
+bundled description. A bundled fallback is used only for the same project URL
+and full original-game identity, so an accepted scope correction cannot inherit
+another project's or edition's explanation.
+Desktop consumes the effective Core listing when present, including a cleared or
+unsupported description. It uses definition presentation only when no listing is
+available; it cannot restore a description that Core has cleared.
+Changing only this explanatory envelope does not invalidate a retained upstream
+release observation: the observer declaration hash excludes it.
+
 ## Descriptive compatibility advisories
 
 The optional `listing.compatibility` format-1 envelope belongs to the existing

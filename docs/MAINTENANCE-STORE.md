@@ -1281,3 +1281,25 @@ stub Core CLI, using the collector and report roles. It checks:
   prerequisite skip elsewhere. These are fixture results. Hosted provider, backup
   destination and unattended operation evidence belong to the later #4129
   checkpoints.
+
+## Optional upstream research progress
+
+`maintenance-inventory.mts collect --all --cli PATH --progress
+scripts/upstream-progress/sources-v1.json` adds the reviewed research scope through
+the same collector, transaction and daily workflow. Each exact source has a
+`research-progress-<scope digest>` run with the existing acquisition fence,
+append-only observations and changes-only membership. Failed sources preserve
+last-good rows and checks; an unavailable provider never stalls unrelated
+sources or Core assessment.
+
+`report` includes dated progress, exact game/edition, metric meaning, evidence
+and last-attempt failure alongside last-good age. Stored optional rows are
+validated again before rendering. A missing or stale progress row has no effect
+on the offered-route assessment. Research conditions use the existing transition
+and notification tables; unchanged checks do not notify and repeated states
+retain distinct transition episodes. New progress dispatch is not enabled.
+Current project opt-outs suppress future report and pending-digest exposure of
+older research evidence, while private immutable recovery history remains.
+
+The owning adapter, scope, precision, failure and opt-out contract is
+[Optional research-progress observations](UPSTREAM-OBSERVATIONS.md#optional-research-progress-observations).

@@ -6977,6 +6977,9 @@
             ],
             "description": "Cover for the second game in a combined definition's Discover card."
           },
+          "implementation": {
+            "description": "Optional descriptive implementation methods and dependencies. Malformed or future\ncontent is unavailable as explanation and never changes operation authority."
+          },
           "installation_method": {
             "$ref": "#/$defs/InstallationMethod"
           },
@@ -10123,6 +10126,9 @@
           },
           "id": {
             "type": "string"
+          },
+          "implementation": {
+            "description": "Optional descriptive implementation methods and dependencies. Malformed or future\ncontent is unavailable as explanation and never changes operation authority."
           },
           "issue_number": {
             "format": "uint64",
@@ -35106,6 +35112,9 @@
           "id": {
             "type": "string"
           },
+          "implementation": {
+            "description": "Optional descriptive implementation methods and dependencies. Malformed or future\ncontent is unavailable as explanation and never changes operation authority."
+          },
           "issue_number": {
             "format": "uint64",
             "minimum": 0,
@@ -36325,6 +36334,9 @@
               }
             ],
             "description": "Cover for the second game in a combined definition's Discover card."
+          },
+          "implementation": {
+            "description": "Optional descriptive implementation methods and dependencies. Malformed or future\ncontent is unavailable as explanation and never changes operation authority."
           },
           "installation_method": {
             "$ref": "#/$defs/InstallationMethod"
@@ -54435,6 +54447,9 @@
               }
             ],
             "description": "Cover for the second game in a combined definition's Discover card."
+          },
+          "implementation": {
+            "description": "Optional descriptive implementation methods and dependencies. Malformed or future\ncontent is unavailable as explanation and never changes operation authority."
           },
           "installation_method": {
             "$ref": "#/$defs/InstallationMethod"

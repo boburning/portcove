@@ -231,6 +231,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "scripts/fallow-summary.mts",
       "scripts/github-client.mts",
       "scripts/github-operation.mts",
+      "scripts/implementation-metadata.mts",
       "scripts/json-values.mts",
       "scripts/native-helper-dependencies.mts",
       "scripts/nextest-outcomes.mts",
