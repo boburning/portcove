@@ -466,6 +466,16 @@ Controlled-clock runner tests cover delayed success, failure and the finite
 deadline; they do not turn the retained original wrapper failure into a pass or
 establish a new native build observation.
 
+The private virtual-X11 wrapper derives its harness wait from the existing
+selected-scenario deadline plus its 60-second startup/retention margin, then
+allows the existing 30-second outer cleanup margin. Its former fixed 240/270-second
+waits could preempt the selected-setup journey's maintained 600-second deadline;
+that selection now receives finite 660/690-second wrapper waits. Ordinary
+180-second selections and GTK-only readiness keep their 240/270-second waits.
+Selection validation, scenario assertions, namespace joins, failure evidence and
+native/resource lock retention remain unchanged. Contract checks establish budget
+coordination, not a completed native selected-setup observation.
+
 The strict default nextest profile, used by local runs and qualification,
 allows zero automatic test retries. By explicit owner decision (November 2026),
 the ordinary hosted Windows partition profile `hosted-windows` allows one
