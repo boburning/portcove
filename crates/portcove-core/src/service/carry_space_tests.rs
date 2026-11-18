@@ -74,6 +74,10 @@ async fn low_space_carry_restores_displaced_rows_and_records_no_copies() {
     assert!(outcome.removed.is_empty());
     assert_eq!(fs::read(active.path.join("notes.txt")).unwrap(), new);
     assert_eq!(fs::read(target.path.join("notes.txt")).unwrap(), old);
+    assert_eq!(
+        fs::read(active.path.join("nested/fresh.txt")).unwrap(),
+        b"fresh data"
+    );
     assert!(!target.path.join("nested").exists());
     let after = [&active, &target].map(|install| {
         crate::carry_ledger::load(&service.library.connection().unwrap(), &install.id).unwrap()
@@ -97,6 +101,11 @@ async fn low_space_carry_restores_displaced_rows_and_records_no_copies() {
     assert_eq!(to, target.id);
     assert_eq!(recorded["insufficient_space"], true);
     assert_eq!(recorded["not_carried_count"], 2);
+    assert_eq!(recorded["required_bytes"], outcome.required_bytes.unwrap());
+    assert_eq!(
+        recorded["available_bytes"],
+        outcome.available_bytes.unwrap()
+    );
     assert_eq!(
         service
             .status("portable-fixture")
