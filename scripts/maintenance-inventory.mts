@@ -91,6 +91,21 @@ import {
   type OpenHandoff,
 } from "./maintenance-handoffs.mts";
 
+import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
+import {
+  collectProgress,
+  validateProgressSources,
+  type ProgressCollection,
+  type ProgressSource,
+} from "./upstream-progress.mts";
+import {
+  progressCollectionSql,
+  progressReportQuery,
+  progressOptedOutRepositoriesQuery,
+  visibleProgress,
+  type StoredProgress,
+} from "./maintenance-progress.mts";
+
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 export const defaultSamplePath = path.join(
   repositoryRoot,
@@ -1188,6 +1203,7 @@ export function collectionSql(input: {
     gaps: SourceGap[];
   };
   upstream?: UpstreamObservation;
+  progress?: ProgressCollection;
   hostedIntake?: HostedIntakeObservation;
   /** Core's per-target route offering, bound to the same Core binary as the assessments. */
   targets?: {
@@ -1709,6 +1725,8 @@ export function collectionSql(input: {
         }),
       );
   }
+  if (input.progress)
+    lines.push(...progressCollectionSql(input.progress, input.runner, input.acquisition));
   // The two session settings run as their own statements first: the server parses a
   // batched query whole, so a setting inside it could not govern the literals after it.
   // Everything else is one query, so a remote host costs one round trip, not one per statement.
@@ -1818,6 +1836,8 @@ export async function collect(options: {
   releaseContent?: (() => Promise<ReleaseContentInput>) | undefined;
   /** With `all`, also collect the newest retained upstream observer checkpoint. */
   upstream?: (() => Promise<UpstreamInput>) | undefined;
+  /** Optional reviewed progress sources; never changes Core operation assessment. */
+  progress?: readonly ProgressSource[] | undefined;
   /** With `all`, also collect every #177 hosted-intake request through the executor's status. */
   hostedIntake?: (() => Promise<HostedStatusAll>) | undefined;
   /** Host platform label; defaults to this host. Fixtures use it to model other hosts. */
@@ -1960,6 +1980,7 @@ export async function collect(options: {
   if (options.upstream && !options.all)
     throw new MaintenanceStoreError("Upstream-observation collection requires --all");
   const upstream = options.upstream ? await upstreamObservation(options.upstream) : undefined;
+  const progress = options.progress ? await collectProgress(options.progress) : undefined;
   if (options.hostedIntake && !options.all)
     throw new MaintenanceStoreError("Hosted-intake collection requires --all");
   const hostedIntake = options.hostedIntake
@@ -2042,6 +2063,7 @@ export async function collect(options: {
           }
         : {}),
       ...(upstream ? { upstream } : {}),
+      ...(progress ? { progress } : {}),
       ...(hostedIntake ? { hostedIntake } : {}),
       ...(targetsRead?.ok ? { producer: targetsRead.value.producer, coreSourceClean } : {}),
       ...(targetsRead
@@ -2355,6 +2377,7 @@ SELECT json_build_object(
                      AS observed_at
               FROM portcove_maintenance.collection_runs
              WHERE coverage <> 'in_progress' GROUP BY source) f),
+  'progress', ${progressReportQuery},
   'generation', (SELECT coalesce(max(acquisition), 0) FROM portcove_maintenance.collection_runs
       WHERE coverage <> 'in_progress'),
   'runs', (SELECT coalesce(json_agg(r ORDER BY r.source, r.acquisition DESC), '[]') FROM (
@@ -2470,6 +2493,7 @@ export interface InventoryReport {
   };
   unsupported_sources: { source: string; reason: string }[];
   runs: unknown[];
+  progress?: ReturnType<typeof visibleProgress>;
   /** Per source: when it was last attempted and last read successfully, aged against this report. */
   freshness?: SourceFreshness[];
   subjects: unknown[];
@@ -2732,6 +2756,7 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       intake: Record<string, unknown>;
     };
     runs: unknown[];
+    progress?: StoredProgress[];
     freshness: {
       source: string;
       attempted_at: string | null;
@@ -2870,6 +2895,7 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       .filter(([source]) => !(serving && source === "definition-delivery"))
       .map(([source, reason]) => ({ source, reason })),
     runs: data.runs,
+    progress: visibleProgress(data.progress ?? [], now),
     freshness: sourceFreshness(data.freshness, now),
     subjects: subjects.map((subject) => {
       const target = subject.identity?.target_key;
@@ -3364,6 +3390,8 @@ table { border-collapse: collapse; width: 100%; }
 th, td { border-bottom: 1px solid #8884; padding: .4rem; text-align: left; vertical-align: top; }
 .unknown { color: #b26b00; }
 input { width: 100%; padding: .5rem; font: inherit; }
+.progress-table { overflow: auto; max-inline-size: 100%; }
+.progress-table th, .progress-table td { min-inline-size: 12rem; overflow-wrap: anywhere; }
 </style>
 </head>
 <body>
@@ -3395,6 +3423,16 @@ ${publicationSection(report)}
 ${reconsiderationSection(report)}
 ${hostedIntakeSection(report)}
 ${releaseContentSection(report)}
+<h2 id="research-progress-heading">Research progress</h2>
+<p>Optional source-backed research observations. Matching, fuzzy similarity and linked code measure different work. They do not establish playable packages or support. Failed reads preserve the last dated observation.</p>
+${
+  report.progress?.length
+    ? `<div class="progress-table" tabindex="0" role="region" aria-labelledby="research-progress-heading"><table>
+<caption>Observed project and edition progress</caption><thead><tr><th scope="col">Project and edition</th><th scope="col">Metrics</th><th scope="col">Source and freshness</th></tr></thead><tbody>
+${report.progress.map((p) => `<tr><th scope="row">${escapeHtml(p.repository)} · ${escapeHtml(p.game_key)} · ${escapeHtml(p.version)}</th><td>${escapeHtml(p.display)}<br>${escapeHtml(p.methodology)}</td><td><a href="${escapeHtml(p.source_url)}">${escapeHtml(p.provider)} report for ${escapeHtml(p.repository)}</a><br><a href="${escapeHtml(p.evidence_url)}">Source evidence for ${escapeHtml(p.repository)}</a><br>Observed ${escapeHtml(p.observed_at ?? "unknown")}; checked ${escapeHtml(p.checked_at)} (${escapeHtml(p.freshness)}; latest attempt ${escapeHtml(p.latest_attempt)} at ${escapeHtml(p.last_attempt_at)})<br>${escapeHtml(p.commit ?? "commit unavailable")}</td></tr>`).join("\n")}
+</tbody></table></div>`
+    : "<p>No optional progress observations are available.</p>"
+}
 <p>Next actions are executor handoffs. Disabled: ${escapeHtml(disabledCapabilities.join("; "))}.</p>
 <h2>Games and implementations</h2>
 <p>Every known port, implementation identity, issue-only implementation, intake request and definition. Related entries are linked, never merged; names are labels, not identity.</p>
@@ -3545,7 +3583,7 @@ export function buildDigest(environment: NodeJS.ProcessEnv) {
          JOIN portcove_maintenance.assessments a ON a.assessment_id = t.assessment_id
          LEFT JOIN portcove_maintenance.subject_transitions p
            ON p.subject_key = t.subject_key AND p.sequence = t.sequence - 1
-        WHERE n.status = 'pending';`,
+        WHERE n.status = 'pending' AND NOT (starts_with(n.subject_key,'progress:') AND lower(a.explanation ->> 'repository') IN ${progressOptedOutRepositoriesQuery});`,
     ).trim(),
     "maintenance digest",
   ) as DigestEntry[];
@@ -3648,6 +3686,9 @@ commands:
                                        --reassess changed (with --all and --targets) reuses
                                        unchanged Core results under the same Core semantics
                                        after a full read within 7 days; full (default) reads all
+                                       --progress FILE adds a reviewed format-1 progress-source
+                                       manifest through bounded provider/project report reads;
+                                       failures retain last-good research observations
   report --output DIR [--previous DIR]  write inventory.json and index.html to a new DIR; with
                                        --previous, refuse if that report reflects newer collections
   digest --output DIR                  write the pending changes-only digest (digest.json, digest.md)
@@ -3683,6 +3724,9 @@ export async function main(argv = process.argv.slice(2)) {
   const digestFile = option(args, "--digest");
   const receipt = option(args, "--receipt");
   const concurrency = option(args, "--concurrency");
+  const progressManifest = option(args, "--progress");
+  if (progressManifest !== undefined && command !== "collect")
+    throw new MaintenanceStoreError("--progress applies only to collect");
   const reassess = option(args, "--reassess");
   if (reassess !== undefined && reassess !== "full" && reassess !== "changed")
     throw new MaintenanceStoreError("--reassess must be full or changed");
@@ -3749,6 +3793,19 @@ export async function main(argv = process.argv.slice(2)) {
           releaseHealth: releaseHealth ? readReleaseHealth : undefined,
           releaseContent: releaseContent ? readReleaseContent : undefined,
           upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
+          progress: progressManifest
+            ? validateProgressSources(
+                JSON.parse(
+                  new TextDecoder("utf-8", { fatal: true }).decode(
+                    await readBoundedPublicBuildInputFile(
+                      path.dirname(path.resolve(progressManifest)),
+                      path.basename(progressManifest),
+                      64 * 1024,
+                    ),
+                  ),
+                ),
+              )
+            : undefined,
           hostedIntake: hostedSource ? readHostedIntake : undefined,
           publication: publication || undefined,
           delivery: delivery || undefined,

@@ -1,5 +1,6 @@
 import { focusableControls } from "../../focus";
 import { VirtualCollectionRows } from "./VirtualCollectionRows";
+import { ImplementationFacts } from "./ImplementationFacts";
 import { useGameComparison } from "../recommendations/use-game-comparison";
 import {
   GameComparisonControls,
@@ -387,6 +388,7 @@ export function GroupedDiscover({
                         )}
                       </header>
                       <ComparisonPortFacts port={port} status={status} single={single} />
+                      <ImplementationFacts port={port} />
                       <div className="min-w-0">
                         <GameComparisonEvidence
                           comparison={evidence}

@@ -247,7 +247,7 @@ impl GithubReleaseProvider {
         Ok(())
     }
 
-    fn catalog_candidate(
+    pub(super) fn catalog_candidate(
         &self,
         repository: &str,
         release: &GithubRelease,
