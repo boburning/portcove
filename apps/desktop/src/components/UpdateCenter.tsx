@@ -43,6 +43,7 @@ import type {
   ActivityRecord,
   OperationEvent,
   DoctorReport,
+  GithubAuthStatus,
   PortDefinition,
   PortStatus,
   SourceProfile,
@@ -120,6 +121,7 @@ function useUpdateCenter({
   busy,
   checkAll,
   signInOffer,
+  githubStatus,
   onCheckAnyway,
   onDismissSignInOffer,
   onReviewGithub,
@@ -168,6 +170,7 @@ function useUpdateCenter({
   busy?: string | undefined;
   checkAll: () => void | Promise<void>;
   signInOffer?: SignInOffer | undefined;
+  githubStatus?: GithubAuthStatus | undefined;
   onCheckAnyway?: (() => void | Promise<void>) | undefined;
   onDismissSignInOffer?: (() => void) | undefined;
   onReviewGithub?: (() => void) | undefined;
@@ -286,6 +289,7 @@ function useUpdateCenter({
     busy,
     checkAll,
     signInOffer,
+    githubStatus,
     onCheckAnyway,
     onDismissSignInOffer,
     onReviewGithub,
@@ -384,6 +388,7 @@ function renderUpdateCheckToolbar(model: ReturnType<typeof useUpdateCenter>) {
         hasInstalled={model.installed.length > 0}
         checkAll={model.checkAll}
         signInOffer={model.signInOffer}
+        githubStatus={model.githubStatus}
         onCheckAnyway={model.onCheckAnyway}
         onDismissSignInOffer={model.onDismissSignInOffer}
         onReviewGithub={model.onReviewGithub}
@@ -836,6 +841,7 @@ function UpdateCheckControl({
   hasInstalled,
   checkAll,
   signInOffer,
+  githubStatus,
   onCheckAnyway,
   onDismissSignInOffer,
   onReviewGithub,
@@ -845,15 +851,20 @@ function UpdateCheckControl({
   hasInstalled: boolean;
   checkAll: () => void | Promise<void>;
   signInOffer?: SignInOffer | undefined;
+  githubStatus?: GithubAuthStatus | undefined;
   onCheckAnyway?: (() => void | Promise<void>) | undefined;
   onDismissSignInOffer?: (() => void) | undefined;
   onReviewGithub?: (() => void) | undefined;
 }) {
   const pendingCheck = useRef<typeof checkAll | undefined>(undefined);
+  const checkButton = useRef<HTMLButtonElement>(null);
   const labelId = useId();
+  const signedIn = githubStatus?.authenticated ? githubStatus : undefined;
+  const allowance = signedIn?.rate_limit;
   return (
     <div className="update-buttons flex min-w-0 flex-wrap items-center gap-2">
       <Button
+        ref={checkButton}
         data-focusable
         variant="outline"
         className="max-w-full min-w-0 text-start whitespace-normal [&_span]:min-w-0 [&_span]:wrap-anywhere"
@@ -883,13 +894,25 @@ function UpdateCheckControl({
           role="status"
           className="basis-full text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground"
         >
-          <p>
-            Checking every installed port may use about {signInOffer.countedRequests} GitHub
-            requests, and about {signInOffer.remainingRequests} are left without signing in. Signing
-            in under Settings raises that allowance. Nothing is checked until you choose.
-          </p>
+          {signedIn ? (
+            <p>
+              {signedIn.login?.trim()
+                ? `Signed in to GitHub as ${signedIn.login}.`
+                : "Signed in to GitHub."}{" "}
+              {allowance
+                ? `${allowance.remaining.toLocaleString()} of ${allowance.limit.toLocaleString()} GitHub requests remaining.`
+                : "GitHub request limit unavailable."}{" "}
+              Nothing is checked until you choose.
+            </p>
+          ) : (
+            <p>
+              Checking every installed port may use about {signInOffer.countedRequests} GitHub
+              requests, and about {signInOffer.remainingRequests} are left without signing in.
+              Signing in under Settings raises that allowance. Nothing is checked until you choose.
+            </p>
+          )}
           <div className="mt-2 flex flex-wrap gap-2">
-            {onReviewGithub && (
+            {onReviewGithub && !signedIn && (
               <Button data-focusable variant="link" onClick={onReviewGithub}>
                 Open GitHub connection
               </Button>
@@ -900,9 +923,16 @@ function UpdateCheckControl({
               data-github-check-decision
               onClick={() => void onCheckAnyway?.()}
             >
-              Check anyway
+              {signedIn ? "Check for updates" : "Check anyway"}
             </Button>
-            <Button data-focusable variant="ghost" onClick={() => onDismissSignInOffer?.()}>
+            <Button
+              data-focusable
+              variant="ghost"
+              onClick={() => {
+                checkButton.current?.focus();
+                onDismissSignInOffer?.();
+              }}
+            >
               Not now
             </Button>
           </div>

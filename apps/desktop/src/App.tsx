@@ -1574,7 +1574,7 @@ function CurrentView({
   setupSource?: SourceRecord | undefined;
   setSetupSource: (source?: SourceRecord) => void;
 }) {
-  const [returnFromGithub, setReturnFromGithub] = useState(false);
+  const [returnFromGithub, setReturnFromGithub] = useState<UpdateState["signInOffer"]>();
   if (ui.view === "updates")
     return (
       <UpdateCenter
@@ -1604,10 +1604,11 @@ function CurrentView({
         }
         checkAll={updates.checkAll}
         signInOffer={updates.signInOffer}
+        githubStatus={github.status}
         onCheckAnyway={updates.checkAnyway}
         onDismissSignInOffer={updates.dismissSignInOffer}
         onReviewGithub={() => {
-          setReturnFromGithub(true);
+          setReturnFromGithub(updates.signInOffer);
           ui.setSettingsCategory("integrations");
           ui.setView("settings");
           requestAnimationFrame(() =>
@@ -1635,9 +1636,9 @@ function CurrentView({
     return (
       <CurrentSettingsView
         onReturnToUpdateDecision={
-          returnFromGithub && updates.signInOffer
+          returnFromGithub && returnFromGithub === updates.signInOffer
             ? () => {
-                setReturnFromGithub(false);
+                setReturnFromGithub(undefined);
                 ui.setView("updates");
                 ui.setActivitySection("updates");
                 requestAnimationFrame(() =>
