@@ -993,6 +993,132 @@ mod tests {
         (temporary, service_with_release(library, "v1"))
     }
 
+    const STACK_PORT: &str = "standing-worker-fixture";
+
+    struct StackRelease(crate::ResolvedRelease);
+
+    #[async_trait::async_trait]
+    impl crate::ReleaseProvider for StackRelease {
+        async fn resolve(
+            &self,
+            _: &crate::PortDefinition,
+            channel: crate::ReleaseChannel,
+            platform: crate::Platform,
+        ) -> Result<crate::ResolvedRelease> {
+            assert_eq!(channel, crate::ReleaseChannel::Stable);
+            assert_eq!(platform, crate::Platform::current().unwrap());
+            Ok(self.0.clone())
+        }
+    }
+
+    struct StackInstallFixture {
+        temporary: tempfile::TempDir,
+        service: PortcoveService,
+        server: crate::test_http::HttpServer,
+        requests: std::sync::mpsc::Receiver<String>,
+        executable: String,
+        program: Vec<u8>,
+    }
+
+    fn fresh_stack_service() -> StackInstallFixture {
+        use std::io::Write;
+        let temporary = tempfile::tempdir().unwrap();
+        let platform = crate::Platform::current().unwrap();
+        let platform_key = serde_json::to_value(platform)
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let executable = if cfg!(windows) { "game.exe" } else { "game" }.to_owned();
+        let program = if cfg!(windows) {
+            let mut bytes = vec![0_u8; 128];
+            bytes[..2].copy_from_slice(b"MZ");
+            bytes
+        } else {
+            b"#!/bin/sh\n# Owned inert standing-setup fixture; never executed.\n".to_vec()
+        };
+        let mut random = 0x5374_616e_u32;
+        let padding = (0..3 * 1024 * 1024)
+            .map(|_| {
+                random ^= random << 13;
+                random ^= random >> 17;
+                random ^= random << 5;
+                random as u8
+            })
+            .collect::<Vec<_>>();
+        let mut archive = tar::Builder::new(Vec::new());
+        for (name, bytes, mode) in [
+            (executable.as_str(), program.as_slice(), 0o755),
+            ("owned-download-padding.bin", padding.as_slice(), 0o644),
+        ] {
+            let mut header = tar::Header::new_gnu();
+            header.set_size(bytes.len() as u64);
+            header.set_mode(mode);
+            header.set_cksum();
+            archive.append_data(&mut header, name, bytes).unwrap();
+        }
+        let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        gzip.write_all(&archive.into_inner().unwrap()).unwrap();
+        let payload = gzip.finish().unwrap();
+        let digest = crate::signed_catalog::digest(&payload);
+        let mut response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            payload.len()
+        )
+        .into_bytes();
+        response.extend_from_slice(&payload);
+        let (origin, requests, server) = crate::test_http::serve_http_bytes(vec![response]);
+        let release = crate::ResolvedRelease {
+            version: "1.0.0-stack-fixture".into(),
+            channel: crate::ReleaseChannel::Stable,
+            published_at: None,
+            asset: crate::ReleaseAsset {
+                name: "standing-worker-runtime.tar.gz".into(),
+                url: format!("{origin}/runtime.tar.gz"),
+                size: payload.len() as u64,
+                sha256: digest,
+            },
+            uploader_continuity: None,
+        };
+        let original = b"Portcove owned inert standing source\n";
+        let source = temporary.path().join("original.pcgame");
+        std::fs::write(&source, original).unwrap();
+        let catalog = crate::Catalog::from_json(&serde_json::json!({
+            "schema_version": 1,
+            "source_profiles": [{
+                "id": "standing-worker-original", "label": "Owned inert original",
+                "kind": "file", "accepted_extensions": ["pcgame"],
+                "accepted_sha256": [crate::signed_catalog::digest(original)]
+            }],
+            "ports": [{
+                "id": STACK_PORT, "name": "Standing worker fixture",
+                "summary": "Owned inert fresh-download stack fixture; never launched.",
+                "project_url": "https://example.invalid/standing-worker-fixture",
+                "support_tier": "beta", "channels": ["stable"], "platforms": [platform],
+                "adapter": "libultraship-portable", "source_profile": "standing-worker-original",
+                "release": {"repository": "example/standing-worker-fixture", "asset_hints": {(platform_key.clone()): ["runtime"]}},
+                "executable_hints": {(platform_key): [executable.clone()]},
+                "persistent_paths": ["saves", "settings.ini"]
+            }]
+        }).to_string()).unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let mut service =
+            PortcoveService::with_provider(library, std::sync::Arc::new(StackRelease(release)))
+                .unwrap();
+        service.replace_catalog_for_test(catalog);
+        service
+            .register_source("standing-worker-original", &source)
+            .unwrap();
+        StackInstallFixture {
+            temporary,
+            service,
+            server,
+            requests,
+            executable,
+            program,
+        }
+    }
+
     #[test]
     fn standing_setup_installs_on_default_worker_stack() {
         const CHILD: &str = "PORTCOVE_STANDING_STACK_CHILD";
@@ -1054,11 +1180,24 @@ mod tests {
             .enable_all()
             .build()
             .unwrap();
-        let (_temporary, service) = runtime.block_on(ready_service());
-        service
-            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+        let StackInstallFixture {
+            temporary: _temporary,
+            service,
+            server,
+            requests,
+            executable,
+            program,
+        } = fresh_stack_service();
+        let plan = runtime
+            .block_on(service.plan_game_install(STACK_PORT))
             .unwrap();
-        eprintln!("[DEBUG-standing-stack] fixture-created; inactive retained release");
+        assert_eq!(plan.plan.action, crate::InstallPlanAction::Download);
+        assert!(plan.selected_install.is_none());
+        assert!(service.status(STACK_PORT).unwrap().active.is_none());
+        service
+            .set_port_intent(STACK_PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        eprintln!("[DEBUG-standing-stack] fixture-created; fresh tar.gz and registered original");
         let handle = runtime.handle().clone();
         std::thread::Builder::new()
             .name("standing-install-stack-regression".into())
@@ -1072,8 +1211,12 @@ mod tests {
                         result.batches[0].items[0].state,
                         InstallBatchItemState::Ready
                     );
-                    assert!(service.status(PORT).unwrap().active.is_some());
-                    eprintln!("[DEBUG-standing-stack] first-ready; before-repeat");
+                    let installed = service.status(STACK_PORT).unwrap().active.unwrap();
+                    assert_eq!(std::fs::read(installed.path.join(&executable)).unwrap(), program);
+                    assert!(service.verify(STACK_PORT).unwrap().valid);
+                    let request = requests.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
+                    assert!(request.starts_with("GET /runtime.tar.gz "), "{request}");
+                    eprintln!("[DEBUG-standing-stack] first-ready; archive fetched and verified; before-repeat");
                     assert!(
                         service
                             .run_standing_setup(|_| {})
@@ -1082,12 +1225,15 @@ mod tests {
                             .batches
                             .is_empty()
                     );
+                    assert_eq!(service.status(STACK_PORT).unwrap().active.unwrap().id, installed.id);
+                    assert!(requests.try_recv().is_err());
                     eprintln!("[DEBUG-standing-stack] repeat-completed");
                 });
             })
             .unwrap()
             .join()
             .unwrap();
+        server.join().unwrap();
         println!("PORTCOVE_STANDING_WORKER_COMPLETED");
     }
 
