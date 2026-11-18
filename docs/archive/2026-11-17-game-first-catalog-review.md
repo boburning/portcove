@@ -218,3 +218,32 @@ separation dispositions remain unchanged. The independent fixture retains prior
 audits and Android reconciliation and appends these exact reviewed memberships.
 These counts require normal generated-projection and application verification;
 this dated review does not claim native or published application acceptance.
+
+
+## November 18 second later catalog reconciliation
+
+Target `1588c93fafd6ce598425dada7388c8799639e9ee` adds two records after the
+preceding 1,557-record review. [openRTS's pinned README](https://github.com/SmileDoge/openRTS/blob/v0.22.0/README_EN.md)
+explicitly identifies a RTrainSim reimplementation, and its [installation guide](https://github.com/SmileDoge/openRTS/blob/v0.22.0/INSTALL_EN.md)
+requires that original's content. It receives canonical `rtrainsim`. Compatibility
+with MSTS content formats does not make the record an MSTS implementation or a
+generic framework. [Midtown Madness 3's pinned README](https://github.com/lakshya16157/midtown-madness-3-PC-Native/blob/v2.8.1/README.md)
+identifies the original 2003 Xbox game and joins the existing TaxidriverHK entry
+under `midtown-madness-3`. Optional modifications and DLC do not establish another
+modified-game scope. Source editions remain unspecified; actual setup requirements
+and source/save compatibility stay per implementation.
+
+Teeworlds' added operational registration and updated Fallout, Crash Bandicoot
+and Sonic Unleashed package/guide facts retain their existing exact game identities.
+Their target operational/platform/profile/release and runtime ownership facts are
+preserved, including distinct current-package and earlier prepared-registration
+scopes. No new qualification is inferred.
+
+The reconciled current universe is **1,559 records / 440 operational definitions**,
+**1,521 identified records / 1,174 games**, **244 multi-option families / 591 member
+records**, **38 project entries** and **1,212 production groups**. The original
+audits and subsequent reconciliations remain dated evidence; all 29 multi-game,
+two framework, seven unresolved and eleven deliberate separation decisions remain
+explicit. The independent fixture appends the two reviewed records and complete
+Midtown family expectation, rather than deriving membership from runtime output.
+These are source/projection expectations, not native or delivered-app observations.

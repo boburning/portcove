@@ -1,0 +1,49 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "midtown-madness-3-lakshya16157",
+    "name": "Midtown Madness 3 / lakshya16157",
+    "summary": "Race in a native Windows or Linux build prepared from your own Midtown Madness 3 Xbox disc image.",
+    "project_url": "https://github.com/lakshya16157/midtown-madness-3-PC-Native",
+    "original_game_title": "Midtown Madness 3",
+    "issue_number": 5988,
+    "listed_at": "2026-11-18",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "download_asset_hints": {
+      "windows-x86-64": ["MM3-Setup.exe"],
+      "linux-x86-64": ["MM3-Linux-x86_64.tar.gz"]
+    },
+    "release_url": "https://github.com/lakshya16157/midtown-madness-3-PC-Native/releases/tag/v2.8.1",
+    "setup_url": "https://github.com/lakshya16157/midtown-madness-3-PC-Native/blob/v2.8.1/README.md#install-and-play",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the game from your Xbox disc image",
+          "instruction": "On Windows, use MM3-Setup.exe. On Linux, extract the tarball and run sh install.sh from the extracted MM3-Linux folder. Linux needs Python 3.9 or newer, a Vulkan driver, and python3-tk if you use the setup window. Use your own original USA or Europe/Australia disc image. Check the release’s supported disc notes for other regions."
+        },
+        {
+          "title": "Play again and reopen settings",
+          "instruction": "Use the installed Midtown Madness 3 shortcut. For Steam or another frontend that accepts scripts, use mm3_recomp.exe on Windows or play-midtown-madness-3.sh on Linux. Add --play to start the game directly or --settings to open settings."
+        }
+      ],
+      "references": [
+        {
+          "title": "Back up the installation’s player data",
+          "instruction": "Your saves stay in game_files inside the installation. Keep that folder and display.ini, launcher.ini and language.ini. On Windows, use the project’s update control. On Linux, download the new tarball from the project and install it over the existing installation to keep saves and settings."
+        }
+      ],
+      "warnings": [
+        "Back up the game’s files yourself before replacing or removing an installation."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "midtown-madness-3",
+      "evidence_urls": [
+        "https://github.com/lakshya16157/midtown-madness-3-PC-Native/blob/v2.8.1/README.md"
+      ],
+      "source_editions": []
+    }
+  }
+}

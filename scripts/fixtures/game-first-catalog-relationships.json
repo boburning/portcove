@@ -803,6 +803,7 @@
     "mickeywildadventurerecomp-sernikigierki-commits-mickey-s-wild-adventure",
     "midnight-club-los-angeles-complete-edition-mcla-recomp",
     "midnight-ghost-stone-coccofresco-metal-gear-solid",
+    "midtown-madness-3-lakshya16157",
     "midtown-madness-3-static-recompilation-taxidriverhk-midtown-madness-3",
     "midtown-madness-sneak-preview-beta-build-1560-open1560",
     "might-and-magic-ix-macos",
@@ -1114,6 +1115,7 @@
     "ror-port-raikodenpa-rule-of-rose",
     "rotk-native-macos-kenny08gt-the-lord-of-the-rings-the-return-of-the-king",
     "rr6-stuken-ridge-racer-6",
+    "rtrainsim-openrts",
     "rumble-roses-xx-pc-recomp-unofficial-jesustaylo-rumble-roses-xx",
     "rumbleracingpc-ehren1337-rumble-racing",
     "rumblerecomp-toshredsyousay-poke-mon-rumble",
@@ -1990,6 +1992,10 @@
       "mc3r-cloudalister-midnight-club-3-dub-edition-remix",
       "mcdub3-nx-laureladastra-midnight-club-3-dub-edition-dub-edition-remix"
     ],
+    "midtown-madness-3": [
+      "midtown-madness-3-lakshya16157",
+      "midtown-madness-3-static-recompilation-taxidriverhk-midtown-madness-3"
+    ],
     "monster-hunter-freedom-unite": [
       "dudux42-freedomunbound",
       "freedomuniterecompandroid-pateeerq-monster-hunter-freedom-unite",
@@ -2511,6 +2517,17 @@
         "https://maniacsvault.net/ecwolf/download.php"
       ],
       "decision": "Reviewed primary evidence joins Heretic, Hexen, Wolfenstein 3D and F-Zero X families; distinct Mario Golf Nintendo 64 and Pokémon Pokopia singletons. Current Chocolate Doom remains multi-game across Doom/Doom II/Freedoom IWAD routes; target managed integration remains intact. No source/save/platform compatibility is inferred."
+    },
+    {
+      "target_revision": "1588c93fafd6ce598425dada7388c8799639e9ee",
+      "added_port_ids": ["rtrainsim-openrts", "midtown-madness-3-lakshya16157"],
+      "assignment_proposal_sha256": "a8b776cae307502c9f40e9766a8d034959b22f87c30e86a2fbc679c220a90aeb",
+      "evidence_urls": [
+        "https://github.com/SmileDoge/openRTS/blob/v0.22.0/INSTALL_EN.md",
+        "https://github.com/SmileDoge/openRTS/blob/v0.22.0/README_EN.md",
+        "https://github.com/lakshya16157/midtown-madness-3-PC-Native/blob/v2.8.1/README.md"
+      ],
+      "decision": "Pinned upstream original-game evidence joins the two Midtown Madness 3 implementations; openRTS explicitly reimplements RTrainSim, with compatible content formats not granting an MSTS game identity. Existing scopes and operational requirements remain unchanged."
     }
   ]
 }
