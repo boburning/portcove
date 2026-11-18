@@ -2188,6 +2188,15 @@ just desktop-verify --scenario keyboard-layout --scenario accessibility
 just desktop-verify --profile presentation
 ```
 
+`keyboard-layout` reads back the native window and WebView viewport after its
+narrow-size request. A native minimum-width clamp keeps the desktop navigation
+journey active; it does not establish compact drawer coverage. The retained
+`keyboard-layout-navigation.json` records the actual dimensions and explicitly
+marks compact navigation unexercised outside its breakpoint. Where the actual
+viewport is compact, drawer visibility and both navigation landmarks remain
+required. Browser compact-navigation coverage and `native-interface-size` cover
+their own responsive and enlargement contracts separately.
+
 `native-interface-size` selects presets through the actual Appearance control.
 Before sending its selection keys, it waits for the popup to own focus and
 checks the highlighted option before committing. A mounted listbox alone does
