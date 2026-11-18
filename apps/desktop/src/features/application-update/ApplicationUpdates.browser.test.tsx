@@ -1,3 +1,4 @@
+import { captureParityState } from "../../../test/parity-capture";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { afterEach, beforeAll, expect, it, vi } from "vite-plus/test";
@@ -40,6 +41,8 @@ beforeAll(() => {
 afterEach(async () => {
   await cleanup();
   vi.restoreAllMocks();
+  document.documentElement.removeAttribute("data-theme");
+  await page.viewport(1280, 800);
 });
 
 it("saves the channel and automatic checks immediately", async () => {
@@ -67,6 +70,8 @@ it("saves the channel and automatic checks immediately", async () => {
 });
 
 it("installs the reviewed version with progress and shows a busy-library refusal", async () => {
+  await page.viewport(430, 780);
+  document.documentElement.dataset.theme = "light";
   vi.spyOn(desktopApi, "applicationUpdateStatus").mockResolvedValue(available);
   vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue({
     channel: "beta",
@@ -95,6 +100,8 @@ it("installs the reviewed version with progress and shows a busy-library refusal
   await expect
     .element(page.getByRole("button", { name: "Check for updates", exact: true }))
     .toBeDisabled();
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+  await captureParityState("application-update-controlled-progress");
   refuse?.({
     ...failureReport(),
     code: "conflict",
@@ -108,4 +115,6 @@ it("installs the reviewed version with progress and shows a busy-library refusal
   await expect
     .element(page.getByRole("button", { name: "Download and restart", exact: true }))
     .toBeEnabled();
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+  await captureParityState("application-update-settled-refusal");
 });

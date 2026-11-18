@@ -1,3 +1,5 @@
+import { captureParityState } from "../../test/parity-capture";
+import { page } from "vite-plus/test/browser";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../test-fixtures";
@@ -42,6 +44,8 @@ afterEach(async () => {
   await cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  document.documentElement.removeAttribute("data-theme");
+  await page.viewport(1280, 800);
 });
 async function open() {
   await act(async () => {
@@ -145,6 +149,8 @@ it("explains missing retained logs and allows a new read after a failure", async
 });
 
 it("labels a retained capture after failed refresh and recovers without repeating preparation", async () => {
+  await page.viewport(960, 800);
+  document.documentElement.dataset.theme = "dark";
   const error = failureReport();
   error.message = "unrequested private path";
   error.presentation.summary = "The retained log could not be read.";
@@ -167,6 +173,7 @@ it("labels a retained capture after failed refresh and recovers without repeatin
   );
   expect(details?.open).toBe(false);
   expect(details?.textContent).toContain(error.presentation.technical_message);
+  await captureParityState("activity-retained-log-refresh-refused");
   await click("Copy retained log");
   expect(JSON.parse(vi.mocked(copyText).mock.calls.at(-1)![0])).toEqual(fixture());
   await click("Retry log read");
@@ -295,6 +302,8 @@ it("discards a delayed log from the previous activity and library", async () => 
 });
 
 it("announces clipboard failure with an exact fallback without reading or changing the log", async () => {
+  await page.viewport(430, 780);
+  document.documentElement.dataset.theme = "light";
   const capture = fixture();
   const read = vi.spyOn(desktopApi, "activityDiagnostic").mockResolvedValue(capture);
   vi.mocked(copyText).mockRejectedValueOnce(new Error("private clipboard detail"));
@@ -312,6 +321,8 @@ it("announces clipboard failure with an exact fallback without reading or changi
   )!;
   expect(fallback.readOnly).toBe(true);
   expect(fallback.value).toBe(JSON.stringify(capture, null, 2));
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+  await captureParityState("activity-retained-log-manual-copy");
   expect(copyText).toHaveBeenLastCalledWith(fallback.value);
   expect(host.textContent).not.toContain("private clipboard detail");
   expect(

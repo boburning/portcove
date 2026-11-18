@@ -1,9 +1,16 @@
+import { captureParityState } from "../../test/parity-capture";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { expect, it, vi } from "vite-plus/test";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import type { AdoptionBatchPreview, AdoptionBatchResult } from "../types";
 import { LauncherBatchCopy, type LauncherBatchSelection } from "./LauncherBatchCopy";
+
+afterEach(async () => {
+  vi.unstubAllGlobals();
+  document.documentElement.removeAttribute("data-theme");
+  await page.viewport(1280, 800);
+});
 
 const selection: LauncherBatchSelection[] = [
   { item: { source: "C:/Apps/A", port_id: "a" }, label: "Game A" },
@@ -113,6 +120,8 @@ it("needs two apps before offering a several-app review, with readable guidance"
 });
 
 it("reviews the selected apps once, discloses consequences, then reports each outcome", async () => {
+  await page.viewport(960, 800);
+  document.documentElement.dataset.theme = "dark";
   const view = await render(selection);
   try {
     await page.getByRole("button", { name: "Review copying the selected apps" }).click();
@@ -127,6 +136,7 @@ it("reviews the selected apps once, discloses consequences, then reports each ou
     await expect
       .element(page.getByText(/For 1 game, matching saved files already in Portcove are replaced/))
       .toBeVisible();
+    await captureParityState("launcher-batch-copy-review");
     await page.getByRole("button", { name: "Continue to copy confirmation" }).click();
     expect(view.copyBatch).toHaveBeenCalledWith(
       selection.map(({ item }) => item),
@@ -138,6 +148,10 @@ it("reviews the selected apps once, discloses consequences, then reports each ou
     expect(view.copied).toHaveBeenCalledOnce();
     await expect.element(page.getByText(/^Game B: Changed after review; not copied/)).toBeVisible();
     await expect.element(page.getByText("The folder changed after review.")).toBeVisible();
+    await page.viewport(430, 780);
+    document.documentElement.dataset.theme = "light";
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+    await captureParityState("launcher-batch-copy-mixed-result");
   } finally {
     await view.cleanup();
   }
