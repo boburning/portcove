@@ -44,3 +44,13 @@ it("uses resolved CSS tracks as the column authority", () => {
   expect(resolvedGridColumns("157.25px 157.25px")).toBe(2);
   expect(resolvedGridColumns("none")).toBe(1);
 });
+
+it("resolves Library identity, menu and alternative origins without prefix collisions", () => {
+  for (const control of ["card", "card-more", "alternative"]) {
+    expect(discoverDestinationIndex(groups, { originKey: `library:${control}:port-14` })).toBe(14);
+    expect(discoverDestinationIndex(groups, { originKey: `library:${control}:port-140` })).toBe(-1);
+    expect(
+      discoverDestinationIndex(groups.slice(0, 2), { originKey: `library:${control}:port-14` }),
+    ).toBe(-1);
+  }
+});

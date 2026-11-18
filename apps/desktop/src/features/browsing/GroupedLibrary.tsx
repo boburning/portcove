@@ -1,4 +1,15 @@
-import { Fragment, useRef, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { VirtualCollectionRows } from "./VirtualCollectionRows";
+import { useOperationPresentation } from "../operations/operation-presentation";
 import type { TFunction } from "i18next";
 import { Trans } from "react-i18next";
 import { useAppTranslation } from "../../localization";
@@ -15,6 +26,25 @@ import type { CollectionLayout } from "./use-collection-layout";
 import { ArtworkFrame } from "../../components/Artwork";
 import { useArtwork, useArtworkVisibility } from "../../artwork";
 
+export type LibraryItem = {
+  groupKey: string;
+  position: number;
+  total: number;
+  portIds: readonly string[];
+};
+
+// The menu outlives a virtual row's regrouping and retains its trigger until the
+// popup has finished dismissing. This is ephemeral interaction state, not membership.
+const LibraryMenuContext = createContext<
+  | {
+      openPortId: string | undefined;
+      change: (portId: string, open: boolean) => void;
+      complete: (portId: string, open: boolean) => void;
+    }
+  | undefined
+>(undefined);
+export const useLibraryMenu = () => useContext(LibraryMenuContext);
+
 /** Group presentation never rewrites the port/install identity of an action. */
 export function GroupedLibrary({
   all,
@@ -24,34 +54,129 @@ export function GroupedLibrary({
   renderPort,
   onSelect,
   layout = "covers",
+  resultsReady = true,
+  queryKey = "",
 }: {
   all: readonly CatalogEntry[];
   matching: readonly CatalogEntry[];
   statuses: ReadonlyMap<string, PortStatus>;
   organization?: Organization | undefined;
-  renderPort: (port: CatalogEntry) => ReactNode;
+  renderPort: (port: CatalogEntry, item?: LibraryItem) => ReactNode;
   onSelect: (portId: string, originKey?: string) => void;
   layout?: CollectionLayout;
+  resultsReady?: boolean;
+  queryKey?: string;
 }) {
-  return groupCatalog(all, matching).map((group) =>
-    group.ports.length === 1 &&
-    resolveGameChoice(
-      group,
-      statuses,
-      organization?.snapshot ? (organization.snapshot.preferred_port_by_game ?? {}) : undefined,
-    ).reason !== "stale" ? (
-      <Fragment key={group.id}>{renderPort(group.matchingPorts[0]!)}</Fragment>
-    ) : (
-      <LibraryGame
-        key={group.id}
-        {...{ group, statuses, organization, renderPort, onSelect, layout }}
-      />
-    ),
+  const generation = useOperationPresentation()?.generation;
+  const currentGeneration = useRef(generation);
+
+  const groups = useMemo(() => groupCatalog(all, matching), [all, matching]);
+  const items = useMemo(
+    () =>
+      groups.map((group, index) => ({
+        groupKey: group.id,
+        position: index + 1,
+        total: groups.length,
+        portIds: group.ports.map((port) => port.id),
+      })),
+    [groups],
+  );
+  const [expansion, setExpansion] = useState({ generation, ids: new Set<string>() });
+  const expanded = expansion.generation === generation ? expansion.ids : new Set<string>();
+  const expand = useCallback(
+    (id: string, open: boolean) => {
+      if (currentGeneration.current !== generation) return;
+      setExpansion((before) => {
+        const ids = new Set(before.generation === generation ? before.ids : []);
+        if (open) ids.add(id);
+        else ids.delete(id);
+        return { generation, ids };
+      });
+    },
+    [generation],
+  );
+  const key = JSON.stringify([generation, queryKey]);
+  const currentKey = useRef(key);
+  useLayoutEffect(() => {
+    currentGeneration.current = generation;
+    currentKey.current = key;
+  }, [generation, key]);
+  const [menu, setMenu] = useState<{ key: string; openPortId?: string; retainedPortId?: string }>({
+    key,
+  });
+  const currentMenu = menu.key === key ? menu : { key };
+  const menuOwner = useMemo(
+    () => ({
+      openPortId: currentMenu.openPortId,
+      change(portId: string, open: boolean) {
+        if (currentKey.current !== key) return;
+        setMenu((before) =>
+          open
+            ? { key, openPortId: portId, retainedPortId: portId }
+            : before.key === key && before.openPortId === portId
+              ? { key, retainedPortId: portId }
+              : before,
+        );
+      },
+      complete(portId: string, open: boolean) {
+        if (open || currentKey.current !== key) return;
+        setMenu((before) =>
+          before.key === key && !before.openPortId && before.retainedPortId === portId
+            ? { key }
+            : before,
+        );
+      },
+    }),
+    [key, currentMenu.openPortId],
+  );
+  const menuPin = groups.find((group) =>
+    group.ports.some((port) => port.id === currentMenu.retainedPortId),
+  )?.id;
+  return (
+    <LibraryMenuContext.Provider value={menuOwner}>
+      <VirtualCollectionRows
+        collection="library"
+        ready={resultsReady}
+        queryKey={queryKey}
+        groups={groups}
+        layout={layout}
+        generation={generation}
+        overlayPin={menuPin}
+        label="Library entries"
+        onMountDestination={(group, target) => {
+          if (target.originKey?.startsWith("library:alternative:")) expand(group.id, true);
+        }}
+      >
+        {(group, index) => {
+          const item = items[index]!;
+          return group.ports.length === 1 &&
+            resolveGameChoice(
+              group,
+              statuses,
+              organization?.snapshot
+                ? (organization.snapshot.preferred_port_by_game ?? {})
+                : undefined,
+            ).reason !== "stale" ? (
+            renderPort(group.matchingPorts[0]!, item)
+          ) : (
+            <LibraryGame
+              key={group.id}
+              {...{ group, item, statuses, organization, renderPort, onSelect, layout }}
+              expanded={expanded.has(group.id)}
+              onExpanded={(open) => expand(group.id, open)}
+            />
+          );
+        }}
+      </VirtualCollectionRows>
+    </LibraryMenuContext.Provider>
   );
 }
 
 function LibraryGame({
   group,
+  item,
+  expanded,
+  onExpanded,
   statuses,
   organization,
   renderPort,
@@ -59,6 +184,9 @@ function LibraryGame({
   layout,
 }: {
   group: GameGroup;
+  item: LibraryItem;
+  expanded: boolean;
+  onExpanded: (open: boolean) => void;
   statuses: ReadonlyMap<string, PortStatus>;
   organization: Organization | undefined;
   renderPort: (port: CatalogEntry) => ReactNode;
@@ -84,6 +212,11 @@ function LibraryGame({
       tabIndex={-1}
       className="min-w-0"
       aria-label={t("library.portsLabel", { title: gameTitle(first) })}
+      role="listitem"
+      aria-posinset={item.position}
+      aria-setsize={item.total}
+      data-collection-singleton={item.total === 1}
+      data-library-port-ids={JSON.stringify(item.portIds)}
       data-library-game-id={group.id}
       data-detail-return-group={group.id}
     >
@@ -92,8 +225,12 @@ function LibraryGame({
       ) : (
         <LibraryChoicePrompt {...{ group, first, choice, layout, organization, restore }} />
       )}
-      <details className="mt-2 rounded-pc-md border border-pc-border px-3 py-2 text-sm">
-        <summary data-focusable className="cursor-pointer">
+      <details
+        open={expanded}
+        onToggle={(event) => onExpanded(event.currentTarget.open)}
+        className="mt-2 rounded-pc-md border border-pc-border px-3 py-2 text-sm"
+      >
+        <summary data-focusable data-collection-control="alternatives" className="cursor-pointer">
           {t("library.allPorts", {
             count: group.ports.length,
             matching: group.matchingPorts.length,

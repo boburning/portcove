@@ -11,7 +11,7 @@ import {
 } from "../../collection-navigation";
 import { portDefinition } from "../../test-fixtures";
 import { groupCatalog } from "./original-game";
-import { VirtualDiscoverRows } from "./VirtualDiscoverRows";
+import { VirtualCollectionRows } from "./VirtualCollectionRows";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -79,13 +79,13 @@ function Fixture({
       }}
     >
       <button id="before-collection">Before</button>
-      <VirtualDiscoverRows
+      <VirtualCollectionRows
         ready={ready}
         queryKey={queryKey}
         groups={matching}
         layout={layout}
         generation={7}
-        comparisonPin={comparisonPin}
+        overlayPin={comparisonPin}
         label="Games"
       >
         {(group, index) => (
@@ -103,7 +103,7 @@ function Fixture({
             </button>
           </article>
         )}
-      </VirtualDiscoverRows>
+      </VirtualCollectionRows>
       <button id="after-collection">After</button>
     </main>
   );

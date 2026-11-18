@@ -44,7 +44,9 @@ async function mount(theme: ResolvedTheme) {
     </LocalizationProvider>,
     { container: root },
   );
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await expect
+    .poll(() => document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize"))
+    .toBe("12");
   expect(document.documentElement.dataset.theme).toBe(theme);
 }
 

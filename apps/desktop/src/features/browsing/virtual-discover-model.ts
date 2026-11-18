@@ -20,7 +20,10 @@ export function discoverDestinationIndex(
         (port) =>
           port.id === target.portId ||
           target.originKey === `catalog:card:${port.id}` ||
-          target.originKey?.startsWith(`catalog:card:${port.id}:`),
+          target.originKey?.startsWith(`catalog:card:${port.id}:`) ||
+          target.originKey === `library:card:${port.id}` ||
+          target.originKey === `library:card-more:${port.id}` ||
+          target.originKey === `library:alternative:${port.id}`,
       ),
   );
 }

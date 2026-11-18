@@ -40,7 +40,9 @@ async function mount(theme: string, journey: Journey = "comparison") {
     { container: root },
   );
   await expect
-    .poll(() => document.querySelectorAll(".collection-entry").length)
+    .poll(() =>
+      Number(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")),
+    )
     .toBe(journey === "comparison" ? 12 : journey === "details" ? 6 : 2);
   document.documentElement.dataset.theme = theme;
   await document.fonts.ready;
@@ -404,7 +406,9 @@ it("clears search inline, returns focus and retains the declared platform constr
   await expect
     .element(page.getByRole("button", { name: "Remove Runs on: Windows filter", exact: true }))
     .toBeVisible();
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await expect
+    .poll(() => document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize"))
+    .toBe("12");
 });
 
 it.each([1440, 1024, 740])(

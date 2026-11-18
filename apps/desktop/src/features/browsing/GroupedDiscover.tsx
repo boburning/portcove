@@ -1,5 +1,5 @@
 import { focusableControls } from "../../focus";
-import { VirtualDiscoverRows } from "./VirtualDiscoverRows";
+import { VirtualCollectionRows } from "./VirtualCollectionRows";
 import { useGameComparison } from "../recommendations/use-game-comparison";
 import {
   GameComparisonControls,
@@ -201,13 +201,13 @@ export function GroupedDiscover({
   );
   return (
     <>
-      <VirtualDiscoverRows
+      <VirtualCollectionRows
         ready={resultsReady}
         queryKey={queryKey}
         groups={groups}
         layout={layout}
         generation={owner?.generation}
-        comparisonPin={comparisonPin}
+        overlayPin={comparisonPin}
         label={t("discover.label")}
       >
         {(group, index) => (
@@ -228,7 +228,7 @@ export function GroupedDiscover({
             compare={compare}
           />
         )}
-      </VirtualDiscoverRows>
+      </VirtualCollectionRows>
       <Dialog
         open={Boolean(comparison)}
         onOpenChangeComplete={(open) => {

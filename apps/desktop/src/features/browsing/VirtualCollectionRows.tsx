@@ -32,25 +32,29 @@ type Anchor = {
     | undefined;
 };
 
-/** Each measured item owns all four shared subgrid tracks for one complete visual row. */
-export function VirtualDiscoverRows({
+/** One measured visual row preserves shared tracks, layout and collection navigation. */
+export function VirtualCollectionRows({
   ready = true,
   queryKey = "",
   groups,
   layout,
   generation,
-  comparisonPin,
+  overlayPin,
   children,
   label,
+  collection = "catalog",
+  onMountDestination,
 }: {
   ready?: boolean | undefined;
   queryKey?: string | undefined;
   groups: readonly GameGroup[];
   layout: CollectionLayout;
   generation: number | undefined;
-  comparisonPin: string | undefined;
+  overlayPin: string | undefined;
   children: (group: GameGroup, index: number) => ReactNode;
   label: string;
+  collection?: "catalog" | "library";
+  onMountDestination?: ((group: GameGroup, target: CollectionDestination) => void) | undefined;
 }) {
   // TanStack's mutable adapter must remain outside compiler memoization. Keep its
   // instance and derived range local; remove this boundary when its API is reactive.
@@ -75,8 +79,16 @@ export function VirtualDiscoverRows({
   const hasAccepted = useRef(ready);
   if (ready) hasAccepted.current = true;
   const intent = useRef(0);
-  const model = useRef({ structure, groups, rows, ready, queryKey, generation });
-  model.current = { structure, groups, rows, ready, queryKey, generation };
+  const model = useRef({
+    structure,
+    groups,
+    rows,
+    ready,
+    queryKey,
+    generation,
+    onMountDestination,
+  });
+  model.current = { structure, groups, rows, ready, queryKey, generation, onMountDestination };
   const reading = useRef<Anchor | undefined>(undefined);
   const regroup = useRef<Anchor | undefined>(undefined);
   const work = useRef(0);
@@ -89,11 +101,11 @@ export function VirtualDiscoverRows({
     (geometry.owner === document.scrollingElement || geometry.owner === document.documentElement);
   const pins = useMemo(
     () =>
-      [focusedPin, comparisonPin, destinationPin].flatMap((key) => {
+      [focusedPin, overlayPin, destinationPin].flatMap((key) => {
         const index = rows.findIndex((row) => row.groups.some((group) => group.id === key));
         return index < 0 ? [] : [index];
       }),
-    [rows, focusedPin, comparisonPin, destinationPin],
+    [rows, focusedPin, overlayPin, destinationPin],
   );
   const rangeExtractor = useCallback(
     (range: Parameters<typeof defaultRangeExtractor>[0]) =>
@@ -302,6 +314,7 @@ export function VirtualDiscoverRows({
       if (mounting.current === token) mounting.current = 0;
       return valid();
     }
+    if (index >= 0) accepted.onMountDestination?.(accepted.groups[index]!, target);
     const rowIndex = index < 0 ? undefined : Math.floor(index / latest.current.geometry.columns);
     setDestinationPin(index < 0 ? undefined : accepted.groups[index]!.id);
     if (rowIndex !== undefined)
@@ -516,16 +529,17 @@ export function VirtualDiscoverRows({
     <section
       ref={root}
       aria-label={label}
+      role={collection === "library" ? "list" : undefined}
       data-focus-group
-      data-virtual-collection="catalog"
-      className={`port-grid discover-grid discover-${layout} collection-${layout} virtual-discover @container/collection w-full`}
+      data-virtual-collection={collection}
+      className={`port-grid ${collection === "catalog" ? `discover-grid discover-${layout}` : ""} collection-${layout} virtual-discover @container/collection w-full`}
       style={{
         height: hasAccepted.current ? virtualizer.getTotalSize() || fallback.length * 560 : 0,
       }}
     >
       <div
         ref={probe}
-        className={`virtual-discover-probe discover-grid collection-${layout}`}
+        className={`virtual-discover-probe ${collection === "catalog" ? "discover-grid" : ""} collection-${layout}`}
         aria-hidden="true"
       >
         <span className="virtual-discover-typography" />
@@ -536,7 +550,7 @@ export function VirtualDiscoverRows({
           data-index={item.index}
           data-collection-row={item.index}
           ref={virtualizer.measureElement}
-          className={`virtual-discover-row discover-grid collection-${layout}`}
+          className={`virtual-discover-row ${collection === "catalog" ? "discover-grid" : ""} collection-${layout}`}
           style={{ top: item.start - geometry.margin }}
         >
           {rows[item.index]!.groups.map((group, column) =>

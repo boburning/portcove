@@ -14,7 +14,11 @@ import {
   type Organization,
 } from "../features/organization/OrganizationControls";
 import { GroupedDiscover, IdentityChips } from "../features/browsing/GroupedDiscover";
-import { GroupedLibrary } from "../features/browsing/GroupedLibrary";
+import {
+  GroupedLibrary,
+  useLibraryMenu,
+  type LibraryItem,
+} from "../features/browsing/GroupedLibrary";
 import { groupCatalog, groupCountLabel } from "../features/browsing/original-game";
 import { PortSearch } from "./PortSearch";
 import { controlFocus, floatingMotion } from "./ui/control-style";
@@ -907,42 +911,35 @@ function BrowserResults({
       />
     );
   return (
-    <section
-      className={
-        view === "library"
-          ? `port-grid collection-${layout} @container/collection grid w-full ${layout === "rows" ? "gap-0" : ""}`
-          : "port-grid collection-covers @container/collection grid w-full"
-      }
-      aria-label={view === "library" ? "Library entries" : "Find games entries"}
-      data-focus-group
-    >
-      <GroupedLibrary
-        layout={layout}
-        all={allCatalogPorts}
-        matching={ports}
-        statuses={statuses}
-        organization={organization}
-        onSelect={onSelect}
-        renderPort={(port) => (
-          <PortCard
-            layout={layout}
-            favorites={favorites}
-            onFavoriteToggle={onFavoriteToggle}
-            organization={organization}
-            restoreAfter={restoreAfter}
-            key={port.id}
-            port={port}
-            status={statuses.get(port.id)}
-            readiness={portReadiness(statuses.get(port.id))}
-            onSelect={onSelect}
-            onTask={onTask}
-            onLaunch={onLaunch}
-            nativeSourceDrag={nativeSourceDrag}
-            view="library"
-          />
-        )}
-      />
-    </section>
+    <GroupedLibrary
+      resultsReady={resultsReady}
+      queryKey={query}
+      layout={layout}
+      all={allCatalogPorts}
+      matching={ports}
+      statuses={statuses}
+      organization={organization}
+      onSelect={onSelect}
+      renderPort={(port, collectionItem) => (
+        <PortCard
+          collectionItem={collectionItem}
+          layout={layout}
+          favorites={favorites}
+          onFavoriteToggle={onFavoriteToggle}
+          organization={organization}
+          restoreAfter={restoreAfter}
+          key={port.id}
+          port={port}
+          status={statuses.get(port.id)}
+          readiness={portReadiness(statuses.get(port.id))}
+          onSelect={onSelect}
+          onTask={onTask}
+          onLaunch={onLaunch}
+          nativeSourceDrag={nativeSourceDrag}
+          view="library"
+        />
+      )}
+    />
   );
 }
 
@@ -1144,6 +1141,7 @@ type CardState = {
 };
 
 type PortCardProps = {
+  collectionItem?: LibraryItem | undefined;
   organization?: Organization | undefined;
   restoreAfter: (button: HTMLElement, action: () => Promise<boolean>) => Promise<void>;
   layout: CollectionLayout;
@@ -1163,6 +1161,7 @@ const idleNativeSourceDrag: NativeSourceDragState = { active: false, pathCount: 
 
 /** Memoized: a grid re-renders only cards whose port, status or shared inputs changed. */
 const PortCard = memo(function PortCard({
+  collectionItem,
   organization,
   restoreAfter,
   layout,
@@ -1230,6 +1229,7 @@ const PortCard = memo(function PortCard({
   return (
     <LibraryEntry
       {...{
+        collectionItem,
         port,
         status,
         state,
@@ -1252,6 +1252,7 @@ const PortCard = memo(function PortCard({
 });
 
 function LibraryEntry({
+  collectionItem,
   port,
   status,
   state,
@@ -1270,6 +1271,7 @@ function LibraryEntry({
   onFavoriteToggle,
 }: Pick<
   PortCardProps,
+  | "collectionItem"
   | "port"
   | "status"
   | "layout"
@@ -1297,6 +1299,12 @@ function LibraryEntry({
         `port-card port-card-library collection-entry collection-${layout === "rows" ? "row" : "cover"} relative min-w-0`,
         dropTarget && "outline-3 outline-offset-2 outline-pc-ring outline-solid",
       )}
+      role={collectionItem ? "listitem" : undefined}
+      aria-posinset={collectionItem?.position}
+      aria-setsize={collectionItem?.total}
+      data-detail-return-group={collectionItem?.groupKey}
+      data-library-port-ids={collectionItem ? JSON.stringify(collectionItem.portIds) : undefined}
+      data-collection-singleton={collectionItem ? collectionItem.total === 1 : undefined}
       aria-label={`${gameIdentityLabel(port)}. ${state.label}.`}
       aria-describedby={input ? setupDescriptionId : undefined}
       data-source-drop-port-id={dropEligible ? port.id : undefined}
@@ -2250,12 +2258,31 @@ function PortCardActionMenu({
   Parameters<typeof PortCardStatus>[0] & { overflowOrigin: string },
   "favoriteMenu" | "port" | "status" | "onSelect" | "overflowOrigin"
 >) {
+  const menu = useLibraryMenu();
+  const trigger = useRef<HTMLButtonElement>(null);
   return (
-    <Menu.Root>
+    <Menu.Root
+      {...(menu
+        ? {
+            open: menu.openPortId === port.id,
+            onOpenChange: (open: boolean) => menu.change(port.id, open),
+            onOpenChangeComplete: (open: boolean) => {
+              if (open) return;
+              requestAnimationFrame(() => {
+                const target = trigger.current;
+                if (target?.isConnected && document.activeElement === target)
+                  target.scrollIntoView({ block: "nearest", inline: "nearest" });
+                menu.complete(port.id, false);
+              });
+            },
+          }
+        : {})}
+    >
       <Tooltip label="More actions">
         <Menu.Trigger
           render={
             <Button
+              ref={trigger}
               data-focusable
               data-detail-origin={overflowOrigin}
               className="collection-art-action collection-more"

@@ -14,6 +14,8 @@ import { desktopApi } from "../api";
 import { PortBrowser } from "../components/PortBrowser";
 import {
   discoverGroupForPort,
+  inspectLibraryGroups,
+  mountLibraryPort,
   inspectDiscoverGroups,
   mountDiscoverPort,
 } from "./discover-test-helpers";
@@ -58,7 +60,9 @@ async function mount(
     { container: root },
   );
   await expect
-    .poll(() => document.querySelectorAll(".collection-entry").length)
+    .poll(() =>
+      Number(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")),
+    )
     .toBe(expectedLibraryEntries);
   document.documentElement.dataset.theme = theme;
 }
@@ -208,7 +212,11 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   expect(commands.textContent).toContain("hidden by filters");
   await userEvent.keyboard("{Escape}");
   await page.getByRole("button", { name: "Reset view", exact: true }).click();
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await expect
+    .poll(() =>
+      Number(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")),
+    )
+    .toBe(12);
   const more = page.getByRole("button", { name: /^More actions for/ }).first();
   await more.click();
   await expect.element(page.getByRole("menu", { name: /^More actions for/ })).toHaveFocus();
@@ -538,7 +546,10 @@ for (const theme of ["dark", "light"]) {
     await mount(theme, "collection-large");
     await page.getByRole("button", { name: "Compact rows", exact: true }).click();
     await page.getByRole("textbox", { name: "Search your library" }).fill("a");
-    const count = document.querySelectorAll(".collection-entry").length;
+    const expectedCount = Number(
+      document.querySelector("[data-library-port-ids]")!.getAttribute("aria-setsize"),
+    );
+    await mountLibraryPort("collection-59");
     const action = [
       ...document.querySelectorAll<HTMLButtonElement>(
         ".collection-actions button[data-variant=outline]",
@@ -555,7 +566,10 @@ for (const theme of ["dark", "light"]) {
     ]) {
       await page.viewport(width!, height!);
       expect(document.activeElement).toBe(action);
-      expect(document.querySelectorAll(".collection-row")).toHaveLength(count);
+      expect(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")).toBe(
+        String(expectedCount),
+      );
+      expect(document.querySelectorAll(".collection-row").length).toBeLessThan(expectedCount);
       expect((document.getElementById("port-search") as HTMLInputElement).value).toBe("a");
       expect(Math.abs(main.getBoundingClientRect().right - innerWidth)).toBeLessThanOrEqual(1);
       expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
@@ -849,7 +863,11 @@ it.each([
     await page.viewport(width, height);
     await mount();
     const grid = document.querySelector<HTMLElement>(".collection-covers")!;
-    expect(getComputedStyle(grid).gridTemplateColumns.split(" ")).toHaveLength(columns);
+    expect(
+      getComputedStyle(
+        grid.querySelector("[data-collection-row]") ?? grid,
+      ).gridTemplateColumns.split(" "),
+    ).toHaveLength(columns);
     const cover = grid.querySelector<HTMLElement>(".collection-cover")!;
     const art = cover.querySelector<HTMLElement>(".collection-art")!;
     const overlay = cover.querySelector<HTMLElement>(".collection-personal-actions")!;
@@ -946,7 +964,11 @@ it("creates and removes a collection through its editor while retaining a failed
   await expect.element(all).toHaveAttribute("aria-pressed", "true");
   await expect.element(all).toHaveFocus();
   await expect.element(selected).not.toBeInTheDocument();
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await expect
+    .poll(() =>
+      Number(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")),
+    )
+    .toBe(12);
   await captureParityState("collection-removed-all-games-focus");
   await expect.element(opener).toHaveAccessibleName("Create your first collection");
   await userEvent.keyboard("{Escape}");
@@ -972,7 +994,11 @@ it("opens Hidden games and restores Favorites focus when its last entry is shown
     { kind: "set_hidden", port_id: "collection-0", hidden: true },
     1,
   );
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(11);
+  await expect
+    .poll(() =>
+      Number(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")),
+    )
+    .toBe(11);
   const hidden = page.getByRole("button", { name: /^Hidden games/ });
   await hidden.click();
   await expect.element(hidden).toHaveAttribute("aria-pressed", "true");
@@ -995,7 +1021,11 @@ it("opens Hidden games and restores Favorites focus when its last entry is shown
   await expect.element(page.getByRole("radio", { name: "Favorites 0", exact: true })).toHaveFocus();
   await captureParityState("library-hidden-final-entry-restored");
   await page.getByRole("button", { name: "Reset view", exact: true }).click();
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await expect
+    .poll(() =>
+      Number(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")),
+    )
+    .toBe(12);
 }, 45_000);
 
 it("keeps the confirmed favorite state during a pending and rejected write", async () => {
@@ -1048,10 +1078,6 @@ it("keeps the confirmed favorite state during a pending and rejected write", asy
 it("sorts actual Library entries by the selected title order without changing their identities", async () => {
   await page.viewport(1024, 800);
   await mount();
-  const ids = () =>
-    [...document.querySelectorAll<HTMLElement>(".collection-identity")].map((entry) =>
-      entry.getAttribute("data-detail-game-id")!,
-    );
   const sort = page.getByRole("combobox", { name: /^Sort / });
   await sort.click();
   await expect.element(page.getByRole("option", { name: "Title A–Z", exact: true })).toBeVisible();
@@ -1060,7 +1086,15 @@ it("sorts actual Library entries by the selected title order without changing th
   await expect
     .element(sort.element().querySelector<HTMLElement>("[data-slot=select-value]"))
     .toHaveTextContent("Title A–Z");
-  const ascending = ids();
+  const ascending: string[] = [];
+  await inspectLibraryGroups(
+    [2, 6, 10, 4, 8, 5, 9, 0, 3, 7, 11].map((index) => [`collection-${index}`]),
+    (card, index) => {
+      ascending[index] = card
+        .querySelector(".collection-identity")!
+        .getAttribute("data-detail-game-id")!;
+    },
+  );
   expect(ascending).toHaveLength(12);
   expect(new Set(ascending).size).toBe(12);
   await sort.click();
@@ -1068,14 +1102,22 @@ it("sorts actual Library entries by the selected title order without changing th
   await expect
     .element(sort.element().querySelector<HTMLElement>("[data-slot=select-value]"))
     .toHaveTextContent("Title Z–A");
-  const descending = ids();
+  const descending: string[] = [];
+  const descendingTitles: string[] = [];
+  await inspectLibraryGroups(
+    [...ascending].reverse().map((id) => [id]),
+    (card, index) => {
+      descending[index] = card
+        .querySelector(".collection-identity")!
+        .getAttribute("data-detail-game-id")!;
+      descendingTitles[index] = card.querySelector(".collection-title")!.textContent?.trim() ?? "";
+    },
+  );
   expect(descending).not.toEqual(ascending);
   expect([...descending].sort((a, b) => a.localeCompare(b))).toEqual(
     [...ascending].sort((a, b) => a.localeCompare(b)),
   );
-  const titles = [
-    ...document.querySelectorAll<HTMLElement>(".collection-entry .collection-title"),
-  ].map((title) => title.textContent?.trim() ?? "");
+  const titles = descendingTitles;
   expect(titles).toHaveLength(12);
   expect(titles).toEqual(
     [...titles].sort((a, b) => b.localeCompare(a, "en", { sensitivity: "base" })),

@@ -1,4 +1,9 @@
-import { inspectDiscoverGroups, mountDiscoverPort } from "./discover-test-helpers";
+import {
+  inspectDiscoverGroups,
+  mountDiscoverPort,
+  inspectLibraryGroups,
+  mountLibraryPort,
+} from "./discover-test-helpers";
 import { captureParityState } from "../../test/parity-capture";
 import axe from "axe-core";
 import { afterEach, expect, it, vi } from "vite-plus/test";
@@ -37,7 +42,9 @@ async function mount(theme: string) {
     </LocalizationProvider>,
   );
   await expect.element(page.getByRole("button", { name: "Covers", exact: true })).toBeVisible();
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await expect
+    .poll(() => document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize"))
+    .toBe("12");
 }
 
 it.each(["Covers", "Compact rows"])(
@@ -196,7 +203,12 @@ it("retains a session-only layout through the real details unmount and return", 
   await expect
     .element(page.getByRole("button", { name: "Compact rows", exact: true }))
     .toHaveAttribute("aria-pressed", "true");
-  expect(document.querySelectorAll(".collection-row")).toHaveLength(12);
+  expect(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")).toBe(
+    "12",
+  );
+  await inspectLibraryGroups(
+    [2, 6, 10, 4, 8, 5, 9, 0, 3, 7, 11].map((index) => [`collection-${index}`]),
+  );
   expect(document.body.textContent).toContain(
     "This collection view is available for this session; it could not be saved.",
   );
@@ -279,8 +291,10 @@ for (const theme of ["dark", "light"]) {
     for (const image of document.querySelectorAll(".collection-art img"))
       expect(getComputedStyle(image).objectFit).toBe("contain");
     expect(entryFor(3).textContent).toContain("Update saved for later");
+    await mountLibraryPort("collection-3");
     expect(entryFor(3).querySelector(".collection-actions")?.textContent).toContain("Play");
     expect(entryFor(4).textContent).toContain("Game files missing");
+    await mountLibraryPort("collection-4");
     expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Finish setup");
     // Stable is kept here only because it differs from the selected channel.
     expect(entryFor(0).querySelector(".library-entry-chips")?.textContent).toContain("Stable");
@@ -305,8 +319,15 @@ for (const theme of ["dark", "light"]) {
     }
     await page.getByRole("button", { name: "Compact rows", exact: true }).click();
     expect(localStorage.getItem(collectionLayoutKey("fixture/library"))).toBe("rows");
-    expect(document.querySelectorAll(".collection-row")).toHaveLength(12);
+    expect(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")).toBe(
+      "12",
+    );
+    await inspectLibraryGroups(
+      [2, 6, 10, 4, 8, 5, 9, 0, 3, 7, 11].map((index) => [`collection-${index}`]),
+    );
+    await mountLibraryPort("collection-3");
     expect(entryFor(3).querySelector(".collection-actions")?.textContent).toContain("Play");
+    await mountLibraryPort("collection-4");
     expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Finish setup");
     await page
       .getByRole("textbox", { name: "Search your library", exact: true })

@@ -35,7 +35,7 @@ export async function openDiscoverPort(portId: string) {
 }
 
 /** Mount the accepted logical game before inspecting its current DOM. */
-export async function mountDiscoverPort(portId: string) {
+async function mountPort(portId: string) {
   const workspace = document.querySelector<HTMLElement>("[data-focus-region=workspace], main");
   if (!workspace) throw new Error("No browsing workspace");
   let pending!: Promise<boolean>;
@@ -61,7 +61,45 @@ export async function mountDiscoverPort(portId: string) {
     })
     .toBe(true);
   expect(await pending).toBe(true);
+}
+
+export async function mountDiscoverPort(portId: string) {
+  await mountPort(portId);
   return discoverGroupForPort(portId);
+}
+
+export async function mountLibraryPort(portId: string) {
+  await mountPort(portId);
+  const group = [...document.querySelectorAll<HTMLElement>("[data-library-port-ids]")].find(
+    (entry) => (JSON.parse(entry.dataset.libraryPortIds!) as string[]).includes(portId),
+  );
+  if (!group) throw new Error(`No mounted Library group contains ${portId}`);
+  return group;
+}
+
+export async function inspectLibraryGroups(
+  expected: readonly (readonly string[])[],
+  inspect: (card: HTMLElement, position: number) => void | Promise<void> = () => {},
+) {
+  const visited = new Set<number>();
+  for (let index = 0; index < expected.length; index++) {
+    if (visited.has(index)) continue;
+    await mountLibraryPort(expected[index]![0]!);
+    const cards = [...document.querySelectorAll<HTMLElement>("[data-library-port-ids]")];
+    if (expected.length >= 100) expect(cards.length).toBeLessThan(expected.length);
+    for (const card of cards) {
+      const position = Number(card.getAttribute("aria-posinset")) - 1;
+      expect(card.getAttribute("aria-setsize")).toBe(String(expected.length));
+      expect(JSON.parse(card.dataset.libraryPortIds!)).toEqual(expected[position]);
+      if (!visited.has(position)) {
+        await inspect(card, position);
+        visited.add(position);
+      }
+    }
+  }
+  expect([...visited].sort((left, right) => left - right)).toEqual(
+    expected.map((_, index) => index),
+  );
 }
 
 /** Inspect every logical game in accepted order without requiring simultaneous DOM. */

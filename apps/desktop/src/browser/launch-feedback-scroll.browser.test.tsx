@@ -133,7 +133,11 @@ for (const layout of ["Covers", "Compact rows"] as const) {
             .element(page.getByRole("button", { name: layout, exact: true }))
             .toBeVisible();
           await page.getByRole("button", { name: layout, exact: true }).click();
-          await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+          await expect
+            .poll(() =>
+              document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize"),
+            )
+            .toBe("12");
           // A dismissed first-use choice is not part of this controlled transition.
           const notNow = page.getByRole("button", { name: "Not now", exact: true });
           if (notNow.query()) await notNow.click();
