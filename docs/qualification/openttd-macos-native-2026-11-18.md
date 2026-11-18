@@ -4,10 +4,10 @@ Observed November 18, 2026 UTC. Existing finite owner [#2716](https://github.com
 
 [Run 44234680460/1](https://github.com/boburning/portcove/actions/runs/44234680460/attempts/1) passed two sequential native workflows on each host: a generated map and the exact resulting exit save reopened in a separate private profile. The delivering agent inspected all four recovered screenshots and verified their hashes against the owned-window receipts. The same town and terrain appear in each host's replay with its game date advanced.
 
-| Host | Job | CLI bytes | CLI SHA-256 |
-| --- | --- | --- | --- |
+| Host                                     | Job          | CLI bytes | CLI SHA-256                                                        |
+| ---------------------------------------- | ------------ | --------- | ------------------------------------------------------------------ |
 | Apple Silicon, macOS 15.8.2 build 24H232 | 134567841885 | 160512392 | `72a12fb2ad920e081852419545da47c370602e550ab37deb896c8e604d37d0db` |
-| Intel, macOS 15.7.9 build 24G830 | 134567841664 | 160827696 | `7bfa8a0c203401488ba4ae3efac98260b35c22de1eb3cdf85195bceefff19999` |
+| Intel, macOS 15.7.9 build 24G830         | 134567841664 | 160827696 | `7bfa8a0c203401488ba4ae3efac98260b35c22de1eb3cdf85195bceefff19999` |
 
 Both compiled ordinary product source `27b0a6e994545e622d67b3bea016d32665224192`; controller source was separately `e9d7d85f36a7ae350dee567f5fa5f404fc605634`. The selected private CLI copies were byte-identical to their retained producers and had one link. Actual universal-player CPU slice was not queried; host architecture is not substituted for that observation.
 
@@ -23,10 +23,10 @@ Core external preview and selection bound exact executable, working directory an
 
 Each host created its own exit save; replay checked that recorded identity before copying and verified both source and replay-input copies afterward. These are actual generated-world saves, not manufactured campaign progress:
 
-| Host | First save bytes | First save SHA-256 | Replay's new save bytes | Replay's new save SHA-256 |
-| --- | --- | --- | --- | --- |
-| Apple Silicon | 15084 | `1c1e811c01e165af2cd65d77f608e0659bfaae0d9d5327a4cdd1fbd06a62b74e` | 14956 | `3153db888d57230d6980887c041dc7e382f54cc2e5fb51017142f3385b8eef15` |
-| Intel | 15020 | `c3552d8b6a4acd0cb1fb1f14362e26230a26f433ad48048e853fc2f8cbd13cfb` | 15088 | `6b21f80c0e0b5a0ddcb649846d1759b509febda93acbb559bb1b4a1431552b7a` |
+| Host          | First save bytes | First save SHA-256                                                 | Replay's new save bytes | Replay's new save SHA-256                                          |
+| ------------- | ---------------- | ------------------------------------------------------------------ | ----------------------- | ------------------------------------------------------------------ |
+| Apple Silicon | 15084            | `1c1e811c01e165af2cd65d77f608e0659bfaae0d9d5327a4cdd1fbd06a62b74e` | 14956                   | `3153db888d57230d6980887c041dc7e382f54cc2e5fb51017142f3385b8eef15` |
+| Intel         | 15020            | `c3552d8b6a4acd0cb1fb1f14362e26230a26f433ad48048e853fc2f8cbd13cfb` | 15088                   | `6b21f80c0e0b5a0ddcb649846d1759b509febda93acbb559bb1b4a1431552b7a` |
 
 Publisher files stayed unchanged. Registration removal left matching before/after inventories of 157 fresh-profile and 158 replay-profile files per host across the package, private profile and newly created known global paths. Registrations were absent afterward. Native admission was released only after positive owned-process exits.
 
