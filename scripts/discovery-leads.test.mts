@@ -1142,8 +1142,10 @@ void test("collect reads due lists once, resolves a bounded uncovered set and su
     },
     sdk: await fixtureGitHub(({ endpoint }) => {
       source.budget.charge("GET", endpoint, 1, 100, "200");
-      if (endpoint === "repos/andrewnakas/recompsoftware/commits/main")
-        return { sha: "e981757f31fdb58b85e546069cf303daac56cc61" };
+      if (endpoint === "repos/andrewnakas/recompsoftware")
+        return { id: 1418451069, full_name: "andrewnakas/recompsoftware", default_branch: "main" };
+      if (endpoint === "repos/andrewnakas/recompsoftware/git/ref/heads/main")
+        return { object: { sha: "e981757f31fdb58b85e546069cf303daac56cc61" } };
       const repository = endpoint.replace(/^repos\//u, "");
       resolved.push(repository);
       const json = (status: number) =>
