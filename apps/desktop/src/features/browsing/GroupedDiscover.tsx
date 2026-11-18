@@ -556,7 +556,7 @@ function DiscoverGameCardView({
       aria-label={
         exact
           ? t("discover.cardLabel", {
-              game: firstProject ? `${title} · ${firstProject}` : title,
+              game: firstProject.trim() === title.trim() ? title : `${title} · ${firstProject}`,
               state: observation.state.label,
             })
           : t("discover.groupLabel", {
