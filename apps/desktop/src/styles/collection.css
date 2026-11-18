@@ -951,7 +951,7 @@
 }
 
 @layer utilities {
-  @media (height <= 42rem) {
+  @media (height <= 50rem) {
     .collection-covers:not(.discover-grid) {
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
     }
