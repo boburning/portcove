@@ -29,7 +29,11 @@ import { BrowsingMatchDetails } from "../features/browsing/BrowsingMatchDetails"
 import type { CatalogQueryResult } from "../features/browsing/catalog-query";
 import type { CatalogEntry } from "../features/browsing/catalog-entry";
 import { SteamEntryControl } from "./SteamEntry";
-import { AuthoredPreparationGuidance, ExternalRuntimeControl } from "./ExternalRuntime";
+import {
+  AuthoredPreparationGuidance,
+  ExternalRuntimeControl,
+  RuntimeLaunchFacts,
+} from "./ExternalRuntime";
 import {
   usesExternalRuntimeRoute,
   usesUserSelectedRuntime,
@@ -3889,6 +3893,16 @@ function DetailFilesSection({
     <div className="detail-files-workspace">
       <div className="detail-files-stack">
         {model.extraFiles}
+        <RequirementsGroup
+          key={`requirements:${model.port.id}:${model.libraryGeneration}`}
+          port={model.port}
+          installed={model.installed}
+          status={model.status}
+          sources={model.sources}
+          managedPreparation={managedPreparation}
+          pendingSetup={model.pendingSetup}
+          busy={model.busy}
+        />
         <StatusActionsGroup
           hidePlay={model.installed && model.launchReady}
 
@@ -3911,16 +3925,6 @@ function DetailFilesSection({
           onChanged={model.externalRuntimeChanged}
           actions={model.actions}
           openLibraryStorage={model.openLibraryStorage}
-        />
-        <RequirementsGroup
-          key={`requirements:${model.port.id}:${model.libraryGeneration}`}
-          port={model.port}
-          installed={model.installed}
-          status={model.status}
-          sources={model.sources}
-          managedPreparation={managedPreparation}
-          pendingSetup={model.pendingSetup}
-          busy={model.busy}
         />
         <SetupIntentChoice
           key={`intent:${model.port.id}:${model.libraryGeneration}`}
@@ -3993,9 +3997,14 @@ function DetailManageSection({
         )}
         {model.status?.external_runtime && (
           <div className="text-sm wrap-anywhere">
-            <p className="my-1 select-text">{model.status.external_runtime.path}</p>
+            <RuntimeLaunchFacts
+              executable={model.status.external_runtime.executable}
+              workingDirectory={model.status.external_runtime.path}
+              launchArguments={model.status.external_runtime.user_selected?.arguments}
+            />
             <p className="m-0 text-pc-muted-foreground">
-              You maintain this folder and its updates.
+              You maintain this folder and its updates. Review Saves & backups for any data Portcove
+              can protect.
             </p>
             <Button variant="outline" onClick={() => reveal("files", "detail-game-actions")}>
               Edit external launch details

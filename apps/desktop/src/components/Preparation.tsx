@@ -351,7 +351,9 @@ function PreparationConsequences() {
       <p>{t("preparation.plan.activationText")}</p>
       <p>{t("preparation.plan.duringOpen")}</p>
       <p>{t("preparation.plan.duringInterrupt")}</p>
-      <p>{t("preparation.plan.windowText")}</p>
+      <p>
+        <strong>{t("preparation.plan.window")}</strong> {t("preparation.plan.windowText")}
+      </p>
     </section>
   );
 }

@@ -278,9 +278,9 @@ it("returns to the exact older recovery activity after opening its game", async 
   expect(opener).not.toBeNull();
   await act(async () => opener!.click());
   await expect
-    .element(page.getByRole("button", { name: "Back to previous workspace", exact: true }))
+    .element(page.getByRole("button", { name: "Back to Activity", exact: true }))
     .toBeVisible();
-  await click("Back to previous workspace");
+  await click("Back to Activity");
   await expect.poll(() => document.activeElement?.getAttribute("data-detail-origin")).toBe(origin);
   expect(document.querySelector('[data-activity-id="recovery-history-12"]')).not.toBeNull();
 });
@@ -298,7 +298,7 @@ it("reveals the entire Activity target focus ring after returning at a narrow wi
     document.querySelector<HTMLButtonElement>(target)!.focus();
     await userEvent.keyboard("{Enter}");
 
-    const back = page.getByRole("button", { name: "Back to previous workspace", exact: true });
+    const back = page.getByRole("button", { name: "Back to Activity", exact: true });
     await expect.element(back).toBeVisible();
     document.querySelector<HTMLButtonElement>("[data-detail-back]")!.focus();
     await userEvent.keyboard("{Enter}");

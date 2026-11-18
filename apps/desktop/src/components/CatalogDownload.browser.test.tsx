@@ -985,7 +985,9 @@ it("counts a pending listing under Needs attention beside a ready registration w
   await expect.element(readiness).toHaveAccessibleName("Readiness All (2)");
   await expect.element(page.getByRole("button", { name: /^Play: / })).toBeVisible();
   await readiness.click();
-  await expect.element(page.getByRole("option", { name: "Ready (1)", exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("option", { name: "Ready to play (1)", exact: true }))
+    .toBeVisible();
   await page.getByRole("option", { name: "Needs attention (1)", exact: true }).click();
   await expect.element(readiness).toHaveAccessibleName("Readiness Needs attention (1)");
   expect(document.body.textContent).toContain("Downloaded · setup needed");

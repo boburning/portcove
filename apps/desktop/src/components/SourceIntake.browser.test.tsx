@@ -911,7 +911,19 @@ describe("source intake dialog", () => {
     vi.spyOn(picker, "pickSourcePath").mockResolvedValue(replacement);
     const inspect = vi
       .spyOn(desktopApi, "inspectSourceIntake")
-      .mockResolvedValue(intake(replacement));
+      .mockImplementation(async (_id, [path]) =>
+        path === replacement
+          ? intake(replacement)
+          : {
+              schema_version: 1,
+              profile_id: profile.id,
+              input_count: 1,
+              state_code: "invalid_selection",
+              summary: "The file at the saved location is unavailable.",
+              next_action: "Choose the file at its new location.",
+              report: null,
+            },
+      );
     const plan = "d".repeat(64);
     vi.spyOn(desktopApi, "planSourceImport").mockResolvedValue({
       schema_version: 1,
@@ -976,7 +988,10 @@ describe("source intake dialog", () => {
       await expect
         .element(detail.getByRole("button", { name: "Check required BIOS", exact: true }))
         .toBeVisible();
-      expect(inspect).toHaveBeenCalledExactlyOnceWith(profile.id, [replacement]);
+      expect(inspect.mock.calls).toEqual([
+        [profile.id, [old.path]],
+        [profile.id, [replacement]],
+      ]);
       expect(save).toHaveBeenCalledExactlyOnceWith(
         profile.id,
         replacement,

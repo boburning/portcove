@@ -284,6 +284,9 @@ describe("bootstrap state", () => {
   });
 
   it("shows a current reset failure and enables the actual recovery control again", async () => {
+    // The real modal schedules its transition frames separately from the gamepad poller.
+    vi.stubGlobal("requestAnimationFrame", originalRequestFrame);
+    vi.stubGlobal("cancelAnimationFrame", originalCancelFrame);
     vi.spyOn(desktopApi, "bootstrapStatus").mockRejectedValue(new Error("offline"));
     const reset = vi
       .spyOn(desktopApi, "resetDefaultLibrary")

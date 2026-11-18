@@ -357,7 +357,7 @@ it.each(["dark", "light"])(
     // Ready remains an ordinary filter beneath the Favorites view.
     await userEvent.click(quickView("Favorites 1"));
     await expect.element(quickView("Favorites 1")).toHaveAttribute("aria-checked", "true");
-    await expectReadinessLabel(/^Readiness Ready \(\d+\)$/);
+    await expectReadinessLabel(/^Readiness Ready to play \(\d+\)$/);
     await expectReadinessOption("Needs attention (1)");
     await userEvent.fill(
       page.getByRole("textbox", { name: "Search library" }),

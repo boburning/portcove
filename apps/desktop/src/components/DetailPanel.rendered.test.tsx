@@ -1482,7 +1482,7 @@ describe("desktop components", () => {
       uninstalled.indexOf("Choose the required game files before reviewing installation"),
     ).toBeLessThan(uninstalled.indexOf("Choose game files"));
     expect(detailSection(uninstalled, "files")).toContain("Choose game files");
-    expect(detailSection(uninstalled, "files")).toContain("Requirements");
+    expect(detailSection(uninstalled, "files")).toContain("Current game-file requirements");
     expect(detailSection(uninstalled, "overview")).toContain(port.summary);
     expect(uninstalled).not.toContain("Installation and version");
     expect(uninstalled).toContain("Add all required game files before installing");
@@ -2094,7 +2094,7 @@ describe("desktop components", () => {
       "Test results",
     ])
       expect(overview).toContain(content);
-    for (const content of ['aria-label="Game actions"', "Requirements"])
+    for (const content of ['aria-label="Game actions"', "Current game-file requirements"])
       expect(files).toContain(content);
     expect(manage).toContain('id="detail-artwork"');
     expect(saves).toContain('aria-labelledby="detail-saves-and-storage"');

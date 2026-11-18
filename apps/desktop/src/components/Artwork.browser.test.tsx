@@ -82,7 +82,16 @@ function button(slot: keyof typeof slotLabels, label: string) {
   return [...section.querySelectorAll("button")].find((item) => item.textContent === label)!;
 }
 
+async function selectSlot(slot: keyof typeof slotLabels) {
+  const name = `${slotLabels[slot]} image`;
+  const selected = container.querySelector('[aria-label="Artwork slot"] button[aria-pressed=true]');
+  if (selected?.textContent !== name) {
+    await page.getByRole("button", { name, exact: true }).click();
+  }
+}
+
 async function click(slot: keyof typeof slotLabels, label: string) {
+  await selectSlot(slot);
   await act(async () => button(slot, label).click());
 }
 
@@ -114,8 +123,9 @@ function expectArtworkDisclosureAlignment() {
       ".artwork-controls > summary, .artwork-source > summary",
     ),
   ];
-  expect(summaries).toHaveLength(4);
-  for (const summary of summaries) expectDisclosureAlignment(summary);
+  const visible = summaries.filter((summary) => !summary.closest("[hidden]"));
+  expect(visible).toHaveLength(2);
+  for (const summary of visible) expectDisclosureAlignment(summary);
 }
 
 function controlledArtworkVisibility() {
@@ -289,7 +299,9 @@ describe("local artwork controls", () => {
     expect(button("cover", "Choose local image").disabled).toBe(true);
     expect(button("cover", "Reset to default").disabled).toBe(true);
     expect(button("cover", "Refresh artwork").disabled).toBe(false);
+    await selectSlot("detail");
     expect(button("detail", "Choose local image").disabled).toBe(false);
+    await selectSlot("cover");
     await captureParityState("artwork-retained-refresh-error-fixture");
     await click("cover", "Refresh artwork");
     expect(container.textContent).not.toContain("Showing previously loaded artwork.");

@@ -339,7 +339,7 @@ it.each(["success", "failure"])(
     await click("Create a support report");
     vi.spyOn(desktopApi, "defaultLibraryRoot").mockResolvedValue("E:/default");
     await click("Use platform default");
-    await click("Open reviewed library");
+    await page.getByRole("button", { name: "Open reviewed library", exact: true }).click();
     expect(button("Create a support report").disabled).toBe(false);
     await click("Create a support report");
     await act(async () => {

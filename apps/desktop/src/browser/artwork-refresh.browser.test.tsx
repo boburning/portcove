@@ -75,7 +75,10 @@ it("retains a decoded cover with truthful stale feedback and read-only recovery"
   expect(host.querySelector<HTMLImageElement>("img")?.naturalWidth).toBe(1);
   await expect.element(cover.getByRole("button", { name: "Choose local image" })).toBeDisabled();
   await expect.element(cover.getByRole("button", { name: "Reset to default" })).toBeDisabled();
+  await userEvent.click(page.getByRole("button", { name: "Detail image", exact: true }));
   await expect.element(detail.getByRole("button", { name: "Choose local image" })).toBeEnabled();
+  await userEvent.click(page.getByRole("button", { name: "Cover image", exact: true }));
+  await expect.element(cover.getByRole("alert")).toHaveTextContent("Artwork read unavailable.");
   await userEvent.click(cover.getByRole("button", { name: "Refresh artwork" }));
   await expect.element(cover.getByRole("button", { name: "Reset to default" })).toBeEnabled();
   await expect.element(cover.getByRole("alert")).not.toBeInTheDocument();
