@@ -109,6 +109,7 @@ void test("private-X11 input checks outlive the former minute and still refuse f
       assert,
       path: path.posix,
       root: "/owned/workspace",
+      scope: "Controlled actual-source input-budget contract",
       source: "/owned/workspace/scripts/desktop-linux-x11.mts",
       process: {
         platform: "linux",
