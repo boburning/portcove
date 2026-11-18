@@ -339,7 +339,10 @@ function DiscoveryResults({
   const limitSource = report ? "folder" : "inbox";
   if (!report && !inbox) return null;
   return (
-    <section className="source-discovery-results" aria-label="File search results">
+    <section
+      className="source-discovery-results grid min-w-0 gap-3"
+      aria-label="File search results"
+    >
       {limits.length > 0 && (
         <>
           <p>Some files weren't checked because this scan reached a limit.</p>
@@ -415,7 +418,9 @@ function DiscoveryResults({
           {issue.path && (
             <>
               {" "}
-              <code className="[overflow-wrap:anywhere] whitespace-normal">{issue.path}</code>
+              <code dir="ltr" className="path-value whitespace-normal">
+                {issue.path}
+              </code>
             </>
           )}
         </p>
@@ -501,7 +506,7 @@ export function SourceImportReview({
         <>
           <p>
             Currently saved location:{" "}
-            <code className="[overflow-wrap:anywhere] whitespace-normal">
+            <code dir="ltr" className="path-value whitespace-normal">
               {plan.existing_registration.path}
             </code>
           </p>
@@ -584,9 +589,6 @@ function SourceDiscoveryDialog({
         reviewSize="wide"
         aria-describedby="source-discovery-description"
       >
-        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-          REQUIRED FILES
-        </p>
         <DialogTitle
           ref={heading}
           tabIndex={-1}
@@ -603,114 +605,123 @@ function SourceDiscoveryDialog({
           Portcove's game-file folder can hold files you choose to copy or move into your library.
         </p>
         <NavigationHints />
-        <ChoiceSelect
-          triggerId="source-profile-select"
-          label="Required files"
-          value={profile}
-          options={choices}
-          disabled={Boolean(busy)}
-          onChange={workflow.selectProfile}
-          open={profileSelectOpen}
-          onOpenChange={(nextOpen, reason) => {
-            if (nextOpen) profileSelectOpenRef.current = true;
-            if (!nextOpen && reason === "escape-key") profileSelectDismissal.current = true;
-            setProfileSelectOpen(nextOpen);
-          }}
-          onOpenChangeComplete={(nextOpen) => {
-            if (!nextOpen) {
-              // Base UI may finish the Select dismissal before the parent Dialog
-              // observes the same native Escape event. Keep the ownership marker
-              // through that event turn so the Dialog can cancel its dismissal.
-              setTimeout(() => {
-                profileSelectOpenRef.current = false;
-                profileSelectDismissal.current = false;
-              }, 0);
-            }
-          }}
-        />
-        <div className="actions source-inbox-actions flex flex-wrap gap-2">
-          <Button
-            data-focusable
-            variant="outline"
-            disabled={Boolean(busy) || !profile}
-            onClick={() => {
-              void workflow.openInbox();
-            }}
-          >
-            Open game-file folder
-          </Button>
-          <Button
-            data-focusable
-            variant="outline"
-            disabled={Boolean(busy) || !profile}
-            onClick={() => {
-              void workflow.scanInbox();
-            }}
-          >
-            Search game-file folder
-          </Button>
-        </div>
-        <Field label="Search folder">
-          <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
-            <Input
-              data-focusable
-              id="source-search-root"
-              value={root}
+        <div className="grid min-w-0 gap-5">
+          <div className="grid min-w-0 gap-3">
+            <ChoiceSelect
+              triggerId="source-profile-select"
+              label="Required files"
+              value={profile}
+              options={choices}
               disabled={Boolean(busy)}
-              onChange={(event) => workflow.updateRoot(event.target.value)}
-              placeholder="Folder containing the required files"
-            />
-            <Button
-              data-focusable
-              variant="outline"
-              disabled={Boolean(busy)}
-              onClick={() => {
-                void workflow.chooseRoot();
+              onChange={workflow.selectProfile}
+              open={profileSelectOpen}
+              onOpenChange={(nextOpen, reason) => {
+                if (nextOpen) profileSelectOpenRef.current = true;
+                if (!nextOpen && reason === "escape-key") profileSelectDismissal.current = true;
+                setProfileSelectOpen(nextOpen);
               }}
-            >
-              Choose folder
-            </Button>
+              onOpenChangeComplete={(nextOpen) => {
+                if (!nextOpen) {
+                  // Base UI may finish the Select dismissal before the parent Dialog
+                  // observes the same native Escape event. Keep the ownership marker
+                  // through that event turn so the Dialog can cancel its dismissal.
+                  setTimeout(() => {
+                    profileSelectOpenRef.current = false;
+                    profileSelectDismissal.current = false;
+                  }, 0);
+                }
+              }}
+            />
+            <div className="actions source-inbox-actions flex flex-wrap gap-2">
+              <Button
+                data-focusable
+                variant="outline"
+                disabled={Boolean(busy) || !profile}
+                onClick={() => {
+                  void workflow.openInbox();
+                }}
+              >
+                Open game-file folder
+              </Button>
+              <Button
+                data-focusable
+                variant="outline"
+                disabled={Boolean(busy) || !profile}
+                onClick={() => {
+                  void workflow.scanInbox();
+                }}
+              >
+                Search game-file folder
+              </Button>
+            </div>
           </div>
-        </Field>
-        <StoreInstallChoices
-          generation={generation}
-          disabled={Boolean(busy)}
-          onChoose={workflow.updateRoot}
-        />
-        {busy && <p role="status">{busy}</p>}
-        {notice && <p role="status">{notice}</p>}
-        {operationId && (
-          <OperationCancellation
-            key={operationId}
-            operationId={operationId}
-            label="Cancel operation"
-          />
-        )}
-        {report && (
-          <p>
-            {sourceDiscoveryResultSummary(
-              report.candidates.length,
-              report.entries_examined,
-              report.hash_bytes,
-            )}
-          </p>
-        )}
-        {inbox && (
-          <section aria-label="Game-file folder search result">
+          <div className="grid min-w-0 gap-3">
+            <Field label="Search folder">
+              <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
+                <Input
+                  data-focusable
+                  id="source-search-root"
+                  value={root}
+                  disabled={Boolean(busy)}
+                  onChange={(event) => workflow.updateRoot(event.target.value)}
+                  placeholder="Folder containing the required files"
+                />
+                <Button
+                  data-focusable
+                  variant="outline"
+                  disabled={Boolean(busy)}
+                  onClick={() => {
+                    void workflow.chooseRoot();
+                  }}
+                >
+                  Choose folder
+                </Button>
+              </div>
+            </Field>
+            <StoreInstallChoices
+              generation={generation}
+              disabled={Boolean(busy)}
+              onChoose={workflow.updateRoot}
+            />
+          </div>
+          {busy && <p role="status">{busy}</p>}
+          {notice && <p role="status">{notice}</p>}
+          {operationId && (
+            <OperationCancellation
+              key={operationId}
+              operationId={operationId}
+              label="Cancel operation"
+            />
+          )}
+          {report && (
             <p>
-              {inboxStateMessage(inbox.state)}{" "}
-              {countMessage(inbox.stats.entries_examined, "examinedEntries", {
-                bytes: formatBytes(inbox.stats.hash_bytes),
-              })}
+              {sourceDiscoveryResultSummary(
+                report.candidates.length,
+                report.entries_examined,
+                report.hash_bytes,
+              )}
             </p>
-            {inbox.selected && (
+          )}
+          {inbox && (
+            <section aria-label="Game-file folder search result">
               <p>
-                Saved file location: <code>{inbox.selected.path}</code>
+                {inboxStateMessage(inbox.state)}{" "}
+                {countMessage(inbox.stats.entries_examined, "examinedEntries", {
+                  bytes: formatBytes(inbox.stats.hash_bytes),
+                })}
               </p>
-            )}
-          </section>
-        )}
-        <DiscoveryResults workflow={workflow} profiles={profiles} />
+              {inbox.selected && (
+                <p>
+                  Saved file location:{" "}
+                  <code dir="ltr" className="path-value">
+                    {inbox.selected.path}
+                  </code>
+                </p>
+              )}
+            </section>
+          )}
+          <DiscoveryResults workflow={workflow} profiles={profiles} />
+        </div>
         <SourceImportReview
           plan={plan}
           profiles={profiles}
@@ -719,11 +730,18 @@ function SourceDiscoveryDialog({
           onApply={workflow.applyImport}
         />
         {registered && (
-          <p role="status">
-            File location saved: <code>{registered}</code>
+          <p role="status" className="mt-4">
+            File location saved:{" "}
+            <code dir="ltr" className="path-value">
+              {registered}
+            </code>
           </p>
         )}
-        {error && <p role="alert">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-4">
+            {error}
+          </p>
+        )}
         <DialogFooter className="mt-4">
           <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
             Close

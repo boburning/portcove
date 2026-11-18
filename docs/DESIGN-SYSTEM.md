@@ -2,6 +2,25 @@
 
 The current whole-product composition and coverage contract is [Integrated UI design](INTEGRATED-UI-DESIGN.md). Reuse the existing control, token, preference and domain-projection owners throughout; task-specific layouts do not introduce a second authority.
 
+## Path values
+
+Opaque file and folder paths use `path-value` or the existing `saved-file-path`
+primitive. They remain selectable, exact and left to right. Break long values
+across available lines without leaving an extended Windows prefix alone above
+the drive or UNC location. Preserve each consumer's existing typography and
+surface; this presentation rule never normalizes or changes a stored path.
+
+## Required-file discovery
+
+The Find required files heading names its dialog without a duplicate category
+kicker; its accessible description remains attached. This surface owns its
+internal rhythm. Keep the required-file choice and game-file-folder actions
+together, separate them from the search-folder/store choices, then separate scan
+results from both groups.
+Preliminary selections keep their warning and unvalidated status beside the
+existing review control; spacing does not alter admission or file actions.
+The groups reflow without horizontal overflow in compact and wide dialogs.
+
 ## Saved-location impact
 
 Saved-location removal uses an inline impact region within Game files. Its
@@ -20,6 +39,10 @@ explicit; the host retains apply authorization and preimage checks.
 
 Library and Discover default independently to Covers; Compact rows uses the same entries and authoritative
 local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover defaults to Title A–Z when no sort is saved and offers Catalog order, Title A–Z, Title Z–A and In library first (#5058 F4; a tested-first shelf waits for a native look at the real catalog). With an observed device target, Catalog order is labeled Library & device to describe the existing deterministic library/device ranking; its explanation remains visible. No subjective recommendation or quality score is implied. Library counts entries, including separate ports for one game; the Discover header counts the cards it shows as games, and port counts stay on each game's comparison (#5058 F3).
+While Library results are loading, its loading surface owns the pending explanation;
+result counts and unavailable-result copy wait for settlement. A settled unread
+result remains unavailable, and a known empty result remains distinct.
+
 Search, named Readiness, independent Favorites and declared filters share the
 retrieval area. Quick views keep their own navigation row above the search/filter
 toolbar and deliberately reflow at narrow or enlarged-text widths; no hidden
