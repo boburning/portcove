@@ -49,23 +49,27 @@ export function UpstreamActivityFacts({
 }) {
   const { t, i18n } = useAppTranslation("browsing");
   const activity = currentUpstreamActivity(port, status);
+  if (!activity) return null;
+  const observed = new Date(activity.observed_at * 1000);
+  if (!Number.isFinite(observed.getTime())) return null;
+  const checked = observed.toLocaleDateString(i18n.language);
   const state = upstreamActivityState(activity);
-  if (!activity || !state) return null;
-  const checked = new Date(activity.observed_at * 1000).toLocaleDateString(i18n.language);
-  // Quiet and recent states always carry a reported change time.
-  const changed = new Date(
-    (activity.last_change_at ?? activity.observed_at) * 1000,
-  ).toLocaleDateString(i18n.language, { year: "numeric", month: "long" });
+  const lastChange = new Date((activity.last_change_at ?? Number.NaN) * 1000);
+  const changed = Number.isFinite(lastChange.getTime())
+    ? lastChange.toLocaleDateString(i18n.language, { year: "numeric", month: "long" })
+    : undefined;
+  const description =
+    state === "archived"
+      ? t("upstreamActivity.archived", { checked })
+      : state === "quiet" && changed
+        ? t("upstreamActivity.quiet", { checked, date: changed })
+        : state === "recent" && changed
+          ? t("upstreamActivity.recent", { checked, date: changed })
+          : t("upstreamActivity.unknown", { checked });
   return (
     <div>
       <dt>{t("upstreamActivity.label")}</dt>
-      <dd>
-        {state === "archived"
-          ? t("upstreamActivity.archived", { checked })
-          : state === "quiet"
-            ? t("upstreamActivity.quiet", { checked, date: changed })
-            : t("upstreamActivity.recent", { checked, date: changed })}
-      </dd>
+      <dd>{description}</dd>
     </div>
   );
 }
