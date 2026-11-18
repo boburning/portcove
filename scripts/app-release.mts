@@ -15,6 +15,11 @@ import {
 import os from "node:os";
 import { performance } from "node:perf_hooks";
 import { createGitHubClient, type GitHubRequestPolicy } from "./github-client.mts";
+import {
+  artifactName,
+  assertExactArtifactNames,
+  loadPackagePolicy,
+} from "./release-package-policy.mts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -572,6 +577,26 @@ async function findRelease(api: Awaited<ReturnType<typeof client>>, tag: string)
   return matches[0] ?? null;
 }
 
+export async function assertAppReleaseAssets(version: string, names: readonly string[]) {
+  const policy = await loadPackagePolicy();
+  const cli = policy.packages
+    .filter((entry) => entry.interface === "cli")
+    .map((entry) => artifactName(entry, version));
+  const updaterPayloads = [
+    ...new Set(platformAssets.map(({ suffix }) => `Portcove_${version}${suffix}`)),
+  ];
+  assertExactArtifactNames(
+    [
+      ...cli,
+      ...updaterPayloads.flatMap((name) => [name, `${name}.sig`]),
+      `Portcove_${version}_universal.dmg`,
+      "SHA256SUMS",
+    ],
+    names,
+    "app release assets",
+  );
+}
+
 /** Creates or completes the release so its asset set equals `distDir`, then publishes it once. */
 export async function publishRelease(options: {
   token: string;
@@ -583,9 +608,10 @@ export async function publishRelease(options: {
   /** The built commit; GitHub uses it only if the tag does not exist yet. */
   commit?: string;
 }) {
+  const expected = readdirSync(options.distDir).sort();
+  await assertAppReleaseAssets(options.version, expected);
   const api = await client(options.token);
   const uploads = await client(options.token, "https://uploads.github.com");
-  const expected = readdirSync(options.distDir).sort();
   let release = await findRelease(api, options.tag);
   if (release === null) {
     const created = await api.request("POST /repos/{owner}/{repo}/releases", {
