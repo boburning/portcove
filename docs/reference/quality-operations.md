@@ -1175,8 +1175,10 @@ with their producer rather than rerunning only an already-successful consumer.
 Use `node scripts/cleanup-intel-artifacts.mts` for the read-only bounded sweep,
 or `node scripts/cleanup-intel-artifacts.mts --run-id <id>` for one exact run;
 add `--apply` only for authorized cleanup. A restarted attempt or changed
-artifact identity stops deletion. Failed or ambiguous deletion responses require
-readback; the tool never retries an uncertain mutation.
+artifact identity stops deletion. An acknowledged deletion allows up to 15
+seconds of backoff between readback requests while GitHub's metadata catches up.
+Readback must observe that the transfer is absent. A failed or ambiguous
+deletion gets one immediate readback. The tool sends a single delete request.
 
 ## Bounded dependency delivery
 
