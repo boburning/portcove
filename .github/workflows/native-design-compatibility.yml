@@ -281,7 +281,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     env:
-      SOURCE_HEAD: e38e108b17d7942957bf97269cfc8a675facec21
+      SOURCE_HEAD: 7d06e845099b16b2c3196fa99eb498a95e8e000b
       CONTROLLER_HEAD: ${{ github.sha }}
       CARGO_TARGET_DIR: ${{ github.workspace }}/work/slice3-native-${{ github.sha }}
     steps:
@@ -941,11 +941,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: reviewed-discovery-setup-batch
+            source: 7d06e845099b16b2c3196fa99eb498a95e8e000b
+            scenario: native-reviewed-discovery-setup-batch
           - name: standing-setup-source-return
-            source: e38e108b17d7942957bf97269cfc8a675facec21
+            source: 7d06e845099b16b2c3196fa99eb498a95e8e000b
             scenario: native-standing-setup-source-return
           - name: large-discovery-setup-review
-            source: e38e108b17d7942957bf97269cfc8a675facec21
+            source: 7d06e845099b16b2c3196fa99eb498a95e8e000b
             scenario: native-large-discovery-setup-review
     env:
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/slice3-native-evidence
