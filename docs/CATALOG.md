@@ -70,7 +70,7 @@ release observation: the observer declaration hash excludes it.
 
 ## Descriptive compatibility advisories
 
-The optional `listing.compatibility` format-1 envelope belongs to the existing
+The optional `listing.compatibility` envelope belongs to the existing
 single per-port authored record. Use existing generated setup warnings and exact
 recommendation observations first; no bulk backfill is required. This envelope
 contains only remaining descriptive facts, never acquisition restrictions,
@@ -85,6 +85,13 @@ An artifact digest requires its actual release. The envelope is bounded to
 observations uses format 8. Authoring rejects malformed, future, unknown
 and command-bearing content. Runtime interpretation makes invalid or future
 optional content unavailable without changing operation eligibility.
+
+Format 1 carries general advisories. Format 2 requires at least one launch
+record with `launch_behavior.first_launch` and `launch_behavior.repeat_launch`.
+Each stage uses `starts-game-directly`, `opens-project-launcher`,
+`asks-for-game-files`, or `unknown`. Both stages describe the same platform,
+route, release and package SHA-256. Use `upstream-setup` for a documented setup
+route outside Portcove. Record any repeat-launch preconditions in the explanation.
 
 Route-wide management facts need no invented artifact identity. Version-specific
 failures retain their exact release/artifact/edition scope; a date or a missing
@@ -845,6 +852,11 @@ or platform fragments do not override its exclusion. Symbols, source,
 checksum files, foreign platforms and processor mismatches remain excluded from
 recommendations. Explain the actual upstream setup and its update/data owner in
 the authored guide; downloading an installer never runs it.
+
+An extensionless native Linux executable can be recommended as a direct file
+when the reviewed hint names the entire asset and its filename identifies Linux.
+The existing processor checks still apply. Keep the author's setup instructions
+for making the file executable and preparing original game files.
 
 A ready native archive with reviewed disposable runtime writes may instead fit
 the existing `staged-source-portable` adapter; it does not require a source

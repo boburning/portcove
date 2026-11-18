@@ -43,7 +43,9 @@ mod backups;
 mod carry;
 mod protection;
 use crate::AdapterKind;
-pub use protection::{InstallationProtection, PlayerDataProtection, ProtectionDeclaration};
+pub use protection::{
+    InstallationProtection, PlayerDataProtection, ProtectionDeclaration, ProtectionInstallRole,
+};
 mod catalog_download;
 mod catalog_download_identity;
 mod catalog_download_provider;
@@ -96,7 +98,10 @@ mod capabilities;
 mod forbidden_memories_qualification;
 mod launch_preparation;
 mod listings;
-pub use advisories::{AdvisoryApplicability, CapabilityAdvisory, PortCapabilityNotice};
+pub use advisories::{
+    AdvisoryApplicability, CapabilityAdvisory, LaunchBehavior, LaunchEntryBehavior,
+    PortCapabilityNotice,
+};
 pub use capabilities::{
     CapabilityFeature, CapabilityMode, PortCapabilityFeature, PortCapabilityReport,
     PortCapabilityRoute,

@@ -1814,17 +1814,11 @@ mod observation_metadata_tests {
     }
     #[test]
     fn references_are_versioned_bounded_and_lossless_in_legacy_listings() {
-        let mut document = CatalogListingDocument::from_json(EMBEDDED_LISTINGS).unwrap();
+        let current = CatalogListingDocument::from_json(EMBEDDED_LISTINGS).unwrap();
         // Embedded listings include implementation descriptions, which need format 12.
-        assert_eq!(document.format_version, 12);
-        // Isolate setup references from unrelated date, funding and collection fields.
-        for listing in &mut document.listings {
-            listing.listed_at = None;
-            listing.funding_urls = None;
-            listing.collection_covers = None;
-            listing.implementation = None;
-        }
-        document.format_version = 6;
+        assert_eq!(current.format_version, 12);
+        // Start with format 6 to isolate setup references from later fields.
+        let mut document = current.export_format(6).unwrap();
         let legacy = document.export_format(5).unwrap();
         for listing in &document.listings {
             if let Some(guide) = &listing.manual_setup {
