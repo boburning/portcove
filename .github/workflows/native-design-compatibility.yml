@@ -281,8 +281,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
-      SOURCE_HEAD: fe10f3dc1d475559d0c46ebea9a4ca7fddf3b1d3
-      SOURCE_TREE: dad984414eeb7ae6f9d28f0f3a018c176a9778f5
+      SOURCE_HEAD: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
+      SOURCE_TREE: f5de79fcc3a823d8b17dfaf3b878cd365d466900
       CONTROLLER_HEAD: ${{ github.sha }}
       CARGO_TARGET_DIR: ${{ github.workspace }}/work/slice3-native-${{ github.sha }}
     steps:
@@ -670,7 +670,7 @@ jobs:
       matrix:
         include:
           - selection: review-continuation
-            source: fe10f3dc1d475559d0c46ebea9a4ca7fddf3b1d3
+            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
             scenarios:
               - native-interrupted-preparation-recovery
               - native-source-intake-and-discovery-dialogs
@@ -702,7 +702,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: install-steam-artwork
-            source: fe10f3dc1d475559d0c46ebea9a4ca7fddf3b1d3
+            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
             scenarios:
               - install-progress-cancellation
               - install-commit-refresh-recovery
@@ -729,7 +729,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: saved-folder-selected-setup
-            source: fe10f3dc1d475559d0c46ebea9a4ca7fddf3b1d3
+            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
             scenarios:
               - native-saved-folder-selected-setup
             expected_plan:
@@ -743,7 +743,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: preliminary-selected-setup
-            source: fe10f3dc1d475559d0c46ebea9a4ca7fddf3b1d3
+            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
             scenarios:
               - native-preliminary-selected-setup
             expected_plan:
@@ -757,7 +757,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: saved-folder-hash-resume
-            source: fe10f3dc1d475559d0c46ebea9a4ca7fddf3b1d3
+            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
             scenarios:
               - native-saved-folder-hash-resume
             expected_plan:
@@ -771,7 +771,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: external-runtime-review
-            source: fe10f3dc1d475559d0c46ebea9a4ca7fddf3b1d3
+            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
             scenarios:
               - native-external-runtime-review
             expected_plan:
@@ -785,7 +785,7 @@ jobs:
                 "probe_required": false,
               }
           - selection: startup-preferences-recovery
-            source: fe10f3dc1d475559d0c46ebea9a4ca7fddf3b1d3
+            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
             scenarios:
               - native-startup-preferences-recovery
             expected_plan:
@@ -799,7 +799,7 @@ jobs:
                 "probe_required": false,
               }
           - selection: startup-library-recovery
-            source: fe10f3dc1d475559d0c46ebea9a4ca7fddf3b1d3
+            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
             scenarios:
               - native-startup-library-recovery
             expected_plan:
@@ -813,7 +813,7 @@ jobs:
                 "probe_required": false,
               }
           - selection: library-switch-recovery
-            source: fe10f3dc1d475559d0c46ebea9a4ca7fddf3b1d3
+            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
             scenarios:
               - native-library-switch-recovery
             expected_plan:
@@ -827,7 +827,7 @@ jobs:
                 "probe_required": false,
               }
           - selection: minimized-preparation-continuity
-            source: fe10f3dc1d475559d0c46ebea9a4ca7fddf3b1d3
+            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
             scenarios:
               - native-minimized-preparation-continuity
             expected_plan:
@@ -841,7 +841,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: closed-preparation-recovery
-            source: fe10f3dc1d475559d0c46ebea9a4ca7fddf3b1d3
+            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
             scenarios:
               - native-closed-preparation-recovery
             expected_plan:
@@ -855,7 +855,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: secondary-panels
-            source: fe10f3dc1d475559d0c46ebea9a4ca7fddf3b1d3
+            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
             scenarios:
               - native-secondary-panel-presentation
             expected_plan:
@@ -869,7 +869,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: public-collection
-            source: fe10f3dc1d475559d0c46ebea9a4ca7fddf3b1d3
+            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
             scenarios:
               - native-collection-artwork-presentation
             expected_plan:
@@ -884,7 +884,7 @@ jobs:
               }
     env:
       SOURCE_HEAD: ${{ matrix.source }}
-      SOURCE_TREE: dad984414eeb7ae6f9d28f0f3a018c176a9778f5
+      SOURCE_TREE: f5de79fcc3a823d8b17dfaf3b878cd365d466900
       CONTROLLER_HEAD: ${{ github.sha }}
       EXPECTED_NATIVE_PLAN: ${{ toJSON(matrix.expected_plan) }}
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-product-workflows-${{ matrix.selection }}

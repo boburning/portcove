@@ -245,8 +245,8 @@ This preserves the planner's standalone and incompatible-fixture refusals.
 For #6511, a temporary **unmerged** controller follows the #6841 qualification
 pattern. Its ordinary verification PR requires the normal five exact-head checks
 and independent source/composition review before dispatch. It binds application
-commit `fe10f3dc1d475559d0c46ebea9a4ca7fddf3b1d3` and tree
-`dad984414eeb7ae6f9d28f0f3a018c176a9778f5` separately from the controller commit.
+commit `6c01ccf660a2e9412e0e5106e820e226ae76fd9e` and tree
+`f5de79fcc3a823d8b17dfaf3b878cd365d466900` separately from the controller commit.
 Thirteen fixed Windows rows request only the remaining 23 scenarios; each checks
 its actual maintained plan, dependencies, artifact roles and harness budget before
 execution. This controller does not replace Main's 18 groups and must close
