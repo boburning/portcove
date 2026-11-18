@@ -53,6 +53,8 @@ established envelope versions and compatibility with earlier strict readers.
 Core retains malformed/future optional envelopes without interpreting them;
 Desktop ignores unsupported envelope versions, unknown kinds and unsafe links.
 Authoring remains strict. Older documents may omit the field entirely.
+Changing only this explanatory envelope does not invalidate a retained upstream
+release observation: the observer declaration hash excludes it.
 
 ## Descriptive compatibility advisories
 

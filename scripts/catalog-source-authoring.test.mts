@@ -1113,6 +1113,12 @@ void test("implementation descriptions project without changing source, route or
     source.records.find((record) => record.listing.id === "zelda64-recomp")!,
   );
   assert.equal(record.listing.implementation?.methods[0]?.kind, "static-recompilation");
+  const declarationWithoutExplanation = { ...record.listing };
+  delete declarationWithoutExplanation.implementation;
+  assert.equal(
+    listingDeclarationHash(record.listing),
+    listingDeclarationHash(declarationWithoutExplanation),
+  );
   const projected = projectAuthoredPort(record)!;
   const without = structuredClone(record);
   delete without.listing.implementation;
