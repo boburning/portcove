@@ -1,11 +1,16 @@
-import { act } from "react";
+import { act, memo } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { useOperationState } from "./use-operation-state";
 import { targetInvocationContext } from "./invocation-state";
-import { failureReport } from "../../test-fixtures";
+import { failureReport, portStatus } from "../../test-fixtures";
 import { StatusLayer } from "../../components/Chrome";
 import { InvocationOwnerProvider } from "./invocation-owner";
+import {
+  OperationPresentationProvider,
+  presentPortAction,
+  useOperationPresentation,
+} from "./operation-presentation";
 import type { ActivityRecord, OperationEvent } from "../../types";
 
 vi.mock("@tauri-apps/api/event", async (importOriginal) => ({
@@ -598,4 +603,81 @@ it("retains application exclusion across the keyed workspace remount and retires
       "current library result",
     );
   });
+});
+
+it("keeps memoized action consumers stable while input changes and updates them for operations", async () => {
+  const rendered = vi.fn();
+  const Action = memo(function Action() {
+    const owner = useOperationPresentation();
+    rendered();
+    return (
+      <button
+        disabled={presentPortAction(owner, "A", portStatus(), "launch").assessment.blocked}
+        data-generation={owner?.generation}
+      >
+        Play game A
+      </button>
+    );
+  });
+  function SearchFixture({ query, generation = 7 }: { query: string; generation?: number }) {
+    state = useOperationState({ refresh, libraryGeneration: generation });
+    return (
+      <OperationPresentationProvider generation={generation} pending={state.pendingOperations}>
+        <input aria-label="Search games" value={query} readOnly />
+        <Action />
+      </OperationPresentationProvider>
+    );
+  }
+  await act(async () =>
+    root.render(
+      <InvocationOwnerProvider>
+        <SearchFixture query="" />
+      </InvocationOwnerProvider>,
+    ),
+  );
+  const button = host.querySelector<HTMLButtonElement>("button")!;
+  expect(button.disabled).toBe(false);
+  const idleRenders = rendered.mock.calls.length;
+  await act(async () =>
+    root.render(
+      <InvocationOwnerProvider>
+        <SearchFixture query="Zelda" />
+      </InvocationOwnerProvider>,
+    ),
+  );
+  expect(host.querySelector<HTMLInputElement>("input")?.value).toBe("Zelda");
+  expect(rendered).toHaveBeenCalledTimes(idleRenders);
+
+  const done = deferred<string>();
+  let running!: Promise<unknown>;
+  await act(async () => {
+    running = state.perform("prepare", () => done.promise, { context: context("A") });
+  });
+  expect(button.disabled).toBe(true);
+  expect(rendered.mock.calls.length).toBeGreaterThan(idleRenders);
+  const pendingRenders = rendered.mock.calls.length;
+  await act(async () =>
+    root.render(
+      <InvocationOwnerProvider>
+        <SearchFixture query="Zelda II" />
+      </InvocationOwnerProvider>,
+    ),
+  );
+  expect(rendered).toHaveBeenCalledTimes(pendingRenders);
+  expect(button.disabled).toBe(true);
+
+  await act(async () => {
+    done.resolve("prepared");
+    await running;
+  });
+  expect(button.disabled).toBe(false);
+  expect(rendered.mock.calls.length).toBeGreaterThan(pendingRenders);
+  await act(async () =>
+    root.render(
+      <InvocationOwnerProvider>
+        <SearchFixture query="Zelda II" generation={8} />
+      </InvocationOwnerProvider>,
+    ),
+  );
+  expect(button.dataset.generation).toBe("8");
 });

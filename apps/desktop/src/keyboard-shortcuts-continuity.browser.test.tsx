@@ -1,3 +1,4 @@
+import { registerCollectionNavigation } from "./collection-navigation";
 import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -271,4 +272,44 @@ describe("workspace continuity", () => {
     expect(document.activeElement?.id).toBe("sidebar-settings");
     expect(document.querySelector<HTMLElement>("main")?.scrollTop).toBe(0);
   });
+});
+
+it("waits for a returning collection's destination before restoring precise focus", async () => {
+  await act(async () => navigateFromDetail("catalog", 96, "library:card:lighthouse"));
+  await flushFrame();
+  await act(async () => navigate("library"));
+  const workspace = document.querySelector<HTMLElement>("main")!;
+  const trigger = workspace.querySelector<HTMLElement>("[data-detail-origin]")!;
+  const collection = document.createElement("section");
+  collection.dataset.virtualCollection = "library";
+  workspace.append(collection);
+  trigger.remove();
+  let complete!: (value: boolean) => void;
+  const mounted = new Promise<boolean>((resolve) => {
+    complete = resolve;
+  });
+  const mount = vi.fn(async (destination: { scrollTop?: number | undefined }) => {
+    const accepted = await mounted;
+    if (accepted) workspace.scrollTo({ top: destination.scrollTop ?? 0 });
+    return accepted;
+  });
+  const unregister = registerCollectionNavigation(collection, {
+    mount,
+    prepareMove: () => undefined,
+  });
+  try {
+    await flushFrame();
+    expect(mount).toHaveBeenCalledWith(
+      expect.objectContaining({ scrollTop: 96 }),
+      expect.any(Function),
+    );
+    expect(workspace.scrollTop).toBe(0);
+    expect(document.activeElement).not.toBe(trigger);
+    collection.append(trigger);
+    await act(async () => complete(true));
+    expect(document.activeElement).toBe(trigger);
+    expect(workspace.scrollTop).toBe(96);
+  } finally {
+    unregister();
+  }
 });

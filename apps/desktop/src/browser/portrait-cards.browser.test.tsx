@@ -1,3 +1,9 @@
+import {
+  inspectDiscoverGroups,
+  mountDiscoverPort,
+  inspectLibraryGroups,
+  mountLibraryPort,
+} from "./discover-test-helpers";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { act, useState } from "react";
@@ -318,10 +324,8 @@ it.for(["library", "catalog"] as const)(
         />
       </main>,
     );
-    const frames = [...document.querySelectorAll<HTMLElement>(".collection-art")];
-    expect(frames).toHaveLength(100);
     await userEvent.keyboard("{Tab}");
-    for (const frame of frames) {
+    const inspectFrame = (frame: HTMLElement) => {
       const rect = frame.getBoundingClientRect();
       expect(rect.height / rect.width).toBeCloseTo(1.5, 2);
       const identity = frame.closest<HTMLElement>(".collection-identity, .discover-game-identity")!;
@@ -340,9 +344,26 @@ it.for(["library", "catalog"] as const)(
         expect(text.scrollHeight).toBeLessThanOrEqual(text.clientHeight + 1);
       }
       identity.blur();
-    }
+    };
+    const inspectLibraryFrames = async () => {
+      expect(document.querySelectorAll(".collection-art").length).toBeLessThan(100);
+      await inspectLibraryGroups(
+        many.map((port) => [port.id]),
+        (card) => inspectFrame(card.querySelector<HTMLElement>(".collection-art")!),
+      );
+    };
+    if (view === "catalog") {
+      await inspectDiscoverGroups(
+        many.map(({ id }) => [id]),
+        (card) => inspectFrame(card.querySelector<HTMLElement>(".collection-art")!),
+      );
+    } else await inspectLibraryFrames();
+    const lastFrame =
+      view === "catalog"
+        ? (await mountDiscoverPort("large-99")).querySelector<HTMLElement>(".collection-art")!
+        : (await mountLibraryPort("large-99")).querySelector<HTMLElement>(".collection-art")!;
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(960);
-    frames[99]!
+    lastFrame
       .closest(".collection-identity, .discover-game-identity")!
       .querySelector<HTMLElement>(".collection-title")!
       .scrollIntoView();
@@ -350,7 +371,7 @@ it.for(["library", "catalog"] as const)(
     await page.screenshot({
       path: `../../../../outputs/uiux-game-titles/expanded-${view}-960.png`,
     });
-    const metadata = frames[99]!.closest<HTMLElement>(
+    const metadata = lastFrame.closest<HTMLElement>(
       ".collection-identity, .discover-game-identity",
     )!;
     metadata.focus();

@@ -1,4 +1,5 @@
 import {
+  useMemo,
   useRef,
   useState,
   useId,
@@ -241,8 +242,11 @@ export function CatalogFilters({
     })),
   ];
   const { open, setOpen, panelId, trigger, heading, panel, close } = useFilterPanel();
-  const query = queryFromFilter(filter);
-  const result = evaluateCatalogQuery(candidates ?? [], query, context);
+  const query = useMemo(() => queryFromFilter(filter), [filter]);
+  const result = useMemo(
+    () => evaluateCatalogQuery(candidates ?? [], query, context, { includeFacetCounts: open }),
+    [candidates, query, context, open],
+  );
   const editable = result.state === "matched";
   const supported = result.state !== "unresolved";
   const quickViewOwnsUpdates = quickViewUpdates && isQuickViewUpdateSelection(query.updates);
