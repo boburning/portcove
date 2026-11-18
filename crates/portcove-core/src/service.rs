@@ -7118,7 +7118,11 @@ impl PortcoveService {
         self.library.require_no_ghostship_recovery(&port.id)?;
         // A profile change made the canonical data newer than this build's copy.
         // Collecting now would copy the stale build over the selected profile.
-        if crate::profile_deploy::restore_pending(&self.library.user_dir(&port.id)) {
+        // Chocolate has no reviewed profile deployment: an unrelated marker
+        // cannot suppress its ordinary dataset checks and collection.
+        if !crate::managed_chocolate::applies(port)
+            && crate::profile_deploy::restore_pending(&self.library.user_dir(&port.id))
+        {
             return Ok(Vec::new());
         }
         let contract = self.persistence_contract(port, install_root)?;
@@ -7131,7 +7135,6 @@ impl PortcoveService {
                 port,
                 &user_root,
                 &persistent_root,
-                false,
                 &|| Ok(()),
             )?;
         }
@@ -7235,7 +7238,6 @@ impl PortcoveService {
                 port,
                 &user_root,
                 &persistent_root,
-                crate::profile_deploy::restore_pending(&user_root),
                 &|| Ok(()),
             )?;
         }
@@ -7245,13 +7247,6 @@ impl PortcoveService {
         let marker = install_root.join(LAUNCH_MARKER);
         refuse_symlink_ancestors(&marker)?;
         let previously_launched = marker.is_file();
-        // A ready Chocolate installation can own prepared data before its first
-        // spawn. Profile deployment has already collected and parked that data
-        // through the retained ready-archive contract, so a fresh arriving setup
-        // must also replace absent entries rather than inheriting the old IWAD.
-        let replace_absent_data = previously_launched
-            || (crate::managed_chocolate::applies(port)
-                && crate::profile_deploy::restore_pending(&user_root));
         if port.runtime_data_policy.is_some() {
             crate::runtime_data_policy::refuse_sensitive_tree(&user_root)?;
         }
@@ -7300,7 +7295,7 @@ impl PortcoveService {
                     }
                 } else if source.exists() {
                     sync_entry(&source, &destination)?;
-                } else if replace_absent_data && destination.exists() {
+                } else if previously_launched && destination.exists() {
                     remove_managed_entry(&destination)?;
                 }
             }
@@ -19853,7 +19848,7 @@ fn main() {
 
     #[cfg(windows)]
     #[test]
-    fn chocolate_setup_switch_parks_prepared_data_before_first_spawn() {
+    fn chocolate_refused_profiles_preserve_prepared_data_before_first_spawn() {
         const ID: &str = "chocolate-doom-family";
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
@@ -19881,54 +19876,40 @@ fn main() {
             true,
         );
         let service = service_with_release(library.clone(), "chocolate-doom-3.1.1");
-        let departing = service.ensure_default_profile(ID).unwrap();
-        let arriving = service
-            .copy_profile(ID, &departing.id, "Fresh setup")
-            .unwrap();
-        assert!(!root.join(LAUNCH_MARKER).exists());
-        service.activate_profile(ID, &arriving.id).unwrap();
-        service.restore_retained_user_data_to(&install).unwrap();
-        let parked = crate::profile_deploy::Layout::for_user(&library.user_dir(ID))
-            .store()
-            .join("state")
-            .join(&departing.id);
-        assert_eq!(
-            fs::read(parked.join("game.wad")).unwrap(),
-            b"synthetic original A"
-        );
-        assert_eq!(
-            fs::read(parked.join("default.cfg")).unwrap(),
-            b"departing setup controls"
-        );
-        assert_eq!(
-            fs::read(parked.join("DOOM00.png")).unwrap(),
-            b"departing screenshot"
-        );
-        for name in [
+        let names = [
             "game.wad",
             "default.cfg",
             "chocolate-doom.cfg",
             "DOOM00.png",
-        ] {
-            assert!(!root.join(name).exists(), "departing data remained: {name}");
+        ];
+        let before: Vec<_> = names
+            .iter()
+            .map(|name| fs::read(root.join(name)).unwrap())
+            .collect();
+        assert!(!root.join(LAUNCH_MARKER).exists());
+        let error = service.ensure_default_profile(ID).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Unsupported);
+        assert!(error.message.contains("no reviewed mod package contract"));
+        let error = service
+            .activate_profile(ID, "unreviewed-profile")
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Unsupported);
+        assert!(!crate::profile_deploy::restore_pending(
+            &library.user_dir(ID)
+        ));
+        assert!(
+            !crate::profile_deploy::Layout::for_user(&library.user_dir(ID))
+                .store()
+                .join("state")
+                .exists()
+        );
+        // Ordinary retained restoration cannot delete prepared data merely
+        // because no launch marker or canonical snapshot exists yet.
+        service.restore_retained_user_data_to(&install).unwrap();
+        for (name, bytes) in names.iter().zip(&before) {
+            assert_eq!(&fs::read(root.join(name)).unwrap(), bytes, "{name}");
         }
-        // Subsequent original materialization belongs to the new setup. Its
-        // profile starts with defaults, while the departing bytes remain parked.
-        fs::write(root.join("game.wad"), b"synthetic original B").unwrap();
-        crate::managed_chocolate::prepare(&port, &root, &|| Ok(())).unwrap();
-        assert!(!root.join("default.cfg").exists());
-        let arguments = crate::managed_chocolate::arguments(&port, &root, &|| Ok(())).unwrap();
-        assert_eq!(
-            arguments[7],
-            format!(
-                "savegames/{}",
-                hex::encode(Sha256::digest(b"synthetic original B"))
-            )
-        );
-        assert_eq!(
-            fs::read(parked.join("game.wad")).unwrap(),
-            b"synthetic original A"
-        );
+        assert!(!root.join(LAUNCH_MARKER).exists());
     }
 
     #[tokio::test]

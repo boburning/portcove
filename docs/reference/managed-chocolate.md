@@ -30,8 +30,9 @@ reviewed slot/map filename fits its upstream 100-byte buffer. Core also checks
 the complete Windows path budget before preparing the directory. An empty or
 different IWAD cannot silently inherit populated save slots. The actual copied
 IWAD is checked independently of the ordinary source-copy marker, including
-before canonical data moves. An explicit setup deployment can replace its
-complete dataset; an incoming dataset with saves but no IWAD is refused.
+before canonical data moves. Incoming data with saves but no IWAD is refused.
+Prepared data stays intact when an unoffered profile operation is requested.
+Ordinary backup restoration uses its existing reviewed snapshot contract.
 
 Compatible updates, rollback and backups retain the declared data through Core's
 existing staged-archive persistence contract. Runtime replacement belongs to

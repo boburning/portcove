@@ -357,26 +357,21 @@ pub(crate) fn require_original(
         && actual != (source.sha256.clone(), source.size)
     {
         return Err(PortcoveError::verification(
-            "Chocolate data belongs to a different original; restore its original IWAD or select a separate setup before playing",
+            "This setup uses a different original game file; keep its data and select the matching original before playing",
         ));
     }
     Ok(())
 }
 
 /// Collection and ordinary restoration cannot merge datasets for different
-/// originals. An explicit profile deployment may replace the whole current
-/// dataset; its incoming canonical data must still contain the matching IWAD.
+/// originals. Profile markers do not grant replacement authority for this recipe.
 pub(crate) fn require_compatible_data(
     port: &PortDefinition,
     user: &Path,
     runtime: &Path,
-    profile_deployment: bool,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     let canonical = dataset(port, user, checkpoint)?;
-    if profile_deployment {
-        return Ok(());
-    }
     let installed = dataset(port, runtime, checkpoint)?;
     if let (Some(canonical), Some(installed)) = (canonical, installed)
         && canonical != installed
@@ -627,13 +622,9 @@ mod tests {
         let port = port();
         fs::write(user.path().join("game.wad"), b"A").unwrap();
         fs::write(runtime.path().join("game.wad"), b"B").unwrap();
-        assert!(
-            require_compatible_data(&port, user.path(), runtime.path(), false, &|| Ok(())).is_err()
-        );
+        assert!(require_compatible_data(&port, user.path(), runtime.path(), &|| Ok(())).is_err());
         assert_eq!(fs::read(user.path().join("game.wad")).unwrap(), b"A");
         assert_eq!(fs::read(runtime.path().join("game.wad")).unwrap(), b"B");
-        // Explicit setup deployment is a replacement of its complete dataset.
-        require_compatible_data(&port, user.path(), runtime.path(), true, &|| Ok(())).unwrap();
         fs::remove_file(user.path().join("game.wad")).unwrap();
         fs::create_dir(user.path().join("savegames")).unwrap();
         fs::write(
@@ -641,9 +632,7 @@ mod tests {
             b"save without its original",
         )
         .unwrap();
-        assert!(
-            require_compatible_data(&port, user.path(), runtime.path(), true, &|| Ok(())).is_err()
-        );
+        assert!(require_compatible_data(&port, user.path(), runtime.path(), &|| Ok(())).is_err());
     }
 
     #[test]

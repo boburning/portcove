@@ -212,9 +212,7 @@ impl PortcoveService {
             .ok_or_else(|| PortcoveError::source("Chocolate requires its checked original IWAD"))?;
         let canonical = self.library.user_dir(&port.id);
         crate::managed_chocolate::require_original(port, &canonical, source, checkpoint)?;
-        if !crate::profile_deploy::restore_pending(&canonical) {
-            crate::managed_chocolate::require_original(port, &active.path, source, checkpoint)?;
-        }
+        crate::managed_chocolate::require_original(port, &active.path, source, checkpoint)?;
         Ok(())
     }
 
