@@ -1,0 +1,99 @@
+# Reports failure independently of the nightly build and signing workflow.
+# The completed run is treated as data: do not check out or execute its commit.
+name: Nightly failure report
+
+on:
+  workflow_run:
+    workflows: ["Nightly preview"]
+    types: [completed]
+
+permissions: {}
+
+concurrency:
+  group: nightly-failure-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  report:
+    if: >-
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      issues: write
+    steps:
+      - name: File a diagnostic issue for a failed or cancelled nightly
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          report_dir="$(mktemp -d)"
+          trap 'rm -rf "$report_dir"' EXIT
+
+          gh api --method GET "repos/$REPOSITORY/actions/runs/$RUN_ID" > "$report_dir/run.json"
+          jq -e --argjson id "$RUN_ID" --arg repo "$REPOSITORY" \
+            '.id == $id and .name == "Nightly preview" and .head_repository.full_name == $repo and .head_branch == "main" and .status == "completed"' \
+            "$report_dir/run.json" > /dev/null
+
+          conclusion="$(jq -r '.conclusion // "unknown"' "$report_dir/run.json")"
+          # Successful runs require no failure issue. A successful rerun does not
+          # prove that an earlier release was published: do not auto-close issues.
+          if [[ "$conclusion" == "success" ]]; then
+            echo "Nightly completed successfully; nothing to report."
+            exit 0
+          fi
+
+          gh api --method GET "repos/$REPOSITORY/actions/runs/$RUN_ID/jobs?filter=latest&per_page=100" > "$report_dir/jobs.json"
+          jq -e '.total_count <= 100 and (.jobs | type == "array") and (.jobs | length == .total_count)' \
+            "$report_dir/jobs.json" > /dev/null
+
+          {
+            printf '<!-- portcove-nightly-failure-run:%s -->\n' "$RUN_ID"
+            printf '## Nightly release failed\n\n'
+            jq -r '
+              "- **Run:** [#\(.run_number), attempt \(.run_attempt)](\(.html_url))\n" +
+              "- **Conclusion:** \(.conclusion)\n" +
+              "- **Trigger:** \(.event)\n" +
+              "- **Commit:** \(.head_sha)\n" +
+              "- **Created:** \(.created_at) UTC\n" +
+              "- **Started:** \(.run_started_at // "not recorded") UTC\n" +
+              "- **Finished/updated:** \(.updated_at) UTC\n"
+            ' "$report_dir/run.json"
+            printf '\n### Job outcomes\n\n| Job | Outcome | Failed/cancelled steps |\n| --- | --- | --- |\n'
+            jq -r '
+              .jobs[] |
+              "| [\(.name | gsub("[\r\n|]"; " "))](\(.html_url)) | \(.conclusion // .status) | " +
+              ([.steps[]? | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out") | .name | gsub("[\r\n|]"; " ")] |
+                if length == 0 then "Not identified in job metadata" else join(", ") end) + " |"
+            ' "$report_dir/jobs.json"
+            printf '\n### Investigate\n\n'
+            printf '%s\n' '- Open the affected job links above to inspect the complete log, annotations and cancellation reason.'
+            printf '%s\n' '- A cancelled build or skipped publish job does not establish a root cause by itself.'
+            printf '%s\n' '- Repair the cause and rerun failed jobs. Verify all release assets and the Preview updater feed before closing.'
+            printf '%s\n' '- Do not copy unreviewed build logs into this public issue; logs can contain sensitive data.'
+          } > "$report_dir/report.md"
+
+          date="$(jq -r '.created_at[:10]' "$report_dir/run.json")"
+          # Search all issue states by this immutable run ID; reruns update the
+          # original report instead of adding another issue for the same run.
+          issue="$(gh issue list --repo "$REPOSITORY" --state all --limit 100 \
+            --search "$RUN_ID in:title" --json number,title \
+            --jq '.[] | select(.title | contains("Nightly release failure")) | .number' | head -n 1)"
+          if [[ -n "$issue" ]]; then
+            gh issue edit "$issue" --repo "$REPOSITORY" --body-file "$report_dir/report.md"
+            printf 'Updated existing nightly failure issue #%s\n' "$issue"
+          else
+            gh issue create --repo "$REPOSITORY" \
+              --title "Nightly release failure — $date (run $RUN_ID)" \
+              --body-file "$report_dir/report.md" --assignee boburning
+          fi
+
+          {
+            printf '## Nightly release needs attention\n\n'
+            cat "$report_dir/report.md"
+          } >> "$GITHUB_STEP_SUMMARY"
