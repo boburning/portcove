@@ -910,7 +910,7 @@ describe("SteamGridDB picker", () => {
         await expect.element(page.elementLocator(panel)).toHaveAttribute("aria-busy", "true");
         expect(panel.textContent).toContain("Checking SteamGridDB setup…");
         expect(panel.querySelector("form")).toBeNull();
-        await captureParityState("steamgriddb-setup-reading");
+        await captureParityState("steamgriddb-picker-setup-reading");
         await act(async () => first.reject(new Error(diagnostic)));
         await expect.element(page.elementLocator(panel)).toHaveAttribute("aria-busy", "false");
         expect(panel.textContent).toContain("Couldn't check SteamGridDB setup.");
@@ -927,7 +927,7 @@ describe("SteamGridDB picker", () => {
           expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
         };
         expectContainedRecovery();
-        await captureParityState("steamgriddb-setup-refused");
+        await captureParityState("steamgriddb-picker-setup-refused");
         recovery.focus();
         await act(async () => {
           recovery.click();
@@ -938,7 +938,7 @@ describe("SteamGridDB picker", () => {
         expect(document.activeElement).toBe(recovery);
         expect(panel.querySelector("form")).toBeNull();
         expectContainedRecovery();
-        await captureParityState("steamgriddb-setup-retrying");
+        await captureParityState("steamgriddb-picker-setup-retrying");
         await act(async () => retry.resolve({ configured }));
         await vi.waitFor(() =>
           expect(container.querySelector('.steamgriddb-picker[aria-busy="true"]')).toBeNull(),
@@ -958,7 +958,7 @@ describe("SteamGridDB picker", () => {
         expect(choose).not.toHaveBeenCalled();
         target!.scrollIntoView({ block: "center", inline: "nearest" });
         expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
-        await captureParityState("steamgriddb-setup-recovered");
+        await captureParityState("steamgriddb-picker-setup-recovered");
       } finally {
         first.resolve({ configured: false });
         retry.resolve({ configured: false });
