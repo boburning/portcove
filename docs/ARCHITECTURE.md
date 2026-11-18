@@ -2646,6 +2646,10 @@ An undeclared file is a hazard when it is a link, reparse point or other non-reg
 `package_layout::is_unknown_file_hazard`; the Electron rule is
 `install::electron_resources`, because Electron loads `resources/app`,
 `resources/app.asar` or `resources/default_app.asar`, whichever it finds first.
+Package recognition and unknown-file matching use ASCII case-insensitive folder
+and archive names. Carry exclusions use that same target manifest to exclude
+the entire resource folder, including nested additions and ledger removals;
+folders outside it do not acquire this exclusion.
 
 Every other undeclared regular file is an unknown player-side file, such as a
 settings file a game writes beside itself. `VerificationReport` keeps it out of
