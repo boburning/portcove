@@ -654,6 +654,23 @@ async function assertPortraitLayout(
     identity.blur();
   }
   window.scrollTo(0, 0);
+  // Keyboard traversal can leave the inherited pointer over a poster. Compare
+  // resting rows after the intentional two-pixel hover lift has settled.
+  await userEvent.hover(
+    page
+      .getByRole("group", {
+        name: view === "library" ? "Library filters" : "Favorite games",
+        exact: true,
+      })
+      .element(),
+  );
+  await expect
+    .poll(() =>
+      [...document.querySelectorAll(".collection-art")].every(
+        (art) => getComputedStyle(art).transform === "none",
+      ),
+    )
+    .toBe(true);
   const alignmentErrors: number[] = [];
   if (view === "library" && width >= 1280) {
     const alignedRows = new Map<number, number>();

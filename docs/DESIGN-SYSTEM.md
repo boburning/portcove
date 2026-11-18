@@ -794,6 +794,12 @@ selection with a fallback or actionable explanation. Keep provider configuration
 in Appearance or Integrations with contextual picker guidance, never first-play
 API-key onboarding. Keyboard/controller navigation, focus restoration, long
 titles, scaled layouts and text status must remain usable.
+Provider image and match grids opt out of prose list markers. Artwork disclosures
+keep their first-line chevrons aligned with the padded hit area. An unknown key
+status shows a settled read failure with an explicit retry; it cannot dispatch
+a search. Recovery keeps focus until it can transfer to Search or no-key guidance.
+A provider-requested pause remains visible and enforced through Back; expired
+retry guidance is removed when requests become available again.
 
 The selected-game Steam flow also presents **Include artwork**, any existing
 destination customization, per-role planned source and a truthful partial result.
@@ -1191,6 +1197,14 @@ links use a real operation reference when one is available. Failed/unfinished
 outcomes and cancellation settlement remain visible on task rows. Operation IDs
 and retained preparation logs share Task details; they do not compete with the
 next action or hide mutation/uncertainty summaries.
+Retained log phases use subordinate headings and grouped stream labels, fields
+and observation metadata. Phase headings name the saved work without implying
+that a completed or failed task is still running; stream completeness remains
+separate from the task outcome. Prior output remains visible through refresh and
+clipboard failures, with the exact manual-copy field beside its explanation.
+Application-update status follows local and host-reported active installation
+before offering ready-to-download copy. Phase and byte progress belong to the
+current local invocation; host-only activity does not invent a starting phase.
 
 Port comparison shares `styles/comparison.css`: a concise evidence status, one
 optional settings disclosure and aligned project facts/actions. Exact artifact,
