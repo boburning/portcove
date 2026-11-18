@@ -477,6 +477,18 @@ stale-review refusal, saved-data and backup assertions, retry policy, cleanup an
 application/IPC/safety deadlines remain unchanged. The original failures remain
 evidence; these calibrations alone do not establish successful native workflows.
 
+The November 18 hosted Windows review-continuation run at `6c01ccf6`
+(`44395050884/1`, job `135122626956`) positively recorded the owned native
+**Cancel** response in `backup-native-restore-cancelled.json`. The subsequent
+DOM-dialog-disappearance wait expired after 15.163 seconds, and its failure image
+still showed **Restoring backup…**. Only that cancel-settlement lookup increases
+from 15 to 60 seconds, matching the existing confirmed-restore and refused-apply
+settlement waits. The raw logs do not establish backend latency or which read
+kept the review busy. Native confirmation ownership, the unchanged-saved-data
+assertion after settlement, ordinary 15-second clicks, focus, cleanup and product
+deadlines remain unchanged. The original failure and positive cleanup remain
+retained; a later native run must establish completion under the revised budget.
+
 The November 17 Linux Heavy Rust calibration raises the parent's adopting-reaper
 exit wait from 5 to 30 seconds. A guarded desktop build at `95f11af1` returned
 payload status 0 and eventually published a positive quiescence receipt, but its

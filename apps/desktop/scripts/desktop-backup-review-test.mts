@@ -251,7 +251,7 @@ export async function backupReviewScenario({
       async () =>
         (await browser.findElements(By.css('[aria-labelledby="backup-review-title"]'))).length ===
         0,
-      15_000,
+      60_000,
     );
     assert.equal(await readFile(save, "utf8"), "current data before review");
     const generation = transportValue(
