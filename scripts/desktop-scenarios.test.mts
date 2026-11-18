@@ -702,7 +702,9 @@ void test("history fixture helpers import without installed desktop packages", a
   const execution = spawnSync(
     process.execPath,
     ["--import", pathToFileURL(guard).href, "--test", "--test-reporter=tap", native],
-    { cwd: root, env: environment, encoding: "utf8", timeout: 10000, maxBuffer: 1024 * 1024 },
+    // Retained local run exceeded the10s child safeguard while importing the
+    // real catalog-backed helpers. Keep finite room inside the60s parent case.
+    { cwd: root, env: environment, encoding: "utf8", timeout: 30000, maxBuffer: 1024 * 1024 },
   );
   assert.ifError(execution.error);
   assert.equal(execution.status, 0, execution.stderr + execution.stdout);
@@ -2972,6 +2974,43 @@ void test("reload is opt-in for restart and full profiles", () => {
     resolveDesktopSelection({ profile: "restart", reloadCycles: 3 }).selected_scenarios.includes(
       "native-repeated-library-reload",
     ),
+  );
+});
+
+void test("only the measured six-case install and Steam aggregate receives its calibrated watchdog", () => {
+  const scenarios = [
+    "install-progress-cancellation",
+    "install-commit-refresh-recovery",
+    "native-staged-update-composition",
+    "native-reviewed-steam-entry-add-and-remove",
+    "native-reviewed-steam-batch-add",
+    "native-local-artwork-picker-and-recovery",
+  ];
+  for (const order of [scenarios, [...scenarios].reverse()]) {
+    const selection = resolveDesktopSelection({ scenarios: order });
+    assert.deepEqual(selection.setup_scenarios, []);
+    assert.equal(desktopHarnessDeadlineMs(selection), 1_800_000);
+  }
+  for (const [index, scenario] of scenarios.entries()) {
+    assert.equal(
+      desktopHarnessDeadlineMs(resolveDesktopSelection({ scenarios: [scenario] })),
+      index === 3 || index === 4 ? 600_000 : 180_000,
+      `Keep the standalone ${scenario} allowance`,
+    );
+    assert.equal(
+      desktopHarnessDeadlineMs(
+        resolveDesktopSelection({ scenarios: scenarios.filter((item) => item !== scenario) }),
+      ),
+      600_000,
+      "A smaller combination keeps its original allowance",
+    );
+  }
+  assert.equal(
+    desktopHarnessDeadlineMs(
+      resolveDesktopSelection({ scenarios: [...scenarios, "accessibility"] }),
+    ),
+    600_000,
+    "An unrelated larger selection does not inherit the exact aggregate calibration",
   );
 });
 

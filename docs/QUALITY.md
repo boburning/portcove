@@ -565,6 +565,22 @@ timeouts remain in force. Linux contracts verify fixture validation and producer
 titles; the existing Windows-only AST/input witness covers the actual guarded
 PowerShell blocks. Those Windows checks and native flows require later execution.
 
+The same run's install/Steam/artwork row `135122626818` took 749.558 seconds
+across five executed cases while staged-update composition remained unrun; its
+600-second aggregate watchdog expired before the final artwork result. Only that
+exact six-case combination now receives a finite 1,800-second harness allowance,
+shared by planning and execution. Standalone cases, smaller and unrelated larger
+combinations, product deadlines and cleanup guards retain their existing limits.
+The temporary follow-up controller gives this row 150 minutes rather than 90:
+the observed cold setup/build envelope, 20-minute exact-driver wait, 30-minute
+harness and cleanup must fit inside the job. This calibration is not a claim
+that the original late result passed within its deadline or that latency is fixed.
+The same source's local ordinary scenario suite passed 265 cases and failed its
+existing catalog-backed history import child at its 10-second safeguard. That
+inert child receives 30 seconds inside the unchanged 60-second parent limit;
+assertions, optional-package refusal and child completion remain required. The
+original local failure is retained separately from subsequent focused feedback.
+
 The November 17 Linux Heavy Rust calibration raises the parent's adopting-reaper
 exit wait from 5 to 30 seconds. A guarded desktop build at `95f11af1` returned
 payload status 0 and eventually published a positive quiescence receipt, but its
