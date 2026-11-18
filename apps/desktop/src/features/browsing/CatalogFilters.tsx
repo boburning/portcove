@@ -337,7 +337,9 @@ export function CatalogFilters({
               {view === "library" ? t("filters.headingLibrary") : t("filters.headingDiscover")}
             </h2>
             <details className="my-2 text-sm text-pc-muted-foreground">
-              <summary className="cursor-pointer py-1">{t("filters.howSummary")}</summary>
+              <summary className="disclosure-pad-1 cursor-pointer">
+                {t("filters.howSummary")}
+              </summary>
               <p>{t("filters.howBody")}</p>
             </details>
           </div>
@@ -367,7 +369,9 @@ export function CatalogFilters({
             open={advancedOpen}
             onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
           >
-            <summary className="cursor-pointer py-2 font-medium">{t("filters.advanced")}</summary>
+            <summary className="disclosure-pad-2 cursor-pointer font-medium">
+              {t("filters.advanced")}
+            </summary>
             <p className="text-sm text-pc-muted-foreground">{t("filters.advancedNote")}</p>
             <div className="catalog-filter-groups items-start pt-3">
               {advanced}

@@ -1,4 +1,5 @@
 import { captureParityState } from "../../test/parity-capture";
+import { expectDisclosureAlignment } from "../../test/disclosure-alignment";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { StrictMode } from "react";
@@ -114,19 +115,7 @@ function expectArtworkDisclosureAlignment() {
     ),
   ];
   expect(summaries).toHaveLength(4);
-  for (const summary of summaries) {
-    const text = document.createRange();
-    text.selectNodeContents(summary);
-    const firstLine = text.getClientRects()[0];
-    if (!firstLine) throw new Error("Expected the disclosure's first text line");
-    const marker = getComputedStyle(summary, "::before");
-    const markerCenter =
-      summary.getBoundingClientRect().top + parseFloat(marker.top) + parseFloat(marker.height) / 2;
-    const textCenter = firstLine.top + firstLine.height / 2;
-    expect(Math.abs(markerCenter - textCenter)).toBeLessThanOrEqual(
-      parseFloat(getComputedStyle(summary).fontSize) / 4,
-    );
-  }
+  for (const summary of summaries) expectDisclosureAlignment(summary);
 }
 
 function controlledArtworkVisibility() {

@@ -783,8 +783,10 @@ in Appearance or Integrations with contextual picker guidance, never first-play
 API-key onboarding. Keyboard/controller navigation, focus restoration, long
 titles, scaled layouts and text status must remain usable.
 Provider image and match grids opt out of prose list markers. Artwork disclosures
-keep their first-line chevrons aligned with the padded hit area. An unknown key
-status shows a settled read failure with an explicit retry; it cannot dispatch
+keep their first-line chevrons aligned with the padded hit area.
+Native disclosures with shared chevrons use one spacing value for block padding
+and first-line marker position, including wrapped and right-to-left labels.
+An unknown key status shows a settled read failure with an explicit retry; it cannot dispatch
 a search. Recovery keeps focus until it can transfer to Search or no-key guidance.
 A provider-requested pause remains visible and enforced through Back; expired
 retry guidance is removed when requests become available again.

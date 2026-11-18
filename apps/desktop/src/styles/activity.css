@@ -88,22 +88,10 @@
       .game-update-actions details
     )
     > summary {
+    --disclosure-padding: var(--space-2);
     inline-size: fit-content;
     cursor: pointer;
-    padding-block: var(--space-2);
     line-height: var(--leading-relaxed);
-  }
-  :where(.update-center)
-    :is(
-      .update-check-details,
-      .update-entry-details,
-      .activity-details,
-      .activity-diagnostic,
-      .game-update-actions details,
-      .recovery-review-item details
-    )
-    > summary:not(.list-none)::before {
-    inset-block-start: calc(var(--space-2) + 0.5lh - 0.3em);
   }
   .update-check-details > p {
     max-inline-size: 65ch;
@@ -338,7 +326,7 @@
     min-inline-size: 0;
   }
   .recovery-review-item > details > summary {
-    padding-block: var(--space-2);
+    --disclosure-padding: var(--space-2);
     font-size: var(--text-sm);
   }
   @media (max-width: 30rem) {
