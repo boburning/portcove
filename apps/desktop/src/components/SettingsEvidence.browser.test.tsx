@@ -14,8 +14,13 @@ afterEach(async () => {
   await page.viewport(1280, 800);
 });
 
-const connectionCases: Array<{ name: string; status?: GithubAuthStatus; label: string }> = [
-  { name: "unavailable", label: "Connection status unavailable" },
+const connectionCases: Array<{
+  name: string;
+  status?: GithubAuthStatus;
+  label: string;
+  source: string;
+}> = [
+  { name: "unavailable", label: "Connection status unavailable", source: "Unavailable" },
   {
     name: "anonymous",
     status: {
@@ -26,6 +31,7 @@ const connectionCases: Array<{ name: string; status?: GithubAuthStatus; label: s
       device_login_available: true,
     },
     label: "Not signed in",
+    source: "Anonymous",
   },
   {
     name: "connected",
@@ -37,6 +43,7 @@ const connectionCases: Array<{ name: string; status?: GithubAuthStatus; label: s
       device_login_available: true,
     },
     label: "Connected as fixture-player",
+    source: "Operating-system credential store",
   },
   {
     name: "rate-limit",
@@ -48,12 +55,13 @@ const connectionCases: Array<{ name: string; status?: GithubAuthStatus; label: s
       device_login_available: false,
     },
     label: "Not signed in",
+    source: "Anonymous",
   },
 ];
 
 it.each(connectionCases)(
   "renders the actual GitHub Settings $name state without credentials",
-  async ({ name, status, label }) => {
+  async ({ name, status, label, source }) => {
     document.documentElement.dataset.theme = "dark";
     await page.viewport(1024, 800);
     const actions = {
@@ -69,7 +77,9 @@ it.each(connectionCases)(
     await page.getByRole("button", { name: "Integrations", exact: true }).click();
     await expect.element(page.getByText(label, { exact: true })).toBeVisible();
     await page.getByText("Connection details", { exact: true }).click();
-    await expect.element(page.getByText("Sign-in source:", { exact: false })).toBeVisible();
+    await expect
+      .element(page.getByText(`Sign-in source: ${source}.`, { exact: true }))
+      .toBeVisible();
     await captureParityState(`github-${name}-synthetic`);
     expect(actions.saveToken).not.toHaveBeenCalled();
     expect(actions.beginDeviceLogin).not.toHaveBeenCalled();

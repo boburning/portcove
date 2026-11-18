@@ -804,9 +804,7 @@ function GithubConnection({ status }: { status?: GithubAuthStatus | undefined })
   };
   const connected = Boolean(status?.authenticated);
   const source =
-    status && Object.hasOwn(labels, status.source)
-      ? labels[status.source]
-      : "Sign-in source unavailable";
+    status && Object.hasOwn(labels, status.source) ? labels[status.source] : "Unavailable";
   const connectionStatus = !status
     ? "Connection status unavailable"
     : connected

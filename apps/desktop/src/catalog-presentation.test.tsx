@@ -186,7 +186,7 @@ describe("catalog and capacity presentation", () => {
           }}
         />,
       );
-      expect(html).toContain("Sign-in source unavailable");
+      expect(html).toContain("Sign-in source: Unavailable.");
       expect(html).not.toContain("Operating-system credential store");
       expect(html).not.toContain("Environment variable");
     },
