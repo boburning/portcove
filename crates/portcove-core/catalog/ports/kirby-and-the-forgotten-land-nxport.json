@@ -3,7 +3,7 @@
   "listing": {
     "id": "kirby-and-the-forgotten-land-nxport",
     "name": "Kirby and the Forgotten Land (nxport)",
-    "summary": "An experimental nxport Switch builder for Kirby and the Forgotten Land, using an Apple Silicon NVN compatibility layer with game-specific support. The project reports iOS/macOS testing, with invisible exhale effects and rounded shadows. The exact tested version is unconfirmed. There is no release package: clone and build nxport-builder, choose this game’s profile and the Mac or iOS target, then build a local app or IPA. You and the project manage preparation and rebuilding. Use your own extracted ExeFS/RomFS/Logo. Exact accepted version, region and title ID are unconfirmed. Windows and Linux players are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "Use the nxport builder and your own extracted Kirby and the Forgotten Land files to create a Mac or iOS app. The project reports testing both platforms, with invisible exhale effects and rounded shadows. It has no ready-made player.",
     "original_game_title": "Kirby and the Forgotten Land",
     "project_url": "https://github.com/nxporting/nxport",
     "platforms": [],
@@ -18,6 +18,26 @@
       "image_sha256": "b8e49e86f247d86702968589428cbdb7544dac07c7ab55ccca56ee13539e61ef",
       "game_slug": "kirby-and-the-forgotten-land",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/nxporting/nxport",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Provide your own extracted ExeFS, RomFS and Logo. The exact tested version, region and title ID are unconfirmed."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Build nxport-builder from source, choose Kirby and the Forgotten Land and select the Mac or iOS target to produce a local app or IPA. You handle setup and later rebuilds."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The builder targets Apple silicon. The project has not confirmed a Windows or Linux player."
+        }
+      ]
     }
   },
   "upstream_lineage": {

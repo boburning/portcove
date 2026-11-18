@@ -1101,7 +1101,7 @@ The existing journal can additionally retain an optional immutable
 input. It is never backfilled into legacy active states. The input gate binds
 that original classification to complete bounded source comparison and
 cryptographically reconstructed tree inventories using the explicit versioned
-[net tree delta encoding](../RELEASING.md#frozen-source-consistency). Queued source
+[net tree delta encoding](../archive/retired-release-engine.md#frozen-source-consistency). Queued source
 changes cannot substitute for it. Net difference is consistency evidence, not
 semantic classification or source authority. Missing frozen evidence and opaque
 legacy hash scopes hold; mismatches refuse. Existing checkpoint and acquisition
