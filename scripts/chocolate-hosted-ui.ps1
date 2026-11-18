@@ -122,6 +122,19 @@ try {
  }
  if(-not $bound -or $window -eq [IntPtr]::Zero){throw 'No exact owned interactive game window'}
  Start-Sleep -Seconds 2
+ # SDL may replace its startup window while selecting the configured video mode.
+ # Settle only before input, against the retained same-generation game process.
+ $settleDeadline=[DateTime]::UtcNow.AddSeconds(15)
+ $stable=[IntPtr]::Zero;$stableSince=[DateTime]::UtcNow
+ while([DateTime]::UtcNow -lt $settleDeadline){
+  if($ownedGame.HasExited -or [OmnispeakWindow]::Created($gameHandle) -ne $boundCreated){throw 'Owned game changed during startup'}
+  $candidate=[OmnispeakWindow]::Find([uint32]$ownedGame.Id)
+  if($candidate -eq [IntPtr]::Zero -or $candidate -ne $stable){$stable=$candidate;$stableSince=[DateTime]::UtcNow}
+  elseif(([DateTime]::UtcNow-$stableSince).TotalMilliseconds -ge 500){$window=$candidate;break}
+  Start-Sleep -Milliseconds 100
+ }
+ if($stable -eq [IntPtr]::Zero -or $window -ne $stable){throw 'No stable owned startup window'}
+ Assert-Owned
  Capture 'startup'
  if($TitleMode -eq 'fresh'){
   Key 27;Capture 'main-menu';Key 13;Capture 'new-game-menu';Key 13;Key 13
