@@ -559,15 +559,17 @@ type Release = {
 
 /** Every release, drafts included (the by-tag endpoint omits drafts). */
 export async function listReleases(api: Awaited<ReturnType<typeof client>>) {
-  const endpoint = `https://api.github.com/repos/${repository}/releases`;
+  const origin = "https://api.github.com";
+  const path = `/repos/${repository}/releases`;
+  const inventoryPaths = [path, "/repositories/1354613114/releases"];
   const all = new Map<number, Release>();
   let pages = 0;
   try {
     for await (const response of iterateGitHubPages(api, {
-      url: `${endpoint}?per_page=100`,
+      url: `${origin}${path}?per_page=100`,
       prepareRequest: async (url) => {
         const next = new URL(url);
-        if (`${next.origin}${next.pathname}` !== endpoint || ++pages > 100)
+        if (next.origin !== origin || !inventoryPaths.includes(next.pathname) || ++pages > 100)
           throw new Error("release inventory pagination exceeded its scope or 100-page budget");
       },
     })) {

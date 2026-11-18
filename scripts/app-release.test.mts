@@ -1228,7 +1228,7 @@ void test("lists the complete provider inventory at 999, 1000 and 1001 releases"
         status,
         headers: { "content-type": "application/json" },
       });
-    const endpoint = "https://api.github.com/repos/boburning/portcove/releases";
+    const endpoint = "https://api.github.com/repositories/1354613114/releases";
     const endpoints: string[] = [];
     let interrupt = false;
     const api = await fixtureGitHub(({ endpoint: route }) => {
