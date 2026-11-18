@@ -949,6 +949,13 @@ it.each([
         blockers: ["missing_source"],
         source: "missing",
       };
+    // Accepted listings also need an explicit current action assessment. The
+    // controlled Core replies permit only this fixture's launchable entries.
+    snapshot.listing_statuses = snapshot.statuses.map((status) => ({
+      port_id: status.port_id,
+      status,
+      actions: [{ action: "launch", allowed: status.readiness?.launchable === true }],
+    }));
     vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
     const renderedEntries = entryCount - Number(grouped);
     await mount(theme, "collection-large", renderedEntries);
@@ -1010,7 +1017,9 @@ it.each([
       const readiness = card.querySelector<HTMLElement>(".readiness")!;
       expect(readiness.textContent).toMatch(/Ready to play|Game files missing/);
       const footer = card.querySelector<HTMLElement>(".library-entry-footer")!;
-      expect(footer.querySelector("button")?.textContent).toMatch(/Play|Finish setup/);
+      expect(footer.querySelector(".library-card-action")?.textContent).toMatch(
+        /Play|Finish setup/,
+      );
       for (const element of [identity, readiness, footer, ...chips]) {
         await expect.element(page.elementLocator(element)).toBeVisible();
         expectBoundsInViewport(element);
@@ -1268,6 +1277,12 @@ it.each([
     );
     expect(art.getBoundingClientRect().width).toBeCloseTo(artworkWidth, 0);
     const title = cover.querySelector<HTMLElement>(".collection-title")!;
+    // A previous pointer position can hover the first poster and translate its
+    // artwork by two pixels. Measure the resting composition after that settles.
+    await userEvent.hover(
+      page.getByRole("heading", { name: "Your library", exact: true }).element(),
+    );
+    await expect.poll(() => getComputedStyle(art).transform).toBe("none");
     // Horizontal identities use the grid gap; posters include caption padding.
     expect(
       horizontal
