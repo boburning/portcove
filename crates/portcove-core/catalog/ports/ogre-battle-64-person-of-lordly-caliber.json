@@ -7,8 +7,8 @@
     "project_url": "https://github.com/lfarroco/ogre-battle-64-recomp",
     "issue_number": 1356,
     "listed_at": "2026-10-23",
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+    "availability": "packages",
     "setup_url": "https://github.com/lfarroco/ogre-battle-64-recomp",
     "artwork": {
       "game_id": 3568,
@@ -44,7 +44,19 @@
       ],
       "warnings": [
         "Select the prepared ogrebattle64.exe and retain its actual writable root, stored ROM and battery progress. Source/redistribution permissions and managed lifecycle qualification are separate from attachment."
+      ],
+      "references": [
+        {
+          "title": "Set up the v0.9.1 desktop player",
+          "instruction": "Extract the package and open ogrebattle64.exe on Windows, ogrebattle64 on Linux or Ogre Battle 64.app on Apple silicon. On the start screen select your own USA Rev A cartridge dump. The game verifies and stores the ROM, then starts the game directly on later launches. Press Escape to open the tab panel and select Settings. Keep saves/ from the actual writable game-data folder when replacing the extracted package."
+        }
       ]
+    },
+    "release_url": "https://github.com/lfarroco/ogre-battle-64-recomp/releases/tag/v0.9.1",
+    "download_asset_hints": {
+      "windows-x86-64": ["ogre-battle-64-recomp", "windows-x86_64.zip"],
+      "linux-x86-64": ["ogre-battle-64-recomp", "linux-x86_64.tar.gz"],
+      "macos-aarch64": ["ogre-battle-64-recomp", "macos-arm64.tar.gz"]
     }
   }
 }
