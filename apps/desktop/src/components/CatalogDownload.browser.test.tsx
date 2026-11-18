@@ -1295,7 +1295,10 @@ it("retains a manually selected setup target and literal arguments across remoun
     .fill("C:/Upstream data");
   await page.getByText("Advanced launch options", { exact: true }).click();
   await page
-    .getByRole("textbox", { name: "Launch arguments", exact: true })
+    .getByRole("textbox", {
+      name: "Launch options (advanced) (one per line, optional)",
+      exact: true,
+    })
     .fill("--data\nC:/Original files");
   await root.rerender(
     <SelfServiceSetup

@@ -59,3 +59,15 @@ export function validArtworkMapping(value: unknown): value is IgdbArtwork {
     (value.match_kind === "port" || value.match_kind === "underlying-game")
   );
 }
+
+export function validArtworkCollection(value: unknown): value is IgdbArtwork[] {
+  return (
+    Array.isArray(value) &&
+    value.length >= 1 &&
+    value.length <= 4 &&
+    value.every(validArtworkMapping) &&
+    (["game_id", "cover_id", "image_id", "image_sha256"] as const).every(
+      (key) => new Set(value.map((cover) => cover[key])).size === value.length,
+    )
+  );
+}

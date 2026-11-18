@@ -365,7 +365,11 @@ impl InstallQualification {
                     .map(|pattern| (working_directory.clone(), pattern.clone())),
             )
             .collect();
-        let target_members = verified_manifest(install)?
+        let manifest = verified_manifest(install)?;
+        let electron_resources = electron_resources(&manifest)
+            .and_then(|relative| reroot(&install.path.join(relative)))
+            .filter(|path| !path.is_empty());
+        let target_members = manifest
             .files
             .iter()
             .filter_map(|file| reroot(&install.path.join(&file.path)))
@@ -383,7 +387,7 @@ impl InstallQualification {
                 declared_patterns,
                 target_members,
                 generated_metadata,
-                electron_resources: None,
+                electron_resources,
             },
         ))
     }
@@ -2621,10 +2625,12 @@ impl Installer {
             if !expected.contains(relative.as_str()) {
                 // Both inventories list only regular files: the strict walk
                 // refuses links and other objects, the legacy walk skips them.
-                if electron
-                    .as_deref()
-                    .is_some_and(|resources| relative_is_within(&relative, resources))
-                    || crate::package_layout::is_unknown_file_hazard(&candidate)?
+                if electron.as_deref().is_some_and(|resources| {
+                    relative_is_within(
+                        &relative.to_ascii_lowercase(),
+                        &resources.to_ascii_lowercase(),
+                    )
+                }) || crate::package_layout::is_unknown_file_hazard(&candidate)?
                 {
                     failures.push(format!("unexpected: {relative}"));
                 } else {
@@ -5342,6 +5348,9 @@ const LOADER_CONFIG_NAMES: &[&str] = &[
 /// - `*.exe.config`: .NET application configuration, which can redirect
 ///   assembly binding and probing (learn.microsoft.com, "Configuring apps by
 ///   using configuration files").
+/// - `*.dll.config`: Mono per-assembly configuration can redirect P/Invoke
+///   library loading (mono-project.com, "Interop with Native Libraries",
+///   "Library Names").
 /// - `*.exe.manifest`: an external side-by-side application manifest the
 ///   Windows loader reads for DLL activation contexts (learn.microsoft.com,
 ///   "Application manifests").
@@ -5361,6 +5370,7 @@ pub(crate) fn is_loader_sensitive_name(name: &std::ffi::OsStr) -> bool {
         || PORTABLE_MARKER_NAMES.contains(&name.as_str())
         || [
             ".exe.config",
+            ".dll.config",
             ".exe.manifest",
             ".exe.local",
             ".runtimeconfig.dev.json",
@@ -5408,21 +5418,17 @@ fn electron_resources(manifest: &InstallManifest) -> Option<String> {
     } else {
         format!("{parent}/resources")
     };
-    manifest
-        .files
-        .iter()
-        .any(|file| {
-            file.path
-                .strip_prefix(&resources)
-                .and_then(|rest| rest.strip_prefix('/'))
-                .is_some_and(|rest| {
-                    matches!(
-                        rest.to_ascii_lowercase().as_str(),
-                        "app.asar" | "default_app.asar" | "electron.asar"
-                    )
-                })
-        })
-        .then_some(resources)
+    manifest.files.iter().find_map(|file| {
+        let (directory, name) = file.path.rsplit_once('/')?;
+        (directory.eq_ignore_ascii_case(&resources)
+            && matches!(
+                name.to_ascii_lowercase().as_str(),
+                "app.asar" | "default_app.asar" | "electron.asar"
+            ))
+        // Keep the manifest's spelling so persistence-root re-rooting also
+        // works on case-sensitive hosts. Eligibility compares ASCII aliases.
+        .then(|| directory.to_owned())
+    })
 }
 
 fn is_critical_companion_name(path: &Path, platform: Platform) -> bool {
@@ -7415,6 +7421,7 @@ mod tests {
             "enblocal.ini",
             "debug.ini",
             "game.exe.config",
+            "Engine.DLL.CONFIG",
             "Game.exe.manifest",
             "game.exe.local",
         ] {
@@ -7458,6 +7465,8 @@ mod tests {
             "DXVK.conf",
             "enblocal.ini",
             "Game.exe.config",
+            "Engine.dll.config",
+            "ENGINE.DLL.CONFIG",
             "game.EXE.manifest",
             "game.exe.local",
             "override.cfg",
@@ -7485,6 +7494,9 @@ mod tests {
             "reshadepreset.ini",
             "dxvk.conf.txt",
             ".exe.config",
+            ".dll.config",
+            "engine.dll.config.bak",
+            "engine.dll.config.json",
             "app.config",
             "enbseries.ini",
             "xaudio2_.ini",
@@ -7590,6 +7602,107 @@ mod tests {
         fs::write(root.join("resources/notes.txt"), b"notes").unwrap();
         let report = installer.verify_managed(&install, &qualification).unwrap();
         assert!(!report.has_hazards(), "{report:?}");
+    }
+
+    #[test]
+    fn electron_resource_case_aliases_are_hazards() {
+        for archive in ["Resources/APP.ASAR", "resources/app.asar"] {
+            let (_temporary, installer, install, qualification, root) =
+                full_integrity_fixture(&[archive]);
+            installer.verify_critical(&install, &qualification).unwrap();
+            let added = "rEsOuRcEs/app/main.json";
+            let path = root.join(added);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, b"{}").unwrap();
+            let report = installer.verify_managed(&install, &qualification).unwrap();
+            // Windows enumerates the existing directory's spelling even when
+            // the write used a case alias; Linux can retain the new spelling.
+            assert!(report.failures.iter().any(|failure| {
+                failure
+                    .strip_prefix("unexpected: ")
+                    .is_some_and(|path| path.eq_ignore_ascii_case(added))
+            }));
+            assert!(installer.verify_critical(&install, &qualification).is_err());
+            assert!(
+                installer
+                    .verify_critical_for_replacement(&install, &qualification)
+                    .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn electron_resource_carry_exclusions_come_from_the_target_manifest() {
+        use crate::carry_plan::{
+            CarryAction, CarryRow, Exclusion, PathInput, RowChange, SourceCopy, TargetCopy, plan,
+        };
+        for archive in ["Resources/APP.ASAR", "resources/app.asar"] {
+            let (_temporary, _installer, install, qualification, _root) =
+                full_integrity_fixture(&[archive]);
+            let (persistent, exclusions) = qualification.carry_exclusions(&install).unwrap();
+            assert_eq!(persistent, install.path);
+            assert_eq!(
+                exclusions.electron_resources.as_deref(),
+                archive.rsplit_once('/').map(|(root, _)| root)
+            );
+            // A nested path avoids the independent package-member/folder rule.
+            // Test a new copy and a ledger-proven removal: neither may act.
+            for removal in [false, true] {
+                let row = CarryRow::present("old", vec!["old".into()]);
+                let input = PathInput {
+                    source: if removal {
+                        SourceCopy::Absent
+                    } else {
+                        SourceCopy::File {
+                            sha256: "new".into(),
+                        }
+                    },
+                    source_row: removal.then(|| row.clone()),
+                    target: if removal {
+                        TargetCopy::File {
+                            sha256: "old".into(),
+                        }
+                    } else {
+                        TargetCopy::Absent
+                    },
+                    target_row: removal.then_some(row),
+                    target_replaces: None,
+                };
+                let paths = std::collections::BTreeMap::from([
+                    ("rEsOuRcEs/app/notes.txt".into(), input.clone()),
+                    ("resources-extra/app/notes.txt".into(), input),
+                ]);
+                let planned = plan("source", &paths, &exclusions, &|_| false);
+                let resources = planned
+                    .iter()
+                    .find(|p| p.path.starts_with("rEsOuRcEs/"))
+                    .unwrap();
+                assert_eq!(
+                    resources.action,
+                    CarryAction::Excluded(Exclusion::ElectronResources)
+                );
+                assert_eq!(resources.source_row, RowChange::Untouched);
+                assert_eq!(resources.target_row, RowChange::Untouched);
+                assert!(!matches!(
+                    planned
+                        .iter()
+                        .find(|p| p.path.starts_with("resources-extra/"))
+                        .unwrap()
+                        .action,
+                    CarryAction::Excluded(_)
+                ));
+            }
+        }
+        let (_temporary, _installer, install, qualification, _root) =
+            full_integrity_fixture(&["resources/data.pak"]);
+        assert!(
+            qualification
+                .carry_exclusions(&install)
+                .unwrap()
+                .1
+                .electron_resources
+                .is_none()
+        );
     }
 
     /// brawmario-infinite-mario-64-ever class (Godot): a new `override.cfg`

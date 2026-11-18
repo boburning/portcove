@@ -31,22 +31,21 @@ use super::PortcoveService;
 /// Paths named in an outcome, per kind.
 const MAX_OUTCOME_PATHS: usize = 64;
 
-/// What one carry did, recorded as the port's outcome.
-#[derive(Debug, Default, serde::Serialize)]
-pub(crate) struct CarryOutcome {
-    pub(crate) carried: Vec<String>,
-    pub(crate) removed: Vec<String>,
-    pub(crate) kept_separately: Vec<String>,
-    pub(crate) source_unreadable: Vec<String>,
-    pub(crate) new_version_ships_file: Vec<String>,
-    pub(crate) insufficient_space: bool,
-    /// The active version has changed program files or unrecognized
-    /// programs, so nothing was carried (design section 4, L5).
-    pub(crate) source_modified: bool,
-}
+use crate::CarriedFileOutcome as CarryOutcome;
 
 impl CarryOutcome {
+    fn complete_counts(&self) -> crate::CarriedFileCounts {
+        crate::CarriedFileCounts {
+            carried: self.carried.len() as u64,
+            removed: self.removed.len() as u64,
+            kept_separately: self.kept_separately.len() as u64,
+            source_unreadable: self.source_unreadable.len() as u64,
+            new_version_ships_file: self.new_version_ships_file.len() as u64,
+        }
+    }
+
     fn bounded(mut self) -> Self {
+        self.counts = Some(self.complete_counts());
         for list in [
             &mut self.carried,
             &mut self.removed,
@@ -303,6 +302,15 @@ impl PortcoveService {
                     .detail("available_bytes", available.to_string()));
                 }
                 outcome.insufficient_space = true;
+                outcome.not_carried_count = Some(
+                    plan.iter()
+                        .filter(|path| {
+                            matches!(path.action, CarryAction::Copy | CarryAction::Replace)
+                        })
+                        .count() as u64,
+                );
+                outcome.required_bytes = Some(required);
+                outcome.available_bytes = Some(available);
                 let transaction = connection.transaction()?;
                 record_outcome(&transaction, active, target, &outcome);
                 transaction.commit()?;
@@ -350,6 +358,9 @@ impl PortcoveService {
                     .any(|relative| relative == path || relative.ends_with(&format!("/{path}")))
             })
             .collect();
+        outcome.carried_bytes = outcome.carried.iter().try_fold(0_u64, |total, path| {
+            total.checked_add(*inspected.sizes.get(path)?)
+        });
         record_outcome(&transaction, active, target, &outcome);
         transaction.commit()?;
         Ok(Some(outcome.bounded()))
@@ -457,6 +468,11 @@ fn record_outcome(
                 .collect(),
             insufficient_space: outcome.insufficient_space,
             source_modified: outcome.source_modified,
+            counts: Some(outcome.complete_counts()),
+            carried_bytes: outcome.carried_bytes,
+            not_carried_count: outcome.not_carried_count,
+            required_bytes: outcome.required_bytes,
+            available_bytes: outcome.available_bytes,
         };
         let Ok(value) = serde_json::to_value(&bounded) else {
             return;
@@ -514,4 +530,49 @@ fn apply(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod disclosure_tests {
+    use super::*;
+
+    #[test]
+    fn recorded_counts_and_bytes_survive_path_example_truncation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(temporary.path()).unwrap();
+        let record = |id: &str| InstallRecord {
+            id: id.into(),
+            port_id: "lighthouse".into(),
+            version: id.into(),
+            path: temporary.path().join(id),
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: false,
+            artifact: crate::ArtifactIdentity::default(),
+            manifest_sha256: String::new(),
+            selected_executable: std::path::PathBuf::new(),
+            runtime: None,
+        };
+        let outcome = CarryOutcome {
+            carried: (0..100)
+                .map(|n| format!("{n}/{}", "x".repeat(2_000)))
+                .collect(),
+            carried_bytes: Some(900_000_000),
+            ..Default::default()
+        };
+        let mut connection = library.connection().unwrap();
+        let transaction = connection.transaction().unwrap();
+        record_outcome(&transaction, &record("source"), &record("target"), &outcome);
+        transaction.commit().unwrap();
+        let (_, _, value) = carry_ledger::outcome(&connection, "lighthouse")
+            .unwrap()
+            .unwrap();
+        let text = value.to_string();
+        assert!(text.len() <= 60_000);
+        let disclosed = crate::carried_files::decode_outcome(&text).unwrap();
+        assert!(disclosed.carried.len() < 64);
+        assert_eq!(disclosed.counts.unwrap().carried, 100);
+        assert_eq!(disclosed.carried_bytes, Some(900_000_000));
+    }
 }

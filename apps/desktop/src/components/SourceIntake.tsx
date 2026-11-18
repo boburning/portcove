@@ -188,7 +188,7 @@ function useSourceIntakeSession({
     )
       return;
     let current = true;
-    void desktopApi.storeGameInstalls(request.generation).then(
+    void desktopApi.storeGameInstalls(request.generation, request.profile.id).then(
       (report) => {
         if (current)
           setStoreOriginals(

@@ -453,6 +453,29 @@ This authority does not change application cancellation, shutdown, locking,
 network, security or other behavioral deadlines, acceptance or release authority.
 A pass under a larger budget proves completion under that budget.
 
+The November 17 Linux Heavy Rust calibration raises the parent's adopting-reaper
+exit wait from 5 to 30 seconds. A guarded desktop build at `95f11af1` returned
+payload status 0 and eventually published a positive quiescence receipt, but its
+wrapper retained the lock after the former five-second wait expired. The receipt's
+write and final inode-change timestamps were 5.784 seconds apart, consistent with
+delayed durable publication. The finite 30-second parent wait leaves room for the
+reaper's unchanged five-second descendant drain, receipt flush/publication and
+scheduling. Explicit wait overrides, non-Linux five-second waits, receipt checks,
+successful reaper exit and lock retention on unproved cleanup remain unchanged.
+Controlled-clock runner tests cover delayed success, failure and the finite
+deadline; they do not turn the retained original wrapper failure into a pass or
+establish a new native build observation.
+
+The private virtual-X11 wrapper derives its harness wait from the existing
+selected-scenario deadline plus its 60-second startup/retention margin, then
+allows the existing 30-second outer cleanup margin. Its former fixed 240/270-second
+waits could preempt the selected-setup journey's maintained 600-second deadline;
+that selection now receives finite 660/690-second wrapper waits. Ordinary
+180-second selections and GTK-only readiness keep their 240/270-second waits.
+Selection validation, scenario assertions, namespace joins, failure evidence and
+native/resource lock retention remain unchanged. Contract checks establish budget
+coordination, not a completed native selected-setup observation.
+
 The strict default nextest profile, used by local runs and qualification,
 allows zero automatic test retries. By explicit owner decision (November 2026),
 the ordinary hosted Windows partition profile `hosted-windows` allows one

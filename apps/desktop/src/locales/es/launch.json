@@ -2,6 +2,7 @@
   "failure": {
     "copied": "Copiado",
     "copyExitCode": "Copiar código de salida",
+    "copyFailed": "No se pudo copiar el código de salida. Selecciona y copia el código de arriba, o vuelve a intentarlo.",
     "exitCode": "Código de salida <code/>",
     "label": "Último inicio",
     "openActivity": "Abrir Actividad",

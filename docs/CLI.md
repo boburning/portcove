@@ -73,6 +73,17 @@ use the [reference below](#automation-and-integration-reference).
    A backup is not a copy of the game files. Review backup and restore
    consequences in `portcove backup --help` before deleting or restoring one.
 
+After a managed version switch, `portcove status PORT_ID` includes the recorded
+file-preservation outcome when its target is still active. It distinguishes
+copied files, unchanged copies removed from the target, differing copies kept
+separately, unreadable files and files supplied by the new package. Complete
+counts and measured copy/space bytes are separate from bounded path examples;
+older records may lack those totals. This is a historical result, not a fresh
+file check or a new failure. An earlier version's missing recorded folder is
+reported without inventing its location. JSON exposes the same optional
+`carried_files` read model; malformed or future-format disclosure is omitted
+without breaking the rest of status. It grants no additional file operation.
+
 Human `backup delete` and `backup restore` show the selected archive folder,
 exact content and review hashes, UTC creation time, file count and size before
 confirmation. The review distinguishes current managed saved data from Core's
@@ -400,21 +411,28 @@ use envelope version 3; older envelopes remain readable and older readers must
 refuse the new envelope rather than reinterpret its authority.
 
 Listing format 9 adds the optional inert `listed_at` date (UTC, `YYYY-MM-DD`) on which a
-listing was first added. `capabilities.listing_formats` advertises 5 through 9; an
-export without an explicit format is the current format 9 and carries the dates, while
+listing was first added. Exports at format 9 and later carry the dates, while
 an explicit export to formats 5 through 8 omits them. A reader that predates format 9
 must request a format it understands.
 
 Listing format 10 adds optional inert `funding_urls`: 1 to 12 distinct public HTTPS
-pages where the upstream developers accept funding (an empty list is refused). `capabilities.listing_formats`
-advertises 5 through 10; an export without an explicit format is the current format 10
-and carries the links, while an explicit export to formats 5 through 9 omits them.
+pages where the upstream developers accept funding (an empty list is refused). Exports at format 10 and later carry the links, while an explicit export to formats
+5 through 9 omits them.
 Retained user-selected listings never carry them. Desktop opens only those exact links.
 
+Listing format 11 adds optional inert `collection_covers`: one to four distinct,
+reviewed IGDB cover mappings for a multi-game project. It is exclusive with an
+individual `artwork` mapping. The field grants display only. Local artwork choices
+keep precedence. Exports to formats 5 through 10 omit the collection while retaining
+setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through
+11; an export without an explicit format carries the current directory format.
+Retained user-selected listings with collections use envelope version 4. Earlier
+retained envelopes remain readable; a collection in an earlier envelope is refused.
+
 The catalog listing document has its own format version. Readers accept formats
-1–10 with independent field gates: format 7 adds advice, format 8 adds GitLab
+1–11 with independent field gates: format 7 adds advice, format 8 adds GitLab
 descriptive observations using provider-qualified project/tag identities, format 9
-adds the first-listed date and format 10 adds funding links. `catalog listings --format-version 8` preserves advice and
+adds the first-listed date, format 10 adds funding links and format 11 adds cover collections. `catalog listings --format-version 8` preserves advice and
 GitLab observations and omits the date. Exports to 5/6 omit only
 inert advice; any GitLab-bearing export below 8 refuses. A reader that understands
 only format 6 cannot consume 7 or 8; failed refresh retains its previous accepted
@@ -1159,6 +1177,7 @@ those stores recorded on this computer so you can search one:
 
 ```text
 portcove --library <path> --json source roots stores
+portcove --library <path> --json source roots stores --profile bstone-aliens-of-gold-originals
 portcove --library <path> --json source discover --root "<store game folder>" --profile <profile-id>
 portcove --library <path> --json source roots add "<store game folder>"
 ```
@@ -1168,7 +1187,13 @@ the canonical existing folder `path` and `saved_root_id` when that exact folder
 is already a saved game-file folder. A known store product has an optional
 `product_id`. A reviewed product-to-profile mapping can add an
 `original_folder` with the source profile and candidate path. Desktop offers
-the classic Steam or Windows GOG Dark Forces folder directly in The Force Engine setup.
+the reviewed Steam or Windows GOG original folder directly in compatible setup.
+Use `--profile <profile-id>` to request suggestions for one known source profile.
+For Blake Stone, this selects the Aliens of Gold or Planet Strike child folder
+inside the Steam anthology. Without a selected profile, the anthology has no
+`original_folder` suggestion. The individual Steam and GOG products can suggest
+their corresponding original folder without that context. A different selected
+profile gets no hint, and an unknown profile is refused before store metadata is read.
 The normal source check still validates the original file set.
 `checked_stores` names the stores whose
 metadata this system can read; a store missing from it was not checked, which

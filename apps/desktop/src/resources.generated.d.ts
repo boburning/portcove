@@ -786,6 +786,37 @@ export default interface Resources {
       "unavailable": "Feature details are unavailable. Use the current action assessments and setup instructions.",
       "untested": "{{mode}} · Not tested by this report"
     },
+    "carriedFiles": {
+      "availableBytes": "Space available at the switch",
+      "copied": "Copied into the active version",
+      "copiedBytes": "Bytes copied",
+      "count": "Recorded file count: {{value, number}}",
+      "countUnknown": "The complete file count was not recorded.",
+      "details": "Review the recorded file outcome",
+      "differencesKept": "Some files differed between versions. Each version kept its own copy.",
+      "examplesOnly": "Only recorded path examples are listed.",
+      "folderUnavailable": "Folder is no longer recorded",
+      "fromFolder": "Folder of the version before the switch",
+      "fromVersion": "Version before the switch",
+      "historical": "This records the version switch. It does not recheck the current files.",
+      "insufficientSpace": "Files were left with the earlier version because there was not enough free space.",
+      "largeCopy": "Portcove copied {{size}} of files it did not install into this version.",
+      "noLongerRecorded": "No longer recorded",
+      "packageCopy": "The new version supplied its own copies of some files. Earlier copies were left with the earlier version.",
+      "readFailed": "Some files could not be read and were left with the earlier version.",
+      "removed": "Unchanged copies removed from the target",
+      "requiredBytes": "Space required at the switch",
+      "separate": "Different copies kept separately",
+      "shipped": "Supplied by the new version",
+      "sizeUnknown": "Size unknown",
+      "skippedCount": "Files left because of low space",
+      "sourceModified": "Files were left with the earlier version because its installation had changed.",
+      "sourceNotRechecked": "The earlier version is no longer recorded. Its files have not been rechecked.",
+      "title": "Files kept during the version switch",
+      "toFolder": "Active version folder",
+      "toVersion": "Active version",
+      "unreadable": "Could not be read"
+    },
     "identity": {
       "label": "Game and port identity",
       "offeredChannel": "Offered update channel",
@@ -940,6 +971,8 @@ export default interface Resources {
         "detail": "Portcove tells you when it can be installed, and again only if its setup changes. Nothing is installed.",
         "label": "Tell me when it's ready"
       },
+      "readAgain": "Read again",
+      "reading": "Reading choices…",
       "setUpWhenReady": {
         "detail": "Portcove installs it without asking again once its files and requirements are ready. It never starts the game. Choose another option to stop.",
         "label": "Set it up when it's ready"
@@ -1689,6 +1722,7 @@ export default interface Resources {
     "failure": {
       "copied": "Copied",
       "copyExitCode": "Copy exit code",
+      "copyFailed": "The exit code could not be copied. Select and copy the code above, or try again.",
       "exitCode": "Exit code <code/>",
       "label": "Last launch",
       "openActivity": "Open Activity",
@@ -2031,6 +2065,7 @@ export default interface Resources {
       "button": "Copy text",
       "copied": "The text was copied. Paste it into a new GitHub issue, or send it to the Portcove team another way.",
       "failed": "The text could not be copied automatically. Select and copy it below.",
+      "manualCopy": "Text for manual copy",
       "openFailed": "The form could not be opened. Your text is still here; try again or copy it."
     },
     "feedback": {

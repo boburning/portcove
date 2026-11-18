@@ -139,8 +139,13 @@ async function libraryCaptureBehavior(
   for (const scrollable of [true, false]) {
     let y = 348.1171875;
     let captures = 0;
+    let outlineWidth = "3px";
+    const tabTransitions: string[] = [];
     const identity = "library:card-more:opengoal-jak1";
     const selector = `button[data-detail-origin=${JSON.stringify(identity)}]`;
+    const primarySelector =
+      '.library-entry-footer .library-card-action:not(:disabled):not([aria-disabled="true"])';
+    const footerSelector = `.collection-entry:has(${selector}) ${primarySelector}`;
     const main = {
       tagName: "MAIN",
       className: "workspace-main",
@@ -156,23 +161,44 @@ async function libraryCaptureBehavior(
         height: 384,
       }),
     };
-    const more = {
-      parentElement: main,
-      closest: () => null,
+    class Button {
+      tabIndex = 0;
+      parentElement = main;
+      readonly name: string;
+      constructor(name: string) {
+        this.name = name;
+      }
+      closest(query: string) {
+        return query === ".collection-entry" ? card : null;
+      }
+      matches() {
+        return false;
+      }
+      getClientRects() {
+        return [this.getBoundingClientRect()];
+      }
+      getBoundingClientRect() {
+        const top = y + (this.name === "more" ? 0 : this.name === "secondary" ? 40 : 80);
+        return {
+          x: 220,
+          y: top,
+          left: 220,
+          top,
+          right: 256,
+          bottom: top + 36,
+          width: 36,
+          height: 36,
+        };
+      }
+      getAttribute(name: string) {
+        return name === "aria-label" ? `${this.name} action` : null;
+      }
+    }
+    const more = Object.assign(new Button("more"), {
       getAttribute: (name: string) => {
         assert.equal(name, "data-detail-origin");
         return identity;
       },
-      getBoundingClientRect: () => ({
-        x: 220,
-        y,
-        left: 220,
-        top: y,
-        right: 256,
-        bottom: y + 36,
-        width: 36,
-        height: 36,
-      }),
       scrollIntoView: (options: unknown) => {
         assert.equal(
           JSON.stringify(options),
@@ -180,21 +206,54 @@ async function libraryCaptureBehavior(
         );
         if (scrollable) y = 174;
       },
+    });
+    // An update-review button precedes the primary action in the actual footer.
+    const secondary = new Button("secondary");
+    const primary = new Button("primary");
+    const tabOrder = [more, secondary, primary];
+    const card = {
+      tagName: "ARTICLE",
+      className: "collection-entry",
+      parentElement: main,
+      clientWidth: 420,
+      clientHeight: 132,
+      getBoundingClientRect: () => ({
+        left: 200,
+        top: y - 8,
+        right: 620,
+        bottom: y + 124,
+        width: 420,
+        height: 132,
+      }),
+      contains: (element: unknown) => tabOrder.some((button) => button === element),
+      querySelector: (query: string) =>
+        query === primarySelector
+          ? primary
+          : query.includes(".library-entry-footer")
+            ? secondary
+            : null,
+      querySelectorAll: () => tabOrder,
     };
+    for (const button of tabOrder) Object.assign(button, { parentElement: card });
     const document = {
-      activeElement: more,
+      activeElement: more as Button,
+      hasFocus: () => true,
       readyState: "complete",
       documentElement: {},
       body: {},
       fonts: { status: "loaded" },
       images: [],
-      querySelectorAll: (query: string) => (query === selector ? [more] : []),
+      querySelector: (query: string) =>
+        query === selector ? more : query === 'main[data-focus-region="workspace"]' ? main : null,
+      querySelectorAll: (query: string) =>
+        query === selector ? [more] : query === footerSelector ? [primary] : [],
     };
     const execute = async (_browser: unknown, fn: unknown, ...args: unknown[]) => {
       assert.ok(typeof fn === "function");
       const result: unknown = runInNewContext(`(${fn.toString()})(...args)`, {
         args,
         document,
+        HTMLButtonElement: Button,
         innerWidth: 683,
         innerHeight: 384,
         devicePixelRatio: 2,
@@ -205,10 +264,50 @@ async function libraryCaptureBehavior(
           opacity: "1",
           overflowX: element === main ? "auto" : "visible",
           overflowY: element === main ? "auto" : "visible",
+          outlineStyle:
+            element === primary && document.activeElement === primary ? "solid" : "none",
+          outlineWidth,
+          outlineOffset: "3px",
         }),
       });
       return result;
     };
+    const browser = {
+      executeScript: (fn: unknown, ...args: unknown[]) => execute(null, fn, ...args),
+      wait: async (predicate: () => Promise<boolean>, milliseconds: number, message: string) => {
+        assert.equal(milliseconds, 5_000);
+        assert.equal(await predicate(), true, message);
+      },
+      actions: () => {
+        let shift = false;
+        let direction = 0;
+        const actions = {
+          keyDown: (key: unknown) => {
+            assert.equal(key, "fixture-shift");
+            shift = true;
+            return actions;
+          },
+          sendKeys: (key: unknown) => {
+            assert.equal(key, "fixture-tab");
+            direction = shift ? -1 : 1;
+            return actions;
+          },
+          keyUp: (key: unknown) => {
+            assert.equal(key, "fixture-shift");
+            shift = false;
+            return actions;
+          },
+          perform: async () => {
+            assert.notEqual(direction, 0);
+            const next = tabOrder[tabOrder.indexOf(document.activeElement) + direction];
+            assert.ok(next, "The controlled Tab path must remain in the owned card");
+            document.activeElement = next;
+            tabTransitions.push(next.name);
+          },
+        };
+        return actions;
+      },
+    } as unknown as WebDriver;
     const clipped = await execute(null, observeVisibleTarget, selector, "visual");
     assertObservation(clipped);
     assert.equal(clipped.visible, false);
@@ -228,29 +327,41 @@ async function libraryCaptureBehavior(
       name: string;
     }) => {
       captures++;
-      assert.equal(options.target, selector);
+      const footer = options.name.endsWith("-footer");
+      const expectedTarget = footer ? footerSelector : selector;
+      assert.equal(options.target, expectedTarget);
       assert.equal(options.scenario, "native-library-layout");
-      assert.equal(options.name, "library-dark-covers-200");
-      assert.equal((await options.readiness()).ready, true);
+      assert.equal(
+        options.name,
+        footer ? "library-dark-covers-200-footer" : "library-dark-covers-200",
+      );
+      const readiness: unknown = await options.readiness();
+      assert.ok(isRecord(readiness));
+      assert.equal(readiness.ready, true);
+      if (footer) {
+        assert.equal(readiness.tabPresses, 2);
+        assert.ok(isRecord(readiness.point));
+        assert.equal(readiness.point.name, "primary action");
+        assert.equal(readiness.point.ring, 6);
+        assert.deepEqual(tabTransitions, ["secondary", "primary"]);
+      }
       const before = await options.observeTarget();
-      requireCompleteCaptureTarget(before, selector);
+      requireCompleteCaptureTarget(before, expectedTarget);
       if (moveDuringCapture) {
         y += 1;
         await assert.rejects(options.observeTarget(), /changed during screenshot/);
         throw changedDuringCapture;
       }
       assert.equal(JSON.stringify(await options.observeTarget()), JSON.stringify(before));
-      assert.equal(document.activeElement, more);
+      assert.equal(document.activeElement, footer ? primary : more);
       return {
-        image: { path: "owned-output/capture.png" },
-        receipt: "owned-output/capture.json",
+        image: { path: `owned-output/${footer ? "footer" : "more"}.png` },
+        receipt: `owned-output/${footer ? "footer" : "more"}.json`,
       };
     };
     installCapture(captureVisual);
     const capture = captureLibraryAction(
-      {
-        executeScript: (fn: unknown, ...args: unknown[]) => execute(null, fn, ...args),
-      } as unknown as WebDriver,
+      browser,
       more as unknown as WebElement,
       "owned-output",
       "dark",
@@ -259,15 +370,20 @@ async function libraryCaptureBehavior(
     );
     if (scrollable) {
       await capture;
-      assert.deepEqual(artifacts, ["owned-output/capture.png", "owned-output/capture.json"]);
-      assert.equal(captures, 1);
+      assert.deepEqual(artifacts, [
+        "owned-output/more.png",
+        "owned-output/more.json",
+        "owned-output/footer.png",
+        "owned-output/footer.json",
+      ]);
+      assert.equal(captures, 2);
+      assert.deepEqual(tabTransitions, ["secondary", "primary", "secondary", "more"]);
+      assert.equal(document.activeElement, more);
       moveDuringCapture = true;
       const refusedArtifacts: string[] = [];
       await assert.rejects(
         captureLibraryAction(
-          {
-            executeScript: (fn: unknown, ...args: unknown[]) => execute(null, fn, ...args),
-          } as unknown as WebDriver,
+          browser,
           more as unknown as WebElement,
           "owned-output",
           "dark",
@@ -277,6 +393,23 @@ async function libraryCaptureBehavior(
         (error) => error === changedDuringCapture,
       );
       assert.deepEqual(refusedArtifacts, []);
+      moveDuringCapture = false;
+      outlineWidth = "0px";
+      tabTransitions.length = 0;
+      const ringRefusedArtifacts: string[] = [];
+      await assert.rejects(
+        captureLibraryAction(
+          browser,
+          more as unknown as WebElement,
+          "owned-output",
+          "dark",
+          "Covers",
+          ringRefusedArtifacts,
+        ),
+        /focus ring must fit/,
+      );
+      assert.deepEqual(ringRefusedArtifacts, ["owned-output/more.png", "owned-output/more.json"]);
+      assert.equal(captures, 4);
     } else {
       await assert.rejects(Promise.resolve(capture), /one identified visible target/);
       assert.equal(captures, 0);
@@ -297,7 +430,7 @@ void test("Library native capture centers fractional clipping before strict sett
         import {requireCompleteCaptureTarget} from ${JSON.stringify(new URL("../apps/desktop/test/capture-target.ts", import.meta.url).href)};
         mock.module('selenium-webdriver',{namedExports:{
           WebDriver:class{},Session:class{},Capabilities:class{},
-          By:{css:value=>({using:'css selector',value})},Key:{},until:{},
+          By:{css:value=>({using:'css selector',value})},Key:{TAB:'fixture-tab',SHIFT:'fixture-shift'},until:{},
         }});
         let captureVisual;
         mock.module(new URL('../../../scripts/native-readiness.mts',entry).href, {namedExports:{

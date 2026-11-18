@@ -1673,6 +1673,10 @@ export interface PortStatus {
    */
   acquisition?: GameUpdateAcquisition | null;
   active: InstallRecord | null;
+  /**
+   * Recorded file preservation during the switch to the current active version.
+   */
+  carried_files?: CarriedFilesStatus | null;
   channel: ReleaseChannel;
   /**
    * Successor-definition policy decisions. Legacy catalog ports retain an empty list.
@@ -1723,6 +1727,50 @@ export interface UploaderContinuityRecord {
   basis: UploaderContinuityBasis;
   uploaded_at?: string | null;
   uploader_id?: number | null;
+  [k: string]: unknown;
+}
+/**
+ * A historical outcome applicable only to the currently active target installation.
+ * The source may since have been removed; absent coordinates must stay absent.
+ */
+export interface CarriedFilesStatus {
+  from_install_id: string;
+  from_path: string | null;
+  from_version: string | null;
+  outcome: CarriedFileOutcome;
+  to_install_id: string;
+  to_path: string;
+  to_version: string;
+  [k: string]: unknown;
+}
+/**
+ * The result of carrying files during one switch, rather than an operation failure.
+ * Older rows have path examples but no complete counts or byte observations.
+ */
+export interface CarriedFileOutcome {
+  available_bytes?: number | null;
+  carried: string[];
+  carried_bytes?: number | null;
+  counts?: CarriedFileCounts | null;
+  insufficient_space: boolean;
+  kept_separately: string[];
+  new_version_ships_file: string[];
+  not_carried_count?: number | null;
+  removed: string[];
+  required_bytes?: number | null;
+  source_modified: boolean;
+  source_unreadable: string[];
+  [k: string]: unknown;
+}
+/**
+ * Complete counts recorded before the bounded path examples are truncated.
+ */
+export interface CarriedFileCounts {
+  carried: number;
+  kept_separately: number;
+  new_version_ships_file: number;
+  removed: number;
+  source_unreadable: number;
   [k: string]: unknown;
 }
 /**
@@ -2567,6 +2615,10 @@ export interface ReviewedHoldArtifact {
 export interface PortPresentation {
   artwork?: IgdbArtwork | null;
   /**
+   * Reviewed constituent-game covers for a multi-game project. Display only.
+   */
+  collection_covers?: IgdbArtwork[] | null;
+  /**
    * Cover for the second game in a combined definition's Discover card.
    */
   companion_cover?: IgdbArtwork | null;
@@ -3156,6 +3208,10 @@ export interface PortListing {
    * Authored exception takes precedence over observations only with this reason.
    */
   availability_override_reason?: string | null;
+  /**
+   * Display samples of a project's constituent games. Requires listing format 11.
+   */
+  collection_covers?: IgdbArtwork[] | null;
   /**
    * Inert optional advisory envelope. Invalid/future content is unavailable as advice,
    * never an acquisition restriction or an operation grant. Requires listing format 7.

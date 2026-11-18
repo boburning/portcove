@@ -370,6 +370,38 @@
       padding: 0;
     }
   }
+  @media (height <= 360px) {
+    [data-slot="dialog-content"].command-palette {
+      top: var(--space-2);
+      max-height: calc(100dvh - var(--space-4));
+      scroll-padding-block-start: calc(3.25rem + var(--space-2));
+    }
+    .command-palette .palette-search {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 1;
+    }
+    .command-palette .palette-results {
+      max-height: none;
+      overflow: visible;
+    }
+    .command-palette .palette-empty {
+      padding: var(--space-2);
+    }
+  }
+  @media (47.5rem < width <= 65rem) {
+    .sidebar .brand {
+      gap: var(--space-2);
+      padding-inline: 0;
+    }
+    .sidebar .brand-avatar {
+      width: 2rem;
+      height: 2rem;
+    }
+    .sidebar .brand strong {
+      font-size: 1.25rem;
+    }
+  }
 }
 
 @layer utilities {

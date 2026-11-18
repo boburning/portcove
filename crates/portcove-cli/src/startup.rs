@@ -153,7 +153,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
                 | GameFileRootCommand::Snapshot
                 | GameFileRootCommand::Matches(_)
                 | GameFileRootCommand::Profiles { .. }
-                | GameFileRootCommand::Stores => ReadOnly,
+                | GameFileRootCommand::Stores { .. } => ReadOnly,
                 GameFileRootCommand::Scan(_)
                 | GameFileRootCommand::Add { .. }
                 | GameFileRootCommand::Relink { .. }
@@ -436,6 +436,7 @@ mod tests {
             "source roots matches",
             "source roots profiles --root r",
             "source roots stores",
+            "source roots stores --profile bstone-aliens-of-gold-originals",
             "external preview p dir",
             "external removal-preview p",
             "installation plan p",

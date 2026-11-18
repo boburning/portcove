@@ -359,6 +359,9 @@ function artworkCatalog(records: readonly AuthoredPort[]): ArtworkCatalog {
         ...(integration?.source_profile ? { source_profile: integration.source_profile } : {}),
         presentation: {
           ...(listing.artwork ? { artwork: listing.artwork } : {}),
+          ...(listing.collection_covers !== undefined
+            ? { collection_covers: listing.collection_covers }
+            : {}),
           ...(companion !== undefined ? { companion_cover: companion } : {}),
         },
       };
@@ -457,6 +460,9 @@ function preparedRecordOutputs(
     if (isRecord(presentation) && presentation.artwork !== undefined)
       copy.listing.artwork = presentation.artwork;
     else delete copy.listing.artwork;
+    if (isRecord(presentation) && presentation.collection_covers !== undefined)
+      copy.listing.collection_covers = presentation.collection_covers;
+    else delete copy.listing.collection_covers;
     const integrationPresentation = copy.integration?.presentation;
     if (isRecord(integrationPresentation)) {
       if (isRecord(presentation) && presentation.companion_cover !== undefined)

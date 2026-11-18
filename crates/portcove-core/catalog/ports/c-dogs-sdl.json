@@ -32,6 +32,10 @@
         {
           "title": "Use an existing copy you have permission to play",
           "instruction": "Keep the full copy, including bin, graphics, data, missions and libraries. On Windows, the publisher ZIP uses the 32-bit bin/cdogs-sdl.exe player. On Linux x86-64, the publisher tarball needs glibc 2.34 or later, SDL2 and SDL2_mixer. Open a terminal in bin and run ./cdogs-sdl so it finds the data in the parent directory."
+        },
+        {
+          "title": "Register your existing Windows player",
+          "instruction": "In Portcove, choose bin/cdogs-sdl.exe from your permitted Windows copy and choose its bin folder as the working directory. Review the selected player and folder, then choose Play. Keep backups of the complete package and your actual C-Dogs profile. Removing this registration keeps those external files; you and upstream still own updates and backups."
         }
       ],
       "warnings": [

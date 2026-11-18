@@ -1530,6 +1530,179 @@
         ],
         "type": "object"
       },
+      "CarriedFileCounts": {
+        "description": "Complete counts recorded before the bounded path examples are truncated.",
+        "properties": {
+          "carried": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kept_separately": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "new_version_ships_file": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "removed": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source_unreadable": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "carried",
+          "removed",
+          "kept_separately",
+          "source_unreadable",
+          "new_version_ships_file"
+        ],
+        "type": "object"
+      },
+      "CarriedFileOutcome": {
+        "description": "The result of carrying files during one switch, rather than an operation failure.\nOlder rows have path examples but no complete counts or byte observations.",
+        "properties": {
+          "available_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "carried": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "carried_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "counts": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/CarriedFileCounts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "insufficient_space": {
+            "type": "boolean"
+          },
+          "kept_separately": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "new_version_ships_file": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "not_carried_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "removed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "required_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "source_modified": {
+            "type": "boolean"
+          },
+          "source_unreadable": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "carried",
+          "removed",
+          "kept_separately",
+          "source_unreadable",
+          "new_version_ships_file",
+          "insufficient_space",
+          "source_modified"
+        ],
+        "type": "object"
+      },
+      "CarriedFilesStatus": {
+        "description": "A historical outcome applicable only to the currently active target installation.\nThe source may since have been removed; absent coordinates must stay absent.",
+        "properties": {
+          "from_install_id": {
+            "type": "string"
+          },
+          "from_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "from_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outcome": {
+            "$ref": "#/$defs/CarriedFileOutcome"
+          },
+          "to_install_id": {
+            "type": "string"
+          },
+          "to_path": {
+            "type": "string"
+          },
+          "to_version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_install_id",
+          "to_install_id",
+          "from_version",
+          "from_path",
+          "to_version",
+          "to_path",
+          "outcome"
+        ],
+        "type": "object"
+      },
       "DefinitionEligibility": {
         "properties": {
           "outcome": {
@@ -2310,6 +2483,17 @@
                 "type": "null"
               }
             ]
+          },
+          "carried_files": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/CarriedFilesStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Recorded file preservation during the switch to the current active version."
           },
           "channel": {
             "$ref": "#/$defs/ReleaseChannel"
@@ -6772,6 +6956,16 @@
               }
             ]
           },
+          "collection_covers": {
+            "description": "Reviewed constituent-game covers for a multi-game project. Display only.",
+            "items": {
+              "$ref": "#/$defs/IgdbArtwork"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "companion_cover": {
             "anyOf": [
               {
@@ -9863,6 +10057,16 @@
             "description": "Authored exception takes precedence over observations only with this reason.",
             "type": [
               "string",
+              "null"
+            ]
+          },
+          "collection_covers": {
+            "description": "Display samples of a project's constituent games. Requires listing format 11.",
+            "items": {
+              "$ref": "#/$defs/IgdbArtwork"
+            },
+            "type": [
+              "array",
               "null"
             ]
           },
@@ -27054,6 +27258,179 @@
         ],
         "type": "string"
       },
+      "CarriedFileCounts": {
+        "description": "Complete counts recorded before the bounded path examples are truncated.",
+        "properties": {
+          "carried": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kept_separately": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "new_version_ships_file": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "removed": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source_unreadable": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "carried",
+          "removed",
+          "kept_separately",
+          "source_unreadable",
+          "new_version_ships_file"
+        ],
+        "type": "object"
+      },
+      "CarriedFileOutcome": {
+        "description": "The result of carrying files during one switch, rather than an operation failure.\nOlder rows have path examples but no complete counts or byte observations.",
+        "properties": {
+          "available_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "carried": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "carried_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "counts": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/CarriedFileCounts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "insufficient_space": {
+            "type": "boolean"
+          },
+          "kept_separately": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "new_version_ships_file": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "not_carried_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "removed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "required_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "source_modified": {
+            "type": "boolean"
+          },
+          "source_unreadable": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "carried",
+          "removed",
+          "kept_separately",
+          "source_unreadable",
+          "new_version_ships_file",
+          "insufficient_space",
+          "source_modified"
+        ],
+        "type": "object"
+      },
+      "CarriedFilesStatus": {
+        "description": "A historical outcome applicable only to the currently active target installation.\nThe source may since have been removed; absent coordinates must stay absent.",
+        "properties": {
+          "from_install_id": {
+            "type": "string"
+          },
+          "from_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "from_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outcome": {
+            "$ref": "#/$defs/CarriedFileOutcome"
+          },
+          "to_install_id": {
+            "type": "string"
+          },
+          "to_path": {
+            "type": "string"
+          },
+          "to_version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_install_id",
+          "to_install_id",
+          "from_version",
+          "from_path",
+          "to_version",
+          "to_path",
+          "outcome"
+        ],
+        "type": "object"
+      },
       "DefinitionEligibility": {
         "properties": {
           "outcome": {
@@ -28400,6 +28777,17 @@
                 "type": "null"
               }
             ]
+          },
+          "carried_files": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/CarriedFilesStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Recorded file preservation during the switch to the current active version."
           },
           "channel": {
             "$ref": "#/$defs/ReleaseChannel"
@@ -34656,6 +35044,16 @@
               "null"
             ]
           },
+          "collection_covers": {
+            "description": "Display samples of a project's constituent games. Requires listing format 11.",
+            "items": {
+              "$ref": "#/$defs/IgdbArtwork"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "compatibility": {
             "description": "Inert optional advisory envelope. Invalid/future content is unavailable as advice,\nnever an acquisition restriction or an operation grant. Requires listing format 7."
           },
@@ -35907,6 +36305,16 @@
               {
                 "type": "null"
               }
+            ]
+          },
+          "collection_covers": {
+            "description": "Reviewed constituent-game covers for a multi-game project. Display only.",
+            "items": {
+              "$ref": "#/$defs/IgdbArtwork"
+            },
+            "type": [
+              "array",
+              "null"
             ]
           },
           "companion_cover": {
@@ -54015,6 +54423,16 @@
               }
             ]
           },
+          "collection_covers": {
+            "description": "Reviewed constituent-game covers for a multi-game project. Display only.",
+            "items": {
+              "$ref": "#/$defs/IgdbArtwork"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "companion_cover": {
             "anyOf": [
               {
@@ -71330,6 +71748,179 @@
         ],
         "type": "object"
       },
+      "CarriedFileCounts": {
+        "description": "Complete counts recorded before the bounded path examples are truncated.",
+        "properties": {
+          "carried": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kept_separately": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "new_version_ships_file": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "removed": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source_unreadable": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "carried",
+          "removed",
+          "kept_separately",
+          "source_unreadable",
+          "new_version_ships_file"
+        ],
+        "type": "object"
+      },
+      "CarriedFileOutcome": {
+        "description": "The result of carrying files during one switch, rather than an operation failure.\nOlder rows have path examples but no complete counts or byte observations.",
+        "properties": {
+          "available_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "carried": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "carried_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "counts": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/CarriedFileCounts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "insufficient_space": {
+            "type": "boolean"
+          },
+          "kept_separately": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "new_version_ships_file": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "not_carried_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "removed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "required_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "source_modified": {
+            "type": "boolean"
+          },
+          "source_unreadable": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "carried",
+          "removed",
+          "kept_separately",
+          "source_unreadable",
+          "new_version_ships_file",
+          "insufficient_space",
+          "source_modified"
+        ],
+        "type": "object"
+      },
+      "CarriedFilesStatus": {
+        "description": "A historical outcome applicable only to the currently active target installation.\nThe source may since have been removed; absent coordinates must stay absent.",
+        "properties": {
+          "from_install_id": {
+            "type": "string"
+          },
+          "from_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "from_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outcome": {
+            "$ref": "#/$defs/CarriedFileOutcome"
+          },
+          "to_install_id": {
+            "type": "string"
+          },
+          "to_path": {
+            "type": "string"
+          },
+          "to_version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_install_id",
+          "to_install_id",
+          "from_version",
+          "from_path",
+          "to_version",
+          "to_path",
+          "outcome"
+        ],
+        "type": "object"
+      },
       "DefinitionEligibility": {
         "properties": {
           "outcome": {
@@ -72861,6 +73452,17 @@
             "type": "null"
           }
         ]
+      },
+      "carried_files": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/CarriedFilesStatus"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Recorded file preservation during the switch to the current active version."
       },
       "channel": {
         "$ref": "#/$defs/ReleaseChannel"

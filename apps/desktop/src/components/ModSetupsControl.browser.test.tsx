@@ -5,7 +5,12 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
 import * as standingSetup from "../features/game-file-discovery/use-standing-setup";
-import type { ModFilePreservationPlan, ModSetupOriginalReview, ModSetupsView } from "../types";
+import type {
+  ModFilePreservationPlan,
+  ModSetupOriginalReview,
+  ModSetupView,
+  ModSetupsView,
+} from "../types";
 import { sourceProfile } from "../test-fixtures";
 import { ModFilePreservationControl } from "./ModFilePreservationControl";
 import { ModSetupsControl } from "./ModSetupsControl";
@@ -138,6 +143,156 @@ it("lists setups and mods in priority order and binds changes to the reviewed re
   expect(use).toHaveBeenCalledWith("shipwright", "clean", 7);
   expect(read).toHaveBeenCalledTimes(3);
 });
+
+it.each(["custom", "default"] as const)(
+  "keeps one selected package state across switches and repeated empty reads from %s",
+  async (initialProfile) => {
+    const packages: [string, boolean][] = [
+      ["textures.o2r", true],
+      ["music.otr", false],
+      ["interface.o2r", true],
+      ["effects.otr", true],
+    ];
+    const profile = (id: "default" | "custom"): ModSetupView => {
+      const entry =
+        id === "default" ? setup(id, "Default", 1, []) : setup(id, "Custom", 2, packages);
+      return {
+        ...entry,
+        build_availability: "verified",
+        profile: {
+          ...entry.profile,
+          created_at: 0,
+          updated_at: 0,
+          intent: { update_policy: "keep_current" },
+        },
+        revision: {
+          ...entry.revision,
+          created_at: 0,
+          digest: "b".repeat(64),
+          originals: [],
+          parent_revision: null,
+          save_group: id,
+          build: {
+            artifact: { asset_name: "fixture.zip", sha256: "c".repeat(64), size: 1 },
+            definition: null,
+            install_id: "fixture-install",
+            installed_contract_sha256: "d".repeat(64),
+            manifest_sha256: "e".repeat(64),
+            platform: "windows-x86-64",
+            port_id: "shipwright",
+            runtime: null,
+            selected_executable: "fixture.exe",
+          },
+        },
+      };
+    };
+    const snapshot = (profileId: "default" | "custom"): ModSetupsView => ({
+      port_id: "shipwright",
+      supported: true,
+      package_types: ["o2r", "otr"],
+      later_mods_take_priority: true,
+      held_updates: [],
+      provider: null,
+      inventory: {
+        port_id: "shipwright",
+        profiles: [profile("default"), profile("custom")],
+      },
+      live: {
+        profile_id: profileId,
+        revision: profileId === "default" ? 1 : 2,
+        unmanaged: [],
+        changed_owned: [],
+        native_list: { state: "in-sync" },
+      },
+    });
+    let refresh!: () => void;
+    vi.spyOn(standingSetup, "onStandingSetupPass").mockImplementation((listener) => {
+      refresh = listener;
+      return () => {};
+    });
+    let finishRead!: (next: ModSetupsView) => void;
+    const read = vi
+      .spyOn(desktopApi, "modSetups")
+      .mockResolvedValueOnce(snapshot(initialProfile))
+      .mockImplementation(() => new Promise((resolve) => (finishRead = resolve)));
+    const use = vi
+      .spyOn(desktopApi, "useModSetup")
+      .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.useModSetup>>);
+    const host = await render();
+    const packageArea = (name: string) => {
+      const regions = host.querySelectorAll<HTMLElement>('section[aria-label^="Mods in "]');
+      expect(regions).toHaveLength(1);
+      expect(regions[0]!.getAttribute("aria-label")).toBe(`Mods in ${name}`);
+      const areas = regions[0]!.querySelectorAll<HTMLElement>(':scope > div[tabindex="-1"]');
+      expect(areas).toHaveLength(1);
+      return areas[0]!;
+    };
+    const expectCustomPackages = () => {
+      const area = packageArea("Custom");
+      expect(area.querySelectorAll("ul")).toHaveLength(1);
+      expect(area.querySelectorAll("li")).toHaveLength(4);
+      expect(area.textContent).not.toContain("No mods.");
+      for (const [name, enabled] of packages) {
+        const label = [...area.querySelectorAll("label")].find(
+          (entry) => entry.textContent === name,
+        )!;
+        const checkbox = label.querySelector<HTMLElement>('[role="checkbox"]')!;
+        expect(checkbox.getAttribute("aria-checked")).toBe(String(enabled));
+        expect(checkbox.hasAttribute("disabled")).toBe(false);
+        expect(checkbox.getAttribute("aria-disabled")).not.toBe("true");
+      }
+      return area;
+    };
+    const expectDefaultPackages = () => {
+      const area = packageArea("Default");
+      expect(area.querySelectorAll("ul, li, [role=checkbox]")).toHaveLength(0);
+      expect(area.querySelectorAll("p")).toHaveLength(1);
+      expect(area.textContent).toBe("No mods. The game plays without changes in this setup.");
+      for (const [name] of packages) expect(area.textContent).not.toContain(name);
+      return area;
+    };
+    const startsPopulated = initialProfile === "custom";
+    const initialArea = { custom: expectCustomPackages, default: expectDefaultPackages }[
+      initialProfile
+    ]();
+    if (startsPopulated)
+      await page.getByRole("button", { name: "Switch to clean play", exact: true }).click();
+    expect(use.mock.calls).toEqual(startsPopulated ? [["shipwright", "default", 7]] : []);
+    expect(read).toHaveBeenCalledTimes(startsPopulated ? 2 : 1);
+    expect(button(host, "Add mod file…").disabled).toBe(startsPopulated);
+    expect(initialArea.querySelectorAll('[role="checkbox"][aria-disabled="true"]')).toHaveLength(
+      startsPopulated ? 4 : 0,
+    );
+    const heading = page.getByRole("heading", { name: "Setups and mods", exact: true });
+    heading.element().focus();
+    if (startsPopulated) await act(async () => finishRead(snapshot("default")));
+    const defaultArea = expectDefaultPackages();
+    expect(initialArea.isConnected).toBe(!startsPopulated);
+    expect(button(host, "Add mod file…").disabled).toBe(false);
+    await expect.element(heading).toHaveFocus();
+
+    for (let refreshIndex = 0; refreshIndex < 3; refreshIndex++) {
+      await act(async () => refresh());
+      expect(read).toHaveBeenCalledTimes(Number(startsPopulated) + refreshIndex + 2);
+      await act(async () => finishRead(snapshot("default")));
+      expect(expectDefaultPackages()).toBe(defaultArea);
+      await expect.element(heading).toHaveFocus();
+    }
+
+    await page.getByRole("button", { name: "Use Custom", exact: true }).click();
+    expect(use).toHaveBeenLastCalledWith("shipwright", "custom", 7);
+    expect(read).toHaveBeenCalledTimes(startsPopulated ? 6 : 5);
+    expect(button(host, "Add mod file…").disabled).toBe(true);
+    expectDefaultPackages();
+    heading.element().focus();
+    await act(async () => finishRead(snapshot("custom")));
+    expectCustomPackages();
+    expect(defaultArea.isConnected).toBe(false);
+    expect(button(host, "Add mod file…").disabled).toBe(false);
+    expect(use).toHaveBeenCalledTimes(startsPopulated ? 2 : 1);
+    await expect.element(heading).toHaveFocus();
+  },
+);
 
 it("states priority only for loaders where it is established", async () => {
   vi.spyOn(desktopApi, "modSetups").mockResolvedValue(

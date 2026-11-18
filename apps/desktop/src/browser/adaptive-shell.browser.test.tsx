@@ -24,6 +24,45 @@ afterEach(async () => {
 });
 
 for (const theme of ["dark", "light"]) {
+  it(`fits the full ${theme} brand and navigation at intermediate widths`, async () => {
+    transport = installInteractiveTransport("library", (message) => {
+      throw new Error(message);
+    });
+    initializeLocalization(["en"]);
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+    document.documentElement.dataset.theme = theme;
+    await page.viewport(768, 512);
+    await render(
+      <LocalizationProvider api={desktopApi}>
+        <App />
+      </LocalizationProvider>,
+    );
+    const sidebar = document.querySelector<HTMLElement>(".sidebar")!;
+    const wordmark = sidebar.querySelector<HTMLElement>(".brand strong")!;
+    await document.fonts.ready;
+    for (const width of [768, 800, 960, 1040, 1280]) {
+      await page.viewport(width, 512);
+      expect(sidebar.scrollWidth).toBeLessThanOrEqual(sidebar.clientWidth + 1);
+      const text = document.createRange();
+      text.selectNodeContents(wordmark);
+      expect(text.getBoundingClientRect().left).toBeGreaterThanOrEqual(
+        sidebar.getBoundingClientRect().left,
+      );
+      expect(text.getBoundingClientRect().right).toBeLessThanOrEqual(
+        sidebar.getBoundingClientRect().right,
+      );
+    }
+    await page.viewport(768, 512);
+    const label = sidebar.querySelector<HTMLElement>(
+      '[data-navigation-destination="catalog"] .nav-label',
+    )!;
+    label.textContent = "Discover available games and community port projects";
+    expect(sidebar.scrollWidth).toBeLessThanOrEqual(sidebar.clientWidth + 1);
+    for (const control of sidebar.querySelectorAll<HTMLElement>(".nav-item")) {
+      expect(control.scrollWidth).toBeLessThanOrEqual(control.clientWidth + 1);
+    }
+  });
+
   it(`keeps complete ${theme} navigation and theme words at enlarged effective widths`, async () => {
     transport = installInteractiveTransport("library", (message) => {
       throw new Error(message);

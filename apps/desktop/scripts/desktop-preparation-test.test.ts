@@ -21,6 +21,8 @@ import {
   overflowUpdateFocusPoint,
   rollbackWitnessWithinLibrary,
   waitForReviewedUpdateAction,
+  reachLibraryFooterAction,
+  libraryFooterCaptureReady,
 } from "./desktop-preparation-test.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 
@@ -380,3 +382,85 @@ for (const [name, changes] of refusedReviews) {
     assert.ok(observation.review.latest);
   });
 }
+
+test("native Library footer is reached through Tab without forcing focus", async () => {
+  let position = 0;
+  const result = await reachLibraryFooterAction(
+    async () => ({
+      originFocused: position === 0,
+      withinCard: true,
+      footerFocused: position === 2,
+      tabStops: 3,
+    }),
+    async () => {
+      position++;
+    },
+  );
+  assert.equal(position, 2);
+  assert.equal(result.tabPresses, 2);
+});
+
+test("native Library footer refuses an unrelated origin or a Tab path that skips the action", async () => {
+  let tabs = 0;
+  await assert.rejects(
+    reachLibraryFooterAction(
+      async () => ({ originFocused: false, withinCard: true, footerFocused: false, tabStops: 3 }),
+      async () => {
+        tabs++;
+      },
+    ),
+    /Start at the owned Library More action/u,
+  );
+  assert.equal(tabs, 0);
+  await assert.rejects(
+    reachLibraryFooterAction(
+      async () => ({
+        originFocused: tabs === 0,
+        withinCard: tabs === 0,
+        footerFocused: false,
+        tabStops: 3,
+      }),
+      async () => {
+        tabs++;
+      },
+    ),
+    /Tab left the owned Library card/u,
+  );
+  assert.equal(tabs, 1);
+  tabs = 0;
+  await assert.rejects(
+    reachLibraryFooterAction(
+      async () => ({
+        originFocused: tabs === 0,
+        withinCard: true,
+        footerFocused: false,
+        tabStops: 3,
+      }),
+      async () => {
+        tabs++;
+      },
+    ),
+    /was not reached through its Tab order/u,
+  );
+  assert.equal(tabs, 3);
+});
+
+test("native Library footer capture requires a positive finite focus ring", () => {
+  const ready = {
+    footerFocused: true,
+    documentFocused: true,
+    fullyVisible: true,
+    zoom: "200",
+    ring: 4,
+  };
+  assert.equal(libraryFooterCaptureReady(ready), true);
+  for (const ring of [0, -1, Number.NaN, Number.POSITIVE_INFINITY])
+    assert.equal(libraryFooterCaptureReady({ ...ready, ring }), false);
+  for (const state of [
+    { footerFocused: false },
+    { documentFocused: false },
+    { fullyVisible: false },
+    { zoom: "100" },
+  ])
+    assert.equal(libraryFooterCaptureReady({ ...ready, ...state }), false);
+});
