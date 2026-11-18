@@ -87,6 +87,9 @@ game detail identity chip names the fact as Original system not specified.
 Each workspace composes collection/navigation choices, one search/filter/sort/view toolbar, then a wrapping result and active-filter summary. Chips name their categories and share the choices’ canonical identity icons/colors; target labels retain architecture. Clear filters preserves search and returns focus to Filters.
 
 Comparisons use balanced project cards, side by side where space allows and stacked in compact windows, with aligned setup, file, target, ownership and observation sections. Filtered-out projects retain their own actions and explicit qualification. Unresearched gameplay differences remain unclaimed.
+Optional project metadata and reports share one information row, so omitted or
+expanded evidence cannot overlap or misalign current status and actions.
+Keep that information together at the top of its row when a neighboring project expands.
 
 Identity chips use the v58 decorative Lucide/palette mappings; semantic readiness,
 warning, failure, selection and focus retain their own tokens.
