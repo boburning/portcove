@@ -1,6 +1,14 @@
 import type { OutputLocalModPackagePlan } from "../transport-types.generated";
 import type { TFunction } from "i18next";
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import {
@@ -218,6 +226,12 @@ function BoundModSetupsControl({
     if (notice && document.activeElement === document.body) notice.focus();
   }, []);
   const addFile = useRef<HTMLButtonElement>(null);
+  const restoreAddFileFocus = useRef(false);
+  useLayoutEffect(() => {
+    if (localReview || !restoreAddFileFocus.current) return;
+    restoreAddFileFocus.current = false;
+    addFile.current?.focus();
+  }, [localReview]);
   const copyId = useId();
   const headingId = useId();
   // A picker answer that arrives after this view was replaced is dropped.
@@ -744,8 +758,8 @@ function BoundModSetupsControl({
                     setupHeading.current?.focus();
                   }}
                   cancel={() => {
+                    restoreAddFileFocus.current = true;
                     setLocalReview(undefined);
-                    requestAnimationFrame(() => addFile.current?.focus());
                   }}
                 />
               )}
