@@ -482,6 +482,21 @@ Selection validation, scenario assertions, namespace joins, failure evidence and
 native/resource lock retention remain unchanged. Contract checks establish budget
 coordination, not a completed native selected-setup observation.
 
+The November 18 private-X11 input calibration separates input custody from those
+operation waits. An ordinary `98f988ed` application with `6c2d3ab4` tooling failed
+before namespace launch: the shared 60-second capture limit expired after copying
+the 150,319,296-byte pinned Node executable, during its remaining verification or
+publication. The eight inputs totalled 152,779,458 bytes; capture copies, hashes
+and durably verifies them repeatedly. Prelaunch capture and verification now have
+300 seconds; the independent postjoin live-input scan has 120 seconds. The Linux
+command guard includes both phases, the unchanged namespace outer wait and a
+60-second command margin: 750 seconds for ordinary/GTK selections and 1,170 for
+the standalone 600-second selected-setup journeys. Callers supplying an outer
+execution guard must use that derived command budget. Content and identity checks,
+partial failure evidence, namespace joins and native/resource lock retention remain
+unchanged. Controlled-clock tests exercise completion beyond the former minute
+and finite capture/postjoin failure; they are not a native application observation.
+
 The strict default nextest profile, used by local runs and qualification,
 allows zero automatic test retries. By explicit owner decision (November 2026),
 the ordinary hosted Windows partition profile `hosted-windows` allows one
