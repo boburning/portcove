@@ -435,13 +435,13 @@ internal static class ContractTests
             capabilities["operation_event_schema_version"] = 3;
             var result = Json.Object(Json.Parse(Result("status", new object[0])));
             result["schema_version"] = boundarySchema;
-            var stream = new ProtocolStream("status");
+            var boundaryReader = new ProtocolStream("status");
             if (new[] { 58, 59, 64, 101 }.Contains(boundarySchema))
             {
                 foreach (Action request in new Action[]
                 {
                     () => ProtocolStream.Negotiate(capabilities),
-                    () => stream.Line(Json.Print(result))
+                    () => boundaryReader.Line(Json.Print(result))
                 })
                 {
                     try
@@ -459,8 +459,8 @@ internal static class ContractTests
             else
             {
                 ProtocolStream.Negotiate(capabilities);
-                stream.Line(Json.Print(result));
-                Check(Json.Array(stream.Finish(0)).Length == 0, "both readers accept schema " + boundarySchema);
+                boundaryReader.Line(Json.Print(result));
+                Check(Json.Array(boundaryReader.Finish(0)).Length == 0, "both readers accept schema " + boundarySchema);
             }
         }
         var contradictoryLegacyEvent = Json.Object(Json.Parse(Json.Print(Capabilities())));
