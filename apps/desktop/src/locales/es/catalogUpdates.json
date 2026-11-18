@@ -60,7 +60,7 @@
     "fallbackGeneric": "No se pudo usar un catálogo guardado. Portcove continuó con la información de catálogo disponible.",
     "fallbackNotLoaded": "No se pudo cargar la definición de catálogo seleccionada. Portcove continuó con la información de catálogo disponible.",
     "fallbackReplay": "Portcove no pudo aceptar esta actualización del catálogo. Portcove continuó con la información de catálogo disponible.",
-    "fallbackSignature": "Un catálogo guardado no superó la verificación de firma. Portcove continuó con la información de catálogo disponible.",
+    "fallbackSignature": "La información del catálogo no superó la verificación de firma. Portcove conservó la información de catálogo disponible.",
     "fallbackUntrusted": "Un catálogo guardado estaba firmado por un editor que ya no es de confianza. Portcove continuó con la información de catálogo disponible.",
     "fingerprint": "Huella del editor",
     "loadingInformation": "Cargando la información del catálogo…",
