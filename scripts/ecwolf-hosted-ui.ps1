@@ -140,13 +140,15 @@ try {
  Assert-Owned
  Capture 'startup'
  if($TitleMode -eq 'fresh'){
-  Key 27;Capture 'main-menu';Key 13;Capture 'new-game-menu';Key 13;Key 13
+  # Upstream --nowait enters the main menu directly; do not consume inputs in the rating/attract screens.
+  Capture 'main-menu';Key 13;Capture 'episode-menu';Key 13;Capture 'difficulty-menu';Key 13
   Start-Sleep -Seconds 2;Capture 'level'
   Key 113;Capture 'save-menu';Key 13
   foreach($vk in @(67,79,86,69)){Key $vk}
   Capture 'save-name';Key 13;Start-Sleep -Seconds 1;Capture 'saved'
  }else{
-  Key 114;Capture 'load-menu';Key 13
+  # From the main menu: New Game, Options, Load Game (tagged CreateMenus).
+  Key 40;Key 40;Capture 'load-game-selection';Key 13;Capture 'load-menu';Key 13
   Start-Sleep -Seconds 2;Capture 'loaded'
  }
  Key 121;Capture 'quit-confirmation'

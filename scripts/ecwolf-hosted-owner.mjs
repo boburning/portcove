@@ -305,6 +305,7 @@ try {
     config.player_root,
     "--arg=--data",
     "--arg=WL1",
+    "--arg=--nowait",
   ];
   const preview = await command(["external", "select-preview", ...selectArgs]);
   await command([
