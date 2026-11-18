@@ -61,7 +61,10 @@ fn result(root: &Path, arguments: &[&str], expected_command: &str) -> Value {
 fn profile_setups_keeps_full_runtime_verification_in_public_json() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path();
-    let port_id = "starship";
+    // This adapter exists in the ordinary compiled CLI, unlike the Core-only
+    // Starship mod fixture. Reuse the supported-port adoption shape from
+    // host_diagnostics; these owned helper bytes are never game qualification.
+    let port_id = "zelda64-recomp";
     let catalog = portcove_core::Catalog::embedded().unwrap();
     let port = catalog.port(port_id).unwrap();
     let original = root.join("owned-installation");
@@ -93,9 +96,15 @@ fn profile_setups_keeps_full_runtime_verification_in_public_json() {
         &["--json", "profile", "setups", port_id],
         "profile.setups",
     );
+    assert_eq!(view["supported"], true, "{view}");
     assert_eq!(
-        view["inventory"]["profiles"][0]["build_availability"],
-        "verified"
+        view["inventory"]["profiles"].as_array().unwrap().len(),
+        1,
+        "{view}"
+    );
+    assert_eq!(
+        view["inventory"]["profiles"][0]["build_availability"], "verified",
+        "{view}"
     );
     let installed = Path::new(install["path"].as_str().unwrap())
         .join(install["selected_executable"].as_str().unwrap());
@@ -108,8 +117,8 @@ fn profile_setups_keeps_full_runtime_verification_in_public_json() {
         "profile.setups",
     );
     assert_eq!(
-        changed["inventory"]["profiles"][0]["build_availability"],
-        "changed"
+        changed["inventory"]["profiles"][0]["build_availability"], "changed",
+        "{changed}"
     );
     assert!(
         !serde_json::to_string(&changed)
