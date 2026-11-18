@@ -529,7 +529,7 @@ it("keeps accepted listing facts, uncertainty, staleness and reason-bearing over
     },
   };
   expect(listingAvailabilityLabel(unknown, current)).toBe(
-    "Package availability unknown (check unavailable)",
+    "Source only. Package availability unknown (check unavailable)",
   );
   const assetsOnly = {
     ...observed,

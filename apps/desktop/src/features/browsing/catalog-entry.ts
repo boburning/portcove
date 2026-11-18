@@ -183,7 +183,7 @@ export function assessListingAvailability(
   // A bounded release window cannot establish that all upstream packages are absent.
   return {
     availability,
-    label: observed && availability !== "unknown" ? `${authoredLabel}. ${label}` : label,
+    label: availability !== "unknown" ? `${authoredLabel}. ${label}` : label,
   };
 }
 
