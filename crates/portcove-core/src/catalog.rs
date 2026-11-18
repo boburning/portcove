@@ -371,6 +371,12 @@ impl Catalog {
         Ok(())
     }
 
+    pub(crate) fn hold_legacy_mod_provider(&mut self, port_id: &str) {
+        if let Some(index) = self.ports().iter().position(|port| port.id == port_id) {
+            Arc::make_mut(&mut self.document).ports[index].legacy_mod_provider_held = true;
+        }
+    }
+
     pub(crate) fn definition_snapshot(
         &self,
         port_id: &str,
@@ -687,6 +693,7 @@ impl Catalog {
             }
         }
         for port in &self.document.ports {
+            crate::provider_binding::validate(port)?;
             crate::managed_runtime_policy::validate_exact_exclusions(port)?;
             crate::archive_data::validate(port)?;
             crate::native_temp::validate(port)?;

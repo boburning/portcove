@@ -993,6 +993,13 @@ pub struct PortDefinition {
     pub setup_output_paths: Vec<String>,
     #[serde(default)]
     pub upstream_status: UpstreamStatus,
+    /// Provider coordinates reviewed alongside the existing mod loader contract.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_provider_bindings: Option<Vec<crate::ModProviderBinding>>,
+    /// A local selection once replaced the compiled provider mapping.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) legacy_mod_provider_held: bool,
     /// Catalog-owned containment for a managed route whose current upstream
     /// release still matches its selector but changed reviewed behavior.
     #[serde(default, skip_serializing_if = "Option::is_none")]

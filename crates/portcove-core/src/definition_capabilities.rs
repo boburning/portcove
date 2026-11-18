@@ -28,6 +28,10 @@ impl EngineTemplateCapability {
             .collect();
         supported.push(Self {
             template: AdapterKind::LibultrashipPortable,
+            contract_version: crate::provider_binding::LIBULTRASHIP_BINDING_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::LibultrashipPortable,
             contract_version: 2,
         });
         supported.push(Self {
@@ -97,6 +101,10 @@ impl EngineTemplateCapability {
         supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: 14,
+        });
+        supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: crate::provider_binding::N64_RECOMP_BINDING_CAPABILITY,
         });
         supported.push(Self {
             template: AdapterKind::N64RecompPortable,

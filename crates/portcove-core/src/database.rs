@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 67;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 68;
 
 struct Migration {
     version: i64,
@@ -425,7 +425,27 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_67,
         verify: crate::profile::verify_selection_migration,
     },
+    Migration {
+        version: 68,
+        name: "reviewed mod provider scope writer protocol",
+        apply: migration_68,
+        verify: verify_migration_68,
+    },
 ];
+
+fn migration_68(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE definition_provider_scope_floor (
+            port_id TEXT PRIMARY KEY NOT NULL CHECK(length(port_id) BETWEEN 1 AND 255)
+        );",
+    )?;
+    verify_migration_68(transaction)
+}
+
+fn verify_migration_68(connection: &Connection) -> Result<()> {
+    crate::profile::verify_selection_migration(connection)?;
+    require_columns(connection, "definition_provider_scope_floor", &["port_id"])
+}
 
 fn migration_67(transaction: &Transaction<'_>) -> Result<()> {
     // Older restore code can publish an unchecked projection or clean up
@@ -2993,7 +3013,8 @@ mod tests {
         drop(old_client);
         let current = crate::Library::open(root).unwrap();
         let versions = recorded_versions(&current.connection().unwrap()).unwrap();
-        assert_eq!(versions.last(), Some(&67));
+        assert_eq!(versions.last(), Some(&CURRENT_SCHEMA_VERSION));
+        assert!(versions.contains(&67));
     }
 
     #[test]
