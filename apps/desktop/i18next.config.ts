@@ -69,6 +69,7 @@ export default defineConfig({
       "src/components/DetailLayout.tsx",
       "src/components/FundingLinks.tsx",
       "src/components/PortCapabilities.tsx",
+      "src/components/CarriedFilesSummary.tsx",
       "src/components/Preparation.tsx",
       "src/components/RecoveryReview.tsx",
       "src/components/GhostshipRecoveryReview.tsx",

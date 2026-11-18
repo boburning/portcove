@@ -73,6 +73,17 @@ use the [reference below](#automation-and-integration-reference).
    A backup is not a copy of the game files. Review backup and restore
    consequences in `portcove backup --help` before deleting or restoring one.
 
+After a managed version switch, `portcove status PORT_ID` includes the recorded
+file-preservation outcome when its target is still active. It distinguishes
+copied files, unchanged copies removed from the target, differing copies kept
+separately, unreadable files and files supplied by the new package. Complete
+counts and measured copy/space bytes are separate from bounded path examples;
+older records may lack those totals. This is a historical result, not a fresh
+file check or a new failure. An earlier version's missing recorded folder is
+reported without inventing its location. JSON exposes the same optional
+`carried_files` read model; malformed or future-format disclosure is omitted
+without breaking the rest of status. It grants no additional file operation.
+
 Human `backup delete` and `backup restore` show the selected archive folder,
 exact content and review hashes, UTC creation time, file count and size before
 confirmation. The review distinguishes current managed saved data from Core's

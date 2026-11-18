@@ -431,6 +431,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-rejected-listener-registration",
             "native-interface-size",
             "native-library-layout",
+            "native-secondary-panel-presentation",
             "native-collection-artwork-presentation",
             "native-update-acquisition-lifecycle",
             "native-library-organization-restart",
@@ -450,6 +451,8 @@ void test("execution planning preserves the independently reviewed pre-change or
     assert.ok(selection.excluded_scenarios.includes("native-registered-source-reuse"));
     assert.ok(!selection.selected_scenarios.includes("native-game-first-choice-and-restart"));
     assert.ok(selection.excluded_scenarios.includes("native-game-first-choice-and-restart"));
+    assert.ok(!selection.selected_scenarios.includes("native-secondary-panel-presentation"));
+    assert.ok(selection.excluded_scenarios.includes("native-secondary-panel-presentation"));
     assert.ok(!selection.selected_scenarios.includes("native-collection-artwork-presentation"));
     assert.ok(selection.excluded_scenarios.includes("native-collection-artwork-presentation"));
     // Keep the frozen oracle bytes. Local artwork now explicitly receives the
@@ -508,6 +511,12 @@ void test("execution planning preserves the independently reviewed pre-change or
           added === "scripts/native-readiness.mts" ||
           added === "scripts/acceptance-packet.mts" ||
           added === "apps/desktop/scripts/desktop-listener-lifetime-test.mts" ||
+          (selection.prerequisites.includes("owned-fixture") &&
+            [
+              "apps/desktop/scripts/desktop-secondary-panels-test.mts",
+              "apps/desktop/scripts/desktop-secondary-panels-probe.mts",
+              "apps/desktop/scripts/desktop-secondary-panels-fixture.mts",
+            ].includes(added)) ||
           (added === "apps/desktop/scripts/desktop-listener-lifetime-probe.mts" &&
             actualInputs.includes("apps/desktop/scripts/desktop-listener-lifetime-test.mts")) ||
           (installFixtureAdded &&
@@ -2309,4 +2318,38 @@ void test("batch restart preserves its inventory separately from final session c
       );
     }
   }
+});
+
+void test("secondary panel presentation keeps isolated Windows custody and complete inputs", () => {
+  const id = "native-secondary-panel-presentation";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, ["native-preparation-review-and-play"]);
+  assert.ok(selection.prerequisites.includes("native-dialog"));
+  assert.ok(selection.host_resources.includes("native-dialog"));
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "native-review");
+  assert.equal(plan.fixtures.owned, true);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
+  const preparation = plan.fixtureFamilies.find((family) => family.family === "preparation");
+  assert.ok(preparation?.members?.some((member) => member.id === id && member.role === "selected"));
+  for (const file of [
+    "desktop-secondary-panels-test.mts",
+    "desktop-secondary-panels-probe.mts",
+    "desktop-secondary-panels-fixture.mts",
+  ])
+    assert.ok(plan.receiptInputs.some((input) => input.path === `apps/desktop/scripts/${file}`));
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/,
+  );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform }), /Windows/);
+  assert.deepEqual(
+    resolveDesktopSelection({ scenarios: [id, id], platform: "win32" }).selected_scenarios,
+    [id],
+  );
 });
