@@ -49,7 +49,7 @@ jobs:
           fi
 
           gh api --method GET "repos/$REPOSITORY/actions/runs/$RUN_ID/jobs?filter=latest&per_page=100" > "$report_dir/jobs.json"
-          jq -e '.total_count <= 100 and (.jobs | type == "array") and (.jobs | length == .total_count)' \
+          jq -e '.total_count as $total | $total <= 100 and (.jobs | type == "array") and (.jobs | length == $total)' \
             "$report_dir/jobs.json" > /dev/null
 
           {
