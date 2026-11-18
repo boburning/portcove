@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import {
   assembleCatalogRecords,
+  listingDownloadAssetHints,
   checkedAuthoredPort,
   readCatalogSource,
   reviewCompatibilityFixture,
@@ -217,7 +218,7 @@ export function canonicalPreparationFeedback(
 }
 
 export function downloadPreparationFeedback(record: AuthoredPort, facts: PackageFacts) {
-  const hints = record.listing.download_asset_hints;
+  const hints = listingDownloadAssetHints(record);
   if (!hints || !Object.keys(hints).length) return undefined;
   return {
     ...packageHintFeedback(hints, Object.keys(hints), facts),

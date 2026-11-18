@@ -52,14 +52,13 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp/releases",
     "download_asset_hints": {
-      "linux-x86-64": ["rivalschools-", "-linux-x64.zip"],
       "macos-aarch64": ["rivalschools-", "-macos-arm64.zip"],
-      "macos-x86-64": ["rivalschools-", "-macos-x64.zip"],
-      "windows-x86-64": ["rivalschools-", "-windows-x64.zip"]
+      "macos-x86-64": ["rivalschools-", "-macos-x64.zip"]
     },
     "recommended_download_channel": "stable"
   },
   "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

@@ -90,6 +90,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   /** Reviewed provenance; never projected into runtime definitions or listings. */
   upstream_lineage?: UpstreamLineage;
   release_maintenance?: { reason: string; reconsider_when: string };
+  /** Reviewed same-package borrowing for these descriptive platforms only. */
+  listing_inherit_asset_hints?: string[];
 }
 
 export const catalogSourceNames = {
@@ -331,6 +333,70 @@ function projectGbaArchive(record: AuthoredPort): AuthoredPort {
   };
 }
 
+/** Resolve descriptive selectors from the same record's reviewed GitHub releases. */
+export function listingDownloadAssetHints(record: AuthoredPort) {
+  const authored = record.listing.download_asset_hints;
+  const inherit = record.listing_inherit_asset_hints;
+  if (inherit === undefined) return authored;
+  const listing = record.listing;
+  const integration = record.integration;
+  const release = integration?.release;
+  const invalid = () =>
+    new Error(
+      `${listing.id} listing asset hint inheritance requires reviewed same-project GitHub release routes and unique managed platforms.`,
+    );
+  if (
+    !Array.isArray(inherit) ||
+    !inherit.length ||
+    new Set(inherit).size !== inherit.length ||
+    listing.availability !== "packages" ||
+    listing.download_block_reason !== undefined ||
+    !Array.isArray(integration?.platforms) ||
+    !Array.isArray(integration.channels) ||
+    !integration.channels.includes(listing.recommended_download_channel ?? "stable") ||
+    !isRecord(release) ||
+    (release.provider !== undefined && release.provider !== "github") ||
+    typeof release.repository !== "string" ||
+    !isRecord(release.asset_hints)
+  )
+    throw invalid();
+  const repository = release.repository.toLowerCase();
+  const scope = `https://github.com/${repository}`;
+  const normalize = (value: string) => value.toLowerCase().replace(/\/$/u, "");
+  if (
+    !/^[a-z0-9_-]+\/[a-z0-9_.-]+$/u.test(repository) ||
+    normalize(listing.project_url) !== scope ||
+    (listing.release_url !== undefined &&
+      ![scope, `${scope}/releases`].includes(normalize(listing.release_url)))
+  )
+    throw invalid();
+  const hints = { ...authored };
+  for (const platform of inherit) {
+    if (
+      !(platforms as readonly string[]).includes(platform) ||
+      !integration.platforms.includes(platform) ||
+      [release.direct, release.curated, release.managed_build, release.user_prepared].some(
+        (routes) => isRecord(routes) && Object.hasOwn(routes, platform),
+      )
+    )
+      throw invalid();
+    const inherited = release.asset_hints[platform];
+    if (!validListingAssetHints(inherited)) throw invalid();
+    if (!Object.hasOwn(hints, platform)) hints[platform] = [...inherited];
+  }
+  return authored && Object.keys(authored).length === 0 ? authored : hints;
+}
+
+function validListingAssetHints(hints: unknown): hints is string[] {
+  return (
+    Array.isArray(hints) &&
+    hints.length >= 1 &&
+    hints.length <= 8 &&
+    hints.every((hint) => boundedText(hint, 160)) &&
+    new Set(hints.map((hint) => hint.toLowerCase())).size === hints.length
+  );
+}
+
 export function checkedAuthoredPort(value: unknown, expectedId?: string): AuthoredPort {
   if (!isRecord(value) || value.format_version !== 1 || !isRecord(value.listing))
     throw new Error("An authored port requires format_version 1 and a listing.");
@@ -427,12 +493,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       !isRecord(listing.download_asset_hints) ||
       Object.entries(listing.download_asset_hints).some(
         ([platform, hints]) =>
-          !(platforms as readonly string[]).includes(platform) ||
-          !Array.isArray(hints) ||
-          hints.length < 1 ||
-          hints.length > 8 ||
-          hints.some((hint) => !boundedText(hint, 160)) ||
-          new Set(hints.map((hint) => String(hint).toLowerCase())).size !== hints.length,
+          !(platforms as readonly string[]).includes(platform) || !validListingAssetHints(hints),
       )
     )
       throw new Error(
@@ -593,6 +654,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     checkSettingsPolicy(record.settings_qualification_v1);
   if (record.settings_observation_v1 !== undefined) projectSettingsQualification(record);
   assessUpstreamLineage(record);
+  listingDownloadAssetHints(record);
   return record;
 }
 
@@ -677,33 +739,37 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
   const listings = records
     .map(projectRouteFacts)
     .map(projectPackagePlayerFacts)
-    .map((record) => ({
-      ...structuredClone(record.listing),
-      platforms: [
-        ...(Array.isArray(record.integration?.platforms)
-          ? (record.integration.platforms as unknown[])
-          : []),
-        ...(record.listing.platforms ?? []),
-      ],
-      availability: record.listing.availability ?? "unknown",
-      ...(record.release_maintenance
-        ? {
-            release_maintenance: {
-              ...record.release_maintenance,
-              pinned_releases: Object.entries(
-                (record.integration!.release as Record<string, unknown>).direct as Record<
-                  string,
-                  { version: string; published_at?: string }
-                >,
-              ).map(([platform, pin]) => ({
-                platform,
-                version: pin.version,
-                published_at: pin.published_at ?? null,
-              })),
-            },
-          }
-        : {}),
-    }));
+    .map((record) => {
+      const hints = listingDownloadAssetHints(record);
+      return {
+        ...structuredClone(record.listing),
+        ...(hints === undefined ? {} : { download_asset_hints: hints }),
+        platforms: [
+          ...(Array.isArray(record.integration?.platforms)
+            ? (record.integration.platforms as unknown[])
+            : []),
+          ...(record.listing.platforms ?? []),
+        ],
+        availability: record.listing.availability ?? "unknown",
+        ...(record.release_maintenance
+          ? {
+              release_maintenance: {
+                ...record.release_maintenance,
+                pinned_releases: Object.entries(
+                  (record.integration!.release as Record<string, unknown>).direct as Record<
+                    string,
+                    { version: string; published_at?: string }
+                  >,
+                ).map(([platform, pin]) => ({
+                  platform,
+                  version: pin.version,
+                  published_at: pin.published_at ?? null,
+                })),
+              },
+            }
+          : {}),
+      };
+    });
   const extendedMedia = listings.some(
     (listing) =>
       Array.isArray(listing.media) &&

@@ -51,9 +51,6 @@
           "instruction": "Use the official Android APK from the upstream releases. In its launcher, select this entry’s exact game version and complete matching original folder. The app may ask for broad storage access to browse shared folders. Keep your originals separately and back up the app’s appdata folder, where accessible, before replacing the app. Android installation and updates are handled by you and the upstream app."
         }
       ]
-    },
-    "download_asset_hints": {
-      "windows-x86-64": ["reflectionhle-win64-", ".zip"]
     }
   },
   "upstream_lineage": {
@@ -68,6 +65,7 @@
     },
     "decisions": []
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

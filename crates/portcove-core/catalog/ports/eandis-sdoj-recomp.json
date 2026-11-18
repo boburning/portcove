@@ -44,11 +44,11 @@
     },
     "release_url": "https://github.com/eandis/SDOJ-Recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["sdoj.recomp.", ".win-amd64.zip"],
       "linux-x86-64": ["sdoj.recomp.", ".linux-amd64.tar.gz"]
     },
     "recommended_download_channel": "stable"
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

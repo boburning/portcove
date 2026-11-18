@@ -45,11 +45,11 @@
     },
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "download_asset_hints": {
-      "linux-x86-64": ["corsixth-", "-x86_64.appimage"],
       "macos-x86-64": ["CorsixTH-", ".dmg"],
       "macos-aarch64": ["CorsixTH-", ".dmg"]
     }
   },
+  "listing_inherit_asset_hints": ["linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

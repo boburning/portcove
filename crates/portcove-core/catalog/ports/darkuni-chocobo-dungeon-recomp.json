@@ -41,11 +41,9 @@
       "help_url": "https://github.com/darkuni/chocobo-dungeon-recomp/blob/e5991f44fac38579c349418eb0dff6028d27ca67/README.md"
     },
     "release_url": "https://github.com/darkuni/chocobo-dungeon-recomp/releases",
-    "recommended_download_channel": "stable",
-    "download_asset_hints": {
-      "windows-x86-64": ["ChocoboDungeon-", "-win64.zip"]
-    }
+    "recommended_download_channel": "stable"
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

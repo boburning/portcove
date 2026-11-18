@@ -53,10 +53,10 @@
       ]
     },
     "download_asset_hints": {
-      "windows-x86-64": ["halo-windows-release.zip"],
       "linux-x86-64": ["halo-Linux-release.zip"]
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
