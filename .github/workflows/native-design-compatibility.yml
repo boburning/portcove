@@ -963,7 +963,7 @@ jobs:
       matrix:
         include:
           - name: standing-core-stack-measurement
-            source: ad0188a6ffcfb4f6957f0f310a08f21e81c07352
+            source: 44469c41a84c0e75ce689a83ab9215a8020161c0
             scenario: native-standing-setup-source-return
     env:
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/slice3-native-evidence
