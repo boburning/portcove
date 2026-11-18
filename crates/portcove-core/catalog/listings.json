@@ -15594,6 +15594,59 @@
       "download_block_reason": "Published r5 includes transcribed retail tables and code from an upstream decompilation with no published license; its parent MIT grant excludes that work. Resolve permission for the affected package scope or supply a reviewed released replacement that removes it. Future-source fixes do not establish a repaired downloadable artifact. Permitted existing copies remain external."
     },
     {
+      "id": "blood-nblood",
+      "name": "Blood (NBlood)",
+      "original_game_title": "Blood",
+      "summary": "Play Blood through NBlood using your own matching game files.",
+      "project_url": "https://github.com/NBlood/NBlood",
+      "release_url": "https://github.com/NBlood/NBlood/releases/tag/r14388",
+      "setup_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#nblood",
+      "issue_number": 5731,
+      "listed_at": "2026-11-18",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "nblood_win64_",
+          ".7z"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Extract the matching Windows player",
+            "instruction": "Choose the nblood_win64 archive. Extract the complete archive to a folder for this game and keep nblood.exe with its packaged files."
+          },
+          {
+            "title": "Add your game files to this copy",
+            "instruction": "Use your Blood 1.21 data, including BLOOD.INI, BLOOD.RFF, GUI.RFF, SOUNDS.RFF, SURFACE.DAT, the TILES000.ART through TILES017.ART files, and VOXEL.DAT. See the guide for optional Cryptic Passage and movie files. Keep the original copy separately."
+          },
+          {
+            "title": "Run setup and play again",
+            "instruction": "Use the extracted folder as the working directory and start nblood.exe with -usecwd. Complete the startup window if it opens. After saving a working configuration, try -nosetup for direct Play. Use -setup to reopen the startup settings."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#nblood",
+        "references": [
+          {
+            "title": "Keep the game folder and its saves",
+            "instruction": "With -usecwd, keep the game folder, settings and saved data together. Back up this folder before replacing a working copy with a newer upstream release. You manage replacement and backups for this upstream copy."
+          },
+          {
+            "title": "Keep older Blood settings",
+            "instruction": "This release uses nblood_cvars.cfg. The upstream guide describes renaming an older settings.cfg to keep its settings."
+          },
+          {
+            "title": "Reuse an existing Steam or GOG copy",
+            "instruction": "The upstream player can find a supported Steam or GOG installation. To try this, start the player without -usecwd before copying originals. Keep the existing installation, and check where the player writes settings and saves on that route."
+          }
+        ]
+      }
+    },
+    {
       "id": "blood-raze",
       "name": "Blood (Raze)",
       "summary": "Play Blood in Raze using your own original PC game files.",
@@ -26526,6 +26579,51 @@
       }
     },
     {
+      "id": "duke-nukem-3d-atomic-edition-nblood",
+      "name": "Duke Nukem 3D: Atomic Edition (Rednukem)",
+      "original_game_title": "Duke Nukem 3D: Atomic Edition",
+      "summary": "Play Duke Nukem 3D: Atomic Edition through Rednukem using your own matching game files.",
+      "project_url": "https://github.com/NBlood/NBlood",
+      "release_url": "https://github.com/NBlood/NBlood/releases/tag/r14388",
+      "setup_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+      "issue_number": 7397,
+      "listed_at": "2026-11-18",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "rednukem_win64_",
+          ".7z"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Extract the matching Windows player",
+            "instruction": "Choose the rednukem_win64 archive. Extract the complete archive to a folder for this game and keep rednukem.exe with its packaged files."
+          },
+          {
+            "title": "Add your game files to this copy",
+            "instruction": "Use DUKE3D.GRP and DUKE.RTS from your own Atomic Edition installation. Keep the original copy separately."
+          },
+          {
+            "title": "Run setup and play again",
+            "instruction": "Use the extracted folder as the working directory and start rednukem.exe with -usecwd. Complete the startup window if it opens. After saving a working configuration, try -nosetup for direct Play. Use -setup to reopen the startup settings."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+        "references": [
+          {
+            "title": "Keep the game folder and its saves",
+            "instruction": "With -usecwd, keep the game folder, settings and saved data together. Back up this folder before replacing a working copy with a newer upstream release. You manage replacement and backups for this upstream copy."
+          }
+        ]
+      }
+    },
+    {
       "id": "duke-nukem-3d-raze",
       "name": "Duke Nukem 3D (Raze)",
       "summary": "Play Duke Nukem 3D in Raze using your own original PC game files.",
@@ -26590,6 +26688,51 @@
         "image_sha256": "8c04ef5da0d94761f148f784e5887ad8fe314a7dbea0a03320bd5d5cac971abb",
         "game_slug": "duke-nukem-3d",
         "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "duke-nukem-64-nblood",
+      "name": "Duke Nukem 64 (Rednukem)",
+      "original_game_title": "Duke Nukem 64",
+      "summary": "Play Duke Nukem 64 through Rednukem using your own matching game files.",
+      "project_url": "https://github.com/NBlood/NBlood",
+      "release_url": "https://github.com/NBlood/NBlood/releases/tag/r14388",
+      "setup_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+      "issue_number": 7400,
+      "listed_at": "2026-11-18",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "rednukem_win64_",
+          ".7z"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Extract the matching Windows player",
+            "instruction": "Choose the rednukem_win64 archive. Extract the complete archive to a folder for this game and keep rednukem.exe with its packaged files."
+          },
+          {
+            "title": "Add your game files to this copy",
+            "instruction": "Use your own Duke Nukem 64 cartridge dump. The tagged game scanner recognizes N64 cartridge file extensions including .z64. The optional MIDI tracks come from your own Duke Nukem 3D data. Keep the original copy separately."
+          },
+          {
+            "title": "Run setup and play again",
+            "instruction": "Use the extracted folder as the working directory and start rednukem.exe with -usecwd. Complete the startup window if it opens. After saving a working configuration, try -nosetup for direct Play. Use -setup to reopen the startup settings."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+        "references": [
+          {
+            "title": "Keep the game folder and its saves",
+            "instruction": "With -usecwd, keep the game folder, settings and saved data together. Back up this folder before replacing a working copy with a newer upstream release. You manage replacement and backups for this upstream copy."
+          }
+        ]
       }
     },
     {
@@ -44897,6 +45040,51 @@
       }
     },
     {
+      "id": "nam-napalm-nblood",
+      "name": "NAM (NAPALM) (Rednukem)",
+      "original_game_title": "NAM (NAPALM)",
+      "summary": "Play NAM (NAPALM) through Rednukem using your own matching game files.",
+      "project_url": "https://github.com/NBlood/NBlood",
+      "release_url": "https://github.com/NBlood/NBlood/releases/tag/r14388",
+      "setup_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+      "issue_number": 7402,
+      "listed_at": "2026-11-18",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "rednukem_win64_",
+          ".7z"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Extract the matching Windows player",
+            "instruction": "Choose the rednukem_win64 archive. Extract the complete archive to a folder for this game and keep rednukem.exe with its packaged files."
+          },
+          {
+            "title": "Add your game files to this copy",
+            "instruction": "For NAM, use NAM.GRP, NAM.RTS and the CON files from your own installation. For NAPALM, keep its NAPALM.GRP, NAPALM.RTS and NAPALM.CON together in a separate folder. Keep the original copy separately."
+          },
+          {
+            "title": "Run setup and play again",
+            "instruction": "Use the extracted folder as the working directory and start rednukem.exe with -usecwd. Complete the startup window if it opens. After saving a working configuration, try -nosetup for direct Play. Use -setup to reopen the startup settings."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+        "references": [
+          {
+            "title": "Keep the game folder and its saves",
+            "instruction": "With -usecwd, keep the game folder, settings and saved data together. Back up this folder before replacing a working copy with a newer upstream release. You manage replacement and backups for this upstream copy."
+          }
+        ]
+      }
+    },
+    {
       "id": "nam-raze",
       "name": "NAM (Raze)",
       "summary": "Play NAM in Raze using your own original PC game files.",
@@ -51746,6 +51934,61 @@
       }
     },
     {
+      "id": "powerslave-exhumed-dos-nblood",
+      "name": "PowerSlave / Exhumed (DOS) (PCExhumed)",
+      "original_game_title": "PowerSlave / Exhumed (DOS)",
+      "summary": "Play PowerSlave / Exhumed (DOS) through PCExhumed using your own matching game files.",
+      "project_url": "https://github.com/NBlood/NBlood",
+      "release_url": "https://github.com/NBlood/NBlood/releases/tag/r14388",
+      "setup_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#pcexhumed",
+      "issue_number": 7403,
+      "listed_at": "2026-11-18",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "pcexhumed_win64_",
+          ".7z"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Extract the matching Windows player",
+            "instruction": "Choose the pcexhumed_win64 archive. Extract the complete archive to a folder for this game and keep pcexhumed.exe with its packaged files."
+          },
+          {
+            "title": "Add your game files to this copy",
+            "instruction": "Use STUFF.DAT, DEMO.VCR and BOOK.MOV from a supported DOS PowerSlave or Exhumed retail copy or the PowerSlave demo linked by upstream. Other demo versions may differ. Keep the original copy separately."
+          },
+          {
+            "title": "Run setup and play again",
+            "instruction": "Use the extracted folder as the working directory and start pcexhumed.exe with -usecwd. Complete the startup window if it opens. After saving a working configuration, try -nosetup for direct Play. Use -setup to reopen the startup settings."
+          }
+        ],
+        "warnings": [
+          "The upstream guide reports that demo playback is unfinished. That refers to recorded gameplay, separate from using files from the supported demo edition."
+        ],
+        "help_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#pcexhumed",
+        "references": [
+          {
+            "title": "Keep the game folder and its saves",
+            "instruction": "With -usecwd, keep the game folder, settings and saved data together. Back up this folder before replacing a working copy with a newer upstream release. You manage replacement and backups for this upstream copy."
+          },
+          {
+            "title": "Adjust PCExhumed settings",
+            "instruction": "After the first run, the upstream guide describes editing settings.cfg for mouse inversion and field of view."
+          },
+          {
+            "title": "Reuse an existing Steam or GOG copy",
+            "instruction": "The upstream player can find a supported Steam or GOG installation. To try this, start the player without -usecwd before copying originals. Keep the existing installation, and check where the player writes settings and saves on that route."
+          }
+        ]
+      }
+    },
+    {
       "id": "powerslave-exhumed-dos-raze",
       "name": "PowerSlave / Exhumed (DOS) (Raze)",
       "summary": "Play PowerSlave / Exhumed (DOS) in Raze using your own original PC game files.",
@@ -54545,6 +54788,51 @@
       }
     },
     {
+      "id": "redneck-rampage-nblood",
+      "name": "Redneck Rampage (Rednukem)",
+      "original_game_title": "Redneck Rampage",
+      "summary": "Play Redneck Rampage through Rednukem using your own matching game files.",
+      "project_url": "https://github.com/NBlood/NBlood",
+      "release_url": "https://github.com/NBlood/NBlood/releases/tag/r14388",
+      "setup_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+      "issue_number": 7398,
+      "listed_at": "2026-11-18",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "rednukem_win64_",
+          ".7z"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Extract the matching Windows player",
+            "instruction": "Choose the rednukem_win64 archive. Extract the complete archive to a folder for this game and keep rednukem.exe with its packaged files."
+          },
+          {
+            "title": "Add your game files to this copy",
+            "instruction": "Use REDNECK.GRP and REDNECK.RTS from your own Redneck Rampage installation. Keep the original copy separately."
+          },
+          {
+            "title": "Run setup and play again",
+            "instruction": "Use the extracted folder as the working directory and start rednukem.exe with -usecwd. Complete the startup window if it opens. After saving a working configuration, try -nosetup for direct Play. Use -setup to reopen the startup settings."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+        "references": [
+          {
+            "title": "Keep the game folder and its saves",
+            "instruction": "With -usecwd, keep the game folder, settings and saved data together. Back up this folder before replacing a working copy with a newer upstream release. You manage replacement and backups for this upstream copy."
+          }
+        ]
+      }
+    },
+    {
       "id": "redneck-rampage-raze",
       "name": "Redneck Rampage (Raze)",
       "summary": "Play Redneck Rampage in Raze using your own original PC game files.",
@@ -54607,6 +54895,51 @@
           {
             "title": "Keep the shared profile this game uses",
             "instruction": "A Portcove-managed Windows install keeps raze_portable.ini, Save, Screenshots and Demos beside the managed player and does not share or import the normal-profile locations described next. Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          }
+        ]
+      }
+    },
+    {
+      "id": "redneck-rampage-rides-again-nblood",
+      "name": "Redneck Rampage: Rides Again (Rednukem)",
+      "original_game_title": "Redneck Rampage: Rides Again",
+      "summary": "Play Redneck Rampage: Rides Again through Rednukem using your own matching game files.",
+      "project_url": "https://github.com/NBlood/NBlood",
+      "release_url": "https://github.com/NBlood/NBlood/releases/tag/r14388",
+      "setup_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+      "issue_number": 7399,
+      "listed_at": "2026-11-18",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "rednukem_win64_",
+          ".7z"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Extract the matching Windows player",
+            "instruction": "Choose the rednukem_win64 archive. Extract the complete archive to a folder for this game and keep rednukem.exe with its packaged files."
+          },
+          {
+            "title": "Add your game files to this copy",
+            "instruction": "Use REDNECK.GRP and REDNECK.RTS from your own Rides Again installation. Keep the files separate from the first Redneck Rampage game, which uses the same names. Keep the original copy separately."
+          },
+          {
+            "title": "Run setup and play again",
+            "instruction": "Use the extracted folder as the working directory and start rednukem.exe with -usecwd. Complete the startup window if it opens. After saving a working configuration, try -nosetup for direct Play. Use -setup to reopen the startup settings."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+        "references": [
+          {
+            "title": "Keep the game folder and its saves",
+            "instruction": "With -usecwd, keep the game folder, settings and saved data together. Back up this folder before replacing a working copy with a newer upstream release. You manage replacement and backups for this upstream copy."
           }
         ]
       }
@@ -73460,6 +73793,51 @@
         ],
         "warnings": [
           "Use the exact supported Turok: Rage Wars ROM and retain its actual data root; this guide does not qualify other titles, save compatibility or native gameplay."
+        ]
+      }
+    },
+    {
+      "id": "world-war-ii-gi-nblood",
+      "name": "World War II GI (Rednukem)",
+      "original_game_title": "World War II GI",
+      "summary": "Play World War II GI through Rednukem using your own matching game files.",
+      "project_url": "https://github.com/NBlood/NBlood",
+      "release_url": "https://github.com/NBlood/NBlood/releases/tag/r14388",
+      "setup_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+      "issue_number": 7401,
+      "listed_at": "2026-11-18",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "rednukem_win64_",
+          ".7z"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Extract the matching Windows player",
+            "instruction": "Choose the rednukem_win64 archive. Extract the complete archive to a folder for this game and keep rednukem.exe with its packaged files."
+          },
+          {
+            "title": "Add your game files to this copy",
+            "instruction": "Use WW2GI.GRP, WW2GI.RTS and the CON files from your own World War II GI installation. Keep the original copy separately."
+          },
+          {
+            "title": "Run setup and play again",
+            "instruction": "Use the extracted folder as the working directory and start rednukem.exe with -usecwd. Complete the startup window if it opens. After saving a working configuration, try -nosetup for direct Play. Use -setup to reopen the startup settings."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+        "references": [
+          {
+            "title": "Keep the game folder and its saves",
+            "instruction": "With -usecwd, keep the game folder, settings and saved data together. Back up this folder before replacing a working copy with a newer upstream release. You manage replacement and backups for this upstream copy."
+          }
         ]
       }
     },
