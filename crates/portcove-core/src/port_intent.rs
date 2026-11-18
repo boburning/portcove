@@ -314,11 +314,14 @@ impl Library {
     ) -> Result<IntentAssessmentPass> {
         let mut connection = self.connection()?;
         let snapshot = connection.transaction()?;
-        let (cursor, revision): (String, i64) = snapshot.query_row(
-            "SELECT port_id, revision FROM port_intent_assessment_cursor WHERE purpose=?1",
-            [purpose.key()],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )?;
+        let (cursor, revision): (String, i64) = snapshot
+            .query_row(
+                "SELECT port_id, revision FROM port_intent_assessment_cursor WHERE purpose=?1",
+                [purpose.key()],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?
+            .unwrap_or_default();
         let total: usize = snapshot.query_row(
             &format!("SELECT COUNT(*) FROM port_intents WHERE {ASSESSABLE_INTENTS}"),
             [],
@@ -359,8 +362,10 @@ impl Library {
         last_port: &str,
     ) -> Result<()> {
         self.connection()?.execute(
-            "UPDATE port_intent_assessment_cursor
-             SET port_id=?1, revision=?2 WHERE purpose=?3 AND revision=?4",
+            "INSERT INTO port_intent_assessment_cursor (port_id, revision, purpose)
+             VALUES (?1, ?2, ?3)
+             ON CONFLICT (purpose) DO UPDATE SET port_id=excluded.port_id, revision=excluded.revision
+             WHERE port_intent_assessment_cursor.revision=?4",
             params![last_port, revision.wrapping_add(1), purpose.key(), revision],
         )?;
         Ok(())
