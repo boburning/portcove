@@ -145,12 +145,18 @@ impl PortcoveService {
                         Some("the provider could not be reached; this is earlier data".into());
                 }
                 Ok(observed)
-                    if observed.value.status_unknown.is_some()
-                        || observed
+                    if observed.value.status_unknown.is_some() || {
+                        let installed = observed
                             .value
                             .files
                             .iter()
-                            .any(|file| file.status_unknown.is_some()) =>
+                            .find(|candidate| candidate.file_id == installed_id);
+                        observed.value.files.iter().any(|candidate| {
+                            candidate.status_unknown.is_some()
+                                && (candidate.file_id == installed_id
+                                    || client.newer_than(candidate, &installed_id, installed))
+                        })
+                    } =>
                 {
                     observation.freshness = Some(observed.freshness);
                     observation.observed_version = observed.value.version.clone();

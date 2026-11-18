@@ -211,3 +211,22 @@ async fn an_unknown_provider_flag_never_claims_a_mod_is_current_or_removed() {
             .contains("did not confirm")
     );
 }
+
+#[tokio::test]
+async fn an_older_unconfirmed_file_does_not_hide_a_confirmed_update() {
+    let body = serde_json::json!({
+        "_sName": "HD Link", "_sVersion": "2.0", "_bIsObsolete": false,
+        "_tsDateUpdated": 5, "_aGame": {"_idRow": 777},
+        "_aFiles": [
+            {"_idRow": 5, "_sFile": "pack-5.zip", "_nFilesize": 10, "_tsDateAdded": 5},
+            {"_idRow": 10, "_sFile": "pack-10.zip", "_nFilesize": 10, "_tsDateAdded": 10, "_bIsArchived": false},
+            {"_idRow": 11, "_sFile": "pack-11.zip", "_nFilesize": 10, "_tsDateAdded": 11, "_bIsArchived": false}
+        ]
+    });
+    let observations = observe(vec![json_response(&body.to_string())]).await;
+    assert_eq!(observations[0].state, ProviderUpdateState::NewerFiles);
+    let [update] = observations[0].newer_files.as_slice() else {
+        panic!("expected exactly one known newer file");
+    };
+    assert_eq!(update.file_id, "11");
+}
