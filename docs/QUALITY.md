@@ -459,6 +459,24 @@ This authority does not change application cancellation, shutdown, locking,
 network, security or other behavioral deadlines, acceptance or release authority.
 A pass under a larger budget proves completion under that budget.
 
+The November 18 Native27 Windows run at `eaae775d` (output
+`2026-11-18T12-56-04-004Z-K6Cg8V`, preparation live by 13:05 UTC) retained a
+15-second timeout waiting for the backup review's “Review again” control after
+the harness deliberately changed saved data. The host refused the stale review;
+the failure capture still showed the apply awaiting settlement. Its trace records
+consecutive workspace readbacks of 11,032 and 11,063 milliseconds. The same run's
+discovery Activity row lookup expired while updated history was pending: its
+workspace reads took 20,687 and 9,169 milliseconds. The existing-install copy entry
+also expired on “Add games” while the refreshed Library still loaded; its reload
+reads took 14,075 and 14,212 milliseconds. Exact attribution of these reads to the
+frontend promises is unproven. Those two specific row/settlement lookups now have
+60 seconds, matching the existing confirmed-restore wait; copy entry separately
+waits up to 60 seconds for the exact visible enabled “Add games” control before its
+ordinary click. Activity identity, accessible name and focus assertions, consent,
+stale-review refusal, saved-data and backup assertions, retry policy, cleanup and
+application/IPC/safety deadlines remain unchanged. The original failures remain
+evidence; these calibrations alone do not establish successful native workflows.
+
 The November 17 Linux Heavy Rust calibration raises the parent's adopting-reaper
 exit wait from 5 to 30 seconds. A guarded desktop build at `95f11af1` returned
 payload status 0 and eventually published a positive quiescence receipt, but its
