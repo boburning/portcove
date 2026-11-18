@@ -1984,6 +1984,8 @@ void test("Linux large review binds source and controller and publishes an outsi
     ),
   );
   const job = record(record(record(workflow).jobs).linux_preparation_continuity);
+  assert.equal(job["runs-on"], "ubuntu-24.04");
+  assert.match(text(job.if), /inputs\.runner == 'ubuntu-24\.04'/u);
   const sourceHead = "460515d7d0e59a0455077ba2f97f1a2f281d4a09";
   assert.equal(record(job.env).SOURCE_HEAD, sourceHead);
   assert.equal(record(job.env).CONTROLLER_HEAD, "${{ github.sha }}");
@@ -1991,6 +1993,40 @@ void test("Linux large review binds source and controller and publishes an outsi
   assert.ok(!Object.hasOwn(record(job.env), "PORTCOVE_RETAINED_EVIDENCE_DIR"));
   assert.ok(Array.isArray(job.steps));
   const steps: unknown[] = job.steps;
+  const profile = record(required(steps.find((value) => record(value).id === "namespace_profile")));
+  assert.equal(text(profile.run), "node scripts/desktop-linux-namespace-profile.mts --prepare");
+  const preflight = record(
+    required(
+      steps.find(
+        (value) =>
+          record(value).name === "Admit the maintained namespace mechanism before building",
+      ),
+    ),
+  );
+  assert.equal(
+    text(preflight.run),
+    "node scripts/run-rust-tests.mts --guard-command node scripts/desktop-linux-namespace-preflight.mts",
+  );
+  assert.equal(preflight["timeout-minutes"], 3);
+  const cleanup = record(
+    required(
+      steps.find(
+        (value) => record(value).name === "Withdraw only the quiescent qualification profile",
+      ),
+    ),
+  );
+  assert.equal(text(cleanup.if), "${{ always() && steps.namespace_profile.outcome == 'success' }}");
+  assert.equal(
+    text(cleanup.run),
+    '"$PORTCOVE_NAMESPACE_ORIGINAL_NODE" scripts/desktop-linux-namespace-profile.mts --cleanup',
+  );
+  assert.ok(steps.indexOf(profile) < steps.indexOf(preflight));
+  assert.ok(
+    steps.indexOf(cleanup) >
+      steps.findIndex(
+        (value) => record(value).name === "Observe the exact retained-page review and cancellation",
+      ),
+  );
   const build = record(
     required(
       steps.find(
@@ -2142,6 +2178,17 @@ void test("Linux large review binds source and controller and publishes an outsi
     mkdirSync(path.dirname(file), { recursive: true });
     writeFileSync(file, bytes);
   }
+  const namespaceReports = path.join(checkout, "work/linux-namespace-profile");
+  mkdirSync(namespaceReports);
+  const namespaceFixture: Record<string, string> = {
+    "activation.json": '{"restriction":"1","observed":"qualification only"}\n',
+    "cleanup.json": '{"profile_removed":true,"restriction":"1"}\n',
+    "profile.json": '{"name":"portcove-qualification-fixture"}\n',
+    "profile.txt": "fixture per-executable policy\n",
+    "quiescence.json": '{"matches":[],"unknown":[]}\n',
+  };
+  for (const [name, bytes] of Object.entries(namespaceFixture))
+    writeFileSync(path.join(namespaceReports, name), bytes);
   mkdirSync(path.join(checkout, "scripts"));
   for (const file of ["native-backup-evidence.mts", "runtime-values.mts"])
     writeFileSync(
@@ -2170,6 +2217,11 @@ void test("Linux large review binds source and controller and publishes an outsi
       "large-review-config.json",
       "large-review/report.json",
       "large-review/screenshot.png",
+      "namespace-profile/activation.json",
+      "namespace-profile/cleanup.json",
+      "namespace-profile/profile.json",
+      "namespace-profile/profile.txt",
+      "namespace-profile/quiescence.json",
       "private-x11-abc123/outer-join.json",
       "private-x11-abc123/preflight.json",
     ],
@@ -2179,7 +2231,11 @@ void test("Linux large review binds source and controller and publishes an outsi
     const bytes = readFileSync(
       path.join(decoded, "desktop-verify/slice3/native", text(entry.retained)),
     );
-    assert.deepEqual(bytes, readFileSync(path.join(root, text(entry.original))));
+    const original = text(entry.original);
+    const source = original.startsWith("namespace-profile/")
+      ? path.join(namespaceReports, original.slice("namespace-profile/".length))
+      : path.join(root, original);
+    assert.deepEqual(bytes, readFileSync(source));
     assert.equal(entry.sha256, createHash("sha256").update(bytes).digest("hex"));
     assert.equal(entry.bytes, bytes.length);
   }

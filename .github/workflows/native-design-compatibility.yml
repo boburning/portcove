@@ -276,9 +276,9 @@ jobs:
           retention-days: 14
 
   linux_preparation_continuity:
-    if: ${{ inputs.operation == 'linux-preparation-continuity' && inputs.runner == 'ubuntu-22.04' && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}
+    if: ${{ inputs.operation == 'linux-preparation-continuity' && inputs.runner == 'ubuntu-24.04' && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}
     name: Linux large setup review
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
       SOURCE_HEAD: 460515d7d0e59a0455077ba2f97f1a2f281d4a09
@@ -316,7 +316,7 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_ENV, 'PORTCOVE_RETAINED_EVIDENCE_DIR=' + retained + '\n');
           fs.mkdirSync('work/linux-large-setup-review', { recursive: true });
           fs.writeFileSync('work/linux-large-setup-review/host.json', JSON.stringify({
-            revision, controller: process.env.CONTROLLER_HEAD, runner: 'ubuntu-22.04', platform: process.platform,
+            revision, controller: process.env.CONTROLLER_HEAD, runner: 'ubuntu-24.04', platform: process.platform,
             architecture: process.arch, kernel: read('uname', ['-r']),
             retained_evidence: retained,
             image_os: process.env.ImageOS, image_version: process.env.ImageVersion,
@@ -325,6 +325,12 @@ jobs:
             scope: 'Ordinary hosted Linux development fixture; no minimum OS, installed package or physical device claim',
           }, null, 2) + '\n', { flag: 'wx' });
           NODE
+      - name: Grant user namespaces only to this disposable qualification interpreter
+        id: namespace_profile
+        run: node scripts/desktop-linux-namespace-profile.mts --prepare
+      - name: Admit the maintained namespace mechanism before building
+        timeout-minutes: 3
+        run: node scripts/run-rust-tests.mts --guard-command node scripts/desktop-linux-namespace-preflight.mts
       - name: Install the existing disposable Linux prerequisites
         timeout-minutes: 15
         run: |
@@ -382,6 +388,9 @@ jobs:
         timeout-minutes: 15
         run: |
           node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-large-setup-review/large-review-config.json"
+      - name: Withdraw only the quiescent qualification profile
+        if: ${{ always() && steps.namespace_profile.outcome == 'success' }}
+        run: '"$PORTCOVE_NAMESPACE_ORIGINAL_NODE" scripts/desktop-linux-namespace-profile.mts --cleanup'
       - name: Retain bounded Linux reports and images in ordinary job logs
         if: always()
         run: |
@@ -404,6 +413,11 @@ jobs:
               directories.push(path.join(root, entry.name));
             }
           }
+          const namespaceReports = path.resolve('work/linux-namespace-profile');
+          if (fs.existsSync(namespaceReports)) {
+            assert.ok(fs.lstatSync(namespaceReports).isDirectory() && !fs.lstatSync(namespaceReports).isSymbolicLink(), 'Namespace reports must be an owned directory');
+            directories.push(namespaceReports);
+          }
           const inventory = [];
           for (const directory of directories.sort()) {
             for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
@@ -416,7 +430,7 @@ jobs:
               const extension = path.extname(entry.name) === '.txt' ? '.log' : path.extname(entry.name);
               const name = String(inventory.length).padStart(3, '0') + extension;
               fs.writeFileSync(path.join(native, name), bytes, { flag: 'wx' });
-              inventory.push({ original: path.relative(root, source), retained: name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
+              inventory.push({ original: directory === namespaceReports ? 'namespace-profile/' + entry.name : path.relative(root, source), retained: name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
             }
           }
           fs.writeFileSync(path.join(encoded, 'collection.json'), JSON.stringify({
