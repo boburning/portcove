@@ -53,6 +53,11 @@ established envelope versions and compatibility with earlier strict readers.
 Core retains malformed/future optional envelopes without interpreting them;
 Desktop ignores unsupported envelope versions, unknown kinds and unsafe links.
 Authoring remains strict. Older documents may omit the field entirely.
+An incoming signed directory below format 12 preserves an existing implementation
+description only when the project URL and full original-game identity, including
+source editions, match exactly. Other delivered fields still replace their prior
+values. A format-12 omission clears the description; a changed project or game
+scope does not inherit it. This compatibility rule grants no operational rights.
 Changing only this explanatory envelope does not invalidate a retained upstream
 release observation: the observer declaration hash excludes it.
 

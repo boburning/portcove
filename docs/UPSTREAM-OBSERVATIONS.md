@@ -1196,6 +1196,10 @@ the repository, hints, restrictions, setup or operational route invalidate reuse
 Core exports the exact supplied directory to format 11 before enrichment; this
 preserves its original guide and current strict-reader compatibility, while the
 authored directory and public browse projection retain format 12 metadata.
+Newer clients retain their existing implementation descriptions when a format-11
+row has the same project URL and exact original-game identity. The older delivery
+cannot express that field; a format-12 delivery can explicitly clear it. Changed
+projects or game/edition identities do not inherit descriptions.
 
 Prior observations are reused only after the existing compiled repository
 verifier succeeds, the exact logical target is referenced by its role, and its

@@ -765,6 +765,46 @@ async fn signed_shared_observation_reopens_into_offline_preliminary_download_bro
 }
 
 #[tokio::test]
+async fn signed_legacy_observation_directory_preserves_authored_comparison_descriptions_on_reopen()
+{
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let embedded = Catalog::embedded().unwrap();
+    let ids = ["2ship2harkinian", "zelda64-recomp"];
+    let mut legacy = embedded.listing_document().export_format(11).unwrap();
+    legacy
+        .listings
+        .retain(|listing| ids.contains(&listing.id.as_str()));
+    assert_eq!(legacy.listings.len(), ids.len());
+    assert!(
+        legacy
+            .listings
+            .iter()
+            .all(|listing| listing.implementation.is_none())
+    );
+    let candidate = json!({
+        "listing_delivery_schema":1,"revision":1,"withdrawn_ids":[],"directory":legacy
+    });
+    let root = publish(&fixture, &key, 1, &candidate).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let service = PortcoveService::new(Library::open(library.root()).unwrap()).unwrap();
+    for id in ids {
+        let original = embedded.listing(id).unwrap();
+        assert!(original.implementation.is_some());
+        assert_eq!(
+            service.catalog().listing(id).unwrap().implementation,
+            original.implementation
+        );
+    }
+    assert_eq!(
+        serde_json::to_value(service.catalog().authoritative_document()).unwrap(),
+        serde_json::to_value(embedded.authoritative_document()).unwrap()
+    );
+}
+
+#[tokio::test]
 async fn observer_produced_target_reaches_signed_cache_and_preliminary_browse_without_a_route_grant()
  {
     // Node's maintained contract recreates these exact bytes through the real
