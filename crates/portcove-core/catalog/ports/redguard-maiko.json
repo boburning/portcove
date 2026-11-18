@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "redguard-maiko",
+    "issue_number": 6668,
+    "name": "The Elder Scrolls Adventures: Redguard / Maiko",
+    "original_game_title": "The Elder Scrolls Adventures: Redguard",
+    "summary": "Build a native Redguard player locally from the supported Glide executable in your own GOG or CD copy.",
+    "project_url": "https://github.com/michidk/maiko",
+    "listed_at": "2026-11-18",
+    "platforms": [],
+    "availability": "source-only",
+    "release_url": "https://github.com/michidk/maiko/releases/tag/v1.1.0",
+    "setup_url": "https://github.com/michidk/maiko/blob/v1.1.0/README.md#setup",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Build from your copy of Redguard",
+          "instruction": "Give the upstream Maiko browser builder RGFX.EXE from your own supported GOG or CD installation. It builds locally in the browser. The Steam release supplies a different executable. Windows and Linux also have an upstream command-line builder using a matching runtime kit and Wasmtime."
+        },
+        {
+          "title": "Keep the generated package together",
+          "instruction": "Extract the generated ZIP into its own writable folder. Open maiko-launcher.exe on Windows or maiko on Linux or Mac and choose your Redguard folder if it is not found. Then choose Play Redguard. Reopen the launcher to play with your saved installation choice or to change settings. Use redguard-native for the project's direct-play options. The generated player needs 64-bit Windows 10 or later, Linux x86-64 with glibc 2.36 or later and a Vulkan or OpenGL graphics driver, or macOS 11 or later on Intel or Apple silicon."
+        }
+      ],
+      "references": [
+        {
+          "title": "Keep the actual Redguard saves",
+          "instruction": "By default Maiko and the original DOS game share SAVEGAME and settings in the writable Redguard game folder. If you use --user-dir, keep that folder instead. Preserve a previous setup's user-data folder until you have checked your saves in the new build. Rebuild through the upstream builder when replacing Maiko."
+        }
+      ],
+      "warnings": [
+        "The release assets are preparation tools and runtime kits. Portcove does not create a player, replace it or back up the external game profile."
+      ]
+    },
+    "download_block_reason": "Upstream publishes build tools and runtime kits. Use its build guide to create a player from your own Redguard files."
+  }
+}
