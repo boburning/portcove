@@ -137,12 +137,29 @@ async fn carry_respects_other_retained_declarations_for_new_files_and_recorded_r
 
     // A current non-owning registration route has no executable hints. It
     // must not impose new execution qualification on this retained pair.
-    let mut external = Catalog::embedded().unwrap().port("dkr-r").unwrap().clone();
-    external.id = ID.into();
-    assert!(external.executable_hints.is_empty());
     let mut document = serde_json::to_value(catalog().authoritative_document()).unwrap();
-    document["ports"][0] = serde_json::to_value(external).unwrap();
+    document["ports"][0]["adapter"] = serde_json::json!("staged-source-portable");
+    document["ports"][0]["channels"] = serde_json::json!(["stable"]);
+    document["ports"][0]["executable_hints"] = serde_json::json!({});
+    document["ports"][0]["persistent_paths"] = serde_json::json!([]);
+    document["ports"][0]["persistent_file_patterns"] = serde_json::json!([]);
+    document["ports"][0]["release"] = serde_json::json!({
+        "provider": "user-prepared", "repository": "example/game",
+        "user_prepared": {"windows-x86-64": {
+            "trust": "user-selected", "version": "user-managed",
+            "archive_name": "", "archive_size": 0, "archive_sha256": "",
+            "immutable_tree_sha256": "", "executable": "", "mutable_paths": []
+        }}
+    });
     service.replace_catalog_for_test(Catalog::from_json(&document.to_string()).unwrap());
+    assert!(
+        service
+            .catalog
+            .port(ID)
+            .unwrap()
+            .executable_hints
+            .is_empty()
+    );
     fs::remove_file(active.path.join("current-only/fresh.txt")).unwrap();
     fs::remove_file(active.path.join("now_profile.txt")).unwrap();
     fs::write(
