@@ -137,14 +137,14 @@ function ActivityDiagnosticSession({
             </p>
           </div>
           <div className="grid min-w-0 gap-1">
-            <h5 className="text-xs font-semibold">{t("diagnostic.stdout")}</h5>
+            <h5 className="text-xs leading-tight font-semibold">{t("diagnostic.stdout")}</h5>
             <ReadOnlyTextField
               label={t("diagnostic.stdoutLabel")}
               value={phase.stdout.text || t("diagnostic.stdoutEmpty")}
             />
           </div>
           <div className="grid min-w-0 gap-1">
-            <h5 className="text-xs font-semibold">{t("diagnostic.stderr")}</h5>
+            <h5 className="text-xs leading-tight font-semibold">{t("diagnostic.stderr")}</h5>
             <ReadOnlyTextField
               label={t("diagnostic.stderrLabel")}
               value={phase.stderr.text || t("diagnostic.stderrEmpty")}
