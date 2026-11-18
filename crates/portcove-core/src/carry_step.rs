@@ -5,8 +5,8 @@
 //! only part of the source's files (design section 2, N1):
 //!
 //! 1. **Stage.** Each planned copy is written to a `.portcove-carry-*`
-//!    temporary file beside its destination and hashed against the bytes the
-//!    plan approved. Nothing at a destination path changes.
+//!    temporary file in its nearest existing destination ancestor and hashed
+//!    against the bytes the plan approved. Nothing at a destination path changes.
 //! 2. **Verify.** Every source and destination is hashed again and compared
 //!    with the plan (absent, or the bytes the plan approved replacing).
 //! 3. **Publish.** Only then are the temporary files renamed into place and
@@ -273,11 +273,7 @@ pub(crate) fn required_bytes(
 
 /// Create the missing parents of `relative` one folder at a time, refusing to
 /// pass through a link, a case variant or a non-directory (review finding 2).
-fn create_parents(
-    root: &Path,
-    relative: &str,
-    created: &mut CreatedDirectories,
-) -> Result<Option<PathBuf>> {
+fn create_parents(root: &Path, relative: &str) -> Result<Option<PathBuf>> {
     let parts = relative.split('/').collect::<Vec<_>>();
     let mut directory = root.to_path_buf();
     let mut walked = Vec::new();
@@ -290,10 +286,7 @@ fn create_parents(
                     "a carried file's folder is not an ordinary folder",
                 ));
             }
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                fs::create_dir(&next)?;
-                created.record(&next);
-            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => fs::create_dir(&next)?,
             Err(error) => return Err(error.into()),
         }
         walked.push(*part);
@@ -308,64 +301,30 @@ fn create_parents(
     Ok(Some(directory))
 }
 
-/// Best-effort cleanup owns only folders this attempt actually created. Keep
-/// handles so a later replacement at the same path cannot inherit ownership.
-/// Never recurse: a published copy or another writer's file keeps its folder.
-#[derive(Debug)]
-struct CreatedDirectories {
-    root: PathBuf,
-    root_identity: Option<fs::File>,
-    entries: Vec<(PathBuf, fs::File)>,
-}
-
-impl CreatedDirectories {
-    fn new(root: &Path) -> Self {
-        Self {
-            root: root.to_path_buf(),
-            root_identity: crate::external_runtime::open_identity_handle(root).ok(),
-            entries: Vec::new(),
-        }
-    }
-
-    fn record(&mut self, path: &Path) {
-        if let Ok(identity) = crate::external_runtime::open_identity_handle(path)
-            && identity.metadata().is_ok_and(|metadata| metadata.is_dir())
-        {
-            self.entries.push((path.to_path_buf(), identity));
-        }
-    }
-
-    fn cleanup(&mut self) {
-        let Some(root_identity) = self.root_identity.as_ref() else {
-            return;
-        };
-        if crate::path::refuse_symlink_ancestors(&self.root).is_err()
-            || !crate::external_runtime::open_identity_handle(&self.root)
-                .and_then(|current| crate::external_runtime::same_file(root_identity, &current))
-                .unwrap_or(false)
-        {
-            return;
-        }
-        for (path, identity) in self.entries.drain(..).rev() {
-            if crate::path::refuse_symlink_ancestors(&path).is_err() {
-                continue;
-            }
-            let same = crate::external_runtime::open_identity_handle(&path)
-                .and_then(|current| {
-                    if !current.metadata()?.is_dir() {
-                        return Ok(false);
-                    }
-                    crate::external_runtime::same_file(&identity, &current)
-                })
-                .unwrap_or(false);
-            drop(identity);
-            if same {
-                // Never traverse contents; a nonempty directory is retained.
-                // Cleanup failure never changes the carry's original result.
-                let _ = fs::remove_dir(path);
+/// Stage on the destination's existing volume without creating its missing
+/// folders. New descendants of that ancestor remain on that volume; an
+/// intervening mount/replacement can only make publication fail, never turn
+/// it into a non-atomic copy fallback.
+fn staging_parent(root: &Path, relative: &str) -> Result<Option<PathBuf>> {
+    let parts = relative.split('/').collect::<Vec<_>>();
+    let mut directory = root.to_path_buf();
+    let mut walked = Vec::new();
+    for part in &parts[..parts.len().saturating_sub(1)] {
+        walked.push(*part);
+        match exact_parents(root, &walked.join("/"), &Listings::default())? {
+            Some(false) => return Ok(None),
+            None => break,
+            Some(true) => {
+                let next = directory.join(part);
+                if !fs::symlink_metadata(&next)?.is_dir() {
+                    return Ok(None);
+                }
+                directory = next;
             }
         }
     }
+    crate::path::refuse_symlink_ancestors(&directory)?;
+    Ok(Some(directory))
 }
 
 /// The sizes inspection found, for the space check and to bound each copy.
@@ -407,7 +366,6 @@ pub(crate) struct Staged {
     /// Paths whose target changed since planning: the switch writes nothing
     /// there and records them as kept separately.
     pub(crate) changed_targets: Vec<String>,
-    created_directories: CreatedDirectories,
 }
 
 impl Drop for Staged {
@@ -415,7 +373,6 @@ impl Drop for Staged {
         for copy in &self.copies[self.done.min(self.copies.len())..] {
             let _ = fs::remove_file(&copy.temporary);
         }
-        self.created_directories.cleanup();
     }
 }
 
@@ -443,7 +400,7 @@ fn at(path: &str) -> impl Fn(CarryStop) -> CarryStop + '_ {
 
 /// Stage and verify every copy, replacement and removal in `plan`, against
 /// the bytes the plan approved. `available` and `total` describe the
-/// target's volume.
+/// target's volume. Missing destination folders are created only during publish.
 pub(crate) fn stage(
     (source_root, target_root): (&Path, &Path),
     plan: &[PlannedPath],
@@ -467,7 +424,6 @@ pub(crate) fn stage(
         done: 0,
         removals: Vec::new(),
         changed_targets: Vec::new(),
-        created_directories: CreatedDirectories::new(target_root),
     };
     for planned in plan {
         checkpoint()?;
@@ -494,9 +450,7 @@ pub(crate) fn stage(
             .approved_source
             .as_deref()
             .ok_or_else(|| PortcoveError::state("a planned copy has no approved bytes"))?;
-        let Some(parent) =
-            create_parents(target_root, &planned.path, &mut staged.created_directories)?
-        else {
+        let Some(parent) = staging_parent(target_root, &planned.path)? else {
             staged.changed_targets.push(planned.path.clone());
             continue;
         };
@@ -674,6 +628,16 @@ impl Staged {
         while self.done < self.copies.len() {
             let copy = &self.copies[self.done];
             if !self.unchanged(&copy.path, &copy.destination, copy.seen)? {
+                kept.push(copy.path.clone());
+                let _ = fs::remove_file(&copy.temporary);
+                self.done += 1;
+                continue;
+            }
+            // Missing destination folders are created only after every copy
+            // has staged and verified. A changed parent remains separate.
+            if create_parents(&self.target_root, &copy.path)?.is_none()
+                || !self.unchanged(&copy.path, &copy.destination, copy.seen)?
+            {
                 kept.push(copy.path.clone());
                 let _ = fs::remove_file(&copy.temporary);
                 self.done += 1;

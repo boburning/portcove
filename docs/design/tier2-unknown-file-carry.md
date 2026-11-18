@@ -206,7 +206,7 @@ taking 60.
    check (section 7) against what is still needed. The copy then runs in two
    phases (N1), so T never ends up with only part of A's files:
    1. **Stage.** For each planned copy, write a `.portcove-carry-*` temporary
-      file beside the destination and hash it against the plan. Nothing at a
+      file in the nearest existing destination ancestor and hash it against the plan. Nothing at a
       destination path changes in this phase.
    2. **Verify.** Re-hash every source and every destination (M4) and compare
       with the plan (absent, or the digest the plan approved replacing).
@@ -285,13 +285,12 @@ Placing the step after it puts declared data and additive adoption
 (`service/psx_mod_data.rs:882-887`) before the undeclared files, and keeps the
 final `verify_critical` after the carry.
 
-A stopped or dropped carry makes a best-effort, nonrecursive cleanup of empty
-folders created by that attempt, deepest first, after deleting its temporary
-files. Pre-existing folders are never cleanup candidates. Held filesystem
-identities prevent a replacement root or folder from inheriting that ownership;
-links, changed paths, nonempty folders and unavailable identities are retained.
-Cleanup does not replace the original failure. This does not discover folders
-left by an earlier process crash or delete arbitrary empty player folders.
+Staging uses the nearest existing destination ancestor on the destination
+volume and creates no missing destination folders. Publication creates them
+only after all copies verify, then rechecks the destination before its atomic
+rename. Planning, staging and verification holds therefore leave no new empty
+destination folders. A partial publication or prior process crash may still
+leave folders; this does not authorize deleting them or player-created folders.
 
 **Time under the port lock (N4).** Planning hashes the eligible files in A and
 T, and staging hashes each copy again, so a large tree adds time to every

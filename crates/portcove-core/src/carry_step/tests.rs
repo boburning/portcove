@@ -106,7 +106,7 @@ fn descended(old: &[u8], new: Option<&[u8]>) -> Rows {
 const PLENTY: (u64, u64) = (u64::MAX / 2, 10 * 1024 * 1024 * 1024);
 
 #[test]
-fn copies_stage_beside_the_destination_and_publish_atomically() {
+fn copies_stage_on_the_destination_volume_and_publish_atomically() {
     let fixture = fixture();
     write(&fixture.source, "settings.ini", b"lives=9");
     write(&fixture.source, "profiles/one/slot.cfg", b"slot");
@@ -129,7 +129,7 @@ fn copies_stage_beside_the_destination_and_publish_atomically() {
         .filter_map(|entry| entry.unwrap().file_name().into_string().ok())
         .filter(|name| name.starts_with(STAGING_PREFIX))
         .count();
-    assert_eq!(staging, 1);
+    assert_eq!(staging, 2);
     assert_eq!(staged.written().len(), 2);
     assert!(staged.publish().unwrap().is_empty());
     assert_eq!(
@@ -360,10 +360,11 @@ fn a_source_growing_past_its_planned_size_stops_the_copy() {
 #[test]
 fn a_link_swapped_in_before_publishing_is_never_written_through() {
     let fixture = fixture();
+    fs::create_dir(fixture.target.join("profiles")).unwrap();
     write(&fixture.source, "profiles/slot.cfg", b"slot");
     let (_, staged) = run(&fixture, &["profiles/slot.cfg"], PLENTY);
     let staged = staged.unwrap();
-    // Replace the freshly created folder with a link elsewhere.
+    // Replace the existing destination folder with a link elsewhere.
     let elsewhere = fixture.target.parent().unwrap().join("elsewhere");
     fs::create_dir(&elsewhere).unwrap();
     let staging = fs::read_dir(fixture.target.join("profiles"))
@@ -412,14 +413,21 @@ fn sensitive_entries_are_never_read() {
 }
 
 #[test]
-fn dropping_nested_staging_removes_only_directories_created_by_this_carry() {
+fn dropped_nested_staging_creates_no_destination_directories() {
     let fixture = fixture();
     fs::create_dir(fixture.target.join("existing")).unwrap();
     write(&fixture.source, "existing/new/deep/slot.cfg", b"save");
     let (_, staged) = run(&fixture, &["existing/new/deep/slot.cfg"], PLENTY);
-    drop(staged.unwrap());
-    assert!(fixture.target.join("existing").is_dir());
+    let staged = staged.unwrap();
     assert!(!fixture.target.join("existing/new").exists());
+    assert_eq!(
+        fs::read_dir(fixture.target.join("existing"))
+            .unwrap()
+            .count(),
+        1
+    );
+    drop(staged);
+    assert!(fixture.target.join("existing").is_dir());
     assert_eq!(
         fs::read_dir(fixture.target.join("existing"))
             .unwrap()
@@ -433,7 +441,7 @@ fn dropping_nested_staging_removes_only_directories_created_by_this_carry() {
 }
 
 #[test]
-fn failed_nested_copy_cleans_created_directories_without_losing_the_cause() {
+fn failed_nested_copy_creates_no_directories_and_preserves_the_cause() {
     let fixture = fixture();
     let relative = "new/deep/slot.cfg";
     write(&fixture.source, relative, b"save");
@@ -450,54 +458,39 @@ fn failed_nested_copy_cleans_created_directories_without_losing_the_cause() {
         &ok,
     );
     assert!(matches!(staged, Err(CarryStop::SourceChanged(path)) if path == relative));
-    assert!(!fixture.target.join("new").exists());
+    assert_eq!(fs::read_dir(&fixture.target).unwrap().count(), 0);
     assert_eq!(fs::read(fixture.source.join(relative)).unwrap(), b"save");
 }
 
 #[test]
-fn created_directory_with_another_writers_file_is_preserved() {
+fn destination_directories_created_by_another_writer_are_preserved_on_drop() {
     let fixture = fixture();
     write(&fixture.source, "new/deep/slot.cfg", b"save");
     let (_, staged) = run(&fixture, &["new/deep/slot.cfg"], PLENTY);
     let staged = staged.unwrap();
-    write(&fixture.target, "new/deep/player.cfg", b"player settings");
+    fs::create_dir_all(fixture.target.join("new/deep")).unwrap();
     drop(staged);
+    assert!(fixture.target.join("new/deep").is_dir());
     assert_eq!(
-        fs::read(fixture.target.join("new/deep/player.cfg")).unwrap(),
-        b"player settings"
+        fs::read_dir(fixture.target.join("new/deep"))
+            .unwrap()
+            .count(),
+        0
     );
-    assert!(!fixture.target.join("new/deep/slot.cfg").exists());
     assert_eq!(sweep(&fixture.target).unwrap(), 0);
 }
 
 #[test]
-fn replaced_created_directory_does_not_inherit_cleanup_ownership() {
+fn publish_rechecks_new_destination_folders_and_preserves_player_files() {
     let fixture = fixture();
     write(&fixture.source, "new/deep/slot.cfg", b"save");
     let (_, staged) = run(&fixture, &["new/deep/slot.cfg"], PLENTY);
     let staged = staged.unwrap();
-    let moved = fixture.target.join("moved");
-    fs::rename(fixture.target.join("new"), &moved).unwrap();
-    fs::create_dir_all(fixture.target.join("new/deep")).unwrap();
-    drop(staged);
-    assert!(fixture.target.join("new/deep").is_dir());
-    // The moved staging tree is outside the original placement. Cleanup must
-    // not search for it or delete through an unowned replacement parent.
-    assert!(moved.join("deep").is_dir());
-    assert_eq!(sweep(&moved).unwrap(), 1);
-}
-
-#[test]
-fn replaced_target_root_does_not_inherit_created_directory_cleanup() {
-    let fixture = fixture();
-    write(&fixture.source, "new/deep/slot.cfg", b"save");
-    let (_, staged) = run(&fixture, &["new/deep/slot.cfg"], PLENTY);
-    let staged = staged.unwrap();
-    let moved = fixture.target.with_file_name("moved-target");
-    fs::rename(&fixture.target, &moved).unwrap();
-    fs::create_dir_all(fixture.target.join("new/deep")).unwrap();
-    drop(staged);
-    assert!(fixture.target.join("new/deep").is_dir());
-    assert!(moved.join("new/deep").is_dir());
-    assert_eq!(sweep(&moved).unwrap(), 1);
+    write(&fixture.target, "new/deep/slot.cfg", b"player copy");
+    assert_eq!(staged.publish().unwrap(), vec!["new/deep/slot.cfg"]);
+    assert_eq!(
+        fs::read(fixture.target.join("new/deep/slot.cfg")).unwrap(),
+        b"player copy"
+    );
+    assert_eq!(sweep(&fixture.target).unwrap(), 0);
 }
