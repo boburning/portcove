@@ -81,6 +81,19 @@ impl PortcoveService {
         active: &InstallRecord,
         target: &InstallRecord,
     ) -> Result<Option<CarryOutcome>> {
+        self.carry_unknown_files_with_space(active, target, &|root| {
+            Ok((fs4::available_space(root)?, fs4::total_space(root)?))
+        })
+    }
+
+    /// Keep the volume observation replaceable for deterministic low-space
+    /// lifecycle fixtures without filling the host's actual game volume.
+    pub(super) fn carry_unknown_files_with_space(
+        &self,
+        active: &InstallRecord,
+        target: &InstallRecord,
+        observe_space: &dyn Fn(&std::path::Path) -> Result<(u64, u64)>,
+    ) -> Result<Option<CarryOutcome>> {
         if active.id == target.id
             || !self.carry_participates(active)?
             || !self.carry_participates(target)?
@@ -290,10 +303,7 @@ impl PortcoveService {
 
         // Step 3: stage, verify and publish.
         carry_step::sweep(&target_root)?;
-        let space = (
-            fs4::available_space(&target_root)?,
-            fs4::total_space(&target_root)?,
-        );
+        let space = observe_space(&target_root)?;
         let mut outcome = CarryOutcome::default();
         let kept = match carry_step::stage(
             (&source_root, &target_root),
