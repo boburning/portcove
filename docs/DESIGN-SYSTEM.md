@@ -1152,6 +1152,13 @@ known location and backup actions; exclusions and history stay visible. Manage
 keeps one ownership/path summary and puts future-install choices after its
 regular action rows.
 
+Per-game setup choices distinguish an unread choice, an active read and a settled
+read failure. The initial read shows Reading choices… and leaves unknown choices
+unselected. A failed read clears the busy state, keeps changes unavailable and
+offers Read again. The recovery control retains focus while rereading and after
+success. A later failed reread preserves the last confirmed choice without
+enabling changes; another game or library cannot inherit its pending result.
+
 Activity recovery uses flat linked rows with recorded paths and guidance behind
 each row's disclosure. Recovery observations remain separate from task records;
 links use a real operation reference when one is available. Failed/unfinished
