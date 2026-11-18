@@ -79,11 +79,11 @@ export function checkCatalogAdvisories(
       !features.has(r.feature) ||
       typeof r.platform !== "string" ||
       !platforms.includes(r.platform) ||
-      (!["managed", "accepted-external", "existing-copy", "user-selected"].includes(
-        String(r.route),
-      ) &&
+      typeof r.route !== "string" ||
+      (!["managed", "accepted-external", "existing-copy", "user-selected"].includes(r.route) &&
         !(r.route === "upstream-setup" && r.launch_behavior != null)) ||
-      !["observed", "upstream-reported", "manual-requirement"].includes(String(r.evidence)) ||
+      typeof r.evidence !== "string" ||
+      !["observed", "upstream-reported", "manual-requirement"].includes(r.evidence) ||
       !descriptive(r.explanation) ||
       !Number.isSafeInteger(r.observed_at) ||
       Number(r.observed_at) <= 0 ||
@@ -111,11 +111,13 @@ export function checkCatalogAdvisories(
         r.feature !== "launch" ||
         !r.release ||
         !r.artifact_sha256 ||
-        !["observed", "upstream-reported"].includes(String(r.evidence)) ||
+        !["observed", "upstream-reported"].includes(r.evidence) ||
         !isRecord(launch) ||
         Object.keys(launch).length !== 2 ||
-        !launchBehaviors.includes(String(launch.first_launch)) ||
-        !launchBehaviors.includes(String(launch.repeat_launch))
+        typeof launch.first_launch !== "string" ||
+        !launchBehaviors.includes(launch.first_launch) ||
+        typeof launch.repeat_launch !== "string" ||
+        !launchBehaviors.includes(launch.repeat_launch)
       )
         throw new Error(
           "Launch behavior requires an exact release, artifact and both launch stages.",

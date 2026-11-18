@@ -725,6 +725,17 @@ void test("reference guides select strict new formats and retain actions and war
       { ...valid, records: [{ ...launch, artifact_sha256: null }] },
       { ...valid, records: [{ ...launch, release: null }] },
       { ...valid, records: [{ ...launch, launch_behavior: { first_launch: "unknown" } }] },
+      { ...valid, records: [{ ...launch, route: ["managed"] }] },
+      { ...valid, records: [{ ...launch, evidence: ["observed"] }] },
+      {
+        ...valid,
+        records: [
+          {
+            ...launch,
+            launch_behavior: { ...launch.launch_behavior, first_launch: ["unknown"] },
+          },
+        ],
+      },
     ]) {
       assert.throws(() => checkCatalogAdvisories(unscoped, platforms, 2));
     }

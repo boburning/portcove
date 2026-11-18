@@ -27193,6 +27193,16 @@
           "id": {
             "type": "string"
           },
+          "launch_behavior": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LaunchBehavior"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "observed_at": {
             "description": "Unix seconds. A newer date never proves an earlier failure is fixed.",
             "format": "uint64",
@@ -28073,6 +28083,22 @@
         ],
         "type": "string"
       },
+      "LaunchBehavior": {
+        "additionalProperties": false,
+        "properties": {
+          "first_launch": {
+            "$ref": "#/$defs/LaunchEntryBehavior"
+          },
+          "repeat_launch": {
+            "$ref": "#/$defs/LaunchEntryBehavior"
+          }
+        },
+        "required": [
+          "first_launch",
+          "repeat_launch"
+        ],
+        "type": "object"
+      },
       "LaunchBlocker": {
         "enum": [
           "missing_source",
@@ -28088,6 +28114,16 @@
           "shared_preferences_review_required",
           "shared_preferences_unavailable",
           "invalid_installation"
+        ],
+        "type": "string"
+      },
+      "LaunchEntryBehavior": {
+        "description": "What the selected upstream entry point does, separately from Portcove's launch action.",
+        "enum": [
+          "starts-game-directly",
+          "opens-project-launcher",
+          "asks-for-game-files",
+          "unknown"
         ],
         "type": "string"
       },
@@ -37709,6 +37745,16 @@
           "id": {
             "type": "string"
           },
+          "launch_behavior": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LaunchBehavior"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "observed_at": {
             "description": "Unix seconds. A newer date never proves an earlier failure is fixed.",
             "format": "uint64",
@@ -38153,6 +38199,22 @@
         ],
         "type": "string"
       },
+      "LaunchBehavior": {
+        "additionalProperties": false,
+        "properties": {
+          "first_launch": {
+            "$ref": "#/$defs/LaunchEntryBehavior"
+          },
+          "repeat_launch": {
+            "$ref": "#/$defs/LaunchEntryBehavior"
+          }
+        },
+        "required": [
+          "first_launch",
+          "repeat_launch"
+        ],
+        "type": "object"
+      },
       "LaunchBlocker": {
         "enum": [
           "missing_source",
@@ -38168,6 +38230,16 @@
           "shared_preferences_review_required",
           "shared_preferences_unavailable",
           "invalid_installation"
+        ],
+        "type": "string"
+      },
+      "LaunchEntryBehavior": {
+        "description": "What the selected upstream entry point does, separately from Portcove's launch action.",
+        "enum": [
+          "starts-game-directly",
+          "opens-project-launcher",
+          "asks-for-game-files",
+          "unknown"
         ],
         "type": "string"
       },

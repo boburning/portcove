@@ -55,7 +55,7 @@
       "separator": " · ",
       "source": "Fuente",
       "sourceLine": "<link /> · {{date}}",
-      "versionSpecific": "Estos detalles se aplican a la versión y al paquete indicados arriba."
+      "versionSpecific": "Estos detalles se aplican al ámbito indicado arriba."
     },
     "noticesUnavailable": "Los avisos opcionales de problemas conocidos no están disponibles. La configuración y el inicio conservan sus evaluaciones actuales.",
     "observations": {

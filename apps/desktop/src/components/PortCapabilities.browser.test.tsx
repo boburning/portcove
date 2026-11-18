@@ -185,7 +185,7 @@ it("keeps version-specific notices scoped and distinguishes settings support fro
     ["windows-x86-64", "v1", "original", "a".repeat(64)],
   );
   expect(host.querySelector("a[href='https://example.com/fixture']")?.textContent).toBe("Source");
-  expect(host.textContent).toContain("These details apply to the version and package shown above.");
+  expect(host.textContent).toContain("These details apply to the scope shown above.");
 });
 
 it("presents feature details, scope and backup state in the active locale", async () => {
