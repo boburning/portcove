@@ -24,7 +24,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::carry_ledger::{self, StoredRow};
 use crate::carry_plan::{self, CarryAction, CarryRow, PathInput, PlannedPath, RowChange, RowState};
 use crate::carry_step::{self, CarryStop, Inspected, Listings};
-use crate::{InstallRecord, PortcoveError, Result};
+use crate::{InstallQualification, InstallRecord, Platform, PortcoveError, Result};
 
 use super::PortcoveService;
 
