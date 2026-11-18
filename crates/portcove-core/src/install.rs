@@ -7605,7 +7605,13 @@ mod tests {
             fs::create_dir_all(path.parent().unwrap()).unwrap();
             fs::write(path, b"{}").unwrap();
             let report = installer.verify_managed(&install, &qualification).unwrap();
-            assert!(report.failures.contains(&format!("unexpected: {added}")));
+            // Windows enumerates the existing directory's spelling even when
+            // the write used a case alias; Linux can retain the new spelling.
+            assert!(report.failures.iter().any(|failure| {
+                failure
+                    .strip_prefix("unexpected: ")
+                    .is_some_and(|path| path.eq_ignore_ascii_case(added))
+            }));
             assert!(installer.verify_critical(&install, &qualification).is_err());
             assert!(
                 installer
