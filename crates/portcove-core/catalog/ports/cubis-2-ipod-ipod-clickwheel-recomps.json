@@ -1,0 +1,139 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "cubis-2-ipod-ipod-clickwheel-recomps",
+    "name": "Cubis 2 (iPod Click Wheel Recomp)",
+    "summary": "Play the iPod edition of Cubis 2 using files from your own copy.",
+    "original_game_title": "Cubis 2 (iPod)",
+    "project_url": "https://github.com/DogParty/iPodClickWheelRecomps",
+    "issue_number": 7303,
+    "listed_at": "2026-11-18",
+    "availability": "packages",
+    "release_url": "https://github.com/DogParty/iPodClickWheelRecomps/releases/tag/v1.0.1",
+    "setup_url": "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Cubis2/README.md",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "download_asset_hints": {
+      "windows-x86-64": ["cubis-1.0.1-windows-x64.zip"],
+      "linux-x86-64": ["cubis-1.0.1-linux-x86_64.zip"],
+      "macos-x86-64": ["cubis-1.0.1-macos.zip"],
+      "macos-aarch64": ["cubis-1.0.1-macos.zip"]
+    },
+    "compatibility": {
+      "format_version": 2,
+      "records": [
+        {
+          "id": "ipod-entry-windows-x86-64",
+          "feature": "launch",
+          "platform": "windows-x86-64",
+          "route": "upstream-setup",
+          "release": "v1.0.1",
+          "artifact_sha256": "e90ac3efd41ff2ebb0a84d6967527573f1708e42fdde3d02c48e501edc120bca",
+          "explanation": "The program asks for the game folder on its first start. After it validates and copies your files, later starts can reuse the files in the same user profile.",
+          "provenance": "https://github.com/DogParty/iPodClickWheelRecomps/releases/tag/v1.0.1",
+          "observed_at": 1795038265,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        },
+        {
+          "id": "ipod-entry-linux-x86-64",
+          "feature": "launch",
+          "platform": "linux-x86-64",
+          "route": "upstream-setup",
+          "release": "v1.0.1",
+          "artifact_sha256": "095e2e9268be93260b829e7d8916c4e494be1c7dde93b4c17cf516e4d30d7f61",
+          "explanation": "The program asks for the game folder on its first start. After it validates and copies your files, later starts can reuse the files in the same user profile.",
+          "provenance": "https://github.com/DogParty/iPodClickWheelRecomps/releases/tag/v1.0.1",
+          "observed_at": 1795038265,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        },
+        {
+          "id": "ipod-entry-macos-x86-64",
+          "feature": "launch",
+          "platform": "macos-x86-64",
+          "route": "upstream-setup",
+          "release": "v1.0.1",
+          "artifact_sha256": "0fe146a0be060473590e8ae3f4fff9455c02195344452a84c544699296210f64",
+          "explanation": "The program asks for the game folder on its first start. After it validates and copies your files, later starts can reuse the files in the same user profile.",
+          "provenance": "https://github.com/DogParty/iPodClickWheelRecomps/releases/tag/v1.0.1",
+          "observed_at": 1795038265,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        },
+        {
+          "id": "ipod-entry-macos-aarch64",
+          "feature": "launch",
+          "platform": "macos-aarch64",
+          "route": "upstream-setup",
+          "release": "v1.0.1",
+          "artifact_sha256": "0fe146a0be060473590e8ae3f4fff9455c02195344452a84c544699296210f64",
+          "explanation": "The program asks for the game folder on its first start. After it validates and copies your files, later starts can reuse the files in the same user profile.",
+          "provenance": "https://github.com/DogParty/iPodClickWheelRecomps/releases/tag/v1.0.1",
+          "observed_at": 1795038265,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        }
+      ]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose the package for your system",
+          "instruction": "Keep the complete Windows ZIP contents together. On Linux, make the extracted file executable and use glibc 2.38 or newer with SDL3 and zlib. On macOS 11 or later, extract the app. See the publisher’s packaged guide for the first open of the unsigned app."
+        },
+        {
+          "title": "Provide your own game files once",
+          "instruction": "Start the program and choose your decrypted 99999 folder or a ZIP of that folder. The program checks the files before copying them into your user data folder."
+        },
+        {
+          "title": "Play again and change settings",
+          "instruction": "Start the same game under the same user profile. On Windows and macOS, use the game’s settings window. The Linux package has no settings window or background music."
+        }
+      ],
+      "help_url": "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Cubis2/README.md",
+      "references": [
+        {
+          "title": "Find saves and settings on Windows",
+          "instruction": "Keep the game’s data under %APPDATA%\\iPod Cubis 2."
+        },
+        {
+          "title": "Find saves and settings on Linux",
+          "instruction": "Keep the game’s data under $XDG_DATA_HOME/ipod-cubis, or ~/.local/share/ipod-cubis."
+        },
+        {
+          "title": "Find saves and settings on macOS",
+          "instruction": "Keep the game’s data under ~/Library/Application Support/iPod Cubis 2."
+        },
+        {
+          "title": "Update the program",
+          "instruction": "Get new versions from the upstream release page. Preserve your user data folder before replacing the program files."
+        }
+      ],
+      "warnings": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "cubis-2-ipod-ipod-clickwheel-recomps",
+    "origin": {
+      "project_url": "https://github.com/DogParty/iPodClickWheelRecomps",
+      "repository": {
+        "host": "github.com",
+        "id": "1355442112"
+      }
+    },
+    "decisions": []
+  }
+}
