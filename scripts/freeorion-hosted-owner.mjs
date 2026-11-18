@@ -340,8 +340,20 @@ try {
   const settings = await lstat(path.join(config.profile, "config.xml"));
   assert(settings.isFile() && settings.size > 32, "Actual client did not write its settings");
   await record("profile-after-first-play", await inventory(config.profile));
-  await command(["exec", config.port, "--", "--quickstart", "--setup.star.count", "10", "--setup.ai.player.count", "1", "--quit.hotkey", "GGK_F11"], { raw: true });
+  const quickstartArguments = ["--quickstart", "--setup.star.count", "10", "--setup.ai.player.count", "1", "--quit.hotkey", "GGK_F11"];
+  async function reviewArguments(values) {
+    const coordinates = [config.port, config.player, "--working-directory", config.player_root, ...values.flatMap((value) => ["--arg", value])];
+    const reviewed = await command(["external", "select-relink-preview", ...coordinates]);
+    await command(["external", "select-relink", ...coordinates, "--expected-preview", reviewed.preview_sha256, "--yes"]);
+    const current = await command(["status", config.port]);
+    assert.deepEqual(current.external_runtime.user_selected.arguments, values, "Reviewed execution intent differs");
+  }
+  // Selected runtimes execute only reviewed arguments; do not forward unreviewed extras.
+  await reviewArguments(quickstartArguments);
   await command(["exec", config.port], { raw: true });
+  await reviewArguments([]);
+  await command(["exec", config.port], { raw: true });
+
   const packageBefore = await inventory(config.player_root),
     profileBefore = await inventory(config.profile);
   assert.equal(
