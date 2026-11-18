@@ -75,7 +75,12 @@ export function VirtualCollectionRows({
   const [focusedPin, setFocusedPin] = useState<string>();
   const [destinationPin, setDestinationPin] = useState<string>();
   const rows = useMemo(() => discoverRows(groups, geometry.columns), [groups, geometry.columns]);
-  const structure = JSON.stringify([generation, layout, rows.map(({ key }) => key)]);
+  const structure = JSON.stringify([
+    generation,
+    layout,
+    geometry.columns,
+    rows.map(({ key }) => key),
+  ]);
   const mounted = useRef(true);
   const hasAccepted = useRef(ready);
   if (ready) hasAccepted.current = true;
@@ -117,7 +122,7 @@ export function VirtualCollectionRows({
   const options = {
     count: rows.length,
     estimateSize: () => (layout === "rows" ? 150 : 560),
-    getItemKey: (index: number) => rows[index]!.key,
+    getItemKey: (index: number) => `${layout}:${geometry.columns}:${rows[index]!.key}`,
     overscan: 2,
     gap: geometry.gap,
     scrollMargin: geometry.margin,
@@ -294,12 +299,20 @@ export function VirtualCollectionRows({
     capture();
   }, [generation, queryKey, capture]);
 
-  // Geometry cache invalidation is separate from React structural row identity.
-  // Reordering stable keys preserves their measured heights. Clearing those
-  // measurements would reintroduce estimates and move an acknowledged anchor.
+  // Retain size estimates within the same layout/column identity until each row
+  // can be measured at its current geometry. Clearing offscreen measurements
+  // would change the total height above another reading owner. Query/structural
+  // changes clear historical keys, bounding the cache to the current row cohort.
+  const measuredOwner = useRef({ structure, queryKey });
   useLayoutEffect(() => {
     virtualizer.cancelScroll();
-    virtualizer.measure();
+    if (
+      measuredOwner.current.structure !== structure ||
+      measuredOwner.current.queryKey !== queryKey
+    ) {
+      measuredOwner.current = { structure, queryKey };
+      virtualizer.measure();
+    }
     for (const row of root.current?.querySelectorAll<HTMLDivElement>("[data-collection-row]") ?? [])
       virtualizer.measureElement(row);
   }, [
@@ -310,6 +323,8 @@ export function VirtualCollectionRows({
     layout,
     i18n.language,
     generation,
+    structure,
+    queryKey,
   ]);
 
   const mount = useCallback(async (target: CollectionDestination, current: () => boolean) => {
@@ -364,6 +379,12 @@ export function VirtualCollectionRows({
         if (rowIndex !== undefined && !row) continue;
         if (row) latest.current.virtualizer.measureElement(row);
         latest.current.virtualizer.cancelScroll();
+        // Measurement changes TanStack's model before React commits the matching
+        // row position. Read the anchor only after that measured commit.
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        if (!valid()) break;
+        if (row && !row.isConnected) continue;
+        let aligned: (() => boolean) | undefined;
         if (target.viewportTop !== undefined && row) {
           const card = [...row.querySelectorAll<HTMLElement>("[data-detail-return-group]")].find(
             (item) => item.dataset.detailReturnGroup === accepted.groups[index]?.id,
@@ -375,13 +396,28 @@ export function VirtualCollectionRows({
                 )
               : undefined) ?? card;
           const owner = latest.current.geometry.owner;
-          if (anchor && owner)
-            owner.scrollTo({
-              top: owner.scrollTop + anchor.getBoundingClientRect().top - target.viewportTop,
-            });
+          if (anchor && owner) {
+            const viewportTop = target.viewportTop;
+            const desired = owner.scrollTop + anchor.getBoundingClientRect().top - viewportTop;
+            owner.scrollTo({ top: desired });
+            aligned = () => {
+              if (!anchor.isConnected || latest.current.geometry.owner !== owner) return false;
+              const delta = anchor.getBoundingClientRect().top - viewportTop;
+              const destination = owner.scrollTop + delta;
+              const limit = Math.max(0, owner.scrollHeight - owner.clientHeight);
+              return (
+                Math.abs(delta) < 0.5 ||
+                (destination < 0 && owner.scrollTop === 0) ||
+                (destination > limit && Math.abs(owner.scrollTop - limit) < 0.5)
+              );
+            };
+          }
         } else if (target.scrollTop !== undefined) scrollWorkspaceTo(workspace(), target.scrollTop);
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-        return valid();
+        if (!valid()) break;
+        // Newly visible rows may replace estimates after the scroll. Acknowledge
+        // the current committed offset, or measure/correct again while still owned.
+        if ((!row || row.isConnected) && (!aligned || aligned())) return true;
       }
       return false;
     } finally {

@@ -257,7 +257,9 @@ it("restores a reading game's viewport offset across a fresh measurement cache",
   await act(async () => root.render(<Fixture key="new-measurements" layout="rows" />));
   workspace = host.querySelector("main")!;
   await frames();
-  await mountDestination({ ...anchor, scrollTop });
+  expect(await mountDestination({ ...anchor, scrollTop })).toBe(true);
+  expect(Math.abs(card(1200)!.getBoundingClientRect().top - top)).toBeLessThan(1);
+  await frames();
   expect(Math.abs(card(1200)!.getBoundingClientRect().top - top)).toBeLessThan(1);
 });
 

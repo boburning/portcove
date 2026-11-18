@@ -731,54 +731,67 @@ it.for([2, 4] as const)(
         png_base64: canvas.toDataURL("image/png").split(",")[1]!,
       };
     });
+    const installed = new Map([
+      [port.id, { ...portStatus(), port_id: port.id, active: { ...install, port_id: port.id } }],
+    ]);
+    function CollectionRoutes() {
+      const [view, setView] = useState<"catalog" | "library" | "detail">("catalog");
+      return (
+        <ArtworkProvider generation={7} listings={listings}>
+          <nav className="flex flex-wrap gap-2" aria-label="Collection preview routes">
+            <button onClick={() => setView("catalog")}>Discover collection preview</button>
+            <button onClick={() => setView("library")}>Library collection preview</button>
+          </nav>
+          {view === "detail" ? (
+            <GameHero port={port} variant="detail">
+              <h1>Collection project</h1>
+            </GameHero>
+          ) : (
+            <PortBrowser
+              view={view}
+              ports={[port]}
+              statuses={view === "library" ? installed : new Map<string, PortStatus>()}
+              overview={{
+                installed: view === "library" ? 1 : 0,
+                ready: view === "library" ? 1 : 0,
+                needsSetup: 0,
+                staged: 0,
+              }}
+              filter="all"
+              setFilter={() => {}}
+              onSelect={() => setView("detail")}
+              onContinue={() => {}}
+              loading={false}
+            />
+          )}
+        </ArtworkProvider>
+      );
+    }
     await page.viewport(960, 720);
-    await render(
-      <ArtworkProvider generation={7} listings={listings}>
-        <PortBrowser
-          view="catalog"
-          ports={[port]}
-          statuses={new Map()}
-          overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
-          filter="all"
-          setFilter={() => {}}
-          onSelect={() => {}}
-          onContinue={() => {}}
-          loading={false}
-        />
-        <PortBrowser
-          view="library"
-          ports={[port]}
-          statuses={
-            new Map([
-              [
-                port.id,
-                { ...portStatus(), port_id: port.id, active: { ...install, port_id: port.id } },
-              ],
-            ])
-          }
-          overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 0 }}
-          filter="all"
-          setFilter={() => {}}
-          onSelect={() => {}}
-          onContinue={() => {}}
-          loading={false}
-        />
-        <GameHero port={port} variant="detail">
-          <h1>Collection project</h1>
-        </GameHero>
-      </ArtworkProvider>,
-    );
-    const frame = document.querySelector<HTMLElement>(".collection-art")!;
+    // App renders one workspace route at a time. Keep its shared artwork cache,
+    // without stacking two virtual document scrollers above a separate Details.
+    await render(<CollectionRoutes />);
+    let frame = document.querySelector<HTMLElement>(".collection-art")!;
     frame.scrollIntoView();
     await expect.poll(() => frame.querySelectorAll("img").length).toBe(count);
-    document.querySelector(".game-hero")!.scrollIntoView({ block: "center" });
+    await page.getByRole("button", { name: "View port", exact: true }).click();
+    await expect.poll(() => document.querySelector(".game-hero-detail")).not.toBeNull();
     await expect
-      .poll(() => document.querySelectorAll(".game-hero-collection img").length)
+      .poll(() => document.querySelectorAll(".game-hero-detail .game-hero-collection img").length)
       .toBe(count);
-    document.querySelector(".port-card-library")!.scrollIntoView({ block: "center" });
+    await page.getByRole("button", { name: "Library collection preview", exact: true }).click();
+    await expect
+      .poll(() => document.querySelector("[data-virtual-collection=library]"))
+      .not.toBeNull();
     await expect
       .poll(() => document.querySelectorAll(".port-card-library .collection-art img").length)
       .toBe(count);
+    await page.getByRole("button", { name: "Discover collection preview", exact: true }).click();
+    await expect
+      .poll(() => document.querySelector("[data-virtual-collection=catalog]"))
+      .not.toBeNull();
+    frame = document.querySelector<HTMLElement>(".collection-art")!;
+    await expect.poll(() => frame.querySelectorAll("img").length).toBe(count);
     for (const img of frame.querySelectorAll("img")) {
       await expect.poll(() => img.naturalWidth).toBeGreaterThan(0);
       expect(getComputedStyle(img).objectFit).toBe("contain");
