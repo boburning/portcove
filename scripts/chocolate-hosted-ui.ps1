@@ -61,6 +61,11 @@ function Read-Launch {
  if(-not $value.ok){throw 'Launch observation envelope failed'}
  return $value.data
 }
+function Canonical-DrivePath([string]$value) {
+ $full=[IO.Path]::GetFullPath($value)
+ if($full -match '^\\\\\?\\[A-Za-z]:\\'){return $full.Substring(4)}
+ return $full
+}
 function Assert-Owned {
  if(-not $bound -or $ownedGame.HasExited -or [OmnispeakWindow]::Created($gameHandle) -ne $boundCreated){throw 'Owned game generation unavailable'}
  [uint32]$owner=0;[void][OmnispeakWindow]::GetWindowThreadProcessId($window,[ref]$owner)
@@ -93,7 +98,7 @@ try {
    $created=[OmnispeakWindow]::Created($gameHandle)
    if($launch.child_pid -ne $ownedGame.Id -or $launch.supervisor_pid -ne $RootPid -or $launch.supervisor_identity -ne "windows-filetime:$rootCreated" -or $launch.child_identity -ne "windows-filetime:$created" -or $created -lt $rootCreated){throw 'Core/OS process identities differ'}
    $actualPlayer=[IO.Path]::GetFullPath($ownedGame.MainModule.FileName)
-   if($actualPlayer -ne [IO.Path]::GetFullPath($ExpectedPlayer) -or $ownedGame.SessionId -ne $ownedRoot.SessionId){throw 'Owned player/session differs'}
+   if((Canonical-DrivePath $actualPlayer) -ne (Canonical-DrivePath $ExpectedPlayer) -or $ownedGame.SessionId -ne $ownedRoot.SessionId){throw 'Owned player/session differs'}
    if((Get-FileHash -LiteralPath $actualPlayer -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedSha256){throw 'Executed game bytes differ'}
    $parent=Get-CimInstance Win32_Process -Filter "ProcessId = $($ownedGame.Id)"
    if(-not $parent -or $parent.ParentProcessId -ne $RootPid){throw 'Owned game parent differs'}

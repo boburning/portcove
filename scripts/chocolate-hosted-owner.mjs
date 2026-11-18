@@ -17,7 +17,9 @@ if (config.titles.length) {
   assert(config.global_chocolate_root, "Observed Windows roaming Known Folder is required");
 }
 const within = (parent, child) => {
-  const relative = path.relative(path.resolve(parent), path.resolve(child));
+  const absolute = (value) =>
+    process.platform === "win32" ? path.toNamespacedPath(path.resolve(value)) : path.resolve(value);
+  const relative = path.relative(absolute(parent), absolute(child));
   return (
     relative !== "" &&
     !relative.startsWith(".." + path.sep) &&
