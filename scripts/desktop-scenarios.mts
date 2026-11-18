@@ -354,6 +354,18 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-secondary-panel-presentation",
+    "Secondary reviews render supplied states in the native WebView with owned DAT and metadata actions.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
+      dependencies: ["native-preparation-review-and-play"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-secondary-panels-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-ready-detail-composition",
     "Ready game details keep Play and the information hierarchy visible in both themes at supported window sizes.",
     {
@@ -793,6 +805,12 @@ export function resolveDesktopSelection({
   if (unknown.length)
     throw new Error(`Unknown desktop scenario: ${[...new Set(unknown)].join(", ")}`);
   const uniqueRequested = ordered(requested);
+  // Supplied projections remain cached until this Windows chooser session closes.
+  if (
+    uniqueRequested.includes("native-secondary-panel-presentation") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("Native secondary-panel presentation requires one standalone Windows scenario");
   if (
     uniqueRequested.includes("native-collection-artwork-presentation") &&
     (uniqueRequested.length !== 1 || platform !== "win32")
@@ -984,6 +1002,8 @@ export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
 export function desktopHarnessDeadlineMs(
   selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
 ) {
+  // Preparation, two-theme secondary reviews, native file dialogs and owned exit joins.
+  if (selection.selected_scenarios.includes("native-secondary-panel-presentation")) return 600_000;
   // Six public collection previews, two themes, compact capture and owned native exit.
   if (selection.selected_scenarios.includes("native-collection-artwork-presentation"))
     return 600_000;

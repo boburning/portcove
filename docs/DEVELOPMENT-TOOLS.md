@@ -2187,6 +2187,17 @@ checks the highlighted option before committing. A mounted listbox alone does
 not establish keyboard readiness. Failures retain viewport/preference observations
 and a screenshot before reset/resize cleanup; the original assertion still fails.
 
+`native-secondary-panel-presentation` uses a fresh Windows fixture library and
+an owned prepared installation. It inspects DAT editing, metadata export,
+ready notices, mod original-file choice, recipe/provider reviews, retirement,
+file preservation and portable-save feedback in both themes. The retained
+observation identifies supplied replies and controlled refusals. DAT and the
+successful metadata export use actual isolated Core operations. Ordinary
+owned preferences and background setup requests retain their existing paths.
+Its fixed projections remain in the renderer cache until the disposable session
+closes, so this selector runs alone. Existing owned-session cleanup and exact
+input receipts apply.
+
 `native-library-layout` uses two owned inert installations to check both Library
 views and themes through ordinary window sizes and native interface sizing. At
 startup it imports the existing red/blue diagnostic JPEGs into the disposable
