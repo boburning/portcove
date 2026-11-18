@@ -138,6 +138,7 @@ try {
  Capture 'startup'
  if($TitleMode -eq 'fresh'){
   Key 27;Capture 'main-menu';Key 13;Capture 'new-game-menu';Key 13;Key 13
+  if([IO.Path]::GetFileName($ExpectedPlayer) -eq 'chocolate-hexen.exe'){Key 13}
   Start-Sleep -Seconds 2;Capture 'level'
   Key 113;Capture 'save-menu';Key 13
   foreach($vk in @(67,79,86,69)){Key $vk}

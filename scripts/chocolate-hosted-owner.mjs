@@ -98,7 +98,7 @@ const dataRoots = new Map(),
   players = new Map(),
   launchCounts = new Map(),
   uiAttempts = [];
-async function command(args, { raw = false } = {}) {
+async function command(args, { raw = false, expectedUnsupported = false } = {}) {
   const name = String(++serial).padStart(2, "0") + "-" + args.slice(0, 2).join("-");
   const request = raw ? randomUUID() : null;
   const effective = [
@@ -256,6 +256,7 @@ async function command(args, { raw = false } = {}) {
     stdout_sha256: sha(stdout),
     stderr_sha256: sha(stderr),
     observed_bytes: bytes,
+    expected_unsupported: expectedUnsupported,
     finished_at: new Date().toISOString(),
   });
   if (raw) {
@@ -264,6 +265,18 @@ async function command(args, { raw = false } = {}) {
     assert.deepEqual(state, globalBefore, "Shared Chocolate roaming profile changed");
   }
   assert(bytes < 16 * 1024 * 1024, "CLI evidence output bound exceeded");
+  if (expectedUnsupported) {
+    assert(
+      !raw && args[0] === "profile" && args[1] === "activate",
+      "Only the explicit profile activation refusal is an expected failure",
+    );
+    assert.notEqual(code, 0, "Unsupported deployment unexpectedly succeeded");
+    const result = JSON.parse(stdout.toString());
+    assert.equal(result.ok, false);
+    assert.equal(result.error?.code, "unsupported");
+    assert(result.error.message.includes("no reviewed mod package contract"));
+    return result.error;
+  }
   assert.equal(code, 0, `${name} failed; inspect retained logs`);
   if (raw) {
     if (driven) assert.equal(driven.code, 0, "Owned UI driver did not establish its outcome");
@@ -410,12 +423,31 @@ try {
       "Installed publisher artifact differs",
     );
     await record(title.port + "-installed", installed);
+    const preparedBefore = await inventory(installed.active.path);
+    const profile = await command(["profile", "ensure-default", title.port]);
+    assert(
+      profile.is_default === true &&
+        profile.port_id === title.port &&
+        typeof profile.id === "string",
+    );
+    await command(["profile", "activate", title.port, profile.id], { expectedUnsupported: true });
+    assert.deepEqual(
+      await inventory(installed.active.path),
+      preparedBefore,
+      "Metadata creation or refused deployment changed prepared files",
+    );
+    await record(title.port + "-profile-boundary", {
+      default_metadata_created: true,
+      deployment_refused: true,
+      prepared_files_unchanged: true,
+    });
     await command(["exec", title.port], { raw: true });
     const after = await command(["status", title.port]);
     // Backup performs the maintained collection from the live runtime into canonical data.
     const backup = await command(["backup", "create", title.port]);
     assert(typeof backup.id === "string");
     const populated = await inventory(after.user_data_root);
+    await record(title.port + "-collected", populated);
     assert(
       populated.some(
         (f) =>
