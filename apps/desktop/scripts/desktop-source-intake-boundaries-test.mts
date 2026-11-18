@@ -68,6 +68,69 @@ export function assertStaleSourceImportReply(stale: Record<string, unknown>) {
   );
 }
 
+function observeIntakeWorkspace() {
+  const raw = document
+    .querySelector("main[data-workspace-continuity-scope]")
+    ?.getAttribute("data-workspace-continuity-scope");
+  const scope: unknown = raw === null || raw === undefined ? null : JSON.parse(raw);
+  return {
+    generation: Array.isArray(scope) && typeof scope[0] === "number" ? scope[0] : null,
+    navigation: document.querySelector('nav[aria-label="Primary navigation"]') !== null,
+    loading: document.querySelector(".loading-state") !== null,
+  };
+}
+
+export async function waitForSourceIntakeRestoration(
+  browser: WebDriver,
+  invoke: ScenarioInvoke,
+  ownedLibraries: readonly string[],
+) {
+  const success = (response: unknown) => {
+    const reply = object(response);
+    assert.equal(reply.ok, true, JSON.stringify(reply));
+    return reply.value;
+  };
+  const bootstrap = async () =>
+    transportValue("desktop_bootstrap_status", success(await invoke("get_bootstrap_status")));
+  // Use the current root rather than assuming the attempted first handoff
+  // succeeded: its response may have been lost before failure cleanup starts.
+  const current = await bootstrap();
+  assert.equal(current.ready, true);
+  assert.equal(current.error, null);
+  assert.ok(current.library_root !== null);
+  const canonical = (root: string) => {
+    const resolved = path.toNamespacedPath(path.resolve(root));
+    return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+  };
+  const root = canonical(current.library_root);
+  assert.ok(
+    ownedLibraries.some((owned) => canonical(owned) === root),
+    "Unowned current library",
+  );
+  if (
+    (await executeBrowserScript(browser, observeIntakeWorkspace)).generation !== current.generation
+  )
+    await browser.navigate().refresh();
+  transportValue(
+    "desktop_workspace_snapshot",
+    success(await invoke("get_workspace_snapshot", { generation: current.generation })),
+  );
+  await browser.wait(
+    async () => {
+      const state = await executeBrowserScript(browser, observeIntakeWorkspace);
+      return state.generation === current.generation && state.navigation && !state.loading;
+    },
+    60_000,
+    "Current source-intake workspace did not settle before library restoration",
+  );
+  const settled = await bootstrap();
+  assert.equal(settled.ready, true);
+  assert.equal(settled.error, null);
+  assert.equal(settled.generation, current.generation, "Library generation changed before restore");
+  assert.equal(settled.library_root, current.library_root, "Library root changed before restore");
+  return { generation: current.generation, library_root: current.library_root };
+}
+
 export async function sourceIntakeNativeBoundaries({
   browser,
   invoke,
@@ -248,7 +311,14 @@ export async function sourceIntakeNativeBoundaries({
   } finally {
     try {
       if (switched) {
+        observed.restoration_stage = "waiting_for_current_workspace";
+        observed.restoration_precondition = await waitForSourceIntakeRestoration(browser, invoke, [
+          library,
+          other,
+        ]);
+        observed.restoration_stage = "restoring_original_library";
         success(await invoke("set_default_library", { path: library }));
+        observed.restoration_stage = "reloading_original_library";
         await browser.navigate().refresh();
         await browser.wait(
           until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
@@ -259,6 +329,7 @@ export async function sourceIntakeNativeBoundaries({
       for (let i = 0; i < selected.length; i++)
         assert.deepEqual(await readFile(selected[i]!), originals[i]);
       observed.originals_and_registration_preserved = true;
+      if (switched) observed.restoration_stage = "complete";
     } catch (error) {
       restoreFailure = error;
       observed.restore_failure = String(error);

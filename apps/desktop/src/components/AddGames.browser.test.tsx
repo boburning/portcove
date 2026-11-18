@@ -1,4 +1,5 @@
 import { captureParityState } from "../../test/parity-capture";
+import { exactButtonXPath } from "../../scripts/browser-script.mts";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -45,6 +46,111 @@ async function expectDiscover() {
     document.querySelector('section[aria-label="Add games workspace"]')?.hasAttribute("hidden"),
   ).not.toBe(false);
 }
+
+it("keeps native review button lookup exact for primary labels, accessible names and quotes", async () => {
+  await mount();
+  const matches = (label: string) => {
+    const result = document.evaluate(
+      exactButtonXPath(label),
+      document,
+      null,
+      XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
+      null,
+    );
+    return Array.from({ length: result.snapshotLength }, (_, index) => result.snapshotItem(index));
+  };
+  const existing = route("Use an existing installation").element();
+  expect(matches("Use an existing installation")).toEqual([existing]);
+  await expect.element(existing).toHaveAccessibleName("Use an existing installation");
+  expect(matches("Copy a supported installation or keep using its current folder.")).toEqual([]);
+  expect(matches("Use an existing")).toEqual([]);
+  await route("Use an existing installation").click();
+  await expect
+    .element(page.getByRole("button", { name: "Copy an existing installation", exact: true }))
+    .toBeVisible();
+
+  const fixture = document.createElement("div");
+  document.body.append(fixture);
+  const add = (text: string) => {
+    const button = document.createElement("button");
+    button.textContent = text;
+    fixture.append(button);
+    return button;
+  };
+  try {
+    for (const label of [
+      "Exact fixture action",
+      `Show "owner's" review`,
+      `Fixture "] | //button | //button[@aria-label="escape`,
+    ]) {
+      const button = add(label);
+      expect(matches(label)).toEqual([button]);
+    }
+    const legacy = add("Legacy fixture action");
+    legacy.setAttribute("aria-label", "Legacy fixture action: Example game");
+    expect(matches("Legacy fixture action")).toEqual([legacy]);
+    expect(matches("Legacy fixture action: Example game")).toEqual([legacy]);
+    const empty = add("");
+    const icon = add("");
+    icon.setAttribute("aria-label", "Icon fixture action");
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("aria-hidden", "true");
+    icon.append(svg);
+    const originalEmpty = document.evaluate(
+      '//button[normalize-space(.)=""]',
+      document,
+      null,
+      XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
+      null,
+    );
+    expect(matches("")).toEqual(
+      Array.from({ length: originalEmpty.snapshotLength }, (_, index) =>
+        originalEmpty.snapshotItem(index),
+      ),
+    );
+    expect(matches("")).toContain(empty);
+    expect(matches("")).toContain(icon);
+    expect(matches("")).not.toContain(legacy);
+    expect(matches("")).not.toContain(existing);
+    const named = add("");
+    named.setAttribute("aria-label", "Accessible fixture action");
+    const strong = document.createElement("strong");
+    strong.className = "block";
+    strong.textContent = "Visible fixture action";
+    named.append(strong);
+    const description = document.createElement("span");
+    description.setAttribute("aria-hidden", "true");
+    description.textContent = " hidden fixture detail";
+    named.append(description);
+    expect(matches("Accessible fixture action")).toEqual([named]);
+    expect(matches("Visible fixture action")).toEqual([]);
+    expect(matches("Visible fixture action hidden fixture detail")).toEqual([named]);
+    const reference = document.createElement("span");
+    reference.id = "fixture-action-label";
+    reference.textContent = "Referenced fixture action";
+    fixture.append(reference);
+    named.removeAttribute("aria-label");
+    named.setAttribute("aria-labelledby", reference.id);
+    await expect.element(named).toHaveAccessibleName("Referenced fixture action");
+    expect(matches("Visible fixture action")).toEqual([]);
+    const inline = add("Before ");
+    const emphasis = document.createElement("strong");
+    emphasis.textContent = "Inline fixture action";
+    inline.append(emphasis, " after");
+    expect(matches("Inline fixture action")).toEqual([]);
+    expect(matches("Before Inline fixture action after")).toEqual([inline]);
+    const hidden = add("Hidden wrapper ");
+    const hiddenLabel = document.createElement("strong");
+    hiddenLabel.className = "block";
+    hiddenLabel.setAttribute("aria-hidden", "true");
+    hiddenLabel.textContent = "Hidden fixture action";
+    hidden.append(hiddenLabel);
+    expect(matches("Hidden fixture action")).toEqual([]);
+  } finally {
+    fixture.remove();
+  }
+});
+
 it("offers exactly three routes and sends game choice to Discover without a second chooser", async () => {
   await mount();
   const group = page.getByRole("group", { name: "Ways to add games", exact: true });
