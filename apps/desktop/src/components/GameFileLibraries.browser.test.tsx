@@ -4,6 +4,7 @@ import { render as renderComponent, cleanup, type RenderResult } from "vitest-br
 import { fixtureValue } from "../test-fixtures";
 import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import {
   GameFileScanProvider,
@@ -2500,7 +2501,44 @@ it("reviews more than sixteen eligible games without opening their match pages",
   expect(projection).toHaveBeenLastCalledWith(stored.matches, 1);
   expect(pages).not.toHaveBeenCalled();
   await click("Select all 20 eligible");
-  await click("Review installing 20 selected");
+  const trigger = button("Review installing 20 selected");
+  trigger.focus();
+  await act(async () => userEvent.keyboard(" "));
+  await vi.waitFor(() =>
+    expect(document.querySelector('[aria-label="Install selected games"]')?.textContent).toContain(
+      "0 ready to install, 20 waiting",
+    ),
+  );
+  const panel = document.querySelector<HTMLElement>('[aria-label="Install selected games"]')!;
+  const active = document.activeElement;
+  console.info("batch-review-focus-probe", {
+    triggerConnected: trigger.isConnected,
+    activeTag: active?.tagName,
+    activeText: active?.textContent?.slice(0, 120),
+    reviewContainsActive: panel.contains(active),
+    reviewBounds: {
+      top: panel.getBoundingClientRect().top,
+      bottom: panel.getBoundingClientRect().bottom,
+    },
+  });
+  await vi.waitFor(() => expect(panel.contains(document.activeElement)).toBe(true));
+  const focused = document.activeElement!.getBoundingClientRect();
+  expect(focused.top).toBeGreaterThanOrEqual(0);
+  expect(focused.top).toBeLessThan(innerHeight);
+  for (let step = 0; document.activeElement?.textContent !== "Cancel" && step < 4; step++)
+    await act(async () => userEvent.tab());
+  expect(document.activeElement?.textContent).toBe("Cancel");
+  await act(async () => userEvent.keyboard(" "));
+  await vi.waitFor(() =>
+    expect(document.querySelector('[aria-label="Install selected games"]')).toBeNull(),
+  );
+  const choices = document.querySelector<HTMLElement>('[aria-label="Selected setup reviews"]')!;
+  await vi.waitFor(() => expect(choices.contains(document.activeElement)).toBe(true));
+  const returned = document.activeElement!.getBoundingClientRect();
+  expect(returned.width).toBeGreaterThan(0);
+  expect(returned.height).toBeGreaterThan(0);
+  expect(returned.top).toBeGreaterThanOrEqual(0);
+  expect(returned.top).toBeLessThan(innerHeight);
   expect(plan).toHaveBeenCalledExactlyOnceWith(selectedIds, 1);
   expect(start).not.toHaveBeenCalled();
   expect(run).not.toHaveBeenCalled();
