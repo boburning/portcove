@@ -50,6 +50,15 @@
       "warnings": [
         "Keep independent original base/update copies: upstream’s merged game view can use hard links. Quit the game normally before closing its native launcher."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-team-racing-nitro-fueled",
+      "evidence_urls": [
+        "https://github.com/GetLostIn/CTR-NitroFueled-PC/blob/0cf8def7f676192de4f37a26e08a92ea0cd4674a/README.md",
+        "https://github.com/GetLostIn/CTR-NitroFueled-PC"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

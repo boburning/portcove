@@ -51,6 +51,15 @@
     "setup_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/README.md",
     "download_asset_hints": {
       "linux-x86-64": ["WaveRace64Recomp-", "-linux-x86_64.tar.gz"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wave-race-64",
+      "evidence_urls": [
+        "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/README.md",
+        "https://github.com/danielgomesvieira2000/wave-race-64-recomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

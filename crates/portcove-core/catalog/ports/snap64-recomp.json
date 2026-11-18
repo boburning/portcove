@@ -55,6 +55,24 @@
           "instruction": "Use the official Linux x64 tarball or Flatpak and follow the project’s Steam Deck guide to add it from Desktop Mode. The publisher tested both 1.1.8 packages on a Steam Deck OLED in Desktop Mode. Earlier builds with the 1.1.7 Deck fixes also ran in Gaming Mode, where gyro aim sometimes felt slow. Follow the guide’s controller settings for the gyro mode you choose."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-snap",
+      "evidence_urls": [
+        "https://github.com/JackandBeans/Snap64Recomp#readme",
+        "https://github.com/JackandBeans/Snap64Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "pokemon-snap-nintendo-64",
+          "title": "Pokémon Snap (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/JackandBeans/Snap64Recomp/blob/1a4e208ad7e1551af9a9d38866bb998b71ccf4e6/README.md"
+          ]
+        }
+      ]
     }
   },
   "managed_setup_platform_warnings": {

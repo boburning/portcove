@@ -35,6 +35,21 @@
       "image_sha256": "5d78ae1550199b8334ee6e6702f26def187d3ea5f60e77cfd703b9ad24e06f11",
       "game_slug": "infamous-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "infamous-2",
+      "evidence_urls": ["https://github.com/erikomis/infamous2-recomp"],
+      "source_editions": [
+        {
+          "id": "infamous-2-playstation-3",
+          "title": "inFAMOUS 2 (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/erikomis/infamous2-recomp/blob/61ad6ffd826dc6d1f32bf78ccbaa4ab98352f980/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

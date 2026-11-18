@@ -50,6 +50,24 @@
         }
       ],
       "help_url": "https://github.com/OverkillLabs3/gears-judgement-recomp/blob/e56c475a75b1b703aee0e3422ffc18a27a05f66a/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "gears-of-war-judgment",
+      "evidence_urls": [
+        "https://github.com/OverkillLabs3/gears-judgement-recomp/blob/e56c475a75b1b703aee0e3422ffc18a27a05f66a/README.md",
+        "https://github.com/OverkillLabs3/gears-judgement-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "gears-of-war-judgment-xbox-360",
+          "title": "Gears of War: Judgment (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/OverkillLabs3/gears-judgement-recomp/blob/e56c475a75b1b703aee0e3422ffc18a27a05f66a/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

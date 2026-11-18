@@ -53,6 +53,15 @@
     "download_asset_hints": {
       "linux-x86-64": ["OpenOMF-", "-x86_64.AppImage"],
       "macos-aarch64": ["openomf_", "_macos", "_arm.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "one-must-fall-2097",
+      "evidence_urls": [
+        "https://github.com/omf2097/openomf/blob/master/PATHS.md",
+        "https://github.com/omf2097/openomf"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

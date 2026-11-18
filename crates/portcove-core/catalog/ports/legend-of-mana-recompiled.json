@@ -26,7 +26,13 @@
       "game_slug": "legend-of-mana",
       "match_kind": "underlying-game"
     },
-    "issue_number": 78
+    "issue_number": 78,
+    "original_game": {
+      "format_version": 1,
+      "id": "legend-of-mana",
+      "evidence_urls": ["https://github.com/TechnicallyComputers/Legend-of-Mana-Recomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

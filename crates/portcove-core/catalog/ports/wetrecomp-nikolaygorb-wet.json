@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/nikolaygorb/WetRecomp"
     },
-    "issue_number": 3224
+    "issue_number": 3224,
+    "original_game": {
+      "format_version": 1,
+      "id": "wet",
+      "evidence_urls": ["https://github.com/nikolaygorb/WetRecomp"],
+      "source_editions": [
+        {
+          "id": "wet-xbox-360",
+          "title": "WET (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/nikolaygorb/WetRecomp/blob/cb5b8be0747cb61602a11ccb5b82bbf1c5e68cdd/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

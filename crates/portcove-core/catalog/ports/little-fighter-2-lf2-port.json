@@ -49,6 +49,15 @@
           "instruction": "Linux v0.1.2 has an x64 AppImage. Launch it with APPIMAGE_EXTRACT_AND_RUN=1 if FUSE is unavailable. Music needs ffmpeg on PATH. The release also offers a separate ARM64 Android 7 or later debug preview with a folder or ZIP import. macOS uses the upstream source build. The original Windows game is a separate player."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "little-fighter-2",
+      "evidence_urls": [
+        "https://github.com/SomeoneIsWorking/lf2-port/blob/v0.1.2/README.md",
+        "https://github.com/SomeoneIsWorking/lf2-port"
+      ],
+      "source_editions": []
     }
   }
 }

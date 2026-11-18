@@ -46,6 +46,24 @@
       "warnings": [
         "Attach the prepared beta_5.4 lasrecomp.exe with its complete folder. Preserve data_root.txt, the actual resolved data root, vanilla/seed-specific saves and unfinished upstream move-recovery markers."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-links-awakening-2019-switch",
+      "evidence_urls": [
+        "https://github.com/peiikai/LASRecomp/blob/fb45ad6d1ac2e2fc1b7a1aba08bb639e5137fbc6/README.md",
+        "https://github.com/peiikai/LASRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-links-awakening-2019-switch-nintendo-switch",
+          "title": "The Legend of Zelda: Link's Awakening (2019 Switch) (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/peiikai/LASRecomp/blob/31f0bfea7e767776c90ceb766269747a87870d18/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

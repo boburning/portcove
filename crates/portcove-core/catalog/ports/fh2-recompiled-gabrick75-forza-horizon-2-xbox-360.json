@@ -3,7 +3,7 @@
   "listing": {
     "id": "fh2-recompiled-gabrick75-forza-horizon-2-xbox-360",
     "name": "Forza Horizon 2 (Xbox 360) — FH2 Recompiled (Gabrick75)",
-    "original_game_title": "Forza Horizon 2 (Xbox 360)",
+    "original_game_title": "Forza Horizon 2",
     "summary": "Upstream reports menus and races running below console performance, with image defects in the native renderer. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Gabrick75/fh2-recompiled",
     "platforms": ["linux-x86-64"],
@@ -35,6 +35,21 @@
       "image_sha256": "ccab5a78be9b205775ef3c759a418752d21042c86d4f3e782dc8ecb96399d2c4",
       "game_slug": "forza-horizon-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "forza-horizon-2",
+      "evidence_urls": ["https://github.com/Gabrick75/fh2-recompiled"],
+      "source_editions": [
+        {
+          "id": "forza-horizon-2-xbox-360",
+          "title": "Forza Horizon 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Gabrick75/fh2-recompiled/blob/ff062497da83f0c9ca8f9da924e90feab55ac416/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

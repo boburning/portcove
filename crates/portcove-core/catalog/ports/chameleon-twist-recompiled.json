@@ -47,6 +47,24 @@
         }
       ]
     },
-    "download_block_reason": "The v0.1 Windows ZIP still has no published independently expected SHA-256, preserving the existing artifact-integrity hold. Its pinned source also carries separately authored Chiaro font files whose applicable permission needs review; the parent GPL does not settle that scope. Keep a permitted existing copy. Reconsider fresh acquisition after the required artifact trust and affected component permissions are established or the package is appropriately replaced."
+    "download_block_reason": "The v0.1 Windows ZIP still has no published independently expected SHA-256, preserving the existing artifact-integrity hold. Its pinned source also carries separately authored Chiaro font files whose applicable permission needs review; the parent GPL does not settle that scope. Keep a permitted existing copy. Reconsider fresh acquisition after the required artifact trust and affected component permissions are established or the package is appropriately replaced.",
+    "original_game": {
+      "format_version": 1,
+      "id": "chameleon-twist",
+      "evidence_urls": [
+        "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9/README.md",
+        "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "chameleon-twist-nintendo-64",
+          "title": "Chameleon Twist (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/f7d171462776e2dbf893206a96c2f55692bce559/README.md"
+          ]
+        }
+      ]
+    }
   }
 }

@@ -35,6 +35,21 @@
       "image_sha256": "12621a05fbf14ba00a949c8a7e3ce3b099a5af54cdf9f957a1d1708e0ba98b8d",
       "game_slug": "dragon-ball-z-budokai-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-ball-z-budokai-2",
+      "evidence_urls": ["https://github.com/7v0biscuit/OpenKai2"],
+      "source_editions": [
+        {
+          "id": "dragon-ball-z-budokai-2-playstation-2",
+          "title": "Dragon Ball Z: Budokai 2 (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/7v0biscuit/OpenKai2/blob/71850e8857a654452bdde0276990df05157e29f3/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -35,6 +35,12 @@
       "image_sha256": "87e56e2b52c85b0020821e90d749407be7f91543d9c19b7f4570d01a618493c3",
       "game_slug": "fatal-fury-wild-ambition",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "fatal-fury-wild-ambition",
+      "evidence_urls": ["https://github.com/omegakatana92/Fatal-Fury-Wild-Ambition-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

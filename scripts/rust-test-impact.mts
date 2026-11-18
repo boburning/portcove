@@ -442,7 +442,7 @@ function definitionImplementation(file: string) {
 // Core's catalog size guard measures serialized projection and retained-contract
 // bytes that no script can reproduce. Every catalog fast path keeps it (#5894).
 export const catalogGrowthGuardFilter =
-  "test(/^installed_contract::tests::catalog_growth_stays_within_the_legacy_compatibility_margin$/)";
+  "test(/^installed_contract::tests::catalog_growth_stays_within_supported_capacity$/)";
 
 export function selectWorkspaceRustImpact(
   plan: ValidationPlan,

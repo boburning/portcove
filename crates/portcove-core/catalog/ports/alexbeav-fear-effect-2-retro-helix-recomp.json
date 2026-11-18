@@ -57,6 +57,15 @@
       "macos-aarch64": ["feareffect2retrohelix-", "-macos-arm64.zip"],
       "macos-x86-64": ["feareffect2retrohelix-", "-macos-x64.zip"],
       "windows-x86-64": ["feareffect2retrohelix-", "-windows-x64.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "fear-effect-2-retro-helix",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

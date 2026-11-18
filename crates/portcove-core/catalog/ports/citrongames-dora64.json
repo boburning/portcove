@@ -28,7 +28,25 @@
       "warnings": [],
       "help_url": "https://github.com/citrongames/Dora64/blob/v1.0.4/README.md"
     },
-    "original_game_title": "Doraemon: Nobita to Mittsu no Seireiseki"
+    "original_game_title": "Doraemon: Nobita to Mittsu no Seireiseki",
+    "original_game": {
+      "format_version": 1,
+      "id": "doraemon-nobita-to-mittsu-no-seireiseki",
+      "evidence_urls": [
+        "https://github.com/citrongames/Dora64/blob/v1.0.4/README.md",
+        "https://github.com/citrongames/Dora64"
+      ],
+      "source_editions": [
+        {
+          "id": "doraemon-nobita-to-mittsu-no-seireiseki-nintendo-64",
+          "title": "Doraemon: Nobita to Mittsu no Seireiseki (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/citrongames/Dora64/blob/680d81feb4c57309ba80536300d73725ea9dffaa/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

@@ -12,7 +12,7 @@
     },
     "name": "The Sims: Bustin' Out — Original Xbox (The Sims: Bustin' Out - Static Recompilation)",
     "summary": "The project reports running a household in The Sims: Bustin’ Out on Linux using the North American original Xbox game. A Windows ZIP is published, but the guide does not confirm a working Windows build. Saving and physical controller use remain unconfirmed.",
-    "original_game_title": "The Sims: Bustin' Out",
+    "original_game_title": "The Sims: Bustin’ Out (console)",
     "project_url": "https://github.com/abilliontokens/bustinout-recomp",
     "listed_at": "2026-10-25",
     "platforms": [],
@@ -36,6 +36,21 @@
         {
           "title": "Version and platform notes",
           "instruction": "The Linux project reports experimental widescreen. The Windows guide describes a Direct3D 12 and XAudio2 route but says it has never been compiled. The published Windows ZIP has no confirmed play result."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-sims-bustin-out-console",
+      "evidence_urls": ["https://github.com/abilliontokens/bustinout-recomp"],
+      "source_editions": [
+        {
+          "id": "the-sims-bustin-out-console-xbox",
+          "title": "The Sims: Bustin’ Out (console) (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/abilliontokens/bustinout-recomp/blob/e37436806c5107ee0ed4cb4d5c7a62b4c72eb613/README.md"
+          ]
         }
       ]
     }

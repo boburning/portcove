@@ -12,7 +12,7 @@
     },
     "name": "Toy Story 2: Buzz Lightyear to the Rescue! (N64) (SpaceRanger)",
     "summary": "Play the Nintendo 64 version of Toy Story 2 with widescreen rendering and smoother motion.",
-    "original_game_title": "Toy Story 2: Buzz Lightyear to the Rescue! (N64)",
+    "original_game_title": "Toy Story 2: Buzz Lightyear to the Rescue!",
     "project_url": "https://github.com/woodys-workshop/SpaceRanger",
     "platforms": [],
     "availability": "unknown",
@@ -34,6 +34,27 @@
       "warnings": [
         "Back up spaceranger-config before using the upstream reset procedure. Resetting the folder to reselect a ROM also removes settings and any Controller Pak data.",
         "Quit the game normally before updating or moving profile files. The upstream preview reports incomplete interpolation and frame pacing tested mainly on one PC."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "toy-story-2-buzz-lightyear-to-the-rescue",
+      "evidence_urls": [
+        "https://github.com/woodys-workshop/SpaceRanger/blob/0b7b3dd20d75441c40005ee468d375c230d431d0/README.md",
+        "https://github.com/woodys-workshop/SpaceRanger",
+        "https://github.com/woodys-workshop/SpaceRanger/releases/tag/v0.1.0",
+        "https://github.com/woodys-workshop/SpaceRanger/commit/0b7b3dd20d75441c40005ee468d375c230d431d0",
+        "https://api.github.com/repositories/1415549886"
+      ],
+      "source_editions": [
+        {
+          "id": "toy-story-2-buzz-lightyear-to-the-rescue-nintendo-64",
+          "title": "Toy Story 2: Buzz Lightyear to the Rescue! (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/woodys-workshop/SpaceRanger/blob/40461c5eb419db1a889d7bdfe9878d56c493f8cc/README.md"
+          ]
+        }
       ]
     }
   },

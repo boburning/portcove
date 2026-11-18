@@ -59,6 +59,15 @@
           "instruction": "Upstream reports a completed Slickrock Gorge race, with sound/CD music, memory-card saving, other tracks, season, gamepad and two-player play untested. Menu art can extend beyond the right edge. Optional JM2 diagnostic/input/cheat environment features are outside this route. Keep the project and RecompOne notices; their MIT grants do not grant original game content. Upstream states that this early release was tested only on Windows 11 x64; this is its reported test scope, not Portcove qualification for Windows 10 or another host."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "jet-moto-2-championship-edition",
+      "evidence_urls": [
+        "https://github.com/goodshepherd23/JetMoto2-Recomp",
+        "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -3,7 +3,7 @@
   "listing": {
     "id": "dead-space-2-recomp-bifftannen1-dead-space-2-xbox-360",
     "name": "Dead Space 2 (Xbox 360) — Dead Space 2 Recomp (bifftannen1)",
-    "original_game_title": "Dead Space 2 (Xbox 360)",
+    "original_game_title": "Dead Space 2",
     "summary": "Campaign/Severed not fully playtested; online features untested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/bifftannen1/Dead-Space-2-Recomp",
     "platforms": [],
@@ -35,6 +35,21 @@
       "image_sha256": "70e07dc3479832c9b783e4528ac2f76e38be692ac83fb978dad6f97d88727769",
       "game_slug": "dead-space-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dead-space-2",
+      "evidence_urls": ["https://github.com/bifftannen1/Dead-Space-2-Recomp"],
+      "source_editions": [
+        {
+          "id": "dead-space-2-xbox-360",
+          "title": "Dead Space 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/bifftannen1/Dead-Space-2-Recomp/blob/97b9dac62ad10175874774ea0dcc8a9fd632893f/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

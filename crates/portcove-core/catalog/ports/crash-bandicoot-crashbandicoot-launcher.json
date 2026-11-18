@@ -65,6 +65,24 @@
       "image_sha256": "c540e5f90bcc619f80f45c5cd074773bdb0a007e99af18ef7f56498d77a38f7d",
       "game_slug": "crash-bandicoot",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-bandicoot",
+      "evidence_urls": [
+        "https://github.com/Matteo842/CrashBandicoot-Launcher",
+        "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/edc2771064132975a1870bfb7cfccceb7fbdf1ee/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "crash-bandicoot-playstation",
+          "title": "Crash Bandicoot (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/6c3fd658935846e24cdfaee7f0091df4816d7149/README.md"
+          ]
+        }
+      ]
     }
   }
 }

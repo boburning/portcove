@@ -35,6 +35,21 @@
       "image_sha256": "1f279ee6591e0bc580f8305c47052c7ccfe2ccd819cdb0cf5895ae3760dbb8db",
       "game_slug": "super-robot-taisen-z",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-robot-taisen-z",
+      "evidence_urls": ["https://github.com/SloppyWyn/SRWZ-native"],
+      "source_editions": [
+        {
+          "id": "super-robot-taisen-z-playstation-2",
+          "title": "Super Robot Taisen Z (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/SloppyWyn/SRWZ-native/blob/d45c45ed91b3fc1beec685cda0ec2b25ed015869/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

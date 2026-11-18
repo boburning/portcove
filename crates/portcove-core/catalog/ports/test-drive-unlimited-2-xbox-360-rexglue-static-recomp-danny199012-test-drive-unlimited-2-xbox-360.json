@@ -35,6 +35,21 @@
       "image_sha256": "c1cd8b5f319d1cf2f41450a5199cbecd51d81d64c9801860f719f58eb9379748",
       "game_slug": "test-drive-unlimited-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "test-drive-unlimited-2-xbox-360",
+      "evidence_urls": ["https://github.com/danny199012/Test-Drive-Unlimited-2-Recomp"],
+      "source_editions": [
+        {
+          "id": "test-drive-unlimited-2-xbox-360-xbox-360",
+          "title": "Test Drive Unlimited 2 (Xbox 360) (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/danny199012/Test-Drive-Unlimited-2-Recomp/blob/6ab29ae13402052c0002b811366d7e2896b19fc9/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

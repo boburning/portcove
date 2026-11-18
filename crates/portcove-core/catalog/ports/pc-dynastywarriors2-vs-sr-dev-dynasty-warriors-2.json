@@ -35,6 +35,21 @@
       "image_sha256": "69bf084487980117c548e2806cfbedbf6e2097527d26e9424a7c134269e457b0",
       "game_slug": "dynasty-warriors-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dynasty-warriors-2",
+      "evidence_urls": ["https://github.com/vs-sr-dev/pc-dynastywarriors2"],
+      "source_editions": [
+        {
+          "id": "dynasty-warriors-2-playstation-2",
+          "title": "Dynasty Warriors 2 (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/vs-sr-dev/pc-dynastywarriors2/blob/c99c207f837839b271b552b4896febf817a12a53/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

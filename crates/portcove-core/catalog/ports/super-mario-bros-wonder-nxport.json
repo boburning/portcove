@@ -38,6 +38,12 @@
           "instruction": "The builder targets Apple silicon. Windows and Linux players are unconfirmed."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-bros-wonder",
+      "evidence_urls": ["https://github.com/nxporting/nxport"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

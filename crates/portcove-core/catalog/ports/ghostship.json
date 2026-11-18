@@ -54,6 +54,15 @@
           "instruction": "For this external copy, use the project’s tools to update it. Close the game and helpers, preserve the whole working folder including sm64.o2r, saves, mods, screenshots, ghostship.cfg.json and imgui.ini, then prepare a new version separately before changing launch details. Portcove offers launch and registration removal for this copy; it does not offer managed updates, backups, rollback, migration or deletion of its files. Removing the registration leaves the game and data in place. Existing Portcove-managed copies keep their own available update and recovery actions."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-64",
+      "evidence_urls": [
+        "https://github.com/HarbourMasters/Ghostship/blob/aefb89b85e7b78daff62b491ebb2669d2d9270f0/README.md",
+        "https://github.com/n64hub/super-mario-64-recomp/blob/a3240c9beed89341b29957cea0cea076fe04b6dc/README.md"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

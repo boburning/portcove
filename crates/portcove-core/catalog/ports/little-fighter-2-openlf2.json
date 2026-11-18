@@ -53,6 +53,15 @@
           "instruction": "The v1.2.0 release includes Windows x86, x64 and ARM64 installers, Linux x86, x64 and ARM64 AppImage and Debian packages, and separate Intel and Apple Silicon Mac apps. Android previews cover ARM32, ARM64, x86 and x64 on API 21 or later. Choose the package for the device's architecture. On Linux, use APPIMAGE_EXTRACT_AND_RUN=1 for a manual AppImage launch if FUSE is unavailable."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "little-fighter-2",
+      "evidence_urls": [
+        "https://github.com/OpenLF2/OpenLF2/blob/v1.2.0/README.md",
+        "https://github.com/OpenLF2/OpenLF2"
+      ],
+      "source_editions": []
     }
   }
 }

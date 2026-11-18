@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/Leonardorobertomotalvao/demons-souls-pc"
     },
-    "issue_number": 3375
+    "issue_number": 3375,
+    "original_game": {
+      "format_version": 1,
+      "id": "demon-s-souls",
+      "evidence_urls": ["https://github.com/Leonardorobertomotalvao/demons-souls-pc"],
+      "source_editions": [
+        {
+          "id": "demon-s-souls-playstation-3",
+          "title": "Demon's Souls (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/Leonardorobertomotalvao/demons-souls-pc/blob/5aa4151ee52d54c9aed67471550d70424b7ce85e/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -40,6 +40,12 @@
           "instruction": "Black flashes and stripes on walls at night remain. The Linux and Mac builds inherited from another project have not been tested with this game."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-legends-z-a",
+      "evidence_urls": ["https://github.com/Hexveil404/PokeZ-ARecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

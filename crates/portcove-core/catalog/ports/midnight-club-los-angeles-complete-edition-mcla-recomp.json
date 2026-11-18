@@ -12,7 +12,7 @@
     },
     "name": "Midnight Club: Los Angeles Complete Edition (MCLA Recomp)",
     "summary": "A Midnight Club: Los Angeles Complete Edition build kit that compiles locally, rather than a ready-made player. Windows x86-64 uses Direct3D 12; Linux native Vulkan source instructions have one project-reported free-roam test, with exact CPU support unconfirmed. A jailbroken PS5 route is separate. Use your own USA/Europe Complete Edition Xbox 360 ISO, title 545407F8. Setup extracts it, translates default.xex and builds locally. Base/non-Complete releases and other code revisions are not established compatible. No game code, data or keys are supplied. Portcove has not confirmed setup or gameplay.",
-    "original_game_title": "Midnight Club: Los Angeles Complete Edition",
+    "original_game_title": "Midnight Club: Los Angeles",
     "project_url": "https://github.com/holdmysocks/mcla-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -45,6 +45,24 @@
       ],
       "warnings": [
         "Select an already completed mcla.exe build, not the source kit or build script. Preserve the full project and actual Documents/mcla or explicitly selected data root; all native/gameplay/save observations remain unperformed."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "midnight-club-los-angeles",
+      "evidence_urls": [
+        "https://github.com/holdmysocks/mcla-recomp",
+        "https://github.com/holdmysocks/mcla-recomp/blob/f3104f553ddd90b251012cc1536d4158765acd93/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "midnight-club-los-angeles-xbox-360",
+          "title": "Midnight Club: Los Angeles (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/holdmysocks/mcla-recomp/blob/2ed208199fcab064e67a83c5ab8f7e8f2aece444/README.md"
+          ]
+        }
       ]
     }
   },

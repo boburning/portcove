@@ -35,6 +35,21 @@
       "image_sha256": "6a8e9e1f3c208b7761b6a4580059030d35975e41c7c22c1e172aeb3d68d21930",
       "game_slug": "forza-motorsport-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "forza-motorsport-2",
+      "evidence_urls": ["https://github.com/zer0ducksgiven/Forza-Motorsport-2-ReGPU"],
+      "source_editions": [
+        {
+          "id": "forza-motorsport-2-xbox-360",
+          "title": "Forza Motorsport 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/zer0ducksgiven/Forza-Motorsport-2-ReGPU/blob/feaef3259cf038a3e0236591beed9b8d882073ec/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

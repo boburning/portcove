@@ -54,7 +54,25 @@
         }
       ]
     },
-    "download_block_reason": "Fresh Core acquisition of the selected Finest Hour Windows installer/required remaster-pack asset set is held: upstream identifies original COD.PAK textures and remastered game models in that pack, but an applicable grant for those selected components has not been established by the code/tool licenses. Resume with attributable permission/authorized source for the selected asset set or a separately reviewed supported preparation route excluding the unresolved components. An independently permitted completed copy remains distinct; successor-process continuation is not offered by its conditional ordinary-entry guide."
+    "download_block_reason": "Fresh Core acquisition of the selected Finest Hour Windows installer/required remaster-pack asset set is held: upstream identifies original COD.PAK textures and remastered game models in that pack, but an applicable grant for those selected components has not been established by the code/tool licenses. Resume with attributable permission/authorized source for the selected asset set or a separately reviewed supported preparation route excluding the unresolved components. An independently permitted completed copy remains distinct; successor-process continuation is not offered by its conditional ordinary-entry guide.",
+    "original_game": {
+      "format_version": 1,
+      "id": "call-of-duty-finest-hour",
+      "evidence_urls": [
+        "https://github.com/crazyriddler/FinestHourRemastered",
+        "https://github.com/crazyriddler/FinestHourRemastered/blob/d908d2f994ecb64379986aaced826de3adf0d06a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "call-of-duty-finest-hour-xbox",
+          "title": "Call of Duty: Finest Hour (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/crazyriddler/FinestHourRemastered/blob/bd35ab60d8e927bdfd3c16e7bb9db0aabfe60a81/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

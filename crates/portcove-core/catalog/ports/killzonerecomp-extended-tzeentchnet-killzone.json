@@ -35,6 +35,12 @@
       "image_sha256": "7945841b0e901352c1a25d182678232d43ad07971ed5786864cae82f6b7ce9a3",
       "game_slug": "killzone",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "killzone",
+      "evidence_urls": ["https://github.com/Tzeentchnet/KillzoneRecomp-Extended"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

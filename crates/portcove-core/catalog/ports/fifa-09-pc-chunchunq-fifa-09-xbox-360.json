@@ -3,7 +3,7 @@
   "listing": {
     "id": "fifa-09-pc-chunchunq-fifa-09-xbox-360",
     "name": "FIFA 09 (Xbox 360) — FIFA 09 PC (ChunchunQ)",
-    "original_game_title": "FIFA 09 (Xbox 360)",
+    "original_game_title": "FIFA 09",
     "artwork": {
       "game_id": 3134,
       "cover_id": 93567,
@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/ChunchunQ/fifa09-recomp"
     },
-    "issue_number": 3231
+    "issue_number": 3231,
+    "original_game": {
+      "format_version": 1,
+      "id": "fifa-09",
+      "evidence_urls": ["https://github.com/ChunchunQ/fifa09-recomp"],
+      "source_editions": [
+        {
+          "id": "fifa-09-xbox-360",
+          "title": "FIFA 09 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/ChunchunQ/fifa09-recomp/blob/4dba1063d742911a81c81aa53347e463c2dc75d5/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

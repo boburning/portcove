@@ -40,6 +40,12 @@
           "instruction": "The Linux route uses DXVK and Vulkan, with CPU support unconfirmed. Two-PC matches, physical controllers and the online roster have limited testing."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros-ultimate",
+      "evidence_urls": ["https://github.com/OpenSmash-Ultimate/WindowSmash"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

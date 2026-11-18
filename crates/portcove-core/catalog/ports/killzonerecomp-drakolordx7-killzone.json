@@ -35,6 +35,21 @@
       "image_sha256": "7945841b0e901352c1a25d182678232d43ad07971ed5786864cae82f6b7ce9a3",
       "game_slug": "killzone",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "killzone",
+      "evidence_urls": ["https://github.com/drakolordx7/KillzoneRecomp"],
+      "source_editions": [
+        {
+          "id": "killzone-playstation-2",
+          "title": "Killzone (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/drakolordx7/KillzoneRecomp/blob/a81c3309c846e12e54883295a871a95fc020b6fe/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

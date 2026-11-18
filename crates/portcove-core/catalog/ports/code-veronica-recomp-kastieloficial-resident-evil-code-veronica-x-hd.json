@@ -3,7 +3,7 @@
   "listing": {
     "id": "code-veronica-recomp-kastieloficial-resident-evil-code-veronica-x-hd",
     "name": "Resident Evil Code: Veronica X HD — Code Veronica Recomp (kastieloficial)",
-    "original_game_title": "Resident Evil Code: Veronica X HD",
+    "original_game_title": "Resident Evil Code: Veronica X",
     "artwork": {
       "game_id": 20622,
       "cover_id": 93763,
@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC"
     },
-    "issue_number": 3368
+    "issue_number": 3368,
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-code-veronica-x",
+      "evidence_urls": ["https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC"],
+      "source_editions": [
+        {
+          "id": "resident-evil-code-veronica-x-playstation-3",
+          "title": "Resident Evil Code: Veronica X (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC/blob/5d5e9013700914cf0042a8fb1c2ad62fb51b0e91/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -3,7 +3,7 @@
   "listing": {
     "id": "the-warriors-xberecomp-antriksh1984-the-warriors-xbox",
     "name": "The Warriors (Xbox) — The Warriors - XBERecomp (Antriksh1984)",
-    "original_game_title": "The Warriors (Xbox)",
+    "original_game_title": "The Warriors",
     "summary": "The alpha is reported to boot and play the opening missions with correct audio. The full game has not been played through; later crashes, missing effects and broken sound remain possible. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Antriksh1984/TheWarriors-XBERecomp",
     "platforms": ["windows-x86-64"],
@@ -35,6 +35,21 @@
       "image_sha256": "ef188058c4f8246f857510caac35af30aa9cbbdc9829a0fd3122ed3e31127ff2",
       "game_slug": "the-warriors",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-warriors",
+      "evidence_urls": ["https://github.com/Antriksh1984/TheWarriors-XBERecomp"],
+      "source_editions": [
+        {
+          "id": "the-warriors-xbox",
+          "title": "The Warriors (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/Antriksh1984/TheWarriors-XBERecomp/blob/1d0c8c70951e102181a13a818702759ab3941843/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

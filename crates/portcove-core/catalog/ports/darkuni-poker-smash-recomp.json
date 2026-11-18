@@ -46,7 +46,25 @@
     "download_asset_hints": {
       "windows-x86-64": ["PokerSmash-", "-win64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "poker-smash",
+      "evidence_urls": [
+        "https://github.com/darkuni/poker-smash-recomp/blob/0465face8472373cac3283e13655206941310a62/README.md",
+        "https://github.com/darkuni/poker-smash-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "poker-smash-xbox-360",
+          "title": "Poker Smash (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/darkuni/poker-smash-recomp/blob/90701cdbd465d1d3f3524822aeae9ac36637e66f/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

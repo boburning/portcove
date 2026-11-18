@@ -3,7 +3,7 @@
   "listing": {
     "id": "cristalis-claudio5702-crystal-defenders-xbox-live-arcade",
     "name": "Crystal Defenders (Xbox Live Arcade) — Cristalis (Claudio5702)",
-    "original_game_title": "Crystal Defenders (Xbox Live Arcade)",
+    "original_game_title": "Crystal Defenders",
     "summary": "A few people have played beta 1.10 according to the project. Online leaderboards and instant save states are unavailable; the player handles music loops. Native Linux remains experimental and is separate from running Windows through Proton. Portcove has not confirmed a playthrough. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Claudio5702/Cristalis",
     "platforms": ["windows-x86-64", "linux-x86-64"],
@@ -35,6 +35,21 @@
       "image_sha256": "a0c002e75c63afbf240e32ed01e20932fec97ff5568c5ffde1b06ac40b0b4770",
       "game_slug": "crystal-defenders",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "crystal-defenders",
+      "evidence_urls": ["https://github.com/Claudio5702/Cristalis"],
+      "source_editions": [
+        {
+          "id": "crystal-defenders-xbox-360",
+          "title": "Crystal Defenders (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Claudio5702/Cristalis/blob/48b91cbfca58e222dda743c7d56cd433b3d5fa42/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

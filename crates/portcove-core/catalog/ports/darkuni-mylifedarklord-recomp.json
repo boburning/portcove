@@ -46,7 +46,16 @@
     "download_asset_hints": {
       "windows-x86-64": ["MyLifeAsADarklord-", "-win64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-crystal-chronicles-my-life-as-a-darklord",
+      "evidence_urls": [
+        "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md",
+        "https://github.com/darkuni/mylifedarklord-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

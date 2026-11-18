@@ -18,5 +18,10 @@
       "game_slug": "super-mario-all-stars",
       "match_kind": "underlying-game"
     }
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "SuperMarioAllStars is a compilation of distinct Mario adventures. Preserve collection scope rather than treating every included game as one original.",
+    "evidence_urls": ["https://github.com/qurious-pixel/SMAS_Launcher"]
   }
 }

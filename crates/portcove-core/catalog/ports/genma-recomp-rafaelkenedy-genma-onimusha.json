@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/rafaelkenedy/genma-recomp"
     },
-    "issue_number": 3624
+    "issue_number": 3624,
+    "original_game": {
+      "format_version": 1,
+      "id": "genma-onimusha",
+      "evidence_urls": ["https://github.com/rafaelkenedy/genma-recomp"],
+      "source_editions": [
+        {
+          "id": "genma-onimusha-xbox",
+          "title": "Genma Onimusha (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/rafaelkenedy/genma-recomp/blob/33fee19ef4aec490b8970d4472fadd6c4bc99aa2/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

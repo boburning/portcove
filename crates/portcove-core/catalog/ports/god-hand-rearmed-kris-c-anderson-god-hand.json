@@ -35,7 +35,29 @@
       ],
       "help_url": "https://github.com/God-Hand-Rearmed/God-Hand-Rearmed"
     },
-    "issue_number": 3075
+    "issue_number": 3075,
+    "original_game": {
+      "format_version": 1,
+      "id": "god-hand",
+      "evidence_urls": [
+        "https://github.com/God-Hand-Rearmed/God-Hand-Rearmed",
+        "https://api.github.com/repositories/1429373816",
+        "https://api.github.com/repos/God-Hand-Rearmed/God-Hand-Rearmed/contributors",
+        "https://api.github.com/users/kris-c-anderson",
+        "https://api.github.com/orgs/God-Hand-Rearmed",
+        "https://api.github.com/repos/kris-c-anderson/godhand-rearmed"
+      ],
+      "source_editions": [
+        {
+          "id": "god-hand-playstation-2",
+          "title": "God Hand (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/God-Hand-Rearmed/God-Hand-Rearmed/blob/deb902b581e37c689d7091dca1fbb81a96abb5ce/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

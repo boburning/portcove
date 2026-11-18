@@ -54,7 +54,17 @@
       "windows-x86-64": ["JFG-", "-windows-x64-portable.zip"],
       "linux-x86-64": ["JFG-", "-linux-x86_64-portable.tar.gz"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "jet-force-gemini",
+      "evidence_urls": [
+        "https://github.com/VibinToast/JetForceGemini-Recompiled",
+        "https://api.github.com/repositories/1418141714",
+        "https://github.com/VibinToast/JetForceGemini-Recompiled/releases/tag/v1.3.1"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

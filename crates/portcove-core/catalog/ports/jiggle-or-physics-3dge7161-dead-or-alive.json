@@ -18,6 +18,21 @@
       "image_sha256": "258e0674396f7625568bac13c39fd2496618320dcd93e2d6c89cab4766827b92",
       "game_slug": "dead-or-alive--2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dead-or-alive",
+      "evidence_urls": ["https://github.com/3dge7161/Jiggle-or-Physics"],
+      "source_editions": [
+        {
+          "id": "dead-or-alive-playstation",
+          "title": "Dead or Alive (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/3dge7161/Jiggle-or-Physics/blob/9e42e3ba122249d14ec2acbcc22f9fca34330f68/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

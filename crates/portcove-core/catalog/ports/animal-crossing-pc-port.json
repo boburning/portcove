@@ -60,6 +60,16 @@
           "instruction": "Use a backup of your own .gci save in the active save/card_a folder. Leave the old playtest folder and settings in place until you have checked the imported town."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "animal-crossing",
+      "evidence_urls": [
+        "https://github.com/flyngmt/Nookery#running-the-port-for-players",
+        "https://github.com/flyngmt/Nookery#data-folder",
+        "https://github.com/flyngmt/Nookery"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

@@ -4,7 +4,7 @@
     "id": "quake-4-xbox-360-edition-xbox-360-quake-4-decomp-recomp",
     "name": "Quake 4 (Xbox 360 edition) (Xbox 360 Quake 4 decomp/recomp)",
     "summary": "An Xbox 360 Quake 4 development route that builds locally from your own ISO/default.xex. The Windows setup EXE is not a prebuilt playable game. The project has tested only early levels; later levels are rough and audio testing is limited. The native Direct3D 11 renderer and legacy executable are separate outputs. Exact Windows host CPU architecture is unconfirmed. Portcove has not confirmed setup or gameplay.",
-    "original_game_title": "Quake 4 (Xbox 360 edition)",
+    "original_game_title": "Quake 4",
     "project_url": "https://github.com/cyberheater/Xbox-360-Quake4-decomp",
     "platforms": [],
     "availability": "unknown",
@@ -45,6 +45,24 @@
       ],
       "warnings": [
         "Select the actual completed q4hle.exe and preserve q4.toml, the original location and existing q4 data root. PC openQ4, the SDK renderer and legacy builds have separate compatibility and maintenance scope."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "quake-4",
+      "evidence_urls": [
+        "https://github.com/cyberheater/Xbox-360-Quake4-decomp/blob/3363d5339af52f228a95f2a9f28a95d466e5c520/README.md",
+        "https://github.com/cyberheater/Xbox-360-Quake4-decomp"
+      ],
+      "source_editions": [
+        {
+          "id": "quake-4-xbox-360",
+          "title": "Quake 4 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/cyberheater/Xbox-360-Quake4-decomp/blob/4373d66191307d1f6c839343d7bc7b0008eec5f0/README.md"
+          ]
+        }
       ]
     }
   },

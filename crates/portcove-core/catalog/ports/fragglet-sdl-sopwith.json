@@ -40,7 +40,16 @@
       "game_slug": "sopwith",
       "match_kind": "underlying-game"
     },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "sopwith",
+      "evidence_urls": [
+        "https://fragglet.github.io/sdl-sopwith/",
+        "https://github.com/fragglet/sdl-sopwith"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

@@ -50,6 +50,24 @@
           "instruction": "Close both the launcher and the game before replacing files. Upstream provides update notices; keep your old copy recoverable and extract the new release separately. Let the new runtime regenerate its shader libraries and renderer caches from your own files. Keep upstream controls and save import/export/restore tools available, with separate backups of your actual profile. You or upstream own runtime updates and backups; Portcove registration provides no managed Update, Backup or Rollback. Removing the registration leaves every external file untouched."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "need-for-speed-most-wanted",
+      "evidence_urls": [
+        "https://github.com/madelrandel-blip/NFSMW-Recompiled/blob/f40889ac72dc86a14f8d951201b329ad35e71882/README.md",
+        "https://github.com/madelrandel-blip/NFSMW-Recompiled"
+      ],
+      "source_editions": [
+        {
+          "id": "need-for-speed-most-wanted-xbox-360",
+          "title": "Need for Speed: Most Wanted (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/madelrandel-blip/NFSMW-Recompiled/blob/59a0f23ba19d826a2978443dfc2f8b2a96dd415f/README.md"
+          ]
+        }
+      ]
     }
   }
 }

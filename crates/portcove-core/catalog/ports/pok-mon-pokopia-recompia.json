@@ -41,6 +41,15 @@
       "warnings": [
         "Keep a separate backup before switching between solo and co-op setups. Co-op uses a separate save and starts from the beginning."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-pokopia",
+      "evidence_urls": [
+        "https://github.com/Dittobyte/Recompia",
+        "https://github.com/Dittobyte/Recompia/blob/v0.15.0/launcher/README.md"
+      ],
+      "source_editions": []
     }
   }
 }

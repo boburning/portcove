@@ -477,7 +477,7 @@ async function prepareArtworkProposal(fullProposal = false) {
   validateArtworkProposalArguments(fullProposal);
   const captured = readArtworkInput(
     option(fullProposal ? "--prepare-proposal" : "--prepare-artwork", true),
-    fullProposal ? 4 * 1024 * 1024 : 8 * 1024 * 1024,
+    fullProposal ? 16 * 1024 * 1024 : 8 * 1024 * 1024,
   );
   const input = captured.document;
   validateCurrentCatalog(input);

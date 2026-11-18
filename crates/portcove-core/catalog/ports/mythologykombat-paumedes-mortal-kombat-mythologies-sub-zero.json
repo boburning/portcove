@@ -18,6 +18,21 @@
       "image_sha256": "cc6f0fd2f6cbdeefb948edfcf9c83fbf7983276e77bbe1687ccdac8f8048c9fd",
       "game_slug": "mortal-kombat-mythologies-sub-zero",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mortal-kombat-mythologies-sub-zero",
+      "evidence_urls": ["https://github.com/PAumedes/MythologyKombat"],
+      "source_editions": [
+        {
+          "id": "mortal-kombat-mythologies-sub-zero-playstation",
+          "title": "Mortal Kombat Mythologies: Sub-Zero (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/PAumedes/MythologyKombat/blob/a7bda2c663ef870153a14c389b6d0b03aa59ae26/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

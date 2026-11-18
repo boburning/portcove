@@ -35,6 +35,21 @@
       "image_sha256": "9fa174834a96a33f6ef86062b23fd268f1a4841a4fcc918e86ea769bf405da0b",
       "game_slug": "happy-wars",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "happy-wars",
+      "evidence_urls": ["https://github.com/joojofc13-wq/HappyWarsRecompiled"],
+      "source_editions": [
+        {
+          "id": "happy-wars-xbox-360",
+          "title": "Happy Wars (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/joojofc13-wq/HappyWarsRecompiled/blob/b889d862382568863829a72e4c3d2f64dc394896/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

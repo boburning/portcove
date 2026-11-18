@@ -4,7 +4,7 @@
     "id": "the-warriors-ps2-coney",
     "name": "The Warriors (PS2) (Coney)",
     "summary": "An incomplete source-only Warriors PS2 reconstruction reaching startup, the frontend and limited levels, rather than complete gameplay. Windows x86-64 uses Visual Studio; Linux/macOS use CMake, with exact host CPUs unconfirmed. Supply your own ISO or mounted disc folder containing WARRIORS.DIR and WARRIORS.WAD. Portcove has not confirmed setup or gameplay.",
-    "original_game_title": "The Warriors (PS2)",
+    "original_game_title": "The Warriors",
     "project_url": "https://github.com/Ryubara/coney",
     "platforms": [],
     "availability": "unknown",
@@ -50,6 +50,24 @@
         }
       ],
       "help_url": "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/docs/guides/running.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-warriors",
+      "evidence_urls": [
+        "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/docs/guides/running.md",
+        "https://github.com/Ryubara/coney"
+      ],
+      "source_editions": [
+        {
+          "id": "the-warriors-playstation-2",
+          "title": "The Warriors (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -48,5 +48,13 @@
     "original_game_title": "Golden Sun",
     "release_url": "https://github.com/Shmargus/GSRecomp/releases",
     "recommended_download_channel": "beta"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The retained guide explicitly calls this one collection launcher for Golden Sun: The Broken Seal AND Golden Sun: The Lost Age. A first-game original_game_title would misrepresent its unscoped shared launch route.",
+    "evidence_urls": [
+      "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/README.md",
+      "https://github.com/Shmargus/GSRecomp"
+    ]
   }
 }

@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/TheBozos/SoulCaliburIII_Recomp"
     },
-    "issue_number": 3033
+    "issue_number": 3033,
+    "original_game": {
+      "format_version": 1,
+      "id": "soulcalibur-iii",
+      "evidence_urls": ["https://github.com/TheBozos/SoulCaliburIII_Recomp"],
+      "source_editions": [
+        {
+          "id": "soulcalibur-iii-playstation-2",
+          "title": "Soulcalibur III (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/TheBozos/SoulCaliburIII_Recomp/blob/98d189bfb5dbf9e3965d247a3eee4119fef15f89/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

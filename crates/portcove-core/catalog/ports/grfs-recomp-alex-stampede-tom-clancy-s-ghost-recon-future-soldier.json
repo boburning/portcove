@@ -35,6 +35,21 @@
       "image_sha256": "7ec36d6b03b96236c1764ef5cdb5a6f05dd03f5782eb44366e606c48e28b4155",
       "game_slug": "tom-clancy-s-ghost-recon-future-soldier",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tom-clancy-s-ghost-recon-future-soldier",
+      "evidence_urls": ["https://github.com/alex-stampede/GRFS-Recomp"],
+      "source_editions": [
+        {
+          "id": "tom-clancy-s-ghost-recon-future-soldier-xbox-360",
+          "title": "Tom Clancy's Ghost Recon: Future Soldier (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/alex-stampede/GRFS-Recomp/blob/ec69cdc01bb5f2fc8012bf9a3cbe0216f2dd0334/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

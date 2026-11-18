@@ -35,6 +35,21 @@
       "image_sha256": "4be2987549e59e48789e53f36769dd032d3fae3c213d25e1d8c3f0278f2848c0",
       "game_slug": "burnout-dominator",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "burnout-dominator",
+      "evidence_urls": ["https://github.com/literalynn/BurnoutDominatorReversed"],
+      "source_editions": [
+        {
+          "id": "burnout-dominator-playstation-2",
+          "title": "Burnout Dominator (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/literalynn/BurnoutDominatorReversed/blob/4813d8adb218b74c2f35013d5643ffd300314db3/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

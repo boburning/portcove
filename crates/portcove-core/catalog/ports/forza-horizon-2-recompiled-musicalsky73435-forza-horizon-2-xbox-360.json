@@ -3,7 +3,7 @@
   "listing": {
     "id": "forza-horizon-2-recompiled-musicalsky73435-forza-horizon-2-xbox-360",
     "name": "Forza Horizon 2 (Xbox 360) — Forza Horizon 2 Recompiled (MusicalSky73435)",
-    "original_game_title": "Forza Horizon 2 (Xbox 360)",
+    "original_game_title": "Forza Horizon 2",
     "summary": "Solo free roam, races and local events reportedly work; integrated graphics/upscalers are untested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/MusicalSky73435/Forza-Horizon-2-Recompiled",
     "platforms": [],
@@ -35,6 +35,21 @@
       "image_sha256": "ccab5a78be9b205775ef3c759a418752d21042c86d4f3e782dc8ecb96399d2c4",
       "game_slug": "forza-horizon-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "forza-horizon-2",
+      "evidence_urls": ["https://github.com/MusicalSky73435/Forza-Horizon-2-Recompiled"],
+      "source_editions": [
+        {
+          "id": "forza-horizon-2-xbox-360",
+          "title": "Forza Horizon 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/MusicalSky73435/Forza-Horizon-2-Recompiled/blob/b597d43b6f3a824f73dd5cfd0c51ff2d82fc4897/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

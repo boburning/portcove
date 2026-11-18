@@ -58,6 +58,15 @@
           "instruction": "Before startup, back up the complete kit and creating player directory, settings.toml, disc/BIOS sidecars, saves/ with card1.mcd/card2.mcd, game options/save states, mods/, logs/reports/cache/captures and every actual custom/external root. Existing explicit card paths, --memcard-dir or PSX_OVERLAY_CAPTURE_ROOT remain separate choices; do not merge them. Startup can remove an older settings.toml.bad and rename malformed settings.toml there, so preserve both outside the installation before launching. No cross-disc-variant, BIOS, build or mod save compatibility is promised."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "galerians",
+      "evidence_urls": [
+        "https://github.com/goodshepherd23/Galerians-Recompiled/blob/91656a8ea801f1c231ecf4177e004c641944eb1b/README.md",
+        "https://github.com/goodshepherd23/Galerians-Recompiled"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

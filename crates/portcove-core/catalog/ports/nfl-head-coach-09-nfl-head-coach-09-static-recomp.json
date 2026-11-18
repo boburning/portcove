@@ -44,6 +44,24 @@
         "The title ID establishes which game the setup expects. Matching region, revision and whole-disc digest are still unverified. Check upstream’s current renderer and progression limits before relying on a career save.",
         "You manage setup, runtime changes, backups and recovery for this external copy. Removing its Portcove registration leaves the external files in place."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "nfl-head-coach-09",
+      "evidence_urls": [
+        "https://github.com/tools81/nfl-head-coach-09-static-recomp/blob/f13c779d35b3ebed597573948c7d3f6e6a7671a6/README.md",
+        "https://github.com/tools81/nfl-head-coach-09-static-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "nfl-head-coach-09-xbox-360",
+          "title": "NFL Head Coach 09 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/tools81/nfl-head-coach-09-static-recomp/blob/34073a9ae7dd80d66257ae54d8cf42a903268770/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

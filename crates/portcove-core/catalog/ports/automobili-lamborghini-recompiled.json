@@ -41,6 +41,15 @@
           "instruction": "Use in-place updates signed by the same upstream signer to keep the app-private saves, Controller Pak data and settings. Clearing app data or uninstalling erases that profile. Use the diagnostics ZIP for troubleshooting."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "automobili-lamborghini",
+      "evidence_urls": [
+        "https://github.com/alondero/automobililamborghini-recomp/blob/main/docs/ANDROID.md",
+        "https://github.com/alondero/automobililamborghini-recomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

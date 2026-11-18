@@ -46,6 +46,15 @@
       "warnings": [
         "Select partyboard.exe: the bundled command script detaches. Preserve the actual SDL preference root and regional cards; supported local disc revisions do not establish online compatibility."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-party-4",
+      "evidence_urls": [
+        "https://github.com/zeranemesis/Marioparty4/blob/2fedc7553c1aab52cef671080e04ee44da9832aa/README.md",
+        "https://github.com/zeranemesis/Marioparty4"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

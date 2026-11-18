@@ -35,6 +35,21 @@
       "image_sha256": "c2b41b468fe2cbdfd3ca97918ddfb7440da3d307d6960e8b18f614fe9b4a0308",
       "game_slug": "valkyrie-profile-2-silmeria",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "valkyrie-profile-2-silmeria",
+      "evidence_urls": ["https://github.com/TheBozos/VP2S_Recomp"],
+      "source_editions": [
+        {
+          "id": "valkyrie-profile-2-silmeria-playstation-2",
+          "title": "Valkyrie Profile 2: Silmeria (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/TheBozos/VP2S_Recomp/blob/4af70c049aba1e9a13331892f801ce8b5a918ddf/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

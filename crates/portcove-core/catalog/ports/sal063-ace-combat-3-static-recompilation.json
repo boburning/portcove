@@ -27,6 +27,16 @@
     "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/sal063/Ace-Combat-3-static-recompilation"
+    "setup_url": "https://github.com/sal063/Ace-Combat-3-static-recompilation",
+    "original_game": {
+      "format_version": 1,
+      "id": "ace-combat-3-electrosphere",
+      "evidence_urls": [
+        "https://github.com/sal063/Ace-Combat-3-static-recompilation/blob/0dfb14971b6a5f0f001f02dcc810e6ec6c0065a5/README.md",
+        "https://github.com/sal063/Ace-Combat-3-static-recompilation"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Ace Combat 3: Electrosphere"
   }
 }

@@ -38,6 +38,12 @@
           "instruction": "The 0.x builds have hardware limits. A 1.0 release is planned. Exact native Linux build and test coverage and accepted regional hashes are unconfirmed."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "metroid-dread",
+      "evidence_urls": ["https://github.com/yozander2009-stack/Metroid-Dread-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

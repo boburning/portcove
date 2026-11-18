@@ -51,6 +51,24 @@
       "warnings": [
         "Keep both Windows data/config roots and matching companions. Main-game attachment does not establish arcade handoff, real-save or physical Windows qualification."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ninja-gaiden-black",
+      "evidence_urls": [
+        "https://github.com/gamboozino/ngbrecomp/blob/10f25f0f8622ef387b46eb55edefca6ed2e2856b/README.md",
+        "https://github.com/gamboozino/ngbrecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "ninja-gaiden-black-xbox",
+          "title": "Ninja Gaiden Black (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/gamboozino/ngbrecomp/blob/f740ca245a9c0c148bce808f1c743e9d8f9788a9/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

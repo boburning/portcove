@@ -35,6 +35,12 @@
       "image_sha256": "e12a11410c2a7d150527f7c44a297717fca25f7c222c2d00be3a809decbdf711",
       "game_slug": "downhill-domination",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "downhill-domination",
+      "evidence_urls": ["https://github.com/lngadesupport/Recomp-Domination"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -38,6 +38,12 @@
           "instruction": "World of Light reaches its intro. Online play and rollback are experimental. The reported Linux match used CachyOS, an NVIDIA GPU and Wayland. Steam Deck play remains untested."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros-ultimate",
+      "evidence_urls": ["https://github.com/OpenSmash-Ultimate/ssbu-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

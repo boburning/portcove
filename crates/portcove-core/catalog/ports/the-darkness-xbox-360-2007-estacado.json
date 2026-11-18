@@ -4,7 +4,7 @@
     "id": "the-darkness-xbox-360-2007-estacado",
     "name": "The Darkness (Xbox 360, 2007) (Estacado)",
     "summary": "Attach an independently permitted, prepared Estacado Windows player directly through TheDarkness.exe after upstream game setup. Preserve Saved Games or the existing portable/legacy layout, verified migration copies and original data; the separate settings launcher owns preparation and updates.",
-    "original_game_title": "The Darkness (Xbox 360, 2007)",
+    "original_game_title": "The Darkness",
     "artwork": {
       "game_id": 1347,
       "cover_id": 205434,
@@ -50,6 +50,24 @@
       ],
       "warnings": [
         "Select TheDarkness.exe after setup. Preserve the actual Saved Games, portable or legacy roots and retained migration copies; another Darkness implementation and settings/updater processes have separate ownership."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-darkness",
+      "evidence_urls": [
+        "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp/blob/661d493ccf64bb8b0a957986d9630171c19b38ea/README.md",
+        "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "the-darkness-xbox-360",
+          "title": "The Darkness (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp/blob/5234f331dc5178af4245cc43a31fc5e6f3e61bf9/README.md"
+          ]
+        }
       ]
     }
   },

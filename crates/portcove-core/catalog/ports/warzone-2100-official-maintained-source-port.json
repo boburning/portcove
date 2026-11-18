@@ -59,6 +59,15 @@
           "instruction": "The Ubuntu 26.04 repository package starts through its own sandboxed launcher. Its default profile is ~/.local/share/warzone2100. Close the game before copying your campaign saves and other player data. When switching from a separately installed copy of the same release, keep the original backup until the loaded campaign is working."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "warzone-2100",
+      "evidence_urls": [
+        "https://wz2100.net/download/",
+        "https://github.com/Warzone2100/warzone2100"
+      ],
+      "source_editions": []
     }
   }
 }

@@ -35,6 +35,21 @@
       "image_sha256": "4086e7d4c13b213be53816eef7624b0b66a2db7658e4255165b8008d893c635f",
       "game_slug": "magicians-quest-mysterious-times",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "magician-s-quest-mysterious-times",
+      "evidence_urls": ["https://github.com/waifoof/MagiciansQuest-Recomp"],
+      "source_editions": [
+        {
+          "id": "magician-s-quest-mysterious-times-nintendo-ds",
+          "title": "Magician's Quest: Mysterious Times (Nintendo DS)",
+          "system": "nintendo-ds",
+          "evidence_urls": [
+            "https://github.com/waifoof/MagiciansQuest-Recomp/blob/c31b0e8002d58d9d34c6b105a2f83c4f8e512032/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

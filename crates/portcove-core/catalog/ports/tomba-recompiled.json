@@ -16,7 +16,13 @@
       "game_slug": "tomba",
       "match_kind": "underlying-game"
     },
-    "issue_number": 86
+    "issue_number": 86,
+    "original_game": {
+      "format_version": 1,
+      "id": "tomba",
+      "evidence_urls": ["https://github.com/mstan/TombaRecomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

@@ -35,6 +35,21 @@
       "image_sha256": "90a277447c769d7321fc7f1d7ee5ef1ab36ffe3fe3e708be9b3197d367e629d0",
       "game_slug": "rule-of-rose",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "rule-of-rose",
+      "evidence_urls": ["https://github.com/RaikoDenpa/RoR-Port"],
+      "source_editions": [
+        {
+          "id": "rule-of-rose-playstation-2",
+          "title": "Rule of Rose (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/RaikoDenpa/RoR-Port/blob/e22d3a35862c7e888afbb11523f6c66ce53bdf89/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

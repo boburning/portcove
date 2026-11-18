@@ -33,6 +33,8 @@ const CONFIG_MAX: u64 = 64 * 1024;
 const ROOT_MAX: u64 = 1024 * 1024;
 const ROLE_MAX: u64 = 8 * 1024 * 1024;
 const INSPECTION_MAX: u64 = 4 * 1024 * 1024;
+const DEFINITION_INDEX_MAX: u64 = 4 * 1024 * 1024;
+const DEFINITION_CONTENT_MAX: u64 = 16 * 1024 * 1024;
 const BUNDLE_MAX: u64 = 32 * 1024 * 1024;
 const BUNDLE_FILES: usize = 16385;
 fn invalid<T>(message: &str) -> Result<T> {

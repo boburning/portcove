@@ -35,6 +35,26 @@
       "image_sha256": "c6b1e4a86df1788363949e077f35ca78f772d61e4e627971ccab3168ca911d0e",
       "game_slug": "persona-3-fes",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "persona-3-fes",
+      "evidence_urls": [
+        "https://github.com/ppkkkkk/p3fes-recompiled",
+        "https://api.github.com/repositories/1419286783",
+        "https://api.github.com/users/poopoocacacacaca",
+        "https://api.github.com/repos/poopoocacacacaca/p3fes-recompiled"
+      ],
+      "source_editions": [
+        {
+          "id": "persona-3-fes-playstation-2",
+          "title": "Persona 3 FES (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/ppkkkkk/p3fes-recompiled/blob/b53437748ded7e11a955ae79e94414d147a1ba17/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

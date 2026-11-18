@@ -50,6 +50,15 @@
       "warnings": [
         "Keep both original disc pairs and the actual imported-disc/card data root; the native client, original-PsyQ rebuild and fan subtitle packs have separate boundaries."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "serial-experiments-lain",
+      "evidence_urls": [
+        "https://github.com/Y0oshi/lain-psx-decompiled/blob/ee9acb7f9a6197f88185a06b380e48b303e5583f/README.md",
+        "https://github.com/Y0oshi/lain-psx-decompiled"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

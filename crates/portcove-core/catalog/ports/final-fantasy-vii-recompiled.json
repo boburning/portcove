@@ -27,7 +27,13 @@
       "game_slug": "final-fantasy-vii",
       "match_kind": "underlying-game"
     },
-    "issue_number": 76
+    "issue_number": 76,
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-vii",
+      "evidence_urls": ["https://github.com/TechnicallyComputers/Final-Fantasy-VII"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

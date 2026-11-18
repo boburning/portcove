@@ -36,7 +36,22 @@
       "game_slug": "donkey-kong-country-2-diddy-s-kong-quest",
       "match_kind": "underlying-game"
     },
-    "issue_number": 722
+    "issue_number": 722,
+    "original_game": {
+      "format_version": 1,
+      "id": "donkey-kong-country-2-diddy-s-kong-quest",
+      "evidence_urls": ["https://github.com/mstan/DKC2Recomp"],
+      "source_editions": [
+        {
+          "id": "donkey-kong-country-2-diddy-s-kong-quest-super-nintendo",
+          "title": "Donkey Kong Country 2: Diddy's Kong Quest (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/mstan/DKC2Recomp/blob/1967e411dd02bb17da79cfdbaf614ddc62f09f07/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

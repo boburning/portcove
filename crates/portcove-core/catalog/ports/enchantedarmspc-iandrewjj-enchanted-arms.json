@@ -35,6 +35,21 @@
       "image_sha256": "1f2b278f4b75e3bf7342e812a0aa8ab24029453c291ed35b033c4f54397a9b3e",
       "game_slug": "enchanted-arms",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "enchanted-arms",
+      "evidence_urls": ["https://github.com/IAndrewJJ/EnchantedArmsRecomp"],
+      "source_editions": [
+        {
+          "id": "enchanted-arms-xbox-360",
+          "title": "Enchanted Arms (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/IAndrewJJ/EnchantedArmsRecomp/blob/2d812a23890053e940ca37dbdac45e7b5da04a3e/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -35,6 +35,12 @@
       "image_sha256": "97e5c9d299d1547a95db9079571c26e2655b4695985fdca68631b411c9b17d47",
       "game_slug": "mega-man-legends",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-legends",
+      "evidence_urls": ["https://github.com/VuloB1/MegaManLegendsRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -3,7 +3,7 @@
   "listing": {
     "id": "botwrecomp-ishaankalra2103-ishaankalra2103-the-legend-of-zelda-breath-of-the-wild-wii-u",
     "name": "The Legend of Zelda: Breath of the Wild (Wii U) — BotWRecomp (IshaanKalra2103) (IshaanKalra2103)",
-    "original_game_title": "The Legend of Zelda: Breath of the Wild (Wii U)",
+    "original_game_title": "The Legend of Zelda: Breath of the Wild",
     "summary": "The project describes game progression on Apple devices. iPhone controllers are untested; Portcove has not confirmed native play. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/IshaanKalra2103/BotWRecomp",
     "platforms": ["macos-aarch64"],
@@ -35,6 +35,21 @@
       "image_sha256": "63356e0bc0058032ae5e03ce22d5f292bea4da3779396de23530090cfd3f94b7",
       "game_slug": "the-legend-of-zelda-breath-of-the-wild",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-breath-of-the-wild",
+      "evidence_urls": ["https://github.com/IshaanKalra2103/BotWRecomp"],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-breath-of-the-wild-wii-u",
+          "title": "The Legend of Zelda: Breath of the Wild (Wii U)",
+          "system": "wii-u",
+          "evidence_urls": [
+            "https://github.com/IshaanKalra2103/BotWRecomp/blob/2b84b82dbe7efe41707d236fdbac9ec5e98c8d3d/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

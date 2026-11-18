@@ -45,6 +45,24 @@
           "instruction": "Keep the complete player folder and original disc location, including saves, memory cards, save states, mods, game.toml, game_options.toml, input.ini, keybinds.ini and any other created settings or diagnostics. The reviewed Windows ZIP route keeps data beside the player; user-selected memory-card folders and individual card paths may point elsewhere and must be preserved too. Linux AppImage data locations do not define the Windows layout. Upstream or you own updates; preserve your actual files and review changed executable bytes before relinking. Portcove does not certify save compatibility between builds."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wild-9",
+      "evidence_urls": [
+        "https://github.com/plinkr/Wild9Recomp/blob/b0c37ccaa382beeaefd8c81dc99c7a72ec11f391/packaging/release/README-WINDOWS.txt",
+        "https://github.com/plinkr/Wild9Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "wild-9-playstation",
+          "title": "Wild 9 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/plinkr/Wild9Recomp/blob/b0c37ccaa382beeaefd8c81dc99c7a72ec11f391/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

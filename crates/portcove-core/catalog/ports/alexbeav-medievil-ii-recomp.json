@@ -28,7 +28,16 @@
       "help_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/blob/v0.2.4-alpha/README.md"
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/releases/tag/v0.2.4-alpha",
-    "original_game_title": "MediEvil II"
+    "original_game_title": "MediEvil II",
+    "original_game": {
+      "format_version": 1,
+      "id": "medievil-ii",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/blob/v0.2.4-alpha/README.md",
+        "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

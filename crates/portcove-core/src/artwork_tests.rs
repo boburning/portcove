@@ -3021,6 +3021,65 @@ fn signed_cover_correction_and_withdrawal_retire_unreferenced_cached_originals()
 }
 
 #[test]
+fn large_retained_registration_stays_visible_in_listings_and_artwork() {
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let id = "zelda64-recomp";
+    let pixels = coloured_jpeg([200, 30, 30]);
+    let artwork = retention_mapping("capacitycover", &pixels);
+    let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+    crate::test_fixture::grow_catalog_evidence(&mut document, 6 * 1024 * 1024);
+    document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == id)
+        .unwrap()
+        .presentation
+        .as_mut()
+        .unwrap()
+        .artwork = Some(artwork.clone());
+    let retained = crate::Catalog::from_document(document).unwrap();
+    let working = temporary.path().join("fixture-registration");
+    fs::create_dir(&working).unwrap();
+    let record = crate::ExternalRuntimeRecord {
+        id: "catalog-capacity-runtime".into(),
+        port_id: id.into(),
+        path: working.clone(),
+        executable: working.join("game.exe"),
+        version: "fixture-1".into(),
+        platform: crate::Platform::WindowsX86_64,
+        archive_sha256: "a".repeat(64),
+        immutable_tree_sha256: "b".repeat(64),
+        registered_at: 1,
+        retained_definition: None,
+        user_selected: None,
+        shared_preferences: None,
+    };
+    service
+        .library()
+        .register_external_runtime(&record, &retained)
+        .unwrap();
+    let mut former_budget = 8 * 1024 * 1024;
+    assert!(
+        service
+            .library()
+            .external_runtime_with_port_bounded(id, &mut former_budget)
+            .is_err()
+    );
+
+    service.replace_catalog_for_test(retention_catalog(&[("unrelated-artwork", None)]));
+    assert!(service.catalog().listing(id).is_err());
+    assert!(
+        service
+            .listing_statuses()
+            .unwrap()
+            .iter()
+            .any(|status| status.port_id == id)
+    );
+    assert_eq!(igdb_cover(&service, id), Some(artwork));
+}
+
+#[test]
 fn retained_registration_keeps_its_cached_cover_after_directory_removal() {
     let temporary = tempfile::tempdir().unwrap();
     let library_root = temporary.path().join("library");

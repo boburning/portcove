@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/GTTeancum/SpideyPS1recomp"
     },
-    "issue_number": 3358
+    "issue_number": 3358,
+    "original_game": {
+      "format_version": 1,
+      "id": "spider-man",
+      "evidence_urls": ["https://github.com/GTTeancum/SpideyPS1recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

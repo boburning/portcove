@@ -5,6 +5,15 @@ use std::{
 };
 
 #[cfg(test)]
+pub(crate) fn grow_catalog_evidence(document: &mut crate::CatalogDocument, bytes: usize) {
+    let evidence = &mut document.source_catalog.as_mut().unwrap().evidence;
+    let mut record = evidence.first().unwrap().clone();
+    record.id = "synthetic-catalog-capacity".into();
+    record.claim = "Synthetic capacity fixture. ".repeat(bytes.div_ceil(28));
+    evidence.push(record);
+}
+
+#[cfg(test)]
 pub(crate) fn gitlab_listing_observation() -> serde_json::Value {
     serde_json::json!({
         "provider":"gitlab", "repository":"example/game", "repository_id":7,

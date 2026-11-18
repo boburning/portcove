@@ -4,7 +4,7 @@
     "id": "mortal-kombat-shaolin-monks-xbox-shaolinmonksrecomp",
     "name": "Mortal Kombat: Shaolin Monks (Xbox) (ShaolinMonksRecomp)",
     "summary": "Attach an independently permitted, prepared OpenShao Windows player using the supported USA/Europe Xbox original. Preserve the separate application-data and Saved Games locations, remembered source and legacy-folder migration recovery.",
-    "original_game_title": "Mortal Kombat: Shaolin Monks (Xbox)",
+    "original_game_title": "Mortal Kombat: Shaolin Monks",
     "project_url": "https://github.com/OAleex/OpenShao",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
@@ -61,6 +61,26 @@
     "download_asset_hints": {
       "windows-x86-64": ["OpenShao-", "Windows-x64.zip"],
       "linux-x86-64": ["OpenShao-", "Linux-x64.tar.gz"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mortal-kombat-shaolin-monks",
+      "evidence_urls": [
+        "https://github.com/OAleex/OpenShao/blob/0bd55e4cc27cdf1eae470b49226dfa404f8d785d/README.md",
+        "https://github.com/OAleex/OpenShao",
+        "https://api.github.com/repositories/1423414457",
+        "https://api.github.com/repos/OAleex/ShaolinMonksRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "mortal-kombat-shaolin-monks-xbox",
+          "title": "Mortal Kombat: Shaolin Monks (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/OAleex/OpenShao/blob/bc43d6e28121c9f6b67e3cc00dfe747364f3a569/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

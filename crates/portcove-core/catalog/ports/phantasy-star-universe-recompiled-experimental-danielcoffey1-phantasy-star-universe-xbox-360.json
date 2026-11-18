@@ -35,6 +35,21 @@
       "image_sha256": "20a5721d6ee8dfba9eb470b1c476f64cbf6da4253ccd7977b74ee728fe7c242d",
       "game_slug": "phantasy-star-universe",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "phantasy-star-universe-xbox-360",
+      "evidence_urls": ["https://github.com/DanielCoffey1/psu-decomp"],
+      "source_editions": [
+        {
+          "id": "phantasy-star-universe-xbox-360-xbox-360",
+          "title": "Phantasy Star Universe (Xbox 360) (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/DanielCoffey1/psu-decomp/blob/f39eca80e72e0a92f14977151f9dca39d64866a4/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

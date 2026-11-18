@@ -35,6 +35,21 @@
       "image_sha256": "a772f7dff041ac2e2e90dd0c594228569c93ea34ba00393ae7ca488616627d1f",
       "game_slug": "far-cry-instincts-evolution",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "far-cry-instincts-evolution",
+      "evidence_urls": ["https://github.com/VinceIP/fci-recomp"],
+      "source_editions": [
+        {
+          "id": "far-cry-instincts-evolution-xbox",
+          "title": "Far Cry Instincts: Evolution (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/VinceIP/fci-recomp/blob/8fc4b7374fd2e72be96c0f45cb9dc0db7dc7ae88/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

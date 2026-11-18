@@ -35,6 +35,21 @@
       "image_sha256": "5fd4283973677bbd9f95a76b63dd21418cbf292a48b490a93206a6ffacbaf7d8",
       "game_slug": "mario-kart-double-dash",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-kart-double-dash",
+      "evidence_urls": ["https://github.com/ethannicholas/mariokartdd-recomp"],
+      "source_editions": [
+        {
+          "id": "mario-kart-double-dash-nintendo-gamecube",
+          "title": "Mario Kart: Double Dash!! (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/ethannicholas/mariokartdd-recomp/blob/bd36eb982ea58c6651584cc48264876d1aba9546/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

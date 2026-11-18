@@ -50,6 +50,24 @@
       "warnings": [
         "Use the prepared base player with saved Vanilla settings and extracted game data. Title-update switching can end the selected process; keep all userdata, original imports and optional content separately."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wwe-2k14",
+      "evidence_urls": [
+        "https://github.com/itsbybanshee/wwe2k14-pc/blob/0386ce905f5707446a436ff30c5ae9e9d55f0a1b/README.md",
+        "https://github.com/itsbybanshee/wwe2k14-pc"
+      ],
+      "source_editions": [
+        {
+          "id": "wwe-2k14-xbox-360",
+          "title": "WWE 2K14 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/itsbybanshee/wwe2k14-pc/blob/0fff26e0cf4168e85a4064d8deb965f8cae7b325/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

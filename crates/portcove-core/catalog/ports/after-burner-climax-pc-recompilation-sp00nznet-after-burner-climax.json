@@ -35,6 +35,21 @@
       "image_sha256": "ad86e1041f7cb8e7fd7965a2b8d38b6eb88420c72c7306079cb83a9107227104",
       "game_slug": "after-burner-climax",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "after-burner-climax",
+      "evidence_urls": ["https://github.com/sp00nznet/afterburner"],
+      "source_editions": [
+        {
+          "id": "after-burner-climax-xbox-360",
+          "title": "After Burner Climax (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/afterburner/blob/0e5eb394628d62978646e6156fe5763d9191c8be/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -35,6 +35,21 @@
       "image_sha256": "3cf2b50c6194db8dd49cfdfadea672e000b4c27392dda0412fc971f3dca1d18e",
       "game_slug": "dynasty-warriors-5-xtreme-legends",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dynasty-warriors-5-xtreme-legends",
+      "evidence_urls": ["https://github.com/TheSlackbringer/dw5xl-recomp"],
+      "source_editions": [
+        {
+          "id": "dynasty-warriors-5-xtreme-legends-playstation-2",
+          "title": "Dynasty Warriors 5: Xtreme Legends (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/TheSlackbringer/dw5xl-recomp/blob/bb0fa760c190fb1f5b136e89a3e5afae1f0d49ec/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

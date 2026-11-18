@@ -54,6 +54,16 @@
       "image_sha256": "8c04ef5da0d94761f148f784e5887ad8fe314a7dbea0a03320bd5d5cac971abb",
       "game_slug": "duke-nukem-3d",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "duke-nukem-3d",
+      "evidence_urls": [
+        "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/README.md",
+        "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt",
+        "https://github.com/ZDoom/Raze"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

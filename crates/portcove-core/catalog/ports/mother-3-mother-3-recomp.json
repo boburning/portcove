@@ -45,6 +45,24 @@
       "warnings": [
         "Desktop needs its own GBA BIOS as well as the exact ROM/patch inputs. Keep battery saves and derivatives; accepting an unknown patch through interpreter fallback does not qualify it."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mother-3",
+      "evidence_urls": [
+        "https://github.com/josiahg2502-glitch/Mother3Recomp",
+        "https://github.com/josiahg2502-glitch/Mother3Recomp/blob/d50215580540f08d093c8decc478838f26b7e9ae/docs/PLAYER-README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "mother-3-game-boy-advance",
+          "title": "MOTHER 3 (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/josiahg2502-glitch/Mother3Recomp/blob/d50215580540f08d093c8decc478838f26b7e9ae/docs/PLAYER-README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

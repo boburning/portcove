@@ -60,6 +60,15 @@
           "instruction": "On Mac keep the selected installation, its saves and the active settings folder. The launcher defaults to pikmin-native under XDG_DATA_HOME, or ~/.local/share/pikmin-native. On Android preserve the actual chosen OpenNectar folder and export the memory cards before replacing the copy. The card export covers only the cards."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pikmin",
+      "evidence_urls": [
+        "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/releases/tag/1.3",
+        "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

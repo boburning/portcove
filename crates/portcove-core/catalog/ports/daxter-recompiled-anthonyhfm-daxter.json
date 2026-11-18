@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/anthonyhfm/daxter-recompiled"
     },
-    "issue_number": 3109
+    "issue_number": 3109,
+    "original_game": {
+      "format_version": 1,
+      "id": "daxter",
+      "evidence_urls": ["https://github.com/anthonyhfm/daxter-recompiled"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

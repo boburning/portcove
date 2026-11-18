@@ -38,6 +38,12 @@
           "instruction": "The builder targets Apple silicon. The project has not confirmed a Windows or Linux player."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kirby-and-the-forgotten-land",
+      "evidence_urls": ["https://github.com/nxporting/nxport"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

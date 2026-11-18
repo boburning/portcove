@@ -16,7 +16,22 @@
       "game_slug": "street-fighter-iii-3rd-strike--2",
       "match_kind": "underlying-game"
     },
-    "original_game_title": "Street Fighter III: 3rd Strike"
+    "original_game_title": "Street Fighter III: 3rd Strike",
+    "original_game": {
+      "format_version": 1,
+      "id": "street-fighter-iii-3rd-strike",
+      "evidence_urls": ["https://github.com/guimaraf/3sxw"],
+      "source_editions": [
+        {
+          "id": "street-fighter-iii-3rd-strike-playstation-2",
+          "title": "Street Fighter III: 3rd Strike (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

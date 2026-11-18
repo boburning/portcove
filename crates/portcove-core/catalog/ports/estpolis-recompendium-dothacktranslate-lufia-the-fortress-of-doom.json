@@ -35,6 +35,12 @@
       "image_sha256": "141e89fa5ee1b2fc41bd6988c6c165935e9f09767c0a21cabd8f8551783564b7",
       "game_slug": "lufia-the-fortress-of-doom",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "lufia-the-fortress-of-doom",
+      "evidence_urls": ["https://github.com/dothacktranslate/Estpolis-Recompendium"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

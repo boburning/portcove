@@ -35,6 +35,12 @@
       "image_sha256": "8aaf98f987962c89feeb300ea63078433a13a358235cc0211ac3bf43872f3ef1",
       "game_slug": "phantasy-star-portable-2-infinity",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "phantasy-star-portable-2-infinity",
+      "evidence_urls": ["https://github.com/zmbkilla/PSP2I_Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

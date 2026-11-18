@@ -35,6 +35,12 @@
       "image_sha256": "4433b62aad4b6eb383b78541b23242c395a35fa426c5f50d217d605c19312291",
       "game_slug": "yu-gi-oh-forbidden-memories",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "yu-gi-oh-forbidden-memories",
+      "evidence_urls": ["https://github.com/TechX1320/FM-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

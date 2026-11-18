@@ -48,6 +48,15 @@
       "image_sha256": "df2f2bb2209038f4f05a538a5c4e6cd10c7a9ace4c2cd3b82765da71d2604da6",
       "game_slug": "mega-man-x",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-x-usa-rev-1",
+      "evidence_urls": [
+        "https://github.com/mstan/MegaManXSNESRecomp",
+        "https://github.com/mstan/MegaManXSNESRecomp/blob/9e6dd7b98ba420c4c97567eb192f734d0ba04f53/README.md"
+      ],
+      "source_editions": []
     }
   }
 }

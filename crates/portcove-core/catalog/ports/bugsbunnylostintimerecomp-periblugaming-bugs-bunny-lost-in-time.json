@@ -35,6 +35,12 @@
       "image_sha256": "869334deced87a6694a7c185dc3c4b87985b57798f9104f9b2d867348ad34d48",
       "game_slug": "bugs-bunny-lost-in-time",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "bugs-bunny-lost-in-time",
+      "evidence_urls": ["https://github.com/PeriBluGaming/BugsBunnyLostinTimeRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

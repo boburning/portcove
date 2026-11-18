@@ -50,6 +50,15 @@
       "warnings": [
         "Preserve the active portable saves/configuration or external runtime paths. Wine-only upstream package testing is not Windows or complete-game qualification."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-bigs-2",
+      "evidence_urls": [
+        "https://github.com/mdomangue26/The-Bigs-2-Recompiled",
+        "https://github.com/mdomangue26/The-Bigs-2-Recompiled/blob/4947e569b3d86cc11ead1ee485e88fc9a6ed9ac9/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

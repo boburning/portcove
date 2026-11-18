@@ -40,6 +40,12 @@
           "instruction": "Windows and Linux players are unconfirmed."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-odyssey",
+      "evidence_urls": ["https://github.com/nxporting/nxport"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

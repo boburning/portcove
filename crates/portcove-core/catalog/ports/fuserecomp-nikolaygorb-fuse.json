@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/nikolaygorb/FuseRecomp"
     },
-    "issue_number": 3221
+    "issue_number": 3221,
+    "original_game": {
+      "format_version": 1,
+      "id": "fuse",
+      "evidence_urls": ["https://github.com/nikolaygorb/FuseRecomp"],
+      "source_editions": [
+        {
+          "id": "fuse-xbox-360",
+          "title": "Fuse (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/nikolaygorb/FuseRecomp/blob/aed0bcb6c562565375f4b79024158aeb45bd75ed/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

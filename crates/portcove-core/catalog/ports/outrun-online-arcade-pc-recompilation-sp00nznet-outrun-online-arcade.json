@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/sp00nznet/outrun"
     },
-    "issue_number": 3299
+    "issue_number": 3299,
+    "original_game": {
+      "format_version": 1,
+      "id": "outrun-online-arcade",
+      "evidence_urls": ["https://github.com/sp00nznet/outrun"],
+      "source_editions": [
+        {
+          "id": "outrun-online-arcade-xbox-360",
+          "title": "OutRun Online Arcade (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/outrun/blob/286656e8d6c1d97930d59359bf26f24036fd9d8e/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

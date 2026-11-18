@@ -38,6 +38,12 @@
           "instruction": "The project reports 60 FPS races using ahead-of-time translation and Vulkan. NVIDIA DLSS has compiled but has no play report. Higher game rates, Windows and Android are still in development or planned."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-kart-8-deluxe",
+      "evidence_urls": ["https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

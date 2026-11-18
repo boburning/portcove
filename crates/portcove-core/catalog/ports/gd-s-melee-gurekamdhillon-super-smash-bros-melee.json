@@ -35,6 +35,12 @@
       "image_sha256": "b27bb8db7367c3b4413717e6ca1cac199ffa1cea9191abe1a427360e5ad1e63f",
       "game_slug": "super-smash-bros-melee",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros-melee",
+      "evidence_urls": ["https://github.com/GurekamDhillon/gd-melee-workspace"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

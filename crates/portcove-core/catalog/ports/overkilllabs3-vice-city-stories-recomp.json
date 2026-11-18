@@ -50,6 +50,15 @@
       "warnings": [
         "Keep the exact PSP ULUS-10160 data and complete save/configuration roots. Optional textures, other editions and upstream playability claims have separate scope."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "grand-theft-auto-vice-city-stories",
+      "evidence_urls": [
+        "https://github.com/OverkillLabs3/vice-city-stories-recomp/blob/2fd8072f3eda07947aa0fee94081db059d649e0e/README.md",
+        "https://github.com/OverkillLabs3/vice-city-stories-recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

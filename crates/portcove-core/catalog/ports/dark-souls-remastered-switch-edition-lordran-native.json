@@ -4,7 +4,7 @@
     "id": "dark-souls-remastered-switch-edition-lordran-native",
     "name": "Dark Souls: Remastered — Switch edition (lordran-native)",
     "summary": "An experimental Apple port of the Switch edition of Dark Souls: Remastered. Build locally on an Apple silicon Mac with your own base game and 1.0.3 update. The iOS download is an unsigned build component. Windows tools only package Apple output.",
-    "original_game_title": "Dark Souls: Remastered — Switch edition",
+    "original_game_title": "Dark Souls",
     "project_url": "https://github.com/Nishikori-Yui/lordran-native",
     "listed_at": "2026-10-25",
     "platforms": [],
@@ -38,6 +38,12 @@
           "instruction": "The project has not confirmed Mac graphics or device compatibility. It specifies no separate firmware input."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dark-souls",
+      "evidence_urls": ["https://github.com/Nishikori-Yui/lordran-native"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

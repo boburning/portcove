@@ -35,6 +35,12 @@
       "image_sha256": "7954d83d7b19348c2116c88ba8f0b81fd1025dff2c11f471dd53c19d5102db99",
       "game_slug": "dragon-ball-gt-final-bout",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-ball-gt-final-bout",
+      "evidence_urls": ["https://github.com/mstan/DragonBallGTFinalBoutRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

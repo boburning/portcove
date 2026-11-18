@@ -46,6 +46,15 @@
       "warnings": [
         "Use the completed Tekken Tag Tournament 2.exe installation, not its setup or dedicated server. Preserve %LOCALAPPDATA%/TTT2Recomp and the complete game folder; own disc plus supported TU3 are required."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tekken-tag-tournament-2",
+      "evidence_urls": [
+        "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc/blob/e19ce43fe49ecd4b2e7887886e95625bca86a315/README.md",
+        "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

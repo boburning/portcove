@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/HenryKun55/celosia"
     },
-    "issue_number": 3045
+    "issue_number": 3045,
+    "original_game": {
+      "format_version": 1,
+      "id": "shadow-of-the-colossus",
+      "evidence_urls": ["https://github.com/HenryKun55/celosia"],
+      "source_editions": [
+        {
+          "id": "shadow-of-the-colossus-playstation-2",
+          "title": "Shadow of the Colossus (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/HenryKun55/celosia/blob/17a05d57a910ea50e9c073ffc560293fc16b16da/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

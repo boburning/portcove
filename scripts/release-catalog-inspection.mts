@@ -7,6 +7,10 @@ export { inspectCatalogCoreReport } from "./release-catalog-publication-contract
  * reports and copied receipts cannot construct this process-local capability. */
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
+import {
+  catalogDefinitionContentBytes,
+  catalogDefinitionIndexBytes,
+} from "./release-catalog-publication-contract.mts";
 import { chmod, lstat, mkdir, mkdtemp, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
@@ -105,7 +109,9 @@ export async function readCatalogPublicationBundle(directory: string, deadline: 
             ? 8 * 1024 ** 2
             : name.startsWith("policy/")
               ? 65536
-              : 4 * 1024 ** 2,
+              : name === "definitions/index.json"
+                ? catalogDefinitionIndexBytes
+                : catalogDefinitionContentBytes,
         );
         total += bytes.length;
         if (total > 32 * 1024 ** 2 || files.size >= 16385)

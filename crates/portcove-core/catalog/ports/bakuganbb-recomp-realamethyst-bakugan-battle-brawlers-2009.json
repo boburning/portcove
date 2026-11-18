@@ -3,7 +3,7 @@
   "listing": {
     "id": "bakuganbb-recomp-realamethyst-bakugan-battle-brawlers-2009",
     "name": "Bakugan Battle Brawlers (2009) — BakuganBB-recomp (RealAmethyst)",
-    "original_game_title": "Bakugan Battle Brawlers (2009)",
+    "original_game_title": "Bakugan: Battle Brawlers",
     "artwork": {
       "game_id": 4703,
       "cover_id": 198036,
@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/RealAmethyst/BakuganBB-recomp"
     },
-    "issue_number": 3157
+    "issue_number": 3157,
+    "original_game": {
+      "format_version": 1,
+      "id": "bakugan-battle-brawlers",
+      "evidence_urls": ["https://github.com/RealAmethyst/BakuganBB-recomp"],
+      "source_editions": [
+        {
+          "id": "bakugan-battle-brawlers-xbox-360",
+          "title": "Bakugan: Battle Brawlers (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/RealAmethyst/BakuganBB-recomp/blob/c5312453db7a0c80ef2c615e8c80993559e29619/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

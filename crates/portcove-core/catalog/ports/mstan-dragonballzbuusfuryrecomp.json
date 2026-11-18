@@ -48,9 +48,21 @@
         }
       ]
     },
-    "original_game_title": "Dragon Ball Z: Buu's Fury"
+    "original_game_title": "Dragon Ball Z: Buu's Fury",
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-ball-z-buu-s-fury",
+      "evidence_urls": [
+        "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/README.md",
+        "https://github.com/mstan/DragonBallZBuusFuryRecomp"
+      ],
+      "source_editions": []
+    }
   },
-  "gba_staged_archive_v1": { "game_code": "BG3E", "versioned_mods": true },
+  "gba_staged_archive_v1": {
+    "game_code": "BG3E",
+    "versioned_mods": true
+  },
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

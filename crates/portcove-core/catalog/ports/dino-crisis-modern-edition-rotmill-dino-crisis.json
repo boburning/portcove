@@ -35,6 +35,12 @@
       "image_sha256": "6d28f411058c9f890839bb7d62319b9c1ccd8223cc2bea2fe012cfdac46a01c6",
       "game_slug": "dino-crisis",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dino-crisis",
+      "evidence_urls": ["https://github.com/Rotmill/Dino-Crisis-Modern-Edition"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

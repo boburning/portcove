@@ -45,6 +45,15 @@
       "image_sha256": "d33a7ebdd8853077a91cc0b5c7a28c681d06e95623029f5ed3cb751ab9396ce2",
       "game_slug": "duke-nukem-zero-hour",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "duke-nukem-zero-hour",
+      "evidence_urls": [
+        "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md",
+        "https://github.com/polaco1782/v64recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -16,7 +16,22 @@
       "game_slug": "bomberman-64",
       "match_kind": "underlying-game"
     },
-    "issue_number": 66
+    "issue_number": 66,
+    "original_game": {
+      "format_version": 1,
+      "id": "bomberman-64",
+      "evidence_urls": ["https://github.com/RevoSucks/BM64Recomp"],
+      "source_editions": [
+        {
+          "id": "bomberman-64-nintendo-64",
+          "title": "Bomberman 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/RevoSucks/BM64Recomp/blob/726adc908ca7abd27c4cba12d1f52a0c243727df/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "stable",

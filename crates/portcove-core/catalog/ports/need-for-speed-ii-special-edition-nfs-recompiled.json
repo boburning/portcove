@@ -47,6 +47,15 @@
         "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
         "Before changing versions, keep a copy of the working game and every data and profile folder it uses. Another executable may use those same folders."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "need-for-speed-ii-special-edition",
+      "evidence_urls": [
+        "https://github.com/motor-dev/nfs-recompiled/tree/77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+        "https://github.com/motor-dev/nfs-recompiled"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

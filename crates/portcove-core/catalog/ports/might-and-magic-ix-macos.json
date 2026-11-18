@@ -41,6 +41,15 @@
         "The upstream Uninstaller DMG can also remove saves and the Wine installation. Leave those choices off to keep them.",
         "The setup tools have universal Mac executables, but the builder and native game require Apple Silicon. There is no Windows, Linux, Intel Mac, or Android native package from this project."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "might-and-magic-ix",
+      "evidence_urls": [
+        "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/v1.3/README.md",
+        "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS"
+      ],
+      "source_editions": []
     }
   }
 }

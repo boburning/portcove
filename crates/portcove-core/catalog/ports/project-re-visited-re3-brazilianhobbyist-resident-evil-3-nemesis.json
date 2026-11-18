@@ -35,6 +35,12 @@
       "image_sha256": "b31e1d21e58215c80168692466d4cdf392072546e5060e438df440ba56f5f4b3",
       "game_slug": "resident-evil-3-nemesis",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-3-nemesis",
+      "evidence_urls": ["https://github.com/BrazilianHobbyist/Project-RE-Visited-RE3"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

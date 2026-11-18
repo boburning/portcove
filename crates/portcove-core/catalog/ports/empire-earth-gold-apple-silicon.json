@@ -42,6 +42,15 @@
           "instruction": "Before replacing the player, back up your active ~/Library/Application Support/EmpireEarth folder. It contains game saves and scenarios in Data, profiles in Users, and private settings and your game key in registry.json. The app prepares the game in your profile. Replace EmpireEarth.app yourself with a verified publisher release."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "empire-earth-gold",
+      "evidence_urls": [
+        "https://github.com/maxgraf96/ee-macos/blob/v0.8.2/docs/INSTALL.md",
+        "https://github.com/maxgraf96/ee-macos"
+      ],
+      "source_editions": []
     }
   }
 }

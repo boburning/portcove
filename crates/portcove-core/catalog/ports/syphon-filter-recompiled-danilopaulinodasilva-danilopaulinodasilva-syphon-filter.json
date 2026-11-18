@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/danilopaulinodasilva/SyphonFilterRecomp"
     },
-    "issue_number": 3390
+    "issue_number": 3390,
+    "original_game": {
+      "format_version": 1,
+      "id": "syphon-filter",
+      "evidence_urls": ["https://github.com/danilopaulinodasilva/SyphonFilterRecomp"],
+      "source_editions": [
+        {
+          "id": "syphon-filter-playstation",
+          "title": "Syphon Filter (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/danilopaulinodasilva/SyphonFilterRecomp/blob/57e1340f3134700a742053c45353ef53fd00022e/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

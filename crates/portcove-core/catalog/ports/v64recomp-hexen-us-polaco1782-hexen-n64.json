@@ -3,7 +3,7 @@
   "listing": {
     "id": "v64recomp-hexen-us-polaco1782-hexen-n64",
     "name": "Hexen (N64) — v64recomp / hexen-us (polaco1782)",
-    "original_game_title": "Hexen (N64)",
+    "original_game_title": "Hexen",
     "artwork": {
       "game_id": 93641,
       "cover_id": 154601,
@@ -45,7 +45,16 @@
         }
       ]
     },
-    "issue_number": 3607
+    "issue_number": 3607,
+    "original_game": {
+      "format_version": 1,
+      "id": "hexen",
+      "evidence_urls": [
+        "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md",
+        "https://github.com/polaco1782/v64recomp"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

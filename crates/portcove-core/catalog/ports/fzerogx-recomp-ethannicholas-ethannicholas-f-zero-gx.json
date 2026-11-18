@@ -35,6 +35,21 @@
       "image_sha256": "55e7f580c65cfb6b37ff66237efe3c53cc2d8ade706808ea9a1c32549852a8de",
       "game_slug": "f-zero-gx",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "f-zero-gx",
+      "evidence_urls": ["https://github.com/ethannicholas/fzerogx-recomp"],
+      "source_editions": [
+        {
+          "id": "f-zero-gx-nintendo-gamecube",
+          "title": "F-Zero GX (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/ethannicholas/fzerogx-recomp/blob/5b201ed6066783f3faee2afd52ec764d4a4d182b/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

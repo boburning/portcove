@@ -44,6 +44,24 @@
     "platforms": ["macos-x86-64"],
     "download_asset_hints": {
       "macos-x86-64": ["dfu_mac_universal-", ".zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-elder-scrolls-ii-daggerfall",
+      "evidence_urls": [
+        "https://github.com/Interkarma/daggerfall-unity/blob/v1.1.1-cve-2025/README.md",
+        "https://github.com/Interkarma/daggerfall-unity"
+      ],
+      "source_editions": [
+        {
+          "id": "the-elder-scrolls-ii-daggerfall-pc",
+          "title": "The Elder Scrolls II: Daggerfall (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Interkarma/daggerfall-unity/blob/3d85a283672a4955e32992097ea7719e896dbadb/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

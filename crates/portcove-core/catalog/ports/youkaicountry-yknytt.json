@@ -50,6 +50,15 @@
       "warnings": [
         "Preserve the active base directory and any separate Saves/Worlds roots; upstream’s complain action uploads a save, and community-level permissions/compatibility remain separate."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "knytt-stories",
+      "evidence_urls": [
+        "https://github.com/youkaicountry/yknytt/blob/d667e28166486444e6bf1eb90c6a8f227c2500c3/README.md",
+        "https://github.com/youkaicountry/yknytt"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

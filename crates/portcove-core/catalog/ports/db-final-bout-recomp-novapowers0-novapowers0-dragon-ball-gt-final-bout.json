@@ -35,6 +35,21 @@
       "image_sha256": "7954d83d7b19348c2116c88ba8f0b81fd1025dff2c11f471dd53c19d5102db99",
       "game_slug": "dragon-ball-gt-final-bout",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-ball-gt-final-bout",
+      "evidence_urls": ["https://github.com/novapowers0/DB-Final-Bout-Recomp"],
+      "source_editions": [
+        {
+          "id": "dragon-ball-gt-final-bout-playstation",
+          "title": "Dragon Ball GT: Final Bout (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/novapowers0/DB-Final-Bout-Recomp/blob/5646617ee9339836f12a947cceb849ee07c1bad9/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

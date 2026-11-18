@@ -35,6 +35,12 @@
       "image_sha256": "f3898c5c301933c9b5872ec1b18ebec22fb1538cd85c8c5dd30a226a5df71206",
       "game_slug": "bomberman-generation",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "bomberman-generation",
+      "evidence_urls": ["https://github.com/nikeymikey/bomberman-generation-moderngekko"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
