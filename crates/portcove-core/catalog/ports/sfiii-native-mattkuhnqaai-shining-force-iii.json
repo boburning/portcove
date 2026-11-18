@@ -1,0 +1,42 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sfiii-native-mattkuhnqaai-shining-force-iii",
+    "name": "Shining Force III / SFIII Native",
+    "original_game_title": "Shining Force III",
+    "summary": "Prepare a supported Sega Saturn scenario from your own disc image and keep its saves in a separate folder.",
+    "project_url": "https://github.com/mattkuhnQAAI/sfiii-native",
+    "issue_number": 3743,
+    "listed_at": "2026-11-18",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "download_asset_hints": {
+      "windows-x86-64": ["SFIII-Native-", "-win64.zip"],
+      "linux-x86-64": ["SFIII-Native-", "-linux-x86_64.tar.gz"],
+      "macos-aarch64": ["SFIII-Native-", "-darwin-aarch64.tar.gz"]
+    },
+    "release_url": "https://github.com/mattkuhnQAAI/sfiii-native/releases/tag/v0.9.2",
+    "setup_url": "https://github.com/mattkuhnQAAI/sfiii-native/blob/v0.9.2/README.md#playing-and-updating",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare your scenario",
+          "instruction": "Use Windows 10 or 11 x86-64, Linux x86-64 or Apple silicon with macOS 13 or later. Extract the complete application archive and open SFIII Native. Choose the scenario, your own supported CUE or CHD and a separate writable game-data folder. Keep a CUE's BIN tracks beside it. Select Prepare game, then Play. The project lists the exact registered disc editions."
+        },
+        {
+          "title": "Return to the same scenario",
+          "instruction": "Open SFIII Native again and use the prepared scenario's Play action. Keep the application and the scenario data folder. Reopen the launcher to prepare another supported scenario or change its data location."
+        }
+      ],
+      "references": [
+        {
+          "title": "Keep ordinary saves before updating",
+          "instruction": "Save in the game and back up your scenario data folder. For an upstream update, unpack the newer application and prepare again with that same folder. Keep the previous prepared build for its native quick states and replay checkpoints. They depend on the exact game build and disc."
+        }
+      ],
+      "warnings": [
+        "Upstream reports selected Windows game routes. Linux and Apple silicon package validation used synthetic data. Full campaigns and hardware fidelity remain unverified."
+      ]
+    }
+  }
+}
