@@ -230,7 +230,7 @@ function BoundModSetupsControl({
   }, []);
   const sources = view?.providers?.length ? view.providers : view?.provider ? [view.provider] : [];
   const setup = view ? currentModSetup(view) : undefined;
-  const [draft, setDraft, olderDraft, forgetOlder] = useModDraft({
+  const [draft, setDraft, olderDraft, updateOlder] = useModDraft({
     library: libraryRoot,
     port: portId,
     setup: setup?.selected?.profile.id,
@@ -519,17 +519,23 @@ function BoundModSetupsControl({
                         changing ||
                         draft.additions.length + recoverable.length + localFiles.length > 16
                       }
-                      onClick={() =>
+                      onClick={() => {
                         setDraft((current) => ({
                           ...current,
                           additions: [...current.additions, ...recoverable],
-                        }))
-                      }
+                        }));
+                        updateOlder({
+                          ...olderDraft.selections,
+                          additions: olderDraft.selections.additions.filter(
+                            (entry) => !recoverable.includes(entry),
+                          ),
+                        });
+                      }}
                     >
                       {t("mods.workspace.recoverAdditions")}
                     </Button>
                   )}
-                  <Button variant="ghost" disabled={changing} onClick={forgetOlder}>
+                  <Button variant="ghost" disabled={changing} onClick={() => updateOlder()}>
                     {t("mods.workspace.discardOlder")}
                   </Button>
                 </ActionRow>

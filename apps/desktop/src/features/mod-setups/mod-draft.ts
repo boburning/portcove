@@ -98,10 +98,18 @@ type StaleDraft = { base: number; selections: ModDraft };
 
 function olderDraft(key: string, base: number) {
   try {
-    const previous = Number(localStorage.getItem(`${key}.base`));
-    if (!Number.isSafeInteger(previous) || previous < 1 || previous === base) return;
-    const selections = readDraft(`${key}.${previous}`);
-    if (draftSize(selections)) return { base: previous, selections };
+    const prefix = `${key}.`;
+    const keys: number[] = [];
+    for (let index = 0; index < localStorage.length; index++) {
+      const entry = localStorage.key(index);
+      if (!entry?.startsWith(prefix)) continue;
+      const revision = Number(entry.slice(prefix.length));
+      if (Number.isSafeInteger(revision) && revision > 0 && revision < base) keys.push(revision);
+    }
+    for (const previous of keys.sort((left, right) => right - left)) {
+      const selections = readDraft(`${key}.${previous}`);
+      if (draftSize(selections)) return { base: previous, selections };
+    }
   } catch {
     // A blocked preference store does not prevent browsing.
   }
@@ -112,7 +120,12 @@ export function useModDraft(scope: {
   port: string;
   setup: string | undefined;
   revision: number | undefined;
-}): [ModDraft, Dispatch<SetStateAction<ModDraft>>, StaleDraft | undefined, () => void] {
+}): [
+  ModDraft,
+  Dispatch<SetStateAction<ModDraft>>,
+  StaleDraft | undefined,
+  (draft?: ModDraft) => void,
+] {
   const scopeKey =
     scope.setup === undefined
       ? undefined
@@ -146,7 +159,6 @@ export function useModDraft(scope: {
     try {
       if (draftSize(draft)) {
         localStorage.setItem(key, JSON.stringify(draft));
-        if (!current.stale) localStorage.setItem(`${scopeKey}.base`, String(scope.revision));
       } else {
         localStorage.removeItem(key);
       }
@@ -154,15 +166,19 @@ export function useModDraft(scope: {
       // Keep the current in-memory draft if local writes are unavailable.
     }
   };
-  const forgetOlder = () => {
-    if (!scopeKey || !saved.stale) return;
+  const updateOlder = (draft?: ModDraft) => {
+    const current = latest.current;
+    if (!scopeKey || current.key !== key || !current.stale || !scope.revision) return;
+    const previous = `${scopeKey}.${current.stale.base}`;
     try {
-      localStorage.removeItem(`${scopeKey}.${saved.stale.base}`);
-      localStorage.setItem(`${scopeKey}.base`, String(scope.revision));
+      if (draft && draftSize(draft)) localStorage.setItem(previous, JSON.stringify(draft));
+      else localStorage.removeItem(previous);
+      const updated = { ...current, stale: olderDraft(scopeKey, scope.revision) };
+      latest.current = updated;
+      setSaved(updated);
     } catch {
-      // Remember the decision for this session if preferences are unavailable.
+      // The old draft stays available if the store cannot save the change.
     }
-    setSaved((current) => (current.key === key ? { ...current, stale: undefined } : current));
   };
-  return [saved.draft, updateDraft, saved.stale, forgetOlder];
+  return [saved.draft, updateDraft, saved.stale, updateOlder];
 }

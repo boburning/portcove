@@ -2680,6 +2680,11 @@ pub(crate) fn proposed_mod_setup(
                 id.clone_from(new);
             }
         }
+        if edits.is_some() {
+            ordering
+                .native_ids
+                .retain(|id| packages.iter().any(|package| package.native_id == *id));
+        }
     }
     let orderings = with_override_order(&existing_orderings, &packages);
     let mut next = current.clone();
@@ -2687,16 +2692,26 @@ pub(crate) fn proposed_mod_setup(
     next.orderings = orderings;
     if edits.is_some() {
         for package in &next.packages {
-            let Some(origin) = &package.provider else {
+            let Some(origin) = package
+                .provider
+                .as_ref()
+                .filter(|origin| origin.provider == crate::thunderstore::PROVIDER)
+            else {
                 continue;
             };
-            if staged.iter().any(|member| {
-                member.provider.as_ref().is_some_and(|next_origin| {
-                    next_origin.provider == origin.provider
-                        && next_origin.project == origin.project
-                        && next_origin.file != origin.file
+            let project = |member: &&StagedPackage| {
+                member.provider.as_ref().is_some_and(|member| {
+                    member.provider == origin.provider && member.project == origin.project
                 })
-            }) {
+            };
+            let mut members = staged.iter().filter(project).peekable();
+            if members.peek().is_some()
+                && !members.any(|member| {
+                    member.provider.as_ref() == Some(origin)
+                        && member.inspection.file_name == package.native_id
+                        && member.inspection.sha256 == package.sha256
+                })
+            {
                 return Err(PortcoveError::conflict(
                     "the reviewed version drops an installed member; queue its removal too",
                 )
