@@ -112,23 +112,36 @@ it("shows scoped launch stages beside the matching port in Discover", async () =
     },
   };
   const read = vi.spyOn(desktopApi, "portCapabilities");
+  vi.spyOn(desktopApi, "compareGamePorts").mockResolvedValue(comparisonFixture(first.id));
   await render(
-    <GroupedDiscover
-      all={[known, second]}
-      matching={[known, second]}
-      statuses={new Map()}
-      devicePlatform="windows-x86-64"
-      onSelect={vi.fn()}
-      onFavoriteToggle={vi.fn()}
-    />,
+    <OperationPresentationProvider generation={1} pending={new Map()}>
+      <GroupedDiscover
+        all={[known, second]}
+        matching={[known, second]}
+        statuses={new Map()}
+        devicePlatform="windows-x86-64"
+        onSelect={vi.fn()}
+        onFavoriteToggle={vi.fn()}
+      />
+    </OperationPresentationProvider>,
   );
   await page.getByRole("button", { name: "Compare ports", exact: true }).click();
   const project = page.getByRole("article", { name: /First project/ });
   await expect.element(project.getByText("Asks for game files")).toBeVisible();
   await expect.element(project.getByText("Starts the game directly")).toBeVisible();
+  await expect.element(project.getByText("Reported by the project")).toBeVisible();
   await expect.element(project.getByText("Exact context required")).toBeVisible();
   await expect.element(project.getByText(/Scope:.*release v1/)).toBeVisible();
   expect(document.body.textContent).not.toContain("Different platform");
+
+  await page.getByText("Comparison options and reports", { exact: true }).click();
+  await page.getByText("Comparison settings", { exact: true }).click();
+  await page.getByRole("combobox", { name: /Target platform/ }).click();
+  await page.getByRole("option", { name: "Linux", exact: true }).click();
+  await expect.element(project.getByText("Different platform")).toBeVisible();
+  await expect.element(project.getByText("Exact context required")).toBeVisible();
+  await expect.element(project.getByText(/Scope: linux-x86-64/)).toBeVisible();
+  expect(document.body.textContent).not.toContain(notice.explanation);
   expect(read).not.toHaveBeenCalled();
 });
 

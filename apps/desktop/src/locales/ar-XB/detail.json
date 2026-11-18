@@ -31,6 +31,8 @@
     "label": "ما يعمل والمشكلات المعروفة",
     "launch": {
       "asks-for-game-files": "يطلب ملفات اللعبة",
+      "evidenceObserved": "سلوك بدء التشغيل المرصود",
+      "evidenceUpstream": "أورده المشروع",
       "first": "بدء التشغيل الأول",
       "opens-project-launcher": "يفتح مشغّل المشروع",
       "repeat": "إعادة تشغيل اللعبة",

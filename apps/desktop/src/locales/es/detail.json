@@ -31,6 +31,8 @@
     "label": "Qué funciona y problemas conocidos",
     "launch": {
       "asks-for-game-files": "Pide los archivos del juego",
+      "evidenceObserved": "Comportamiento observado al iniciar",
+      "evidenceUpstream": "Según el proyecto",
       "first": "Primer inicio",
       "opens-project-launcher": "Abre el lanzador del proyecto",
       "repeat": "Volver a jugar",

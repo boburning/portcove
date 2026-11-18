@@ -273,6 +273,9 @@ export function GroupedDiscover({
                         platform={
                           evidence.context.platform || devicePlatform || evidence.report?.platform
                         }
+                        explicitOtherPlatform={Boolean(
+                          evidence.context.platform && evidence.context.platform !== devicePlatform,
+                        )}
                         edition={evidence.context.edition}
                       />
                       <div className="grid min-w-0 content-start gap-2">
@@ -348,12 +351,14 @@ function ComparisonPortFacts({
   status,
   single,
   platform,
+  explicitOtherPlatform,
   edition,
 }: {
   port: CatalogEntry;
   status: PortStatus | undefined;
   single: boolean;
   platform: PortDefinition["platforms"][number] | undefined;
+  explicitOtherPlatform: boolean;
   edition: string;
 }) {
   const { t } = useAppTranslation("browsing");
@@ -368,9 +373,10 @@ function ComparisonPortFacts({
       ? report.advisories.filter(
           ({ notice, applicability }) =>
             notice.launch_behavior &&
-            applicability !== "historical" &&
             notice.platform === platform &&
-            (!edition || !notice.edition || notice.edition === edition),
+            (!edition || !notice.edition || notice.edition === edition) &&
+            (applicability !== "historical" ||
+              (explicitOtherPlatform && notice.route === "upstream-setup")),
         )
       : [];
   return (
@@ -378,16 +384,19 @@ function ComparisonPortFacts({
       {(!single || setupKnown || launchNotices.length > 0) && (
         <div>
           <h4>{t("discover.compare.setup")}</h4>
-          <p>{setupLabel}</p>
+          {(setupKnown || launchNotices.length === 0) && <p>{setupLabel}</p>}
           {launchNotices.map(({ notice, applicability }) =>
             notice.launch_behavior ? (
               <div className="mt-3 grid gap-1 text-sm" key={notice.id}>
                 <LaunchBehaviorStages behavior={notice.launch_behavior} />
                 <p>{notice.explanation}</p>
+                <p>
+                  {notice.evidence === "observed"
+                    ? tDetail("capabilities.launch.evidenceObserved")
+                    : tDetail("capabilities.launch.evidenceUpstream")}
+                </p>
                 <CapabilityNoticeScope notice={notice} />
-                {applicability === "context-required" && (
-                  <p>{tDetail("capabilities.notice.exact")}</p>
-                )}
+                {applicability !== "current-route" && <p>{tDetail("capabilities.notice.exact")}</p>}
                 <ExternalLink href={notice.provenance}>
                   {tDetail("capabilities.notice.source")}
                 </ExternalLink>
