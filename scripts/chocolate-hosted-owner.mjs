@@ -423,24 +423,6 @@ try {
       "Installed publisher artifact differs",
     );
     await record(title.port + "-installed", installed);
-    const preparedBefore = await inventory(installed.active.path);
-    const profile = await command(["profile", "ensure-default", title.port]);
-    assert(
-      profile.is_default === true &&
-        profile.port_id === title.port &&
-        typeof profile.id === "string",
-    );
-    await command(["profile", "activate", title.port, profile.id], { expectedUnsupported: true });
-    assert.deepEqual(
-      await inventory(installed.active.path),
-      preparedBefore,
-      "Metadata creation or refused deployment changed prepared files",
-    );
-    await record(title.port + "-profile-boundary", {
-      default_metadata_created: true,
-      deployment_refused: true,
-      prepared_files_unchanged: true,
-    });
     await command(["exec", title.port], { raw: true });
     const after = await command(["status", title.port]);
     // Backup performs the maintained collection from the live runtime into canonical data.
@@ -472,7 +454,28 @@ try {
     );
     await command(["install", title.port]);
     await command(["exec", title.port], { raw: true });
-    await command(["status", title.port]);
+    const finalInstalled = await command(["status", title.port]);
+    assert(within(config.library, finalInstalled.active.path));
+    // A setup intentionally retains its build. Probe metadata after ordinary
+    // removal/reinstall; the prior native refusal of referenced-build cleanup is retained.
+    const preparedBefore = await inventory(finalInstalled.active.path);
+    const profile = await command(["profile", "ensure-default", title.port]);
+    assert(
+      profile.is_default === true &&
+        profile.port_id === title.port &&
+        typeof profile.id === "string",
+    );
+    await command(["profile", "activate", title.port, profile.id], { expectedUnsupported: true });
+    assert.deepEqual(
+      await inventory(finalInstalled.active.path),
+      preparedBefore,
+      "Metadata creation or refused deployment changed prepared files",
+    );
+    await record(title.port + "-profile-boundary", {
+      default_metadata_created: true,
+      deployment_refused: true,
+      prepared_files_unchanged: true,
+    });
     assert.equal(sha(await readFile(title.original)), title.original_sha256);
     await record(title.port + "-result", {
       result: "completed",

@@ -199,7 +199,10 @@ for (const [port, profile, name, player, save_pattern, package_sha256] of titles
 }
 // Doom and Heretic fully completed in retained run44336470142; this run repairs/replays Hexen only.
 config.titles = config.titles.filter((title) => title.port === "chocolate-hexen");
-config.scenarios = ["hexen-public-demo-core-lifecycle", "metadata-and-refused-deployment"];
+config.scenarios = [
+  "hexen-public-demo-core-lifecycle",
+  "metadata-and-refused-deployment-after-lifecycle",
+];
 await writeFile(path.join(root, "native-config.json"), JSON.stringify(config, null, 2));
 await writeFile(
   path.join(evidence, "producer.json"),
