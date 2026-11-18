@@ -194,16 +194,35 @@ async fn windows_locked_carry_target_holds_activation_then_retry_keeps_both_copi
         .share_mode(0)
         .open(fixture.target.path.join("notes.txt"))
         .unwrap();
+    // Full activation snapshots retained data first and can encounter this
+    // lock before carry. Exercise carry's exact refusal under its caller's
+    // required port lock, then verify the complete public hold/retry outcome.
+    {
+        let _operation = fixture
+            .library
+            .try_lock_port("portable-fixture", "carry-lock-fixture")
+            .unwrap();
+        let error = fixture
+            .service
+            .carry_unknown_files(&fixture.active, &fixture.target)
+            .unwrap_err();
+        assert_eq!(
+            error
+                .details
+                .get("carried_file_unreadable")
+                .map(String::as_str),
+            Some("notes.txt"),
+            "{error:?}"
+        );
+    }
     let error = fixture
         .service
         .activate_staged("portable-fixture")
         .unwrap_err();
-    assert_eq!(
-        error
-            .details
-            .get("carried_file_unreadable")
-            .map(String::as_str),
-        Some("notes.txt")
+    eprintln!(
+        "public activation lock refusal: {:?}; {}",
+        error.code,
+        error.message.chars().take(512).collect::<String>()
     );
     let status = fixture
         .library
