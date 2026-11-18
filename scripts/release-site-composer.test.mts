@@ -6,7 +6,6 @@ import os from "node:os";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
 import { capacityDigest } from "./release-capacity.mts";
-import { projectPublicCatalog } from "./public-catalog.mts";
 import {
   inspectTufPublicationFacts,
   assertMetadataRenewalPublication,
@@ -17,55 +16,6 @@ import {
   readComposedCatalogSite,
   assembleAuthenticatedApplicationSite,
 } from "./release-site-composer.mts";
-
-void test("derived browse pages survive omitted enrichment and application refresh without becoming publication authority", async (t) => {
-  const f = await fixture(t);
-  const catalog = path.join(f.root, "browse-catalog");
-  await mkdir(path.join(catalog, "metadata"), { recursive: true });
-  await writeFile(path.join(catalog, "metadata/timestamp.json"), "inert catalog timestamp");
-  const browse = projectPublicCatalog({
-    listings: Buffer.from(
-      JSON.stringify({
-        listings: [
-          {
-            id: "research",
-            name: "Research project",
-            summary: "Reports only",
-            availability: "packages",
-          },
-        ],
-      }),
-    ),
-    catalog: Buffer.from(JSON.stringify({ ports: [] })),
-    revision: "e57f3296a94a2e914293ecc6da315f0294beef00",
-    observedAt: "2026-11-18T02:00:00Z",
-  });
-  const request = {
-    previous: null,
-    expected_previous_generation: null,
-    catalog,
-    catalog_root_sha256: "b".repeat(64),
-    output_parent: f.output,
-  };
-  const first = await composeCatalogSiteFiles({ ...request, browse });
-  assert.equal(first.authority, "none");
-  const name = "catalog/browse/index.html";
-  const before = await readFile(path.join(first.output, name));
-  assert.match(before.toString(), /Development catalog/u);
-  const unchanged = await composeCatalogSiteFiles({
-    ...request,
-    previous: first.output,
-    expected_previous_generation: first.generation.generation,
-  });
-  assert.equal(unchanged.changed, false);
-  const app = await composeSiteFiles({
-    ...f.request,
-    previous: first.output,
-    expected_previous_generation: first.generation.generation,
-  });
-  assert.deepEqual(await readFile(path.join(app.output, name)), before);
-  assert.ok(app.generation.files.some((file) => file.path === name));
-});
 
 void test("first application feed and later catalog/application generations retain the exact published rehearsal namespace", async (t) => {
   const f = await fixture(t);

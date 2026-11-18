@@ -8,8 +8,6 @@ import { performance } from "node:perf_hooks";
 import { capacityDigest } from "./release-capacity.mts";
 import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
-import { publicCatalogFiles } from "./public-catalog.mts";
-import type { PublicCatalogProjection } from "./public-catalog.mts";
 import { inspectTufPublicationFacts } from "./release-metadata-contract.mts";
 import {
   inspectSiteGeneration,
@@ -343,9 +341,6 @@ export async function composeCatalogSiteFiles(request: {
   output_parent: string;
   deadline?: number;
   initial_rehearsal?: InitialRehearsal;
-  /** Optional read-only development pages. The existing protected caller still
-   * authenticates catalog publication; this cannot claim published support. */
-  browse?: PublicCatalogProjection;
 }) {
   remaining(request.deadline);
   if (
@@ -403,10 +398,7 @@ export async function composeCatalogSiteFiles(request: {
   const catalog = await tree(request.catalog, request.deadline);
   const next: Files = new Map(
     [...old].filter(
-      ([name]) =>
-        name.startsWith("application/") ||
-        name.startsWith("catalog/browse/") ||
-        isRetainedApplicationRehearsalPath(name),
+      ([name]) => name.startsWith("application/") || isRetainedApplicationRehearsalPath(name),
     ),
   );
   for (const [name, bytes] of catalog) {
@@ -417,13 +409,6 @@ export async function composeCatalogSiteFiles(request: {
     next.set(`catalog/${name}`, bytes);
   }
   if (!next.has("catalog/metadata/timestamp.json")) throw new Error("catalog timestamp absent");
-  if (request.browse) {
-    // All bytes are derived by the fixed renderer, never an arbitrary supplied
-    // directory. Omitted enrichment retains the last good browse projection.
-    const browse = await publicCatalogFiles(request.browse);
-    for (const name of next.keys()) if (name.startsWith("catalog/browse/")) next.delete(name);
-    for (const [name, bytes] of browse) next.set(`catalog/browse/${name}`, bytes);
-  }
   for (const [name, bytes] of old)
     if (
       (name.startsWith("application/") ||

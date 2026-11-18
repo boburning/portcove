@@ -170,6 +170,16 @@ export const assemblyConfig = {
   output: "repository",
 };
 
+/** Visitor pages are not TUF repository inputs. Preserve the existing prior
+ * repository files while keeping the whole site's digest as the write guard. */
+export function copyPriorRepository(site: string, output: string) {
+  mkdirSync(output, { recursive: true });
+  for (const name of readdirSync(site)) {
+    if (name === "browse") continue;
+    cpSync(path.join(site, name), path.join(output, name), { recursive: true });
+  }
+}
+
 function write(file: string, value: unknown) {
   writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 }
@@ -287,7 +297,9 @@ async function main(argv: string[]) {
     );
     const site = prior === "none" || !existsSync(prior) ? null : prior;
     const versions = priorVersions(site);
-    if (versions) cpSync(site!, path.join(work, "prior"), { recursive: true });
+    if (versions) copyPriorRepository(site!, path.join(work, "prior"));
+    if (versions && existsSync(path.join(site!, "browse")))
+      cpSync(path.join(site!, "browse"), path.join(work, "prior-browse"), { recursive: true });
     const plan = planPublication(versions, new Date());
     write(path.join(work, "plan.json"), plan);
     console.log(`prior_digest=${treeDigest(site ?? path.join(work, "absent"))}`);

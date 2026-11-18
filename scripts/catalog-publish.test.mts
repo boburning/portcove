@@ -10,6 +10,7 @@ import {
   assemblyConfig,
   bundleTargets,
   contextConfig,
+  copyPriorRepository,
   inspectionReport,
   newestGreen,
   planPublication,
@@ -20,6 +21,25 @@ import {
   signConfig,
   treeDigest,
 } from "./catalog-publish.mts";
+
+void test("public browsing stays inside whole-tree concurrency identity but outside signer prior repository", (t) => {
+  const root = temp(t),
+    prior = path.join(root, "prior"),
+    tuf = path.join(root, "tuf");
+  site(prior, {});
+  put(prior, "targets/data.json", "immutable target");
+  put(prior, "browse/index.html", "<h1>Development catalog</h1>");
+  const before = treeDigest(prior);
+  copyPriorRepository(prior, tuf);
+  assert.equal(existsSync(path.join(tuf, "browse")), false);
+  assert.equal(readFileSync(path.join(tuf, "targets/data.json"), "utf8"), "immutable target");
+  assert.equal(
+    readFileSync(path.join(tuf, "metadata/timestamp.json"), "utf8"),
+    readFileSync(path.join(prior, "metadata/timestamp.json"), "utf8"),
+  );
+  put(prior, "browse/index.html", "<h1>Changed visitor pages</h1>");
+  assert.notEqual(treeDigest(prior), before);
+});
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const workflows = path.join(root, ".github", "workflows");
@@ -303,6 +323,18 @@ void test("catalog keys reach only one signing step per role, from main", async 
   // Only the publish job writes, and it holds no catalog key.
   assert.deepEqual(publish.jobs.publish!.permissions, { contents: "write" });
   assert.doesNotMatch(JSON.stringify(publish), /\bsecrets\./u);
+  const currentSource = readFileSync(path.join(workflows, "catalog-publish.yml"), "utf8");
+  assert.match(currentSource, /browse_unchanged=\$\(node scripts\/public-catalog.mts unchanged/u);
+  assert.match(currentSource, /\[ "\$browse_unchanged" = true \]/u);
+  assert.ok(
+    currentSource.indexOf("assemble-definition-repository") <
+      currentSource.indexOf("Generate public development catalog pages"),
+  );
+  assert.match(currentSource, /--revision "\$COMMIT"/u);
+  assert.match(currentSource, /--prior "\$RUNNER_TEMP\/catalog-work\/prior-browse"/u);
+  assert.match(currentSource, /repository\/browse"/u);
+  assert.match(currentSource, /browse_expected=.*repository\/browse\/index.html/u);
+  assert.match(currentSource, /inputs_actual=.*catalog\/browse\/inputs.json/u);
 
   assert.deepEqual(Object.keys(sign.on), ["workflow_call"]);
   const job = sign.jobs.sign!;

@@ -3,8 +3,8 @@
 # existing online catalog role keys and publishes the complete TUF repository to
 # `gh-pages/catalog/`, which installed clients verify against the compiled root.
 #
-# - A green `CI` push run on `main` publishes when the bundle differs from the
-#   published catalog or its timestamp expires within 12 hours; nothing is built
+# - A green `CI` push run on `main` publishes when the bundle or generated browse
+#   inputs differ, or its timestamp expires within 12 hours; nothing is built
 #   otherwise. Every trigger publishes the newest CI-green `main` commit.
 # - The schedule renews the 1-day timestamp and 7-day roles twice a day from the
 #   newest CI-green `main` commit. A manual run does the same.
@@ -91,8 +91,12 @@ jobs:
         run: |
           set -euo pipefail
           unchanged=$(node scripts/catalog-publish.mts unchanged --bundle release/catalog-publication/bundle --prior "$PRIOR")
+          browse_prior=none; if [ "$PRIOR" != none ]; then browse_prior="$PRIOR/browse"; fi
+          browse_unchanged=$(node scripts/public-catalog.mts unchanged \
+            --listings crates/portcove-core/catalog/listings.json \
+            --catalog crates/portcove-core/catalog/catalog.json --prior "$browse_prior")
           due=$(node scripts/catalog-publish.mts renewal-due --prior "$PRIOR" --hours 12)
-          if [ "$GITHUB_EVENT_NAME" = workflow_run ] && [ "$unchanged" = true ] && [ "$due" = false ]; then
+          if [ "$GITHUB_EVENT_NAME" = workflow_run ] && [ "$unchanged" = true ] && [ "$browse_unchanged" = true ] && [ "$due" = false ]; then
             echo "The published catalog already serves this bundle."; echo "publish=false" >> "$GITHUB_OUTPUT"
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
@@ -208,6 +212,15 @@ jobs:
           chmod +x "$RUNNER_TEMP/catalog-tools/portcove-release-tools"
           node scripts/catalog-publish.mts assembly-config --work "$work"
           "$RUNNER_TEMP/catalog-tools/portcove-release-tools" assemble-definition-repository "$work/assembly.json"
+      - name: Generate public development catalog pages
+        run: |
+          set -euo pipefail
+          node scripts/public-catalog.mts \
+            --listings crates/portcove-core/catalog/listings.json \
+            --catalog crates/portcove-core/catalog/catalog.json \
+            --revision "$COMMIT" --observed-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --prior "$RUNNER_TEMP/catalog-work/prior-browse" \
+            --output "$RUNNER_TEMP/catalog-work/repository/browse"
       - name: Publish the repository to the Pages branch
         run: |
           set -euo pipefail
@@ -230,14 +243,23 @@ jobs:
             sleep $((attempt * 5))
           done
           echo "::error::Could not publish the catalog to gh-pages"; exit 1
-      - name: Read the published timestamp back
+      - name: Read the published timestamp and generated browse pages back
         run: |
           set -euo pipefail
           expected=$(sha256sum "$RUNNER_TEMP/catalog-work/repository/metadata/timestamp.json" | cut -d' ' -f1)
+          browse_expected=$(sha256sum "$RUNNER_TEMP/catalog-work/repository/browse/index.html" | cut -d' ' -f1)
+          inputs_expected=$(sha256sum "$RUNNER_TEMP/catalog-work/repository/browse/inputs.json" | cut -d' ' -f1)
+          sample=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const rows=JSON.parse(readFileSync(process.argv[1],"utf8")); process.stdout.write((rows.find(row=>row.reviewed_game&&row.projects.length>1)??rows[0])?.url??"")' "$RUNNER_TEMP/catalog-work/repository/browse/search-index.json")
+          sample_expected=empty
+          if [ -n "$sample" ]; then sample_expected=$(sha256sum "$RUNNER_TEMP/catalog-work/repository/browse/$sample" | cut -d' ' -f1); fi
           url="https://boburning.github.io/portcove/catalog/metadata/timestamp.json"
           for attempt in $(seq 1 30); do
             actual=$(curl -fsSL "$url?run=$GITHUB_RUN_ID-$attempt" | sha256sum | cut -d' ' -f1 || true)
-            if [ "$actual" = "$expected" ]; then echo "Pages serves the published timestamp."; exit 0; fi
+            browse_actual=$(curl -fsSL "https://boburning.github.io/portcove/catalog/browse/index.html?run=$GITHUB_RUN_ID-$attempt" | sha256sum | cut -d' ' -f1 || true)
+            inputs_actual=$(curl -fsSL "https://boburning.github.io/portcove/catalog/browse/inputs.json?run=$GITHUB_RUN_ID-$attempt" | sha256sum | cut -d' ' -f1 || true)
+            sample_actual=empty
+            if [ -n "$sample" ]; then sample_actual=$(curl -fsSL "https://boburning.github.io/portcove/catalog/browse/$sample?run=$GITHUB_RUN_ID-$attempt" | sha256sum | cut -d' ' -f1 || true); fi
+            if [ "$actual" = "$expected" ] && [ "$browse_actual" = "$browse_expected" ] && [ "$inputs_actual" = "$inputs_expected" ] && [ "$sample_actual" = "$sample_expected" ]; then echo "Pages serves the published timestamp and generated catalog pages."; exit 0; fi
             sleep 30
           done
-          echo "::warning::Pages did not serve the new timestamp within 15 minutes; check the Pages build."
+          echo "::warning::Pages did not serve the complete new timestamp and browse output within 15 minutes; check the Pages build."

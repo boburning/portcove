@@ -3,7 +3,15 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import test from "node:test";
-import { projectPublicCatalog, publicCatalogFiles, writePublicCatalog } from "./public-catalog.mts";
+import { isRecord } from "./runtime-values.mts";
+import { execFileSync } from "node:child_process";
+import {
+  projectPublicCatalog,
+  publicCatalogFiles,
+  writePublicCatalog,
+  publicCatalogUnchanged,
+  retainPublicCatalogCapture,
+} from "./public-catalog.mts";
 
 const revision = "e57f3296a94a2e914293ecc6da315f0294beef00";
 const observedAt = "2026-11-18T02:00:00Z";
@@ -247,6 +255,103 @@ void test("new-directory output is reproducible, leaves an existing result intac
   const script = first.get("search.js")!.toString();
   assert.match(script, /fetch\(['"]search-index.json/u);
   assert.doesNotMatch(script, /api.github|innerHTML|eval\(/u);
+});
+
+void test("current publisher reuses unchanged capture bytes across unrelated main revisions and clocks", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "public-catalog-capture-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const initial = fixture([entry("one")]);
+  const prior = path.join(root, "prior");
+  await writePublicCatalog(initial, prior);
+  const next = {
+    ...initial,
+    source_revision: "b".repeat(40),
+    source_url: `https://github.com/boburning/portcove/tree/${"b".repeat(40)}`,
+    observed_at: "2026-11-19T02:00:00.000Z",
+  };
+  assert.deepEqual(
+    await publicCatalogFiles(await retainPublicCatalogCapture(next, prior)),
+    await publicCatalogFiles(initial),
+  );
+  const listingBytes = Buffer.from(
+    JSON.stringify({ format_version: 12, listings: [entry("one")] }),
+  );
+  const catalogBytes = Buffer.from(JSON.stringify({ schema_version: 3, ports: [] }));
+  assert.equal(await publicCatalogUnchanged(listingBytes, catalogBytes, prior), true);
+  assert.equal(
+    await publicCatalogUnchanged(Buffer.from('{"listings":[]}'), catalogBytes, prior),
+    false,
+  );
+  assert.equal(
+    await publicCatalogUnchanged(listingBytes, catalogBytes, path.join(root, "absent")),
+    false,
+  );
+  const changed = fixture([entry("two")]);
+  assert.deepEqual(await retainPublicCatalogCapture(changed, prior), changed);
+});
+
+void test("publisher CLI adds generated browsing alongside immutable assembled TUF bytes", async (t) => {
+  const { mkdir, writeFile } = await import("node:fs/promises");
+  const root = await mkdtemp(path.join(os.tmpdir(), "public-catalog-publish-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const repository = path.join(root, "repository");
+  await mkdir(path.join(repository, "metadata"), { recursive: true });
+  await mkdir(path.join(repository, "targets"));
+  const timestamp = Buffer.from("inert assembled timestamp; not a signature fixture");
+  const target = Buffer.from("immutable signed target placeholder");
+  await writeFile(path.join(repository, "metadata/timestamp.json"), timestamp);
+  await writeFile(path.join(repository, "targets/game.json"), target);
+  const listings = path.join(root, "listings.json"),
+    catalog = path.join(root, "catalog.json");
+  await writeFile(listings, JSON.stringify({ format_version: 12, listings: [entry("project")] }));
+  await writeFile(catalog, JSON.stringify({ schema_version: 3, ports: [] }));
+  const script = new URL("./public-catalog.mts", import.meta.url);
+  const { fileURLToPath } = await import("node:url");
+  const output = path.join(repository, "browse");
+  const result: unknown = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        fileURLToPath(script),
+        "--listings",
+        listings,
+        "--catalog",
+        catalog,
+        "--revision",
+        revision,
+        "--observed-at",
+        observedAt,
+        "--prior",
+        path.join(root, "absent"),
+        "--output",
+        output,
+      ],
+      { encoding: "utf8", timeout: 15000 },
+    ),
+  );
+  assert.ok(isRecord(result));
+  assert.equal(result.scope, "development");
+  assert.deepEqual(await readFile(path.join(repository, "metadata/timestamp.json")), timestamp);
+  assert.deepEqual(await readFile(path.join(repository, "targets/game.json")), target);
+  assert.match(
+    (await readFile(path.join(output, "index.html"))).toString(),
+    /Development catalog/u,
+  );
+  const unchanged = execFileSync(
+    process.execPath,
+    [
+      fileURLToPath(script),
+      "unchanged",
+      "--listings",
+      listings,
+      "--catalog",
+      catalog,
+      "--prior",
+      output,
+    ],
+    { encoding: "utf8", timeout: 15000 },
+  ).trim();
+  assert.equal(unchanged, "true");
 });
 
 void test("actual reviewed Majora's Mask records produce a comparison and independent original edition and target facts", async () => {

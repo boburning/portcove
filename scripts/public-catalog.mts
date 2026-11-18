@@ -95,6 +95,90 @@ export interface PublicCatalogProjection {
   entries: PublicCatalogEntry[];
 }
 
+async function publicCatalogInputs(listingsSha: string, catalogSha: string) {
+  const files = await Promise.all(
+    ["public-catalog.mts", "public-catalog/catalog.css", "public-catalog/search.js"].map(
+      async (name) => ({
+        name,
+        sha256: digest(
+          await readControllerToolFile(
+            fileURLToPath(new URL(`./${name}`, import.meta.url)),
+            128 * 1024,
+          ),
+        ),
+      }),
+    ),
+  );
+  return {
+    format_version: 1,
+    listings_sha256: listingsSha,
+    catalog_sha256: catalogSha,
+    renderer_sha256: digest(JSON.stringify(files)),
+  };
+}
+
+/** No provider reads: the current source and renderer must match the retained
+ * input identity. A missing legacy browse result requests a fresh generation. */
+export async function publicCatalogUnchanged(
+  listings: Buffer,
+  catalog: Buffer,
+  previous: string | null,
+) {
+  if (!previous) return false;
+  const expected = await publicCatalogInputs(digest(listings), digest(catalog));
+  let bytes: Buffer;
+  try {
+    bytes = await readControllerToolFile(path.join(previous, "inputs.json"), 8192);
+  } catch {
+    return false;
+  }
+  try {
+    return JSON.stringify(JSON.parse(bytes.toString("utf8"))) === JSON.stringify(expected);
+  } catch {
+    return false;
+  }
+}
+
+export async function retainPublicCatalogCapture(
+  projection: PublicCatalogProjection,
+  previous: string | null,
+) {
+  if (!previous) return projection;
+  try {
+    const expected = await publicCatalogInputs(
+      projection.listings_sha256,
+      projection.catalog_sha256,
+    );
+    const identity: unknown = JSON.parse(
+      (await readControllerToolFile(path.join(previous, "inputs.json"), 8192)).toString("utf8"),
+    );
+    if (JSON.stringify(identity) !== JSON.stringify(expected)) return projection;
+    const capture = parse(
+      await readControllerToolFile(path.join(previous, "projection.json"), maximumInput),
+    );
+    if (
+      capture.scope !== "development" ||
+      capture.listings_sha256 !== projection.listings_sha256 ||
+      capture.catalog_sha256 !== projection.catalog_sha256 ||
+      typeof capture.source_revision !== "string" ||
+      !/^[a-f0-9]{40}$/u.test(capture.source_revision) ||
+      typeof capture.observed_at !== "string" ||
+      !Number.isFinite(Date.parse(capture.observed_at))
+    )
+      return projection;
+    // Re-render current validated data with the original capture provenance.
+    // No previous HTML, script or arbitrary projection field is copied.
+    return {
+      ...projection,
+      source_revision: capture.source_revision,
+      source_url: `https://github.com/boburning/portcove/tree/${capture.source_revision}`,
+      observed_at: new Date(capture.observed_at).toISOString(),
+    };
+  } catch {
+    return projection;
+  }
+}
+
 /** Explicit allowlist excludes artwork, paths, source profiles, credentials,
  * private maintenance rows, arbitrary upstream fields and publication claims. */
 export function projectPublicCatalog(request: {
@@ -198,10 +282,10 @@ export function projectPublicCatalog(request: {
         dependencies: rows(compatibleImplementation.dependencies)
           .filter(
             (dependency) =>
-              ["toolchain", "runtime", "library", "source-preparation"].includes(
-                String(dependency.kind),
-              ) &&
-              ["confirmed", "inferred", "contradicted"].includes(String(dependency.confidence)) &&
+              typeof dependency.kind === "string" &&
+              ["toolchain", "runtime", "library", "source-preparation"].includes(dependency.kind) &&
+              typeof dependency.confidence === "string" &&
+              ["confirmed", "inferred", "contradicted"].includes(dependency.confidence) &&
               typeof dependency.name === "string" &&
               !!dependency.name.trim() &&
               dependency.name.length <= 128 &&
@@ -397,6 +481,12 @@ export async function publicCatalogFiles(
       ),
     );
   put("projection.json", JSON.stringify(projection));
+  put(
+    "inputs.json",
+    JSON.stringify(
+      await publicCatalogInputs(projection.listings_sha256, projection.catalog_sha256),
+    ),
+  );
   if (
     files.size > 6000 ||
     [...files.values()].reduce((sum, bytes) => sum + bytes.length, 0) > maximumOutput
@@ -428,33 +518,74 @@ export async function writePublicCatalog(projection: PublicCatalogProjection, ou
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
-  if (
-    args.length !== 10 ||
-    args.some(
-      (value, index) =>
-        index % 2 === 0 &&
-        !["--listings", "--catalog", "--revision", "--observed-at", "--output"].includes(value),
-    )
-  )
-    throw new Error(
-      "usage: public-catalog.mts --listings PATH --catalog PATH --revision SHA --observed-at ISO --output NEW_DIRECTORY",
+  if (args[0] === "unchanged") {
+    if (args.length !== 7)
+      throw new Error(
+        "usage: public-catalog.mts unchanged --listings PATH --catalog PATH --prior DIRECTORY_OR_NONE",
+      );
+    const options = Object.fromEntries([1, 3, 5].map((index) => [args[index]!, args[index + 1]!]));
+    for (const key of ["--listings", "--catalog", "--prior"])
+      if (!options[key]) throw new Error(`missing ${key}`);
+    const [listings, catalog] = await Promise.all([
+      readControllerToolFile(path.resolve(options["--listings"]!), maximumInput),
+      readControllerToolFile(path.resolve(options["--catalog"]!), maximumInput),
+    ]);
+    console.log(
+      await publicCatalogUnchanged(
+        listings,
+        catalog,
+        options["--prior"] === "none" ? null : path.resolve(options["--prior"]!),
+      ),
     );
-  const options = Object.fromEntries(
-    Array.from({ length: 5 }, (_, index) => [args[index * 2]!, args[index * 2 + 1]!]),
-  );
-  for (const name of ["--listings", "--catalog", "--revision", "--observed-at", "--output"])
-    if (!options[name]) throw new Error(`missing ${name}`);
-  const [listings, catalog] = await Promise.all([
-    readControllerToolFile(path.resolve(options["--listings"]!), maximumInput),
-    readControllerToolFile(path.resolve(options["--catalog"]!), maximumInput),
-  ]);
-  const projection = projectPublicCatalog({
-    listings,
-    catalog,
-    revision: options["--revision"]!,
-    observedAt: options["--observed-at"]!,
-  });
-  console.log(
-    JSON.stringify(await writePublicCatalog(projection, path.resolve(options["--output"]!))),
-  );
+  } else {
+    if (
+      ![10, 12].includes(args.length) ||
+      args.some(
+        (value, index) =>
+          index % 2 === 0 &&
+          ![
+            "--listings",
+            "--catalog",
+            "--revision",
+            "--observed-at",
+            "--output",
+            "--prior",
+          ].includes(value),
+      )
+    )
+      throw new Error(
+        "usage: public-catalog.mts --listings PATH --catalog PATH --revision SHA --observed-at ISO --output NEW_DIRECTORY",
+      );
+    const options = Object.fromEntries(
+      Array.from({ length: args.length / 2 }, (_, index) => [
+        args[index * 2]!,
+        args[index * 2 + 1]!,
+      ]),
+    );
+    for (const name of ["--listings", "--catalog", "--revision", "--observed-at", "--output"])
+      if (!options[name]) throw new Error(`missing ${name}`);
+    const [listings, catalog] = await Promise.all([
+      readControllerToolFile(path.resolve(options["--listings"]!), maximumInput),
+      readControllerToolFile(path.resolve(options["--catalog"]!), maximumInput),
+    ]);
+    const projection = projectPublicCatalog({
+      listings,
+      catalog,
+      revision: options["--revision"]!,
+      observedAt: options["--observed-at"]!,
+    });
+    console.log(
+      JSON.stringify(
+        await writePublicCatalog(
+          await retainPublicCatalogCapture(
+            projection,
+            options["--prior"] && options["--prior"] !== "none"
+              ? path.resolve(options["--prior"])
+              : null,
+          ),
+          path.resolve(options["--output"]!),
+        ),
+      ),
+    );
+  }
 }
