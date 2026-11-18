@@ -37,7 +37,7 @@ export async function captureSupportedHostedWindowsRuntimeInput(
     sourceRecheck();
     return { relative, bytes, identity: before };
   };
-  const floor = await read("apps/desktop/src-tauri/src/runtime_support.rs"),
+  const floor = await read("apps/desktop/src-tauri/tauri.conf.json"),
     input = await read("work/hosted-continuity-evidence/windows-runtime.json"),
     facts = inspectSupportedHostedWindowsRuntimeInput(floor.bytes, input.bytes, context),
     hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -99,18 +99,18 @@ export function inspectSupportedHostedWindowsRuntimeInput(
   assert.ok(
     Buffer.isBuffer(runtimeBytes) && runtimeBytes.length > 0 && runtimeBytes.length <= 65536,
   );
-  const floors = [
-    ...floorBytes
-      .toString("utf8")
-      .matchAll(
-        /#\[cfg\(windows\)\]\s*const ENGINE_FLOOR: &\[u32\] = &\[(\d{1,10}), (\d{1,10}), (\d{1,10}), (\d{1,10})\];/gu,
-      ),
-  ];
-  assert.equal(floors.length, 1, "unambiguous shipping Windows engine floor required");
-  const parts = floors[0]!.slice(1);
-  assert.ok(parts.every((part) => BigInt(part) <= 0xffff_ffffn));
-  const minimum = parts.join("."),
-    text = runtimeBytes.toString("utf8");
+  const floorText = floorBytes.toString("utf8");
+  assert.ok(Buffer.from(floorText).equals(floorBytes), "Windows bundle policy must be UTF-8");
+  const settings: unknown = JSON.parse(floorText);
+  const windows = isRecord(settings) && isRecord(settings.bundle) ? settings.bundle.windows : null;
+  const minimum = isRecord(windows) ? windows.minimumWebview2Version : null;
+  assert.ok(
+    typeof minimum === "string" &&
+      /^\d{1,10}(?:\.\d{1,10}){3}$/u.test(minimum) &&
+      minimum.split(".").every((part) => BigInt(part) <= 0x7fff_ffffn),
+    "unambiguous shipping Windows engine floor required",
+  );
+  const text = runtimeBytes.toString("utf8");
   assert.ok(Buffer.from(text).equals(runtimeBytes), "Windows runtime input must be UTF-8");
   const raw: unknown = JSON.parse(text);
   assert.ok(isRecord(raw));

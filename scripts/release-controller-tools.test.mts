@@ -2366,11 +2366,11 @@ async function windowsRuntimeInputFixture(t: test.TestContext) {
     await import("./qualify-controller-tools-windows.mts");
   const root = await mkdtemp(path.join(os.tmpdir(), "windows-runtime-source-join-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const floor = path.join(root, "apps/desktop/src-tauri/src/runtime_support.rs"),
+  const floor = path.join(root, "apps/desktop/src-tauri/tauri.conf.json"),
     filename = path.join(root, "work/hosted-continuity-evidence/windows-runtime.json");
   await mkdir(path.dirname(floor), { recursive: true });
   await mkdir(path.dirname(filename), { recursive: true });
-  await copyFile(path.join(sourceRoot, "apps/desktop/src-tauri/src/runtime_support.rs"), floor);
+  await copyFile(path.join(sourceRoot, "apps/desktop/src-tauri/tauri.conf.json"), floor);
   const git = (args: string[]) =>
     execFileSync(
       "git",

@@ -162,7 +162,7 @@ export async function prepareHostedWindowsFixtureRuntime(
     return { relative, bytes, identity: before };
   };
   unchanged();
-  const floor = await read("apps/desktop/src-tauri/src/runtime_support.rs"),
+  const floor = await read("apps/desktop/src-tauri/tauri.conf.json"),
     input = await read("work/hosted-continuity-evidence/windows-runtime.json");
   unchanged();
   const { raw, minimum, observed, before, installed, observation, phases } =
