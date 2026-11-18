@@ -335,64 +335,70 @@ export function VirtualCollectionRows({
     mounting.current = token;
     const requested = model.current;
     // Temporary bounded fresh-cache diagnostic; remove after hosted trace capture.
-    const debug = (phase: string, extra: Record<string, unknown> = {}) => {
-      if (!document.getElementById("DEBUG-perf-mount")) return;
-      const owner = latest.current.geometry.owner;
-      const items = latest.current.virtualizer.getVirtualItems();
-      const index = discoverDestinationIndex(model.current.groups, target);
-      const rowIndex = index < 0 ? -1 : Math.floor(index / latest.current.geometry.columns);
-      const neighbors = [rowIndex - 2, rowIndex - 1, rowIndex].map((index) => {
-        const row = element.querySelector<HTMLElement>(`[data-collection-row="${index}"]`);
-        const item = items.find((item) => item.index === index);
-        return {
-          index,
-          model: item && { key: item.key, start: item.start, size: item.size },
-          dom: row && {
-            connected: row.isConnected,
-            top: row.getBoundingClientRect().top,
-            height: row.getBoundingClientRect().height,
-            styleTop: row.style.top,
-          },
-        };
-      });
-      element.dispatchEvent(
-        new CustomEvent("DEBUG-perf-mount", {
-          bubbles: true,
-          detail: {
-            phase,
-            token,
-            epoch,
-            intent: intent.current,
-            work: work.current,
-            target,
-            generation: requested.generation,
-            queryKey: requested.queryKey,
-            ready: model.current.ready,
-            owner: owner === document.scrollingElement ? "document" : owner?.tagName,
-            scroll: owner?.scrollTop,
-            maximum: owner ? owner.scrollHeight - owner.clientHeight : undefined,
-            geometry: {
-              columns: latest.current.geometry.columns,
-              margin: latest.current.geometry.margin,
-              width: latest.current.geometry.width,
-            },
-            rangeCount: items.length,
-            range: items
-              .slice(0, 12)
-              .map(({ index, key, start, size }) => ({ index, key, start, size })),
-            neighbors,
-            viewport: { width: innerWidth, height: innerHeight },
-            ownerBounds: owner && {
-              top: owner.getBoundingClientRect().top,
-              bottom: owner.getBoundingClientRect().bottom,
-              clientHeight: owner.clientHeight,
-            },
-            ...extra,
-          },
-        }),
-      );
-    };
-    debug("start");
+    // The enabled getVirtualItems probe can advance memoized model state. Trace
+    // evidence therefore needs the original uninstrumented repro after repair.
+    // Optional calls also gate argument evaluation outside this single repro.
+    const debug = document.getElementById("DEBUG-perf-mount")
+      ? (phase: string, extra: Record<string, unknown> = {}) => {
+          const owner = latest.current.geometry.owner;
+          const items = latest.current.virtualizer.getVirtualItems();
+          const index = discoverDestinationIndex(model.current.groups, target);
+          const rowIndex = index < 0 ? -1 : Math.floor(index / latest.current.geometry.columns);
+          const neighbors = [rowIndex - 2, rowIndex - 1, rowIndex].map((index) => {
+            const row = element.querySelector<HTMLElement>(`[data-collection-row="${index}"]`);
+            const item = items.find((item) => item.index === index);
+            return {
+              index,
+              model: item && { key: item.key, start: item.start, size: item.size },
+              dom: row && {
+                connected: row.isConnected,
+                top: row.getBoundingClientRect().top,
+                height: row.getBoundingClientRect().height,
+                styleTop: row.style.top,
+              },
+            };
+          });
+          element.dispatchEvent(
+            new CustomEvent("DEBUG-perf-mount", {
+              bubbles: true,
+              detail: {
+                phase,
+                token,
+                epoch,
+                intent: intent.current,
+                work: work.current,
+                target,
+                generation: requested.generation,
+                queryKey: requested.queryKey,
+                ready: model.current.ready,
+                owner: owner === document.scrollingElement ? "document" : owner?.tagName,
+                scroll: owner?.scrollTop,
+                cachedScrollOffset: latest.current.virtualizer.scrollOffset,
+                scrollDirection: latest.current.virtualizer.scrollDirection,
+                maximum: owner ? owner.scrollHeight - owner.clientHeight : undefined,
+                geometry: {
+                  columns: latest.current.geometry.columns,
+                  margin: latest.current.geometry.margin,
+                  width: latest.current.geometry.width,
+                },
+                rangeCount: items.length,
+                range: items
+                  .slice(0, 12)
+                  .map(({ index, key, start, size }) => ({ index, key, start, size })),
+                neighbors,
+                viewport: { width: innerWidth, height: innerHeight },
+                ownerBounds: owner && {
+                  top: owner.getBoundingClientRect().top,
+                  bottom: owner.getBoundingClientRect().bottom,
+                  clientHeight: owner.clientHeight,
+                },
+                ...extra,
+              },
+            }),
+          );
+        }
+      : undefined;
+    debug?.("start");
     setDestinationPin(undefined);
     latest.current.virtualizer.cancelScroll();
     const eligible = () =>
@@ -411,7 +417,7 @@ export function VirtualCollectionRows({
     const accepted = model.current;
     const valid = () => eligible() && accepted.structure === model.current.structure;
     const index = discoverDestinationIndex(accepted.groups, target);
-    debug("resolved", {
+    debug?.("resolved", {
       index,
       group: accepted.groups[index]?.id,
       rowIndex: index < 0 ? undefined : Math.floor(index / latest.current.geometry.columns),
@@ -425,7 +431,7 @@ export function VirtualCollectionRows({
     if (index < 0 && (target.originKey || target.portId || target.groupKey)) {
       if (target.scrollTop !== undefined) scrollWorkspaceTo(workspace(), target.scrollTop);
       if (mounting.current === token) mounting.current = 0;
-      debug("unresolved-return", { valid: valid() });
+      debug?.("unresolved-return", { valid: valid() });
       return valid();
     }
     if (index >= 0) accepted.onMountDestination?.(accepted.groups[index]!, target);
@@ -462,14 +468,14 @@ export function VirtualCollectionRows({
               height: card.getBoundingClientRect().height,
             })),
         });
-        debug("before-measure", { row: rowObservation() });
+        debug?.("before-measure", { row: rowObservation() });
         if (row) latest.current.virtualizer.measureElement(row);
         latest.current.virtualizer.cancelScroll();
         // Measurement changes TanStack's model before React commits the matching
         // row position. Read the anchor only after that measured commit.
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         if (!valid()) break;
-        debug("measured-commit", { valid: valid(), row: rowObservation() });
+        debug?.("measured-commit", { valid: valid(), row: rowObservation() });
         if (row && !row.isConnected) continue;
         let aligned: (() => boolean) | undefined;
         if (target.viewportTop !== undefined && row) {
@@ -486,7 +492,7 @@ export function VirtualCollectionRows({
           if (anchor && owner) {
             const viewportTop = target.viewportTop;
             const desired = owner.scrollTop + anchor.getBoundingClientRect().top - viewportTop;
-            debug("align", {
+            debug?.("align", {
               row: rowObservation(),
               group: card?.dataset.detailReturnGroup,
               anchor: anchor.dataset.detailOrigin ?? anchor.dataset.detailReturnGroup,
@@ -514,7 +520,7 @@ export function VirtualCollectionRows({
         // the current committed offset, or measure/correct again while still owned.
         const alignment = aligned?.();
         const acknowledged = (!row || row.isConnected) && (alignment ?? true);
-        debug("decision", {
+        debug?.("decision", {
           valid: valid(),
           row: rowObservation(),
           alignment,
@@ -524,16 +530,17 @@ export function VirtualCollectionRows({
       }
       return false;
     } finally {
-      debug("finally");
+      debug?.("finally");
       if (mounting.current === token) mounting.current = 0;
       if (work.current === token) latest.current.virtualizer.cancelScroll();
       requestAnimationFrame(() => {
         if (mounted.current && work.current === token) {
-          debug("release-pin");
+          debug?.("release-pin");
           setDestinationPin(undefined);
-          requestAnimationFrame(() => {
-            if (mounted.current && work.current === token) debug("released-pin-commit");
-          });
+          if (debug)
+            requestAnimationFrame(() => {
+              if (mounted.current && work.current === token) debug("released-pin-commit");
+            });
         }
       });
     }
