@@ -88,10 +88,10 @@ fn bulk_listing_status_includes_scoped_launch_behavior_without_granting_play() {
     let report = status.capabilities.unwrap();
     assert_eq!(report.advisories.len(), 1);
     let notice = &report.advisories[0];
-    assert_eq!(
+    assert!(matches!(
         notice.applicability,
         crate::AdvisoryApplicability::ContextRequired
-    );
+    ));
     assert_eq!(
         notice
             .notice
