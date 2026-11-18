@@ -925,14 +925,23 @@ export async function collectThroughput(
     ?.parameters?.required_status_checks?.map(({ context }) => context);
   if (!required?.length) throw new Error("Repository ruleset has no required check contexts");
 
-  async function listPages(route: string) {
+  function pageCount(first: unknown) {
+    if (
+      !isRecord(first) ||
+      typeof first.total_count !== "number" ||
+      !Number.isSafeInteger(first.total_count) ||
+      first.total_count < 0
+    )
+      throw new Error("Missing throughput page count");
+    return first.total_count;
+  }
+
+  async function listPages(route: string, first?: unknown) {
     // GitHub can advertise subsequent pages under its numeric repository URL.
     // Retain the admitted owner/repo route and verify the full advertised count.
-    const first = await request(`${route}&page=1`);
-    if (!isRecord(first) || !Number.isSafeInteger(first.total_count))
-      throw new Error("Missing throughput page count");
-    const count = Number(first.total_count);
-    if (count < 0 || count > 1_000)
+    first ??= await request(`${route}&page=1`);
+    const count = pageCount(first);
+    if (count > 1_000)
       throw new Error("Throughput listing exceeds the GitHub search bound (1,000 records)");
     const pages: unknown[] = [first];
     for (let page = 2; page <= Math.ceil(count / 100); page++)
@@ -940,21 +949,40 @@ export async function collectThroughput(
     return pages;
   }
 
-  async function window(endMs: number) {
-    const from = new Date(endMs - throughputWindowMs).toISOString();
-    // GitHub search includes both endpoints; a one-millisecond adjustment keeps the window half-open.
-    const to = new Date(endMs - 1).toISOString();
+  async function listWindowRuns(fromMs: number, endMs: number): Promise<CiRun[]> {
+    const from = new Date(fromMs).toISOString();
+    // GitHub's seconds-resolution search is inclusive at both endpoints.
+    const to = new Date(endMs - 1_000).toISOString();
     const query = new URLSearchParams({ created: `${from}..${to}`, per_page: "100" });
-    const runs = pagedItems(
-      await listPages(`${root}/runs?${query}`),
+    const route = `${root}/runs?${query}`;
+    const first = await request(`${route}&page=1`);
+    if (pageCount(first) >= 1_000) {
+      const middle = Math.floor((fromMs + endMs) / 2_000) * 1_000;
+      if (middle <= fromMs)
+        throw new Error("One second exceeds the GitHub workflow run search bound");
+      const left = await listWindowRuns(fromMs, middle);
+      const right = await listWindowRuns(middle, endMs);
+      return [...left, ...right];
+    }
+    return pagedItems(
+      await listPages(route, first),
       "workflow_runs",
       (value): value is CiRun => {
         assertRun(value);
-        return true;
+        const created = typeof value.created_at === "string" ? Date.parse(value.created_at) : NaN;
+        return created >= fromMs && created < endMs;
       },
-      "Missing workflow run inventory",
-      "Incomplete throughput window (GitHub caps filtered listings at 1,000 runs)",
+      "Missing or out-of-window workflow run inventory",
+      "Incomplete throughput window",
     );
+  }
+
+  async function window(observedUntilMs: number) {
+    const endMs = Math.floor(observedUntilMs / 1_000) * 1_000;
+    const fromMs = endMs - throughputWindowMs;
+    const from = new Date(fromMs).toISOString();
+    const to = new Date(endMs - 1_000).toISOString();
+    const runs = await listWindowRuns(fromMs, endMs);
     runs.sort(
       (left, right) =>
         String(right.created_at).localeCompare(String(left.created_at)) || right.id - left.id,
