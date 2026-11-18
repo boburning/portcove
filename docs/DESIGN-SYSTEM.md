@@ -242,6 +242,12 @@ Cards, details and Activity use the same action-presentation selector. Core read
 
 Library location-change review and recovery retain Core's typed failure consequences through the shared review-failure presentation. The summary, reported mutation outcome and expandable technical phase/context remain together. An unknown outcome stays unknown; a committed outcome does not invite an automatic repeat. Displaying recovery details grants no additional recovery action or library lease authority.
 
+When a reviewed setup batch settles, refresh the parent workspace from Core before
+the player dismisses its results. Keep the finished batch and its current focus
+mounted during that read. Done dismisses the results; it does not gate the first
+refresh. Refresh failure keeps the reported batch outcomes and the workspace's
+existing refresh feedback, without repeating installation or inventing readiness.
+
 Portcove should feel like development software from an alternate 1997 console studio, rebuilt with current desktop UX and accessibility standards. Nostalgia never outranks clarity. The working interface stays compact, neutral, and technical; personality appears through tactile geometry, restrained color, direct copy, and quick interaction feedback.
 
 The React/Vite/Tauri desktop uses checked-in official shadcn/ui component source

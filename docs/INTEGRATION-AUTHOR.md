@@ -700,6 +700,49 @@ capable action. [Architecture ownership](ARCHITECTURE.md#find-the-owning-boundar
 the subsystem and migration routes. No private source bytes, credentials or
 unredacted personal library paths belong in a public report.
 
+## Make your port work with launchers
+
+Publish the game for each operating system and processor you support. Name
+both in the download and identify the game executable and working directory.
+Offer a native Linux tarball alongside the AppImage when the game can run from
+an extracted directory. Document its system dependencies and keep the installer,
+symbols, SDK and builder separate from the runnable package.
+
+1. Describe the original files the player needs, including supported regions,
+   revisions and disc numbers. Document which files are needed for the first
+   launch and how to add more later.
+2. Separate setup from Play. Keep the prepared files across restarts. Give
+   launchers a documented command to start the prepared game, and give players a
+   way to reopen settings or repair setup. Document the supported arguments,
+   including where a game path, data directory or fullscreen switch applies.
+3. List where the game actually writes saves and settings in its default and
+   portable modes. If it uses Linux XDG directories, name the variables and
+   defaults. Let a launcher-managed installation disable the game's updater
+   through a supported option, and document who updates an external installation.
+4. For headless setup, document the supported input and output arguments,
+   progress output, success and error exit codes, and how cancellation stops
+   child processes and handles partial output. Keep the user-facing setup route
+   available for players who launch the game themselves.
+
+### Walk through a working integration
+
+The [Ship of Harkinian descriptor](../examples/integrations/shipwright/portcove.json)
+uses the official Windows x86-64 portable package. Its source profile identifies
+supported Ocarina of Time originals. Portcove passes the verified original to
+Ship of Harkinian. The game creates its data archives, which Portcove preserves
+for later Play. The game retains its settings
+interface, and the descriptor also exposes reviewed JSON settings in Portcove.
+The descriptor declares the persistent `saves` directory and other data to carry
+through a managed update. Portcove owns package replacement for this route.
+
+Start with the [minimal example](../examples/integrations/shipwright/basic.portcove.json)
+and run the [descriptor validator](#game-author-descriptors). With a reviewed
+integration and a clean library, supply the originals once, play, save and quit, then reopen
+the launcher, play again, and load the save. Reopen settings and verify that a
+package update preserves both preferences and the save. For help with an existing
+port, use its [Portcove issue](https://github.com/boburning/portcove/issues).
+For general integration questions, use [Portcove Discussions](https://github.com/boburning/portcove/discussions).
+
 ## Game-author descriptors
 
 This section concerns game authors, separately from the external-client CLI
@@ -897,6 +940,18 @@ preparation, authoring and retained-definition contracts. A competitor descripto
 is not converted implicitly or given precedence. Arbitrary preparation programs,
 expanded home/config paths, unconstrained arguments/environment, file clearing,
 account/cloud actions and executable fallbacks are not interoperability grants.
+
+Reuse the facts from a RecompLauncher descriptor when proposing a Portcove
+integration. Each fact still goes through the review for its Portcove field.
+
+| RecompLauncher concept                | Portcove review                                                                                                  |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Release repository and package layout | Listing and release source, target OS and processor, package selector and executable hints                       |
+| `game` and `game.dumps`               | Source profile with supported inputs and verified byte identities                                                |
+| `start`                               | Reviewed executable and working directory, with supported launch arguments where the route allows them           |
+| `config` and `settings`               | `game_settings` for a supported document format and each reviewed setting                                        |
+| `saves`                               | Managed persistent paths or the declared external data locations for the route                                   |
+| `prepare`                             | An existing preparation adapter or a separately reviewed capability for a supported upstream preparation command |
 
 The inspected repository's license is
 [GPL version 3](https://github.com/elripalda/RecompLauncher/blob/6ab3f113934baae14cb2c1f4348ca61d16897f49/LICENSE).
