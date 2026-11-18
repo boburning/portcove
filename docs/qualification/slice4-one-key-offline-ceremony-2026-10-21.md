@@ -41,7 +41,7 @@ basics. This verifies the maintained CLI/crypto/bootstrap connection, not actual
 custodian separation, production fingerprints, secure media, backup restoration,
 provider enforcement or a protected execution grant.
 
-The [operating contract](../RELEASING.md#one-key-initial-offline-ceremony)
+The [operating contract](../archive/retired-release-engine.md#one-key-initial-offline-ceremony)
 records exact config fields and custody prerequisites. Existing Root lifetime is
 365 days maximum and Targets 90; no expiry or trust policy was extended.
 The complete pre-key-creator crate check passed 24 cases. After the final

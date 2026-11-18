@@ -3,9 +3,8 @@
 This record states what phase 1 ("Shadow comparator") of
 [#5359](https://github.com/boburning/portcove/issues/5359) establishes for the
 generated reviewed package-shape table, and the shadow verdicts for the six
-routes the
-[November 13 requalification](mstan-recomp-requalification-2026-11-13.md) found
-exposed to drift. These are static archive observations on Linux x86-64 through
+routes identified in the [November 13 findings recorded in #5359](https://github.com/boburning/portcove/issues/5359).
+These are static archive observations on Linux x86-64 through
 Core's managed extraction. Nothing was executed, installed or played. A verdict
 is a shadow observation, not a review, a refusal or a support claim, and no
 catalog support, applicability row, hold or Project field changed.

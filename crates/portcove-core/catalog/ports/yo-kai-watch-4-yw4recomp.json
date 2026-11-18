@@ -3,7 +3,7 @@
   "listing": {
     "id": "yo-kai-watch-4-yw4recomp",
     "name": "Yo-kai Watch 4++ (YW4Recomp)",
-    "summary": "Prepare your own Yo-kai Watch 4++ files with the upstream launcher for Windows x64 or Linux x86-64. Upstream publishes separate launcher packages and game updates. Portcove has not qualified setup or gameplay.",
+    "summary": "Prepare your own Yo-kai Watch 4++ files with update 2.2.0 in the upstream Windows x64 or Linux x86-64 launcher. Earlier upstream testing reached the house and town and autosaved. Effects were missing and later areas could crash. Portcove has yet to qualify setup or gameplay.",
     "original_game_title": "Yo-kai Watch 4++",
     "project_url": "https://github.com/ILFforever/YW4Recomp",
     "listed_at": "2026-10-25",
@@ -41,7 +41,7 @@
       "steps": [
         {
           "title": "Provide the supported game edition",
-          "instruction": "Follow the publisher’s extraction guide for your own Yo-kai Watch 4++ with update 2.2.0. Use the required ExeFS and RomFS for the 4++ edition."
+          "instruction": "Follow the publisher’s extraction guide for your own Yo-kai Watch 4++ with update 2.2.0. Use the required ExeFS and RomFS for the 4++ edition. The original Yo-kai Watch 4 requires a different profile."
         },
         {
           "title": "Choose a launcher package",

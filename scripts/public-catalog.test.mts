@@ -158,6 +158,30 @@ void test("public allowlist strips private state, unsafe links and external mark
   assert.match(all, /Original cartridge dump/u);
 });
 
+void test("public setup notes retain only their text and remain separate from steps", async () => {
+  const projection = fixture([
+    entry("notes", {
+      manual_setup: {
+        steps: [{ title: "Install", instruction: "Use the upstream package." }],
+        references: [
+          {
+            title: "System <requirements>",
+            instruction: "Use OS 12 & newer.",
+            private_path: "PRIVATE_PATH",
+          },
+        ],
+      },
+    }),
+    entry("plain"),
+  ]);
+  const files = await publicCatalogFiles(projection);
+  const page = files.get("projects/notes/index.html")!.toString();
+  assert.match(page, /<summary>Setup notes<\/summary>/u);
+  assert.match(page, /<dt>System &lt;requirements&gt;<\/dt><dd>Use OS 12 &amp; newer\.<\/dd>/u);
+  assert.doesNotMatch(JSON.stringify(projection), /PRIVATE_PATH/u);
+  assert.doesNotMatch(files.get("projects/plain/index.html")!.toString(), /<summary>Setup notes/u);
+});
+
 void test("unevidenced methods and malformed dependency claims remain unavailable", async () => {
   const projection = fixture([
     entry("project", {

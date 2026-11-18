@@ -46,6 +46,7 @@ body:
         - Steam Deck
         - macOS Intel
         - macOS Apple Silicon
+        - Android
         - Unknown
     validations:
       required: true

@@ -3,7 +3,7 @@
   "listing": {
     "id": "animal-crossing-new-horizons-acnhrecomp",
     "name": "Animal Crossing: New Horizons (ACNHRecomp)",
-    "summary": "Prepare your own copy of Animal Crossing: New Horizons in the experimental ACNHRecomp launcher. Upstream publishes Windows x64, Linux x64 and Apple silicon player packages and a separate Android APK.",
+    "summary": "Prepare your own Animal Crossing: New Horizons game and supported update in the experimental ACNHRecomp launcher. Upstream publishes Windows x64, Linux x64 and Apple silicon packages and a separate Android APK. Earlier Ubuntu testing reached the island. Saving, a full day of play and online play remain unverified by Portcove.",
     "original_game_title": "Animal Crossing: New Horizons",
     "project_url": "https://github.com/Nycolazs/ACNHRecomp",
     "listed_at": "2026-10-25",

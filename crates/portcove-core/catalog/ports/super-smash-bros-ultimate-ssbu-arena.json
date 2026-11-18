@@ -3,7 +3,7 @@
   "listing": {
     "id": "super-smash-bros-ultimate-ssbu-arena",
     "name": "Super Smash Bros. Ultimate (ssbu-arena)",
-    "summary": "SSBU Arena is a competitive Super Smash Bros. Ultimate fork with its own Windows launcher and online rules. The publisher’s v0.2.52 release directs players to SSBU-Arena.exe, which prepares and updates the remaining upstream files from your own game data. Portcove has not verified setup, matchmaking or gameplay.",
+    "summary": "SSBU Arena is an independent Windows fork for competitive one-on-one Super Smash Bros. Ultimate. The v0.2.52 release provides SSBU-Arena.exe to prepare and update the game from your own supported files. Upstream reported testing rollback with two windows on one PC. Portcove has yet to verify setup, matchmaking or gameplay.",
     "original_game_title": "Super Smash Bros. Ultimate",
     "project_url": "https://github.com/SSBUArena/ssbu-arena",
     "listed_at": "2026-10-25",
@@ -32,7 +32,7 @@
       "steps": [
         {
           "title": "Supply your own game files",
-          "instruction": "Follow the upstream launcher instructions for your own supported Super Smash Bros. Ultimate dump and update. Check the original-file requirements for the selected build."
+          "instruction": "Follow the instructions for your own Super Smash Bros. Ultimate dump, matching update, and any keys required for the selected build. The project documents 13.0.4 and 13.0.5."
         },
         {
           "title": "Start the upstream launcher",
