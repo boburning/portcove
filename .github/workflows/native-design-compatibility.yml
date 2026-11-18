@@ -418,9 +418,16 @@ jobs:
             assert.ok(fs.lstatSync(namespaceReports).isDirectory() && !fs.lstatSync(namespaceReports).isSymbolicLink(), 'Namespace reports must be an owned directory');
             directories.push(namespaceReports);
           }
+          const namespacePreflight = path.resolve('work/linux-namespace-preflight');
+          const preflightReceipts = ['parent.json', 'maintained-launcher.json', 'complete-mechanism.json', 'result.json'];
+          if (fs.existsSync(namespacePreflight)) {
+            assert.ok(fs.lstatSync(namespacePreflight).isDirectory() && !fs.lstatSync(namespacePreflight).isSymbolicLink(), 'Namespace preflight reports must be an owned directory');
+            directories.push(namespacePreflight);
+          }
           const inventory = [];
           for (const directory of directories.sort()) {
             for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+              if (directory === namespacePreflight && !preflightReceipts.includes(entry.name)) continue;
               if (!/\.(json|jsonl|log|png|txt)$/.test(entry.name)) continue;
               assert.ok(entry.isFile() && !entry.isSymbolicLink(), 'Report must be a regular file');
               assert.ok(inventory.length < 126, 'Report inventory exceeds the existing codec bound');
@@ -430,7 +437,7 @@ jobs:
               const extension = path.extname(entry.name) === '.txt' ? '.log' : path.extname(entry.name);
               const name = String(inventory.length).padStart(3, '0') + extension;
               fs.writeFileSync(path.join(native, name), bytes, { flag: 'wx' });
-              inventory.push({ original: directory === namespaceReports ? 'namespace-profile/' + entry.name : path.relative(root, source), retained: name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
+              inventory.push({ original: directory === namespaceReports ? 'namespace-profile/' + entry.name : directory === namespacePreflight ? 'namespace-preflight/' + entry.name : path.relative(root, source), retained: name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
             }
           }
           fs.writeFileSync(path.join(encoded, 'collection.json'), JSON.stringify({

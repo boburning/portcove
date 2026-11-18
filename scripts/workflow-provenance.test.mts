@@ -2189,6 +2189,17 @@ void test("Linux large review binds source and controller and publishes an outsi
   };
   for (const [name, bytes] of Object.entries(namespaceFixture))
     writeFileSync(path.join(namespaceReports, name), bytes);
+  const namespacePreflight = path.join(checkout, "work/linux-namespace-preflight");
+  mkdirSync(namespacePreflight);
+  const preflightFixture: Record<string, string> = {
+    "parent.json": '{"uid":1001,"source":"fixture"}\n',
+    "maintained-launcher.json": '{"receipt":{"quiesced":true}}\n',
+    "complete-mechanism.json": '{"status":0,"signal":null}\n',
+    "result.json": '{"result":"passed"}\n',
+  };
+  for (const [name, bytes] of Object.entries(preflightFixture))
+    writeFileSync(path.join(namespacePreflight, name), bytes);
+  writeFileSync(path.join(namespacePreflight, "audit.json"), "unselected diagnostic");
   mkdirSync(path.join(checkout, "scripts"));
   for (const file of ["native-backup-evidence.mts", "runtime-values.mts"])
     writeFileSync(
@@ -2217,6 +2228,10 @@ void test("Linux large review binds source and controller and publishes an outsi
       "large-review-config.json",
       "large-review/report.json",
       "large-review/screenshot.png",
+      "namespace-preflight/complete-mechanism.json",
+      "namespace-preflight/maintained-launcher.json",
+      "namespace-preflight/parent.json",
+      "namespace-preflight/result.json",
       "namespace-profile/activation.json",
       "namespace-profile/cleanup.json",
       "namespace-profile/profile.json",
@@ -2234,7 +2249,9 @@ void test("Linux large review binds source and controller and publishes an outsi
     const original = text(entry.original);
     const source = original.startsWith("namespace-profile/")
       ? path.join(namespaceReports, original.slice("namespace-profile/".length))
-      : path.join(root, original);
+      : original.startsWith("namespace-preflight/")
+        ? path.join(namespacePreflight, original.slice("namespace-preflight/".length))
+        : path.join(root, original);
     assert.deepEqual(bytes, readFileSync(source));
     assert.equal(entry.sha256, createHash("sha256").update(bytes).digest("hex"));
     assert.equal(entry.bytes, bytes.length);
