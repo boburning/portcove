@@ -457,6 +457,32 @@ it("keeps accepted listing facts, uncertainty, staleness and reason-bearing over
     }
   };
   expect(featured(observed, current)).toBe(observed.id);
+  const linux = catalogEntries(
+    undefined,
+    {
+      format_version: 1,
+      listings: [
+        { ...other, platforms: [] },
+        { ...observed, availability: "packages", platforms: ["linux-x86-64"] },
+      ],
+    },
+    [],
+    [],
+  );
+  expect(
+    filterPorts(
+      linux,
+      new Map(),
+      "catalog",
+      "all",
+      "",
+      "catalog",
+      {
+        devicePlatform: "linux-x86-64",
+      },
+      current,
+    )[0]?.id,
+  ).toBe(observed.id);
   expect(featured(observed, Date.parse("2026-10-28T00:00:00Z"))).toBe(other.id);
   expect(
     featured(

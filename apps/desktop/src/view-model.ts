@@ -476,6 +476,7 @@ export function filterPorts(
   query: string,
   catalogSort: CatalogSort = "catalog",
   context: CatalogQueryContext = {},
+  now = Date.now(),
 ) {
   const selectedStatuses =
     typeof filter !== "string" && context.library ? context.library.statuses : statuses;
@@ -502,7 +503,6 @@ export function filterPorts(
     (catalogSort === "catalog" && !context.devicePlatform)
   )
     return visible;
-  const now = Date.now();
   return visible
     .map((port, index) => ({
       port,
@@ -550,11 +550,13 @@ function catalogRank(
   if (status?.active || status?.external_runtime || port.pendingSetup) return 0;
   if (port.release && !portActionPresentation(status, "install").blocked) return 1;
   const assessment = port.listing ? assessListingAvailability(port.listing, now) : undefined;
-  if (assessment?.availability === "unavailable" || assessment?.availability === "source-only")
-    return 5;
-  const platforms = assessment?.observedPlatforms ?? availablePlatforms(port);
-  if (platforms.some((candidate) => candidate === platform)) return 2;
-  return platforms.length ? 4 : 3;
+  const observed = assessment?.observedPlatforms ?? [];
+  if (observed.some((candidate) => candidate === platform)) return 2;
+  const authoredAvailability = assessment?.availability;
+  if (authoredAvailability === "unavailable" || authoredAvailability === "source-only") return 5;
+  const authored = availablePlatforms(port);
+  if (authored.some((candidate) => candidate === platform)) return 2;
+  return authored.length || observed.length ? 4 : 3;
 }
 
 function visibleInView(port: CatalogEntry, statuses: ReadonlyMap<string, PortStatus>, view: View) {

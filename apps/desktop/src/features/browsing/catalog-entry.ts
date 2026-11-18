@@ -132,7 +132,7 @@ export function catalogEntries(
 }
 
 type ListingAvailabilityAssessment = {
-  availability: NonNullable<PortListing["availability"]> | "observed-packages";
+  availability: NonNullable<PortListing["availability"]>;
   label: string;
   observedPlatforms?: PortDefinition["platforms"];
 };
@@ -179,7 +179,7 @@ export function assessListingAvailability(
   ];
   const label = limits.length ? `${facts} (${limits.join("; ")})` : facts;
   if (fresh && observation.status === "complete" && observedPlatforms.length)
-    return { availability: "observed-packages", label, observedPlatforms };
+    return { availability, label, observedPlatforms };
   // A bounded release window cannot establish that all upstream packages are absent.
   return {
     availability,
