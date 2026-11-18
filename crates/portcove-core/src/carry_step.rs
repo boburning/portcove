@@ -195,6 +195,7 @@ pub(crate) fn inspect_target(
                 Ok(digest) => Ok(TargetCopy::File {
                     sha256: digest.sha256,
                 }),
+                Err(error) if error.code == crate::ErrorCode::Cancelled => Err(error),
                 Err(_) if locked(&path) => Err(locked_error(relative)),
                 Err(_) => Ok(TargetCopy::Unreadable),
             }
@@ -225,6 +226,7 @@ pub(crate) fn inspect_source(
                 },
                 Some(digest.size),
             )),
+            Err(error) if error.code == crate::ErrorCode::Cancelled => Err(error),
             Err(_) if locked(&path) => Err(locked_error(relative)),
             Err(_) => Ok((SourceCopy::Unreadable, None)),
         },
@@ -622,8 +624,13 @@ fn verify(
         if locked(&source) {
             return Err(CarryStop::Locked(copy.path.clone()));
         }
-        let digest = hash_file(&source, checkpoint)
-            .map_err(|_| CarryStop::SourceChanged(copy.path.clone()))?;
+        let digest = hash_file(&source, checkpoint).map_err(|error| {
+            if error.code == crate::ErrorCode::Cancelled {
+                CarryStop::Failed(error)
+            } else {
+                CarryStop::SourceChanged(copy.path.clone())
+            }
+        })?;
         if approved
             .get(copy.path.as_str())
             .and_then(|planned| planned.approved_source.as_deref())
@@ -636,6 +643,7 @@ fn verify(
             None => None,
             Some(_) => match hash_file(&copy.destination, checkpoint) {
                 Ok(digest) => Some(digest.sha256),
+                Err(error) if error.code == crate::ErrorCode::Cancelled => return Err(error.into()),
                 Err(_) if locked(&copy.destination) => {
                     return Err(CarryStop::Locked(copy.path.clone()));
                 }
@@ -656,9 +664,11 @@ fn verify(
         let seen = snapshot(&removal.destination)?;
         let current = match seen {
             None => None,
-            Some(_) => hash_file(&removal.destination, checkpoint)
-                .ok()
-                .map(|digest| digest.sha256),
+            Some(_) => match hash_file(&removal.destination, checkpoint) {
+                Ok(digest) => Some(digest.sha256),
+                Err(error) if error.code == crate::ErrorCode::Cancelled => return Err(error.into()),
+                Err(_) => None,
+            },
         };
         match (seen, current) {
             (Some(seen), Some(current)) if current == removal.expected => {

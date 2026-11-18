@@ -614,3 +614,145 @@ fn staging_exhaustion_with_unremovable_prior_temp_remains_a_hold() {
     assert!(!fixture.target.join("a.txt").exists());
     assert!(!fixture.target.join("b.txt").exists());
 }
+
+fn cancellation() -> PortcoveError {
+    PortcoveError::new(
+        crate::ErrorCode::Cancelled,
+        "fixture requested cancellation",
+    )
+    .detail("fixture", "carry-checkpoint")
+}
+
+fn assert_cancelled(stop: CarryStop) {
+    let CarryStop::Failed(error) = stop else {
+        panic!("cancellation changed classification: {stop:?}")
+    };
+    assert_eq!(error.code, crate::ErrorCode::Cancelled);
+    assert_eq!(
+        error.details.get("fixture").map(String::as_str),
+        Some("carry-checkpoint")
+    );
+}
+
+#[test]
+fn inspection_preserves_cancellation_instead_of_unreadable_file_outcomes() {
+    let fixture = fixture();
+    write(&fixture.source, "notes.txt", b"source player file");
+    write(&fixture.target, "notes.txt", b"target player file");
+    let listings = Listings::default();
+    for error in [
+        inspect_source(&fixture.source, "notes.txt", &listings, &|| {
+            Err(cancellation())
+        })
+        .unwrap_err(),
+        inspect_target(&fixture.target, "notes.txt", &listings, &|| {
+            Err(cancellation())
+        })
+        .unwrap_err(),
+    ] {
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        assert_eq!(
+            error.details.get("fixture").map(String::as_str),
+            Some("carry-checkpoint")
+        );
+    }
+}
+
+#[test]
+fn source_and_destination_verification_preserve_cancellation() {
+    for cancel_destination in [false, true] {
+        let fixture = fixture();
+        let old = b"older player file";
+        let new = b"updated player file";
+        write(&fixture.source, "notes.txt", new);
+        write(&fixture.target, "notes.txt", old);
+        let (plan, staged) = run_with(
+            &fixture,
+            &["notes.txt"],
+            &|_| descended(old, Some(new)),
+            PLENTY,
+        );
+        assert_eq!(plan[0].action, CarryAction::Replace);
+        let mut staged = staged.unwrap();
+        // Measure the real source hash's checkpoints to cancel in the subsequent
+        // destination hash, without sleeps or an assumed number of IO chunks.
+        let source_calls = std::cell::Cell::new(0);
+        hash_file(&fixture.source.join("notes.txt"), &|| {
+            source_calls.set(source_calls.get() + 1);
+            Ok(())
+        })
+        .unwrap();
+        assert!(source_calls.get() > 0);
+        let calls = std::cell::Cell::new(0);
+        let checkpoint = || {
+            calls.set(calls.get() + 1);
+            if !cancel_destination || calls.get() > source_calls.get() {
+                Err(cancellation())
+            } else {
+                Ok(())
+            }
+        };
+        assert_cancelled(verify(&mut staged, &fixture.source, &plan, &checkpoint).unwrap_err());
+        assert!(staged.changed_targets.is_empty());
+        staged.discard().unwrap();
+        assert_eq!(fs::read(fixture.source.join("notes.txt")).unwrap(), new);
+        assert_eq!(fs::read(fixture.target.join("notes.txt")).unwrap(), old);
+        assert_eq!(fs::read_dir(&fixture.target).unwrap().count(), 1);
+    }
+}
+
+#[test]
+fn removal_verification_preserves_cancellation_instead_of_keeping_a_changed_target() {
+    let fixture = fixture();
+    let old = b"deleted player file";
+    write(&fixture.target, "notes.txt", old);
+    let (plan, staged) = run_with(&fixture, &["notes.txt"], &|_| descended(old, None), PLENTY);
+    assert_eq!(plan[0].action, CarryAction::Remove);
+    let mut staged = staged.unwrap();
+    assert_cancelled(
+        verify(&mut staged, &fixture.source, &plan, &|| Err(cancellation())).unwrap_err(),
+    );
+    assert!(staged.changed_targets.is_empty());
+    assert_eq!(fs::read(fixture.target.join("notes.txt")).unwrap(), old);
+}
+
+#[test]
+fn cancellation_during_second_copy_discards_completed_and_partial_staging() {
+    let fixture = fixture();
+    write(&fixture.source, "a.txt", b"first player file");
+    let large = vec![42; 128 * 1024];
+    write(&fixture.source, "b.txt", &large);
+    let writes = std::cell::Cell::new(0);
+    let requested = std::cell::Cell::new(false);
+    let writer = |output: &mut fs::File, bytes: &[u8]| {
+        write_staging(output, bytes)?;
+        writes.set(writes.get() + 1);
+        if writes.get() == 2 {
+            requested.set(true);
+        }
+        Ok(())
+    };
+    let checkpoint = || {
+        if requested.get() {
+            Err(cancellation())
+        } else {
+            Ok(())
+        }
+    };
+    let (_, result) = run_with_writer(
+        &fixture,
+        &["a.txt", "b.txt"],
+        &|_| (None, None),
+        PLENTY,
+        &writer,
+        &checkpoint,
+    );
+    assert_cancelled(result.unwrap_err());
+    assert_eq!(writes.get(), 2);
+    assert_eq!(fs::read_dir(&fixture.target).unwrap().count(), 0);
+    assert_eq!(
+        fs::read(fixture.source.join("a.txt")).unwrap(),
+        b"first player file"
+    );
+    assert_eq!(fs::read(fixture.source.join("b.txt")).unwrap(), large);
+}
