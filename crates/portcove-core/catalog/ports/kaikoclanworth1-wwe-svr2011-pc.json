@@ -18,7 +18,17 @@
       "game_slug": "wwe-smackdown-vs-raw-2011",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2856
+    "issue_number": 2856,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the Android SmackDown vs. Raw package",
+          "instruction": "SvR2011-Android-v2.2.5.apk requires ARM64, Vulkan and about 7 GB free. Use Install to import your own Xbox 360 ISO, then use Play in the app. Reopen Settings there. Keep the game and its saves under games/WWE SmackDown vs. Raw 2011 on the phone. The app handles its own updates."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/KaikoClanworth1/wwe-svr2011-pc/blob/v2.2.5/README.md#android"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

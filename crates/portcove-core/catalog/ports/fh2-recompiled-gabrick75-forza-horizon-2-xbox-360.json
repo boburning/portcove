@@ -24,7 +24,13 @@
         "Upstream reports menus and races running below console performance, with image defects in the native renderer.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/Gabrick75/fh2-recompiled"
+      "help_url": "https://github.com/Gabrick75/fh2-recompiled",
+      "references": [
+        {
+          "title": "Use the Forza Horizon 2 Android APK",
+          "instruction": "Use FH2-Recompiled-0.4.5.1.apk on ARM64 with Android 8 or later and Vulkan 1.1 or later. Choose your own USA Xbox 360 ISO in Game and saves, or copy the extracted game to Internal storage/jogos/ForzaHorizon2. Keep an ISO you selected in place for later launches. Grant the requested file access and tap Play in the launcher. Export saves before switching to a build signed with another key, since Android requires uninstalling the previous app."
+        }
+      ]
     },
     "issue_number": 3199,
     "listed_at": "2026-10-25",

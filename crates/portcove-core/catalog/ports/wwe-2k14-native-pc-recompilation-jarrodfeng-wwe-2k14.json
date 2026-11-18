@@ -24,7 +24,13 @@
         "Source/build documentation exists; full-playability scope is unknown.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/Jarrodfeng/wwe2k14-recomp"
+      "help_url": "https://github.com/Jarrodfeng/wwe2k14-recomp/releases/tag/android-v0.3.3",
+      "references": [
+        {
+          "title": "Use the upstream Android prerelease",
+          "instruction": "The project’s android-v0.3.3 prerelease publishes wwe2k14-android-v0.3.3.apk for ARM64. Open the upstream launcher to check the phone and game-file requirements. Use UPDATE NOW in that launcher or install over the previous build with the same app ID and signing key to keep its data. The publisher reports testing on an OPPO Find X8 Ultra."
+        }
+      ]
     },
     "issue_number": 3179,
     "listed_at": "2026-10-25",
