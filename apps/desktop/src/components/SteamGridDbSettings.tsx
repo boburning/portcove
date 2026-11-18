@@ -350,9 +350,10 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
           size="sm"
           disabled={reading || busy}
           focusableWhenDisabled={reading || busy}
+          aria-busy={reading || busy}
           onClick={reread}
         >
-          {reading ? t("steamGridDb.reading") : t("steamGridDb.readAgain")}
+          {t("steamGridDb.readAgain")}
         </Button>
       )}
       <p className="text-[length:var(--text-sm)] text-[var(--color-text-muted)]">

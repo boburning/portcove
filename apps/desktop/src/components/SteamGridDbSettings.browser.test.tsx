@@ -88,6 +88,7 @@ it("settles a refused setup read, retries once and preserves key input after a s
   expect(row.querySelector("input")).toBeNull();
   expect(buttonNamed("Remove key")).toBeUndefined();
   const recovery = buttonNamed("Check setup again")!;
+  await expect.element(page.elementLocator(recovery)).toHaveAttribute("aria-busy", "false");
   recovery.focus();
   await act(async () => {
     recovery.click();
@@ -95,10 +96,16 @@ it("settles a refused setup read, retries once and preserves key input after a s
   });
   expect(read).toHaveBeenCalledTimes(2);
   await expect.element(page.elementLocator(row)).toHaveAttribute("aria-busy", "true");
+  expect(row.querySelector('[role="status"]')?.textContent).toBe("Checking SteamGridDB setup…");
+  expect(buttonNamed("Check setup again")).toBe(recovery);
+  await expect.element(page.elementLocator(recovery)).toHaveTextContent("Check setup again");
+  await expect.element(page.elementLocator(recovery)).toHaveAttribute("aria-busy", "true");
+  await expect.element(page.elementLocator(recovery)).toHaveAttribute("aria-disabled", "true");
   await expect.element(page.elementLocator(recovery)).toHaveFocus();
   expect(row.querySelector("input")).toBeNull();
   await act(async () => retry.resolve({ configured: false }));
   await expect.element(page.elementLocator(row)).toHaveAttribute("aria-busy", "false");
+  await expect.element(page.elementLocator(recovery)).toHaveAttribute("aria-busy", "false");
   await expect.element(page.elementLocator(recovery)).toHaveFocus();
   expect(row.querySelector('[role="alert"]')).toBeNull();
   const input = row.querySelector<HTMLInputElement>("#steamgriddb-api-key")!;
@@ -236,11 +243,22 @@ it.each([
       await captureParityState("steamgriddb-setup-refused");
       await page.elementLocator(button).click();
       await expect.element(scope).toHaveAttribute("aria-busy", "true");
+      await expect
+        .element(scope.getByRole("status"))
+        .toHaveTextContent("Checking SteamGridDB setup…");
+      expect(scope.getByRole("button", { name: "Check setup again", exact: true }).element()).toBe(
+        button,
+      );
+      await expect.element(page.elementLocator(button)).toHaveAttribute("aria-busy", "true");
+      await expect.element(page.elementLocator(button)).toHaveAttribute("aria-disabled", "true");
+      await expect.element(page.elementLocator(button)).toHaveFocus();
+      expect(read).toHaveBeenCalledTimes(2);
       await expectContainedRecovery();
       expect(row.querySelector("input")).toBeNull();
       await captureParityState("steamgriddb-setup-retrying");
       await act(async () => retry.resolve({ configured: theme === "dark" }));
       await expect.element(scope).toHaveAttribute("aria-busy", "false");
+      await expect.element(page.elementLocator(button)).toHaveAttribute("aria-busy", "false");
       await expect.element(page.elementLocator(button)).toHaveFocus();
       await expect.element(scope.getByRole("alert")).not.toBeInTheDocument();
       expect(
