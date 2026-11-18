@@ -936,7 +936,10 @@ impl PortcoveService {
             }],
             LibraryMembershipOrigin::Manual,
         )?;
-        let record = self.run_install_batch(&batch.id, &mut *emit).await?;
+        // Keep the batch's large async state out of the enclosing standing
+        // future. Nested fresh installs exhausted Windows debug worker stacks;
+        // the batch still runs serially under the same locks and cancellation.
+        let record = Box::pin(self.run_install_batch(&batch.id, &mut *emit)).await?;
         for item in &record.items {
             match item.state {
                 InstallBatchItemState::Ready => {
@@ -991,6 +994,254 @@ mod tests {
         let library = Library::open(temporary.path().join("library")).unwrap();
         register_zelda_install(&library, "v1", false);
         (temporary, service_with_release(library, "v1"))
+    }
+
+    const STACK_PORT: &str = "standing-worker-fixture";
+
+    struct StackRelease(crate::ResolvedRelease);
+
+    #[async_trait::async_trait]
+    impl crate::ReleaseProvider for StackRelease {
+        async fn resolve(
+            &self,
+            _: &crate::PortDefinition,
+            channel: crate::ReleaseChannel,
+            platform: crate::Platform,
+        ) -> Result<crate::ResolvedRelease> {
+            assert_eq!(channel, crate::ReleaseChannel::Stable);
+            assert_eq!(platform, crate::Platform::current().unwrap());
+            Ok(self.0.clone())
+        }
+    }
+
+    struct StackInstallFixture {
+        temporary: tempfile::TempDir,
+        service: PortcoveService,
+        server: crate::test_http::HttpServer,
+        requests: std::sync::mpsc::Receiver<String>,
+        executable: String,
+        program: Vec<u8>,
+    }
+
+    fn fresh_stack_service() -> StackInstallFixture {
+        use std::io::Write;
+        let temporary = tempfile::tempdir().unwrap();
+        let platform = crate::Platform::current().unwrap();
+        let platform_key = serde_json::to_value(platform)
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let executable = if cfg!(windows) { "game.exe" } else { "game" }.to_owned();
+        let program = if cfg!(windows) {
+            let mut bytes = vec![0_u8; 128];
+            bytes[..2].copy_from_slice(b"MZ");
+            bytes
+        } else {
+            b"#!/bin/sh\n# Owned inert standing-setup fixture; never executed.\n".to_vec()
+        };
+        let mut random = 0x5374_616e_u32;
+        let padding = (0..3 * 1024 * 1024)
+            .map(|_| {
+                random ^= random << 13;
+                random ^= random >> 17;
+                random ^= random << 5;
+                random as u8
+            })
+            .collect::<Vec<_>>();
+        let mut archive = tar::Builder::new(Vec::new());
+        for (name, bytes, mode) in [
+            (executable.as_str(), program.as_slice(), 0o755),
+            ("owned-download-padding.bin", padding.as_slice(), 0o644),
+        ] {
+            let mut header = tar::Header::new_gnu();
+            header.set_size(bytes.len() as u64);
+            header.set_mode(mode);
+            header.set_cksum();
+            archive.append_data(&mut header, name, bytes).unwrap();
+        }
+        let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        gzip.write_all(&archive.into_inner().unwrap()).unwrap();
+        let payload = gzip.finish().unwrap();
+        let digest = crate::signed_catalog::digest(&payload);
+        let mut response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            payload.len()
+        )
+        .into_bytes();
+        response.extend_from_slice(&payload);
+        let (origin, requests, server) = crate::test_http::serve_http_bytes(vec![response]);
+        let release = crate::ResolvedRelease {
+            version: "1.0.0-stack-fixture".into(),
+            channel: crate::ReleaseChannel::Stable,
+            published_at: None,
+            asset: crate::ReleaseAsset {
+                name: "standing-worker-runtime.tar.gz".into(),
+                url: format!("{origin}/runtime.tar.gz"),
+                size: payload.len() as u64,
+                sha256: digest,
+            },
+            uploader_continuity: None,
+        };
+        let original = b"Portcove owned inert standing source\n";
+        let source = temporary.path().join("original.pcgame");
+        std::fs::write(&source, original).unwrap();
+        let catalog = crate::Catalog::from_json(&serde_json::json!({
+            "schema_version": 1,
+            "source_profiles": [{
+                "id": "standing-worker-original", "label": "Owned inert original",
+                "kind": "file", "accepted_extensions": ["pcgame"],
+                "accepted_sha256": [crate::signed_catalog::digest(original)]
+            }],
+            "ports": [{
+                "id": STACK_PORT, "name": "Standing worker fixture",
+                "summary": "Owned inert fresh-download stack fixture; never launched.",
+                "project_url": "https://example.invalid/standing-worker-fixture",
+                "support_tier": "beta", "channels": ["stable"], "platforms": [platform],
+                "adapter": "libultraship-portable", "source_profile": "standing-worker-original",
+                "release": {"repository": "example/standing-worker-fixture", "asset_hints": {(platform_key.clone()): ["runtime"]}},
+                "executable_hints": {(platform_key): [executable.clone()]},
+                "persistent_paths": ["saves", "settings.ini"]
+            }]
+        }).to_string()).unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let mut service =
+            PortcoveService::with_provider(library, std::sync::Arc::new(StackRelease(release)))
+                .unwrap();
+        service.replace_catalog_for_test(catalog);
+        service
+            .register_source("standing-worker-original", &source)
+            .unwrap();
+        StackInstallFixture {
+            temporary,
+            service,
+            server,
+            requests,
+            executable,
+            program,
+        }
+    }
+
+    #[test]
+    fn standing_setup_installs_on_default_worker_stack() {
+        const CHILD: &str = "PORTCOVE_STANDING_STACK_CHILD";
+        if std::env::var(CHILD).as_deref() != Ok("1") {
+            let temporary = tempfile::tempdir().unwrap();
+            let log_path = temporary.path().join("standing-worker.log");
+            let log = std::fs::File::create(&log_path).unwrap();
+            let mut child = crate::ChildProcessPolicy::native_command(
+                crate::ChildProcessClass::HostTool,
+                &std::env::current_exe().unwrap(),
+            )
+            .unwrap()
+            .args([
+                "--exact",
+                "service::port_intent::tests::standing_setup_installs_on_default_worker_stack",
+                "--nocapture",
+            ])
+            .env(CHILD, "1")
+            .env_remove("PORTCOVE_GITHUB_TOKEN")
+            .env_remove("GH_TOKEN")
+            .env_remove("GITHUB_TOKEN")
+            .stdin(std::process::Stdio::null())
+            .stdout(log.try_clone().unwrap())
+            .stderr(log)
+            .spawn()
+            .unwrap();
+            let started = std::time::Instant::now();
+            let observation = loop {
+                match child.try_wait() {
+                    Ok(Some(_)) => break Ok(()),
+                    Ok(None) => {}
+                    Err(error) => break Err(format!("could not observe standing worker: {error}")),
+                }
+                if started.elapsed() >= std::time::Duration::from_secs(60) {
+                    break Err("standing worker exceeded 60 seconds".to_owned());
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            };
+            if observation.is_err() {
+                let _ = child.kill();
+            }
+            // Join the exact child before consuming its log or cleaning the fixture.
+            let status = child.wait().unwrap();
+            let stdout = std::fs::read_to_string(&log_path).unwrap();
+            assert!(observation.is_ok(), "{observation:?}\n{stdout}");
+            assert!(
+                status.success(),
+                "standing worker status={status:?}\n{stdout}"
+            );
+            assert!(stdout.contains("running 1 test"), "{stdout}");
+            assert!(
+                stdout.contains("PORTCOVE_STANDING_WORKER_COMPLETED"),
+                "{stdout}"
+            );
+            return;
+        }
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
+        let StackInstallFixture {
+            temporary: _temporary,
+            service,
+            server,
+            requests,
+            executable,
+            program,
+        } = fresh_stack_service();
+        let plan = runtime
+            .block_on(service.plan_game_install(STACK_PORT))
+            .unwrap();
+        assert_eq!(plan.plan.action, crate::InstallPlanAction::Download);
+        assert!(plan.selected_install.is_none());
+        assert!(service.status(STACK_PORT).unwrap().active.is_none());
+        service
+            .set_port_intent(STACK_PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        let handle = runtime.handle().clone();
+        std::thread::Builder::new()
+            .name("standing-install-stack-regression".into())
+            .stack_size(2 * 1024 * 1024)
+            .spawn(move || {
+                handle.block_on(async move {
+                    let result = service.run_standing_setup(|_| {}).await.unwrap();
+                    assert_eq!(result.batches.len(), 1);
+                    assert_eq!(
+                        result.batches[0].items[0].state,
+                        InstallBatchItemState::Ready
+                    );
+                    let installed = service.status(STACK_PORT).unwrap().active.unwrap();
+                    assert_eq!(
+                        std::fs::read(installed.path.join(&executable)).unwrap(),
+                        program
+                    );
+                    assert!(service.verify(STACK_PORT).unwrap().valid);
+                    let request = requests
+                        .recv_timeout(std::time::Duration::from_secs(5))
+                        .unwrap();
+                    assert!(request.starts_with("GET /runtime.tar.gz "), "{request}");
+                    assert!(
+                        service
+                            .run_standing_setup(|_| {})
+                            .await
+                            .unwrap()
+                            .batches
+                            .is_empty()
+                    );
+                    assert_eq!(
+                        service.status(STACK_PORT).unwrap().active.unwrap().id,
+                        installed.id
+                    );
+                    assert!(requests.try_recv().is_err());
+                });
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+        server.join().unwrap();
+        println!("PORTCOVE_STANDING_WORKER_COMPLETED");
     }
 
     #[tokio::test]
