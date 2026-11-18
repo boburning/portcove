@@ -92,8 +92,16 @@ void test("slice3 Windows recovery binds fixed sources and scenarios without bil
     }),
     [
       {
-        source: "44469c41a84c0e75ce689a83ab9215a8020161c0",
+        source: "8efea2a02e998f581ddbf768661e020dc3605596",
+        scenario: "native-reviewed-discovery-setup-batch",
+      },
+      {
+        source: "8efea2a02e998f581ddbf768661e020dc3605596",
         scenario: "native-standing-setup-source-return",
+      },
+      {
+        source: "8efea2a02e998f581ddbf768661e020dc3605596",
+        scenario: "native-large-discovery-setup-review",
       },
     ],
   );
@@ -112,9 +120,6 @@ void test("slice3 Windows recovery binds fixed sources and scenarios without bil
       isRecord(step) && step.name === "Provision source-pinned packages and native prerequisites",
   );
   assert.ok(runtimeProvision >= 0 && driverBootstrap > runtimeProvision);
-  assert.equal(record(job.env).CORE_ONLY_DIAGNOSTIC, "true");
-  assert.equal(record(job.steps[runtimeProvision]).if, "env.CORE_ONLY_DIAGNOSTIC != 'true'");
-  assert.equal(record(job.steps[driverBootstrap]).if, "env.CORE_ONLY_DIAGNOSTIC != 'true'");
   const block = nativeDesignCompatibilityWorkflow
     .split("\n  slice3_windows_recovery:")[1]
     ?.split("\n  hosted_selected:")[0];
@@ -125,12 +130,6 @@ void test("slice3 Windows recovery binds fixed sources and scenarios without bil
   assert.match(block, /qualification_checkpoint::tests/);
   assert.match(block, /--scenario \$env:SCENARIO --require-clean/);
   assert.match(block, /native-backup-evidence.mts emit/);
-  assert.match(block, /--exact --show-output --color never/);
-  assert.match(block, /native_acceptance = \$false/);
-  assert.match(
-    block,
-    /if \(\$env:CORE_ONLY_DIAGNOSTIC -ne 'true'\) \{\n            node scripts\/desktop-verify/,
-  );
   assert.doesNotMatch(
     block,
     /upload-artifact|rust-cache|actions\/cache|cache: pnpm|inputs\.execution_binding/,
@@ -1987,7 +1986,7 @@ void test("Linux large review binds source and controller and publishes an outsi
   const job = record(record(record(workflow).jobs).linux_preparation_continuity);
   assert.equal(job["runs-on"], "ubuntu-24.04");
   assert.match(text(job.if), /inputs\.runner == 'ubuntu-24\.04'/u);
-  const sourceHead = "bef33268008ec30c24dc3c6b2e884c2770f6e00b";
+  const sourceHead = "8efea2a02e998f581ddbf768661e020dc3605596";
   assert.equal(record(job.env).SOURCE_HEAD, sourceHead);
   assert.equal(record(job.env).CONTROLLER_HEAD, "${{ github.sha }}");
   assert.equal(job["timeout-minutes"], 90);

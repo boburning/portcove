@@ -281,7 +281,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
-      SOURCE_HEAD: bef33268008ec30c24dc3c6b2e884c2770f6e00b
+      SOURCE_HEAD: 8efea2a02e998f581ddbf768661e020dc3605596
       CONTROLLER_HEAD: ${{ github.sha }}
       CARGO_TARGET_DIR: ${{ github.workspace }}/work/slice3-native-${{ github.sha }}
     steps:
@@ -962,16 +962,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: standing-core-stack-measurement
-            source: 44469c41a84c0e75ce689a83ab9215a8020161c0
+          - name: reviewed-discovery-setup-batch
+            source: 8efea2a02e998f581ddbf768661e020dc3605596
+            scenario: native-reviewed-discovery-setup-batch
+          - name: standing-setup-source-return
+            source: 8efea2a02e998f581ddbf768661e020dc3605596
             scenario: native-standing-setup-source-return
+          - name: large-discovery-setup-review
+            source: 8efea2a02e998f581ddbf768661e020dc3605596
+            scenario: native-large-discovery-setup-review
     env:
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/slice3-native-evidence
       PORTCOVE_TEMP_DIR: ${{ github.workspace }}/work/slice3-native-temp
       SOURCE_HEAD: ${{ matrix.source }}
       SCENARIO: ${{ matrix.scenario }}
       CONTROLLER_HEAD: ${{ github.sha }}
-      CORE_ONLY_DIAGNOSTIC: "true"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -1000,8 +1005,7 @@ jobs:
             os = [Runtime.InteropServices.RuntimeInformation]::OSDescription
             session_id = [Diagnostics.Process]::GetCurrentProcess().SessionId
             user_interactive = [Environment]::UserInteractive
-            scope = 'Core-only Windows debug stack diagnostic; no Desktop/native journey qualification or product repair claim.'
-            native_acceptance = $false
+            scope = 'Ordinary hosted Windows development fixture; no installed package, minimum OS or physical observation claim.'
           }
           $identity | ConvertTo-Json | Set-Content "$env:PORTCOVE_OUTPUT_DIR/host.json"
           if (-not $identity.user_interactive -or $identity.session_id -le 0) {
@@ -1012,9 +1016,7 @@ jobs:
           package_json_file: package.json
       - uses: ./.github/actions/setup-rust
       - uses: ./.github/actions/prepare-hosted-webview
-        if: env.CORE_ONLY_DIAGNOSTIC != 'true'
       - name: Provision source-pinned packages and native prerequisites
-        if: env.CORE_ONLY_DIAGNOSTIC != 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -1033,17 +1035,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Frozen dependency installation failed.' }
           ./scripts/bootstrap-quality-tools.ps1 -Profile native-desktop
           if ($LASTEXITCODE -ne 0) { throw 'Source-pinned native bootstrap failed.' }
-      - name: Measure the exact unoptimized Core worker without native UI qualification
+      - name: Compile and observe the one exact owned recovery journey
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $env:PATH = "$PWD/work/tool-bin;$env:PATH"
           $env:CARGO_TARGET_DIR = Join-Path $PWD 'work/slice3-native-target'
           if (Test-Path -LiteralPath $env:CARGO_TARGET_DIR) { throw 'Application target must be fresh.' }
-          if ($env:CORE_ONLY_DIAGNOSTIC -ne 'true') {
-            node scripts/desktop-verify.mts --scenario $env:SCENARIO --require-clean --plan --json > "$env:PORTCOVE_OUTPUT_DIR/selected-plan.json"
-            if ($LASTEXITCODE -ne 0) { throw 'Exact native plan failed.' }
-          }
+          node scripts/desktop-verify.mts --scenario $env:SCENARIO --require-clean --plan --json > "$env:PORTCOVE_OUTPUT_DIR/selected-plan.json"
+          if ($LASTEXITCODE -ne 0) { throw 'Exact native plan failed.' }
           if ($env:SCENARIO -eq 'native-standing-setup-source-return') {
             # Match the unoptimized native application instead of Core's optimized test profile.
             node scripts/run-rust-tests.mts --guard-command cargo test --locked --profile dev -p portcove-core --features qualification-fixtures --lib service::port_intent::tests::standing_setup_installs_on_default_worker_stack -- --exact --show-output --color never *> "$env:PORTCOVE_OUTPUT_DIR/standing-core-debug-profile.log"
@@ -1052,9 +1052,6 @@ jobs:
             $standingCoreInfo = Get-Item -LiteralPath $standingCoreLog
             $standingCoreReceipt = [ordered]@{
               source_head = $env:SOURCE_HEAD
-              controller_head = $env:CONTROLLER_HEAD
-              native_acceptance = $false
-              diagnostic = 'Representative fixture callback future sizes and constrained worker phases; factoring the wrapper changes codegen.'
               profile = 'dev'
               core_opt_level = 0
               features = @('qualification-fixtures')
@@ -1086,10 +1083,8 @@ jobs:
             node scripts/run-rust-tests.mts --guard-command cargo test --locked -p portcove-core --features qualification-fixtures qualification_checkpoint::tests -- --nocapture
             if ($LASTEXITCODE -ne 0) { throw 'Qualification checkpoint tests failed.' }
           }
-          if ($env:CORE_ONLY_DIAGNOSTIC -ne 'true') {
-            node scripts/desktop-verify.mts --scenario $env:SCENARIO --require-clean
-            if ($LASTEXITCODE -ne 0) { throw 'Native acceptance failed; preserve original evidence.' }
-          }
+          node scripts/desktop-verify.mts --scenario $env:SCENARIO --require-clean
+          if ($LASTEXITCODE -ne 0) { throw 'Native acceptance failed; preserve original evidence.' }
       - name: Retain bounded lossless evidence in ordinary job logs
         if: always()
         shell: pwsh
