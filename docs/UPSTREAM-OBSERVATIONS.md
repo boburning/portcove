@@ -1157,3 +1157,33 @@ Findings from the latest scheduled `main` report reach the
 listing and evidence, together with every target it could not scan. A
 `complete` report opens one routine handoff per port, carrying its findings and
 any package the scan could not inspect.
+
+## Shared observations in preliminary package browsing
+
+Core can reuse a complete, unexpired GitHub observation from the existing
+signed descriptive directory when opening a non-managed project's package
+chooser. It preserves the repository/release/asset identities, original
+observation time, expiry and provider digest claim. The chooser dates the
+reused metadata and explains that preview checks the selected file upstream.
+This window never claims complete provider release history. Preview without
+an observed prerelease, an unknown explicit release, stale/future-dated,
+failed, incomplete, unavailable or malformed enrichment falls back to the
+existing provider read. The observation is never retimed by a local read.
+
+This projection does not enter managed release resolution or update checking.
+Preview and acquisition retain the existing exact upstream candidate,
+checksum/hold, destination, package and publication checks. Offline browsing
+can display fresh retained metadata; offline acquisition retains its normal
+failure. A report-only release can supply descriptive file facts without
+creating a playable runtime or managed support.
+
+The targeted HTTP-fixture measurement in
+`service::catalog_download::tests::shared_observation_browse_counts_requests_and_keeps_exact_preview_live`
+opens the package chooser for 1, 20 and 100 distinct game entries, including
+shared repositories. It distinguishes baseline provider metadata reads,
+repeated shared-observation reads and subsequent exact preview reads. This
+is a browse-workflow measurement, not a forecast of managed library updates,
+live production latency or payload-download savings. Existing signed listing
+delivery supplies the reusable projection; this change creates no additional
+feed, account, scheduler or publication grant. Production enrichment still
+requires the existing protected candidate acceptance and delivery path.

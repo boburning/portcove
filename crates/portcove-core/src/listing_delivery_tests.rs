@@ -713,3 +713,50 @@ async fn automatic_official_refresh_defaults_on_stays_quiet_and_preserves_state(
     assert!(selected(&library));
     assert_eq!(library.activities(10).unwrap().len(), activities);
 }
+
+#[tokio::test]
+async fn signed_shared_observation_reopens_into_offline_preliminary_download_browsing() {
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let now = time::OffsetDateTime::now_utc();
+    let stamp = |value: time::OffsetDateTime| {
+        value
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap()
+    };
+    let mut candidate = feed(1);
+    candidate["directory"]["format_version"] = json!(4);
+    let listing = &mut candidate["directory"]["listings"][0];
+    listing["project_url"] = json!("https://github.com/example/game");
+    listing["availability"] = json!("unknown");
+    listing["upstream_observation"] = json!({
+        "provider":"github","repository":"example/game","repository_id":7,"status":"complete",
+        "attempted_at":stamp(now),"observed_at":stamp(now-time::Duration::seconds(1)),
+        "fresh_until":stamp(now+time::Duration::hours(1)),"facts_sha256":"a".repeat(64),
+        "release_limit":4,"releases":[{"id":11,"version":"v1","release_url":"https://github.com/example/game/releases/tag/v1",
+        "published_at":"2026-01-01T00:00:00Z","provider_prerelease":false,"assets_complete":true,
+        "assets":[{"id":21,"name":"game.zip","url":"https://github.com/example/game/releases/download/v1/game.zip",
+        "size":42,"sha256":null,"platform_hints":[]}]}]
+    });
+    let root = publish(&fixture, &key, 1, &candidate).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    // The unchanged consumer reopens retained signed state. This route has no
+    // provider transport when its fresh observation satisfies preliminary browse.
+    let service = PortcoveService::new(Library::open(library.root()).unwrap()).unwrap();
+    let result = service
+        .catalog_download_options("new-unmanaged-port", None, crate::ReleaseChannel::Stable)
+        .await
+        .unwrap();
+    assert!(result.allowed);
+    assert_eq!(result.selected_release_id, Some(11.into()));
+    assert_eq!(result.candidates[0].asset_id, 21.into());
+    assert!(
+        result
+            .reason
+            .unwrap()
+            .contains("Upstream metadata observed at")
+    );
+    assert!(service.catalog().port("new-unmanaged-port").is_err());
+}
