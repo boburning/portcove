@@ -284,7 +284,13 @@ export function InstallBatchPanel({
           <Button
             data-focusable
             className="justify-self-start"
-            onClick={() => onDone(panel.current)}
+            onClick={() => {
+              if (!portIds?.length) {
+                setError(undefined);
+                setPhase({ kind: "idle" });
+              }
+              onDone(panel.current);
+            }}
           >
             {t("batch.done")}
           </Button>

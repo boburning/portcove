@@ -389,8 +389,12 @@ it.for([
         expect(document.querySelector('[aria-label="Install selected games"]')).toBeNull(),
       );
       await expect
-        .poll(() => Boolean(document.activeElement?.closest('[aria-label="Add games workspace"]')))
-        .toBe(true);
+        .element(
+          page
+            .getByRole("region", { name: "Add games workspace" })
+            .getByRole("heading", { name: "Folders Portcove scans" }),
+        )
+        .toHaveFocus();
       await click("Back to Game files settings");
       await expect
         .element(
@@ -443,6 +447,32 @@ it("keeps committed results and workspace retry feedback when the parent refresh
     expect(button("Done")).toBe(done);
     expect(read).toHaveBeenCalledTimes(2);
     expect(desktopApi.startInstallBatch).toHaveBeenCalledTimes(1);
+    expect(desktopApi.runInstallBatch).toHaveBeenCalledTimes(1);
+  } finally {
+    await act(async () => reading.resolve(refreshed));
+  }
+});
+
+it("closes resumed results and keeps focus in Add games if the workspace refresh settles later", async () => {
+  const reading = deferred<PortStatus[]>();
+  const read = vi.fn(() => reading.promise);
+  vi.mocked(desktopApi.unfinishedInstallBatches).mockResolvedValue([batch]);
+  vi.mocked(desktopApi.runInstallBatch).mockResolvedValue(completed);
+  try {
+    await view.rerender(<BatchWorkspace generation={1} readWorkspace={read} />);
+    await page.getByRole("button", { name: "View scan results", exact: true }).click();
+    const workspace = page.getByRole("region", { name: "Add games workspace" });
+    await workspace.getByRole("button", { name: "Continue setup batch", exact: true }).click();
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1));
+    await workspace.getByRole("button", { name: "Done", exact: true }).click();
+    const returnTarget = workspace.getByRole("heading", { name: "Folders Portcove scans" });
+    await expect.element(returnTarget).toHaveFocus();
+    await expect
+      .element(workspace.getByRole("region", { name: "Install selected games" }))
+      .not.toBeInTheDocument();
+    await act(async () => reading.resolve(refreshed));
+    await expect.element(returnTarget).toHaveFocus();
+    expect(desktopApi.startInstallBatch).not.toHaveBeenCalled();
     expect(desktopApi.runInstallBatch).toHaveBeenCalledTimes(1);
   } finally {
     await act(async () => reading.resolve(refreshed));

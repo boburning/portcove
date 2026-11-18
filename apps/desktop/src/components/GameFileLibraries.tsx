@@ -1467,11 +1467,6 @@ export function GameFileLibraries({
       />
     </>
   );
-  const closeBatchReview = (departing: HTMLElement | null) => {
-    if (!accepts()) return;
-    if (currentBatchReview) pendingBatchReturn.current = { review: currentBatchReview, departing };
-    setBatchReview(undefined);
-  };
   const renderInstallBatch = () => (
     <InstallBatchPanel
       key={`${generation}:${currentBatchReview?.portIds.join("\n") ?? ""}`}
@@ -1479,9 +1474,24 @@ export function GameFileLibraries({
       ports={ports}
       portIds={currentBatchReview?.portIds}
       reviewOrigin={currentBatchReview?.origin}
-      onCancelReview={closeBatchReview}
+      onCancelReview={(departing) => {
+        if (!currentBatchReview || !accepts()) return;
+        pendingBatchReturn.current = { review: currentBatchReview, departing };
+        setBatchReview(undefined);
+      }}
       onChanged={onAdded}
-      onDone={closeBatchReview}
+      onDone={(departing) => {
+        if (!accepts()) return;
+        const target = heading.current;
+        if (
+          target?.getClientRects().length &&
+          navigationScope().contains(target) &&
+          !target.closest("[inert], [hidden], [aria-hidden=true]") &&
+          departing?.contains(document.activeElement)
+        )
+          focusAndReveal(target);
+        setBatchReview(undefined);
+      }}
     />
   );
   const renderSourceReview = () => (
