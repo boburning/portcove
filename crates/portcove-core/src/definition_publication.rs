@@ -139,6 +139,7 @@ pub fn inspect_definition_publication_bytes(
             entry_bytes,
             contract,
         )?;
+        crate::definition_candidate::selection::publishable_snapshot_size(projection.snapshot())?;
         referenced.insert(definition.target().to_owned());
         referenced.extend(entry.referenced_targets().map(str::to_owned));
         let policy_target = format!("policy/official/{}.json", definition.stable_id());

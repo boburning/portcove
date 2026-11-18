@@ -8191,12 +8191,20 @@ mod tests {
     }
 
     #[test]
-    fn retained_manifest_browsing_reads_a_complete_catalog_above_eight_mib() {
+    fn retained_manifest_browsing_reads_a_complete_catalog_above_sixteen_mib() {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path();
         fs::write(root.join("game.exe"), b"verified fixture").unwrap();
         let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
-        crate::test_fixture::grow_catalog_evidence(&mut document, 6 * 1024 * 1024);
+        crate::test_fixture::grow_catalog_evidence(&mut document, 1);
+        document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .evidence
+            .last_mut()
+            .unwrap()
+            .claim = "a\"".repeat(4 * 1024 * 1024);
         let catalog = crate::Catalog::from_document(document).unwrap();
         let port_id = "zelda64-recomp";
         let mut qualification = InstallQualification::test("game.exe");
@@ -8230,13 +8238,22 @@ mod tests {
             manifest_sha256,
             selected_executable,
         };
-        let mut eight_mib = 8 * 1024 * 1024;
-        assert!(retained_query_context_with_budget(&install, Some(&mut eight_mib)).is_err());
+        let manifest = root.join(".portcove-manifest.json");
+        assert!(manifest.metadata().unwrap().len() > 16 * 1024 * 1024);
+        let mut sixteen_mib = 16 * 1024 * 1024;
+        assert!(retained_query_context_with_budget(&install, Some(&mut sixteen_mib)).is_err());
         let (restored, _) = retained_query_context(&install).unwrap();
         let restored = restored.unwrap();
         assert!(restored.port(port_id).is_ok());
         assert!(restored.port("ghostship").is_ok());
         assert!(restored.source_profile("ghostship-source").is_ok());
+        fs::OpenOptions::new()
+            .write(true)
+            .open(manifest)
+            .unwrap()
+            .set_len(RETAINED_MANIFEST_BROWSING_BYTES + 1)
+            .unwrap();
+        assert!(retained_query_context(&install).is_err());
     }
 
     #[test]

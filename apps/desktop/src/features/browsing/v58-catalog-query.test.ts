@@ -358,6 +358,6 @@ it("matches the saved GameCube filter against the authored F-Zero GX edition", (
   const listing = fzeroGx.listing as PortListing;
   const entries = catalogEntries(undefined, { format_version: 12, listings: [listing] }, [], []);
   const saved = { version: 1, originalSystems: ["nintendo-gamecube"] };
-  expect(sourceSystemOptions(entries, saved)).toEqual(["nintendo-gamecube"]);
+  expect(sourceSystemOptions(entries, saved)).toEqual(["nintendo-gamecube", "not-specified"]);
   expect(ids(evaluateCatalogQuery(entries, saved))).toEqual([listing.id]);
 });

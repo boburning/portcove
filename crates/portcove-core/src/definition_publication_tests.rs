@@ -2,10 +2,14 @@ use super::*;
 use serde_json::{Value, json};
 
 fn fixture(schema: u32) -> BTreeMap<String, Vec<u8>> {
-    fixture_with_catalog_growth(schema, 0)
+    fixture_with_catalog_growth(schema, 0, None)
 }
 
-fn fixture_with_catalog_growth(schema: u32, additional_bytes: usize) -> BTreeMap<String, Vec<u8>> {
+fn fixture_with_catalog_growth(
+    schema: u32,
+    additional_bytes: usize,
+    padded_leaf_bytes: Option<usize>,
+) -> BTreeMap<String, Vec<u8>> {
     let mut document =
         crate::test_fixture::indexed_fixture_document(&crate::Catalog::embedded().unwrap());
     document
@@ -19,7 +23,11 @@ fn fixture_with_catalog_growth(schema: u32, additional_bytes: usize) -> BTreeMap
     }
     let catalog = crate::Catalog::from_document(document).unwrap();
     let port = catalog.port("shipwright").unwrap();
-    let leaf = serde_json::to_vec(&json!({"contract_schema":1,"representation":"catalog_projection","catalog":catalog.authoritative_document()})).unwrap();
+    let mut leaf = serde_json::to_vec(&json!({"contract_schema":1,"representation":"catalog_projection","catalog":catalog.authoritative_document()})).unwrap();
+    if let Some(bytes) = padded_leaf_bytes {
+        assert!(leaf.len() < bytes);
+        leaf.resize(bytes, b' ');
+    }
     let leaf_target = format!("sha256/{}.json", hash(&leaf));
     let entry = serde_json::to_vec(&json!({"definition_schema":1,"namespace":"official","stable_id":port.id,"revision":1,"port":port,
         "required_capabilities":[{"template":"libultraship-portable","minimum_version":1,"maximum_version":1}],
@@ -238,7 +246,7 @@ fn descriptive_directory_publication_is_exact_and_separate_from_managed_grants()
 
 #[test]
 fn full_catalog_projection_above_four_mib_uses_the_indexed_publication_path() {
-    let files = fixture_with_catalog_growth(1, 2 * 1024 * 1024);
+    let files = fixture_with_catalog_growth(1, 2 * 1024 * 1024, None);
     assert!(files.values().any(|bytes| bytes.len() > 4 * 1024 * 1024));
     let report = inspect_definition_publication_bytes(&files).unwrap();
     assert_eq!(report.definitions.len(), 1);
@@ -247,5 +255,16 @@ fn full_catalog_projection_above_four_mib_uses_the_indexed_publication_path() {
             .files
             .iter()
             .any(|target| target.bytes > 4 * 1024 * 1024)
+    );
+}
+
+#[test]
+fn publication_refuses_a_valid_leaf_that_cannot_fit_the_escaped_selection() {
+    let files = fixture_with_catalog_growth(1, 0, Some(MAX_LEAF));
+    let error = inspect_definition_publication_bytes(&files).unwrap_err();
+    assert!(
+        error
+            .message
+            .contains("escaped definition snapshot exceeds selection storage capacity")
     );
 }

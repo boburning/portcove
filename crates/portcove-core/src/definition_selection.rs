@@ -17,6 +17,19 @@ use crate::{
 };
 
 const MAX_SELECTION_JSON_BYTES: usize = 16 * 1024 * 1024;
+// The stored wrapper adds bounded IDs, fixed digests and an RFC3339 timestamp.
+// Reserve space for the complete wrapper before committing publisher bytes.
+pub(crate) const MAX_PUBLISHABLE_SNAPSHOT_BYTES: usize = MAX_SELECTION_JSON_BYTES - 4096;
+
+pub(crate) fn publishable_snapshot_size(snapshot: &DefinitionSnapshot) -> Result<usize> {
+    let bytes = serde_json::to_vec(snapshot)?.len();
+    if bytes > MAX_PUBLISHABLE_SNAPSHOT_BYTES {
+        return Err(PortcoveError::verification(
+            "escaped definition snapshot exceeds selection storage capacity",
+        ));
+    }
+    Ok(bytes)
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

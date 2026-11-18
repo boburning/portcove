@@ -918,7 +918,39 @@ mod tests {
         let contract = InstalledContract::capture(&catalog, "zelda64-recomp").unwrap();
         assert!(contract.definition.is_none());
         let escaped = serde_json::to_vec(&contract).unwrap();
+        let bundle = crate::test_fixture::indexed_catalog_bundle(&catalog, "zelda64-recomp");
+        let index = crate::DefinitionContentIndex::parse(&bundle.index).unwrap();
+        let definition = &index.definitions()[0];
+        let content = |target| {
+            bundle
+                .contents
+                .iter()
+                .find(|(name, _)| name == target)
+                .unwrap()
+                .1
+                .as_slice()
+        };
+        let entry = content(definition.target());
+        let inspection = index
+            .inspect_entry("official", "zelda64-recomp", entry)
+            .unwrap();
+        let indexed = index
+            .inspect_catalog_projection(
+                "official",
+                "zelda64-recomp",
+                entry,
+                content(inspection.execution_contract()),
+            )
+            .unwrap();
+        let snapshot =
+            crate::definition_candidate::selection::publishable_snapshot_size(indexed.snapshot())
+                .unwrap();
         for (measure, bytes, bound) in [
+            (
+                "escaped indexed selection snapshot",
+                snapshot,
+                crate::definition_candidate::selection::MAX_PUBLISHABLE_SNAPSHOT_BYTES,
+            ),
             (
                 "compact catalog projection",
                 projection.len(),
