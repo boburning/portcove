@@ -1,12 +1,16 @@
 import sys,io,os,json,hashlib,struct,zipfile,tarfile,shutil
 from pathlib import Path
 mode=sys.argv[1];root=Path(sys.argv[2]);evidence=root/'evidence'/'desktop-verify'/'teeworlds'/'native'
+(evidence/('parser-runtime-'+mode+'.json')).write_text(json.dumps({'python':sys.version,'zipfile_sha256':hashlib.file_digest(Path(zipfile.__file__).open('rb'),'sha256').hexdigest(),'tarfile_sha256':hashlib.file_digest(Path(tarfile.__file__).open('rb'),'sha256').hexdigest(),'supported_tar':'regular, directory, one bounded GNU long-name prefix; PAX/sparse/links rejected before preprocessing','supported_zip':'bounded legacy EOCD; ZIP64 directory override rejected'},indent=2))
 def digest(p,kind='sha256'):
  with p.open('rb') as f:return hashlib.file_digest(f,kind).hexdigest()
 def bounded_zip(data):
  assert len(data)<=200*1024**2
  at=data.rfind(b'PK\x05\x06',max(0,len(data)-65557));assert at>=0
  v=struct.unpack_from('<4s4H2LH',data,at);assert v[1]==v[2]==0 and v[3]==v[4] and v[4]<=2000 and v[5]<=1024**2
+ assert at+22+v[7]==len(data) and v[6]+v[5]<=at
+ # Do not let ZipFile replace the checked legacy directory bounds via ZIP64 metadata.
+ assert at<20 or data[at-20:at-16]!=b'PK\x06\x07'
  z=zipfile.ZipFile(io.BytesIO(data));assert len(z.infolist())==v[4]
  assert sum(i.file_size for i in z.infolist())<=200*1024**2
  return z
@@ -24,11 +28,18 @@ if mode=='outer':
  (root/'decoder-input.json').write_text(json.dumps({'window_bytes':window,'manifest_sha256':digest(root/'manifest.json')}))
 elif mode=='tar':
  class BoundedInfo(tarfile.TarInfo):
-  count=0;total=0
+  count=0;total=0;metadata=0;longname_open=False
   def _proc_member(self,archive):
    BoundedInfo.count+=1;BoundedInfo.total+=self.size
    assert self.size>=0 and BoundedInfo.count<=10000 and BoundedInfo.total<=4*1024**3 and self.size<=256*1024**2
-   if self.type in (tarfile.XHDTYPE,tarfile.XGLTYPE,tarfile.GNUTYPE_LONGNAME,tarfile.GNUTYPE_LONGLINK):assert self.size<=1024**2
+   # This producer needs ordinary files/directories and bounded GNU long names only.
+   # Reject PAX/sparse/link extensions before tarfile can preprocess their payloads.
+   assert self.type in (tarfile.REGTYPE,tarfile.AREGTYPE,tarfile.DIRTYPE,tarfile.GNUTYPE_LONGNAME)
+   if self.type==tarfile.GNUTYPE_LONGNAME:
+    assert not BoundedInfo.longname_open and self.size<=64*1024
+    BoundedInfo.metadata+=self.size;assert BoundedInfo.metadata<=1024**2
+    BoundedInfo.longname_open=True
+   else:BoundedInfo.longname_open=False
    return super()._proc_member(archive)
  found={}
  with tarfile.open(fileobj=sys.stdin.buffer,mode='r|',tarinfo=BoundedInfo) as tar:
