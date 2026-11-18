@@ -24,6 +24,7 @@ use crate::{
 };
 
 mod catalog_download;
+mod catalog_download_observation;
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
 mod observation;

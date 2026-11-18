@@ -1,0 +1,48 @@
+{
+  "format_version": 1,
+  "sources": [
+    {
+      "repository": "doldecomp/melee",
+      "game_key": "super-smash-bros-melee",
+      "version": "GALE01",
+      "provider": "decompdev",
+      "evidence_url": "https://decomp.dev/doldecomp/melee.json",
+      "methodology": "objdiff report measures for the exact GALE01 edition; matching, fuzzy similarity and linked code are distinct"
+    },
+    {
+      "repository": "OpenRAC/rac3-decomp",
+      "game_key": "ratchet-and-clank-up-your-arsenal",
+      "version": "SCES_524.56",
+      "provider": "bytematch",
+      "evidence_url": "https://github.com/OpenRAC/rac3-decomp/blob/a35a9155401bdff05275cb64566a8802629f288e/README.md",
+      "methodology": "Project-owned ByteMatch report for PAL SCES_524.56; matching, fuzzy similarity, linked code and function counts remain distinct"
+    },
+    {
+      "repository": "FireEmblemUniverse/fireemblem8u",
+      "game_key": "fire-emblem-the-sacred-stones",
+      "version": "us",
+      "provider": "frogress",
+      "project": "fireemblem8",
+      "category": "default",
+      "measure": "code",
+      "metric_kind": "decompiled-code",
+      "evidence_url": "https://github.com/FireEmblemUniverse/fireemblem8u/blob/3b89a0880e5b1b1d7c09ff3259608e8f1a233c46/scripts/progress-template.txt",
+      "methodology": "Project-owned frogress upload: bytes of code in src divided by total code; this does not assert byte matching"
+    },
+    {
+      "repository": "pmret/papermario",
+      "game_key": "paper-mario",
+      "version": "us",
+      "provider": "project-csv",
+      "report_url": "https://papermar.io/reports/progress_us.csv",
+      "csv": {
+        "numerator": 8,
+        "denominator": 6,
+        "timestamp": 1,
+        "commit": 2
+      },
+      "evidence_url": "https://github.com/pmret/papermario/blob/222af07f2ce4250c1eb70f751fefe8a8476fae96/README.md",
+      "methodology": "Project US report: matching code bytes in column 8 divided by total code bytes in column 6, timestamp and full commit retained"
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { implementationMethodLabels } from "./implementation-metadata";
 import {
   useRef,
   useState,
@@ -42,6 +43,7 @@ const fixedGroups = [
   { key: "portOptions" },
   { key: "channels" },
   { key: "installationMethods" },
+  { key: "implementationMethods" },
   { key: "membership" },
   { key: "updates" },
   { key: "gameFiles" },
@@ -72,6 +74,8 @@ export function queryFromFilter(filter: Filter | CatalogQuery): CatalogQuery {
     : filter;
 }
 function label(t: TFunction<"gameFiles">, group: Group, value: string) {
+  if (group === "implementationMethods")
+    return implementationMethodLabels[value as keyof typeof implementationMethodLabels] ?? value;
   if (group === "originalSystems") return identityLabel(value);
   if (group === "portOptions")
     return value === "multiple" ? t("filters.value.multiplePorts") : t("filters.value.singlePort");
@@ -109,6 +113,8 @@ function attentionLabel(t: TFunction<"gameFiles">, value: string) {
 
 function groupLabel(t: TFunction<"gameFiles">, group: Group): string {
   switch (group) {
+    case "implementationMethods":
+      return "Implementation technique";
     case "originalSystems":
       return t("filters.group.originalSystems");
     case "platforms":

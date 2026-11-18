@@ -707,14 +707,38 @@ impl PortcoveService {
                 .eq_ignore_ascii_case(repository.name())
         });
         let rolling_tag = definition.and_then(|port| port.release.rolling_tag.as_deref());
-        let (candidates, coverage, releases, selected) = provider
-            .options(
-                repository.name(),
-                selected_release_id.as_ref(),
-                channel,
-                rolling_tag,
-            )
-            .await?;
+        // Shared observations only serve the non-managed browse window. They never
+        // enter the managed release resolver or the exact preview/download path.
+        let observed = match provider {
+            CatalogDownloadProvider::Github(provider) if self.catalog.port(port_id).is_err() => {
+                provider
+                    .observed_catalog_download_options(
+                        listing,
+                        selected_release_id.as_ref(),
+                        channel,
+                        rolling_tag,
+                        time::OffsetDateTime::now_utc(),
+                    )
+                    .map(|(candidates, coverage, releases, selected)| {
+                        (candidates, coverage, releases, selected.map(Into::into))
+                    })
+            }
+            _ => None,
+        };
+        let reused_observation = observed.is_some();
+        let (candidates, coverage, releases, selected) = match observed {
+            Some(options) => options,
+            None => {
+                provider
+                    .options(
+                        repository.name(),
+                        selected_release_id.as_ref(),
+                        channel,
+                        rolling_tag,
+                    )
+                    .await?
+            }
+        };
         result.releases = releases;
         result.selected_release_id = selected.clone();
         let platform = Platform::current()?;
@@ -750,6 +774,18 @@ impl PortcoveService {
         result.candidates = candidates;
         result.allowed = true;
         result.reason = coverage.reason(result.candidates.is_empty());
+        if reused_observation {
+            let observation = listing
+                .upstream_observation
+                .as_ref()
+                .expect("reused observation");
+            result.reason = Some(format!(
+                "Upstream metadata observed at {} (fresh until {}). Preview checks the selected file upstream before download. {}",
+                observation.observed_at.as_deref().unwrap_or_default(),
+                observation.fresh_until.as_deref().unwrap_or_default(),
+                result.reason.as_deref().unwrap_or_default(),
+            ));
+        }
         result.coverage = Some(coverage);
         result.default_destination_parent = directories::UserDirs::new().and_then(|directories| {
             let mut choices = vec![directories.home_dir().join("Games")];

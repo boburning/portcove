@@ -25,6 +25,10 @@ const workflowPath = ".github/workflows/configured-upstream-observer.yml";
 const checkpointMember = "catalog/checkpoint.json";
 // Most push runs are gated and never observe, so a day can hold many candidates.
 const candidateLimit = 24;
+// Bounded eight-MiB artifact decoding/validation can exceed sixty seconds on a
+// contended host. This finite CPU/harness budget does not extend provider reads.
+import { observerRecordBudgetMs } from "./observer-snapshot-records.mts";
+const upstreamCheckpointReadBudgetMs = observerRecordBudgetMs;
 
 /** A validated catalog checkpoint and the catalog its producer observed. */
 export interface UpstreamInput {
@@ -357,7 +361,7 @@ export async function readUpstreamObservations(
       );
     let snapshot;
     let checkpoint;
-    const deadline = Date.now() + 60_000;
+    const deadline = Date.now() + upstreamCheckpointReadBudgetMs;
     try {
       snapshot = await readRecoverableObserverSnapshotArchive(
         archive,
