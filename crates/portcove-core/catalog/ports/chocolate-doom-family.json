@@ -54,11 +54,7 @@
         }
       ]
     },
-    "platforms": [
-      "linux-x86-64",
-      "macos-x86-64",
-      "macos-aarch64"
-    ],
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "variant_label": "PC"
   },
   "upstream_lineage": {
@@ -75,12 +71,8 @@
   },
   "integration": {
     "support_tier": "beta",
-    "channels": [
-      "stable"
-    ],
-    "platforms": [
-      "windows-x86-64"
-    ],
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
     "adapter": "staged-source-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
@@ -88,17 +80,12 @@
       "provider": "github",
       "repository": "chocolate-doom/chocolate-doom",
       "asset_hints": {
-        "windows-x86-64": [
-          "chocolate-doom",
-          "win64.zip"
-        ]
+        "windows-x86-64": ["chocolate-doom", "win64.zip"]
       }
     },
     "source_profile": "chocolate-doom-pc-iwad",
     "executable_hints": {
-      "windows-x86-64": [
-        "chocolate-doom.exe"
-      ]
+      "windows-x86-64": ["chocolate-doom.exe"]
     },
     "managed_initialization": "chocolate-family-portable-v1",
     "windows_runtime_path_policy": "relative-file-max-path",
@@ -133,10 +120,7 @@
         "suffix": ".png"
       }
     ],
-    "runtime_mutable_paths": [
-      "stdout.txt",
-      "stderr.txt"
-    ],
+    "runtime_mutable_paths": ["stdout.txt", "stderr.txt"],
     "presentation": {
       "installation_method": "staged-game-files",
       "source_requirements": [

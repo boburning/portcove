@@ -17,11 +17,7 @@
     "issue_number": 8101,
     "listed_at": "2026-11-18",
     "availability": "packages",
-    "platforms": [
-      "linux-x86-64",
-      "macos-x86-64",
-      "macos-aarch64"
-    ],
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "setup_url": "https://www.chocolate-doom.org/wiki/index.php/Downloads",
     "release_url": "https://github.com/chocolate-doom/chocolate-doom/releases/tag/chocolate-doom-3.1.1",
     "manual_setup": {
@@ -46,12 +42,8 @@
   },
   "integration": {
     "support_tier": "beta",
-    "channels": [
-      "stable"
-    ],
-    "platforms": [
-      "windows-x86-64"
-    ],
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
     "adapter": "staged-source-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
@@ -59,17 +51,12 @@
       "provider": "github",
       "repository": "chocolate-doom/chocolate-doom",
       "asset_hints": {
-        "windows-x86-64": [
-          "chocolate-hexen",
-          "win64.zip"
-        ]
+        "windows-x86-64": ["chocolate-hexen", "win64.zip"]
       }
     },
     "source_profile": "chocolate-hexen-pc-iwad",
     "executable_hints": {
-      "windows-x86-64": [
-        "chocolate-hexen.exe"
-      ]
+      "windows-x86-64": ["chocolate-hexen.exe"]
     },
     "managed_initialization": "chocolate-family-portable-v1",
     "windows_runtime_path_policy": "relative-file-max-path",
@@ -104,10 +91,7 @@
         "suffix": ".png"
       }
     ],
-    "runtime_mutable_paths": [
-      "stdout.txt",
-      "stderr.txt"
-    ],
+    "runtime_mutable_paths": ["stdout.txt", "stderr.txt"],
     "presentation": {
       "installation_method": "staged-game-files",
       "source_requirements": [
