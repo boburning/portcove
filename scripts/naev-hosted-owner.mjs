@@ -80,14 +80,13 @@ assert.equal(
   "Observed profile and engine APPDATA differ",
 );
 // Existing hosted native precedent: this VM has no physical audio endpoint.
-environment.SDL_AUDIO_DRIVER = "dummy";
-environment.ALSOFT_DRIVERS = "null";
 environment.SDL_RENDER_DRIVER = "software";
 environment.GALLIUM_DRIVER = "llvmpipe";
 environment.LIBGL_ALWAYS_SOFTWARE = "1";
 environment.SDL_OPENGL_LIBRARY = path.join(config.player_root, "opengl32.dll");
 await record("hosted-drivers", {
-  audio: "OpenAL Soft null and SDL3 dummy requested; no physical audio acceptance",
+  audio:
+    "Upstream nosound=true configuration; default sound-device startup previously failed on this VM; no audio acceptance",
   renderer: "Mesa26.2.7 x64 llvmpipe requested through isolated app-local SDL_OPENGL_LIBRARY",
   scope: "visual/state lifecycle only; physical audio and hardware rendering not established",
 });
@@ -305,6 +304,19 @@ assert.equal(
   null,
   "Fresh portable profile already exists; preserve it and refuse",
 );
+// Supported upstream configuration for this VM, which has no usable sound device.
+// Preserve the failed default-device run; this is explicit test input, not product behavior.
+await mkdir(config.profile);
+const initialSettings = Buffer.from("nosound = true\n");
+await writeFile(path.join(config.profile, "conf.lua"), initialSettings, { flag: "wx" });
+await record("initial-host-configuration", {
+  file: path.join(config.profile, "conf.lua"),
+  contents: initialSettings.toString(),
+  sha256: sha(initialSettings),
+  reason:
+    "Default sound device panic retained in run44411706005; tagged conf.c and audio::System::new support nosound=true",
+  scope: "muted visual/lifecycle acceptance; sound-device and physical audio remain unestablished",
+});
 let completed = false;
 try {
   await record("external-before-play", await inventory(config.player_root));
@@ -354,7 +366,7 @@ try {
   await record("result", {
     completed: true,
     scope:
-      "Windows x64 Naev0.13.5 native client; ordinary external registration, explicit Play twice, normal owned window close, real settings and complete external byte preservation through registration-only removal. Client UI requires image inspection. No earned progress, populated save, optional plugin-manager/restart, installed Desktop, physical hardware or sibling-native claim.",
+      "Windows x64 Naev0.13.5 native client; ordinary external registration, explicit Play twice, normal owned window close, real settings and complete external byte preservation through registration-only removal. Client UI requires image inspection. Muted nosound=true test configuration; no earned progress, populated save, optional plugin-manager/restart, installed Desktop, sound-device/physical audio, physical hardware or sibling-native claim.",
   });
 } finally {
   await record("cleanup", {
