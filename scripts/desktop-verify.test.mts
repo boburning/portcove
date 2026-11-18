@@ -152,7 +152,7 @@ void test("focused plans omit owned binaries while lifecycle plans include them"
   assert.equal(focused.paths.cli, null);
   assert.ok(!focused.phases.includes("owned-probe-build"));
   assert.ok(!focused.phases.includes("scenario-context-preflight"));
-  assert.equal(focused.harness_deadline_ms, 180_000);
+  assert.equal(focused.harness_deadline_ms, 360_000);
   assert.deepEqual(focused.qualification_features, []);
 
   const install = buildDesktopVerifyPlan({
