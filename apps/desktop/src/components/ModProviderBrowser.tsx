@@ -145,7 +145,7 @@ export function ModProviderBrowser({
     // The component belongs to a single library generation.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const busy = Boolean(working && working !== "files") || review;
+  const busy = Boolean(working) || review;
   useEffect(() => {
     onBusyChange(busy);
   }, [busy, onBusyChange]);

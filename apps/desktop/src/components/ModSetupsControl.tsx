@@ -246,6 +246,14 @@ function BoundModSetupsControl({
       ...current,
       localFiles: (current.localFiles ?? []).filter(({ review }) => review.plan_sha256 !== digest),
     }));
+  const recoverable =
+    olderDraft?.selections.additions.filter(
+      (entry) =>
+        sources.includes(entry.provider) &&
+        !draft.additions.some(
+          (other) => entry.provider === other.provider && entry.project === other.project,
+        ),
+    ) ?? [];
   const appliedName = setup?.selected?.profile.display_name;
   const pendingCount = draftSize(draft);
   useEffect(() => {
@@ -504,34 +512,19 @@ function BoundModSetupsControl({
                   {olderDraft.selections.order && <li>{t("mods.workspace.pendingOrder")}</li>}
                 </ul>
                 <ActionRow>
-                  {olderDraft.selections.additions.length > 0 && (
+                  {recoverable.length > 0 && (
                     <Button
                       variant="outline"
                       disabled={
                         changing ||
-                        draft.additions.length +
-                          olderDraft.selections.additions.length +
-                          localFiles.length >
-                          16
+                        draft.additions.length + recoverable.length + localFiles.length > 16
                       }
-                      onClick={() => {
+                      onClick={() =>
                         setDraft((current) => ({
                           ...current,
-                          additions: [
-                            ...current.additions,
-                            ...olderDraft.selections.additions.filter(
-                              (entry) =>
-                                sources.includes(entry.provider) &&
-                                !current.additions.some(
-                                  (other) =>
-                                    entry.provider === other.provider &&
-                                    entry.project === other.project,
-                                ),
-                            ),
-                          ],
-                        }));
-                        forgetOlder();
-                      }}
+                          additions: [...current.additions, ...recoverable],
+                        }))
+                      }
                     >
                       {t("mods.workspace.recoverAdditions")}
                     </Button>

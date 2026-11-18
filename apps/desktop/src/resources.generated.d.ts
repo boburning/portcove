@@ -1557,6 +1557,7 @@ export default interface Resources {
         "pendingRemoval": "Pending removal",
         "playUses": "Uses <name />",
         "queueLocal": "Queue file",
+        "readFailed": "Could not check whether this game supports mods.",
         "recoverAdditions": "Recover additions",
         "refresh": "Refresh",
         "refreshFailed": "Could not refresh this source. Try again.",

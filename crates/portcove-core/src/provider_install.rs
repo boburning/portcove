@@ -883,7 +883,11 @@ impl PortcoveService {
             plan_sha256: String::new(),
         };
         let reviewed = wrapper_members(&plan, &retained)?;
-        if !matches!(mode, ProviderInstallMode::Recipe { .. }) && !reviewed.is_empty() {
+        if !matches!(
+            mode,
+            ProviderInstallMode::Recipe { .. } | ProviderInstallMode::Workspace
+        ) && !reviewed.is_empty()
+        {
             for installed in &current.packages {
                 if !plan
                     .members

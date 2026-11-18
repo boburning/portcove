@@ -530,7 +530,11 @@ function DetailBody(model: {
   const { t: tMods } = useAppTranslation("gameSettings");
   const activeInstall = model.status?.active?.id;
   const modsKey = `${model.libraryGeneration}:${model.port.id}:${activeInstall}`;
-  const [modSupport, setModSupport] = useState<string>();
+  const [modSupport, setModSupport] = useState<{
+    key: string;
+    supported: boolean | "unavailable";
+  }>();
+  const [modSupportRetry, retryModSupport] = useState(0);
   const [observedModPlay, setModPlay] = useState<ModPlayState>();
   const modPlay =
     observedModPlay?.port === model.port.id &&
@@ -543,14 +547,17 @@ function DetailBody(model: {
     let current = true;
     void readModSetupInventory(model.port.id, model.libraryGeneration)
       .then((view) => {
-        if (current && view.supported) setModSupport(modsKey);
+        if (current) setModSupport({ key: modsKey, supported: view.supported });
       })
-      .catch(() => {});
+      .catch(() => {
+        if (current) setModSupport({ key: modsKey, supported: "unavailable" });
+      });
     return () => {
       current = false;
     };
-  }, [external, activeInstall, model.port.id, model.libraryGeneration, modsKey]);
-  const modsAvailable = !external && Boolean(activeInstall) && modSupport === modsKey;
+  }, [external, activeInstall, model.port.id, model.libraryGeneration, modsKey, modSupportRetry]);
+  const currentModSupport = modSupport?.key === modsKey ? modSupport.supported : undefined;
+  const modsAvailable = !external && Boolean(activeInstall) && currentModSupport === true;
 
   const setupRoutes = setupRoutePresentation(
     model.displayPort ?? { ...model.port, definition: model.port },
@@ -687,6 +694,18 @@ function DetailBody(model: {
               generation={model.libraryGeneration}
               status={model.status}
             />
+          )}
+          {currentModSupport === "unavailable" && (
+            <div className="detail-notice-row" role="status">
+              <span>{tMods("mods.workspace.readFailed")}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => retryModSupport((request) => request + 1)}
+              >
+                {tMods("mods.reread")}
+              </Button>
+            </div>
           )}
           <DetailAttention model={model} setupRoutes={setupRoutes} reveal={reveal} />
         </>

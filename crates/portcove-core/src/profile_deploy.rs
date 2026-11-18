@@ -622,12 +622,24 @@ fn deploy(layout: &Layout, from: Option<&ProfileRevision>, to: &ProfileRevision)
     let wanted = enabled(to)
         .map(|package| package.native_id.as_str())
         .collect::<BTreeSet<_>>();
+    // Exact directory names distinguish a Windows case-only replacement from
+    // a target that has already been materialized.
+    let names = match fs::read_dir(layout.mods()) {
+        Ok(entries) => entries
+            .map(|entry| entry.map(|item| item.file_name()))
+            .collect::<std::io::Result<BTreeSet<_>>>()?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => BTreeSet::new(),
+        Err(error) => return Err(error.into()),
+    };
     // Verify every destination first so a missing or corrupt stored package fails
     // before any departing file is removed.
     let mut to_place = Vec::new();
     for package in enabled(to) {
         let live = live_package_path(layout, &package.native_id)?;
-        if live.try_exists()? && sha256_file(&live)? == package.sha256 {
+        if names.contains(std::ffi::OsStr::new(&package.native_id))
+            && live.try_exists()?
+            && sha256_file(&live)? == package.sha256
+        {
             continue;
         }
         let stored = layout.package(&package.sha256, &package.native_id);
@@ -643,7 +655,9 @@ fn deploy(layout: &Layout, from: Option<&ProfileRevision>, to: &ProfileRevision)
         for package in enabled(from) {
             // Same-name replacements are atomic in stage_copy. If an earlier
             // attempt already placed the target, leave those target bytes in place.
-            if !wanted.contains(package.native_id.as_str()) {
+            if !wanted.contains(package.native_id.as_str())
+                && names.contains(std::ffi::OsStr::new(&package.native_id))
+            {
                 let live = live_package_path(layout, &package.native_id)?;
                 if live.try_exists()? {
                     fs::remove_file(live)?;
@@ -1654,7 +1668,6 @@ impl PortcoveService {
             }
         }
         if edits.is_some() {
-            require_projectable(port_id, &next)?;
             self.require_revision_loader(&next)?;
             if live && let Some(game) = native_mod_list::recomp_game(port_id) {
                 crate::recomp_mod_settings::review_projection(&layout.user, &layout, game, &next)?;
@@ -2672,6 +2685,27 @@ pub(crate) fn proposed_mod_setup(
     let mut next = current.clone();
     next.packages = packages;
     next.orderings = orderings;
+    if edits.is_some() {
+        for package in &next.packages {
+            let Some(origin) = &package.provider else {
+                continue;
+            };
+            if staged.iter().any(|member| {
+                member.provider.as_ref().is_some_and(|next_origin| {
+                    next_origin.provider == origin.provider
+                        && next_origin.project == origin.project
+                        && next_origin.file != origin.file
+                })
+            }) {
+                return Err(PortcoveError::conflict(
+                    "the reviewed version drops an installed member; queue its removal too",
+                )
+                .detail("package", &package.native_id));
+            }
+        }
+        profile::validate_revision(&next)?;
+        require_projectable(port_id, &next)?;
+    }
     Ok(next)
 }
 

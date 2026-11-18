@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import type { OutputLocalModPackagePlan } from "../../transport-types.generated";
 
@@ -127,18 +127,26 @@ export function useModDraft(scope: {
         : undefined,
   });
   const [saved, setSaved] = useState(read);
+  const latest = useRef(saved);
+  useLayoutEffect(() => {
+    latest.current = saved;
+  }, [saved]);
   if (saved.key !== key) {
     setSaved(read());
     return [emptyModDraft, () => {}, undefined, () => {}];
   }
   const updateDraft: Dispatch<SetStateAction<ModDraft>> = (update) => {
-    const draft = typeof update === "function" ? update(saved.draft) : update;
-    setSaved({ ...saved, draft });
+    const current = latest.current;
+    if (current.key !== key) return;
+    const draft = typeof update === "function" ? update(current.draft) : update;
+    const updated = { ...current, draft };
+    latest.current = updated;
+    setSaved(updated);
     if (!key || !scopeKey || !scope.library) return;
     try {
       if (draftSize(draft)) {
         localStorage.setItem(key, JSON.stringify(draft));
-        if (!saved.stale) localStorage.setItem(`${scopeKey}.base`, String(scope.revision));
+        if (!current.stale) localStorage.setItem(`${scopeKey}.base`, String(scope.revision));
       } else {
         localStorage.removeItem(key);
       }
