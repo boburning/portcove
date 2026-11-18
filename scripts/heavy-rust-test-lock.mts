@@ -177,9 +177,11 @@ export function readProcessIdentity(
   }
   if (platform === "win32") {
     // Fixture platforms/runners must not probe unrelated PIDs on the test host.
-    const signalZero =
+    const signalZero: ProcessIdentityOptions["signalZero"] =
       options.signalZero ??
-      (process.platform === "win32" && options.spawnSync === undefined ? process.kill : undefined);
+      (process.platform === "win32" && options.spawnSync === undefined
+        ? (target) => process.kill(target, 0)
+        : undefined);
     if (signalZero) {
       try {
         signalZero(pid, 0);
