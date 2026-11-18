@@ -32,6 +32,7 @@ jobs:
           git diff --exit-code
           xcrun swift --version
           xcrun swiftc -typecheck -import-objc-header scripts/opentyrian-macos-headers.h scripts/opentyrian-macos-driver.swift
+          xcrun swift -import-objc-header scripts/opentyrian-macos-headers.h scripts/opentyrian-macos-driver.swift snapshot-self-test
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         if: inputs.operation == 'execute'
         with:

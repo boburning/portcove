@@ -84,6 +84,16 @@ func wait(_ process: Process, _ seconds: Double) -> Bool {
     if !process.isRunning { process.waitUntilExit(); return true }
     return false
 }
+if dataset == "snapshot-self-test" {
+    do {
+        try snapshotSelfTest()
+        print("Snapshot self-test passed: complete framework inventory, non-following sandbox links, package escape refusal")
+        exit(0)
+    } catch {
+        print("Snapshot self-test failed: \(error)")
+        exit(1)
+    }
+}
 let input: [String: Any] = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: "opentyrian-macos-input.json"))) as! [String: Any]
 let root = URL(fileURLWithPath: input["root"] as! String)
 let player = URL(fileURLWithPath: input["player"] as! String)
@@ -146,40 +156,81 @@ func key(_ code: CGKeyCode, _ flags: CGEventFlags, _ process: OwnedProcess, _ su
     down.postToPid(process.pid)
     up.postToPid(process.pid)
 }
-func snapshot(_ roots: [URL]) throws -> [String: String] {
+func snapshot(_ roots: [URL], package: URL, sandbox: URL) throws -> [String: String] {
     var result: [String: String] = [:]
-    let package = URL(fileURLWithPath: input["package"] as! String)
-    for (index, root) in roots.enumerated() {
-        let initial = try root.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey])
-        try require(initial.isSymbolicLink != true, "Snapshot root is a link")
-        if initial.isRegularFile == true {
-            result["\(index)/\(root.lastPathComponent)"] = try digest(root)
-            continue
-        }
-        guard let enumerator = fm.enumerator(at: root, includingPropertiesForKeys: [.isSymbolicLinkKey, .isRegularFileKey]) else { throw ProbeFailure(message: "External snapshot root is absent") }
-        for case let file as URL in enumerator {
-            let values = try file.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey])
-            let key = "\(index)/\(file.path.dropFirst(root.path.count + 1))"
-            try require(result.count < 8000, "External inventory exceeds bound")
-            if values.isSymbolicLink == true {
+    var visited = 0
+    func kind(_ file: URL) -> Int32 {
+        file.path.withCString { portcove_snapshot_kind($0) }
+    }
+    func walk(_ folder: URL, _ prefix: String, _ depth: Int, _ root: URL) throws {
+        try require(depth <= 32, "External inventory depth exceeds bound")
+        for file in try fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil).sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+            visited += 1
+            try require(visited <= 8000, "External inventory exceeds bound")
+            let key = prefix + "/" + file.lastPathComponent
+            switch kind(file) {
+            case 1:
+                result[key] = try digest(file)
+            case 2:
+                try walk(file, key, depth + 1, root)
+            case 3:
                 let target = try fm.destinationOfSymbolicLink(atPath: file.path)
                 try require(target.utf8.count <= 4096, "Link target exceeds observation bound")
                 if root == package {
                     try require(file.resolvingSymlinksInPath().path.hasPrefix(package.path + "/") && !target.hasPrefix("/"), "Link escapes the publisher package")
                 } else {
-                    // macOS creates links to shared user folders in sandbox
-                    // homes. Observe their text only; never inspect their data.
-                    try require(root == profile.deletingLastPathComponent(), "Unexpected external profile link")
+                    try require(root == sandbox, "Unexpected external profile link")
                 }
                 result[key] = "symlink:" + target
-                enumerator.skipDescendants()
-            } else if values.isRegularFile == true {
-                result[key] = try digest(file)
+            default:
+                throw ProbeFailure(message: "External inventory entry is absent or nonordinary")
             }
+        }
+    }
+    for (index, root) in roots.enumerated() {
+        switch kind(root) {
+        case 1:
+            result["\(index)/\(root.lastPathComponent)"] = try digest(root)
+        case 2:
+            try walk(root, String(index), 0, root)
+        default:
+            throw ProbeFailure(message: "Snapshot root is absent, linked or nonordinary")
         }
     }
     return result
 }
+func snapshotSelfTest() throws {
+    let temporary = fm.temporaryDirectory.appendingPathComponent("portcove-snapshot-" + UUID().uuidString)
+    try fm.createDirectory(at: temporary, withIntermediateDirectories: false)
+    defer { try? fm.removeItem(at: temporary) }
+    let package = temporary.appendingPathComponent("package")
+    let sandbox = temporary.appendingPathComponent("sandbox")
+    let outside = temporary.appendingPathComponent("outside")
+    let framework = package.appendingPathComponent("Contents/Frameworks/SDL3.framework")
+    try fm.createDirectory(at: framework, withIntermediateDirectories: true)
+    try fm.createSymbolicLink(atPath: framework.appendingPathComponent("Resources").path, withDestinationPath: "Versions/Current/Resources")
+    try fm.createSymbolicLink(atPath: framework.appendingPathComponent("SDL3").path, withDestinationPath: "Versions/Current/SDL3")
+    try fm.createDirectory(at: framework.appendingPathComponent("Versions/A/Resources"), withIntermediateDirectories: true)
+    try fm.createSymbolicLink(atPath: framework.appendingPathComponent("Versions/Current").path, withDestinationPath: "A")
+    try Data("engine".utf8).write(to: framework.appendingPathComponent("Versions/A/SDL3"))
+    try Data("metadata".utf8).write(to: framework.appendingPathComponent("Versions/A/Resources/info"))
+    try Data("player".utf8).write(to: package.appendingPathComponent("player"))
+    try fm.createDirectory(at: sandbox.appendingPathComponent("Data"), withIntermediateDirectories: true)
+    try fm.createDirectory(at: outside, withIntermediateDirectories: true)
+    try Data("never traverse".utf8).write(to: outside.appendingPathComponent("secret"))
+    try Data("settings".utf8).write(to: sandbox.appendingPathComponent("Data/settings.cfg"))
+    try fm.createSymbolicLink(atPath: sandbox.appendingPathComponent("Data/Downloads").path, withDestinationPath: "../../outside")
+    let observed = try snapshot([package, sandbox], package: package, sandbox: sandbox)
+    try require(observed.count == 8, "Framework aliases hid ordinary descendants")
+    try require(observed["0/Contents/Frameworks/SDL3.framework/Versions/A/SDL3"] == digest(framework.appendingPathComponent("Versions/A/SDL3")), "Framework engine omitted")
+    try require(observed["0/Contents/Frameworks/SDL3.framework/Versions/Current"] == "symlink:A", "Current alias omitted")
+    try require(observed["1/Data/Downloads"] == "symlink:../../outside" && !observed.keys.contains(where: { $0.contains("secret") }), "Outside profile link was traversed")
+    try fm.createSymbolicLink(atPath: package.appendingPathComponent("escape").path, withDestinationPath: outside.path)
+    var refused = false
+    do { _ = try snapshot([package], package: package, sandbox: sandbox) } catch { refused = true }
+    try require(refused, "Publisher link escape was accepted")
+}
+
 var supervisor: OwnedProcess?
 var child: OwnedProcess?
 var execution: Process?
@@ -198,7 +249,10 @@ do {
     guard let previewHash = preview["preview_sha256"] as? String else { throw ProbeFailure(message: "Selection preview identity absent") }
     _ = try cliJSON("select", ["external", "select"] + selected + ["--expected-preview", previewHash, "--yes"])
     let package = URL(fileURLWithPath: input["package"] as! String)
-    let packageBefore = try snapshot([package])
+    let packageBefore = try snapshot([package], package: package, sandbox: profile.deletingLastPathComponent())
+    guard let archiveInventory = input["package_inventory"] as? [String: String] else { throw ProbeFailure(message: "Independent archive inventory is absent") }
+    let expectedPackage = Dictionary(uniqueKeysWithValues: archiveInventory.map { ("0/" + $0.key, $0.value) })
+    try require(packageBefore == expectedPackage, "Native package inventory is incomplete or differs from the inspected ZIP")
     let request = UUID().uuidString
     let process = try plainCommand(cli.path, ["--library", library.path, "exec", "--request-id", request, port], native.appendingPathComponent("\(dataset)-player.stdout.log"), native.appendingPathComponent("\(dataset)-player.stderr.log"))
     execution = process
@@ -237,19 +291,22 @@ do {
     let settings = profile.appendingPathComponent("opentyrian.cfg")
     let settingsSize = try settings.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
     try require(settingsSize > 0 && settingsSize <= 1024 * 1024, "No bounded native settings file was produced")
-    try require(try snapshot([package]) == packageBefore, "Player modified publisher package bytes")
+    try require(try snapshot([package], package: package, sandbox: profile.deletingLastPathComponent()) == packageBefore, "Player modified publisher package bytes")
     let globals = (input["initially_absent_global_paths"] as? [String] ?? []).map { URL(fileURLWithPath: $0) }.filter { fm.fileExists(atPath: $0.path) }
+    try require(globals.contains(profile.deletingLastPathComponent()), "Sandbox container is absent from the preservation inventory")
     let externalRoots = [package] + globals
-    let before = try snapshot(externalRoots)
+    let before = try snapshot(externalRoots, package: package, sandbox: profile.deletingLastPathComponent())
+    let profileIndex = 1 + globals.firstIndex(of: profile.deletingLastPathComponent())!
+    try require(before["\(profileIndex)/Data/opentyrian.cfg"] == digest(settings), "Generated settings are missing from the preservation inventory")
     try write("external-before-removal", before)
     let removal = try cliJSON("removal-preview", ["external", "removal-preview", port])
     guard let removalHash = removal["preview_sha256"] as? String else { throw ProbeFailure(message: "Removal preview identity absent") }
     _ = try cliJSON("remove", ["external", "remove", port, "--expected-preview", removalHash, "--yes"])
     let status = try cliJSON("removed-status", ["status", port])
-    let after = try snapshot(externalRoots)
+    let after = try snapshot(externalRoots, package: package, sandbox: profile.deletingLastPathComponent())
     try write("external-after-removal", after)
     try require(before == after && (status["external_runtime"] == nil || status["external_runtime"] is NSNull), "Registration removal changed external bytes or retained registration")
-    try write("result", ["phase": "complete-pending-image-inspection", "native_exit": 0, "quit_control": "title-menu Escape", "profile_root": profile.path, "settings_bytes": settingsSize, "settings_sha256": try digest(settings), "preserved_entries": before.count, "external_link_contents": "not traversed or inspected", "scope": "Publisher universal Mac package menu, normal exit and fresh settings creation; screenshots require inspection; no mission gameplay, populated-save restoration, audio, physical controls, Tauri or managed maintenance claim"])
+    try write("result", ["phase": "complete-pending-image-inspection", "native_exit": 0, "quit_control": "title-menu Escape", "profile_root": profile.path, "settings_bytes": settingsSize, "settings_sha256": try digest(settings), "preserved_entries": before.count, "package_entries": packageBefore.count, "external_link_contents": "not traversed or inspected", "scope": "Publisher universal Mac package menu, normal exit and fresh settings creation; screenshots require inspection; no mission gameplay, populated-save restoration, audio, physical controls, Tauri or managed maintenance claim"])
 
 
 } catch {
