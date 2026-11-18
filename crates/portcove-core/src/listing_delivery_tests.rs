@@ -233,6 +233,10 @@ async fn listing_replay_equivocation_and_failed_refresh_preserve_last_selection(
         listing_delivery::load(&connection, Catalog::embedded().unwrap(), i64::MAX);
     assert!(!status.selected);
     assert!(status.fallback_reason.unwrap().contains("expired"));
+    assert_eq!(
+        status.fallback_code,
+        Some(crate::CatalogFallbackCode::ListingDirectoryUnavailable)
+    );
     assert!(fallback.listing("new-unmanaged-port").is_err());
     assert_eq!(
         library.listing_delivery_status().unwrap().target_sha256,

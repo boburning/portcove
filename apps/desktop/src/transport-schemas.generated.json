@@ -10320,6 +10320,18 @@
   },
   "catalog_provenance": {
     "$defs": {
+      "CatalogFallbackCode": {
+        "enum": [
+          "unknown",
+          "replay_floor",
+          "untrusted_key",
+          "signature_invalid",
+          "invalid_validity",
+          "selected_definition_unavailable",
+          "listing_directory_unavailable"
+        ],
+        "type": "string"
+      },
       "CatalogOrigin": {
         "enum": [
           "embedded",
@@ -10341,6 +10353,13 @@
           "integer",
           "null"
         ]
+      },
+      "fallback_codes": {
+        "description": "Stable codes in the same order as the legacy diagnostic strings.",
+        "items": {
+          "$ref": "#/$defs/CatalogFallbackCode"
+        },
+        "type": "array"
       },
       "fallback_reasons": {
         "items": {
@@ -10378,6 +10397,18 @@
   },
   "catalog_status": {
     "$defs": {
+      "CatalogFallbackCode": {
+        "enum": [
+          "unknown",
+          "replay_floor",
+          "untrusted_key",
+          "signature_invalid",
+          "invalid_validity",
+          "selected_definition_unavailable",
+          "listing_directory_unavailable"
+        ],
+        "type": "string"
+      },
       "CatalogOrigin": {
         "enum": [
           "embedded",
@@ -10398,6 +10429,13 @@
               "integer",
               "null"
             ]
+          },
+          "fallback_codes": {
+            "description": "Stable codes in the same order as the legacy diagnostic strings.",
+            "items": {
+              "$ref": "#/$defs/CatalogFallbackCode"
+            },
+            "type": "array"
           },
           "fallback_reasons": {
             "items": {
@@ -10522,6 +10560,18 @@
         ],
         "type": "object"
       },
+      "CatalogFallbackCode": {
+        "enum": [
+          "unknown",
+          "replay_floor",
+          "untrusted_key",
+          "signature_invalid",
+          "invalid_validity",
+          "selected_definition_unavailable",
+          "listing_directory_unavailable"
+        ],
+        "type": "string"
+      },
       "CatalogOrigin": {
         "enum": [
           "embedded",
@@ -10542,6 +10592,13 @@
               "integer",
               "null"
             ]
+          },
+          "fallback_codes": {
+            "description": "Stable codes in the same order as the legacy diagnostic strings.",
+            "items": {
+              "$ref": "#/$defs/CatalogFallbackCode"
+            },
+            "type": "array"
           },
           "fallback_reasons": {
             "items": {
@@ -12640,6 +12697,18 @@
   },
   "doctor": {
     "$defs": {
+      "CatalogFallbackCode": {
+        "enum": [
+          "unknown",
+          "replay_floor",
+          "untrusted_key",
+          "signature_invalid",
+          "invalid_validity",
+          "selected_definition_unavailable",
+          "listing_directory_unavailable"
+        ],
+        "type": "string"
+      },
       "CatalogOrigin": {
         "enum": [
           "embedded",
@@ -12660,6 +12729,13 @@
               "integer",
               "null"
             ]
+          },
+          "fallback_codes": {
+            "description": "Stable codes in the same order as the legacy diagnostic strings.",
+            "items": {
+              "$ref": "#/$defs/CatalogFallbackCode"
+            },
+            "type": "array"
           },
           "fallback_reasons": {
             "items": {
@@ -26893,6 +26969,20 @@
     "type": "object"
   },
   "listing_delivery_status": {
+    "$defs": {
+      "CatalogFallbackCode": {
+        "enum": [
+          "unknown",
+          "replay_floor",
+          "untrusted_key",
+          "signature_invalid",
+          "invalid_validity",
+          "selected_definition_unavailable",
+          "listing_directory_unavailable"
+        ],
+        "type": "string"
+      }
+    },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
       "anchor_sha256": {
@@ -26910,6 +27000,16 @@
         "type": [
           "string",
           "null"
+        ]
+      },
+      "fallback_code": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/CatalogFallbackCode"
+          },
+          {
+            "type": "null"
+          }
         ]
       },
       "fallback_reason": {
@@ -32952,6 +33052,18 @@
   },
   "official_catalog_automatic_refresh": {
     "$defs": {
+      "CatalogFallbackCode": {
+        "enum": [
+          "unknown",
+          "replay_floor",
+          "untrusted_key",
+          "signature_invalid",
+          "invalid_validity",
+          "selected_definition_unavailable",
+          "listing_directory_unavailable"
+        ],
+        "type": "string"
+      },
       "DefinitionDeliveryServing": {
         "oneOf": [
           {
@@ -33008,6 +33120,16 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "fallback_code": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/CatalogFallbackCode"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "fallback_reason": {

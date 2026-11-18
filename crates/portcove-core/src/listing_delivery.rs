@@ -232,6 +232,8 @@ pub struct ListingDeliveryStatus {
     pub listing_count: usize,
     pub withdrawn_ids: Vec<String>,
     pub fallback_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_code: Option<crate::CatalogFallbackCode>,
 }
 
 impl Default for ListingDeliveryStatus {
@@ -247,6 +249,7 @@ impl Default for ListingDeliveryStatus {
             listing_count: 0,
             withdrawn_ids: vec![],
             fallback_reason: None,
+            fallback_code: None,
         }
     }
 }
@@ -316,6 +319,7 @@ impl AuthenticatedListings {
             listing_count: self.document.directory.listings.len(),
             withdrawn_ids: self.document.withdrawn_ids.clone(),
             fallback_reason: None,
+            fallback_code: None,
         }
     }
 }
@@ -339,6 +343,11 @@ pub(crate) fn load(
         Ok(None) => (catalog, status),
         Err(error) => {
             status.selected = false;
+            status.fallback_code = Some(
+                error
+                    .catalog_fallback()
+                    .unwrap_or(crate::CatalogFallbackCode::ListingDirectoryUnavailable),
+            );
             status.fallback_reason = Some(error.message);
             (catalog, status)
         }

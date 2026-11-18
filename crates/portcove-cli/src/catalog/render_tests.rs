@@ -111,6 +111,7 @@ fn catalog_mutation_preserves_definition_origin_keys_floor_and_fallbacks() {
             key_id: Some("publisher".into()),
             expires_at: Some(3600),
             fallback_reasons: vec!["Signed candidate expired".into()],
+            fallback_codes: Vec::new(),
         },
         trusted_keys: vec![CatalogTrustKey {
             key_id: "publisher".into(),

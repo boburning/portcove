@@ -4104,6 +4104,7 @@ mod tests {
                 key_id: Some("publisher-id".into()),
                 expires_at: Some(42),
                 fallback_reasons: vec!["active catalog expired\rcheck trust".into()],
+                fallback_codes: Vec::new(),
             },
             trusted_keys: vec![CatalogTrustKey {
                 key_id: "trusted-id".into(),
@@ -4146,6 +4147,7 @@ mod tests {
                 key_id: None,
                 expires_at: None,
                 fallback_reasons: Vec::new(),
+                fallback_codes: Vec::new(),
             },
             trusted_keys: Vec::new(),
             highest_sequence: 0,

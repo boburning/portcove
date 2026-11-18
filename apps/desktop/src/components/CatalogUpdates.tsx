@@ -138,6 +138,7 @@ export function CatalogOrigin({ provenance }: { provenance?: CatalogProvenance |
         <CatalogFallbackReason
           key={`${index}:${reason}`}
           reason={reason}
+          code={provenance.fallback_codes?.[index]}
           position={index + 1}
           count={provenance.fallback_reasons.length}
         />
@@ -148,17 +149,19 @@ export function CatalogOrigin({ provenance }: { provenance?: CatalogProvenance |
 
 function CatalogFallbackReason({
   reason,
+  code,
   position,
   count,
 }: {
   reason: string;
+  code?: string | null | undefined;
   position: number;
   count: number;
 }) {
   const { t } = useAppTranslation("catalogUpdates");
   return (
     <div className="catalog-fallback-reason">
-      <p>{catalogFallbackSummary(t, reason)}</p>
+      <p>{catalogFallbackSummary(t, code)}</p>
       <details>
         <summary
           data-focusable
@@ -172,16 +175,23 @@ function CatalogFallbackReason({
   );
 }
 
-// Known limitation: Core reports fallback reasons as English diagnostics without
-// stable codes, so this classifier still matches their text. Unknown reasons use
-// the generic message; the original diagnostic stays visible verbatim.
-function catalogFallbackSummary(t: TFunction<"catalogUpdates">, reason: string) {
-  if (reason.includes("selected definition was not loaded")) return t("custom.fallbackNotLoaded");
-  if (reason.includes("replay floor")) return t("custom.fallbackReplay");
-  if (reason.includes("signing key is not trusted")) return t("custom.fallbackUntrusted");
-  if (reason.includes("signature verification failed")) return t("custom.fallbackSignature");
-  if (reason.includes("validity interval")) return t("custom.fallbackExpired");
-  return t("custom.fallbackGeneric");
+function catalogFallbackSummary(t: TFunction<"catalogUpdates">, code: string | null | undefined) {
+  switch (code) {
+    case "selected_definition_unavailable":
+      return t("custom.fallbackNotLoaded");
+    case "listing_directory_unavailable":
+      return t("listings.builtIn");
+    case "replay_floor":
+      return t("custom.fallbackReplay");
+    case "untrusted_key":
+      return t("custom.fallbackUntrusted");
+    case "signature_invalid":
+      return t("custom.fallbackSignature");
+    case "invalid_validity":
+      return t("custom.fallbackExpired");
+    default:
+      return t("custom.fallbackGeneric");
+  }
 }
 
 function CatalogUpdatesDialog({
@@ -673,7 +683,14 @@ function ListingDeliveryControls({
             : t("listings.builtIn")}
         </p>
       )}
-      {status?.fallback_reason && <p>{status.fallback_reason}</p>}
+      {status?.fallback_reason && (
+        <CatalogFallbackReason
+          reason={status.fallback_reason}
+          code={status.fallback_code}
+          position={1}
+          count={1}
+        />
+      )}
       <label htmlFor={metadataId}>
         {t("listings.metadataAddress")}
         <Input
