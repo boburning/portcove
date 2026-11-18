@@ -83,7 +83,7 @@ async fn activation_keeps_a_future_format_target_row_and_its_source_file_separat
 }
 
 #[tokio::test]
-async fn activation_replans_a_pending_replacement_and_sweeps_stale_temporary_files() {
+async fn activation_recovery_replans_pending_replacement_and_sweeps_stale_temporary_files() {
     let fixture = carry_service_fixture().await;
     let old = b"earlier settings";
     let new = b"newer player settings";
@@ -134,10 +134,22 @@ async fn activation_replans_a_pending_replacement_and_sweeps_stale_temporary_fil
         );
         transaction.commit().unwrap();
     }
+    let store = OperationStore::new(fixture.library.clone());
+    let mut operation = LifecycleOperation::new(
+        "carry-interrupted-activation",
+        LifecycleOperationKind::Activate,
+        "portable-fixture",
+    );
+    operation.install = Some(fixture.target.clone());
+    store.put(&mut operation).unwrap();
+    fixture.service.recover_pending_operations().unwrap();
+    assert!(store.get(&operation.id).unwrap().is_none());
     assert_eq!(
         fixture
-            .service
-            .activate_staged("portable-fixture")
+            .library
+            .status("portable-fixture", ReleaseChannel::Stable)
+            .unwrap()
+            .active
             .unwrap()
             .id,
         fixture.target.id
@@ -167,4 +179,74 @@ async fn activation_replans_a_pending_replacement_and_sweeps_stale_temporary_fil
     assert_eq!(rows["notes.txt"].row.sha256, new_digest);
     assert!(rows["notes.txt"].replaces.is_none());
     assert_eq!(crate::carry_step::sweep(&fixture.target.path).unwrap(), 0);
+}
+
+#[tokio::test]
+async fn windows_locked_carry_target_holds_activation_then_retry_keeps_both_copies() {
+    use std::os::windows::fs::OpenOptionsExt;
+    let fixture = carry_service_fixture().await;
+    let source = b"active player copy";
+    let target = b"different target copy";
+    fs::write(fixture.active.path.join("notes.txt"), source).unwrap();
+    fs::write(fixture.target.path.join("notes.txt"), target).unwrap();
+    let held = fs::File::options()
+        .read(true)
+        .share_mode(0)
+        .open(fixture.target.path.join("notes.txt"))
+        .unwrap();
+    let error = fixture
+        .service
+        .activate_staged("portable-fixture")
+        .unwrap_err();
+    assert_eq!(
+        error
+            .details
+            .get("carried_file_unreadable")
+            .map(String::as_str),
+        Some("notes.txt")
+    );
+    let status = fixture
+        .library
+        .status("portable-fixture", ReleaseChannel::Stable)
+        .unwrap();
+    assert_eq!(status.active.unwrap().id, fixture.active.id);
+    assert_eq!(status.staged.unwrap().id, fixture.target.id);
+    assert_eq!(
+        fs::read(fixture.active.path.join("notes.txt")).unwrap(),
+        source
+    );
+    assert!(
+        crate::carry_ledger::load(&fixture.library.connection().unwrap(), &fixture.target.id)
+            .unwrap()
+            .is_empty()
+    );
+    drop(held);
+    assert_eq!(
+        fs::read(fixture.target.path.join("notes.txt")).unwrap(),
+        target
+    );
+    assert_eq!(
+        fixture
+            .service
+            .activate_staged("portable-fixture")
+            .unwrap()
+            .id,
+        fixture.target.id
+    );
+    assert_eq!(
+        fs::read(fixture.active.path.join("notes.txt")).unwrap(),
+        source
+    );
+    assert_eq!(
+        fs::read(fixture.target.path.join("notes.txt")).unwrap(),
+        target
+    );
+    let outcome = fixture
+        .service
+        .status("portable-fixture")
+        .unwrap()
+        .carried_files
+        .unwrap();
+    assert_eq!(outcome.outcome.kept_separately, ["notes.txt"]);
+    assert!(outcome.outcome.carried.is_empty());
 }
