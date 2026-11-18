@@ -429,13 +429,22 @@ const MIGRATIONS: &[Migration] = &[
         version: 68,
         name: "reviewed mod provider scope writer protocol",
         apply: migration_68,
-        verify: crate::profile::verify_selection_migration,
+        verify: verify_migration_68,
     },
 ];
 
 fn migration_68(transaction: &Transaction<'_>) -> Result<()> {
-    // Older profile readers cannot preserve scoped provider references.
-    crate::profile::verify_selection_migration(transaction)
+    transaction.execute_batch(
+        "CREATE TABLE definition_provider_scope_floor (
+            port_id TEXT PRIMARY KEY NOT NULL CHECK(length(port_id) BETWEEN 1 AND 255)
+        );",
+    )?;
+    verify_migration_68(transaction)
+}
+
+fn verify_migration_68(connection: &Connection) -> Result<()> {
+    crate::profile::verify_selection_migration(connection)?;
+    require_columns(connection, "definition_provider_scope_floor", &["port_id"])
 }
 
 fn migration_67(transaction: &Transaction<'_>) -> Result<()> {

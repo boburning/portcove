@@ -1202,12 +1202,9 @@ impl PortcoveService {
         let build = self.verified_retained_build(&port_id, &install_id)?;
         let originals = current.verified_originals;
         let layout = crate::profile_deploy::Layout::for_user(&self.library.user_dir(&port_id));
-        let (acquisition_bytes, _) = verified_acquisitions(
-            self.catalog(),
-            &current.recipe,
-            &layout,
-            &current.acquisitions,
-        )?;
+        let (catalog, _) = self.library.load_catalog()?;
+        let (acquisition_bytes, _) =
+            verified_acquisitions(&catalog, &current.recipe, &layout, &current.acquisitions)?;
         for package in &current.recipe.packages {
             if let Some(acquired) = acquisition_bytes.get(&package.native_id) {
                 publish_acquired_package(&layout, package, &acquired.path)?;

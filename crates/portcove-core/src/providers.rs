@@ -254,6 +254,7 @@ mod tests {
             setup_output_paths: vec![],
             upstream_status: UpstreamStatus::Retired,
             mod_provider_bindings: None,
+            legacy_mod_provider_held: false,
             managed_acquisition_hold: None,
             reviewed_package_layouts: BTreeMap::new(),
             presentation: None,

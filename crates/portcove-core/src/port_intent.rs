@@ -749,7 +749,7 @@ impl PortcoveService {
             .ports()
             .iter()
             .filter(|port| {
-                port.mod_provider_bindings.is_some()
+                crate::provider_binding::configured_bindings(port).is_some()
                     || crate::provider_binding::default_binding(port).is_some()
             })
             .map(|port| port.id.as_str())

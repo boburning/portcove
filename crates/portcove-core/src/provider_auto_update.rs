@@ -479,7 +479,7 @@ impl PortcoveService {
                 ProviderClient::for_definition(&self.library, port, Some(binding.provider()))
             })
             .collect::<Result<Vec<_>>>()?;
-        if clients.is_empty() && port.mod_provider_bindings.is_none() {
+        if clients.is_empty() && crate::provider_binding::configured_bindings(port).is_none() {
             return Ok(Vec::new());
         }
         self.run_eligible_provider_updates_for(&clients, port_id)
@@ -551,7 +551,7 @@ impl PortcoveService {
                         });
                     }
                 };
-            if port.mod_provider_bindings.is_some() {
+            if crate::provider_binding::configured_bindings(port).is_some() {
                 for package in &view.revision.packages {
                     if let Some(reference) = &package.provider
                         && !clients

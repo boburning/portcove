@@ -40,9 +40,7 @@ impl ProviderClient {
                 community,
             }),
             None if provider.is_none()
-                && port
-                    .mod_provider_bindings
-                    .as_ref()
+                && crate::provider_binding::configured_bindings(port)
                     .is_some_and(|bindings| bindings.len() > 1) =>
             {
                 Err(PortcoveError::usage(

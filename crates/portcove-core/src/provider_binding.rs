@@ -46,7 +46,7 @@ pub(crate) fn legacy_binding(port_id: &str, provider: &str) -> Option<ModProvide
 }
 
 pub(crate) fn default_binding(port: &PortDefinition) -> Option<ModProviderBinding> {
-    match port.mod_provider_bindings.as_deref() {
+    match configured_bindings(port) {
         None => legacy_binding(&port.id, crate::gamebanana::PROVIDER)
             .or_else(|| legacy_binding(&port.id, crate::thunderstore::PROVIDER)),
         Some([binding]) => Some(binding.clone()),
@@ -58,7 +58,7 @@ pub(crate) fn reviewed_binding(
     port: &PortDefinition,
     provider: &str,
 ) -> Option<ModProviderBinding> {
-    match &port.mod_provider_bindings {
+    match configured_bindings(port) {
         None => legacy_binding(&port.id, provider),
         Some(bindings) => bindings
             .iter()
@@ -68,9 +68,16 @@ pub(crate) fn reviewed_binding(
 }
 
 pub(crate) fn bindings(port: &PortDefinition) -> Vec<ModProviderBinding> {
+    configured_bindings(port).map_or_else(
+        || default_binding(port).into_iter().collect(),
+        <[ModProviderBinding]>::to_vec,
+    )
+}
+
+pub(crate) fn configured_bindings(port: &PortDefinition) -> Option<&[ModProviderBinding]> {
     port.mod_provider_bindings
-        .clone()
-        .unwrap_or_else(|| default_binding(port).into_iter().collect())
+        .as_deref()
+        .or_else(|| port.legacy_mod_provider_held.then_some(&[]))
 }
 
 pub(crate) fn reference_matches(
@@ -112,11 +119,13 @@ pub(crate) fn validate_dependency_scope(
 
 pub(crate) fn validate_successor(previous: &PortDefinition, next: &PortDefinition) -> Result<()> {
     if previous.mod_provider_bindings.is_some() && next.mod_provider_bindings.is_none() {
-        return Err(PortcoveError::conflict(
-            "reviewed mod provider scopes cannot revert to an implicit binding",
-        ));
+        return Err(implicit_successor());
     }
     Ok(())
+}
+
+pub(crate) fn implicit_successor() -> PortcoveError {
+    PortcoveError::conflict("reviewed mod provider scopes cannot revert to an implicit binding")
 }
 
 pub(crate) fn capability(port: &PortDefinition) -> Option<(&'static str, u32)> {

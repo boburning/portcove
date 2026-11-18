@@ -1009,7 +1009,8 @@ impl PortcoveService {
     }
 
     fn require_current_provider_scope(&self, plan: &ProviderInstallPlan) -> Result<()> {
-        let port = self.catalog().port(&plan.port_id)?;
+        let (catalog, _) = self.library.load_catalog()?;
+        let port = catalog.port(&plan.port_id)?;
         if !crate::provider_binding::reference_matches(port, &plan.provider)
             || plan.wrappers.iter().any(|wrapper| {
                 wrapper.provider.provider != plan.provider.provider
@@ -1101,7 +1102,6 @@ impl PortcoveService {
     ) -> Result<ProfileRevision> {
         let layout = self.deploy_layout(&plan.port_id)?;
         // A plan is caller-supplied data: re-establish what planning established.
-        self.require_current_provider_scope(plan)?;
         if plan.members.is_empty()
             || plan.members.len() > MAX_MEMBERS
             || plan.wrappers.len() > MAX_MEMBERS
@@ -1117,6 +1117,7 @@ impl PortcoveService {
         let _guard = self
             .library
             .try_lock_port(&plan.port_id, "apply-provider-install")?;
+        self.require_current_provider_scope(plan)?;
         self.recover_switch_locked(&plan.port_id, &layout)?;
         if mode == ProviderInstallMode::Automatic {
             let setup = profile::profile_from(

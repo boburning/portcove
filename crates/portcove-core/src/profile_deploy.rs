@@ -2415,9 +2415,7 @@ impl PortcoveService {
             last_automatic_checks: crate::provider_auto_update::last_checks(&layout, &inventory),
             provider: crate::provider_binding::default_binding(port)
                 .map(|binding| binding.provider().to_owned()),
-            providers: port
-                .mod_provider_bindings
-                .as_deref()
+            providers: crate::provider_binding::configured_bindings(port)
                 .filter(|bindings| bindings.len() > 1)
                 .map(|bindings| {
                     bindings

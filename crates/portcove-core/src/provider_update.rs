@@ -67,7 +67,7 @@ impl PortcoveService {
         profile_id: &str,
     ) -> Result<Vec<ProviderUpdateObservation>> {
         let port = self.catalog().port(port_id)?;
-        let Some(bindings) = &port.mod_provider_bindings else {
+        let Some(bindings) = crate::provider_binding::configured_bindings(port) else {
             let client = ProviderClient::for_definition(&self.library, port, None)?;
             return self
                 .check_provider_updates_via(&client, port_id, profile_id)

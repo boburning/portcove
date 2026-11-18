@@ -1884,7 +1884,10 @@ Thunderstore community under `mod_provider_bindings`. The port must already
 have a reviewed mod loader. Indexed Libultraship and N64 recomp bindings
 require template versions 5 and 7 respectively. Legacy signed catalog
 envelopes cannot appoint a binding. An omitted field keeps the compiled scopes.
-An explicit empty list withdraws the provider choices. Shared profiles use
+An explicit empty list withdraws the provider choices. The library records
+which ports have adopted explicit scopes. If that selection expires, is
+revoked or is replaced by another port, its compiled provider is held until
+a fresh authenticated definition appoints an exact scope. Shared profiles use
 library writer protocol 68 and recipes carrying an explicit scope use format 4.
 
 When multiple providers are available, select the provider before requesting
