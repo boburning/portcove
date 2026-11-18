@@ -431,6 +431,16 @@
         "live_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/main/README.md"
       },
       {
+        "id": "wave-race-recomp-1-0-2-linux-source-contract",
+        "role": "upstream_support",
+        "authority": "danielgomesvieira2000/wave-race-64-recomp",
+        "authority_ref": "ac2a296530f957f128388a6fc18028529c7f2b40",
+        "reviewed_at": "2026-11-15",
+        "claim": "The tagged Linux x64 package uses the same USA Rev A ROM identity as Windows and supports placing the checked source and portable.txt beside the player.",
+        "immutable_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/src/main.cpp",
+        "live_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/main/src/main.cpp"
+      },
+      {
         "id": "f-zero-snes-recomp-1-8-3-source-contract",
         "role": "upstream_support",
         "authority": "mstan/FZeroSNESRecomp",
@@ -18562,10 +18572,11 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "wave-race-recomp-1-0-2-source-contract"
+          "wave-race-recomp-1-0-2-source-contract",
+          "wave-race-recomp-1-0-2-linux-source-contract"
         ],
         "authority_ref": "ac2a296530f957f128388a6fc18028529c7f2b40",
-        "reviewed_at": "2026-09-25",
+        "reviewed_at": "2026-11-15",
         "immutable_review_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/README.md",
         "live_review_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/main/README.md",
         "evidence_gap": null,
@@ -18573,6 +18584,10 @@
           {
             "upstream_ref": "v1.0.2",
             "artifact_sha256": "8603e582e7a549f1f3a02c108d1453ad61e7f5df03b2f3232f9939323b044583"
+          },
+          {
+            "upstream_ref": "v1.0.2",
+            "artifact_sha256": "5ea07206731b1afde10f52909443a50b64b6ebd113634d383a5538f86437e60f"
           }
         ],
         "aliases": [],
@@ -35649,14 +35664,15 @@
     {
       "id": "wave-race-64-recomp",
       "name": "Wave Race 64: Recompiled",
-      "summary": "Native Wave Race 64 recompilation. Portcove installs the official Windows package; on Linux, download the upstream package and maintain it yourself.",
+      "summary": "Native Wave Race 64 recompilation. Portcove installs the official packages on Windows and Linux.",
       "project_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "n64-recomp-portable",
       "automated_tested_platforms": [],
@@ -35668,6 +35684,10 @@
           "windows-x86-64": [
             "WaveRace64Recomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "WaveRace64Recomp-",
+            "-linux-x86_64.tar.gz"
           ]
         }
       },
@@ -35675,7 +35695,13 @@
       "executable_hints": {
         "windows-x86-64": [
           "WaveRace64Recomp.exe"
+        ],
+        "linux-x86-64": [
+          "WaveRace64Recomp"
         ]
+      },
+      "runtime_subdirectory_by_platform": {
+        "linux-x86-64": "WaveRace64Recomp-1.0.2-linux-x86_64"
       },
       "portable_marker": true,
       "persistent_paths": [
@@ -35697,7 +35723,26 @@
         "hud.json",
         "hud.json.bak",
         "water.json",
-        "water.json.bak"
+        "water.json.bak",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/wr64.us.rev1.z64",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/saves",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/mods",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/mod_config",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/texture_packs",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/general.json",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/general.json.bak",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/graphics.json",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/graphics.json.bak",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/controls.json",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/controls.json.bak",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/sound.json",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/sound.json.bak",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/mods.json",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/mods.json.bak",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/hud.json",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/hud.json.bak",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/water.json",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/water.json.bak"
       ],
       "runtime_mutable_paths": [
         "wr64.log"
@@ -35718,7 +35763,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Choose your own Wave Race 64 (USA) (Rev A) original. Portcove installs the unchanged official v1.0.2 Windows package, prepares the original beside the game and creates portable.txt so saves, settings and mods stay with the managed copy. Choose Start Game in the launcher. Portcove has not tested gameplay.",
+        "manual_preparation": "Choose your own Wave Race 64 (USA) (Rev A) original. Portcove installs the official v1.0.2 Windows or Linux x64 package, prepares a copy of the checked original beside the player and keeps the selected original in place. Portcove creates portable.txt to keep saves, settings and mods with the managed copy. Choose Start Game in the launcher.",
         "original_game_title": "Wave Race 64",
         "manual_setup": {
           "warnings": [
@@ -35727,7 +35772,7 @@
           "steps": [
             {
               "title": "Set up the managed copy",
-              "instruction": "Select your own Wave Race 64 (USA Rev A) cartridge dump. Portcove checks the original and installs the managed Windows package. After installation, choose Play in Portcove, then Start Game in the launcher."
+              "instruction": "Select your own Wave Race 64 (USA Rev A) cartridge dump. Portcove checks the original and installs its managed package. After installation, choose Play in Portcove, then Start Game in the launcher."
             }
           ]
         },
@@ -49517,6 +49562,14 @@
             "The source check uses first data-track identity and track count. Keep the full original disc intact."
           ],
           "help_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp#readme"
+        },
+        "artwork": {
+          "game_id": 19536,
+          "cover_id": 139080,
+          "image_id": "co2zbc",
+          "image_sha256": "14d38899ee8ceb666c85362dd055a4ad70216d7a67e66d287a8958504a0e46ea",
+          "game_slug": "the-lost-world-jurassic-park--1",
+          "match_kind": "underlying-game"
         }
       },
       "bios_source_profile": "psx-scph-1001-bios"
@@ -73804,6 +73857,14 @@
             }
           ],
           "help_url": "https://github.com/labbej27/tuxracer/blob/main/README.md"
+        },
+        "artwork": {
+          "game_id": 93306,
+          "cover_id": 371181,
+          "image_id": "co7yel",
+          "image_sha256": "d3a35d78b7b00f267c64f7e1ae00538b302d7b418fe5e5defc45eb13991fd431",
+          "game_slug": "tux-racer",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {

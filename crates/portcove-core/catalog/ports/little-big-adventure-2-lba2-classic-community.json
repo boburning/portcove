@@ -6,6 +6,14 @@
     "summary": "Play the classic Little Big Adventure 2 with the LBA2 Classic Community engine.",
     "original_game_title": "Little Big Adventure 2",
     "project_url": "https://github.com/LBALab/lba2-classic-community",
+    "artwork": {
+      "game_id": 79653,
+      "cover_id": 220733,
+      "image_id": "co4qbh",
+      "image_sha256": "b9d5eb87eedc964c0f98271718d28928abe02ff6c3f1a263171f04f85095c933",
+      "game_slug": "twinsens-little-big-adventure-2-classic",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 5431,
     "listed_at": "2026-11-17",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],

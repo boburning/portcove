@@ -6,6 +6,14 @@
     "original_game_title": "Tux Racer",
     "summary": "Race down the original Tux Racer courses in this modern desktop port.",
     "project_url": "https://github.com/labbej27/tuxracer",
+    "artwork": {
+      "game_id": 93306,
+      "cover_id": 371181,
+      "image_id": "co7yel",
+      "image_sha256": "d3a35d78b7b00f267c64f7e1ae00538b302d7b418fe5e5defc45eb13991fd431",
+      "game_slug": "tux-racer",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 5797,
     "listed_at": "2026-11-16",
     "availability": "packages",

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { copyText } from "../clipboard";
 import type {
@@ -102,6 +102,7 @@ export function ReportProblem({
   // The GitHub account Submit would use; unknown or signed out offers no Submit.
   const [login, setLogin] = useState<string>();
   const { t } = useAppTranslation("report");
+  const manualCopyId = useId();
   // Only the newest request may update the dialog; closing or switching games
   // invalidates an earlier preview that is still loading.
   const request = useRef(0);
@@ -276,7 +277,15 @@ export function ReportProblem({
           {phase.kind === "copy_failed" && (
             <div className="grid gap-2">
               <p role="alert">{copyFailedMessage(t, phase.report, phase.reason)}</p>
-              <textarea className={textareaClassName} readOnly value={phase.text} />
+              <label htmlFor={manualCopyId} className="text-sm font-semibold">
+                {t("copy.manualCopy")}
+              </label>
+              <textarea
+                id={manualCopyId}
+                className={textareaClassName}
+                readOnly
+                value={phase.text}
+              />
             </div>
           )}
           {phase.kind === "ready" && phase.error && <p role="alert">{phase.error}</p>}

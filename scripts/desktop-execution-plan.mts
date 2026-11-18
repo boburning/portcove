@@ -19,6 +19,8 @@ export const nativeTransportReceiptSources = Object.freeze([
   "apps/desktop/scripts/desktop-review-presentation.mts",
   "apps/desktop/scripts/desktop-staged-layout.mts",
   "apps/desktop/scripts/desktop-game-first-test.mts",
+  "apps/desktop/scripts/desktop-collection-artwork-test.mts",
+  "apps/desktop/scripts/desktop-review-controls.mts",
   "scripts/desktop-game-first-installed-inputs.mts",
   "apps/desktop/scripts/transport-values.mts",
   "apps/desktop/scripts/desktop-source-intake-boundaries-test.mts",
@@ -102,6 +104,8 @@ export function planDesktopExecution(
         "native-library-move-invalidates-prior-reviews",
         "native-contextual-cli-handoff",
         "native-library-layout",
+        "native-secondary-panel-presentation",
+        "native-collection-artwork-presentation",
         "native-staged-update-composition",
         "native-local-artwork-picker-and-recovery",
         "native-artwork-catalog-correction",
@@ -389,6 +393,12 @@ export function planDesktopExecution(
       inputs.push({ kind: "executable", name });
     }
     inputs.push(receiptSource(new URL("./desktop-preparation-test.mts", harnessUrl)));
+    for (const name of [
+      "desktop-secondary-panels-test.mts",
+      "desktop-secondary-panels-probe.mts",
+      "desktop-secondary-panels-fixture.mts",
+    ])
+      inputs.push(receiptSource(new URL(name, harnessUrl)));
     if (selection.selected_scenarios.includes("native-library-layout"))
       for (const name of ["testdata/catalog-artwork-red.jpg", "testdata/catalog-artwork-blue.jpg"])
         inputs.push(receiptSource(new URL(name, harnessUrl)));
@@ -437,6 +447,7 @@ export function planDesktopExecution(
   // This order is the pre-change harness traversal, not catalog order.
   const preparationSources = new Set([
     "desktop-preparation-test.mts",
+    "desktop-secondary-panels-test.mts",
     "desktop-readiness-test.mts",
     "desktop-preparation-recovery-test.mts",
     "desktop-backup-review-test.mts",

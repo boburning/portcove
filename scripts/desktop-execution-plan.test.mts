@@ -136,6 +136,38 @@ void test("native interface enlargement retains its exact assertion source witho
   assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }));
 });
 
+void test("actual collection artwork stays standalone with normal builds and native review custody", () => {
+  const id = "native-collection-artwork-presentation";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
+  assert.equal(plan.session.reviewedWorkflowSession, true);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.fixtures.owned, false);
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  for (const file of ["desktop-collection-artwork-test.mts", "desktop-review-controls.mts"])
+    assert.equal(
+      plan.receiptInputs.filter(
+        (input) => input.kind === "file" && input.path === `apps/desktop/scripts/${file}`,
+      ).length,
+      1,
+    );
+  for (const profile of ["smoke", "presentation", "artwork", "full"])
+    assert.ok(
+      !resolveDesktopSelection({ profile, platform: "win32" }).selected_scenarios.includes(id),
+    );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/u,
+  );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform }), /standalone/u);
+});
+
 void test("real prepared runtimes use production builds and positive owned closure", () => {
   const id = "native-real-prepared-runtime";
   const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
@@ -390,6 +422,8 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-rejected-listener-registration",
             "native-interface-size",
             "native-library-layout",
+            "native-secondary-panel-presentation",
+            "native-collection-artwork-presentation",
             "native-update-acquisition-lifecycle",
             "native-library-organization-restart",
             "native-game-first-choice-and-restart",
@@ -408,6 +442,10 @@ void test("execution planning preserves the independently reviewed pre-change or
     assert.ok(selection.excluded_scenarios.includes("native-registered-source-reuse"));
     assert.ok(!selection.selected_scenarios.includes("native-game-first-choice-and-restart"));
     assert.ok(selection.excluded_scenarios.includes("native-game-first-choice-and-restart"));
+    assert.ok(!selection.selected_scenarios.includes("native-secondary-panel-presentation"));
+    assert.ok(selection.excluded_scenarios.includes("native-secondary-panel-presentation"));
+    assert.ok(!selection.selected_scenarios.includes("native-collection-artwork-presentation"));
+    assert.ok(selection.excluded_scenarios.includes("native-collection-artwork-presentation"));
     // Keep the frozen oracle bytes. Local artwork now explicitly receives the
     // private fixture its running-app catalog lookup has always required.
     const artworkFixtureAdded =
@@ -464,6 +502,12 @@ void test("execution planning preserves the independently reviewed pre-change or
           added === "scripts/native-readiness.mts" ||
           added === "scripts/acceptance-packet.mts" ||
           added === "apps/desktop/scripts/desktop-listener-lifetime-test.mts" ||
+          (selection.prerequisites.includes("owned-fixture") &&
+            [
+              "apps/desktop/scripts/desktop-secondary-panels-test.mts",
+              "apps/desktop/scripts/desktop-secondary-panels-probe.mts",
+              "apps/desktop/scripts/desktop-secondary-panels-fixture.mts",
+            ].includes(added)) ||
           (added === "apps/desktop/scripts/desktop-listener-lifetime-probe.mts" &&
             actualInputs.includes("apps/desktop/scripts/desktop-listener-lifetime-test.mts")) ||
           (installFixtureAdded &&
@@ -795,6 +839,40 @@ void test("owned-ready keeps its 20-minute allowance without the update review",
     ),
     180_000,
   );
+});
+
+void test("combined ordinary owned workflows allow settlement and cleanup after the retained 20-minute timeout", () => {
+  const selection = resolveDesktopSelection({
+    scenarios: [
+      "native-library-browsing-context",
+      "native-ready-detail-composition",
+      "native-game-return-continuity",
+      "native-missing-readiness-recovery",
+      "native-retained-contract-repair-state",
+      "native-preparation-cancellation",
+      "native-interrupted-preparation-recovery",
+      "native-update-settings-save-without-execution",
+      "native-release-channel-selection-and-restart",
+      "native-reviewed-backup-restore-and-delete",
+      "native-source-intake-and-discovery-dialogs",
+      "native-reviewed-installed-game-removal",
+      "native-reviewed-source-reference-removal",
+      "native-reviewed-existing-install-copy",
+      "native-library-move-invalidates-prior-reviews",
+      "native-contextual-cli-handoff",
+    ],
+    platform: "win32",
+  });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.equal(selection.selected_scenarios.length + selection.setup_scenarios.length, 17);
+  assert.deepEqual(selection.setup_scenarios, ["native-preparation-review-and-play"]);
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  assert.equal(desktopHarnessDeadlineMs(selection), 2_400_000);
+  for (const id of ["native-preparation-cancellation", "native-game-return-continuity"]) {
+    const isolated = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+    assert.equal(desktopHarnessDeadlineMs(isolated), 180_000);
+  }
 });
 
 void test("game-update review binds Windows cleanup and its own finite deadline", () => {
@@ -1834,5 +1912,39 @@ void test("MM selection binds only its normal CLI and exact private inputs", () 
   assert.throws(
     () => resolve(["--scenario", "empty-library", "--game-first-mm-source", "/source"]),
     /exact standalone/u,
+  );
+});
+
+void test("secondary panel presentation keeps isolated Windows custody and complete inputs", () => {
+  const id = "native-secondary-panel-presentation";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, ["native-preparation-review-and-play"]);
+  assert.ok(selection.prerequisites.includes("native-dialog"));
+  assert.ok(selection.host_resources.includes("native-dialog"));
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "native-review");
+  assert.equal(plan.fixtures.owned, true);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
+  const preparation = plan.fixtureFamilies.find((family) => family.family === "preparation");
+  assert.ok(preparation?.members?.some((member) => member.id === id && member.role === "selected"));
+  for (const file of [
+    "desktop-secondary-panels-test.mts",
+    "desktop-secondary-panels-probe.mts",
+    "desktop-secondary-panels-fixture.mts",
+  ])
+    assert.ok(plan.receiptInputs.some((input) => input.path === `apps/desktop/scripts/${file}`));
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/,
+  );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform }), /Windows/);
+  assert.deepEqual(
+    resolveDesktopSelection({ scenarios: [id, id], platform: "win32" }).selected_scenarios,
+    [id],
   );
 });

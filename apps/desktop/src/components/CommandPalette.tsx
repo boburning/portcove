@@ -48,6 +48,7 @@ function OpenCommandPalette({
 }) {
   const [query, setQuery] = useState("");
   const { t } = useAppTranslation("commands");
+  const { t: commonT } = useAppTranslation("common");
   const [selectedId, setSelectedId] = useState<string>();
   const activeCommand = useRef<HTMLButtonElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
@@ -60,8 +61,9 @@ function OpenCommandPalette({
   const activeId = eligible.some((command) => command.id === selectedId) ? selectedId : fallbackId;
   const activeIndex = filtered.findIndex((command) => command.id === activeId);
   useEffect(() => {
-    activeCommand.current?.scrollIntoView({ block: "nearest" });
-  }, [activeId]);
+    if (activeCommand.current) activeCommand.current.scrollIntoView({ block: "nearest" });
+    else palette.current?.scrollTo({ top: 0 });
+  }, [activeId, query]);
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       const focused = document.activeElement;
@@ -244,8 +246,11 @@ function OpenCommandPalette({
             ))
           )}
         </div>
-        <footer className="palette-footer flex items-center gap-4 p-[var(--space-2)_var(--space-4)] text-[length:var(--text-2xs)] text-[var(--color-text-muted)] [border-top:1px_solid_var(--color-border)]">
-          <NavigationHints className="mt-0 w-full" />
+        <footer className="palette-footer flex flex-wrap items-center gap-2 p-[var(--space-2)_var(--space-4)] text-[length:var(--text-2xs)] text-[var(--color-text-muted)] [border-top:1px_solid_var(--color-border)]">
+          <NavigationHints className="mt-0 min-w-0 flex-1" />
+          <Button variant="ghost" size="sm" onClick={close}>
+            {commonT("close")}
+          </Button>
         </footer>
       </DialogContent>
     </Dialog>

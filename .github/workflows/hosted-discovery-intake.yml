@@ -65,7 +65,8 @@ jobs:
       github.actor == 'boburning' &&
       (github.event_name == 'workflow_dispatch' ||
       (github.event.issue.number == 177 &&
-      startsWith(github.event.comment.body, '<!-- portcove-hosted-intake:v1 -->')))
+      (startsWith(github.event.comment.body, '<!-- portcove-hosted-intake:v1 -->') ||
+      startsWith(github.event.comment.body, '<!-- portcove-hosted-intake-amendment:v1 -->'))))
     runs-on: ubuntu-latest
     # Progress-aware worker passes share a 90-minute deadline inside this outer limit.
     timeout-minutes: 100

@@ -12,6 +12,7 @@ import {
 } from "../../collection-navigation";
 import { inspectLibraryGroups, mountLibraryPort } from "../../browser/discover-test-helpers";
 import { browserFixture } from "../../../test/browser-fixture";
+import type { Organization } from "../organization/OrganizationControls";
 import type { CollectionLayout } from "./use-collection-layout";
 
 // These are saved memberships with no installation. Group zero has two actual
@@ -34,6 +35,22 @@ const ports = Array.from({ length: 201 }, (_, index) => ({
 const expected = [["library-0", "library-1"], ...ports.slice(2).map((port) => [port.id])];
 const open = vi.fn();
 const pending = new Map();
+const organization: Organization = {
+  snapshot: {
+    revision: 0,
+    collections: {},
+    followed_port_ids: [],
+    followed_release_acknowledgments: {},
+    hidden_port_ids: [],
+    saved_game_ids: Array.from({ length: 200 }, (_, index) => `game-game-${index}`),
+    update_notices: {},
+    setup_confirmations: [],
+  },
+  busy: false,
+  failure: undefined,
+  refresh: async () => true,
+  commit: async () => true,
+};
 let root: Root;
 let host: HTMLDivElement;
 let fixture: ReturnType<typeof browserFixture>;
@@ -56,6 +73,7 @@ function Fixture({
       <main data-focus-region="workspace" style={{ height: 500, overflow: "auto" }}>
         <button id="outside-library">Outside collection</button>
         <PortBrowser
+          organization={organization}
           view="library"
           ports={matching}
           catalogUniverse={ports}

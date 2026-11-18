@@ -3,6 +3,54 @@ import test from "node:test";
 import { runDesktopModuleFixture } from "../../../scripts/fixtures/desktop-module-fixture.mts";
 
 const entry = new URL("./desktop-readiness-test.mts", import.meta.url);
+
+void test("held-assessment cleanup records strict failures without replacing the primary error", () => {
+  runDesktopModuleFixture(
+    entry,
+    `
+    const {restoreActionHold}=await import(entry);
+    const {isUntrustworthyProbeError}=await import(new URL('./desktop-owned-ipc-probe.mts',entry));
+    const primary=Object.freeze(new Error('Original held-state wait expired'));
+    const observed=[];
+    const unused={restored:true,injected:0,originalAvailability:null};
+    const browser={executeAsyncScript:async()=>unused};
+    await assert.rejects(
+      restoreActionHold(browser,'allowed',{primaryFailure:{error:primary},recordFailure:failure=>observed.push(failure)}),
+      error=>error===primary,
+    );
+    assert.deepEqual(observed,[{
+      message:'The held assessment must reach an actual native snapshot',restored:true,
+      injected:0,originalAvailability:null,
+    }]);
+    assert.equal(isUntrustworthyProbeError(primary),false);
+    await assert.rejects(restoreActionHold(browser,'allowed'),/The held assessment must reach an actual native snapshot/);
+    for(const error of [undefined,null,false,0,'']) {
+      await assert.rejects(
+        restoreActionHold(browser,'allowed',{primaryFailure:{error}}),
+        actual=>Object.is(actual,error),
+      );
+    }
+    const unavailable=Object.freeze(new Error('Original wait before unavailable restoration'));
+    const transport=new Error('Renderer restoration transport failed');
+    const cleanup=[];
+    await assert.rejects(
+      restoreActionHold({executeAsyncScript:async()=>{throw transport;}},'allowed',{
+        primaryFailure:{error:unavailable},recordFailure:failure=>cleanup.push(failure),
+      }),
+      error=>error===unavailable,
+    );
+    assert.equal(isUntrustworthyProbeError(unavailable),true);
+    assert.deepEqual(cleanup,[{message:transport.message,restored:false}]);
+    const valid={restored:true,injected:1,originalAvailability:'allowed'};
+    assert.deepEqual(await restoreActionHold({executeAsyncScript:async()=>valid},'allowed'),valid);
+    await assert.rejects(
+      restoreActionHold({executeAsyncScript:async()=>valid},'waiting'),
+      error=>error.code==='ERR_ASSERTION',
+    );
+  `,
+  );
+});
+
 for (const kind of ["action", "readiness"] as const) {
   void test(`serialized ${kind} probe preserves fetch inputs, duplicate-row metadata and restoration`, () => {
     const program = `

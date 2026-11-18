@@ -89,6 +89,58 @@ it("finds the known game, port project and variant without grouping results", ()
   expect(sorted.map((port) => port.id)).toEqual([first.id, second.id]);
 });
 
+it.each([
+  ["A Familiar Adventure — Cobalt Project", "Cobalt Project"],
+  ["A Familiar Adventure — A Familiar Adventure — Cobalt Project", "Cobalt Project"],
+  ["A Familiar Adventure — A Familiar Adventure", undefined],
+  ["A Familiar Adventure — ", undefined],
+  ["A Familiar Adventure Recompiled", "A Familiar Adventure Recompiled"],
+  ["A Familiar Adventure: Second Voyage", "A Familiar Adventure: Second Voyage"],
+  ["A Familiar Adventure—Cobalt Project", "A Familiar Adventure—Cobalt Project"],
+  ["A Familiar Adventure - Cobalt Project", "A Familiar Adventure - Cobalt Project"],
+  ["A Familiar Adventures — Cobalt Project", "A Familiar Adventures — Cobalt Project"],
+])("removes only separated exact leading titles from %s", (name, expected) => {
+  const port = { ...first, name, presentation: { ...first.presentation!, variant_label: null } };
+  expect(gameProjectLabel(port)).toBe(expected);
+  expect(port.name).toBe(name);
+  expect(gameProjectLabel({ name })).toBeUndefined();
+});
+
+it("keeps variants and raw catalog search after removing a repeated project prefix", () => {
+  const port = { ...first, name: "A Familiar Adventure — Cobalt Project" };
+  expect(gameProjectLabel(port)).toBe("Cobalt Project · US edition");
+  expect(gameIdentityLabel(port)).toBe("A Familiar Adventure · Cobalt Project · US edition");
+  for (const query of [port.name, port.id, "us edition", "cobalt"]) {
+    expect(filterPorts([port], new Map(), "catalog", "all", query)).toEqual([port]);
+  }
+  const html = renderToStaticMarkup(
+    <PortBrowser
+      view="catalog"
+      ports={[port]}
+      statuses={new Map()}
+      overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+      filter="all"
+      setFilter={vi.fn()}
+      onSelect={vi.fn()}
+      loading={false}
+    />,
+  );
+  expect(html).toContain("Cobalt Project · US edition");
+  expect(html).toContain('aria-label="A Familiar Adventure Cobalt Project · US edition.');
+  expect(html).toContain('data-detail-origin="catalog:card:project-one"');
+  expect(html).not.toContain("A Familiar Adventure —");
+});
+
+it("keeps a variant when the separated title has no remaining project", () => {
+  const port = { ...first, name: "A Familiar Adventure — " };
+  expect(gameProjectLabel(port)).toBe("US edition");
+  expect(gameIdentityLabel(port)).toBe("A Familiar Adventure · US edition");
+  expect(gameProjectLabel({ name: "" })).toBeUndefined();
+  expect(
+    gameProjectLabel({ name: "", presentation: { original_game_title: "A Familiar Adventure" } }),
+  ).toBe("");
+});
+
 it("renders distinct game-led cards with full project and variant identity", () => {
   const html = renderToStaticMarkup(
     <PortBrowser

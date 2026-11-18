@@ -6,6 +6,14 @@
     "summary": "Play the original Mage Bros. levels with widescreen, modern controls and local co-op.",
     "original_game_title": "Mage Bros.",
     "project_url": "https://github.com/Exo-MDR-CD2000/MageBrosNative",
+    "artwork": {
+      "game_id": 210408,
+      "cover_id": 291437,
+      "image_id": "co68vh",
+      "image_sha256": "6e29d529a2b447fd0ee0cd662e8aeb7719ea00f08d2bef320955845497a308f1",
+      "game_slug": "mage-bros",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 5436,
     "listed_at": "2026-11-17",
     "platforms": ["windows-x86-64"],

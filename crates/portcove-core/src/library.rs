@@ -77,7 +77,9 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         listing.funding_urls = None;
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
-            format_version: if listing.compatibility.is_some() {
+            format_version: if listing.collection_covers.is_some() {
+                4
+            } else if listing.compatibility.is_some() {
                 3
             } else if listing
                 .manual_setup
@@ -116,7 +118,9 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
             .manual_setup
             .as_ref()
             .is_some_and(|guide| !guide.references.is_empty());
-        if !matches!(retained.format_version, 1..=3)
+        if !matches!(retained.format_version, 1..=4)
+            || (retained.format_version == 4 && retained.listing.collection_covers.is_none())
+            || (retained.format_version < 4 && retained.listing.collection_covers.is_some())
             || (retained.format_version == 3 && retained.listing.compatibility.is_none())
             || (retained.format_version < 3 && retained.listing.compatibility.is_some())
             || (retained.format_version == 1 && has_references)
@@ -3145,13 +3149,22 @@ impl Library {
         let ports_per_query = status_ports_per_query(connection)?;
 
         let mut settings = HashMap::new();
+        let mut carry_outcomes = HashMap::new();
         for port_ids in port_ids.chunks(ports_per_query) {
             metrics.record_query();
             let sql = format!(
-                "SELECT port_id, channel, update_policy, active_install_id, previous_install_id
-                 FROM port_settings
-                 WHERE port_id IN ({})",
-                sql_placeholders(port_ids.len())
+                "SELECT s.port_id, s.channel, s.update_policy, s.active_install_id,
+                        s.previous_install_id, c.from_install_id, c.outcome
+                 FROM port_settings s
+                 LEFT JOIN carried_file_outcomes c ON c.port_id=s.port_id
+                    AND c.to_install_id=s.active_install_id AND c.format={}
+                    AND typeof(c.outcome)='text'
+                    AND typeof(c.from_install_id)='text'
+                    AND length(CAST(c.outcome AS BLOB)) <= 65536
+                    AND length(CAST(c.from_install_id AS BLOB)) BETWEEN 1 AND 4096
+                 WHERE s.port_id IN ({})",
+                crate::carry_ledger::ROW_FORMAT,
+                sql_placeholders(port_ids.len()),
             );
             let mut statement = connection.prepare(&sql)?;
             let rows = statement.query_map(params_from_iter(port_ids), |row| {
@@ -3163,11 +3176,18 @@ impl Library {
                         row.get::<_, Option<String>>(3)?,
                         row.get::<_, Option<String>>(4)?,
                     ),
+                    row.get::<_, Option<String>>(5)?,
+                    row.get::<_, Option<String>>(6)?,
                 ))
             })?;
             for row in rows {
-                let (port_id, setting) = row?;
+                let (port_id, setting, from, outcome) = row?;
                 metrics.settings_row_count += 1;
+                if let (Some(from), Some(outcome)) = (from, outcome) {
+                    if let Some(outcome) = crate::carried_files::decode_outcome(&outcome) {
+                        carry_outcomes.insert(port_id.clone(), (from, outcome));
+                    }
+                }
                 settings.insert(port_id, setting);
             }
         }
@@ -3310,7 +3330,26 @@ impl Library {
                     .cloned();
                 let staged = staged.get(port_id).and_then(|id| installs.get(id)).cloned();
                 let history = launch_history.get(port_id).copied();
+                let carried_files = active.as_ref().and_then(|target| {
+                    let (from_id, outcome) = carry_outcomes.get(port_id)?;
+                    if target.port_id != *port_id || from_id == &target.id {
+                        return None;
+                    }
+                    let source = installs
+                        .get(from_id)
+                        .filter(|source| source.port_id == *port_id);
+                    Some(crate::CarriedFilesStatus {
+                        from_install_id: from_id.clone(),
+                        to_install_id: target.id.clone(),
+                        from_version: source.map(|source| source.version.clone()),
+                        from_path: source.map(|source| source.path.clone()),
+                        to_version: target.version.clone(),
+                        to_path: target.path.clone(),
+                        outcome: outcome.clone(),
+                    })
+                });
                 Ok(PortStatus {
+                    carried_files,
                     acquisition: acquisitions.get(port_id).cloned(),
                     port_id: port_id.clone(),
                     user_data_root: Some(self.user_dir(port_id)),

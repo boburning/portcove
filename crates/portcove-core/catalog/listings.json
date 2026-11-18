@@ -1,5 +1,5 @@
 {
-  "format_version": 10,
+  "format_version": 11,
   "listings": [
     {
       "id": "shipwright",
@@ -2575,7 +2575,7 @@
     {
       "id": "wave-race-64-recomp",
       "name": "Wave Race 64: Recompiled",
-      "summary": "Native Wave Race 64 recompilation. Portcove installs the official Windows package; on Linux, download the upstream package and maintain it yourself.",
+      "summary": "Native Wave Race 64 recompilation. Portcove installs the official packages on Windows and Linux.",
       "project_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp",
       "original_game_title": "Wave Race 64",
       "manual_setup": {
@@ -2585,12 +2585,12 @@
             "instruction": "On Windows, choose Install for the copy Portcove manages. To keep playing a copy you extracted yourself, select WaveRace64Recomp.exe with its folder as the working directory and leave arguments empty. You and upstream maintain that copy."
           },
           {
-            "title": "Linux: download and extract the package",
-            "instruction": "Download the official package ending in -linux-x86_64.tar.gz and extract the whole folder somewhere writable. Install the SDL2, GTK 3, FreeType and Vulkan packages named in its README-LINUX.txt. The inspected v1.0.2 program needs glibc 2.43 and libstdc++ with GLIBCXX_3.4.32."
+            "title": "Linux: prepare the host and choose Install",
+            "instruction": "Use an x64 host with glibc 2.43, libstdc++ with GLIBCXX_3.4.32, SDL2, GTK 3, FreeType and a working Vulkan driver. Choose Install and select your own Wave Race 64 (USA) (Rev A) original. Use Start Game after opening the managed copy."
           },
           {
-            "title": "Linux: choose your original game",
-            "instruction": "Run WaveRace64Recomp.sh, choose Load ROM and select your own Wave Race 64 (USA) (Rev A) original. You maintain this copy: replace it yourself when upstream publishes a new version."
+            "title": "Keep a separate upstream Linux copy",
+            "instruction": "A copy you already extracted stays yours to maintain. Start it with WaveRace64Recomp.sh and use Load ROM to select your original if it has no source yet. Keep its creating runtime and profile before replacing it."
           }
         ],
         "warnings": [
@@ -2618,10 +2618,6 @@
       },
       "issue_number": 553,
       "listed_at": "2026-10-23",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
       "release_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/releases",
       "setup_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/README.md",
       "download_asset_hints": {
@@ -2630,6 +2626,10 @@
           "-linux-x86_64.tar.gz"
         ]
       },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
       "availability": "unknown"
     },
     {
@@ -5411,6 +5411,14 @@
       "original_game_title": "Action Man: Mission Xtreme",
       "summary": "Research project. Upstream preview boots/plays tested parts; full playthrough not verified. Linux virtual-display-only and Windows cross-compile evidence must not become physical/native host gameplay qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/GnomeChimpsky/ActionManRecomp",
+      "artwork": {
+        "game_id": 28090,
+        "cover_id": 104988,
+        "image_id": "co290c",
+        "image_sha256": "ad8a31130aa9ab6c63dd55d82a0f35bc4a7c4d4583d847b81f2ff7bb079f0946",
+        "game_slug": "action-man-operation-extreme",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [
         "linux-x86-64"
@@ -11174,6 +11182,14 @@
       "name": "The Lost World: Jurassic Park Special Edition / Alexbeav PSXRecomp",
       "summary": "Play The Lost World: Jurassic Park Special Edition with a native player built from your matching original disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp",
+      "artwork": {
+        "game_id": 19536,
+        "cover_id": 139080,
+        "image_id": "co2zbc",
+        "image_sha256": "14d38899ee8ceb666c85362dd055a4ad70216d7a67e66d287a8958504a0e46ea",
+        "game_slug": "the-lost-world-jurassic-park--1",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 483,
       "listed_at": "2026-10-23",
       "platforms": [
@@ -12565,8 +12581,8 @@
     },
     {
       "id": "andreyvelsk-com-mobilerpgpack-phone",
-      "name": "Doom-engine games (exact offered game scope unresolved) / Mobile RPG Pack (andreyvelsk)",
-      "summary": "Explore Doom-engine games (exact offered game scope unresolved) / Mobile RPG Pack (andreyvelsk) and follow the upstream project for requirements, downloads and setup.",
+      "name": "Doom / Doom II — UZDoom (andreyvelsk)",
+      "summary": "Follow the AYN Thor UZDoom setup for your own Doom or Doom II game data.",
       "project_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone",
       "issue_number": 1848,
       "listed_at": "2026-10-23",
@@ -12577,7 +12593,7 @@
         "steps": [
           {
             "title": "Finish setup in the upstream Android app",
-            "instruction": "This fork’s published APK is for Android, specifically the AYN Thor dual-screen UZDoom route. Install this fork’s APK on the Android device, open its launcher deliberately, and select your own compatible Doom-family IWAD/content through the UZDoom setup. Other engines named in the inherited parent README have been excluded from this fork; do not prepare Doom RPG, Wolfenstein RPG or another parent engine for this APK."
+            "instruction": "This fork’s published APK is for Android, specifically the AYN Thor dual-screen UZDoom route. Install this fork’s APK on the Android device, open its launcher deliberately, and select your own Doom or Doom II IWAD through the UZDoom setup. Other engines named in the inherited parent README have been excluded from this fork; do not prepare Doom RPG, Wolfenstein RPG or another parent engine for this APK."
           },
           {
             "title": "Keep your data when changing versions",
@@ -12587,7 +12603,25 @@
         "warnings": [],
         "help_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/blob/2.9.1-ds.1.0.2/README.md"
       },
-      "release_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/releases"
+      "release_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/releases",
+      "collection_covers": [
+        {
+          "game_id": 673,
+          "cover_id": 268663,
+          "image_id": "co5rav",
+          "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+          "game_slug": "doom",
+          "match_kind": "underlying-game"
+        },
+        {
+          "game_id": 312,
+          "cover_id": 303937,
+          "image_id": "co6iip",
+          "image_sha256": "9aaabe14844aa0f4152bc03a571c5e8f327dfa173469a2fd9e8cfc302e6fe6db",
+          "game_slug": "doom-ii-hell-on-earth",
+          "match_kind": "underlying-game"
+        }
+      ]
     },
     {
       "id": "andyvand-opentyrian2000",
@@ -14537,6 +14571,14 @@
       "original_game_title": "Bips, Bips Gold, and Bips Platinum",
       "summary": "Play box-pushing puzzles from three Bips games and create your own levels in the bundled editor.",
       "project_url": "https://github.com/joyrider3774/blips",
+      "artwork": {
+        "game_id": 320157,
+        "cover_id": 417823,
+        "image_id": "co8ye7",
+        "image_sha256": "2a1a04c544b979bca4cafda2910b0f3b92ed6ef5148a71216ee659d18844d973",
+        "game_slug": "blips",
+        "match_kind": "port"
+      },
       "issue_number": 6132,
       "listed_at": "2026-11-15",
       "platforms": [
@@ -16062,6 +16104,14 @@
       "summary": "Explore procedurally generated dungeons with Brogue Community Edition.",
       "original_game_title": "Brogue",
       "project_url": "https://github.com/tmewett/BrogueCE",
+      "artwork": {
+        "game_id": 12516,
+        "cover_id": 217851,
+        "image_id": "co4o3f",
+        "image_sha256": "a27394f83e0d0e2ae36f5592e78e9465592c2f2e6eb334b6589867ad32c7ef5d",
+        "game_slug": "brogue",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 6047,
       "listed_at": "2026-11-17",
       "platforms": [
@@ -16272,6 +16322,70 @@
         "image_sha256": "0d5d4199eba537b4cdafcc66ad790c2070a7c249996e1235fbb7cfea3f977c04",
         "game_slug": "super-mario-world",
         "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "bugdom-jorio",
+      "name": "Bugdom",
+      "summary": "Guide Rollie McFly through the original Bugdom campaign.",
+      "original_game_title": "Bugdom",
+      "project_url": "https://github.com/jorio/Bugdom",
+      "artwork": {
+        "game_id": 50343,
+        "cover_id": 309747,
+        "image_id": "co6n03",
+        "image_sha256": "1a361515deeefb028d4b6dfe5444ba4a27952b99f8bf482a8e5ae56839908717",
+        "game_slug": "bugdom",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 5642,
+      "listed_at": "2026-11-17",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/jorio/Bugdom/blob/1.3.4/README.md",
+      "release_url": "https://github.com/jorio/Bugdom/releases/tag/1.3.4",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Bugdom-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Bugdom-",
+          "-linux-x86_64.AppImage"
+        ],
+        "macos-x86-64": [
+          "Bugdom-",
+          "-mac.dmg"
+        ],
+        "macos-aarch64": [
+          "Bugdom-",
+          "-mac.dmg"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the publisher’s package for your desktop",
+            "instruction": "On Windows x64, extract the ZIP and keep Bugdom.exe, its libraries, and the Data folder together. On Linux x86-64 or ARM64, get the matching AppImage, make it executable, and run it with FUSE available. On Intel Mac with macOS 10.11 or later, or Apple Silicon with macOS 11 or later, open the universal DMG and copy the complete Bugdom.app to Applications."
+          },
+          {
+            "title": "Add an existing copy to Portcove",
+            "instruction": "On Windows choose Bugdom.exe in the extracted folder. On Linux x86-64 choose the executable AppImage. On Mac choose Contents/MacOS/Bugdom inside the copied app. Keep the executable’s folder as its working directory and leave arguments empty. Review the selected files, then choose Play when ready."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Keep your saves and preferences before replacing the game",
+            "instruction": "Close the game and make a copy of the Bugdom folder under %APPDATA% on Windows, XDG_CONFIG_HOME or ~/.config on Linux, or ~/Library/Preferences on Mac. Bugdom keeps its Prefs file and SaveA-style slots together in this folder. Portcove only keeps your launch registration. Replace the runtime and back up these files yourself. Removing the registration leaves the game and data in place."
+          }
+        ],
+        "help_url": "https://github.com/jorio/Bugdom/blob/1.3.4/README.md"
       }
     },
     {
@@ -16841,6 +16955,10 @@
           {
             "title": "Use an existing copy you have permission to play",
             "instruction": "Keep the full copy, including bin, graphics, data, missions and libraries. On Windows, the publisher ZIP uses the 32-bit bin/cdogs-sdl.exe player. On Linux x86-64, the publisher tarball needs glibc 2.34 or later, SDL2 and SDL2_mixer. Open a terminal in bin and run ./cdogs-sdl so it finds the data in the parent directory."
+          },
+          {
+            "title": "Register your existing Windows player",
+            "instruction": "In Portcove, choose bin/cdogs-sdl.exe from your permitted Windows copy and choose its bin folder as the working directory. Review the selected player and folder, then choose Play. Keep backups of the complete package and your actual C-Dogs profile. Removing this registration keeps those external files; you and upstream still own updates and backups."
           }
         ],
         "warnings": [
@@ -18641,6 +18759,14 @@
       "original_game_title": "Colobot",
       "summary": "Explore planets, build a base, and program robots in this open-source strategy game.",
       "project_url": "https://github.com/colobot/colobot",
+      "artwork": {
+        "game_id": 80574,
+        "cover_id": 155577,
+        "image_id": "co3c1l",
+        "image_sha256": "41311baab29115872543f8871c5b3db12af4c02ae822fe318edf6af2acc97ae1",
+        "game_slug": "colobot",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 6526,
       "listed_at": "2026-11-16",
       "platforms": [
@@ -20758,7 +20884,41 @@
           "Upstream testing varies by title and platform. Check the notes for the package you choose."
         ],
         "help_url": "https://github.com/CrownParkComputing/Xbox360-Native-Ports/releases"
-      }
+      },
+      "collection_covers": [
+        {
+          "game_id": 2626,
+          "cover_id": 123757,
+          "image_id": "co2nhp",
+          "image_sha256": "17ffbbf892889f90f17cfaa50f67d03cd57f79f856b895555ba9fb8c6a607b92",
+          "game_slug": "burnout-revenge",
+          "match_kind": "underlying-game"
+        },
+        {
+          "game_id": 201644,
+          "cover_id": 294814,
+          "image_id": "co6bha",
+          "image_sha256": "256235d63a2dd949cd655e0b28d59f000e2f52f048107669f8cb0e7259d4939d",
+          "game_slug": "banjo-kazooie--1",
+          "match_kind": "underlying-game"
+        },
+        {
+          "game_id": 15756,
+          "cover_id": 288708,
+          "image_id": "co66ro",
+          "image_sha256": "7b8b36781520e5bd98d507f2db8fae975b07fd34ae5d78ce921800d8bc1411d5",
+          "game_slug": "geometry-wars-retro-evolved",
+          "match_kind": "underlying-game"
+        },
+        {
+          "game_id": 84308,
+          "cover_id": 133079,
+          "image_id": "co2uon",
+          "image_sha256": "4f9137fedf281cd967f35616a9d94263c3235fd843bd797293825c057c4d44ea",
+          "game_slug": "rez-hd",
+          "match_kind": "underlying-game"
+        }
+      ]
     },
     {
       "id": "crusader-no-remorse-sebsebseb1982-sdl-port",
@@ -23820,6 +23980,14 @@
       "summary": "Windows x64 ClayFighter 64 fused product: 63⅓ gameplay with Sculptor's Cut donor characters, requiring both exact USA ROMs. Complete upstream asset installation first, then register clayfighter64.exe with its documented ROM and fused-asset arguments. Keep local/, probe-output/ and complete runtime dependencies. The title announcement’s source is unknown; use a complete copy you already have.",
       "original_game_title": "ClayFighter63andOneThird: ClayFighter64 fusion edition",
       "project_url": "https://github.com/djultra64/ClayFighter64",
+      "artwork": {
+        "game_id": 44043,
+        "cover_id": 154660,
+        "image_id": "co3bc4",
+        "image_sha256": "e3c0d3634333972c31180c20cde17074d57a66503f6e329dd156f4eaa4817475",
+        "game_slug": "clayfighter-63-1-slash-3",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/djultra64/ClayFighter64",
@@ -29343,6 +29511,14 @@
       "summary": "Attach an independently permitted, prepared Forza Motorsport3 Ultimate Collection USA Windows installation. Upstream’s native player reads its saved launcher profile and data paths; preserve the actual XUID-separated saves, content and retained deleted profiles.",
       "original_game_title": "Forza Motorsport 3: Ultimate Collection (USA, Xbox 360)",
       "project_url": "https://github.com/0herculabs/hl360-forza3",
+      "artwork": {
+        "game_id": 3069,
+        "cover_id": 422151,
+        "image_id": "co91qf",
+        "image_sha256": "24faaeeebf6bbea70c90c91f3f2e6445be1e8a028d2157860e592636f738959d",
+        "game_slug": "forza-motorsport-3",
+        "match_kind": "underlying-game"
+      },
       "platforms": [
         "windows-x86-64"
       ],
@@ -31257,6 +31433,14 @@
       "summary": "Windows x64 upstream-prepared native player for Jet Moto 2: Championship Edition USA (SCUS-94167). Complete upstream .NET 10 generation/build first, then register build/JetMoto2Recomp.exe; the root JetMoto2.exe setup launcher starts a separate player and exits. Preserve the creating build directory, disc, settings and memory cards. Upstream reports bounded racing progress; sound/CD music, saving and wider gameplay remain untested.",
       "original_game_title": "Jet Moto 2: Championship Edition",
       "project_url": "https://github.com/goodshepherd23/JetMoto2-Recomp",
+      "artwork": {
+        "game_id": 45214,
+        "cover_id": 127597,
+        "image_id": "co2qgd",
+        "image_sha256": "c474a5bfd714a0447928ec5254cce8bb03cd941e503b3f466941ec6467c2af1b",
+        "game_slug": "jet-moto-2",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/goodshepherd23/JetMoto2-Recomp",
@@ -33692,6 +33876,14 @@
       "summary": "Windows x64 native player for Frontschweine / Hogs of War German PAL (SLES-02767), prepared locally from your own disc using upstream tools. Finish generation and rebuild first, then select build/Frontschweine_Recompiled.exe with its complete runtime. Preserve saves, mods, extracted data and overlay caches. Upstream owns preparation and replacement; other regions and Portcove-managed builds are not offered.",
       "original_game_title": "Hogs of War / Frontschweine (PlayStation German PAL)",
       "project_url": "https://github.com/Nero2611/FrontschweineRecomp",
+      "artwork": {
+        "game_id": 8877,
+        "cover_id": 256413,
+        "image_id": "co5hul",
+        "image_sha256": "d540fd15fde75ce18bf79074deb2a0a837defac72fb2638ce45c7fc4cbdb503e",
+        "game_slug": "hogs-of-war",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/Nero2611/FrontschweineRecomp",
@@ -35567,6 +35759,80 @@
         ]
       },
       "recommended_download_channel": "stable"
+    },
+    {
+      "id": "jetstrike-sdl3-port",
+      "name": "JetStrike / SDL3 Port",
+      "summary": "Use your own DOS JetStrike CD-ROM data with the Windows package or a source build on Linux or Mac.",
+      "original_game_title": "JetStrike",
+      "project_url": "https://github.com/kylofon/jetstrike-sdl3",
+      "issue_number": 5826,
+      "listed_at": "2026-11-17",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/kylofon/jetstrike-sdl3/blob/v0.1.0/README.md",
+      "release_url": "https://github.com/kylofon/jetstrike-sdl3/releases/tag/v0.1.0",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "jsport-",
+          "-win64.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare a writable copy of your original game",
+            "instruction": "Use your own DOS CD-ROM installation. Keep JS_CDROM.EXE and the INTRO, DATA, GFX, MAP, MISC and PLANE directories together in a writable Game copy."
+          },
+          {
+            "title": "Use the upstream Windows setup",
+            "instruction": "Extract the complete Windows x64 ZIP into its own folder and keep both executables and every DLL together. Open JetStrike.exe to choose your data and options. The optional Rip CD music action uses your owned CUE image and writes the 14 audio tracks under Game/MUSIC."
+          },
+          {
+            "title": "Build the direct player on Linux",
+            "instruction": "The reviewed release has no Linux package. Use the upstream source with a C11 compiler, CMake 3.24 or newer and SDL3 development files. From the repository root, run cmake -S jsport -B build -DCMAKE_BUILD_TYPE=Release -DJS_LAUNCHER=OFF -DCMAKE_C_STANDARD_LIBRARIES=-lm, then cmake --build build --target jsport. Keep the built jsport and its SDL3 runtime available. The Windows ZIP and launcher are not used on Linux. This build has not been tested with original CD-ROM data on Linux."
+          },
+          {
+            "title": "Build the direct player on Mac",
+            "instruction": "Use a C11 compiler, CMake 3.24 or newer and the macOS SDL3 framework from SDL’s official development package. Keep SDL3.framework in a stable folder. From the repository root, run cmake -S jsport -B build -DCMAKE_BUILD_TYPE=Release -DJS_LAUNCHER=OFF -DSDL3_DIR=\"/full/path/SDL3.framework/Resources/CMake\" -DCMAKE_BUILD_RPATH=\"/full/path/framework-folder\", then cmake --build build --target jsport. Replace both paths with your actual framework locations. Build on the Mac you will use, so the player matches Intel or Apple Silicon. Keep the framework folder in place after building. The Windows ZIP and launcher are not used. Native Mac game startup and saving have not been tested."
+          },
+          {
+            "title": "Register the actual player in Portcove",
+            "instruction": "On Windows, choose jsport.exe as the existing installation; on Linux or Mac, choose the built jsport. Choose the player’s containing directory as the working directory. Add --game-dir and your writable Game copy as two separate arguments. Review the selected player, folder and arguments, then choose Play. The separate upstream launcher can stay open or close while its game continues."
+          }
+        ],
+        "warnings": [
+          "Use your own original game files. The native port includes reconstructed original program behavior and its own separately licensed port code."
+        ],
+        "references": [
+          {
+            "title": "Keep your settings and progress before replacing files",
+            "instruction": "Back up JS.CFG, js_save.000 through js_save.009 and any MUSIC folder with your working game data. Copy %APPDATA%/JetStrike/settings.ini as well. Close both the player and launcher before replacing files. Portcove keeps a launch registration. You and upstream own runtime replacement and backups. Removing the registration leaves the working files and profile in place."
+          },
+          {
+            "title": "SDL3 development framework for Mac",
+            "instruction": "Get the official SDL3 development download from https://github.com/libsdl-org/SDL/releases/latest. Use SDL3.framework from the macos-arm64_x86_64 folder in SDL3.xcframework. The iOS and simulator frameworks are different targets."
+          },
+          {
+            "title": "Other platforms",
+            "instruction": "Windows x64 has the reviewed official package. Linux x64 uses the upstream source build described above, with no reviewed Linux package or title-run evidence. Intel Mac and Apple Silicon use the upstream source build described above. Both native architectures were built; Mac game execution remains untested, and there is no reviewed Mac package. Android has no reviewed package or mobile host integration. Those platforms do not inherit Windows or Linux observations."
+          }
+        ],
+        "help_url": "https://github.com/kylofon/jetstrike-sdl3/blob/v0.1.0/README.md"
+      },
+      "artwork": {
+        "game_id": 37108,
+        "cover_id": 597588,
+        "image_id": "coct3o",
+        "image_sha256": "f9808d15b4ddf646fee4967310d941711713ed11fe60df51e6067385df9e5ddc",
+        "game_slug": "jetstrike",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "jgrennison-openttd-patches",
@@ -38243,6 +38509,14 @@
       "summary": "Play the classic Little Big Adventure 2 with the LBA2 Classic Community engine.",
       "original_game_title": "Little Big Adventure 2",
       "project_url": "https://github.com/LBALab/lba2-classic-community",
+      "artwork": {
+        "game_id": 79653,
+        "cover_id": 220733,
+        "image_id": "co4qbh",
+        "image_sha256": "b9d5eb87eedc964c0f98271718d28928abe02ff6c3f1a263171f04f85095c933",
+        "game_slug": "twinsens-little-big-adventure-2-classic",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5431,
       "listed_at": "2026-11-17",
       "platforms": [
@@ -38596,6 +38870,14 @@
       "name": "Tomb Raider I-III / TRX (LostArtefacts)",
       "summary": "Set up Tomb Raider I–III with TRX and the original files for the games you own.",
       "project_url": "https://github.com/LostArtefacts/TRX",
+      "artwork": {
+        "game_id": 154439,
+        "cover_id": 163597,
+        "image_id": "co3i8d",
+        "image_sha256": "8953c916fdd82cf8b5f0049f31f22571ffd938762ff69b18a3b2f2ffc95d47e4",
+        "game_slug": "tomb-raider-1-plus-2-plus-3",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 1898,
       "listed_at": "2026-10-23",
       "platforms": [
@@ -38998,6 +39280,14 @@
       "summary": "Play the original Mage Bros. levels with widescreen, modern controls and local co-op.",
       "original_game_title": "Mage Bros.",
       "project_url": "https://github.com/Exo-MDR-CD2000/MageBrosNative",
+      "artwork": {
+        "game_id": 210408,
+        "cover_id": 291437,
+        "image_id": "co68vh",
+        "image_sha256": "6e29d529a2b447fd0ee0cd662e8aeb7719ea00f08d2bef320955845497a308f1",
+        "game_slug": "mage-bros",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5436,
       "listed_at": "2026-11-17",
       "platforms": [
@@ -39032,6 +39322,56 @@
           }
         ],
         "help_url": "https://github.com/Exo-MDR-CD2000/MageBrosNative/blob/v0.4.47/README.md#getting-started"
+      }
+    },
+    {
+      "id": "magic-ball-2-openmb2",
+      "name": "Magic Ball 2 / OpenMB2",
+      "summary": "Play Magic Ball 2 and Smash Frenzy 2 with widescreen and controller support.",
+      "original_game_title": "Magic Ball 2",
+      "project_url": "https://github.com/Kippykip/OpenMB2",
+      "artwork": {
+        "game_id": 54374,
+        "cover_id": 73020,
+        "image_id": "co1kcc",
+        "image_sha256": "e983cefb72e574cf0b5577f8675d2c937b54bd80069f67fe01c0ca03d7267cb3",
+        "game_slug": "smash-frenzy-2",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 5434,
+      "listed_at": "2026-11-17",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "download_block_reason": "All three v1.0.2 packages include an original Russian game font. Portcove Download requires permission covering the bundled original game data or a replacement package without that data.",
+      "setup_url": "https://github.com/Kippykip/OpenMB2/blob/v1.0.2/README.md#instructions",
+      "release_url": "https://github.com/Kippykip/OpenMB2/releases/tag/v1.0.2",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare a writable copy of your original game folder",
+            "instruction": "Use your own Magic Ball 2 or Smash Frenzy 2 installation. Keep its original data together, including any .pak or .dat archives. The engine writes player files in the game-data folder."
+          },
+          {
+            "title": "Start the Windows engine",
+            "instruction": "If you have permission to use the Windows x64 OpenMB2 package, put OpenMB2.exe and the OpenMB2 folder in your writable game folder. Run OpenMB2.exe. The upstream guide also gives --game and --overrides options for keeping the engine files separate."
+          }
+        ],
+        "warnings": [
+          "OpenMB2 writes progress and settings in the selected game-data folder, even when the engine is in a separate folder."
+        ],
+        "references": [
+          {
+            "title": "Keep your progress when replacing the engine",
+            "instruction": "Close both engines and back up the writable game-data folder. Keep score.dat, the s<pack>.sav progress files, other save slots and openmb2.ini. OpenMB2 reads the original params.txt and keeps its own settings in openmb2.ini."
+          },
+          {
+            "title": "Set up the ARM64 Linux handheld package",
+            "instruction": "Use the matching MuOS or PortMaster layout in the upstream instructions. Copy your original game files into that port’s openmb2/gamedata folder and start OpenMB2 from the handheld launcher. Back up gamedata to retain your progress and settings."
+          }
+        ],
+        "help_url": "https://github.com/Kippykip/OpenMB2/blob/v1.0.2/README.md#instructions"
       }
     },
     {
@@ -41280,6 +41620,14 @@
       "summary": "Use a prepared Open1560 Windows x86 copy with your own Midtown Madness Sneak Preview Beta/build 1560 data. This partial native rewrite targets that preview, not the retail game. Preserve the complete game folder before playing: the game can remove replays and diagnostic files at exit.",
       "original_game_title": "Midtown Madness Sneak Preview Beta / Build 1560",
       "project_url": "https://github.com/0x1F9F1/Open1560",
+      "artwork": {
+        "game_id": 2348,
+        "cover_id": 433387,
+        "image_id": "co9aej",
+        "image_sha256": "0ed3580a93fd2114e56763429fc2c6289f30e0172306bc50e57ca23d21a7da76",
+        "game_slug": "midtown-madness",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/0x1F9F1/Open1560",
@@ -43574,6 +43922,65 @@
       ]
     },
     {
+      "id": "naev",
+      "name": "Naev",
+      "summary": "Explore space, trade and take missions in Naev. Use the official desktop package with its included game data.",
+      "original_game_title": "Naev",
+      "project_url": "https://codeberg.org/naev/naev",
+      "issue_number": 6817,
+      "listed_at": "2026-11-17",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://naev.org/downloads/",
+      "release_url": "https://codeberg.org/naev/naev/releases/latest",
+      "download_block_reason": "Use Naev’s downloads page for the Windows installer, Linux AppImage or universal Mac disk image.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the current official package",
+            "instruction": "Use the releases linked by Naev’s downloads page. Current releases are on Codeberg; the old GitHub mirror has older packages. The desktop packages include the game data. Keep the complete package and its licence notices."
+          },
+          {
+            "title": "Set up Naev on your computer",
+            "instruction": "On Windows x64, use the installer. For a portable copy, select Portable Install and choose a separate writable folder. On Linux x64, mark the AppImage executable and open it. On Intel or Apple Silicon Mac, copy the complete Naev app from the disk image to Applications. Follow the publisher’s Mac security instructions if your system prevents opening it."
+          },
+          {
+            "title": "Keep your profile before upgrading or removing files",
+            "instruction": "Close every copy of Naev and back up its whole profile, including conf.lua, saves and plugins. A normal Windows install uses %APPDATA%/naev. A portable Windows copy uses naev-data beside the player unless you changed datapath.lua. Linux normally uses ~/.local/share/naev, or naev under XDG_DATA_HOME. Mac normally uses ~/Library/Application Support/naev. Keep any custom data folder as well."
+          },
+          {
+            "title": "Preserve older profiles before the first upgrade launch",
+            "instruction": "Naev 0.13 can move files from older profile locations when the new location has no matching file. Before starting an upgrade, keep copies of the existing profile and configuration folders, including an older ~/.config/naev on Linux, or ~/Library/Application Support/org.naev.Naev and ~/Library/Preferences/naev on Mac. Follow the actual profile path reported by your game."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Updates, backups and existing installations",
+            "instruction": "Use upstream’s installer, app or package tools to replace the runtime. Keep your working version and every profile folder recoverable. When registering a prepared Windows copy in Portcove, select naev.exe and its containing folder as the working directory so an existing datapath.lua applies. Retain any established launch arguments. Removing the registration leaves external files in place. You and upstream own runtime replacement, backups, save migration and file removal."
+          },
+          {
+            "title": "Host requirements and other platforms",
+            "instruction": "The publisher lists Windows 10 or newer, macOS 11 or newer for the universal app, and glibc 2.30 or newer for the Linux x64 AppImage. Naev needs a working OpenGL context. The reviewed release has no Android or Linux ARM64 package. These requirements and package listings do not establish Portcove gameplay or minimum-system qualification."
+          }
+        ],
+        "help_url": "https://naev.org/downloads/"
+      },
+      "artwork": {
+        "game_id": 52025,
+        "cover_id": 173643,
+        "image_id": "co3pzf",
+        "image_sha256": "55d491ea767f2758b1974622c94192fc9bf1766e946d7275bf89f80b60091a32",
+        "game_slug": "naev",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
       "id": "nakagawa-recomp-jstar269-hot-shots-tennis-get-a-grip",
       "name": "Hot Shots Tennis: Get a Grip — Nakagawa Recomp (Jstar269)",
       "original_game_title": "Hot Shots Tennis: Get a Grip",
@@ -43677,6 +44084,70 @@
         "image_sha256": "0a934d6b1364dc322b01a1ede408ab9e4f9b63db7a62f53d94fbeba41b721f4f",
         "game_slug": "nam",
         "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "nanosaur-jorio",
+      "name": "Nanosaur",
+      "summary": "Recover dinosaur eggs in Pangea Software’s original Nanosaur campaign.",
+      "original_game_title": "Nanosaur",
+      "project_url": "https://github.com/jorio/Nanosaur",
+      "artwork": {
+        "game_id": 70818,
+        "cover_id": 140859,
+        "image_id": "co30or",
+        "image_sha256": "6e2d7fd4a287eeefcc5625077a0793a3454636de81b7f4ab0ee7bb02ed5dd328",
+        "game_slug": "nanosaur",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 5647,
+      "listed_at": "2026-11-17",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/jorio/Nanosaur/blob/v1.4.4/README.md",
+      "release_url": "https://github.com/jorio/Nanosaur/releases/tag/v1.4.4",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Nanosaur-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Nanosaur-",
+          "-linux-x86_64.AppImage"
+        ],
+        "macos-x86-64": [
+          "Nanosaur-",
+          "-mac.dmg"
+        ],
+        "macos-aarch64": [
+          "Nanosaur-",
+          "-mac.dmg"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the publisher’s package for your desktop",
+            "instruction": "On Windows x64, extract the ZIP and keep Nanosaur.exe, its libraries, and the Data folder together. On Linux x86-64 or ARM64, get the matching AppImage, make it executable, and run it with FUSE available. On Intel Mac with macOS 10.11 or later, or Apple Silicon with macOS 11 or later, open the universal DMG and copy the complete Nanosaur.app to Applications."
+          },
+          {
+            "title": "Add an existing copy to Portcove",
+            "instruction": "On Windows choose Nanosaur.exe in the extracted folder. On Linux x86-64 choose the executable AppImage. On Mac choose Contents/MacOS/Nanosaur inside the copied app. Keep the executable’s folder as its working directory and leave arguments empty. Review the selected files, then choose Play when ready."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Keep your preferences before replacing the game",
+            "instruction": "Close the game and make a copy of the Nanosaur folder under %APPDATA% on Windows, XDG_CONFIG_HOME or ~/.config on Linux, or ~/Library/Preferences on Mac. Nanosaur saves its preferences in this folder. Portcove only keeps your launch registration. Replace the runtime and back up these files yourself. Removing the registration leaves the game and data in place."
+          }
+        ],
+        "help_url": "https://github.com/jorio/Nanosaur/blob/v1.4.4/README.md"
       }
     },
     {
@@ -44199,7 +44670,7 @@
         "steps": [
           {
             "title": "Run the stable Windows player",
-            "instruction": "Download and extract the complete neverball-1.6.0.zip from Neverball’s Downloads page. Keep data and the included DLLs beside neverball.exe in the neverball-1.6.0 folder. Start neverball.exe with Windows support for 32-bit applications."
+            "instruction": "Download and extract the complete neverball-1.6.0.zip from Neverball’s Downloads page. Keep data and the included DLLs beside neverball.exe in the neverball-1.6.0 folder. Start neverball.exe on Windows with support for 32-bit applications and a working OpenGL graphics driver. For Portcove registration, choose neverball.exe and its containing working directory. Add --data and the full path to that package’s data folder as two separate arguments. Review the selection, then choose Play."
           },
           {
             "title": "Install the Linux game through your package manager",
@@ -45823,6 +46294,14 @@
       "original_game_title": "Halo 3 Mythic (ODST multiplayer disc)",
       "summary": "Custom Games/Forge/1–4-player split-screen work; Theater recording/playback incompletely validated. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/GTTeancum/OpenH3M",
+      "artwork": {
+        "game_id": 987,
+        "cover_id": 90048,
+        "image_id": "co1xhc",
+        "image_sha256": "026e609d82d4877a549ff5c1f3de5600e77561d47de3be86e047e1fa26363cbc",
+        "game_slug": "halo-3",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [
         "windows-x86-64"
@@ -47394,6 +47873,14 @@
       "original_game_title": "4D Driving (FM Towns Marty rerelease)",
       "summary": "Experimental project. Races/replay/editor/music/audio comparisons; no completed full-game checks; the distinct Marty edition preserved. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/vs-sr-dev/pc-4ddriving",
+      "artwork": {
+        "game_id": 11630,
+        "cover_id": 100218,
+        "image_id": "co25bu",
+        "image_sha256": "40957c6438e7f6979f6ddf943d3be24beea35badb7d88d751236eb2537cc4446",
+        "game_slug": "stunts",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [],
       "availability": "unknown",
@@ -50252,6 +50739,59 @@
       }
     },
     {
+      "id": "prehistorik-2-pre2-port",
+      "name": "Prehistorik 2 / pre2_port",
+      "summary": "Play Prehistorik 2 with missingno7’s native engine and your original DOS game data.",
+      "original_game_title": "Prehistorik 2",
+      "project_url": "https://github.com/missingno7/pre2_port",
+      "artwork": {
+        "game_id": 10718,
+        "cover_id": 101179,
+        "image_id": "co262j",
+        "image_sha256": "e11855426e499c00b7377fa294af67fca9976cca983db10571ee7187bf54054d",
+        "game_slug": "prehistorik-2",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 5673,
+      "listed_at": "2026-11-17",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "download_block_reason": "The Windows and Android packages embed an initialized data block extracted from the original game, including font data. The Android package also includes an icon derived from an original sprite. Portcove Download requires permission covering these materials or replacement packages without them.",
+      "setup_url": "https://github.com/missingno7/pre2_port/blob/v0.4.0/README.md#getting-started--how-to-actually-run-it",
+      "release_url": "https://github.com/missingno7/pre2_port/releases/tag/v0.4.0",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare a working copy of your original data",
+            "instruction": "Copy the SQZ and TRK files from your own Prehistorik 2 DOS installation into a writable folder. Check that the folder contains SPRITES.SQZ. You can leave the old DOS executable in the original installation."
+          },
+          {
+            "title": "Start the Windows x64 engine",
+            "instruction": "If you already have permission to use the Windows package, extract it to a separate folder and keep pre2native.exe with its _internal folder. Run pre2native.exe --game-root followed by the quoted path to your writable data copy. The packaged engine includes its Python runtime."
+          }
+        ],
+        "warnings": [
+          "Keep your original game files separate from the writable working copy."
+        ],
+        "references": [
+          {
+            "title": "Keep your desktop settings and progress",
+            "instruction": "Close the game and copy pre2native_settings.json and pre2native_progress.json from the folder you passed to --game-root before replacing that folder. Keep the runtime, your original files, and the writable data copy separate."
+          },
+          {
+            "title": "Run from source on Linux or Mac",
+            "instruction": "This release provides no Linux or Mac desktop package. If you have permission to use the source, the publisher’s guide uses Python 3.11 or later with NumPy and pygame. Pass your writable data copy to scripts/play_native.py with --game-root."
+          },
+          {
+            "title": "Android ARM64 availability",
+            "instruction": "If you already have permission to use the Android ARM64 package, use its folder picker to import your own SQZ and TRK files. The app stores settings and level progress with its imported copy. Verify a separate copy of pre2native_settings.json and pre2native_progress.json before clearing app data or uninstalling."
+          }
+        ]
+      }
+    },
+    {
       "id": "presidentraptor-ace-combat-04-pc-port",
       "name": "Ace Combat 04: Shattered Skies (Ace Combat 04: Shattered Skies - PC Port)",
       "summary": "A work-in-progress Ace Combat 04 beta, rather than a complete remaster or confirmed campaign. The Windows installer and separate source route translate the PS2 main CPU and build locally from your own USA SLUS-20152 executable and disc data; hardware/runtime services remain separate responsibilities. Exact host CPU architecture follows the selected setup guide, while accepted revision/hashes and BIOS/firmware needs are unconfirmed here. You and the project manage installation and replacement. Portcove has not qualified the installer or confirmed setup or gameplay.",
@@ -51815,6 +52355,14 @@
       "summary": "Play original Quake maps with MiniQuake’s GLQuake and WinQuake engine port.",
       "original_game_title": "Quake",
       "project_url": "https://github.com/MiniLangProject/MiniQuake",
+      "artwork": {
+        "game_id": 333,
+        "cover_id": 434745,
+        "image_id": "co9bg9",
+        "image_sha256": "c91124efedaa065907226a47b1d1454f3af1440170c83cf9a7200cb6190156b2",
+        "game_slug": "quake",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 6063,
       "listed_at": "2026-11-17",
       "platforms": [
@@ -56185,6 +56733,14 @@
       "summary": "Build a desktop version of SkiFree from Chris Pirih’s original Windows game.",
       "original_game_title": "SkiFree",
       "project_url": "https://github.com/sp00nznet/skifree",
+      "artwork": {
+        "game_id": 11681,
+        "cover_id": 430544,
+        "image_id": "co987k",
+        "image_sha256": "c7613c1afb825e5b98e1b7b8c5aadda49aa33b56a4adfc7c5929af909b271ca4",
+        "game_slug": "skifree",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 6077,
       "listed_at": "2026-11-17",
       "platforms": [
@@ -57861,6 +58417,14 @@
       "summary": "Explore the caves in a community modification of Derek Yu’s Spelunky Classic.",
       "original_game_title": "Spelunky Classic",
       "project_url": "https://github.com/yancharkin/SpelunkyClassicHD",
+      "artwork": {
+        "game_id": 8145,
+        "cover_id": 90941,
+        "image_id": "co1y65",
+        "image_sha256": "34711cd0f5381465e54129e0ca315275d6ba08e01877c2907ff90726b5ec0185",
+        "game_slug": "spelunky-classic",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 6056,
       "listed_at": "2026-11-17",
       "platforms": [
@@ -59679,6 +60243,80 @@
         "help_url": "https://github.com/recomp-code/street-recomp-v3"
       },
       "issue_number": 3052
+    },
+    {
+      "id": "street-rod-sdl3-port",
+      "name": "Street Rod / SDL3 Port",
+      "summary": "Use your own DOS Street Rod game data with the Windows package or a source build on Linux or Mac.",
+      "original_game_title": "Street Rod",
+      "project_url": "https://github.com/kylofon/street-rod-sdl3",
+      "issue_number": 5855,
+      "listed_at": "2026-11-17",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/kylofon/street-rod-sdl3/blob/v0.1.0/README.md",
+      "release_url": "https://github.com/kylofon/street-rod-sdl3/releases/tag/v0.1.0",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "srport-",
+          "-win64.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare a writable copy of your original game",
+            "instruction": "Use your own DOS Street Rod data, or get the free DOS files from the copyright owner through the link in the upstream guide. Keep SR.EXE, LIB1, LIB2 and HOT_DATA together in a writable Game copy. For optional Street Rod SE cars, keep SRSE.EXE and its matching data in Game/datadisk."
+          },
+          {
+            "title": "Use the upstream Windows setup",
+            "instruction": "Extract the complete Windows x64 ZIP into its own folder and keep both executables and every DLL together. Open Street Rod.exe to choose your data and options. Choose original cars or Street Rod SE cars deliberately. The launcher uses the matching dataset for each."
+          },
+          {
+            "title": "Build the direct player on Linux",
+            "instruction": "The reviewed release has no Linux package. Use the upstream source with a C11 compiler, CMake 3.24 or newer and SDL3 development files. From the repository root, run cmake -S srport -B build -DCMAKE_BUILD_TYPE=Release -DSR_LAUNCHER=OFF -DCMAKE_C_STANDARD_LIBRARIES=-lm, then cmake --build build --target srport. The extra math-library flag is needed on Linux. Keep the built srport and its SDL3 runtime available. The Windows ZIP and launcher are not used on Linux."
+          },
+          {
+            "title": "Build the direct player on Mac",
+            "instruction": "Use a C11 compiler, CMake 3.24 or newer and the macOS SDL3 framework from SDL’s official development package. Keep SDL3.framework in a stable folder. From the repository root, run cmake -S srport -B build -DCMAKE_BUILD_TYPE=Release -DSR_LAUNCHER=OFF -DSDL3_DIR=\"/full/path/SDL3.framework/Resources/CMake\" -DCMAKE_BUILD_RPATH=\"/full/path/framework-folder\", then cmake --build build --target srport. Replace both paths with your actual framework locations. Build on the Mac you will use, so the player matches Intel or Apple Silicon. Keep the framework folder in place after building. The Windows ZIP and launcher are not used. Native Mac game startup and saving have not been tested."
+          },
+          {
+            "title": "Register the actual player in Portcove",
+            "instruction": "On Windows, choose srport.exe as the existing installation; on Linux or Mac, choose the built srport. Choose the player’s containing directory as the working directory. Add --game-dir and your writable game-data folder as two separate arguments. For Street Rod SE, choose the datadisk folder. Review the selected player, folder and arguments, then choose Play. The separate upstream launcher can stay open or close while its game continues."
+          }
+        ],
+        "warnings": [
+          "Use your own original game files. The native port includes reconstructed original program behavior and its own separately licensed port code."
+        ],
+        "references": [
+          {
+            "title": "Keep your settings and progress before replacing files",
+            "instruction": "Back up HOTROD1.SAV through HOTROD15.SAV and hall_dat with each working dataset. Keep the original-car and datadisk-car folders separate so each retains its own progress. Copy %APPDATA%/Street Rod/settings.ini as well. Close both the player and launcher before replacing files. Portcove keeps a launch registration. You and upstream own runtime replacement and backups. Removing the registration leaves the working files and profile in place."
+          },
+          {
+            "title": "SDL3 development framework for Mac",
+            "instruction": "Get the official SDL3 development download from https://github.com/libsdl-org/SDL/releases/latest. Use SDL3.framework from the macos-arm64_x86_64 folder in SDL3.xcframework. The iOS and simulator frameworks are different targets."
+          },
+          {
+            "title": "Other platforms",
+            "instruction": "Windows x64 has the reviewed official package. Linux x64 uses the upstream source build described above, with no reviewed Linux package. Intel Mac and Apple Silicon use the upstream source build described above. Both native architectures were built; Mac game execution remains untested, and there is no reviewed Mac package. Android has no reviewed package or mobile host integration. Those platforms do not inherit the Windows or Linux observations."
+          }
+        ],
+        "help_url": "https://github.com/kylofon/street-rod-sdl3/blob/v0.1.0/README.md"
+      },
+      "artwork": {
+        "game_id": 19229,
+        "cover_id": 289884,
+        "image_id": "co67oc",
+        "image_sha256": "427b375020b0410bd5c2bb0661ca1d395fc88e6636e58572654245291016aad0",
+        "game_slug": "street-rod",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "strider-2-recompiled",
@@ -61890,6 +62528,14 @@
       "original_game_title": "Taiko no Tatsujin (System 357 Green)",
       "summary": "Experimental project. The project claims native initialization, original-data access, gameplay and cabinet security/I/O support. USB camera NG and card support are unimplemented. Windows and Linux source targets are documented; Portcove has not tested a cabinet or physical controller. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/R19988088/TaikoGreenRecomp",
+      "artwork": {
+        "game_id": 412075,
+        "cover_id": 588337,
+        "image_id": "coclyp",
+        "image_sha256": "48a92d7c19ff47ec19d631ac189fe9a13881bdb0cde669e4ab37ccc6376dce61",
+        "game_slug": "taiko-no-tatsujin",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [],
       "availability": "unknown",
@@ -66294,6 +66940,14 @@
       "original_game_title": "Tux Racer",
       "summary": "Race down the original Tux Racer courses in this modern desktop port.",
       "project_url": "https://github.com/labbej27/tuxracer",
+      "artwork": {
+        "game_id": 93306,
+        "cover_id": 371181,
+        "image_id": "co7yel",
+        "image_sha256": "d3a35d78b7b00f267c64f7e1ae00538b302d7b418fe5e5defc45eb13991fd431",
+        "game_slug": "tux-racer",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5797,
       "listed_at": "2026-11-16",
       "availability": "packages",
@@ -70114,6 +70768,14 @@
       "original_game_title": "White Knight Chronicles I (included in II edition)",
       "summary": "The project reports WKC I’s starting town at 30 FPS, short movement, pause, saving, Continue and a short transition to Balastor Plain. Sustained combat has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/WK2D/White-Knight-Chronicles-2-Recomp",
+      "artwork": {
+        "game_id": 7482,
+        "cover_id": 400463,
+        "image_id": "co8kzz",
+        "image_sha256": "fd3175fcd6d81ed7b6dda57f7a4496080fb445268bcff6b565120acbd499ae1d",
+        "game_slug": "white-knight-chronicles",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "funding_urls": [
         "https://ko-fi.com/wk2d"

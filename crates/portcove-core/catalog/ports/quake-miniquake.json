@@ -6,6 +6,14 @@
     "summary": "Play original Quake maps with MiniQuake’s GLQuake and WinQuake engine port.",
     "original_game_title": "Quake",
     "project_url": "https://github.com/MiniLangProject/MiniQuake",
+    "artwork": {
+      "game_id": 333,
+      "cover_id": 434745,
+      "image_id": "co9bg9",
+      "image_sha256": "c91124efedaa065907226a47b1d1454f3af1440170c83cf9a7200cb6190156b2",
+      "game_slug": "quake",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 6063,
     "listed_at": "2026-11-17",
     "platforms": ["windows-x86-64", "linux-x86-64"],

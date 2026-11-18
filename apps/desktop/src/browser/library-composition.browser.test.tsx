@@ -23,7 +23,7 @@ import { installInteractiveTransport } from "../dev-scenarios/interactive/transp
 import { workspace } from "../dev-scenarios/interactive/scenarios";
 import { initializeLocalization, LocalizationProvider } from "../localization";
 import { portDefinition, portStatus } from "../test-fixtures";
-import type { ExternalRuntimeRecord } from "../types";
+import type { ExternalRuntimeRecord, PortListing } from "../types";
 import "../styles/index.css";
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
@@ -81,6 +81,47 @@ function groupedCollectionSnapshot() {
     };
   }
   return snapshot;
+}
+
+function expectContainedCover(card: HTMLElement) {
+  const art = card.querySelector<HTMLElement>(".collection-art")!;
+  const bounds = art.getBoundingClientRect();
+  expect(bounds.width).toBeGreaterThan(0);
+  expect(bounds.height / bounds.width).toBeCloseTo(1.5, 2);
+  for (const image of art.querySelectorAll("img")) {
+    const imageBounds = image.getBoundingClientRect();
+    expect(imageBounds.left).toBeGreaterThanOrEqual(bounds.left - 1);
+    expect(imageBounds.right).toBeLessThanOrEqual(bounds.right + 1);
+    expect(imageBounds.top).toBeGreaterThanOrEqual(bounds.top - 1);
+    expect(imageBounds.bottom).toBeLessThanOrEqual(bounds.bottom + 1);
+  }
+}
+
+function expectBoundsInViewport(element: HTMLElement) {
+  const bounds = element.getBoundingClientRect();
+  expect(bounds.top).toBeGreaterThanOrEqual(0);
+  expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(innerWidth);
+}
+
+async function focusFooterControlsInViewport(card: HTMLElement) {
+  const controls = [
+    ...card.querySelectorAll<HTMLButtonElement>(".library-entry-footer button"),
+  ].filter((control) => !control.matches(":disabled,[aria-disabled=true]"));
+  expect(controls.length).toBeGreaterThan(0);
+  for (const control of controls) {
+    control.focus();
+    await expect.element(page.elementLocator(control)).toHaveFocus();
+    const bounds = control.getBoundingClientRect();
+    expect(bounds.top).toBeGreaterThanOrEqual(0);
+    expect(bounds.bottom).toBeLessThanOrEqual(innerHeight + 1);
+    expect(bounds.left).toBeGreaterThanOrEqual(0);
+    expect(bounds.right).toBeLessThanOrEqual(innerWidth + 1);
+  }
+  const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
+  expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
 }
 
 it("leaves more room for a long row identity than its status and actions at 960px", async () => {
@@ -809,6 +850,384 @@ it("keeps a singleton port review readable below its close control at narrow wid
     .toHaveFocus();
 });
 
+it.each([
+  ["dark", false],
+  ["light", false],
+  ["dark", true],
+  ["light", true],
+] as const)(
+  "keeps short-window %s Covers actionable with several entries (grouped: %s)",
+  async (theme, grouped) => {
+    await page.viewport(960, 640);
+    const snapshot = workspace("collection-large");
+    const first = snapshot.catalog.ports[0]!;
+    first.name = "Harbor Adventure Community Edition";
+    first.presentation!.original_game_title = "Harbor Adventure and the Forgotten Islands";
+    if (grouped) {
+      for (const port of snapshot.catalog.ports.slice(0, 2)) {
+        port.presentation!.original_game = {
+          format_version: 1,
+          id: "fixture-super-mario-64",
+          evidence_urls: ["https://example.com/fixture/super-mario-64"],
+          source_editions: [],
+        };
+      }
+    }
+    snapshot.statuses = snapshot.statuses.slice(0, grouped ? 4 : 3);
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+    await mount(theme, "collection-large", 3);
+    const cards = [...document.querySelectorAll<HTMLElement>(".collection-cover")];
+    const firstTop = cards[0]!.getBoundingClientRect().top;
+    const firstRow = cards.filter(
+      (card) => Math.abs(card.getBoundingClientRect().top - firstTop) < 1,
+    );
+    expect(firstRow.length).toBeGreaterThanOrEqual(2);
+    for (const card of firstRow) {
+      const art = card.querySelector<HTMLElement>(".collection-art")!.getBoundingClientRect();
+      const title = card.querySelector<HTMLElement>(".collection-title")!.getBoundingClientRect();
+      const footer = card
+        .querySelector<HTMLElement>(".library-entry-footer")!
+        .getBoundingClientRect();
+      expect(art.width).toBeGreaterThan(100);
+      expect(art.height / art.width).toBeCloseTo(1.5, 2);
+      expect(title.top).toBeLessThan(art.bottom);
+      expect(footer.bottom).toBeLessThan(innerHeight);
+      for (const overlay of card.querySelectorAll<HTMLElement>(".collection-personal-actions")) {
+        expect(overlay.getBoundingClientRect().right).toBeLessThanOrEqual(art.right + 1);
+        expect(overlay.getBoundingClientRect().left).toBeGreaterThanOrEqual(art.left - 1);
+      }
+    }
+    await captureParityState(`library-short-covers-${theme}-${grouped ? "grouped" : "plain"}`);
+    const search = page.getByRole("textbox", { name: "Search your library" });
+    await search.fill("Forgotten Islands");
+    await expect.poll(() => document.querySelectorAll(".collection-cover").length).toBe(1);
+    await search.fill("");
+    await expect.poll(() => document.querySelectorAll(".collection-cover").length).toBe(3);
+    const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
+    expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
+  },
+);
+
+it.each([
+  ["dark", 1280, 800, false, 2],
+  ["light", 1280, 800, false, 2],
+  ["dark", 1366, 768, false, 2],
+  ["light", 1366, 768, false, 2],
+  ["dark", 1280, 800, true, 3],
+  ["light", 1366, 768, true, 3],
+  ["light", 1280, 800, false, 1],
+  ["dark", 1366, 768, false, 12],
+] as const)(
+  "keeps four-platform %s Covers actionable at %i×%i (grouped: %s, entries: %i)",
+  async (theme, width, height, grouped, entryCount) => {
+    await page.viewport(width, height);
+    const snapshot = workspace("collection-large");
+    const listing = workspace("details").listing_catalog!.listings[0]!;
+    const platforms: PortListing["platforms"] = [
+      "windows-x86-64",
+      "linux-x86-64",
+      "macos-x86-64",
+      "macos-aarch64",
+    ];
+    const visiblePorts = snapshot.catalog.ports.slice(0, entryCount);
+    for (const [index, port] of visiblePorts.entries()) {
+      port.name = `Harbor desktop project ${index + 1}`;
+      port.presentation!.original_game_title =
+        index === 0 ? "Harbor Adventure and the Forgotten Islands" : `Harbor game ${index + 1}`;
+    }
+    if (grouped) {
+      for (const port of visiblePorts.slice(0, 2)) {
+        port.presentation!.original_game_title = "Harbor Adventure and the Forgotten Islands";
+        port.presentation!.original_game = {
+          format_version: 1,
+          id: "fixture-medium-harbor",
+          evidence_urls: ["https://example.com/fixture/medium-harbor"],
+          source_editions: [],
+        };
+      }
+    }
+    // Library intentionally clears definition platforms before rendering its
+    // chips. The synthetic listing supplies all four platform labels seen natively.
+    snapshot.listing_catalog = {
+      format_version: 1,
+      listings: visiblePorts.map((port) => ({
+        ...listing,
+        id: port.id,
+        name: port.name,
+        original_game_title: port.presentation!.original_game_title ?? port.name,
+        platforms,
+      })),
+    };
+    snapshot.statuses = snapshot.statuses.slice(0, entryCount);
+    const needsFiles = snapshot.statuses[grouped ? 2 : 1];
+    if (needsFiles)
+      needsFiles.readiness = {
+        launchable: false,
+        pending_setup: false,
+        blockers: ["missing_source"],
+        source: "missing",
+      };
+    // Accepted listings also need an explicit current action assessment. The
+    // controlled Core replies permit only this fixture's launchable entries.
+    snapshot.listing_statuses = snapshot.statuses.map((status) => ({
+      port_id: status.port_id,
+      status,
+      actions: [{ action: "launch", allowed: status.readiness?.launchable === true }],
+    }));
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+    const renderedEntries = entryCount - Number(grouped);
+    await mount(theme, "collection-large", renderedEntries);
+    await page.getByRole("textbox", { name: "Search your library" }).fill("Harbor");
+    await expect
+      .poll(() => document.querySelectorAll(".collection-cover").length)
+      .toBe(renderedEntries);
+    if (grouped) {
+      const prompt = document.querySelector<HTMLElement>(
+        '[data-library-game-id="game:fixture-medium-harbor"] .collection-cover',
+      )!;
+      const promptFooter = prompt.querySelector<HTMLElement>(".library-entry-footer")!;
+      expectBoundsInViewport(promptFooter);
+      await captureParityState(`library-medium-four-platform-${theme}-${width}-unresolved`);
+      await page
+        .elementLocator(prompt)
+        .getByRole("button", { name: "Choose Harbor desktop project 1", exact: true })
+        .click();
+    }
+    await expect
+      .poll(() => document.querySelectorAll("button.collection-identity").length)
+      .toBe(renderedEntries);
+    const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
+    page.getByRole("button", { name: "Covers", exact: true }).element().focus();
+    main.scrollTop = 0;
+    window.scrollTo(0, 0);
+    const cards = [...document.querySelectorAll<HTMLElement>(".collection-cover")];
+    const firstTop = cards[0]!.getBoundingClientRect().top;
+    const firstRow = cards.filter(
+      (card) => Math.abs(card.getBoundingClientRect().top - firstTop) < 1,
+    );
+    expect(firstRow.length).toBe(Math.min(renderedEntries, 3));
+    await expect
+      .poll(() =>
+        firstRow.every((card) => {
+          const images = [...card.querySelectorAll<HTMLImageElement>(".collection-art img")];
+          return (
+            images.length > 0 && images.every((image) => image.complete && image.naturalWidth > 0)
+          );
+        }),
+      )
+      .toBe(true);
+    for (const card of firstRow) {
+      expectContainedCover(card);
+      const identity = card.querySelector<HTMLElement>(".collection-identity")!;
+      const art = card.querySelector<HTMLElement>(".collection-art")!.getBoundingClientRect();
+      const title = card.querySelector<HTMLElement>(".collection-title")!.getBoundingClientRect();
+      expect(title.left).toBeGreaterThanOrEqual(art.right);
+      expect(title.top).toBeLessThan(art.bottom);
+      const chips = [
+        ...card.querySelectorAll<HTMLElement>('.library-entry-chips [title="Runs on"]'),
+      ];
+      expect(chips.map((chip) => chip.textContent?.trim())).toEqual([
+        "Windows",
+        "Linux",
+        "macOS Intel",
+        "Apple silicon",
+      ]);
+      const readiness = card.querySelector<HTMLElement>(".readiness")!;
+      expect(readiness.textContent).toMatch(/Ready to play|Game files missing/);
+      const footer = card.querySelector<HTMLElement>(".library-entry-footer")!;
+      expect(footer.querySelector(".library-card-action")?.textContent).toMatch(
+        /Play|Finish setup/,
+      );
+      for (const element of [identity, readiness, footer, ...chips]) {
+        await expect.element(page.elementLocator(element)).toBeVisible();
+        expectBoundsInViewport(element);
+      }
+    }
+    expect(main.scrollTop).toBe(0);
+    expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+    await captureParityState(
+      `library-medium-four-platform-${theme}-${width}-${grouped ? "grouped" : "plain"}-${entryCount}`,
+    );
+    await focusFooterControlsInViewport(cards.at(-1)!);
+  },
+);
+
+it("keeps grouped short Covers usable at 320px with enlarged text and returns keyboard choice focus", async () => {
+  await page.viewport(320, 580);
+  document.documentElement.style.fontSize = "20px";
+  const snapshot = groupedCollectionSnapshot();
+  const title =
+    "Harbor Adventure and the Forgotten Islands — The Extended Voyage Beyond the Northern Sea";
+  const project =
+    "Harbor Adventure Community Restoration Project with Modern Graphics and Expanded Controller Support";
+  snapshot.catalog.ports[0]!.name = project;
+  for (const port of snapshot.catalog.ports.slice(0, 2)) {
+    port.presentation!.original_game_title = title;
+  }
+  snapshot.statuses = snapshot.statuses.slice(0, 4);
+  vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+  const choosePort = vi.spyOn(desktopApi, "changeOrganization");
+  await mount("dark", "collection", 3);
+  const group = document.querySelector<HTMLElement>(
+    '[data-library-game-id="game:fixture-super-mario-64"]',
+  )!;
+  const prompt = group.querySelector<HTMLElement>(".collection-cover")!;
+  expectContainedCover(prompt);
+  await captureParityState("library-short-covers-compact-grouped-initial");
+  await focusFooterControlsInViewport(prompt);
+  const choiceButton = prompt.querySelector<HTMLButtonElement>(".collection-actions button")!;
+  const prefix = choiceButton.querySelector("span")!.firstChild!;
+  expect(prefix.nodeType).toBe(Node.TEXT_NODE);
+  const chooseStart = prefix.textContent!.indexOf("Choose");
+  expect(chooseStart).toBeGreaterThanOrEqual(0);
+  const prefixRange = document.createRange();
+  prefixRange.setStart(prefix, chooseStart);
+  prefixRange.setEnd(prefix, chooseStart + "Choose".length);
+  expect(prefixRange.getClientRects()).toHaveLength(1);
+  await captureParityState("library-short-covers-compact-grouped-choices");
+  const choices = page.elementLocator(prompt.querySelector<HTMLElement>(".collection-actions")!);
+  const choose = choices.getByRole("button", { name: `Choose ${project}`, exact: true });
+  choose.element().focus();
+  await userEvent.keyboard("{Enter}");
+  await expect
+    .element(page.elementLocator(group).getByRole("button", { name: /^Play: / }))
+    .toBeVisible();
+  await expect.element(page.elementLocator(group)).toHaveFocus();
+  expect(choosePort).toHaveBeenCalledExactlyOnceWith(
+    expect.any(Number),
+    {
+      kind: "set_preferred_implementation",
+      game_id: "fixture-super-mario-64",
+      port_id: "collection-0",
+    },
+    1,
+  );
+  const card = group.querySelector<HTMLElement>(".collection-cover")!;
+  expect(card.querySelector("[data-detail-game-id]")?.getAttribute("data-detail-game-id")).toBe(
+    "collection-0",
+  );
+  expect(card.querySelector(".collection-title")?.textContent).toBe(title);
+  const projectLabel = card.querySelector<HTMLElement>(".collection-project")!;
+  expect(projectLabel.textContent).toContain(project);
+  expect(projectLabel.title).toBe(project);
+  expect(projectLabel.getBoundingClientRect().height).toBeLessThanOrEqual(
+    Number.parseFloat(getComputedStyle(projectLabel).lineHeight) * 2 + 1,
+  );
+  expectContainedCover(card);
+  await captureParityState("library-short-covers-compact-grouped-selected-focus");
+  const identity = card.querySelector<HTMLButtonElement>("button.collection-identity")!;
+  identity.focus();
+  await expect.element(page.elementLocator(identity)).toHaveFocus();
+  expect(projectLabel.getBoundingClientRect().height).toBeGreaterThan(
+    Number.parseFloat(getComputedStyle(projectLabel).lineHeight) * 2,
+  );
+  await captureParityState("library-short-covers-compact-grouped-full-identity");
+  await focusFooterControlsInViewport(card);
+  const more = page.elementLocator(card).getByRole("button", { name: /^More actions for/ });
+  more.element().focus();
+  await userEvent.keyboard("{Enter}");
+  const menu = page.getByRole("menu", { name: /^More actions for/ });
+  await expect.element(menu).toBeVisible();
+  const firstEnabledItem = menu
+    .element()
+    .querySelector<HTMLElement>(
+      '[role="menuitem"]:not([aria-disabled="true"]):not([disabled]):not([data-disabled])',
+    )!;
+  await expect.element(page.elementLocator(firstEnabledItem)).toHaveFocus();
+  expect(menu.element().contains(document.activeElement)).toBe(true);
+  const bounds = menu.element().getBoundingClientRect();
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(innerWidth + 1);
+  expect(bounds.top).toBeGreaterThanOrEqual(0);
+  expect(bounds.bottom).toBeLessThanOrEqual(innerHeight + 1);
+  await captureParityState("library-short-covers-compact-grouped-menu");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(menu).not.toBeInTheDocument();
+  await expect.element(more).toHaveFocus();
+  await captureParityState("library-short-covers-compact-grouped-menu-return");
+});
+
+it("keeps plain short Covers and their overflow menu reachable at 430px", async () => {
+  await page.viewport(430, 640);
+  const snapshot = workspace("collection");
+  snapshot.statuses = snapshot.statuses.slice(0, 3);
+  snapshot.catalog.ports[0]!.name = "Harbor Adventure Community Restoration Edition";
+  snapshot.catalog.ports[0]!.presentation!.original_game_title =
+    "Harbor Adventure and the Forgotten Islands — The Long Northern Voyage";
+  vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+  await mount("light", "collection", 3);
+  const cards = [...document.querySelectorAll<HTMLElement>(".collection-cover")];
+  for (const card of cards) expectContainedCover(card);
+  await captureParityState("library-short-covers-compact-plain-initial");
+  const card = document
+    .querySelector('[data-detail-game-id="collection-0"]')!
+    .closest<HTMLElement>(".collection-cover")!;
+  await focusFooterControlsInViewport(card);
+  await captureParityState("library-short-covers-compact-plain-action");
+  const more = page.elementLocator(card).getByRole("button", { name: /^More actions for/ });
+  more.element().focus();
+  await userEvent.keyboard("{Enter}");
+  const menu = page.getByRole("menu", { name: /^More actions for/ });
+  await expect.element(menu).toBeVisible();
+  const firstEnabledItem = menu
+    .element()
+    .querySelector<HTMLElement>(
+      '[role="menuitem"]:not([aria-disabled="true"]):not([disabled]):not([data-disabled])',
+    )!;
+  await expect.element(page.elementLocator(firstEnabledItem)).toHaveFocus();
+  expect(menu.element().contains(document.activeElement)).toBe(true);
+  const bounds = menu.element().getBoundingClientRect();
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(innerWidth + 1);
+  expect(bounds.top).toBeGreaterThanOrEqual(0);
+  expect(bounds.bottom).toBeLessThanOrEqual(innerHeight + 1);
+  await captureParityState("library-short-covers-compact-plain-menu");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(menu).not.toBeInTheDocument();
+  await expect.element(more).toHaveFocus();
+  await captureParityState("library-short-covers-compact-plain-menu-return");
+});
+
+it("keeps twelve short-window Covers contained through fallback artwork and the last action", async () => {
+  await page.viewport(960, 640);
+  await mount("dark", "collection", 12);
+  await inspectLibraryGroups(
+    [2, 6, 10, 4, 8, 5, 9, 0, 3, 7, 11].map((index) => [`collection-${index}`]),
+    (card) => expectContainedCover(card.querySelector<HTMLElement>(".collection-cover") ?? card),
+  );
+  await mountLibraryPort("collection-4");
+  await captureParityState("library-short-covers-many-initial");
+  const missing = document
+    .querySelector('[data-detail-game-id="collection-4"]')!
+    .closest<HTMLElement>(".collection-cover")!;
+  const missingMore = page
+    .elementLocator(missing)
+    .getByRole("button", { name: /^More actions for/ });
+  missingMore.element().focus();
+  await expect.element(missingMore).toHaveFocus();
+  const fallback = missing.querySelector<HTMLElement>(".collection-art")!;
+  await expect.poll(() => fallback.getAttribute("data-artwork-source")).toBe("generated_fallback");
+  expect(fallback.querySelectorAll("img")).toHaveLength(0);
+  expect(fallback.querySelector("[data-cover-illustration]")).not.toBeNull();
+  expectContainedCover(missing);
+  fallback.scrollIntoView({ block: "center" });
+  const fallbackBounds = fallback.getBoundingClientRect();
+  expect(fallbackBounds.top).toBeGreaterThanOrEqual(0);
+  expect(fallbackBounds.bottom).toBeLessThanOrEqual(innerHeight);
+  await captureParityState("library-short-covers-many-fallback");
+  const lastGroup = await mountLibraryPort("collection-11");
+  const last = lastGroup.querySelector<HTMLElement>(".collection-cover") ?? lastGroup;
+  await focusFooterControlsInViewport(last);
+  const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
+  const owner =
+    getComputedStyle(main).overflowY === "visible"
+      ? (document.scrollingElement ?? document.documentElement)
+      : main;
+  expect(owner.scrollTop).toBeGreaterThan(0);
+  await captureParityState("library-short-covers-many-last-action");
+});
+
 it.each([false, true])(
   "keeps the only playable cover in view with long identity text (grouped: %s)",
   async (grouped) => {
@@ -849,16 +1268,16 @@ it.each([false, true])(
 
 it.each([
   [1440, 900, 6, 180.7],
-  [1440, 768, 6, 180.7],
-  [1024, 800, 4, 177],
+  [1440, 768, 3, 144],
+  [1024, 800, 2, 144],
   [1024, 801, 3, 220],
-  [1920, 800, 9, 167.1],
+  [1920, 800, 4, 144],
   [1920, 801, 8, 190.5],
   [740, 900, 3, 205.3],
   [390, 844, 2, 143],
   [320, 844, 1, 220],
 ])(
-  "preserves the prototype cover density at %ipx by %ipx",
+  "keeps Library cover density and identity placement consistent at %ipx by %ipx",
   async (width, height, columns, artworkWidth) => {
     await page.viewport(width, height);
     await mount();
@@ -871,7 +1290,11 @@ it.each([
     const cover = grid.querySelector<HTMLElement>(".collection-cover")!;
     const art = cover.querySelector<HTMLElement>(".collection-art")!;
     const overlay = cover.querySelector<HTMLElement>(".collection-personal-actions")!;
-    expect(art.getBoundingClientRect().width).toBeCloseTo(cover.getBoundingClientRect().width, 0);
+    const horizontal = matchMedia("(height <= 50rem)").matches;
+    expect(
+      horizontal ||
+        Math.abs(art.getBoundingClientRect().width - cover.getBoundingClientRect().width) < 0.5,
+    ).toBe(true);
     expect(overlay.getBoundingClientRect().width).toBeCloseTo(art.getBoundingClientRect().width, 0);
     expect(art.getBoundingClientRect().height / art.getBoundingClientRect().width).toBeCloseTo(
       1.5,
@@ -879,11 +1302,18 @@ it.each([
     );
     expect(art.getBoundingClientRect().width).toBeCloseTo(artworkWidth, 0);
     const title = cover.querySelector<HTMLElement>(".collection-title")!;
-    // Match the effective combined gap, including the caption's padding.
-    expect(title.getBoundingClientRect().top - art.getBoundingClientRect().bottom).toBeCloseTo(
-      24,
-      0,
+    // A previous pointer position can hover the first poster and translate its
+    // artwork by two pixels. Measure the resting composition after that settles.
+    await userEvent.hover(
+      page.getByRole("heading", { name: "Your library", exact: true }).element(),
     );
+    await expect.poll(() => getComputedStyle(art).transform).toBe("none");
+    // Horizontal identities use the grid gap; posters include caption padding.
+    expect(
+      horizontal
+        ? title.getBoundingClientRect().left - art.getBoundingClientRect().right
+        : title.getBoundingClientRect().top - art.getBoundingClientRect().bottom,
+    ).toBeCloseTo(horizontal ? 12 : 24, 0);
     expect(getComputedStyle(title).fontWeight).toBe("600");
     expect(getComputedStyle(art).borderRadius).toBe("10px");
     const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;

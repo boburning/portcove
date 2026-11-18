@@ -1,3 +1,4 @@
+import { hostedAmendmentMarker, parseHostedAmendment } from "./hosted-discovery-amendment.mts";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -178,6 +179,14 @@ export function runHostedIntakeWorker(
   return report;
 }
 
+export function hostedTriggerRequest(event: unknown): unknown {
+  if (!isRecord(event) || !isRecord(event.comment)) return undefined;
+  const { body, id } = event.comment;
+  return typeof body === "string" && body.startsWith(hostedAmendmentMarker)
+    ? parseHostedAmendment(body).request_comment
+    : id;
+}
+
 function main() {
   const root = fileURLToPath(new URL("../", import.meta.url));
   const directory = path.join(root, "work/hosted-discovery-intake");
@@ -191,7 +200,7 @@ function main() {
     process.env.GITHUB_EVENT_NAME === "issue_comment" && process.env.GITHUB_EVENT_PATH
       ? JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"))
       : null;
-  const trigger = isRecord(event) && isRecord(event.comment) ? event.comment.id : undefined;
+  const trigger = hostedTriggerRequest(event);
   const triggered = result.outcomes.find((o) => o.request === trigger);
   const passed =
     typeof trigger === "number"

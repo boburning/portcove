@@ -16,6 +16,7 @@ mod authorization;
 mod browsing_context;
 mod bug_report;
 mod cancellation;
+mod carried_files;
 mod carry_ledger;
 mod carry_plan;
 mod carry_step;
@@ -197,6 +198,7 @@ pub use bug_report::{
     bug_report_link, draft_bug_report, draft_report, redact_report_text, report_issue, report_link,
 };
 pub use cancellation::{CancellationPhase, CancellationState};
+pub use carried_files::{CarriedFileCounts, CarriedFileOutcome, CarriedFilesStatus};
 pub use cartridge_build::CartridgeBuildRecipe;
 pub use catalog::{Catalog, CatalogProposalInspection, CatalogProposalPortInspection};
 pub use catalog_media::{

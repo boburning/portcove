@@ -261,7 +261,7 @@
       ]
     }
   },
-  "wave-race-64-recomp": "Select your own Wave Race 64 (USA Rev A) cartridge dump. Portcove checks the original and installs the managed Windows package. After installation, choose Play in Portcove, then Start Game in the launcher.",
+  "wave-race-64-recomp": "Select your own Wave Race 64 (USA Rev A) cartridge dump. Portcove checks the original and installs its managed package. After installation, choose Play in Portcove, then Start Game in the launcher.",
   "dkc3-recomp": "Use your own North American English/French DKC3 ROM. Portcove accepts .sfc or .smc files with or without a copier header.",
   "alexbeav-ape-escape-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
   "alexbeav-alundra-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",

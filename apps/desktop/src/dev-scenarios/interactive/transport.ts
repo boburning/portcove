@@ -783,7 +783,16 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       return [];
     },
     get_store_game_installs: (args) => {
-      requireArgs("get_store_game_installs", args, { generation });
+      const profileId = args?.profileId;
+      requireArgs("get_store_game_installs", args, {
+        generation,
+        ...(profileId !== undefined ? { profileId } : {}),
+      });
+      if (
+        profileId !== undefined &&
+        !workspace(journey).catalog.source_profiles?.some((profile) => profile.id === profileId)
+      )
+        return unsupported("get_store_game_installs (unknown profile)");
       return { checked_stores: [], installs: [], skipped_entries: 0, limited: false };
     },
     get_backups: (args) => {

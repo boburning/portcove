@@ -82,6 +82,7 @@ function verifiedThumbnailUrl(
 /** Disposable display cache for one library generation. Core owns every choice. */
 export class ArtworkCache {
   private entries = new Map<string, ArtworkDisplay>();
+  private displaySequence = 0;
   private listeners = new Map<string, Set<() => void>>();
   private pending = new Map<string, Promise<void>>();
   private scheduled: ScheduledArtworkTask[] = [];
@@ -95,6 +96,11 @@ export class ArtworkCache {
     readonly generation: number,
     readonly catalogArtworkKey = "",
   ) {}
+
+  /** A stable snapshot token for views subscribing to several admitted images. */
+  get displayVersion() {
+    return this.displaySequence;
+  }
 
   private key(portId: string, slot: ArtworkSlot) {
     return JSON.stringify([portId, slot]);
@@ -143,6 +149,7 @@ export class ArtworkCache {
   }
 
   private publishKey(key: string, value: ArtworkDisplay) {
+    this.displaySequence++;
     this.entries.delete(key);
     this.entries.set(key, value);
     this.trim();
@@ -257,6 +264,36 @@ export class ArtworkCache {
 
   companionKey(portId: string, primaryCacheId: string, sha256: string, revision: number) {
     return JSON.stringify([portId, "companion-cover", primaryCacheId, sha256, revision]);
+  }
+
+  collectionKey(portId: string, sha256: string, revision: number) {
+    return JSON.stringify([portId, "collection-cover", sha256, revision]);
+  }
+
+  readCollection(key: string) {
+    return this.entries.get(key) ?? empty;
+  }
+
+  subscribeCollection(key: string, listener: () => void) {
+    return this.subscribeKey(key, listener);
+  }
+
+  loadCollectionCover(
+    key: string,
+    portId: string,
+    sha256: string,
+    revision: number,
+    stillInterested: () => boolean,
+  ) {
+    this.loadRemotePreview(
+      key,
+      {},
+      sha256,
+      revision,
+      () => desktopApi.collectionCoverThumbnail(portId, sha256, revision, this.generation),
+      stillInterested,
+      Boolean(this.entries.get(key)?.error),
+    );
   }
 
   readCompanion(key: string) {
