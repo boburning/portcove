@@ -58,6 +58,76 @@ fn result(root: &Path, arguments: &[&str], expected_command: &str) -> Value {
 }
 
 #[test]
+fn profile_setups_keeps_full_runtime_verification_in_public_json() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path();
+    // This adapter exists in the ordinary compiled CLI, unlike the Core-only
+    // Starship mod fixture. Reuse the supported-port adoption shape from
+    // host_diagnostics; these owned helper bytes are never game qualification.
+    let port_id = "zelda64-recomp";
+    let catalog = portcove_core::Catalog::embedded().unwrap();
+    let port = catalog.port(port_id).unwrap();
+    let original = root.join("owned-installation");
+    fs::create_dir(&original).unwrap();
+    let relative = &port.executable_hints[&portcove_core::Platform::current().unwrap()][0];
+    let executable = original.join(relative);
+    fs::create_dir_all(executable.parent().unwrap()).unwrap();
+    fs::copy(compile_native_fixture(root), &executable).unwrap();
+    let install = result(
+        root,
+        &[
+            "--json",
+            "--non-interactive",
+            "adopt",
+            original.to_str().unwrap(),
+            "--port",
+            port_id,
+            "--yes",
+        ],
+        "adopt",
+    );
+    result(
+        root,
+        &["--json", "profile", "ensure-default", port_id],
+        "profile.ensure-default",
+    );
+    let view = result(
+        root,
+        &["--json", "profile", "setups", port_id],
+        "profile.setups",
+    );
+    assert_eq!(view["supported"], true, "{view}");
+    assert_eq!(
+        view["inventory"]["profiles"].as_array().unwrap().len(),
+        1,
+        "{view}"
+    );
+    assert_eq!(
+        view["inventory"]["profiles"][0]["build_availability"], "verified",
+        "{view}"
+    );
+    let installed = Path::new(install["path"].as_str().unwrap())
+        .join(install["selected_executable"].as_str().unwrap());
+    let mut bytes = fs::read(&installed).unwrap();
+    bytes[0] ^= 1;
+    fs::write(installed, bytes).unwrap();
+    let changed = result(
+        root,
+        &["--json", "profile", "setups", port_id],
+        "profile.setups",
+    );
+    assert_eq!(
+        changed["inventory"]["profiles"][0]["build_availability"], "changed",
+        "{changed}"
+    );
+    assert!(
+        !serde_json::to_string(&changed)
+            .unwrap()
+            .contains("\"present\"")
+    );
+}
+
+#[test]
 fn profile_commands_migrate_default_append_revisions_and_refuse_stale_review() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path();

@@ -2354,8 +2354,16 @@ loader contract, package closure, typed orderings, consequential settings and sa
 group. A retained-build reference keyed by the profile ID keeps every revision's
 build protected (see [earlier builds](#earlier-builds-stay-offered-for-recovery)).
 
+`profile list` and `profile setups` check the retained runtime's immutable files. Desktop's ordinary
+setup view instead reports `build_availability: "present"` after checking the
+registered installation identity, manifest, executable presence and current
+policy. That preview does not check all installed file contents. It leaves
+`verified` for full inspection; setup copies, launch and other consequential
+operations keep their existing checks before changing data or running a game.
+
 ```text
 portcove --library PATH --json profile list PORT_ID
+portcove --library PATH --json profile setups PORT_ID
 portcove --library PATH --json profile ensure-default PORT_ID
 portcove --library PATH --json profile copy PORT_ID PROFILE_ID NAME [--current-build] [--progress-from-revision SHA256 --progress-target-install INSTALL_ID --progress-target-revision SHA256]
 portcove --library PATH --json profile create-clean PORT_ID SOURCE_PROFILE_ID NAME --expected-revision REVISION
