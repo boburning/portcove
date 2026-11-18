@@ -18,11 +18,11 @@
     "listed_at": "2026-11-15",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
-    "release_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/releases/tag/v1.41.2",
+    "release_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/releases",
     "setup_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/blob/v1.41.2/README.md#running-the-game",
     "download_asset_hints": {
-      "windows-x86-64": ["crusader-1.41.2-windows-x64.zip"],
-      "linux-x86-64": ["crusader-1.41.2-linux-x64.tar.gz"]
+      "windows-x86-64": ["crusader-", "-windows-x64.zip"],
+      "linux-x86-64": ["crusader-", "-linux-x64.tar.gz"]
     },
     "manual_setup": {
       "help_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/blob/v1.41.2/README.md#running-the-game",

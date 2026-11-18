@@ -364,6 +364,40 @@ mod tests {
     }
 
     #[test]
+    fn crusader_desktop_listing_recognizes_versioned_player_archives() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let id = "crusader-no-remorse-sebsebseb1982-sdl-port";
+        let listing = catalog.listing(id).unwrap();
+        assert!(catalog.port(id).is_err(), "display only");
+        for version in ["1.41.2", "1.47.0", "1.49.0"] {
+            let mut assets = [
+                asset(1, &format!("crusader-{version}-windows-x64.zip")),
+                asset(2, &format!("crusader-{version}-linux-x64.tar.gz")),
+                asset(3, &format!("crusader-{version}-portmaster-aarch64.zip")),
+                asset(4, &format!("crusader-{version}-source-windows-x64.zip")),
+                asset(5, "SHA256SUMS"),
+            ];
+            assets[1].can_extract = true;
+            for (platform, expected) in
+                [(Platform::WindowsX86_64, 1u64), (Platform::LinuxX86_64, 2)]
+            {
+                let hints = &listing.download_asset_hints[&platform];
+                let (options, recommendation) = recommend_packages(&assets, platform, hints, true);
+                assert_eq!(recommendation, Some(expected.into()));
+                assert!(
+                    assess_package(&assets[expected as usize - 1], platform, hints)
+                        .1
+                        .unwrap()
+                        >= 100
+                );
+                assert_eq!(options[2].suitability, "incompatible");
+                assert_eq!(options[3].suitability, "auxiliary");
+                assert_eq!(options[4].suitability, "auxiliary");
+            }
+        }
+    }
+
+    #[test]
     fn n64_picker_listings_recommend_the_observed_desktop_archives() {
         let catalog = crate::Catalog::embedded().unwrap();
         let cases = [
