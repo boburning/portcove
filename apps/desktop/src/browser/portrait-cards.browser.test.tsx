@@ -813,6 +813,32 @@ it.for([2, 4] as const)(
     );
     await page.viewport(390, 844);
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390);
+    // Responsive virtual rows may replace the wide card. Capture its current
+    // rendered artwork, after the same node survives the resize render frames.
+    await expect
+      .poll(async () => {
+        const current = document.querySelector<HTMLElement>(".discover-game .collection-art");
+        if (!current) return false;
+        await act(async () => {
+          await new Promise(requestAnimationFrame);
+          await new Promise(requestAnimationFrame);
+        });
+        if (
+          !current.isConnected ||
+          current !== document.querySelector(".discover-game .collection-art")
+        )
+          return false;
+        frame = current;
+        return true;
+      })
+      .toBe(true);
+    await expect.poll(() => frame.querySelectorAll("img").length).toBe(count);
+    for (const img of frame.querySelectorAll("img")) {
+      await expect.poll(() => img.naturalWidth).toBeGreaterThan(0);
+      expect(getComputedStyle(img).objectFit).toBe("contain");
+    }
+    expect(frame.dataset.artworkSource).toBe("igdb_cover_collection");
+    expect(desktopApi.collectionCoverThumbnail).toHaveBeenCalledTimes(count);
     await captureTargetScreenshot(
       frame,
       `../../../../outputs/uiux-game-titles/collection-${count}-narrow.png`,
