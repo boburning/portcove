@@ -215,7 +215,9 @@ it.each([
     await expect.element(scope.getByRole("alert")).toHaveTextContent(diagnostic);
     await expect
       .element(scope.getByRole("status"))
-      .toHaveTextContent("Couldn't check SteamGridDB setup.");
+      .toHaveTextContent(
+        "Couldn't check SteamGridDB setup. Check again to see whether a key is saved.",
+      );
     const button = scope.getByRole("button", { name: "Check setup again", exact: true }).element();
     const recovery = page.elementLocator(button);
     button.scrollIntoView({ block: "center", inline: "nearest" });
