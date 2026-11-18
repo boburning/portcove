@@ -10,6 +10,7 @@ export function primaryCliCommand(
   channel: ReleaseChannel,
   sourcePath = "",
   biosPath = "",
+  registered: { game?: boolean; bios?: boolean } = {},
 ) {
   const interpreter: CommandShell = context.platform === "windows-x86-64" ? "powershell" : "posix";
   const executable = context.executable ?? "<portcove-executable>";
@@ -55,13 +56,24 @@ export function primaryCliCommand(
     }
   } else {
     args.push("--json", "--non-interactive", "ensure", port.id, "--channel", channel);
-    for (const [required, flag, value, label] of [
-      [port.source_profile, "--source", sourcePath, "source-path"],
-      [port.bios_source_profile, "--bios", biosPath, "bios-path"],
+    for (const [profile, optional, existing, flag, value, label] of [
+      [
+        port.source_profile,
+        port.optional_game_source,
+        registered.game,
+        "--source",
+        sourcePath,
+        "source-path",
+      ],
+      [port.bios_source_profile, false, registered.bios, "--bios", biosPath, "bios-path"],
     ] as const) {
-      if (!required) continue;
-      if (!value.trim()) missing.push(label);
-      args.push(flag, value.trim() ? value : `<${label}>`);
+      if (!profile) continue;
+      if (value.trim()) {
+        args.push(flag, value);
+      } else if (!optional && !existing) {
+        missing.push(label);
+        args.push(flag, `<${label}>`);
+      }
     }
   }
   return {

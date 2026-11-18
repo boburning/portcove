@@ -19,6 +19,7 @@ function useCliContinuity({
   channel,
   sourcePath,
   biosPath,
+  registered,
 }: {
   generation: number;
   port: PortDefinition;
@@ -26,6 +27,7 @@ function useCliContinuity({
   channel: ReleaseChannel;
   sourcePath: string;
   biosPath: string;
+  registered?: { game?: boolean; bios?: boolean };
 }) {
   const [loaded, setLoaded] = useState<{
     generation: number;
@@ -54,7 +56,7 @@ function useCliContinuity({
       current = false;
     };
   }, [generation, attempt]);
-  return { port, status, channel, sourcePath, biosPath, context, setAttempt, error };
+  return { port, status, channel, sourcePath, biosPath, registered, context, setAttempt, error };
 }
 
 export function CliContinuity(props: Parameters<typeof useCliContinuity>[0]) {
@@ -97,6 +99,21 @@ function CliContinuityView(model: ReturnType<typeof useCliContinuity>) {
         )}
       </section>
     );
+  if (
+    !installed &&
+    !stagedOnly &&
+    !useInPlace &&
+    (!model.port.platforms.includes(model.context.platform) ||
+      model.status?.port_actions?.some(
+        ({ action, reason }) =>
+          action === "install" &&
+          (reason === "unsupported_platform" ||
+            reason === "route_not_offered" ||
+            reason === "definition_ineligible"),
+      ))
+  )
+    return null;
+
   let command;
   try {
     command = primaryCliCommand(
@@ -106,6 +123,7 @@ function CliContinuityView(model: ReturnType<typeof useCliContinuity>) {
       model.channel,
       model.sourcePath,
       model.biosPath,
+      model.registered,
     );
   } catch {
     return (
