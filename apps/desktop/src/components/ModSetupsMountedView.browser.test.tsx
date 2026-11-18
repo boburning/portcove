@@ -29,13 +29,19 @@ function StandingPassRefresh() {
   return null;
 }
 
-type InventoryCase = "one profile" | "Default and retained Torches";
+type InventoryCase =
+  | "one profile"
+  | "one profile with provider"
+  | "Default and retained Torches"
+  | "Default and retained Torches without provider";
 
 // Synthetic identities and digests. The second case preserves the native
 // inventory's two-profile shape without carrying originals, saves or private
 // paths from that observation into a browser fixture.
 function inventoryFixture(kind: InventoryCase): ModSetupsView {
-  const twoProfiles = kind === "Default and retained Torches";
+  const twoProfiles = kind.startsWith("Default");
+  const withProvider =
+    kind === "one profile with provider" || kind === "Default and retained Torches";
   const portId = twoProfiles ? "zelda64-recomp" : "shipwright";
   const build: ModSetupView["revision"]["build"] = {
     install_id: "mock-runtime",
@@ -119,7 +125,7 @@ function inventoryFixture(kind: InventoryCase): ModSetupsView {
     package_types: twoProfiles ? ["nrm"] : ["o2r", "otr"],
     later_mods_take_priority: !twoProfiles,
     held_updates: [],
-    provider: twoProfiles ? "thunderstore" : null,
+    provider: withProvider ? (twoProfiles ? "thunderstore" : "gamebanana") : null,
     current_install_id: "mock-runtime",
     inventory: { port_id: portId, profiles },
     live: {
@@ -134,7 +140,12 @@ function inventoryFixture(kind: InventoryCase): ModSetupsView {
 
 // The native regression accumulated whole package-area wrappers while the Saves
 // panel stayed mounted under an initially selected Overview tab.
-it.each(["one profile", "Default and retained Torches"] as const)(
+it.each([
+  "one profile",
+  "one profile with provider",
+  "Default and retained Torches",
+  "Default and retained Torches without provider",
+] as const)(
   "keeps one package area through repeated reads in the mounted hidden Saves panel: %s",
   async (kind) => {
     vi.useFakeTimers();
@@ -193,7 +204,7 @@ it.each(["one profile", "Default and retained Torches"] as const)(
       ).toHaveLength(1);
     };
     assertPackageArea();
-    if (kind === "Default and retained Torches") {
+    if (kind.startsWith("Default")) {
       expect(inventory.inventory?.profiles).toHaveLength(2);
       const customized = inventory.inventory?.profiles.find((entry) => !entry.profile.is_default);
       expect(customized?.profile.current_revision).toBe(6);
