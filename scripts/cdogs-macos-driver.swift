@@ -186,7 +186,7 @@ do {
     try require(ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"] == profile.path, "Private profile environment differs")
     try fm.createDirectory(at: profile, withIntermediateDirectories: true)
     try fm.createDirectory(at: library, withIntermediateDirectories: true)
-    let args = ["--screen", "960x640", "--scale", "2", "--config=Graphics.Fullscreen,false"]
+    let args = ["--screen", "960x640", "--scale", "2"]
     var selected = [port, player.path, "--working-directory", input["working_directory"] as! String]
     selected += args.map { "--arg=\($0)" }
     let preview = try cliJSON("select-preview", ["external", "select-preview"] + selected)
