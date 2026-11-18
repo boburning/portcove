@@ -206,7 +206,7 @@ export function ArtworkControls({
   const [open, setOpen] = useState(false);
   return (
     <details className="artwork-controls" onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary className="cursor-pointer py-3" data-focusable>
+      <summary className="disclosure-pad-3 cursor-pointer" data-focusable>
         Change artwork
       </summary>
       {open && (
@@ -436,7 +436,7 @@ function ArtworkSlotControl({
       )}
       {(error || display.error) && <p role="alert">{error ?? display.error}</p>}
       <details className="artwork-source">
-        <summary className="cursor-pointer py-3" data-focusable>
+        <summary className="disclosure-pad-3 cursor-pointer" data-focusable>
           View source / author information
         </summary>
         <ArtworkSource

@@ -55,7 +55,7 @@ const schemaCases = [
     },
   ],
   ["mod_file_preservation_plan", fixtures.preservation],
-  ["recipe_import_plan", fixtures.recipe],
+  ["desktop_recipe_import_review", fixtures.recipe],
   ["provider_browse_page", fixtures.providerPage],
   ["provider_project_view", fixtures.providerProject],
   ["provider_install_plan", fixtures.providerPlan],
@@ -165,12 +165,16 @@ test("every declared secondary mutation is refused without reaching Core", async
       {
         profileId: options.fixtures.setupId,
         nativeId: options.fixtures.modName,
-        plan: options.fixtures.recipe,
+        serializedPlan: options.fixtures.recipe.serialized_plan,
       },
     ],
     [
       "apply_mod_recipe",
-      { displayName: "Owned presentation copy", plan: options.fixtures.recipe, allowCode: false },
+      {
+        displayName: "Owned presentation copy",
+        serializedPlan: options.fixtures.recipe.serialized_plan,
+        allowCode: false,
+      },
     ],
     [
       "apply_provider_install",

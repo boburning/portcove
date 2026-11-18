@@ -56,7 +56,12 @@ pub(crate) struct Digest {
 pub(crate) enum CarryStop {
     /// The volume can't hold the staged files and the reserve; carry nothing
     /// and let the switch go ahead.
-    InsufficientSpace { required: u64, available: u64 },
+    InsufficientSpace {
+        required: u64,
+        available: Option<u64>,
+    },
+    /// Destination storage filled while writing a private staging file.
+    StagingStorageFull,
     /// A source file changed after it was planned; the switch holds.
     SourceChanged(String),
     /// Another program holds the file open; the switch holds and is
@@ -190,6 +195,7 @@ pub(crate) fn inspect_target(
                 Ok(digest) => Ok(TargetCopy::File {
                     sha256: digest.sha256,
                 }),
+                Err(error) if error.code == crate::ErrorCode::Cancelled => Err(error),
                 Err(_) if locked(&path) => Err(locked_error(relative)),
                 Err(_) => Ok(TargetCopy::Unreadable),
             }
@@ -220,6 +226,7 @@ pub(crate) fn inspect_source(
                 },
                 Some(digest.size),
             )),
+            Err(error) if error.code == crate::ErrorCode::Cancelled => Err(error),
             Err(_) if locked(&path) => Err(locked_error(relative)),
             Err(_) => Ok((SourceCopy::Unreadable, None)),
         },
@@ -376,6 +383,35 @@ impl Drop for Staged {
     }
 }
 
+impl Staged {
+    /// Continuation after staging exhaustion requires confirmed cleanup.
+    fn discard(&mut self) -> Result<()> {
+        for copy in &self.copies[self.done.min(self.copies.len())..] {
+            match fs::remove_file(&copy.temporary) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.into()),
+            }
+        }
+        self.done = self.copies.len();
+        Ok(())
+    }
+}
+
+fn destination_error(error: std::io::Error) -> CarryStop {
+    if error.kind() == std::io::ErrorKind::StorageFull {
+        CarryStop::StagingStorageFull
+    } else {
+        error.into()
+    }
+}
+
+pub(crate) type StagingWriter<'a> = dyn Fn(&mut fs::File, &[u8]) -> std::io::Result<()> + 'a;
+
+pub(crate) fn write_staging(output: &mut fs::File, bytes: &[u8]) -> std::io::Result<()> {
+    output.write_all(bytes)
+}
+
 fn snapshot(path: &Path) -> Result<Option<(u64, SystemTime)>> {
     match fs::symlink_metadata(path) {
         Ok(metadata) if metadata.is_file() => Ok(Some((metadata.len(), metadata.modified()?))),
@@ -408,6 +444,25 @@ pub(crate) fn stage(
     (available, total): (u64, u64),
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> std::result::Result<Staged, CarryStop> {
+    stage_with_writer(
+        (source_root, target_root),
+        plan,
+        inspected,
+        (available, total),
+        checkpoint,
+        &write_staging,
+    )
+}
+
+/// Destination writes remain injectable without changing source IO or publication.
+pub(crate) fn stage_with_writer(
+    (source_root, target_root): (&Path, &Path),
+    plan: &[PlannedPath],
+    inspected: &Inspected,
+    (available, total): (u64, u64),
+    checkpoint: &dyn Fn() -> Result<()>,
+    writer: &StagingWriter<'_>,
+) -> std::result::Result<Staged, CarryStop> {
     let required = required_bytes(plan, &inspected.sizes, total);
     let copying = plan
         .iter()
@@ -415,7 +470,7 @@ pub(crate) fn stage(
     if copying && required > available {
         return Err(CarryStop::InsufficientSpace {
             required,
-            available,
+            available: Some(available),
         });
     }
     let mut staged = Staged {
@@ -425,58 +480,83 @@ pub(crate) fn stage(
         removals: Vec::new(),
         changed_targets: Vec::new(),
     };
-    for planned in plan {
-        checkpoint()?;
-        let replaces = match planned.action {
-            CarryAction::Copy => None,
-            CarryAction::Replace | CarryAction::Remove => {
-                Some(planned.approved_target.clone().ok_or_else(|| {
-                    PortcoveError::state("a planned replacement has no approved bytes")
-                })?)
+    let result = (|| {
+        for planned in plan {
+            checkpoint()?;
+            let replaces = match planned.action {
+                CarryAction::Copy => None,
+                CarryAction::Replace | CarryAction::Remove => {
+                    Some(planned.approved_target.clone().ok_or_else(|| {
+                        PortcoveError::state("a planned replacement has no approved bytes")
+                    })?)
+                }
+                _ => continue,
+            };
+            let destination = member(target_root, &planned.path);
+            if planned.action == CarryAction::Remove {
+                staged.removals.push(StagedRemoval {
+                    path: planned.path.clone(),
+                    destination,
+                    expected: replaces.unwrap_or_default(),
+                    seen: None,
+                });
+                continue;
             }
-            _ => continue,
-        };
-        let destination = member(target_root, &planned.path);
-        if planned.action == CarryAction::Remove {
-            staged.removals.push(StagedRemoval {
+            let expected = planned
+                .approved_source
+                .as_deref()
+                .ok_or_else(|| PortcoveError::state("a planned copy has no approved bytes"))?;
+            let Some(parent) = staging_parent(target_root, &planned.path)? else {
+                staged.changed_targets.push(planned.path.clone());
+                continue;
+            };
+            let mut output = tempfile::Builder::new()
+                .prefix(STAGING_PREFIX)
+                .tempfile_in(&parent)
+                .map_err(destination_error)?;
+            let source = member(source_root, &planned.path);
+            let limit = inspected.sizes.get(&planned.path).copied().unwrap_or(0);
+            let copied = (|| {
+                let copied = copy_hashing(&source, output.as_file_mut(), limit, checkpoint, writer)
+                    .map_err(at(&planned.path))?;
+                if copied != expected {
+                    return Err(CarryStop::SourceChanged(planned.path.clone()));
+                }
+                output.as_file().sync_all().map_err(destination_error)?;
+                Ok(())
+            })();
+            if let Err(stop) = copied {
+                output.close()?;
+                return Err(stop);
+            }
+            let (_, temporary) = match output.keep() {
+                Ok(kept) => kept,
+                Err(error) => {
+                    error.file.close()?;
+                    return Err(destination_error(error.error));
+                }
+            };
+            staged.copies.push(StagedCopy {
                 path: planned.path.clone(),
+                temporary,
                 destination,
-                expected: replaces.unwrap_or_default(),
+                replaces,
                 seen: None,
             });
-            continue;
         }
-        let expected = planned
-            .approved_source
-            .as_deref()
-            .ok_or_else(|| PortcoveError::state("a planned copy has no approved bytes"))?;
-        let Some(parent) = staging_parent(target_root, &planned.path)? else {
-            staged.changed_targets.push(planned.path.clone());
-            continue;
-        };
-        let mut output = tempfile::Builder::new()
-            .prefix(STAGING_PREFIX)
-            .tempfile_in(&parent)?;
-        let source = member(source_root, &planned.path);
-        let limit = inspected.sizes.get(&planned.path).copied().unwrap_or(0);
-        let copied = copy_hashing(&source, output.as_file_mut(), limit, checkpoint)
-            .map_err(at(&planned.path))?;
-        if copied != expected {
-            return Err(CarryStop::SourceChanged(planned.path.clone()));
-        }
-        output.as_file().sync_all()?;
-        let (_, temporary) = output
-            .keep()
-            .map_err(|error| PortcoveError::from(error.error))?;
-        staged.copies.push(StagedCopy {
-            path: planned.path.clone(),
-            temporary,
-            destination,
-            replaces,
-            seen: None,
+        verify(&mut staged, source_root, plan, checkpoint)?;
+        Ok(())
+    })();
+    if let Err(stop) = result {
+        staged.discard()?;
+        return Err(match stop {
+            CarryStop::StagingStorageFull => CarryStop::InsufficientSpace {
+                required,
+                available: None,
+            },
+            other => other,
         });
     }
-    verify(&mut staged, source_root, plan, checkpoint)?;
     Ok(staged)
 }
 
@@ -485,6 +565,7 @@ fn copy_hashing(
     output: &mut fs::File,
     limit: u64,
     checkpoint: &dyn Fn() -> Result<()>,
+    writer: &StagingWriter<'_>,
 ) -> std::result::Result<String, CarryStop> {
     use sha2::{Digest as _, Sha256};
     crate::runtime_data_policy::refuse_sensitive_entry(source)?;
@@ -509,12 +590,19 @@ fn copy_hashing(
             return Err(CarryStop::SourceChanged(String::new()));
         }
         hasher.update(&buffer[..count]);
-        output.write_all(&buffer[..count])?;
+        writer(output, &buffer[..count]).map_err(destination_error)?;
     }
     if total != before.len() || input.metadata()?.modified()? != before.modified()? {
         return Err(CarryStop::SourceChanged(String::new()));
     }
-    crate::runtime_data_policy::preserve_modified_time(output, &before)?;
+    if !crate::runtime_data_policy::set_and_check_modified_time(output, before.modified()?)
+        .map_err(destination_error)?
+    {
+        return Err(PortcoveError::unsupported(
+            "destination cannot preserve the exact player-data modification time",
+        )
+        .into());
+    }
     Ok(hex::encode(hasher.finalize()))
 }
 
@@ -536,8 +624,13 @@ fn verify(
         if locked(&source) {
             return Err(CarryStop::Locked(copy.path.clone()));
         }
-        let digest = hash_file(&source, checkpoint)
-            .map_err(|_| CarryStop::SourceChanged(copy.path.clone()))?;
+        let digest = hash_file(&source, checkpoint).map_err(|error| {
+            if error.code == crate::ErrorCode::Cancelled {
+                CarryStop::Failed(error)
+            } else {
+                CarryStop::SourceChanged(copy.path.clone())
+            }
+        })?;
         if approved
             .get(copy.path.as_str())
             .and_then(|planned| planned.approved_source.as_deref())
@@ -550,6 +643,7 @@ fn verify(
             None => None,
             Some(_) => match hash_file(&copy.destination, checkpoint) {
                 Ok(digest) => Some(digest.sha256),
+                Err(error) if error.code == crate::ErrorCode::Cancelled => return Err(error.into()),
                 Err(_) if locked(&copy.destination) => {
                     return Err(CarryStop::Locked(copy.path.clone()));
                 }
@@ -570,9 +664,11 @@ fn verify(
         let seen = snapshot(&removal.destination)?;
         let current = match seen {
             None => None,
-            Some(_) => hash_file(&removal.destination, checkpoint)
-                .ok()
-                .map(|digest| digest.sha256),
+            Some(_) => match hash_file(&removal.destination, checkpoint) {
+                Ok(digest) => Some(digest.sha256),
+                Err(error) if error.code == crate::ErrorCode::Cancelled => return Err(error.into()),
+                Err(_) => None,
+            },
         };
         match (seen, current) {
             (Some(seen), Some(current)) if current == removal.expected => {

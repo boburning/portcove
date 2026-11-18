@@ -207,7 +207,7 @@ function SourceRemovalDetails({
         <p>{t("source.noInstalled")}</p>
       )}
       <details>
-        <summary data-focusable className="cursor-pointer py-2">
+        <summary data-focusable className="disclosure-pad-2 cursor-pointer">
           {t("source.allEntries", { total: preview.dependent_port_ids.length })}
         </summary>
         <ul>

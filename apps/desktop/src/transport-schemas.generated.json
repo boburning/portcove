@@ -32698,8 +32698,10 @@
         "type": "object"
       },
       "RetainedBuildAvailability": {
+        "description": "`Present` is limited to ordinary setup metadata previews; it does not\nestablish current immutable payload integrity. Strict inspection uses `Verified`.",
         "enum": [
           "verified",
+          "present",
           "missing",
           "changed",
           "held",
@@ -43668,8 +43670,10 @@
         "type": "object"
       },
       "RetainedBuildAvailability": {
+        "description": "`Present` is limited to ordinary setup metadata previews; it does not\nestablish current immutable payload integrity. Strict inspection uses `Verified`.",
         "enum": [
           "verified",
+          "present",
           "missing",
           "changed",
           "held",
@@ -50344,8 +50348,10 @@
         "type": "object"
       },
       "RetainedBuildAvailability": {
+        "description": "`Present` is limited to ordinary setup metadata previews; it does not\nestablish current immutable payload integrity. Strict inspection uses `Verified`.",
         "enum": [
           "verified",
+          "present",
           "missing",
           "changed",
           "held",
@@ -51503,8 +51509,10 @@
         "type": "string"
       },
       "RetainedBuildAvailability": {
+        "description": "`Present` is limited to ordinary setup metadata previews; it does not\nestablish current immutable payload integrity. Strict inspection uses `Verified`.",
         "enum": [
           "verified",
+          "present",
           "missing",
           "changed",
           "held",

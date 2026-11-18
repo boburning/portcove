@@ -87,6 +87,9 @@ game detail identity chip names the fact as Original system not specified.
 Each workspace composes collection/navigation choices, one search/filter/sort/view toolbar, then a wrapping result and active-filter summary. Chips name their categories and share the choices’ canonical identity icons/colors; target labels retain architecture. Clear filters preserves search and returns focus to Filters.
 
 Comparisons use balanced project cards, side by side where space allows and stacked in compact windows, with aligned setup, file, target, ownership and observation sections. Filtered-out projects retain their own actions and explicit qualification. Unresearched gameplay differences remain unclaimed.
+Optional project metadata and reports share one information row, so omitted or
+expanded evidence cannot overlap or misalign current status and actions.
+Keep that information together at the top of its row when a neighboring project expands.
 
 Identity chips use the v58 decorative Lucide/palette mappings; semantic readiness,
 warning, failure, selection and focus retain their own tokens.
@@ -443,6 +446,10 @@ object. **File details**, **Technical details** and **Test results** are distinc
 supporting information, as defined by content design. Use ordinary “and” in prose
 and retain approved compound destination labels.
 
+Within a source check, **File details and test results** contains file-wide
+digests, validation and reviewed evidence. **Test results for this port** names
+the per-port automated and hands-on records, so adjacent disclosures remain distinct.
+
 Name a concrete action and object; say “Review” when review is actually next.
 Place consequences before implementation detail and keep essential warnings
 visible. Errors state the known cause, outcome, and realistic next action. Use
@@ -782,6 +789,14 @@ selection with a fallback or actionable explanation. Keep provider configuration
 in Appearance or Integrations with contextual picker guidance, never first-play
 API-key onboarding. Keyboard/controller navigation, focus restoration, long
 titles, scaled layouts and text status must remain usable.
+Provider image and match grids opt out of prose list markers. Artwork disclosures
+keep their first-line chevrons aligned with the padded hit area.
+Native disclosures with shared chevrons use one spacing value for block padding
+and first-line marker position, including wrapped and right-to-left labels.
+An unknown key status shows a settled read failure with an explicit retry; it cannot dispatch
+a search. Recovery keeps focus until it can transfer to Search or no-key guidance.
+A provider-requested pause remains visible and enforced through Back; expired
+retry guidance is removed when requests become available again.
 
 The selected-game Steam flow also presents **Include artwork**, any existing
 destination customization, per-role planned source and a truthful partial result.
@@ -1179,12 +1194,25 @@ links use a real operation reference when one is available. Failed/unfinished
 outcomes and cancellation settlement remain visible on task rows. Operation IDs
 and retained preparation logs share Task details; they do not compete with the
 next action or hide mutation/uncertainty summaries.
+Retained log phases use subordinate headings and grouped stream labels, fields
+and observation metadata. Phase headings name the saved work without implying
+that a completed or failed task is still running; stream completeness remains
+separate from the task outcome. Prior output remains visible through refresh and
+clipboard failures, with the exact manual-copy field beside its explanation.
+Application-update status follows local and host-reported active installation
+before offering ready-to-download copy. Phase and byte progress belong to the
+current local invocation; host-only activity does not invent a starting phase.
 
 Port comparison shares `styles/comparison.css`: a concise evidence status, one
 optional settings disclosure and aligned project facts/actions. Exact artifact,
 freshness, file health and evidence provenance remain in each project's existing
 explanation. Advisory context remains distinct from setup/launch checks, and
 shared compatibility cautions are stated once rather than repeated on every card.
+
+Compatibility and project-implementation disclosures shrink within their actual
+detail or comparison column. Long release, edition, artifact and dependency
+identifiers wrap without truncation; complete evidence remains selectable and
+keyboard disclosure controls remain reachable in compact windows.
 
 ## Prototype presentation alignment
 

@@ -7,6 +7,7 @@ import {
   onStandingSetupPass,
   requestStandingSetup,
 } from "../features/game-file-discovery/use-standing-setup";
+import { readModSetupInventory } from "../features/mod-setups/read-mod-setup-inventory";
 import { pickModPackagePath } from "../file-picker";
 import { useAppTranslation } from "../localization";
 import type { LiveMods, ModSetupView, ModSetupsView } from "../types";
@@ -80,7 +81,7 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
   useEffect(() => {
     if (busy) return;
     let current = true;
-    void desktopApi.modSetups(portId, generation).then(
+    void readModSetupInventory(portId, generation).then(
       (next) => {
         if (!current) return;
         if (next.port_id !== portId) {
@@ -223,13 +224,13 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
       : undefined;
   if (localReview && !applicableReview) setLocalReview(undefined);
   const changing = locked || Boolean(applicableReview);
-  const hasVerifiedCleanSetup = setups.some(
+  const hasAvailableCleanSetup = setups.some(
     (entry) =>
-      entry.build_availability === "verified" &&
+      setupRuntimeAvailable(entry) &&
       (entry.revision.packages ?? []).every((item) => !item.enabled),
   );
   const cleanSetupKey =
-    !hasVerifiedCleanSetup && selected?.build_availability === "verified"
+    !hasAvailableCleanSetup && selected && setupRuntimeAvailable(selected)
       ? JSON.stringify(["clean", selected.profile.id, selected.profile.current_revision])
       : undefined;
   const nativeMessage = nativeListMessage(t, view.live);
@@ -1035,6 +1036,10 @@ function inOverrideOrder(entry: ModSetupView) {
   );
 }
 
+function setupRuntimeAvailable(entry: ModSetupView) {
+  return entry.build_availability === "verified" || entry.build_availability === "present";
+}
+
 function SetupRow({
   entry,
   inUse,
@@ -1048,8 +1053,8 @@ function SetupRow({
 }) {
   const { t } = useAppTranslation("gameSettings");
   const enabled = (entry.revision.packages ?? []).filter((item) => item.enabled).length;
-  const clean = entry.build_availability === "verified" && enabled === 0;
-  const needsRuntime = entry.build_availability && entry.build_availability !== "verified";
+  const clean = setupRuntimeAvailable(entry) && enabled === 0;
+  const needsRuntime = entry.build_availability && !setupRuntimeAvailable(entry);
   return (
     <li className="flex flex-wrap items-center gap-2 rounded-pc-md border border-pc-border p-2">
       <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
@@ -1066,6 +1071,9 @@ function SetupRow({
       )}
       {needsRuntime && (
         <span className="text-sm text-pc-muted-foreground">{t("mods.runtimeHeld")}</span>
+      )}
+      {entry.build_availability === "present" && (
+        <span className="text-sm text-pc-muted-foreground">{t("mods.runtimePresent")}</span>
       )}
       {inUse ? (
         <span className="text-sm font-semibold">{t("mods.inUse")}</span>

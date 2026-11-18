@@ -298,7 +298,7 @@ export function secondaryPanelFixtures(portId: string, root: string, installId: 
     recovery,
     retirement,
     preservation,
-    recipe,
+    recipe: { plan: recipe, serialized_plan: JSON.stringify(recipe), setting_values: [] },
     providerPage,
     providerProject,
     providerPlan,

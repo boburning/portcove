@@ -530,7 +530,7 @@ function PreparationCleanupDetails({
       </dl>
       {readOnly && (
         <details>
-          <summary className="cursor-pointer py-2 font-semibold" data-focusable>
+          <summary className="disclosure-pad-2 cursor-pointer font-semibold" data-focusable>
             {t("recovery.details.locations")}
           </summary>
           <p className="text-xs wrap-anywhere">

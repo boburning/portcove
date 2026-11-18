@@ -54,6 +54,7 @@
     "checking": "جارٍ التحقق من التحديثات…",
     "current": "Portcove محدَّث. آخر تحقق {{checked}}.",
     "notChecked": "لم يتحقق Portcove من التحديثات بعد.",
-    "title": "الحالة"
+    "title": "الحالة",
+    "updating": "جارٍ تحديث Portcove…"
   }
 }
