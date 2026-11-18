@@ -1193,8 +1193,8 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
         entry["required_capabilities"][0]["minimum_version"] = json!(37);
         entry["required_capabilities"][0]["maximum_version"] = json!(37);
         assert!(inspect(&entry).unwrap().capabilities().compatible);
-        entry["required_capabilities"][0]["minimum_version"] = json!(38);
-        entry["required_capabilities"][0]["maximum_version"] = json!(38);
+        entry["required_capabilities"][0]["minimum_version"] = json!(39);
+        entry["required_capabilities"][0]["maximum_version"] = json!(39);
         assert!(!inspect(&entry).unwrap().capabilities().compatible);
         let old = packet["rows"]
             .as_array()
@@ -1834,6 +1834,8 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             version
         } else if port.mod_package_policy.is_some() {
             24
+        } else if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::CAPABILITY
         } else if crate::persistence::ready_staged_archive(port) {
             23
         } else if crate::managed_runtime_policy::requires_provider_resolution(port) {

@@ -2925,7 +2925,7 @@ impl PortcoveService {
             ));
         }
         crate::runtime_data_policy::refuse_adoption(port)?;
-        crate::managed_tfe::refuse_adoption(port)?;
+        crate::managed_initialization::refuse_adoption(port)?;
         crate::managed_shared_preferences::refuse_scope_transfer(port)?;
         crate::definition_acquisition::refuse_restricted_adoption(catalog, &port.id)?;
         self.require_definition_operation(
@@ -5741,16 +5741,31 @@ impl PortcoveService {
                             "managed ReGaiden requires its reviewed fixed launch and installation folder",
                         ));
                     }
-                    crate::managed_tfe::check(retained_port, &spec.working_directory, &|| {
-                        operation.checkpoint()
-                    })?;
+                    crate::managed_initialization::check(
+                        retained_port,
+                        &spec.working_directory,
+                        &|| operation.checkpoint(),
+                    )?;
+                    if crate::managed_chocolate::applies(retained_port) {
+                        crate::managed_chocolate::check_spec(retained_port, &spec, &|| {
+                            operation.checkpoint()
+                        })?;
+                        self.recheck_chocolate_launch_data(
+                            retained_port,
+                            install,
+                            source_override,
+                            Some(&operation),
+                        )?;
+                    }
                     crate::runtime_data_policy::check_launch(
                         retained_port,
                         &spec.working_directory,
                         &self.library.user_dir(&install.port_id),
                         &spec.arguments,
                     )?;
-                    if retained_port.managed_initialization.is_some() && !spec.arguments.is_empty()
+                    if retained_port.managed_initialization.is_some()
+                        && !crate::managed_chocolate::applies(retained_port)
+                        && !spec.arguments.is_empty()
                     {
                         return Err(PortcoveError::verification(
                             "managed TFE requires its fixed no-argument launch",
@@ -7111,6 +7126,15 @@ impl PortcoveService {
         self.require_completed_restore(&port.id)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, install_root)?;
+        if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::require_compatible_data(
+                port,
+                &user_root,
+                &persistent_root,
+                false,
+                &|| Ok(()),
+            )?;
+        }
         self.require_psx_data_receipt_readable(port, install_root)?;
         if crate::persistence::requires_restore_receipt(port)
             && !install_root.join(LAUNCH_MARKER).is_file()
@@ -7206,12 +7230,28 @@ impl PortcoveService {
         let install_root = self.managed_install_root(&port.id, install_root)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, &install_root)?;
+        if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::require_compatible_data(
+                port,
+                &user_root,
+                &persistent_root,
+                crate::profile_deploy::restore_pending(&user_root),
+                &|| Ok(()),
+            )?;
+        }
         crate::preparation::source::require_canonical_originals(port, &self.library)?;
         crate::native_temp::require_canonical_data(port, &self.library)?;
         self.require_psx_data_receipt_readable(port, &install_root)?;
         let marker = install_root.join(LAUNCH_MARKER);
         refuse_symlink_ancestors(&marker)?;
         let previously_launched = marker.is_file();
+        // A ready Chocolate installation can own prepared data before its first
+        // spawn. Profile deployment has already collected and parked that data
+        // through the retained ready-archive contract, so a fresh arriving setup
+        // must also replace absent entries rather than inheriting the old IWAD.
+        let replace_absent_data = previously_launched
+            || (crate::managed_chocolate::applies(port)
+                && crate::profile_deploy::restore_pending(&user_root));
         if port.runtime_data_policy.is_some() {
             crate::runtime_data_policy::refuse_sensitive_tree(&user_root)?;
         }
@@ -7260,7 +7300,7 @@ impl PortcoveService {
                     }
                 } else if source.exists() {
                     sync_entry(&source, &destination)?;
-                } else if previously_launched && destination.exists() {
+                } else if replace_absent_data && destination.exists() {
                     remove_managed_entry(&destination)?;
                 }
             }
@@ -19809,6 +19849,86 @@ fn main() {
             fs::write(path, bytes).unwrap();
         }
         register_existing_test_artifact_with_port(library, port, version, &root, artifact, active)
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn chocolate_setup_switch_parks_prepared_data_before_first_spawn() {
+        const ID: &str = "chocolate-doom-family";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let port = Catalog::embedded().unwrap().port(ID).unwrap().clone();
+        // A synthetic retained runtime exercises profile/data operations only;
+        // it establishes neither official acquisition nor executable acceptance.
+        let artifact = ArtifactIdentity {
+            asset_name: "chocolate-doom-fixture-win64.zip".into(),
+            sha256: hex::encode(Sha256::digest(b"synthetic Chocolate fixture")),
+            size: 4,
+        };
+        let root = library.versions_dir().join(ID).join(&artifact.sha256);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("chocolate-doom.exe"), b"test").unwrap();
+        fs::write(root.join("game.wad"), b"synthetic original A").unwrap();
+        crate::managed_chocolate::prepare(&port, &root, &|| Ok(())).unwrap();
+        fs::write(root.join("default.cfg"), b"departing setup controls").unwrap();
+        fs::write(root.join("DOOM00.png"), b"departing screenshot").unwrap();
+        let install = register_existing_test_artifact_with_port(
+            &library,
+            &port,
+            "chocolate-doom-3.1.1",
+            &root,
+            artifact,
+            true,
+        );
+        let service = service_with_release(library.clone(), "chocolate-doom-3.1.1");
+        let departing = service.ensure_default_profile(ID).unwrap();
+        let arriving = service
+            .copy_profile(ID, &departing.id, "Fresh setup")
+            .unwrap();
+        assert!(!root.join(LAUNCH_MARKER).exists());
+        service.activate_profile(ID, &arriving.id).unwrap();
+        service.restore_retained_user_data_to(&install).unwrap();
+        let parked = crate::profile_deploy::Layout::for_user(&library.user_dir(ID))
+            .store()
+            .join("state")
+            .join(&departing.id);
+        assert_eq!(
+            fs::read(parked.join("game.wad")).unwrap(),
+            b"synthetic original A"
+        );
+        assert_eq!(
+            fs::read(parked.join("default.cfg")).unwrap(),
+            b"departing setup controls"
+        );
+        assert_eq!(
+            fs::read(parked.join("DOOM00.png")).unwrap(),
+            b"departing screenshot"
+        );
+        for name in [
+            "game.wad",
+            "default.cfg",
+            "chocolate-doom.cfg",
+            "DOOM00.png",
+        ] {
+            assert!(!root.join(name).exists(), "departing data remained: {name}");
+        }
+        // Subsequent original materialization belongs to the new setup. Its
+        // profile starts with defaults, while the departing bytes remain parked.
+        fs::write(root.join("game.wad"), b"synthetic original B").unwrap();
+        crate::managed_chocolate::prepare(&port, &root, &|| Ok(())).unwrap();
+        assert!(!root.join("default.cfg").exists());
+        let arguments = crate::managed_chocolate::arguments(&port, &root, &|| Ok(())).unwrap();
+        assert_eq!(
+            arguments[7],
+            format!(
+                "savegames/{}",
+                hex::encode(Sha256::digest(b"synthetic original B"))
+            )
+        );
+        assert_eq!(
+            fs::read(parked.join("game.wad")).unwrap(),
+            b"synthetic original A"
+        );
     }
 
     #[tokio::test]

@@ -784,6 +784,8 @@ pub enum ManagedInitialization {
     TfeDarkForces122420,
     #[serde(rename = "tfe-dark-forces-portable-v1")]
     TfeDarkForcesPortableV1,
+    #[serde(rename = "chocolate-family-portable-v1")]
+    ChocolateFamilyPortableV1,
 }
 
 /// Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.

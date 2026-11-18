@@ -148,10 +148,14 @@ pub(crate) fn require_managed_activation_available(
 
 pub(crate) fn requires_provider_resolution(port: &PortDefinition) -> bool {
     port.release.provider == crate::ReleaseSource::Github
-        && (port.managed_initialization
-            == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
-            || port.managed_shared_preferences
-                == Some(crate::PreparedSharedPreferencesContract::GbRecompiledWindowsV1)
+        && (matches!(
+            port.managed_initialization,
+            Some(
+                crate::ManagedInitialization::TfeDarkForcesPortableV1
+                    | crate::ManagedInitialization::ChocolateFamilyPortableV1
+            )
+        ) || port.managed_shared_preferences
+            == Some(crate::PreparedSharedPreferencesContract::GbRecompiledWindowsV1)
             || port.runtime_data_policy
                 == Some(crate::RuntimeDataPolicy::VersionLocalRetroAchievementsV1)
             || port.archive_data_compatibility_v1.is_some())
