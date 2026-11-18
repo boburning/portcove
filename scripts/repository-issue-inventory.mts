@@ -119,6 +119,7 @@ export async function readCompleteConnection(
   select: (data: unknown) => unknown,
   identity: (node: unknown) => unknown,
   evidence: InventoryPageEvidence[] = [],
+  initialPage?: unknown,
 ): Promise<unknown[]> {
   const rows: unknown[] = [],
     ids = new Set<string>(),
@@ -127,7 +128,11 @@ export async function readCompleteConnection(
     total: number | undefined;
   try {
     for (;;) {
-      const page = object(select(await reader.graphql(query, { ...variables, after })));
+      const page = object(
+        after === null && initialPage !== undefined
+          ? initialPage
+          : select(await reader.graphql(query, { ...variables, after })),
+      );
       const info = object(page.pageInfo);
       if (
         !Array.isArray(page.nodes) ||
@@ -422,9 +427,14 @@ export async function collectRepositoryIssueInventory(
   const [owner, name, extra] = binding.split("/");
   if (!owner || !name || extra)
     throw new InventoryError("inventory_identity", "Invalid repository inventory binding");
-  const links = projectMemberships
-    ? "blockedBy(first:100){totalCount nodes{id number title url state}} projectItems(first:10,includeArchived:true){totalCount nodes{id isArchived project{id} fieldValues(first:25){totalCount nodes{...on ProjectV2ItemFieldSingleSelectValue{name field{...on ProjectV2SingleSelectField{name}}}} pageInfo{hasNextPage endCursor}}} pageInfo{hasNextPage endCursor}}"
-    : "";
+  const pagination = "pageInfo{hasNextPage endCursor}";
+  const fields = (after: string) =>
+    `fieldValues(first:25${after}){totalCount edges{cursor node{...on ProjectV2ItemFieldSingleSelectValue{name field{...on ProjectV2SingleSelectField{name}}}}} ${pagination}}`;
+  const blockers = (after: string) =>
+    `blockedBy(first:100${after}){totalCount nodes{id number title url state} ${pagination}}`;
+  const projects = (after: string) =>
+    `projectItems(first:10,includeArchived:true${after}){totalCount nodes{id updatedAt isArchived project{id} ${fields("")}} ${pagination}}`;
+  const links = projectMemberships ? `${blockers("")} ${projects("")}` : "";
   const query = `query RepositoryIssueInventory($owner:String!,$name:String!,$after:String){repository(owner:$owner,name:$name){id nameWithOwner issues(first:${bodies ? 50 : 100},after:$after,orderBy:{field:CREATED_AT,direction:ASC}){totalCount nodes{id number title ${bodies ? "body" : ""} url state updatedAt ${links}} pageInfo{hasNextPage endCursor}}} rateLimit{cost limit remaining used resetAt}}`;
   const evidence: RepositoryInventoryEvidence = {
     source: "graphql",
@@ -490,21 +500,83 @@ export async function collectRepositoryIssueInventory(
       );
     return { count, id: node?.id ?? null, number: node?.number ?? null };
   };
+  const nestedIssue = async (
+    issue: { id: string; updatedAt: string },
+    key: "blockedBy" | "projectItems",
+    initialPage: unknown,
+  ) => {
+    const connection = key === "blockedBy" ? blockers : projects;
+    const nestedQuery = `query RepositoryIssueNested($id:ID!,$after:String){node(id:$id){...on Issue{id updatedAt repository{id nameWithOwner} ${connection(",after:$after")}}} rateLimit{cost limit remaining used resetAt}}`;
+    return await readCompleteConnection(
+      reader,
+      nestedQuery,
+      { id: issue.id },
+      (data) => {
+        const node = object(object(data).node);
+        repository({ repository: node.repository });
+        if (node.id !== issue.id || node.updatedAt !== issue.updatedAt)
+          throw new InventoryError(
+            "inventory_changed",
+            "Issue changed during nested inventory pagination",
+          );
+        return node[key];
+      },
+      (value) => object(value).id,
+      [],
+      object(initialPage),
+    );
+  };
+  const nestedFields = async (item: Record<string, unknown>, projectId: string) => {
+    const asPage = (value: unknown) => {
+      const connection = object(value);
+      return { ...connection, nodes: connection.edges };
+    };
+    const fieldsQuery = `query RepositoryProjectItemFields($id:ID!,$after:String){node(id:$id){...on ProjectV2Item{id updatedAt isArchived project{id} ${fields(",after:$after")}}} rateLimit{cost limit remaining used resetAt}}`;
+    const edges = await readCompleteConnection(
+      reader,
+      fieldsQuery,
+      { id: item.id },
+      (data) => {
+        const node = object(object(data).node);
+        if (
+          node.id !== item.id ||
+          typeof item.updatedAt !== "string" ||
+          !Number.isFinite(Date.parse(item.updatedAt)) ||
+          node.updatedAt !== item.updatedAt ||
+          node.isArchived !== item.isArchived ||
+          object(node.project).id !== projectId
+        )
+          throw new InventoryError(
+            "inventory_changed",
+            "Project item changed during field inventory pagination",
+          );
+        return asPage(node.fieldValues);
+      },
+      (value) => object(value).cursor,
+      [],
+      asPage(item.fieldValues),
+    );
+    return {
+      totalCount: edges.length,
+      nodes: edges.map((edge) => object(object(edge).node)),
+      pageInfo: { hasNextPage: false },
+    };
+  };
   try {
     const before = await marker();
     const numbers = new Set<number>();
     const memberships: IssueProjectMembership[] = [];
     const membershipIds = new Set<string>();
-    const issues = (
-      await readCompleteConnection(
-        reader,
-        query,
-        { owner, name },
-        (data) => repository(data).issues,
-        (node) => object(node).id,
-        evidence.pages,
-      )
-    ).map((raw): Readonly<RepositoryIssueRecord> => {
+    const rawIssues = await readCompleteConnection(
+      reader,
+      query,
+      { owner, name },
+      (data) => repository(data).issues,
+      (node) => object(node).id,
+      evidence.pages,
+    );
+    const issues: Readonly<RepositoryIssueRecord>[] = [];
+    for (const raw of rawIssues) {
       const row = object(raw);
       if (
         typeof row.id !== "string" ||
@@ -528,23 +600,13 @@ export async function collectRepositoryIssueInventory(
       numbers.add(row.number);
       let blockedBy: RepositoryIssueRecord["blockedBy"];
       if (projectMemberships) {
-        const blockers = object(row.blockedBy);
-        if (
-          !Array.isArray(blockers.nodes) ||
-          !Number.isSafeInteger(blockers.totalCount) ||
-          blockers.totalCount !== blockers.nodes.length
-        )
-          throw new InventoryError(
-            "inventory_incomplete",
-            "Incomplete issue blocking dependencies",
-          );
-        const blockerIds = new Set<string>();
-        const blockerNodes = blockers.nodes.map((raw): RepositoryIssueBlocker => {
+        const issue = { id: row.id, updatedAt: row.updatedAt };
+        const blockerRows = await nestedIssue(issue, "blockedBy", row.blockedBy);
+        const blockerNodes = blockerRows.map((raw): RepositoryIssueBlocker => {
           const node = object(raw);
           if (
             typeof node.id !== "string" ||
             !node.id ||
-            blockerIds.has(node.id) ||
             typeof node.number !== "number" ||
             !Number.isSafeInteger(node.number) ||
             node.number < 1 ||
@@ -554,7 +616,6 @@ export async function collectRepositoryIssueInventory(
             (node.state !== "OPEN" && node.state !== "CLOSED")
           )
             throw new InventoryError("inventory_malformed", "Malformed issue blocking dependency");
-          blockerIds.add(node.id);
           return Object.freeze({
             id: node.id,
             number: node.number,
@@ -567,20 +628,7 @@ export async function collectRepositoryIssueInventory(
           totalCount: blockerNodes.length,
           nodes: Object.freeze(blockerNodes),
         });
-        const connection = object(row.projectItems);
-        const info = object(connection.pageInfo);
-        if (
-          !Array.isArray(connection.nodes) ||
-          !Number.isSafeInteger(connection.totalCount) ||
-          connection.totalCount !== connection.nodes.length ||
-          info.hasNextPage !== false ||
-          !(info.endCursor === null || typeof info.endCursor === "string")
-        )
-          throw new InventoryError(
-            "inventory_incomplete",
-            "Incomplete issue-side Project memberships",
-          );
-        for (const rawLink of connection.nodes) {
+        for (const rawLink of await nestedIssue(issue, "projectItems", row.projectItems)) {
           const link = object(rawLink),
             project = object(link.project);
           if (
@@ -602,25 +650,27 @@ export async function collectRepositoryIssueInventory(
               project_id: project.id,
               issue_id: row.id,
               isArchived: link.isArchived,
-              fieldValues: link.fieldValues,
+              fieldValues: await nestedFields(link, project.id),
             }),
           );
         }
       }
-      return Object.freeze({
-        id: row.id,
-        node_id: row.id,
-        number: row.number,
-        title: row.title,
-        url: row.url,
-        html_url: row.url,
-        state: row.state,
-        updatedAt: row.updatedAt,
-        type: "Issue",
-        ...(bodies ? { body: row.body as string } : {}),
-        ...(blockedBy ? { blockedBy } : {}),
-      });
-    });
+      issues.push(
+        Object.freeze({
+          id: row.id,
+          node_id: row.id,
+          number: row.number,
+          title: row.title,
+          url: row.url,
+          html_url: row.url,
+          state: row.state,
+          updatedAt: row.updatedAt,
+          type: "Issue",
+          ...(bodies ? { body: row.body as string } : {}),
+          ...(blockedBy ? { blockedBy } : {}),
+        }),
+      );
+    }
     const after = await marker();
     if (
       before.count !== issues.length ||

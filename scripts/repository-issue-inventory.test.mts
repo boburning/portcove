@@ -77,7 +77,11 @@ void test("doctor proves Project coverage from fresh reverse memberships without
   const f = readerFixture(2, (value, marker) => {
     if (marker) return;
     for (const row of connection(value).nodes) {
-      row.blockedBy = { totalCount: 0, nodes: [] };
+      row.blockedBy = {
+        totalCount: 0,
+        nodes: [],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
       row.projectItems = {
         totalCount: 1,
         nodes: [
@@ -87,7 +91,7 @@ void test("doctor proves Project coverage from fresh reverse memberships without
             isArchived: false,
             fieldValues: {
               totalCount: 0,
-              nodes: [],
+              edges: [],
               pageInfo: { hasNextPage: false, endCursor: null },
             },
           },
@@ -128,7 +132,11 @@ function membershipFixture(change: (row: Record<string, unknown>) => void = () =
   return readerFixture(2, (value, marker) => {
     if (marker) return;
     for (const row of connection(value).nodes) {
-      row.blockedBy = { totalCount: 0, nodes: [] };
+      row.blockedBy = {
+        totalCount: 0,
+        nodes: [],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
       row.projectItems = {
         totalCount: 1,
         nodes: [
@@ -138,7 +146,7 @@ function membershipFixture(change: (row: Record<string, unknown>) => void = () =
             isArchived: false,
             fieldValues: {
               totalCount: 0,
-              nodes: [],
+              edges: [],
               pageInfo: { hasNextPage: false, endCursor: null },
             },
           },
@@ -261,13 +269,106 @@ void test("nested memberships and blockers cannot silently truncate or lose iden
   const f = membershipFixture((row) => {
     (row.projectItems as { nodes: Record<string, unknown>[] }).nodes[0]!.fieldValues = {
       totalCount: 1,
-      nodes: [],
-      pageInfo: { hasNextPage: true },
+      edges: [],
+      pageInfo: { hasNextPage: true, endCursor: null },
     };
   });
-  const inventory = await collectRepositoryIssueInventory(f.reader, { projectMemberships: true });
-  assert.throws(() => doctorProjectItems(inventory, f.reader, "P", 2), /fields are truncated/);
+  await assert.rejects(collectRepositoryIssueInventory(f.reader, { projectMemberships: true }), {
+    code: "inventory_incomplete",
+  });
 });
+void test("continues nested memberships, blockers and fields and refuses revision drift", async () => {
+  const revision = "2026-10-17T00:00:00Z";
+  const page = (nodes: unknown[], totalCount = nodes.length, endCursor: string | null = null) => ({
+    nodes,
+    totalCount,
+    pageInfo: { hasNextPage: endCursor !== null, endCursor },
+  });
+  const fieldPage = (
+    edges: unknown[],
+    totalCount = edges.length,
+    endCursor: string | null = null,
+  ) => ({
+    edges,
+    totalCount,
+    pageInfo: { hasNextPage: endCursor !== null, endCursor },
+  });
+  const blocker = (number: number) => ({
+    id: `B_${number}`,
+    number,
+    title: "Blocker",
+    url: `https://github.com/${repository}/issues/${number}`,
+    state: "OPEN",
+  });
+  const fields = (number: number) => ({
+    cursor: `F_${number}`,
+    node: { name: "Ready", field: { name: `Field ${number}` } },
+  });
+  const link = (number: number) => ({
+    id: `LINK_${number}`,
+    project: { id: `P_${number}` },
+    isArchived: false,
+    updatedAt: revision,
+    fieldValues: number === 11 ? fieldPage([fields(1)], 2, "F_1") : fieldPage([]),
+  });
+  for (const changed of [null, "issue", "project", "partial"] as const) {
+    const fixture = readerFixture(1, (value, marker) => {
+      if (marker) return;
+      const row = connection(value).nodes[0]!;
+      row.blockedBy = page([blocker(10)], 2, "block-after");
+      row.projectItems = page(
+        Array.from({ length: 10 }, (_, i) => link(i + 1)),
+        11,
+        "project-after",
+      );
+    });
+    const seen: unknown[] = [];
+    const reader: InventoryReader = {
+      ...fixture.reader,
+      async graphql(query, variables = {}) {
+        if (query.includes("RepositoryProjectItemFields")) {
+          seen.push(variables.after);
+          return {
+            node: {
+              ...link(11),
+              updatedAt: changed === "project" ? "2026-10-18T00:00:00Z" : revision,
+              fieldValues: fieldPage([fields(2)], changed === "partial" ? 3 : 2),
+            },
+          };
+        }
+        if (query.includes("RepositoryIssueNested")) {
+          seen.push(variables.after);
+          return {
+            node: {
+              id: "I_1",
+              updatedAt: changed === "issue" ? "2026-10-18T00:00:00Z" : revision,
+              repository: { id: "R", nameWithOwner: repository },
+              blockedBy: page([blocker(11)], 2),
+              projectItems: page([link(11)], 11),
+            },
+          };
+        }
+        return await fixture.reader.graphql(query, variables);
+      },
+    };
+    if (changed) {
+      await assert.rejects(collectRepositoryIssueInventory(reader, { projectMemberships: true }), {
+        code: "inventory_changed",
+      });
+      continue;
+    }
+    const result = await collectRepositoryIssueInventory(reader, { projectMemberships: true });
+    assert.deepEqual(seen, ["block-after", "project-after", "F_1"]);
+    assert.equal(result.issues[0]?.blockedBy?.nodes.length, 2);
+    assert.equal(result.project_memberships?.length, 11);
+    assert.deepEqual(result.project_memberships?.[10]?.fieldValues, {
+      totalCount: 2,
+      nodes: [fields(1).node, fields(2).node],
+      pageInfo: { hasNextPage: false },
+    });
+  }
+});
+
 void test("doctor discards reverse membership proof on a changed or missing Project revision", async () => {
   for (const revision of [undefined, "invalid", "2026-10-23T00:00:00Z"]) {
     const f = membershipFixture();
