@@ -1165,13 +1165,17 @@ it("offers verified relinking for the recorded original of an already prepared i
   await expect
     .element(page.getByRole("combobox", { name: /Other registered originals/ }))
     .not.toBeInTheDocument();
-  await act(async () => find.click());
+  await act(async () => {
+    const action = button(host, "Find the same original");
+    action.focus();
+    action.click();
+  });
   await expect
     .element(page.getByRole("alert"))
     .toHaveTextContent("That location is temporarily unavailable.");
   await expect.element(find).toHaveFocus();
   expect(host.textContent).toContain("D:/Old/recorded.z64");
-  await act(async () => find.click());
+  await act(async () => button(host, "Find the same original").click());
 
   expect(pick).toHaveBeenCalledWith(
     originalReview.source_profile,
