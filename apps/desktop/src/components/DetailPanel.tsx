@@ -1,6 +1,7 @@
 import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";
 import { SetupIntentChoice } from "./SetupIntentChoice";
 import { PortCapabilities } from "./PortCapabilities";
+import { CarriedFilesSummary } from "./CarriedFilesSummary";
 import { setupRoutePresentation } from "../features/port-actions/setup-route-presentation";
 import { Chip } from "./ui/chip";
 import { IdentityIcon } from "../features/identity/IdentityIcon";
@@ -4206,6 +4207,7 @@ function DetailVersionsSection({
             }
           />
         )}
+        {!external && <CarriedFilesSummary record={model.status?.carried_files} />}
         {!external && model.port.release.provider !== "user-prepared" && (
           <UpdatesGroup
             perform={model.perform}

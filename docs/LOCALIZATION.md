@@ -47,6 +47,12 @@ not inline message dictionaries. This adds no supported product language.
 
 ## Runtime ownership
 
+The version-switch file result uses the existing `detail` namespace. Recorded
+counts remain distinct from legacy path examples with unknown totals. Version
+and path values stay literal in direction-aware containers; an unavailable
+earlier folder is translated text, not a fabricated path. This disclosure adds
+no supported locale or file action.
+
 - A saved `null` locale means `System default`; explicit supported values are canonical BCP 47 tags. Core validates bounded tag syntax but does not decide which product locales exist.
 - The React resolver accepts an explicitly saved `ar-XB` preference and the English language family. Unsupported, malformed, missing, or removed locales safely resolve to English. System locales, including `ar-XB`, do not select the engineering preview.
 - The provider updates i18next, `html[lang]`, `html[dir]`, and Base UI's `DirectionProvider` together. It does not key or remount the application, so a live change retains screen state and focus.
