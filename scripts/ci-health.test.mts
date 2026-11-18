@@ -9,6 +9,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   collectHistory,
+  collectThroughput,
   createCiHistoryRequest,
   renderReport,
   summarizeAttempt,
@@ -131,8 +132,8 @@ void test("cancelled work retains executed cost and job failures without inferri
   assert.equal(summary.successfulFirstAttempts.count, 1);
   assert.deepEqual(summary.canceledWork, {
     attempts: 2,
-    workflow: { count: 2, p50Seconds: 240, p95Seconds: null, maxSeconds: 240 },
-    summedRunner: { count: 1, p50Seconds: 60, p95Seconds: null, maxSeconds: 60 },
+    workflow: { count: 2, p50Seconds: 240, p90Seconds: null, p95Seconds: null, maxSeconds: 240 },
+    summedRunner: { count: 1, p50Seconds: 60, p90Seconds: null, p95Seconds: null, maxSeconds: 60 },
     observedRunnerSeconds: 60,
     missingRunnerTimings: 1,
     unmeasuredJobs: 1,
@@ -210,6 +211,7 @@ void test("percentiles separate first attempts from reruns and require twenty ta
   assert.deepEqual(summary.successfulFirstAttempts, {
     count: 20,
     p50Seconds: 10,
+    p90Seconds: 18,
     p95Seconds: 19,
     maxSeconds: 20,
   });
@@ -740,4 +742,64 @@ void test("first-attempt pass rate excludes attempts that stopped because a newe
   assert.deepEqual(summary.firstAttemptPass, { decided: 2, passed: 1, rate: 0.5 });
   const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
   assert.ok(workflow.includes(`- name: ${supersededStopStep}\n`));
+});
+
+void test("throughput keeps timed runner jobs, same-head gate latency, and stale overlap distinct", async () => {
+  const ci = (id: number, created: number) =>
+    run({
+      id,
+      path: ".github/workflows/ci.yml",
+      head_sha: String(id).repeat(40),
+      event: "pull_request",
+      pull_requests: [{ number: 7 }],
+      created_at: stamp(created),
+    });
+  const gateNames = ["catalog", "dependency-review", "frontend", "rust", "rust-quality"];
+  const response: CiRequest = async (route) => {
+    if (route.includes("status=queued")) return { total_count: 9 };
+    if (route.includes("status=")) return {};
+    if (route.includes("/runs?")) {
+      const current = new URL(`https://api.github.com/${route}`).searchParams
+        .get("created")
+        ?.includes(stamp(599).slice(0, 16));
+      return current
+        ? { total_count: 2, workflow_runs: [ci(2, 30), ci(1, 0)] }
+        : { total_count: 0, workflow_runs: [] };
+    }
+    if (route.includes("/runs/1/")) {
+      return {
+        total_count: 2,
+        jobs: [
+          job({ runner_id: null, conclusion: "cancelled", completed_at: stamp(9) }),
+          job({ runner_id: 1, completed_at: stamp(45) }),
+        ],
+      };
+    }
+    assert.match(route, /\/runs\/2\/attempts\/1\/jobs/);
+    return {
+      total_count: gateNames.length,
+      jobs: gateNames.map((name) =>
+        job({
+          name,
+          runner_id: 2,
+          created_at: stamp(35),
+          started_at: stamp(40),
+          completed_at: stamp(70),
+          labels: ["ubuntu-latest"],
+        }),
+      ),
+    };
+  };
+  const report = await collectThroughput(response, "example/repo", new Date(stamp(600)));
+  assert.deepEqual(report.runDepth, {
+    queued: 9,
+    pending: null,
+    requested: null,
+    inProgress: null,
+  });
+  assert.equal(report.current.jobCreationToStart.count, 6);
+  assert.equal(report.current.workflowCreationToChecks.p50Seconds, 40);
+  assert.deepEqual(report.current.staleRunnerExecutionLowerBound, { jobs: 1, seconds: 15 });
+  assert.equal(report.current.runnerPlatforms.Windows?.jobExecution.p50Seconds, 35);
+  assert.equal(report.prior.jobExecution.p50Seconds, null);
 });

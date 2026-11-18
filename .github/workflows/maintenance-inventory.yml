@@ -66,6 +66,16 @@ jobs:
           node-version-file: .node-version
       - name: Install locked collector dependencies before credentials
         run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - name: Sample hosted Actions throughput
+        continue-on-error: true
+        timeout-minutes: 4
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! node scripts/ci-health.mts --throughput --output work/maintenance-report/ci-throughput.json >> "$GITHUB_STEP_SUMMARY"; then
+            printf '## Hosted Actions throughput\n\nObservation unavailable. See the sampling step log.\n' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
