@@ -489,6 +489,33 @@ assertion after settlement, ordinary 15-second clicks, focus, cleanup and produc
 deadlines remain unchanged. The original failure and positive cleanup remain
 retained; a later native run must establish completion under the revised budget.
 
+The same source's saved-folder job `135122626905` passed its first library
+handoff, stale-generation refusal and source-inventory checks, then captured
+**Loading your port library** after waiting only for navigation. Its single
+restoration call received `target_busy` for the outgoing alternate library.
+Before that one restoration call, the harness now reads the current owned
+bootstrap and generation-bound workspace, waits up to the existing 60-second
+presentation budget for navigation, the matching renderer generation and no
+loading state, then confirms the same bootstrap root and generation. A lost
+handoff response can leave either owned root current; one ordinary reload makes
+an old renderer follow that current generation. IPC reads retain their existing
+budgets. Readiness failure remains a restoration failure with its stage recorded;
+there is no mutation retry. The exact lock holder is unproven. Core's two-second
+outgoing-library drain, `target_busy` protection and all data assertions remain
+unchanged. A refusal after this precondition still fails the scenario and needs
+bounded read-only timing evidence, not a longer product deadline.
+
+Two semantic review assertions also follow the actual structural-check result:
+**Basic file checks passed** explicitly does not identify an edition. Their
+typed NotRun, structural admission and not-evaluated edition assertions remain
+unchanged. The install-refresh job `135122626818` recorded one `install_port`
+overall but rejected the legitimate generation-bound `get_artwork` read after
+refresh. Its exact read-only allowlist gains only that command; the one-install
+and other mutation exclusions remain. The existing failure PNG now uses the
+shared owned-target scroll and settled-capture contract for the complete
+workspace feedback region, retaining its filename and focus. These are harness
+repairs; original failures remain retained and require later native verification.
+
 The November 17 Linux Heavy Rust calibration raises the parent's adopting-reaper
 exit wait from 5 to 30 seconds. A guarded desktop build at `95f11af1` returned
 payload status 0 and eventually published a positive quiescence receipt, but its
