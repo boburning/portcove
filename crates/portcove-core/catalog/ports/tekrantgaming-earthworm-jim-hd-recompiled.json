@@ -3,12 +3,12 @@
   "listing": {
     "id": "tekrantgaming-earthworm-jim-hd-recompiled",
     "name": "Earthworm Jim HD / Earthworm Jim HD: PC Port (TekRantGaming)",
-    "summary": "Explore Earthworm Jim HD / Earthworm Jim HD: PC Port (TekRantGaming) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play Earthworm Jim HD using your own matching Xbox Live Arcade package.",
     "project_url": "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled",
     "issue_number": 1820,
     "listed_at": "2026-10-23",
-    "platforms": ["windows-x86-64"],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled",
     "artwork": {
       "game_id": 20420,
@@ -40,10 +40,64 @@
         {
           "title": "Keep upstream maintenance and acceptance limits",
           "instruction": "Upstream owns original checking/extraction, settings and runtime updates. Retain project, ReXGlue, launcher, library, shader and font notices; these do not license the original game or independent modifications. Close the game before upstream replacement, preserve populated user data and recovery, and review/relink changed bytes. Upstream performance, achievement, campaign, controller and multiplayer reports are not native observations here. No Supported, installed/native or managed install/update/rollback/backup/deletion acceptance is asserted."
+        },
+        {
+          "title": "Play on Linux",
+          "instruction": "Put the EarthwormJimHD Linux x86-64 AppImage in a writable folder, make it executable and open it on a Vulkan-capable system. Use Install from package on the Play page and choose the same owned XBLA revision. The launcher prepares a game folder beside the AppImage."
         }
       ],
       "warnings": [
         "Select the prepared earthworm_jim_hd.exe, retain game/ and the actual user root shown upstream. Complete setup, required restarts and updates separately; do not infer another game’s save location or qualification."
+      ],
+      "references": [
+        {
+          "title": "Keep the Linux files and update through the project",
+          "instruction": "The installed game and earthworm_jim_hd.toml stay beside the AppImage. Use About > Open save folder to find the actual save path. Choose the upstream update mode in About. Turn off the launcher on the Play page for direct starts after setup. Hold Shift at startup to reopen it."
+        }
+      ]
+    },
+    "release_url": "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["EarthwormJimHD-", "windows-x64.zip"],
+      "linux-x86-64": ["EarthwormJimHD-", "linux-x86_64.AppImage"]
+    },
+    "compatibility": {
+      "format_version": 2,
+      "records": [
+        {
+          "id": "tekrant-entry-linux-x86-64",
+          "feature": "launch",
+          "platform": "linux-x86-64",
+          "route": "upstream-setup",
+          "release": "v0.9.6",
+          "artifact_sha256": "19d04f23268b9716d8e80808b6434aa98deb2cbe6eba19879bc0255d2e372c00",
+          "edition": "Xbox Live Arcade title 584109E2 default.xex 1.0.0.11",
+          "explanation": "The integrated launcher opens on first start and can import the matching XBLA package. It opens again by default and reuses the prepared game. After configuring the port, disable the launcher on the Play page for a direct start. Hold Shift at startup to reopen settings.",
+          "provenance": "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled/blob/a0203ce6287e305cf0eef4e97f3c598cc6d953ab/README.md#linux-and-steam-deck",
+          "observed_at": 1795044630,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "opens-project-launcher",
+            "repeat_launch": "opens-project-launcher"
+          }
+        },
+        {
+          "id": "tekrant-entry-windows-x86-64",
+          "feature": "launch",
+          "platform": "windows-x86-64",
+          "route": "upstream-setup",
+          "release": "v0.9.6",
+          "artifact_sha256": "2c940956830f735b9c9ff31e2e590eb955ad4776ba20606ba1aa3beec8383bc7",
+          "edition": "Xbox Live Arcade title 584109E2 default.xex 1.0.0.11",
+          "explanation": "The integrated launcher opens on first start and can import the matching XBLA package. It opens again by default and reuses the prepared game. After configuring the port, disable the launcher on the Play page for a direct start. Hold Shift at startup to reopen settings.",
+          "provenance": "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled/blob/a0203ce6287e305cf0eef4e97f3c598cc6d953ab/README.md#linux-and-steam-deck",
+          "observed_at": 1795044630,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "opens-project-launcher",
+            "repeat_launch": "opens-project-launcher"
+          }
+        }
       ]
     }
   }

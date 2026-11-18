@@ -37841,12 +37841,15 @@
     {
       "id": "king-kong-xbox-360-recompiled",
       "name": "Peter Jackson's King Kong Recompiled",
-      "summary": "Native King Kong route for your own Xbox 360 USA/Europe multilingual disc, title 555307D3, game version 0.0.0.1. The 2005 PC release and other-platform editions are different inputs. Complete upstream game import and shader/runtime preparation before registering the working player.",
+      "summary": "Play Peter Jackson’s King Kong with your own matching Xbox 360 disc. The project publishes a Windows player and an experimental native Linux AppImage.",
       "project_url": "https://github.com/TekRantGaming/king-kong-recompiled",
       "issue_number": 1577,
       "listed_at": "2026-10-23",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/TekRantGaming/king-kong-recompiled",
       "artwork": {
         "game_id": 248543,
@@ -37857,7 +37860,7 @@
         "match_kind": "underlying-game"
       },
       "manual_setup": {
-        "help_url": "https://github.com/TekRantGaming/king-kong-recompiled/blob/2a367f7326a21c3e0ff8b9070a18c7d9457682c2/README.md",
+        "help_url": "https://github.com/TekRantGaming/king-kong-recompiled/blob/e3e5d3f488cbdcd35afd0a1f08b958b0b50f03c3/README.md",
         "steps": [
           {
             "title": "Finish the original-disc and player preparation",
@@ -37865,7 +37868,7 @@
           },
           {
             "title": "Keep the full independently permitted Windows player",
-            "instruction": "Use the complete v2.0.10 Windows x64 KingKong folder with king_kong.exe, graphics plugins, DLLs, resources, launcher support and component notices. Do not select the separate easter-egg game as King Kong. Project MIT, SDK, graphics/upscaler, fonts, media and captured-shader rights are separate from your original game rights; attachment neither redistributes those components nor grants permission to use third-party packs. Use only an existing player and optional content you are independently permitted to use."
+            "instruction": "Use the complete v2.1.3 Windows x64 KingKong folder with king_kong.exe, graphics plugins, DLLs, resources, launcher support and component notices. Do not select the separate easter-egg game as King Kong. Project MIT, SDK, graphics/upscaler, fonts, media and captured-shader rights are separate from your original game rights; attachment neither redistributes those components nor grants permission to use third-party packs. Use only an existing player and optional content you are independently permitted to use."
           },
           {
             "title": "Use the upstream launcher or retain direct-game play",
@@ -37878,10 +37881,70 @@
           {
             "title": "Leave maintenance and separate conditions upstream",
             "instruction": "Upstream owns imports, shader packs, component updates, portable-folder moves, renderer restarts, online/co-op services and failed-start recovery. Close all actual games/helpers before these changes, even when Portcove’s activity has ended; then review/re-select the current player as needed. Full campaign, controller, multiplayer, captured-shader permission and real-save recovery are not established. No managed installation/update/backup/rollback/migration or external-file deletion is offered."
+          },
+          {
+            "title": "Play on Linux",
+            "instruction": "Put KingKong-linux-x86_64.AppImage in its own writable folder and mark it executable. Use Vulkan. Open the AppImage, choose Select disc image and let the launcher prepare your files. Use PLAY again in the launcher after restarting. The upstream guide names FUSE 2 for mounting the AppImage and curl for downloads."
           }
         ],
         "warnings": [
           "Use king_kong.exe with empty arguments for its ordinary launcher, or retain --kk_launcher=false for the existing prepared direct-game choice. Preserve userdata, legacy Documents/king_kong and recovery witnesses. Portcove follows the selected process only; close actual games/helpers before maintenance."
+        ],
+        "references": [
+          {
+            "title": "Keep the Linux files and update through the project",
+            "instruction": "Keep game, king_kong.toml and logs beside the AppImage. Use About > Open save folder to find and back up your actual saves. AppRun uses XDG_CACHE_HOME or ~/.cache for its separately extracted program copy. The upstream launcher offers version changes and controls automatic checks. Keep the same AppImage location for an existing upstream shortcut. Turn off the launcher for direct starts after setup. Hold Shift at startup to reopen it."
+          }
+        ]
+      },
+      "release_url": "https://github.com/TekRantGaming/king-kong-recompiled/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "KingKong-",
+          "windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "KingKong-",
+          "linux-x86_64.AppImage"
+        ]
+      },
+      "compatibility": {
+        "format_version": 2,
+        "records": [
+          {
+            "id": "tekrant-entry-linux-x86-64",
+            "feature": "launch",
+            "platform": "linux-x86-64",
+            "route": "upstream-setup",
+            "release": "v2.1.3",
+            "artifact_sha256": "3a3bd0558d9737634e898f69a27052adae3b01c57e1416b362a0423802893496",
+            "edition": "Xbox 360 USA/Europe disc version 0.0.0.1",
+            "explanation": "The launcher asks for the matching original disc during first setup. Later starts open the project launcher, which can reuse the imported game files. The upstream updater and settings changes may restart the app. After setup, turn off the launcher for direct starts. Hold Shift at startup to reopen settings.",
+            "provenance": "https://github.com/TekRantGaming/king-kong-recompiled/blob/e3e5d3f488cbdcd35afd0a1f08b958b0b50f03c3/README.md#linux-and-steam-deck-experimental",
+            "observed_at": 1795044630,
+            "evidence": "upstream-reported",
+            "launch_behavior": {
+              "first_launch": "opens-project-launcher",
+              "repeat_launch": "opens-project-launcher"
+            }
+          },
+          {
+            "id": "tekrant-entry-windows-x86-64",
+            "feature": "launch",
+            "platform": "windows-x86-64",
+            "route": "upstream-setup",
+            "release": "v2.1.3",
+            "artifact_sha256": "0284825e36a0e0252d6250fa585d079b8e4bedaa30c7a72bd11778b7e720fe18",
+            "edition": "Xbox 360 USA/Europe disc version 0.0.0.1",
+            "explanation": "The launcher asks for the matching original disc during first setup. Later starts open the project launcher, which can reuse the imported game files. The upstream updater and settings changes may restart the app. After setup, turn off the launcher for direct starts. Hold Shift at startup to reopen settings.",
+            "provenance": "https://github.com/TekRantGaming/king-kong-recompiled/blob/e3e5d3f488cbdcd35afd0a1f08b958b0b50f03c3/README.md#linux-and-steam-deck-experimental",
+            "observed_at": 1795044630,
+            "evidence": "upstream-reported",
+            "launch_behavior": {
+              "first_launch": "opens-project-launcher",
+              "repeat_launch": "opens-project-launcher"
+            }
+          }
         ]
       }
     },
@@ -64221,14 +64284,15 @@
     {
       "id": "tekrantgaming-earthworm-jim-hd-recompiled",
       "name": "Earthworm Jim HD / Earthworm Jim HD: PC Port (TekRantGaming)",
-      "summary": "Explore Earthworm Jim HD / Earthworm Jim HD: PC Port (TekRantGaming) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play Earthworm Jim HD using your own matching Xbox Live Arcade package.",
       "project_url": "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled",
       "issue_number": 1820,
       "listed_at": "2026-10-23",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled",
       "artwork": {
         "game_id": 20420,
@@ -64260,10 +64324,70 @@
           {
             "title": "Keep upstream maintenance and acceptance limits",
             "instruction": "Upstream owns original checking/extraction, settings and runtime updates. Retain project, ReXGlue, launcher, library, shader and font notices; these do not license the original game or independent modifications. Close the game before upstream replacement, preserve populated user data and recovery, and review/relink changed bytes. Upstream performance, achievement, campaign, controller and multiplayer reports are not native observations here. No Supported, installed/native or managed install/update/rollback/backup/deletion acceptance is asserted."
+          },
+          {
+            "title": "Play on Linux",
+            "instruction": "Put the EarthwormJimHD Linux x86-64 AppImage in a writable folder, make it executable and open it on a Vulkan-capable system. Use Install from package on the Play page and choose the same owned XBLA revision. The launcher prepares a game folder beside the AppImage."
           }
         ],
         "warnings": [
           "Select the prepared earthworm_jim_hd.exe, retain game/ and the actual user root shown upstream. Complete setup, required restarts and updates separately; do not infer another game’s save location or qualification."
+        ],
+        "references": [
+          {
+            "title": "Keep the Linux files and update through the project",
+            "instruction": "The installed game and earthworm_jim_hd.toml stay beside the AppImage. Use About > Open save folder to find the actual save path. Choose the upstream update mode in About. Turn off the launcher on the Play page for direct starts after setup. Hold Shift at startup to reopen it."
+          }
+        ]
+      },
+      "release_url": "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "EarthwormJimHD-",
+          "windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "EarthwormJimHD-",
+          "linux-x86_64.AppImage"
+        ]
+      },
+      "compatibility": {
+        "format_version": 2,
+        "records": [
+          {
+            "id": "tekrant-entry-linux-x86-64",
+            "feature": "launch",
+            "platform": "linux-x86-64",
+            "route": "upstream-setup",
+            "release": "v0.9.6",
+            "artifact_sha256": "19d04f23268b9716d8e80808b6434aa98deb2cbe6eba19879bc0255d2e372c00",
+            "edition": "Xbox Live Arcade title 584109E2 default.xex 1.0.0.11",
+            "explanation": "The integrated launcher opens on first start and can import the matching XBLA package. It opens again by default and reuses the prepared game. After configuring the port, disable the launcher on the Play page for a direct start. Hold Shift at startup to reopen settings.",
+            "provenance": "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled/blob/a0203ce6287e305cf0eef4e97f3c598cc6d953ab/README.md#linux-and-steam-deck",
+            "observed_at": 1795044630,
+            "evidence": "upstream-reported",
+            "launch_behavior": {
+              "first_launch": "opens-project-launcher",
+              "repeat_launch": "opens-project-launcher"
+            }
+          },
+          {
+            "id": "tekrant-entry-windows-x86-64",
+            "feature": "launch",
+            "platform": "windows-x86-64",
+            "route": "upstream-setup",
+            "release": "v0.9.6",
+            "artifact_sha256": "2c940956830f735b9c9ff31e2e590eb955ad4776ba20606ba1aa3beec8383bc7",
+            "edition": "Xbox Live Arcade title 584109E2 default.xex 1.0.0.11",
+            "explanation": "The integrated launcher opens on first start and can import the matching XBLA package. It opens again by default and reuses the prepared game. After configuring the port, disable the launcher on the Play page for a direct start. Hold Shift at startup to reopen settings.",
+            "provenance": "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled/blob/a0203ce6287e305cf0eef4e97f3c598cc6d953ab/README.md#linux-and-steam-deck",
+            "observed_at": 1795044630,
+            "evidence": "upstream-reported",
+            "launch_behavior": {
+              "first_launch": "opens-project-launcher",
+              "repeat_launch": "opens-project-launcher"
+            }
+          }
         ]
       }
     },
@@ -64328,14 +64452,15 @@
     {
       "id": "tekrantgaming-outpost-kaloki-x-recompiled",
       "name": "Outpost Kaloki X / Outpost Kaloki X PC Port (TekRantGaming)",
-      "summary": "Explore Outpost Kaloki X / Outpost Kaloki X PC Port (TekRantGaming) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play Outpost Kaloki X using your own matching Xbox Live Arcade package.",
       "project_url": "https://github.com/TekRantGaming/outpost-kaloki-x-recompiled",
       "issue_number": 1862,
       "listed_at": "2026-10-23",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/TekRantGaming/outpost-kaloki-x-recompiled",
       "artwork": {
         "game_id": 20508,
@@ -64367,10 +64492,70 @@
           {
             "title": "Keep upstream maintenance and acceptance limits",
             "instruction": "Upstream owns original checking/extraction, settings and runtime updates. Retain project, ReXGlue, launcher, library, shader and font notices; these do not license the original game or independent modifications. Close the game before upstream replacement, preserve populated user data and recovery, and review/relink changed bytes. Upstream performance, achievement, campaign, controller and multiplayer reports are not native observations here. No Supported, installed/native or managed install/update/rollback/backup/deletion acceptance is asserted."
+          },
+          {
+            "title": "Play on Linux",
+            "instruction": "Put the OutpostKalokiX Linux x86-64 AppImage in a writable folder, make it executable and open it on a Vulkan-capable system. Use Install from package on the Play page and choose the same owned XBLA revision. The launcher prepares a game folder beside the AppImage."
           }
         ],
         "warnings": [
           "Select the prepared outpost_kaloki_x.exe, retain game/ and the actual user root shown upstream. Complete setup, required restarts and updates separately; do not infer another game’s save location or qualification."
+        ],
+        "references": [
+          {
+            "title": "Keep the Linux files and update through the project",
+            "instruction": "Keep the prepared game folder, outpost_kaloki_x.toml and logs beside the AppImage. Use About > Open save folder to find the actual save path. About shows the upstream update controls. Once the game is prepared, you can turn the launcher off. Hold Shift at startup to reopen it."
+          }
+        ]
+      },
+      "release_url": "https://github.com/TekRantGaming/outpost-kaloki-x-recompiled/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "OutpostKalokiX-",
+          "windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "OutpostKalokiX-",
+          "linux-x86_64.AppImage"
+        ]
+      },
+      "compatibility": {
+        "format_version": 2,
+        "records": [
+          {
+            "id": "tekrant-entry-linux-x86-64",
+            "feature": "launch",
+            "platform": "linux-x86-64",
+            "route": "upstream-setup",
+            "release": "v1.1.1",
+            "artifact_sha256": "67647183b9f8eb3d73cc56e6bae35196870394ebd61c6b95b93b5fa852eeb791",
+            "edition": "Xbox Live Arcade title 584107DB default.xex 0.0.1.1",
+            "explanation": "The integrated launcher opens on first start and can import the matching XBLA package. It opens again by default and reuses the prepared game. Disable the launcher for a direct start after setup. Hold Shift at startup to reopen it.",
+            "provenance": "https://github.com/TekRantGaming/outpost-kaloki-x-recompiled/blob/3ab8fef1da00490e8d6d42f034b9771d39ed6e02/README.md#getting-started",
+            "observed_at": 1795044630,
+            "evidence": "upstream-reported",
+            "launch_behavior": {
+              "first_launch": "opens-project-launcher",
+              "repeat_launch": "opens-project-launcher"
+            }
+          },
+          {
+            "id": "tekrant-entry-windows-x86-64",
+            "feature": "launch",
+            "platform": "windows-x86-64",
+            "route": "upstream-setup",
+            "release": "v1.1.1",
+            "artifact_sha256": "0ea63e834df5d565479b473c8671a3088ba9f8a1fc8c76a44174d33371ba9ca0",
+            "edition": "Xbox Live Arcade title 584107DB default.xex 0.0.1.1",
+            "explanation": "The integrated launcher opens on first start and can import the matching XBLA package. It opens again by default and reuses the prepared game. Disable the launcher for a direct start after setup. Hold Shift at startup to reopen it.",
+            "provenance": "https://github.com/TekRantGaming/outpost-kaloki-x-recompiled/blob/3ab8fef1da00490e8d6d42f034b9771d39ed6e02/README.md#getting-started",
+            "observed_at": 1795044630,
+            "evidence": "upstream-reported",
+            "launch_behavior": {
+              "first_launch": "opens-project-launcher",
+              "repeat_launch": "opens-project-launcher"
+            }
+          }
         ]
       }
     },
@@ -64427,14 +64612,15 @@
     {
       "id": "tekrantgaming-simpsons-wrestling-recompiled",
       "name": "The Simpsons Wrestling / Simpsons Wrestling Recompiled (TekRantGaming)",
-      "summary": "Explore The Simpsons Wrestling / Simpsons Wrestling Recompiled (TekRantGaming) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play The Simpsons Wrestling using your own North American PlayStation disc image.",
       "project_url": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled",
       "issue_number": 1883,
       "listed_at": "2026-10-23",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled",
       "artwork": {
         "game_id": 2841,
@@ -64466,10 +64652,70 @@
           {
             "title": "Keep component and acceptance limits",
             "instruction": "The exact psxrecomp fork revision retains PolyForm Noncommercial 1.0.0; keep those restrictions distinct from title/launcher, OpenBIOS, fonts and other library notices. Original game artwork, text and audio remain separate content rights, even when the launcher reads them from your own disc. Upstream owns configuration, replacement and recovery; close the actual game, preserve populated data and review/relink changed bytes. Upstream campaign, controller and two-player claims are not observations here. No installed/native, real-save restore, Supported or managed lifecycle acceptance is asserted."
+          },
+          {
+            "title": "Play on Linux",
+            "instruction": "Make the Linux x86-64 AppImage executable on a system with glibc 2.38 or newer and OpenGL 3.3. Start the AppImage and choose Browse for the .cue file on the Game page. Keep the matching BIN files beside the CUE. On later starts, the project launcher can reuse that CUE when you press PLAY."
           }
         ],
         "warnings": [
           "Register the native game inside game/ after upstream configuration, with the exact own CUE. The top-level launcher detaches; preserve all launcher-written settings, per-player cards and noncommercial framework terms."
+        ],
+        "references": [
+          {
+            "title": "Keep the Linux files and update through the project",
+            "instruction": "The AppImage creates SimpsonsWrestling-data beside it or falls back to XDG_DATA_HOME/SimpsonsWrestlingRecompiled, normally under ~/.local/share. Back up the actual game/saves folder and launcher settings. Use the launcher’s About page to find saves or update the AppImage. Keep the launcher available for changing controls or the disc. Once the disc is configured, you can turn off the launcher. Hold Shift at startup to reopen it."
+          }
+        ]
+      },
+      "release_url": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "SimpsonsWrestling-",
+          "windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "SimpsonsWrestling-",
+          "linux-x86_64.AppImage"
+        ]
+      },
+      "compatibility": {
+        "format_version": 2,
+        "records": [
+          {
+            "id": "tekrant-entry-linux-x86-64",
+            "feature": "launch",
+            "platform": "linux-x86-64",
+            "route": "upstream-setup",
+            "release": "v1.0.0",
+            "artifact_sha256": "d4906a62dd5c84fd99c2ada1e408cd79ac98d0d0f2435e5744f2179665a17325",
+            "edition": "PlayStation USA SLUS-01227 CUE and BIN",
+            "explanation": "The project launcher opens and checks the USA CUE with its BIN files. Later starts open the project launcher again, which reuses the selected disc when you press Play. The launcher starts a separate game process and exits. Turn off the launcher for direct starts after setup, or hold Shift at startup to reopen settings.",
+            "provenance": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled/blob/2534cebf328cc9f3ac231b74c696532b9b5420b4/README.md#getting-started",
+            "observed_at": 1795044630,
+            "evidence": "upstream-reported",
+            "launch_behavior": {
+              "first_launch": "opens-project-launcher",
+              "repeat_launch": "opens-project-launcher"
+            }
+          },
+          {
+            "id": "tekrant-entry-windows-x86-64",
+            "feature": "launch",
+            "platform": "windows-x86-64",
+            "route": "upstream-setup",
+            "release": "v1.0.0",
+            "artifact_sha256": "ace0939105301765ccb02940d3ab9aefa42dcaceee4cfa9ad993cb659c7a4086",
+            "edition": "PlayStation USA SLUS-01227 CUE and BIN",
+            "explanation": "The project launcher opens and checks the USA CUE with its BIN files. Later starts open the project launcher again, which reuses the selected disc when you press Play. The launcher starts a separate game process and exits. Turn off the launcher for direct starts after setup, or hold Shift at startup to reopen settings.",
+            "provenance": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled/blob/2534cebf328cc9f3ac231b74c696532b9b5420b4/README.md#getting-started",
+            "observed_at": 1795044630,
+            "evidence": "upstream-reported",
+            "launch_behavior": {
+              "first_launch": "opens-project-launcher",
+              "repeat_launch": "opens-project-launcher"
+            }
+          }
         ]
       }
     },
