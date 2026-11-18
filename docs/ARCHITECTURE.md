@@ -2735,7 +2735,12 @@ collisions, links and sensitive entries are never carried. Pending rows are
 committed before anything is written; copies are staged beside each
 destination, verified against the plan's approved digests and published only
 when all are staged, each after an unchanged-destination and exact-parent
-check. Too little free space (the larger of 1 GiB and 2% kept) carries nothing
+check. Dropping or stopping a carry also attempts to remove its newly created
+empty folders, deepest first, after its temporary files. Pre-existing folders,
+changed identities, links and nonempty folders are retained; cleanup is
+nonrecursive and never replaces the original result. Earlier crash leftovers
+are not discovered as owned folders. Too little free space (the larger of 1 GiB
+and 2% kept) carries nothing
 and the switch goes ahead; a modified active version carries nothing and
 records `source_modified`; a locked or changed file, or a partial earlier carry
 the switch can't finish, holds. The step has no cancellation or progress yet,

@@ -285,6 +285,14 @@ Placing the step after it puts declared data and additive adoption
 (`service/psx_mod_data.rs:882-887`) before the undeclared files, and keeps the
 final `verify_critical` after the carry.
 
+A stopped or dropped carry makes a best-effort, nonrecursive cleanup of empty
+folders created by that attempt, deepest first, after deleting its temporary
+files. Pre-existing folders are never cleanup candidates. Held filesystem
+identities prevent a replacement root or folder from inheriting that ownership;
+links, changed paths, nonempty folders and unavailable identities are retained.
+Cleanup does not replace the original failure. This does not discover folders
+left by an earlier process crash or delete arbitrary empty player folders.
+
 **Time under the port lock (N4).** Planning hashes the eligible files in A and
 T, and staging hashes each copy again, so a large tree adds time to every
 switch. The carry step:
