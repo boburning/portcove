@@ -110,10 +110,7 @@ export function GroupedLibrary({
   );
   const key = JSON.stringify([generation, queryKey]);
   const currentKey = useRef(key);
-  useLayoutEffect(() => {
-    currentGeneration.current = generation;
-    currentKey.current = key;
-  }, [generation, key]);
+  const currentMenuPort = useRef<string | undefined>(undefined);
   const [menu, setMenu] = useState<{
     key: string;
     openPortId?: string;
@@ -122,18 +119,39 @@ export function GroupedLibrary({
   }>({
     key,
   });
-  // Cancellation is final even if a later search returns to the same text.
-  if (menu.key !== key) setMenu({ key });
-  const currentMenu = menu.key === key ? menu : { key };
+  const menuGroup =
+    menu.key === key && menu.retainedPortId
+      ? groups.find((group) => group.ports.some((port) => port.id === menu.retainedPortId))
+      : undefined;
+  const hasMenuTarget =
+    !menu.retainedPortId ||
+    (menuGroup !== undefined &&
+      resolveGameChoice(
+        menuGroup,
+        statuses,
+        organization?.snapshot ? (organization.snapshot.preferred_port_by_game ?? {}) : undefined,
+      ).port?.id === menu.retainedPortId);
+  // Cancellation is final when the exact action target leaves the logical
+  // results, even if the same query or collection later brings it back.
+  const menuCurrent = menu.key === key && hasMenuTarget;
+  if (!menuCurrent) setMenu({ key });
+  const currentMenu = menuCurrent ? menu : { key };
+  useLayoutEffect(() => {
+    currentGeneration.current = generation;
+    currentKey.current = key;
+    currentMenuPort.current = currentMenu.retainedPortId;
+  }, [generation, key, currentMenu.retainedPortId]);
   const menuOwner = useMemo(
     () => ({
       openPortId: currentMenu.openPortId,
       highlightedAction: currentMenu.highlightedAction,
       canReturn(portId: string) {
-        return currentKey.current === key && currentMenu.retainedPortId === portId;
+        return currentKey.current === key && currentMenuPort.current === portId;
       },
       getHighlighted(portId: string) {
-        return currentKey.current === key && currentMenu.openPortId === portId
+        return currentKey.current === key &&
+          currentMenuPort.current === portId &&
+          currentMenu.openPortId === portId
           ? currentMenu.highlightedAction
           : undefined;
       },
@@ -164,11 +182,9 @@ export function GroupedLibrary({
         );
       },
     }),
-    [key, currentMenu.openPortId, currentMenu.retainedPortId, currentMenu.highlightedAction],
+    [key, currentMenu.openPortId, currentMenu.highlightedAction],
   );
-  const menuPin = groups.find((group) =>
-    group.ports.some((port) => port.id === currentMenu.retainedPortId),
-  )?.id;
+  const menuPin = currentMenu.retainedPortId ? menuGroup?.id : undefined;
   return (
     <LibraryMenuContext.Provider value={menuOwner}>
       <VirtualCollectionRows
