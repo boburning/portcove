@@ -28356,6 +28356,53 @@
       }
     },
     {
+      "id": "f-zero-x-n64hub",
+      "name": "F-Zero X / n64hub",
+      "summary": "Race in a native Windows or Linux build using your own first-revision USA F-Zero X ROM.",
+      "project_url": "https://github.com/n64hub/f-zero-x-recomp",
+      "original_game_title": "F-Zero X",
+      "issue_number": 5939,
+      "listed_at": "2026-11-18",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "FZeroXRecompiled-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "FZeroXRecompiled-",
+          "-linux-x64.tar.gz"
+        ]
+      },
+      "release_url": "https://github.com/n64hub/f-zero-x-recomp/releases/tag/v0.1.16",
+      "setup_url": "https://github.com/n64hub/f-zero-x-recomp/blob/v0.1.16/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Open the project launcher",
+            "instruction": "Extract the archive for your system and open FZeroXRecompiled.exe on Windows or FZeroXRecompiled on Linux from the extracted folder. Keep the assets beside the program. Windows needs the Visual C++ 2015–2022 x64 Redistributable. Linux needs glibc 2.35 or newer, a Vulkan driver, GTK 3 and FreeType."
+          },
+          {
+            "title": "Load your original game",
+            "instruction": "Choose Load ROM and select your own first-revision USA F-Zero X cartridge dump, a 16 MiB big-endian .z64. Then choose Start Game. Other regions and the 64DD expansion are outside this release’s ROM support."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep your racing records and settings",
+            "instruction": "The project uses %LOCALAPPDATA%/FZeroXRecompiled on Windows and ~/.config/FZeroXRecompiled on Linux by default. Keep the actual profile if you use the project’s portable.txt marker or a Linux APP_FOLDER_PATH override. You maintain the downloaded program and should back up the profile separately."
+          }
+        ],
+        "warnings": [
+          "The project’s game saves and settings stay outside Portcove’s backups."
+        ]
+      }
+    },
+    {
       "id": "fable-ii-recomp",
       "name": "Fable II Recomp",
       "summary": "Register the completed Fable II native Windows player after upstream preparation of your own supported GOTY game. Upstream owns extraction and runtime replacement.",
@@ -43868,6 +43915,53 @@
       }
     },
     {
+      "id": "n64hub-mario-golf-n64-usa-n64recomp",
+      "name": "Mario Golf (N64) / n64hub",
+      "summary": "Play Mario Golf in a native Windows or Linux build using your own USA Nintendo 64 ROM.",
+      "project_url": "https://github.com/n64hub/mario-golf-recomp",
+      "original_game_title": "Mario Golf",
+      "issue_number": 6275,
+      "listed_at": "2026-11-18",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "MarioGolfRecompiled-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "MarioGolfRecompiled-",
+          "-linux-x64.tar.gz"
+        ]
+      },
+      "release_url": "https://github.com/n64hub/mario-golf-recomp/releases/tag/v0.1.28",
+      "setup_url": "https://github.com/n64hub/mario-golf-recomp/blob/v0.1.28/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Open the project launcher",
+            "instruction": "Extract the archive for your system and open MarioGolfRecompiled.exe on Windows or MarioGolfRecompiled on Linux from the extracted folder. Keep the assets beside the program. Windows needs the Visual C++ 2015–2022 x64 Redistributable. Linux needs glibc 2.35 or newer, a Vulkan driver, GTK 3 and FreeType."
+          },
+          {
+            "title": "Load your original game",
+            "instruction": "Choose Load ROM and select your own USA Mario Golf cartridge dump in big-endian .z64 format. The launcher accepts the 32 MiB image or the common 24 MiB dump and pads the latter. Choose Start Game."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep your tournaments and settings",
+            "instruction": "The project uses %LOCALAPPDATA%/MarioGolfRecompiled on Windows and ~/.config/MarioGolfRecompiled on Linux by default. Keep the actual profile if you use the project’s portable.txt marker or a Linux APP_FOLDER_PATH override. The project reports that Save and Quit writes tournament progress. Resuming it after restart remains unverified. You maintain the downloaded program and should back up the profile separately."
+          }
+        ],
+        "warnings": [
+          "The project’s game saves and settings stay outside Portcove’s backups."
+        ]
+      }
+    },
+    {
       "id": "n64hub-perfect-dark-recomp",
       "artwork": {
         "game_id": 1463,
@@ -49406,6 +49500,62 @@
         "warnings": [
           "Keep a separate backup of the whole game working folder, including game/UbiSoft/Ubi.ini, before rebuilding. The active working copy and generated player belong to your upstream setup.",
           "The setup application is x64. Its generated game player is Win32 and runs on compatible Windows x64. This release has no native Linux, Mac, or Android setup path."
+        ]
+      }
+    },
+    {
+      "id": "pok-mon-pokopia-recompia",
+      "name": "Pokémon Pokopia / Recompia",
+      "summary": "Use the Recompia launcher to prepare your own Pokémon Pokopia dump, then return to it for Play, settings and updates.",
+      "project_url": "https://github.com/Dittobyte/Recompia",
+      "original_game_title": "Pokémon Pokopia",
+      "issue_number": 7248,
+      "listed_at": "2026-11-18",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "PokopiaRecomp-",
+          "-win64.zip"
+        ],
+        "linux-x86-64": [
+          "PokopiaRecomp-",
+          "-linux-x64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "Recompia-",
+          "-macos-arm64.zip"
+        ]
+      },
+      "release_url": "https://github.com/Dittobyte/Recompia/releases/tag/v0.15.0",
+      "setup_url": "https://github.com/Dittobyte/Recompia/blob/v0.15.0/launcher/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game in Recompia",
+            "instruction": "Extract the package for your system. Open PokopiaLauncher.exe on Windows, PokopiaLauncher.AppImage on Linux, or PokopiaLauncher on Apple silicon Mac. Select your own Pokémon Pokopia game data at version 2.0.1a, then choose Set up. The launcher assembles the game and translates shaders on your computer. You can pause and continue setup from the launcher."
+          },
+          {
+            "title": "Return to the launcher to Play",
+            "instruction": "After setup, open the same launcher and choose Play. To use Steam, add the launcher with no launch options. Version 0.15.0 removed direct --play so the launcher can check for updates before playing."
+          }
+        ],
+        "references": [
+          {
+            "title": "Use the upstream update and save controls",
+            "instruction": "Use Recompia’s Update and Set up again controls when it asks to rebuild. Solo saves default to the save folder inside the game directory. Keep the actual folder if you changed save_dir in pkp.ini or set NXRT_FS_SAVE_DIR. Keep any separate co-op save folders as well. Recompia says its update retains saves and shaders. Back them up separately from Portcove."
+          },
+          {
+            "title": "Choose the native Linux ARM64 package",
+            "instruction": "For Linux on ARM64, choose the linux-arm64 tarball from the upstream release page. It contains an ARM64 AppImage for setup. Follow the same upstream original-file and setup instructions."
+          }
+        ],
+        "warnings": [
+          "Keep a separate backup before switching between solo and co-op setups. Co-op uses a separate save and starts from the beginning."
         ]
       }
     },
