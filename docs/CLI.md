@@ -2761,7 +2761,9 @@ does not use, or an unregistered, unreadable or changed original. The plan
 checks registered originals against the matched installation's retained rules.
 In Desktop, open Setups and mods to export or open a recipe. The review lists
 the exact inputs already present and those still needed. A ready review creates
-a named setup with its own fresh progress.
+a named setup with its own fresh progress. Desktop preserves the exact native
+plan through review and import, including numeric settings, and shows supported
+setting values without JavaScript rounding.
 The imported setup starts with Review updates. Enable automatic updates
 separately in the destination library.
 

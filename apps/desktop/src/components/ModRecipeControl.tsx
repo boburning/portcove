@@ -3,7 +3,7 @@ import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import { pickModRecipePath, saveModRecipePath } from "../file-picker";
 import { useAppTranslation } from "../localization";
-import type { OutputRecipeImportPlan } from "../transport-types.generated";
+import type { OutputDesktopRecipeImportReview } from "../transport-types.generated";
 import { errorText } from "../view-model";
 import { providerName } from "./ModProviderBrowser";
 import { Button } from "./ui/button";
@@ -31,7 +31,8 @@ export function ModRecipeControl({
   onImported,
 }: Props) {
   const { t } = useAppTranslation("gameSettings");
-  const [plan, setPlan] = useState<OutputRecipeImportPlan>();
+  const [review, setReview] = useState<OutputDesktopRecipeImportReview>();
+  const plan = review?.plan;
   const [allowCode, setAllowCode] = useState(false);
   const [name, setName] = useState("");
   const [pending, setPending] = useState<RecipeAction>();
@@ -53,9 +54,9 @@ export function ModRecipeControl({
     };
   }, [portId, generation]);
   useEffect(() => () => onBusyChange(false), [onBusyChange]);
-  const showReview = (next?: OutputRecipeImportPlan, trigger: HTMLElement | null = null) => {
+  const showReview = (next?: OutputDesktopRecipeImportReview, trigger: HTMLElement | null = null) => {
     focusReviewFrom.current = document.activeElement === trigger ? trigger : null;
-    setPlan(next);
+    setReview(next);
   };
   useEffect(() => {
     const trigger = focusReviewFrom.current;
@@ -108,8 +109,8 @@ export function ModRecipeControl({
   };
 
   const closeReview = async () => {
-    if (plan?.acquisitions?.length) {
-      await desktopApi.discardModRecipeReview(portId, plan, generation);
+    if (review && plan?.acquisitions?.length) {
+      await desktopApi.discardModRecipeReview(portId, review, generation);
     }
     if (!active.current) return;
     focusOpenOnClose.current = reviewSection.current?.contains(document.activeElement) ?? false;
@@ -134,19 +135,19 @@ export function ModRecipeControl({
     });
 
   const checkProvider = (nativeId: string, trigger: HTMLButtonElement) => {
-    if (!plan || !profileId) return;
+    if (!review || !plan || !profileId) return;
     void run(`provider:${nativeId}`, async () => {
       setFailure(undefined);
       setAllowCode(false);
-      const review = await desktopApi.acquireModRecipePackage(
+      const nextReview = await desktopApi.acquireModRecipePackage(
         portId,
         profileId,
         nativeId,
-        plan,
+        review,
         generation,
       );
       if (!active.current) return;
-      showReview(review, trigger);
+      showReview(nextReview, trigger);
     });
   };
 
@@ -156,10 +157,10 @@ export function ModRecipeControl({
     plan?.recipe.packages.map((pack) => [pack.native_id, pack.provider]),
   );
   const importRecipe = () => {
-    if (!plan?.can_apply || !name.trim() || (needsCode && !allowCode)) return;
+    if (!review || !plan?.can_apply || !name.trim() || (needsCode && !allowCode)) return;
     void run("import", async () => {
       setFailure(undefined);
-      await desktopApi.applyModRecipe(portId, name.trim(), plan, generation, allowCode);
+      await desktopApi.applyModRecipe(portId, name.trim(), review, generation, allowCode);
       if (!active.current) return;
       focusOpenOnClose.current = reviewSection.current?.contains(document.activeElement) ?? false;
       showReview();
@@ -271,7 +272,7 @@ export function ModRecipeControl({
               <div className="mt-2">
                 <p>{t("mods.recipe.settings")}</p>
                 <ul className="list-disc ps-5">
-                  {plan.recipe.settings?.map((setting) => (
+                  {plan.recipe.settings?.map((setting, index) => (
                     <li key={JSON.stringify([setting.native_id, setting.option_id])}>
                       <bdi>
                         {t("mods.recipe.setting", {
@@ -280,7 +281,7 @@ export function ModRecipeControl({
                         })}
                       </bdi>
                       {" · "}
-                      <bdi>{String(setting.value)}</bdi>
+                      <bdi>{review?.setting_values[index]}</bdi>
                     </li>
                   ))}
                 </ul>

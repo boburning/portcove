@@ -435,7 +435,7 @@ export const desktopApi = {
   exportModRecipe: (portId: string, profileId: string, path: string, generation: number) =>
     invoke<void>("export_mod_recipe", { portId, profileId, path, generation }),
   inspectModRecipe: (portId: string, path: string, generation: number) =>
-    invoke<import("./transport-types.generated").OutputRecipeImportPlan>("inspect_mod_recipe", {
+    invoke<import("./transport-types.generated").OutputDesktopRecipeImportReview>("inspect_mod_recipe", {
       portId,
       path,
       generation,
@@ -444,22 +444,22 @@ export const desktopApi = {
     portId: string,
     profileId: string,
     nativeId: string,
-    plan: import("./transport-types.generated").OutputRecipeImportPlan,
+    review: import("./transport-types.generated").OutputDesktopRecipeImportReview,
     generation: number,
   ) =>
-    invoke<import("./transport-types.generated").OutputRecipeImportPlan>(
+    invoke<import("./transport-types.generated").OutputDesktopRecipeImportReview>(
       "acquire_mod_recipe_package",
-      { portId, profileId, nativeId, plan, generation },
+      { portId, profileId, nativeId, serializedPlan: review.serialized_plan, generation },
     ),
   discardModRecipeReview: (
     portId: string,
-    plan: import("./transport-types.generated").OutputRecipeImportPlan,
+    review: import("./transport-types.generated").OutputDesktopRecipeImportReview,
     generation: number,
-  ) => invoke<void>("discard_mod_recipe_review", { portId, plan, generation }),
+  ) => invoke<void>("discard_mod_recipe_review", { portId, serializedPlan: review.serialized_plan, generation }),
   applyModRecipe: (
     portId: string,
     displayName: string,
-    plan: import("./transport-types.generated").OutputRecipeImportPlan,
+    review: import("./transport-types.generated").OutputDesktopRecipeImportReview,
     generation: number,
     allowCode: boolean,
   ) =>
@@ -467,7 +467,7 @@ export const desktopApi = {
       portId,
       allowCode,
       displayName,
-      plan,
+      serializedPlan: review.serialized_plan,
       generation,
     }),
   setModPackageEnabled: (

@@ -82,6 +82,45 @@ pub(crate) struct BackupReview {
     pub(crate) persistent_data_path: PathBuf,
 }
 
+/// A recipe review's display data and its exact Core-owned import plan.
+/// JavaScript numbers cannot preserve every JSON number representation, so
+/// only the unchanged serialized plan is sent back for Core to verify and use.
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct RecipeImportReview {
+    pub(crate) plan: portcove_core::RecipeImportPlan,
+    pub(crate) serialized_plan: String,
+    /// Exact native text in the same order as `plan.recipe.settings`.
+    pub(crate) setting_values: Vec<String>,
+}
+
+impl RecipeImportReview {
+    pub(crate) fn new(plan: portcove_core::RecipeImportPlan) -> portcove_core::Result<Self> {
+        let serialized_plan = serde_json::to_string(&plan)?;
+        let setting_values = plan
+            .recipe
+            .settings
+            .iter()
+            .map(|setting| match &setting.value {
+                portcove_core::RecipeModSettingValue::Number(value) => value.to_string(),
+                portcove_core::RecipeModSettingValue::Choice(value) => value.clone(),
+            })
+            .collect();
+        Ok(Self {
+            plan,
+            serialized_plan,
+            setting_values,
+        })
+    }
+
+    /// Decoding is transport only. The command still performs the ordinary
+    /// generation, port, plan-digest, consent and current-input checks in Core.
+    pub(crate) fn decode(
+        serialized_plan: &str,
+    ) -> portcove_core::Result<portcove_core::RecipeImportPlan> {
+        serde_json::from_str(serialized_plan).map_err(Into::into)
+    }
+}
+
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct CliCommandContext {
     pub(crate) library_root: PathBuf,
@@ -434,6 +473,7 @@ pub fn export_transport_schemas() -> Value {
             "locale_preference": output::<DesktopLocalePreference>(),
             "library_organization": output::<portcove_core::LibraryOrganization>(),
             "backup_review": output::<BackupReview>(),
+            "recipe_import_review": output::<RecipeImportReview>(),
             "cli_command_context": output::<CliCommandContext>(),
             "desktop_error": output::<DesktopError>(),
             "update_check_outcome": output::<BatchOutcome<UpdateCheck>>(),
