@@ -415,12 +415,17 @@ function usePortBrowser({
   const stableContinue = useLatestCallback(onContinue);
   const stableTask = useLatestCallback(onTask);
   const confirmedPortIds = favorites?.ids;
+  const favoriteUniverse =
+    catalogUniverse ??
+    queryContext?.catalogUniverse ??
+    (view === "library" ? libraryFilterCandidates : catalogFilterCandidates) ??
+    ports;
   const favoriteGroups = useMemo(
     () =>
       confirmedPortIds && (!organization || organization.snapshot)
-        ? favoriteGroupIds(catalogUniverse ?? ports, organization, confirmedPortIds)
+        ? favoriteGroupIds(favoriteUniverse, organization, confirmedPortIds)
         : undefined,
-    [catalogUniverse, ports, organization, confirmedPortIds],
+    [favoriteUniverse, organization, confirmedPortIds],
   );
   const { composedLibrary, unresolvedReadiness, candidates, readinessCount, declaredCandidates } =
     resolveLibraryFilters({
@@ -455,7 +460,7 @@ function usePortBrowser({
     organization,
     organizationView,
     view === "catalog",
-    catalogUniverse ?? ports,
+    favoriteUniverse,
     favorites?.ids,
   );
   const favoriteMatches = scopedPorts.filter((port) => favoriteGroups?.has(gameGroupId(port)));
@@ -552,6 +557,7 @@ function usePortBrowser({
     resultsUnavailable,
     unresolvedFilter,
     favoriteCount,
+    favoriteUniverse,
     activeQuickView,
     quickViewCounts,
     visiblePorts,
@@ -764,7 +770,7 @@ function PortBrowserView({
         query={model.query}
         view={model.view}
         ports={model.visiblePorts}
-        allCatalogPorts={model.catalogUniverse ?? model.declaredCandidates ?? model.visiblePorts}
+        allCatalogPorts={model.favoriteUniverse}
         organization={model.organization}
         restoreAfter={model.restoreAfter}
         favorites={favorites}
@@ -1833,6 +1839,12 @@ function BrowserQuickViews({
     >
       {views.map(({ view, label }) => {
         const count = counts[view];
+        const favoriteCount =
+          view === "favorites"
+            ? count === "unavailable"
+              ? t("favorite.countUnavailable")
+              : t("favorite.count", { count })
+            : undefined;
         const checked = active === view;
         return (
           <Button
@@ -1847,6 +1859,7 @@ function BrowserQuickViews({
             aria-checked={checked}
             tabIndex={view === tabStop ? 0 : -1}
             disabled={!enabled(view)}
+            aria-label={favoriteCount ? `${label} ${favoriteCount}` : undefined}
             aria-describedby={`${countId}-${view}`}
             onClick={() => {
               if (!checked) select(view);
@@ -1857,15 +1870,11 @@ function BrowserQuickViews({
             }}
           >
             {label}
-            {view === "favorites" ? (
-              <>
-                {" "}
-                <span className="browse-count">
-                  {count === "unavailable"
-                    ? t("favorite.countUnavailable")
-                    : t("favorite.count", { count })}
-                </span>
-              </>
+            {favoriteCount && " "}
+            {favoriteCount ? (
+              <span className="browse-count" aria-hidden="true">
+                {favoriteCount}
+              </span>
             ) : (
               typeof count === "number" && (
                 <span className="browse-count" aria-hidden="true">

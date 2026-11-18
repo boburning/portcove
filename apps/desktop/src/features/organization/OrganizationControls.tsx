@@ -466,7 +466,7 @@ export function FavoritePreferenceFailure({
   if (!favorites?.failure && !organization?.failure) return null;
   return (
     <div role="status" className="basis-full text-sm text-pc-warning-foreground">
-      {t("favorite.unconfirmed")}
+      <span>{t("favorite.unconfirmed")}</span>
       <Button
         variant="link"
         size="sm"

@@ -15,7 +15,7 @@ that choice committed; no follow-up read can convert success into a failed write
 
 Core's delivered format-1 extension retains absent or retired IDs, library moves,
 unknown compatible preferences, process/cross-process locking and atomic bounded
-publication. No second persistent favorite store exists. Reload reads that store;
+publication. Reload reads the original port store;
 no catalog metadata, share URL, scan, network or installation/source mutation is
 performed. The Library view still requires real library membership.
 

@@ -159,14 +159,12 @@ it("removes a filtered sibling Favorite through listing details and rereads it o
       else favoritePorts.delete(portId);
     });
   initializeLocalization(["en"]);
-  const mount = () =>
-    render(
-      <LocalizationProvider api={desktopApi}>
-        <App />
-      </LocalizationProvider>,
-      { container: root },
-    );
-  const app = await mount();
+  const app = await render(
+    <LocalizationProvider api={desktopApi}>
+      <App />
+    </LocalizationProvider>,
+    { container: root },
+  );
   await expect.element(page.getByRole("button", { name: "Discover", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Discover", exact: true }).click();
   const search = page.getByRole("textbox", { name: "Search Discover" });
@@ -199,8 +197,11 @@ it("removes a filtered sibling Favorite through listing details and rereads it o
   await expect
     .element(page.getByRole("button", { name: "Use an existing installation", exact: true }))
     .toBeEnabled();
-  await app.unmount();
-  await mount();
+  await app.rerender(
+    <LocalizationProvider api={desktopApi}>
+      <App key="reloaded" />
+    </LocalizationProvider>,
+  );
   await page.getByRole("button", { name: "Discover", exact: true }).click();
   await search.fill("Native project Alpha");
   await expect.element(favorite).toHaveAttribute("aria-pressed", "false");
