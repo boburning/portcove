@@ -1780,7 +1780,8 @@ async function restartApplication(
           selectedSetupRestart ||
             acquisitionRestart ||
             interruptedPreparationSession ||
-            reviewedWorkflowSession
+            reviewedWorkflowSession ||
+            selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch")
             ? name
             : cleanupName,
         );
