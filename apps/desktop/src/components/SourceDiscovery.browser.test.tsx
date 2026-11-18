@@ -565,34 +565,29 @@ it.each([
       preliminary.scrollIntoView({ block: "center" });
       expect(dialog.scrollWidth).toBeLessThanOrEqual(dialog.clientWidth + 1);
       await captureParityState("source-discovery-rhythm-preliminary");
-      if (width === 430) {
-        const footer = dialog.querySelector<HTMLElement>('[data-slot="dialog-footer"]')!;
-        footer.scrollIntoView({ block: "center", behavior: "instant" });
-        const actions = [...footer.querySelectorAll<HTMLButtonElement>("button")];
-        expect(actions.map((action) => action.textContent)).toEqual([
-          "Close",
-          "Search this folder",
-        ]);
-        const dialogBounds = dialog.getBoundingClientRect();
-        for (const action of actions) {
-          const bounds = action.getBoundingClientRect();
-          requireCompleteCaptureTarget(
-            {
-              target: action.textContent!,
-              target_count: 1,
-              visible: action.checkVisibility(),
-              rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
-              viewport: { width: innerWidth, height: innerHeight },
-            },
-            action.textContent!,
-          );
-          expect(bounds.left).toBeGreaterThanOrEqual(dialogBounds.left);
-          expect(bounds.right).toBeLessThanOrEqual(dialogBounds.right);
-          expect(bounds.top).toBeGreaterThanOrEqual(dialogBounds.top);
-          expect(bounds.bottom).toBeLessThanOrEqual(dialogBounds.bottom);
-        }
-        await captureParityState("source-discovery-rhythm-preliminary-footer");
+      const footer = dialog.querySelector<HTMLElement>('[data-slot="dialog-footer"]')!;
+      footer.scrollIntoView({ block: "center", behavior: "instant" });
+      const actions = [...footer.querySelectorAll<HTMLButtonElement>("button")];
+      expect(actions.map((action) => action.textContent)).toEqual(["Close", "Search this folder"]);
+      const dialogBounds = dialog.getBoundingClientRect();
+      for (const action of actions) {
+        const bounds = action.getBoundingClientRect();
+        requireCompleteCaptureTarget(
+          {
+            target: action.textContent,
+            target_count: 1,
+            visible: action.checkVisibility(),
+            rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+            viewport: { width: innerWidth, height: innerHeight },
+          },
+          action.textContent,
+        );
+        expect(bounds.left).toBeGreaterThanOrEqual(dialogBounds.left);
+        expect(bounds.right).toBeLessThanOrEqual(dialogBounds.right);
+        expect(bounds.top).toBeGreaterThanOrEqual(dialogBounds.top);
+        expect(bounds.bottom).toBeLessThanOrEqual(dialogBounds.bottom);
       }
+      if (width === 430) await captureParityState("source-discovery-rhythm-preliminary-footer");
       await page.getByRole("button", { name: "Close", exact: true }).click();
       await expect.poll(() => document.activeElement?.textContent).toBe("Find required files");
     } finally {
