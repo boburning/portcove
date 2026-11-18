@@ -11,9 +11,9 @@ and launch it from the desktop app or a standalone command-line tool.
 · [Browse the catalog](https://boburning.github.io/portcove/catalog/browse/index.html)
 · [Set up your first game](#your-first-game)
 
-![Library mockup with two Harbor Adventure ports ready to play and Orchard Quest waiting for game files](docs/evidence/prototype-transfers-2026-10-23/prototype-matched-covers-dark.png)
+![Library Favorites showing six sample games, five ready to play and Orchard Quest with a Finish setup action](docs/media/readme/library.png)
 
-_Library mockup. The games are fictional and use geometric cover placeholders. The app now calls the mockup’s Port catalog view Discover._
+_Portcove’s desktop interface with a simulated library of fictional games and geometric covers. Captured November 18, 2026._ [Capture details](docs/media/readme/README.md)
 
 <a id="project-status"></a>
 
@@ -59,9 +59,9 @@ has been tested. A catalog entry may point you to the upstream project, help you
 register an existing install, or offer an installation that Portcove can manage.
 Check the entry for the game and system you want to use. [Explore the catalog](https://boburning.github.io/portcove/catalog/browse/index.html)
 
-![Game details mockup for Harbor Adventure showing Play, the installed version, and tabs for files, saved data, and versions](docs/qualification/assets/production-detail-tabs-2026-10-23/prototype-dark-1366.png)
+![Harbor Adventure game details with Play and the Game files, Saves & backups, Versions & updates, and Manage tabs](docs/media/readme/game-details.png)
 
-_Game details mockup. Harbor Adventure is a sample port with a managed installation._
+_Harbor Adventure in the same simulated library. Open a tab to find its game files, saves, or available updates._
 
 ## Manage, check, update and recover
 
