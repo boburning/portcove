@@ -1,0 +1,77 @@
+[
+  {
+    "store": "steam",
+    "product_id": "32400",
+    "profile_id": "dark-forces-pc-complete-installed-data",
+    "relative_directory": "Game",
+    "required_directories": []
+  },
+  {
+    "store": "gog",
+    "product_id": "1421404433",
+    "profile_id": "dark-forces-pc-complete-installed-data",
+    "relative_directory": null,
+    "required_directories": []
+  },
+  {
+    "store": "steam",
+    "product_id": "9050",
+    "profile_id": "doom-3-classic-pc-131-pk4",
+    "relative_directory": null,
+    "required_directories": [
+      "base"
+    ]
+  },
+  {
+    "store": "steam",
+    "product_id": "9070",
+    "profile_id": "doom-3-roe-classic-pc-131-pk4",
+    "relative_directory": null,
+    "required_directories": [
+      "base",
+      "d3xp"
+    ]
+  },
+  {
+    "store": "steam",
+    "product_id": "358190",
+    "profile_id": "bstone-aliens-of-gold-originals",
+    "relative_directory": "Blake Stone - Aliens of Gold",
+    "required_directories": []
+  },
+  {
+    "store": "steam",
+    "product_id": "358310",
+    "profile_id": "bstone-planet-strike-originals",
+    "relative_directory": "Blake Stone - Planet Strike",
+    "required_directories": []
+  },
+  {
+    "store": "gog",
+    "product_id": "1207658728",
+    "profile_id": "bstone-aliens-of-gold-originals",
+    "relative_directory": null,
+    "required_directories": []
+  },
+  {
+    "store": "gog",
+    "product_id": "1207658729",
+    "profile_id": "bstone-planet-strike-originals",
+    "relative_directory": null,
+    "required_directories": []
+  },
+  {
+    "store": "steam",
+    "product_id": "238050",
+    "profile_id": "bstone-aliens-of-gold-originals",
+    "relative_directory": "Blake Stone",
+    "required_directories": []
+  },
+  {
+    "store": "steam",
+    "product_id": "238050",
+    "profile_id": "bstone-planet-strike-originals",
+    "relative_directory": "Planet Strike",
+    "required_directories": []
+  }
+]

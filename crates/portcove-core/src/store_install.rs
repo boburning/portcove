@@ -6,6 +6,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::{Component, Path, PathBuf},
+    sync::OnceLock,
 };
 
 use schemars::JsonSchema;
@@ -134,23 +135,84 @@ pub(crate) fn default_host() -> std::sync::Arc<dyn StoreInstallHost> {
     }
 }
 
+/// A reviewed hint for one source identity and store product. Shipped with the
+/// application alongside its original-file definitions.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoreOriginalLayout {
+    store: GameStore,
+    product_id: String,
+    profile_id: String,
+    relative_directory: Option<String>,
+    required_directories: Vec<String>,
+}
+
+fn parse_store_original_layouts(document: &str) -> Result<Vec<StoreOriginalLayout>> {
+    let rows: Vec<StoreOriginalLayout> = serde_json::from_str(document)?;
+    let mut identities = BTreeSet::new();
+    if rows.len() > 1024 {
+        return Err(PortcoveError::verification(
+            "store original layouts exceed their row limit",
+        ));
+    }
+    for row in &rows {
+        if row.store == GameStore::Epic
+            || product_number(&row.product_id)
+                .is_none_or(|number| number.to_string() != row.product_id)
+            || row.profile_id.is_empty()
+            || row.profile_id.len() > 128
+            || !row
+                .profile_id
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+            || !identities.insert((row.store, &row.product_id, &row.profile_id))
+            || row.required_directories.len() > 16
+        {
+            return Err(PortcoveError::verification(
+                "invalid or duplicate store original layout",
+            ));
+        }
+        for directory in row
+            .relative_directory
+            .iter()
+            .chain(&row.required_directories)
+        {
+            crate::archive::validate_relative_path(directory, false)?;
+        }
+    }
+    Ok(rows)
+}
+
+fn embedded_store_original_layouts() -> &'static [StoreOriginalLayout] {
+    static LAYOUTS: OnceLock<Vec<StoreOriginalLayout>> = OnceLock::new();
+    LAYOUTS.get_or_init(|| {
+        parse_store_original_layouts(include_str!("../catalog/store-original-layouts.json"))
+            .unwrap_or_else(|error| {
+                tracing::error!(message = %error, "could not load bundled store original layouts");
+                Vec::new()
+            })
+    })
+}
+
 /// What a detection found, including folders that must never lose files
 /// through a Move even when no single install names them.
 #[derive(Debug, Default)]
-struct Detection {
+struct Detection<'a> {
     report: StoreGameInstalls,
     protected: Vec<(GameStore, PathBuf)>,
     seen: BTreeMap<String, Option<usize>>,
     requested_profile: Option<String>,
+    layouts: &'a [StoreOriginalLayout],
 }
 
-impl Detection {
+impl Detection<'_> {
     fn skip(&mut self) {
         self.report.skipped_entries = self.report.skipped_entries.saturating_add(1);
     }
 
     fn add(&mut self, store: GameStore, title: &str, path: &Path, product_id: Option<String>) {
         let candidate = original_folder(
+            self.layouts,
             store,
             product_id.as_deref(),
             path,
@@ -200,13 +262,22 @@ impl Detection {
     }
 }
 
-fn detect(host: &dyn StoreInstallHost) -> Detection {
+fn detect(host: &dyn StoreInstallHost) -> Detection<'static> {
     detect_for_profile(host, None)
 }
 
-fn detect_for_profile(host: &dyn StoreInstallHost, profile_id: Option<&str>) -> Detection {
+fn detect_for_profile(host: &dyn StoreInstallHost, profile_id: Option<&str>) -> Detection<'static> {
+    detect_with_layouts(host, profile_id, embedded_store_original_layouts())
+}
+
+fn detect_with_layouts<'a>(
+    host: &dyn StoreInstallHost,
+    profile_id: Option<&str>,
+    layouts: &'a [StoreOriginalLayout],
+) -> Detection<'a> {
     let mut detection = Detection {
         requested_profile: profile_id.map(str::to_owned),
+        layouts,
         ..Detection::default()
     };
     detection.report.checked_stores = host.checked_stores();
@@ -232,14 +303,14 @@ fn detect_for_profile(host: &dyn StoreInstallHost, profile_id: Option<&str>) -> 
     detection
 }
 
-fn detect_steam(host: &dyn StoreInstallHost, detection: &mut Detection) {
+fn detect_steam(host: &dyn StoreInstallHost, detection: &mut Detection<'_>) {
     // Canonical `steamapps` folders, kept as resolved so a linked or
     // differently cased folder is still read and protected as itself.
     let mut libraries = Vec::<PathBuf>::new();
     let mut library_keys = BTreeSet::new();
     // `listed` libraries come from Steam's own list, so a bad entry counts as
     // skipped; default client locations are often simply absent.
-    let mut push_library = |path: &Path, listed: bool, detection: &mut Detection| {
+    let mut push_library = |path: &Path, listed: bool, detection: &mut Detection<'_>| {
         let Some(steamapps) = existing_folder(&path.join("steamapps")) else {
             if listed {
                 detection.skip();
@@ -318,7 +389,7 @@ fn detect_steam(host: &dyn StoreInstallHost, detection: &mut Detection) {
     }
 }
 
-fn detect_epic(directory: &Path, detection: &mut Detection) {
+fn detect_epic(directory: &Path, detection: &mut Detection<'_>) {
     for manifest in manifest_files(directory, detection, |name| name.ends_with(".item")) {
         let Some(item) = read_text(&manifest)
             .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
@@ -363,7 +434,7 @@ fn detect_epic(directory: &Path, detection: &mut Detection) {
 /// Bounded, sorted regular files whose names `accept` admits.
 fn manifest_files(
     directory: &Path,
-    detection: &mut Detection,
+    detection: &mut Detection<'_>,
     accept: impl Fn(&str) -> bool,
 ) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(directory) else {
@@ -575,61 +646,32 @@ fn single_app_state(tokens: &[VdfToken]) -> bool {
 }
 
 fn original_folder(
+    layouts: &[StoreOriginalLayout],
     store: GameStore,
     product_id: Option<&str>,
     install_path: &Path,
     requested_profile: Option<&str>,
 ) -> Option<StoreOriginalFolder> {
-    // Use the folder coordinates documented by The Force Engine and
-    // dhewm3 and BStone. Product and layout are hints; source intake verifies identity.
-    let (profile_id, subdirectory, required_directories): (&str, &str, &[&str]) =
-        match (store, product_id) {
-            (GameStore::Steam, Some("32400")) => {
-                ("dark-forces-pc-complete-installed-data", "Game", &[])
-            }
-            (GameStore::Gog, Some("1421404433")) => {
-                ("dark-forces-pc-complete-installed-data", "", &[])
-            }
-            (GameStore::Steam, Some("9050")) => ("doom-3-classic-pc-131-pk4", "", &["base"]),
-            (GameStore::Steam, Some("9070")) => {
-                ("doom-3-roe-classic-pc-131-pk4", "", &["base", "d3xp"])
-            }
-            (GameStore::Steam, Some("358190")) => (
-                "bstone-aliens-of-gold-originals",
-                "Blake Stone - Aliens of Gold",
-                &[],
-            ),
-            (GameStore::Steam, Some("358310")) => (
-                "bstone-planet-strike-originals",
-                "Blake Stone - Planet Strike",
-                &[],
-            ),
-            (GameStore::Gog, Some("1207658728")) => ("bstone-aliens-of-gold-originals", "", &[]),
-            (GameStore::Gog, Some("1207658729")) => ("bstone-planet-strike-originals", "", &[]),
-            // One anthology install contains both games. The selected source
-            // profile supplies context, never a guessed default implementation.
-            (GameStore::Steam, Some("238050")) => match requested_profile {
-                Some("bstone-aliens-of-gold-originals") => {
-                    ("bstone-aliens-of-gold-originals", "Blake Stone", &[])
-                }
-                Some("bstone-planet-strike-originals") => {
-                    ("bstone-planet-strike-originals", "Planet Strike", &[])
-                }
-                _ => return None,
-            },
-            _ => return None,
-        };
-    if requested_profile.is_some_and(|requested| requested != profile_id) {
+    let product_id = product_id?;
+    let mut matching = layouts.iter().filter(|row| {
+        row.store == store
+            && row.product_id == product_id
+            && requested_profile.is_none_or(|profile| profile == row.profile_id)
+    });
+    let layout = matching.next()?;
+    // Anthologies only produce an original-folder hint after the player has
+    // selected a specific source profile.
+    if matching.next().is_some() {
         return None;
     }
-    let directory = install_path.join(subdirectory);
+    let directory = install_path.join(layout.relative_directory.as_deref().unwrap_or(""));
     crate::path::refuse_symlink_ancestors(&directory).ok()?;
     let install = existing_folder(install_path)?;
     let path = existing_folder(&directory)?;
     if !inside(&path, &install) {
         return None;
     }
-    for name in required_directories {
+    for name in &layout.required_directories {
         let required = path.join(name);
         crate::path::refuse_symlink_ancestors(&required).ok()?;
         if !required.is_dir() {
@@ -637,7 +679,7 @@ fn original_folder(
         }
     }
     Some(StoreOriginalFolder {
-        profile_id: profile_id.into(),
+        profile_id: layout.profile_id.clone(),
         path,
     })
 }
@@ -705,6 +747,11 @@ impl PortcoveService {
             .saturating_add(u32::try_from(before - report.installs.len()).unwrap_or(u32::MAX));
         let roots = self.library().game_file_roots()?;
         for install in &mut report.installs {
+            if install.original_folder.as_ref().is_some_and(|original| {
+                self.catalog().source_profile(&original.profile_id).is_err()
+            }) {
+                install.original_folder = None;
+            }
             let key = path_key(&install.path.to_string_lossy());
             install.saved_root_id = roots
                 .iter()
