@@ -97,7 +97,12 @@ function view(overrides: Partial<ModSetupsView> = {}): ModSetupsView {
   } as unknown as ModSetupsView;
 }
 
-async function render(busy = false, openGameFiles?: () => void, generation = 7) {
+async function render(
+  busy = false,
+  openGameFiles?: () => void,
+  generation = 7,
+  libraryRoot?: string,
+) {
   vi.spyOn(desktopApi, "previewModSetupDraft").mockResolvedValue({
     order: [],
     conflicts: [],
@@ -115,6 +120,7 @@ async function render(busy = false, openGameFiles?: () => void, generation = 7) 
         generation={generation}
         busy={busy}
         openGameFiles={openGameFiles}
+        libraryRoot={libraryRoot}
       />,
     ),
   );
@@ -2022,4 +2028,35 @@ it("restores the Installed search and status after showing the full load order",
   await expect.element(search).toHaveValue("hd");
   await expect.element(status).toHaveAccessibleName("Installation status Enabled");
   await expect.element(page.getByRole("checkbox", { name: "sfx.otr" })).not.toBeInTheDocument();
+});
+
+it("keeps the older draft when storage cannot save the recovered addition", async () => {
+  const library = "draft-quota-test";
+  const scope = `portcove.mod-draft.${JSON.stringify([library, "shipwright", "default"])}`;
+  const previous = `${scope}.2`;
+  const current = `${scope}.3`;
+  const older = JSON.stringify({
+    additions: [
+      { provider: "gamebanana", project: "42", file: "73", name: "HD Link", fileName: "hd.otr" },
+    ],
+    packages: [],
+    order: null,
+  });
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view({ provider: "gamebanana" }));
+  localStorage.setItem(previous, older);
+  const write = Storage.prototype.setItem;
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key, value) {
+    if (key === current) throw new DOMException("Quota exceeded", "QuotaExceededError");
+    write.call(this, key, value);
+  });
+  try {
+    const host = await render(false, undefined, 7, library);
+    await act(async () => button(host, "Recover additions").click());
+    expect(localStorage.getItem(current)).toBeNull();
+    expect(localStorage.getItem(previous)).toBe(older);
+    expect(button(host, "Review changes").disabled).toBe(false);
+  } finally {
+    localStorage.removeItem(previous);
+    localStorage.removeItem(current);
+  }
 });

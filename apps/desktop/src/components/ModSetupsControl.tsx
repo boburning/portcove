@@ -520,10 +520,11 @@ function BoundModSetupsControl({
                         draft.additions.length + recoverable.length + localFiles.length > 16
                       }
                       onClick={() => {
-                        setDraft((current) => ({
+                        const saved = setDraft((current) => ({
                           ...current,
                           additions: [...current.additions, ...recoverable],
                         }));
+                        if (!saved) return;
                         updateOlder({
                           ...olderDraft.selections,
                           additions: olderDraft.selections.additions.filter(

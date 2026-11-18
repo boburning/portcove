@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useLayoutEffect, useRef, useState, type SetStateAction } from "react";
 
 import type { OutputLocalModPackagePlan } from "../../transport-types.generated";
 
@@ -122,7 +122,7 @@ export function useModDraft(scope: {
   revision: number | undefined;
 }): [
   ModDraft,
-  Dispatch<SetStateAction<ModDraft>>,
+  (update: SetStateAction<ModDraft>) => boolean,
   StaleDraft | undefined,
   (draft?: ModDraft) => void,
 ] {
@@ -146,24 +146,26 @@ export function useModDraft(scope: {
   }, [saved]);
   if (saved.key !== key) {
     setSaved(read());
-    return [emptyModDraft, () => {}, undefined, () => {}];
+    return [emptyModDraft, () => false, undefined, () => {}];
   }
-  const updateDraft: Dispatch<SetStateAction<ModDraft>> = (update) => {
+  const updateDraft = (update: SetStateAction<ModDraft>) => {
     const current = latest.current;
-    if (current.key !== key) return;
+    if (current.key !== key) return false;
     const draft = typeof update === "function" ? update(current.draft) : update;
     const updated = { ...current, draft };
     latest.current = updated;
     setSaved(updated);
-    if (!key || !scopeKey || !scope.library) return;
+    if (!key || !scopeKey || !scope.library) return false;
     try {
       if (draftSize(draft)) {
         localStorage.setItem(key, JSON.stringify(draft));
       } else {
         localStorage.removeItem(key);
       }
+      return true;
     } catch {
       // Keep the current in-memory draft if local writes are unavailable.
+      return false;
     }
   };
   const updateOlder = (draft?: ModDraft) => {
