@@ -867,6 +867,12 @@ recovery links select the owning category before focusing its relevant control.
 About links to the support report heading in Advanced. Updates explains
 application/game updates and the bundled game catalog; optional custom catalog trust controls
 belong under Advanced. Category selection is ephemeral presentation state.
+SteamGridDB setup distinguishes an active device-status read from a settled
+failure. A failed read offers Check setup again without claiming a saved or
+missing key. Key controls become available only after the read succeeds; retry
+retains its focus, and failed key writes retain the masked input. Device key
+status survives library changes, while image checks remain bound to the current
+library generation. A retired Settings mount cannot publish a delayed read.
 Recovery items expose read-only navigation beside their collapsed recorded
 locations: setup opens the game, missing installations and backup problems open
 Saves and storage, and unfinished operations reveal their exact loaded activity
