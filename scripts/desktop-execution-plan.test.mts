@@ -2023,3 +2023,73 @@ void test("keyboard layout follows the actual native viewport after a minimum-wi
   await assert.rejects(run(640, false), /actual responsive breakpoint/u);
   await assert.rejects(run(960, true), /actual responsive breakpoint/u);
 });
+
+void test("native keyboard replacement releases modifiers before separate text delivery", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-review-controls.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("export async function replaceKeyboardText(");
+  const end = source.indexOf("/** Reveal the retained log", start);
+  assert.ok(start >= 0 && end > start);
+  const run = async (platform: string, text: string, failRelease = false) => {
+    const calls: unknown[] = [];
+    let modifierHeld = false;
+    const actions = {
+      keyDown: (key: string) => {
+        calls.push(["down", key]);
+        modifierHeld = true;
+        return actions;
+      },
+      sendKeys: (key: string) => {
+        calls.push(["action-key", key]);
+        return actions;
+      },
+      keyUp: (key: string) => {
+        calls.push(["up", key]);
+        return actions;
+      },
+      perform: async () => {
+        if (failRelease) throw new Error("modifier release failed");
+        modifierHeld = false;
+        calls.push("released");
+      },
+    };
+    await runInNewContext(
+      `${source.slice(start, end).replace("export ", "")}
+replaceKeyboardText(browser, element, text)`,
+      {
+        browser: { actions: () => actions },
+        element: {
+          sendKeys: async (...keys: string[]) => {
+            assert.equal(modifierHeld, false, "text must not be sent with a held modifier");
+            assert.equal(keys.length, 1, "Backspace and plain text require separate commands");
+            calls.push(["element-key", ...keys]);
+          },
+        },
+        text,
+        process: { platform },
+        Key: { COMMAND: "command", CONTROL: "control", BACK_SPACE: "backspace" },
+        clickVisible: async () => calls.push("visible-click"),
+      },
+    );
+    return calls;
+  };
+  for (const platform of ["linux", "win32", "darwin"]) {
+    const modifier = platform === "darwin" ? "command" : "control";
+    const prefix = [
+      "visible-click",
+      ["down", modifier],
+      ["action-key", "a"],
+      ["up", modifier],
+      "released",
+      ["element-key", "backspace"],
+    ];
+    assert.deepEqual(await run(platform, "prior catalog query"), [
+      ...prefix,
+      ["element-key", "prior catalog query"],
+    ]);
+    assert.deepEqual(await run(platform, ""), prefix);
+  }
+  await assert.rejects(run("linux", "must not be typed", true), /modifier release failed/u);
+});

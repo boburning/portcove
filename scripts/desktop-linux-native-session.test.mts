@@ -43,10 +43,11 @@ void test(
       }),
       {
         harness: 240_000,
-        outer: 270_000,
+        outer: 510_000,
         inputCapture: 300_000,
         inputVerification: 120_000,
-        command: 750_000,
+        namespaceCapture: 60_000,
+        command: 1_050_000,
       },
     );
     for (const scenario of [
@@ -57,20 +58,22 @@ void test(
         linuxX11ExecutionBudgets({ stage: "harness", harness_args: ["--scenario", scenario] }),
         {
           harness: 660_000,
-          outer: 690_000,
+          outer: 930_000,
           inputCapture: 300_000,
           inputVerification: 120_000,
-          command: 1_170_000,
+          namespaceCapture: 60_000,
+          command: 1_470_000,
         },
       );
     assert.deepEqual(
       linuxX11ExecutionBudgets({ stage: "gtk", harness_args: ["not-a-harness-option"] }),
       {
         harness: 240_000,
-        outer: 270_000,
+        outer: 390_000,
         inputCapture: 300_000,
         inputVerification: 120_000,
-        command: 750_000,
+        namespaceCapture: 60_000,
+        command: 930_000,
       },
     );
     assert.throws(

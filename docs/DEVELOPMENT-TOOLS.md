@@ -2196,6 +2196,10 @@ marks compact navigation unexercised outside its breakpoint. Where the actual
 viewport is compact, drawer visibility and both navigation landmarks remain
 required. Browser compact-navigation coverage and `native-interface-size` cover
 their own responsive and enlargement contracts separately.
+Native fixture text replacement uses explicit WebDriver select-all actions and
+modifier release before separate Backspace and plain-text commands. This keeps
+real keyboard editing coverage on WebKitGTK drivers that retain the modifier
+across a NULL within one Element Send Keys command; it does not set DOM values.
 
 `native-interface-size` selects presets through the actual Appearance control.
 Before sending its selection keys, it waits for the popup to own focus and

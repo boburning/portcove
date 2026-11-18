@@ -108,6 +108,7 @@ import {
 import {
   revealDetailSection,
   clickVisible,
+  replaceKeyboardText,
   assertCompactReview,
   captureAccessibilityReport,
   selectPrimaryNavigation,
@@ -1007,13 +1008,11 @@ async function verifyLongTitleCatalogDetail(theme: string) {
   const browser = driverBrowser();
   // The full catalog is windowed: find the target through normal search before
   // requiring its exact port action, rather than assuming every card is mounted.
-  await browser
-    .findElement(By.id("port-search"))
-    .sendKeys(
-      Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
-      Key.BACK_SPACE,
-      "Castlevania",
-    );
+  await replaceKeyboardText(
+    browser,
+    await browser.findElement(By.id("port-search")),
+    "Castlevania",
+  );
   await selectCatalogPort(browser, "cvlod-recomp");
   await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
   await browser.wait(
@@ -1667,6 +1666,12 @@ async function connect() {
     : selection.prerequisites.includes("design-compatibility-fixture")
       ? ".design-compatibility-fixture"
       : 'nav[aria-label="Primary navigation"]';
+  // A retained Linux keyboard run exceeded 30s while catalog loading continued.
+  // Calibrate fixture readiness only; preserve both semantic predicates.
+  const readinessMs =
+    process.platform === "linux" && selection.selected_scenarios.includes("keyboard-layout")
+      ? 90_000
+      : 30_000;
   await browser.wait(
     () =>
       executeBrowserScript(
@@ -1674,11 +1679,13 @@ async function connect() {
         (selector) => document.querySelector(selector) !== null,
         readyRoot,
       ),
-    30_000,
+    readinessMs,
+    "The native shell did not expose its required root",
   );
   await browser.wait(
     () => executeBrowserScript(browser, () => document.querySelector(".loading-state") === null),
-    30_000,
+    readinessMs,
+    "Native loading state did not clear",
   );
   if (executionPlan.fixtures.acquisitionJourney || executionPlan.fixtures.registeredSourceReuse) {
     const snapshot = path.join(
@@ -4175,10 +4182,9 @@ try {
     // WebDriver clear() can empty the DOM without committing React's query;
     // the next render then restores the previous scenario's search. Exercise
     // actual editing with a nonempty preimage, including on standalone runs.
-    const selectAll = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
-    await search.sendKeys(selectAll, "a", Key.NULL, "prior catalog query");
+    await replaceKeyboardText(browser, search, "prior catalog query");
     assert.equal(await search.getAttribute("value"), "prior catalog query");
-    await search.sendKeys(selectAll, "a", Key.NULL, Key.BACK_SPACE);
+    await replaceKeyboardText(browser, search, "");
     await browser.wait(async () => (await search.getAttribute("value")) === "", 5_000);
     await clearCatalogFilters(browser);
     await browser.findElement(By.id("port-search")).sendKeys("Ghostship");
@@ -4358,7 +4364,7 @@ try {
     );
     await captureOutputDestinationReview("game-details");
     const draftPath = "C:\\Portcove-fixture\\Future-install";
-    await outputDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, draftPath);
+    await replaceKeyboardText(browser, outputDraft, draftPath);
     await revealDetailSection(browser, "Game files");
     const sourceDraft = await browser.findElement(
       By.css('.requirements-body input[id^="source-"]'),
@@ -4377,7 +4383,7 @@ try {
     );
     assert.equal(await outputDraft.getAttribute("value"), draftPath);
     await revealDetailSection(browser, "Game files");
-    await sourceDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
+    await replaceKeyboardText(browser, sourceDraft, "");
     await revealDetailSection(browser, "Manage");
     await browser.wait(
       async () =>
@@ -4414,9 +4420,7 @@ try {
     assert.equal(restored.focus, origin.originKey);
     assert.ok(Math.abs(required(restored.scrollTop) - origin.scrollTop) <= 1);
     await captureScenarioScreenshot("game-details-workspace-return");
-    await browser
-      .findElement(By.id("port-search"))
-      .sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
+    await replaceKeyboardText(browser, await browser.findElement(By.id("port-search")), "");
     await browser.wait(
       async () => (await browser.findElements(By.css(".discover-game-identity"))).length > 2,
       15_000,
@@ -4478,9 +4482,7 @@ try {
         }
         await browser.manage().window().setRect({ width: 960, height: 640 });
         await selectPrimaryNavigation(browser, "Discover");
-        await browser
-          .findElement(By.id("port-search"))
-          .sendKeys(Key.chord(selectAll, "a"), Key.BACK_SPACE);
+        await replaceKeyboardText(browser, await browser.findElement(By.id("port-search")), "");
         await browser.wait(
           async () => (await browser.findElements(By.css(".discover-game-identity"))).length > 2,
           15_000,
