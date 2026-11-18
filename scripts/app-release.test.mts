@@ -22,6 +22,7 @@ import {
   publishedReleases,
   quietMentions,
   readWorkspaceVersion,
+  renderAppReleaseDownloadSection,
   replacementCandidates,
   stampVersion,
   tagRelease,
@@ -1023,6 +1024,29 @@ void test("the release requires every desktop bundle, signature and standalone C
     "portcove-cli-0.1.0-preview.7-macos-x86_64.tar.gz",
     "SHA256SUMS",
   ];
+  const section = await renderAppReleaseDownloadSection(`nightly-${version}`, version, names);
+  assert.match(section, /Channel: Nightly Preview/u);
+  assert.match(section, /Linux x86-64.*AppImage.*run directly/u);
+  assert.match(section, /Apple Silicon and Intel.*Desktop disk image/u);
+  assert.match(section, /universal\.app\.tar\.gz.*is for the macOS updater/u);
+  assert.match(section, /SHA256SUMS.*nightly-0\.1\.0-preview\.7/u);
+  assert.match(section, /\.\/portcove --json capabilities/u);
+  assert.match(section, /schema_version/u);
+  for (const name of names.filter((name) => !name.endsWith(".sig"))) {
+    assert.ok(section.includes(`/releases/download/nightly-${version}/${name}`));
+  }
+  await assert.rejects(
+    renderAppReleaseDownloadSection("nightly-0.1.0-preview.6", version, names),
+    /tag and version disagree/u,
+  );
+  await assert.rejects(
+    renderAppReleaseDownloadSection(
+      `v${version}`,
+      version,
+      names.filter((name) => !name.includes("cli-")),
+    ),
+    /missing:.*portcove-cli/u,
+  );
   await assertAppReleaseAssets(version, names);
   for (const missing of names) {
     await assert.rejects(
