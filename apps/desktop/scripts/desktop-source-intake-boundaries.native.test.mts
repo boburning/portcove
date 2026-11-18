@@ -48,12 +48,12 @@ void test("source restoration requires a settled current owned workspace through
       import {runInNewContext} from 'node:vm';
       const {waitForSourceIntakeRestoration: ready} = await import(entry);
       const [original, other, foreign, changed, moved, caseVariant, snapshot] = inertTransportReply.map(item => item.value);
-      for (const mode of ['original', 'other', 'lost-response',
-                          ...(process.platform === 'win32' ? ['owned-case'] : []), 'foreign', 'read-refused',
+      for (const mode of ['original', 'other', 'lost-response', 'owned-case', 'foreign', 'read-refused',
                           'generation-changed', 'root-changed', 'loading', 'stale-renderer']) {
         const current = mode === 'original' ? original : mode === 'foreign' ? foreign
           : mode === 'owned-case' ? caseVariant : other;
         const after = mode === 'generation-changed' ? changed : mode === 'root-changed' ? moved : current;
+        const unowned = mode === 'foreign' || (mode === 'owned-case' && process.platform !== 'win32');
         let rendererGeneration = mode === 'lost-response' ? original.generation : current.generation;
         let refreshes = 0, samples = 0, waits = 0, bootstrapReads = 0;
         const calls = [], refused = {code:'conflict', detail:'owned read refusal'};
@@ -89,19 +89,20 @@ void test("source restoration requires a settled current owned workspace through
           return mode === 'read-refused' ? {ok:false, error:refused} : {ok:true, value:snapshot};
         };
         const check = ready(browser, invoke, ['owned-original', 'owned-other']);
-        if (mode !== 'foreign') {
+        if (!unowned) {
           await reading;
           assert.equal(waits, 0, 'do not accept renderer readiness before the actual read settles');
           release();
         }
-        const accepted = ['original', 'other', 'lost-response', 'owned-case'].includes(mode);
+        const accepted = ['original', 'other', 'lost-response'].includes(mode)
+          || (mode === 'owned-case' && process.platform === 'win32');
         if (accepted) {
           const result = await check;
           assert.deepEqual(result, {generation:current.generation, library_root:current.library_root});
         } else await assert.rejects(check);
         assert.equal(refreshes, mode === 'lost-response' ? 1 : 0);
-        assert.equal(waits, ['foreign', 'read-refused'].includes(mode) ? 0 : 1);
-        assert.deepEqual(calls.map(call => call.command), mode === 'foreign' ? ['get_bootstrap_status']
+        assert.equal(waits, unowned || mode === 'read-refused' ? 0 : 1);
+        assert.deepEqual(calls.map(call => call.command), unowned ? ['get_bootstrap_status']
           : ['get_bootstrap_status', 'get_workspace_snapshot',
              ...(['read-refused', 'loading', 'stale-renderer'].includes(mode) ? [] : ['get_bootstrap_status'])]);
       }
