@@ -210,3 +210,47 @@ it("mounts exact alternative returns and cancels obsolete query and generation w
     );
   }
 });
+
+it.each(["covers", "rows"] as const)(
+  "retains the exact focused %s origin and reading position across accepted reorder",
+  async (layout) => {
+    await draw({ layout });
+    const card = await mountLibraryPort("library-180");
+    const origin = "library:card:library-180";
+    const control = card.querySelector<HTMLButtonElement>(`[data-detail-origin="${origin}"]`)!;
+    control.focus();
+    await frames();
+    const before = control.getBoundingClientRect().top;
+    const reordered = [...ports.slice(181), ...ports.slice(0, 181)];
+    await draw({ layout, matching: reordered });
+    await expect
+      .poll(async () => {
+        await frames();
+        return (document.activeElement as HTMLElement)?.dataset.detailOrigin;
+      })
+      .toBe(origin);
+    expect(
+      Math.abs(document.activeElement!.getBoundingClientRect().top - before),
+    ).toBeLessThanOrEqual(1);
+    expect(document.querySelectorAll("[data-library-port-ids]").length).toBeLessThan(40);
+  },
+);
+
+it("yields pending structural restoration to a new explicit focus and scroll intent", async () => {
+  await draw();
+  const card = await mountLibraryPort("library-180");
+  card.querySelector<HTMLButtonElement>(".collection-identity")!.focus();
+  await frames();
+  await act(async () => root.render(<Fixture matching={[...ports].reverse()} />));
+  const outside = document.querySelector<HTMLButtonElement>("#outside-library")!;
+  const workspace = document.querySelector<HTMLElement>("main")!;
+  await act(async () => {
+    outside.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    outside.focus({ preventScroll: true });
+    workspace.scrollTop = 0;
+  });
+  await frames();
+  await frames();
+  expect(document.activeElement).toBe(outside);
+  expect(workspace.scrollTop).toBe(0);
+});
