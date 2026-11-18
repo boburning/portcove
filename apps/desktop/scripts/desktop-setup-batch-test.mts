@@ -213,7 +213,7 @@ export async function largeSetupReviewScenario(
       );
       assert.deepEqual(
         plans.items.map((item) => item.port_id).sort(),
-        [...largeReview.eligiblePorts].sort(),
+        largeReview.eligiblePorts.toSorted(),
       );
       for (const item of plans.items) assert.ok(item.plan && !item.hold);
       for (const id of largeReview.choicePorts)
@@ -351,7 +351,7 @@ export async function setupBatchScenario(context: BatchContext) {
       assert.equal(initialSources.length, 2);
       assert.deepEqual(
         initialSources.map((source) => source.profile_id).sort(),
-        [...owned.profiles].sort(),
+        owned.profiles.toSorted(),
       );
       const initial = assertNoLaunch();
       assert.deepEqual(initial.batches, []);
@@ -447,7 +447,7 @@ export async function setupBatchScenario(context: BatchContext) {
           "desktop_install_batch_review",
           success(await invoke("plan_install_batch", { portIds: ports, generation })),
         );
-        assert.deepEqual(plans.items.map((item) => item.port_id).sort(), [...ports].sort());
+        assert.deepEqual(plans.items.map((item) => item.port_id).sort(), ports.toSorted());
         for (const item of plans.items) {
           assert.ok(
             item.plan && !item.hold,
@@ -502,7 +502,7 @@ export async function setupBatchScenario(context: BatchContext) {
       );
       assert.ok(completed, "The native wait must return a terminal batch");
       assert.equal(completed.items.length, 2);
-      assert.deepEqual(completed.items.map((item) => item.port_id).sort(), [...ports].sort());
+      assert.deepEqual(completed.items.map((item) => item.port_id).sort(), ports.toSorted());
       for (const item of completed.items) {
         assert.equal(item.state, "ready", JSON.stringify(completed));
         assert.ok(item.install_id);
