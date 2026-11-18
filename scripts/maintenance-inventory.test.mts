@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
   chmodSync,
@@ -34,6 +35,8 @@ import {
   targetSummary,
   assessmentSubject,
   readAssessmentPlatform,
+  isolationScope,
+  capabilityProjectionVersion,
   acknowledgeDigest,
   buildDigest,
   renderDigestMarkdown,
@@ -3581,6 +3584,37 @@ void test("selective reassessment is planned only under the same verified Core s
   assert.equal(keyed({ crates: "t1" }), keyed({ crates: "t1" }));
   assert.notEqual(keyed({ crates: "t1" }), keyed({ crates: "t2" }));
   assert.notEqual(keyed({ crates: "t1" }), keyed({ crates: "t1" }, "windows-x86-64"));
+  const trees = { crates: "t1" };
+  const platform = "macos-x86-64";
+  const legacy = createHash("sha256")
+    .update(
+      canonicalJson({
+        trees,
+        features: [...producer.features],
+        embedded_catalog_sha256: producer.embedded_catalog_sha256,
+        embedded_listings_sha256: producer.embedded_listings_sha256,
+        api: 88,
+        projection: capabilityProjectionVersion,
+        platform,
+        isolation: isolationScope,
+      }),
+    )
+    .digest("hex");
+  const current = keyed(trees, platform);
+  assert.notEqual(current, legacy, "launcher-derived x64 keys cannot authorize Core reuse");
+  for (const [reuse_key, mode] of [
+    [legacy, "full"],
+    [current, "selective"],
+  ] as const) {
+    assert.equal(
+      planReassessment({
+        ...base,
+        reuseKey: current,
+        history: { ...base.history, latest: { coverage: "complete", reuse_key } },
+      }).reassessment.mode,
+      mode,
+    );
+  }
   // A clock-dated observation inside the window forces a full read.
   const catalog = { ports: [{ observations: [{ observed_at: 150 }] }] };
   assert.equal(clockWindowCrossed([catalog], 100, 200), true);

@@ -463,6 +463,7 @@ export function coreReuseKey(input: {
       api: input.apiSchema,
       projection: capabilityProjectionVersion,
       platform: input.platform,
+      platform_identity: "cli-doctor-platform-v1",
       isolation: isolationScope,
     }),
   );
