@@ -321,6 +321,10 @@ it("announces clipboard failure with an exact fallback without reading or changi
   )!;
   expect(fallback.readOnly).toBe(true);
   expect(fallback.value).toBe(JSON.stringify(capture, null, 2));
+  fallback.scrollIntoView({ block: "center", inline: "nearest" });
+  const fallbackBounds = fallback.getBoundingClientRect();
+  expect(fallbackBounds.top).toBeGreaterThanOrEqual(0);
+  expect(fallbackBounds.bottom).toBeLessThanOrEqual(innerHeight);
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
   await captureParityState("activity-retained-log-manual-copy");
   expect(copyText).toHaveBeenLastCalledWith(fallback.value);

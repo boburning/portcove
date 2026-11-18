@@ -115,6 +115,11 @@ it("installs the reviewed version with progress and shows a busy-library refusal
   await expect
     .element(page.getByRole("button", { name: "Download and restart", exact: true }))
     .toBeEnabled();
+  const alert = page.getByRole("alert").element();
+  alert.scrollIntoView({ block: "center", inline: "nearest" });
+  const alertBounds = alert.getBoundingClientRect();
+  expect(alertBounds.top).toBeGreaterThanOrEqual(0);
+  expect(alertBounds.bottom).toBeLessThanOrEqual(innerHeight);
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
   await captureParityState("application-update-settled-refusal");
 });
