@@ -19,7 +19,9 @@ import {
 } from "../test-fixtures";
 import type {
   GameFileScanSnapshot,
-  GameInstallPlan,
+  InstallPlan,
+  InstallBatchReview,
+  PortIntentAssessments,
   InstallBatchRecord,
   PortStatus,
   SourceRecord,
@@ -90,7 +92,7 @@ const scan: GameFileScanSnapshot = {
     preview_complete: true,
   },
 };
-function plan(portId: string): GameInstallPlan {
+function plan(portId: string): NonNullable<InstallBatchReview["items"][number]["plan"]> {
   return {
     plan_sha256: (portId === "first" ? "1" : "2").repeat(64),
     selected_install: null,
@@ -99,6 +101,10 @@ function plan(portId: string): GameInstallPlan {
       channel: "stable",
       platform: "windows-x86-64",
       action: "download",
+      auxiliary_downloads: [],
+      preservation_notices: [],
+      shared_preferences: null,
+      temporary_space: null,
       bundled_runtime: null,
       download_bytes: 64,
       source_requirements: [],
@@ -127,7 +133,7 @@ function plan(portId: string): GameInstallPlan {
         selection_source: "library_default",
         user_data_root: "D:/Library/user/" + portId,
       },
-    },
+    } satisfies InstallPlan,
   };
 }
 const batch: InstallBatchRecord = {
@@ -280,7 +286,11 @@ beforeEach(async () => {
   vi.spyOn(desktopApi, "rootSetupConsents").mockResolvedValue([]);
   vi.spyOn(desktopApi, "gameFileRootMatchProfiles").mockResolvedValue([]);
   vi.spyOn(desktopApi, "readyNoticesEnabled").mockResolvedValue(true);
-  vi.spyOn(desktopApi, "assessPortIntents").mockResolvedValue([]);
+  vi.spyOn(desktopApi, "assessPortIntents").mockResolvedValue({
+    assessments: [],
+    not_assessed: 0,
+    ready_notices_enabled: true,
+  } satisfies PortIntentAssessments);
   vi.spyOn(desktopApi, "datReferences").mockResolvedValue([]);
   vi.spyOn(desktopApi, "unfinishedInstallBatches").mockResolvedValue([]);
   vi.spyOn(desktopApi, "planInstallBatch").mockResolvedValue({
