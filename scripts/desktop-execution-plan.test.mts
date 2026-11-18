@@ -1969,7 +1969,7 @@ void test("keyboard layout follows the actual native viewport after a minimum-wi
           getRect: async () => ({ width, height: 640 }),
         }),
       }),
-      findElement: async () => ({ click: async () => calls.push("open drawer") }),
+      findElement: () => ({ click: async () => calls.push("open drawer") }),
       wait: async (value: unknown) => value,
     };
     await runInNewContext(`(async () => {${journey}})()`, {
