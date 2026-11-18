@@ -7,7 +7,6 @@ using System;
 using System.Text;
 using System.Runtime.InteropServices;
 public static class NaevWindow {
- public static bool InputReleased = true; // No keyboard or mouse input is emitted by this observer.
  [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
  [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
  public static void FocusOwned(IntPtr h,uint pid){
@@ -17,6 +16,35 @@ public static class NaevWindow {
   if(owner!=pid || GetForegroundWindow()!=h)throw new Exception("Owned foreground changed");
  }
  public static bool ForegroundOwned(IntPtr h,uint pid){uint owner;GetWindowThreadProcessId(h,out owner);return owner==pid && GetForegroundWindow()==h;}
+ [DllImport("user32.dll",EntryPoint="MapVirtualKeyW",ExactSpelling=true)] static extern uint MapVirtualKey(uint code,uint type);
+ [DllImport("user32.dll",SetLastError=true)] static extern uint SendInput(uint n,Input[] i,int size);
+ [StructLayout(LayoutKind.Sequential)] struct Key {public ushort vk,scan;public uint flags,time;public UIntPtr extra;}
+ [StructLayout(LayoutKind.Explicit,Size=32)] struct Union {[FieldOffset(0)]public Key key;}
+ [StructLayout(LayoutKind.Sequential)] struct Input {public uint type;public Union data;}
+ public static bool InputReleased = true;
+ public static int CompletedKeys = 0;
+ public static void KeyOwned(IntPtr h,uint pid,ushort vk){
+  uint owner;GetWindowThreadProcessId(h,out owner);if(owner!=pid)throw new Exception("Key target owner differs");
+  if(!SetForegroundWindow(h) && GetForegroundWindow()!=h)throw new Exception("Owned window could not become foreground");
+  if(GetForegroundWindow()!=h)throw new Exception("Owned key target is not foreground");
+  // Give SDL time to process its focus event before sending the first key.
+  // Keyboard ownership follows foreground/PID identity; do not warp the mouse.
+  System.Threading.Thread.Sleep(300);
+  GetWindowThreadProcessId(h,out owner);
+  if(owner!=pid || GetForegroundWindow()!=h)throw new Exception("Owned key target changed while focus settled");
+  if(Marshal.SizeOf(typeof(Input))!=40)throw new Exception("Unsupported native input ABI");
+  uint extended = (vk>=0x25 && vk<=0x28) ? 1u : 0u;
+  uint scan=MapVirtualKey(vk,0);
+  if(scan==0 || scan>255)throw new Exception("Unmapped physical scan code");
+  // KEYEVENTF_SCANCODE uses physical key identity; virtual-key field is ignored.
+  // https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-keybdinput
+  var down=new Input{type=1,data=new Union{key=new Key{scan=(ushort)scan,flags=extended|8u}}};
+  var up=new Input{type=1,data=new Union{key=new Key{scan=(ushort)scan,flags=extended|8u|2u}}};
+  InputReleased=false;
+  if(SendInput(1,new[]{down},40)!=1)throw new Exception("Owned keydown failed");
+  try{System.Threading.Thread.Sleep(120);}finally{if(SendInput(1,new[]{up},40)!=1)throw new Exception("Key release failed");InputReleased=true;CompletedKeys++;}
+  if(GetForegroundWindow()!=h)throw new Exception("Foreground changed during owned key");
+ }
  public delegate bool EnumProc(IntPtr h, IntPtr p);
  [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetProcessTimes(Microsoft.Win32.SafeHandles.SafeProcessHandle h,out long created,out long exited,out long kernel,out long user);
  public static long Created(Microsoft.Win32.SafeHandles.SafeProcessHandle h){long c,e,k,u;if(!GetProcessTimes(h,out c,out e,out k,out u))throw new Exception("Retained process creation identity unavailable");return c;}
@@ -71,6 +99,15 @@ function Capture([string]$label) {
  try{if(-not [NaevWindow]::ForegroundOwned($window,[uint32]$ownedGame.Id)){throw 'Owned window is not foreground immediately before capture'};$graphics.CopyFromScreen($rect.Left,$rect.Top,0,0,$bitmap.Size);$bitmap.Save((Join-Path $Evidence "$Prefix-$label.png"),[Drawing.Imaging.ImageFormat]::Png)}finally{$graphics.Dispose();$bitmap.Dispose()}
  $steps.Add(@{capture=$label;at=[DateTime]::UtcNow.ToString('o');width=$width;height=$height})
 }
+function Key([int]$vk,[bool]$expectExit=$false) {
+ Assert-Owned
+ $before=[NaevWindow]::CompletedKeys
+ try{[NaevWindow]::KeyOwned($window,[uint32]$ownedGame.Id,[uint16]$vk)}catch{
+  if(-not $expectExit -or [NaevWindow]::CompletedKeys -ne ($before+1) -or -not [NaevWindow]::InputReleased -or -not $ownedGame.WaitForExit(5000)){throw}
+ }
+ if([NaevWindow]::CompletedKeys -ne ($before+1)){throw 'No completed owned key pair'}
+ $steps.Add(@{key=$vk;at=[DateTime]::UtcNow.ToString('o');input_released=[NaevWindow]::InputReleased;completed_pair=[NaevWindow]::CompletedKeys})
+}
 try {
  $deadline=[DateTime]::UtcNow.AddSeconds(65)
  while([DateTime]::UtcNow -lt $deadline -and -not $ownedRoot.HasExited){
@@ -108,12 +145,27 @@ try {
  Start-Sleep -Seconds 2
  Assert-Owned
  Capture 'client-window'
+ if($TitleMode -eq 'fresh'){
+  # Exact fresh v0.13.5 package shows the single-button Welcome dialog.
+  Key 0x0D
+  Start-Sleep -Seconds 1
+  Assert-Owned
+  Capture 'welcome-acknowledged-menu'
+ }
  [NaevWindow]::CloseOwned($window,[uint32]$ownedGame.Id)
+ Start-Sleep -Milliseconds 500
+ if(-not $ownedGame.HasExited){
+  Assert-Owned
+  [NaevWindow]::FocusOwned($window,[uint32]$ownedGame.Id)
+  Capture 'quit-confirmation'
+  # Tagged dialogue_YesNoRaw binds SDL_Y to the Yes button.
+  Key 0x59 $true
+ }
  if(-not $ownedRoot.WaitForExit(20000) -or -not $ownedGame.WaitForExit(5000)){throw 'Normal owned exit not established'}
  $final=Read-Launch
  if($ownedRoot.ExitCode -ne 0 -or $final.outcome -ne 'succeeded' -or $final.exit_code -ne 0){throw 'Core launch did not report normal success'}
  $positive=[NaevWindow]::InputReleased
- @{request=$RequestId;root_pid=$RootPid;root_identity="windows-filetime:$rootCreated";child_pid=$ownedGame.Id;child_identity="windows-filetime:$boundCreated";player=$actualPlayer;player_sha256=$ExpectedSha256;session=$ownedGame.SessionId;mode=$TitleMode;steps=$steps;final_launch=$final;scope='real owned Core CLI/client window and normal close; no keyboard input sent; image inspection still required'}|ConvertTo-Json -Depth 15|Set-Content (Join-Path $Evidence "$Prefix-ui.json") -Encoding utf8
+ @{request=$RequestId;root_pid=$RootPid;root_identity="windows-filetime:$rootCreated";child_pid=$ownedGame.Id;child_identity="windows-filetime:$boundCreated";player=$actualPlayer;player_sha256=$ExpectedSha256;session=$ownedGame.SessionId;mode=$TitleMode;steps=$steps;final_launch=$final;scope='real owned Core CLI/client window and normal close; owned fresh Welcome Enter and quit-confirmation Y with positive key release; image inspection still required'}|ConvertTo-Json -Depth 15|Set-Content (Join-Path $Evidence "$Prefix-ui.json") -Encoding utf8
 }catch{
  @{error=$_.Exception.Message;steps=$steps;bound=$bound}|ConvertTo-Json -Depth 10|Set-Content (Join-Path $Evidence "$Prefix-ui-failure.json") -Encoding utf8
  throw

@@ -307,7 +307,12 @@ assert.equal(
 // Supported upstream configuration for this VM, which has no usable sound device.
 // Preserve the failed default-device run; this is explicit test input, not product behavior.
 await mkdir(config.profile);
-const initialSettings = Buffer.from("nosound = true\n");
+const initialSettings = Buffer.from(`nosound = true
+width = 960
+height = 640
+fullscreen = false
+language = "en"
+`);
 await writeFile(path.join(config.profile, "conf.lua"), initialSettings, { flag: "wx" });
 await record("initial-host-configuration", {
   file: path.join(config.profile, "conf.lua"),
@@ -335,6 +340,11 @@ try {
   await command(["exec", config.port], { raw: true });
   const settings = await lstat(path.join(config.profile, "conf.lua"));
   assert(settings.isFile() && settings.size > 32, "Actual client did not write its settings");
+  assert.notEqual(
+    sha(await readFile(path.join(config.profile, "conf.lua"))),
+    sha(initialSettings),
+    "Actual client did not rewrite seeded settings",
+  );
   await record("profile-after-first-play", await inventory(config.profile));
   await command(["exec", config.port], { raw: true });
   const packageBefore = await inventory(config.player_root),
