@@ -22,8 +22,9 @@ calls the shared jobs in
    CLI archives from the same source and version for Windows x86-64, Linux
    x86-64, and both Apple Silicon and Intel macOS.
 3. Check the complete asset set before publishing the immutable GitHub Release.
-   `SHA256SUMS` covers the Desktop packages, updater payloads and signatures,
-   and standalone CLI archives.
+   Generate the download chooser from the uploaded assets when publishing the
+   draft. `SHA256SUMS` covers the Desktop packages, updater payloads and
+   signatures, and standalone CLI archives.
 4. Write `latest.json` to `updates/<channel>/latest.json` on the `gh-pages`
    branch, which GitHub Pages serves. Older feeds are never overwritten by a
    lower version.
