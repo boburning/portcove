@@ -751,7 +751,10 @@ async fn signed_shared_observation_reopens_into_offline_preliminary_download_bro
         .unwrap();
     assert!(result.allowed);
     assert_eq!(result.selected_release_id, Some(11.into()));
-    assert_eq!(result.candidates[0].asset_id, 21.into());
+    assert_eq!(
+        result.candidates[0].asset_id,
+        crate::CatalogDownloadAssetId::from(21_u64)
+    );
     assert!(
         result
             .reason
