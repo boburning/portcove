@@ -752,7 +752,8 @@ describe("per-game install folder", () => {
     await changePath("F:/Games/Sample");
     const trigger = button("Review future folder");
     await click("Review future folder");
-    expect(document.body.textContent).toContain("remain at their recorded locations");
+    expect(document.body.textContent).toContain("1 remains at its recorded location");
+    await captureParityState("output-review-one-existing-install");
     await click("Review moving existing versions");
     expect(reviewMove).toHaveBeenCalledWith("sample", "F:/Games/Sample", 14);
     expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();

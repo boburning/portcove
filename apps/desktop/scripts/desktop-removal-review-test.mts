@@ -1,3 +1,4 @@
+import { observeReviewSettlement } from "./desktop-review-observation.mts";
 import { fixtureSuccess as success, fixtureObject as object } from "./desktop-scenario-state.mts";
 import type { InstallRecord } from "../src/transport-types.generated.d.ts";
 import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context.mts";
@@ -156,8 +157,20 @@ export async function removalReviewScenario({
     });
     const added = installObservation(command(["adopt", original, "--port", port.id, "--yes"]));
     assert.ok(!initialPreview.managed_paths.includes(added.path));
-    await click(button("Uninstall all versions"));
-    await browser.wait(until.elementLocated(button("Review removal again")), 15_000);
+    await observeReviewSettlement(
+      browser,
+      '[aria-labelledby="removal-review-title"]',
+      path.join(output, "removal-stale-review-settlement.json"),
+      artifacts,
+      async () => {
+        await click(button("Uninstall all versions"));
+        await browser.wait(
+          until.elementLocated(button("Review removal again")),
+          15_000,
+          "The stale removal must settle before its fresh review is offered",
+        );
+      },
+    );
     const current = object(
       await invoke("preview_removal", {
         portId: port.id,

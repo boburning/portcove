@@ -11,7 +11,7 @@ export function ImplementationFacts({ port }: { port: CatalogEntry }) {
   const metadata = implementationMetadata(port);
   if (!metadata) return null;
   return (
-    <details className="mt-4">
+    <details className="mt-4 min-w-0 wrap-anywhere">
       <summary data-focusable>How this project works — {port.name}</summary>
       <ul>
         {metadata.methods.map((method) => (

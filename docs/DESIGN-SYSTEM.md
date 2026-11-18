@@ -443,6 +443,10 @@ object. **File details**, **Technical details** and **Test results** are distinc
 supporting information, as defined by content design. Use ordinary “and” in prose
 and retain approved compound destination labels.
 
+Within a source check, **File details and test results** contains file-wide
+digests, validation and reviewed evidence. **Test results for this port** names
+the per-port automated and hands-on records, so adjacent disclosures remain distinct.
+
 Name a concrete action and object; say “Review” when review is actually next.
 Place consequences before implementation detail and keep essential warnings
 visible. Errors state the known cause, outcome, and realistic next action. Use
@@ -1201,6 +1205,11 @@ optional settings disclosure and aligned project facts/actions. Exact artifact,
 freshness, file health and evidence provenance remain in each project's existing
 explanation. Advisory context remains distinct from setup/launch checks, and
 shared compatibility cautions are stated once rather than repeated on every card.
+
+Compatibility and project-implementation disclosures shrink within their actual
+detail or comparison column. Long release, edition, artifact and dependency
+identifiers wrap without truncation; complete evidence remains selectable and
+keyboard disclosure controls remain reachable in compact windows.
 
 ## Prototype presentation alignment
 

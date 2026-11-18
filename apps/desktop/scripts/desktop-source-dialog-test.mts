@@ -679,9 +679,21 @@ export async function sourceDialogScenario({
     );
     const chooseFiles = await browser.findElement(button("Choose game files to check"));
     await browser.wait(until.elementIsEnabled(chooseFiles), 5_000);
+    // This journey already supplies a registered path, so the automatic check
+    // offers its candidate. Choosing different files is the secondary action.
+    const useCurrentLocation = await browser.wait(
+      until.elementLocated(
+        By.css(
+          '[aria-labelledby="source-intake-title"] button[data-import-mode="use_current_location"]',
+        ),
+      ),
+      15_000,
+    );
+    await browser.wait(until.elementIsEnabled(useCurrentLocation), 5_000);
+    assert.equal(await chooseFiles.getAttribute("data-variant"), "outline");
     const intakeStyles = await assertPrimaryReviewAction(
       browser,
-      chooseFiles,
+      useCurrentLocation,
       await browser.findElement(button("Close")),
     );
     await assertCompactReview(browser, '[aria-labelledby="source-intake-title"]');
@@ -938,6 +950,8 @@ export async function sourceDialogScenario({
           library_discovery_settings_control_focused: true,
           directional_navigation_stayed_in_game_files: sourceActivityInRecentPreview,
           intake_action_styles: intakeStyles,
+          intake_action_label: "Use current location",
+          intake_choose_files_variant: "outline",
           search_action_styles: searchStyles,
           field_presentation: fieldPresentation,
           evidence:
