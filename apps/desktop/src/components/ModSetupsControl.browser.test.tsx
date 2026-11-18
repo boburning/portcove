@@ -1128,7 +1128,11 @@ it("requires another original review when the setup revision changes after a ref
   await act(async () =>
     (page.getByRole("option", { name: "D:/Other/original.z64" }).element() as HTMLElement).click(),
   );
-  await act(async () => button(host, "Use this original").click());
+  await act(async () => {
+    const action = button(host, "Use this original");
+    action.focus();
+    action.click();
+  });
   await expect.element(choose).not.toBeInTheDocument();
   await expect.element(page.getByRole("heading", { name: "Setups and mods" })).toHaveFocus();
   await act(async () => button(host, "Review original game files").click());
