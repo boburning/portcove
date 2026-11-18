@@ -1,10 +1,9 @@
 # Managed Chocolate profiles
 
-The Windows Chocolate Doom and Hexen routes use official portable packages
-and exact original-game identities. Each engine has its own catalog entry and
-package selector. The same closed recipe fits Chocolate Heretic; its prepared
-catalog proposal awaits canonical intake. Heretic and Strife keep their upstream
-routes. This recipe does not supply Strife’s retail IWAD or voice data.
+The Windows Chocolate Doom, Heretic and Hexen routes use official portable
+packages and exact original-game identities. Each engine has its own catalog
+entry and package selector. Strife keeps its upstream route. This recipe does
+not supply Strife’s retail IWAD or voice data.
 
 Choose a listed original IWAD, install, then choose Play. Portcove preserves the
 original and prepares a separate `game.wad`. It starts the game executable

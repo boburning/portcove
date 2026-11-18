@@ -4151,6 +4151,26 @@
         "live_url": null,
         "claim": "Chocolate Hexen 3.1.1 selects an explicit IWAD and identifies its game data from content. Core supplies a closed local configuration and a per-IWAD save directory; this source inspection is distinct from packaged-player and populated-save acceptance.",
         "reviewed_at": "2026-11-18"
+      },
+      {
+        "id": "debian-gdp89-chocolate-heretic-iwad-identities",
+        "role": "byte_identity",
+        "authority": "Debian game-data-packager 89 maintainers",
+        "authority_ref": "a6e8c7426bcaea5b3fc42b46c7d1a1b1c28b5f9ce10d513a6a40edbc2a534bd7",
+        "immutable_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/heretic.yaml",
+        "live_url": null,
+        "claim": "Published full-file SHA-1 identities for the selected heretic IWAD editions; the Heretic shareware identity additionally has a published SHA-256. Document identity does not establish title execution or a save-compatibility observation.",
+        "reviewed_at": "2026-11-18"
+      },
+      {
+        "id": "chocolate-heretic-tagged-iwad-contract-v1",
+        "role": "upstream_support",
+        "authority": "Chocolate Doom maintainers",
+        "authority_ref": "410d96855b5df5410ff591a90efeafa889119224",
+        "immutable_url": "https://github.com/chocolate-doom/chocolate-doom/blob/410d96855b5df5410ff591a90efeafa889119224/src/heretic/d_main.c",
+        "live_url": null,
+        "claim": "Chocolate Heretic 3.1.1 selects an explicit IWAD and identifies its game data from content. Core supplies a closed local configuration and a per-IWAD save directory; this source inspection is distinct from packaged-player and populated-save acceptance.",
+        "reviewed_at": "2026-11-18"
       }
     ],
     "identities": [
@@ -16849,6 +16869,76 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "chocolate-heretic-pc-iwad",
+        "label": "Heretic PC IWAD (selected original or demo editions)",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "shareware-1-2",
+            "title": "Heretic shareware v1.2",
+            "region": "Worldwide",
+            "revision": "shareware-1.2",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-iwad",
+                "extensions": [
+                  "wad"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "b4c50ca9bea07f7c35250a1a11906091971c05ae",
+                    "sha256": "3ab2f21828877e49e5eb3220785aaf8798050b7c4132003b5db7b8f3678bede4",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-chocolate-heretic-iwad-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "debian-gdp89-chocolate-heretic-iwad-identities"
+            ]
+          },
+          {
+            "id": "retail-1-3",
+            "title": "Heretic: Shadow of the Serpent Riders v1.3",
+            "region": "Worldwide",
+            "revision": "retail-1.3",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-iwad",
+                "extensions": [
+                  "wad"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "f489d479371df32f6d280a0cb23b59a35ba2b833",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-chocolate-heretic-iwad-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "debian-gdp89-chocolate-heretic-iwad-identities"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -27681,6 +27771,35 @@
           {
             "upstream_ref": "chocolate-doom-3.1.1",
             "artifact_sha256": "472a0d039acab04d0f93cb5d348ddd623270563c7c15b9b4b601e3b0f35acf23"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "chocolate-heretic-game-source",
+        "port_id": "chocolate-heretic",
+        "role": "game",
+        "profile_id": "chocolate-heretic-pc-iwad",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "shareware-1-2",
+          "retail-1-3"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "chocolate-heretic-tagged-iwad-contract-v1",
+          "debian-gdp89-chocolate-heretic-iwad-identities"
+        ],
+        "authority_ref": "410d96855b5df5410ff591a90efeafa889119224",
+        "reviewed_at": "2026-11-18",
+        "immutable_review_url": "https://github.com/chocolate-doom/chocolate-doom/blob/410d96855b5df5410ff591a90efeafa889119224/src/heretic/d_main.c",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "chocolate-doom-3.1.1",
+            "artifact_sha256": "6faa3ba85d0fb18065d6a530cf74e7d17896742b67c6acc513fcb45263ffba63"
           }
         ],
         "aliases": [],
@@ -54597,6 +54716,115 @@
           "image_id": "co5rav",
           "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
           "game_slug": "doom",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "chocolate-heretic",
+      "name": "Chocolate Heretic",
+      "summary": "Play Heretic with the original game files, or try its shareware episode.",
+      "project_url": "https://github.com/chocolate-doom/chocolate-doom",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "github",
+        "repository": "chocolate-doom/chocolate-doom",
+        "asset_hints": {
+          "windows-x86-64": [
+            "chocolate-heretic",
+            "win64.zip"
+          ]
+        }
+      },
+      "source_profile": "chocolate-heretic-pc-iwad",
+      "executable_hints": {
+        "windows-x86-64": [
+          "chocolate-heretic.exe"
+        ]
+      },
+      "managed_initialization": "chocolate-family-portable-v1",
+      "windows_runtime_path_policy": "relative-file-max-path",
+      "runtime_source_filename": "game.wad",
+      "runtime_source_materialization": "copy",
+      "launch_from_install_root": true,
+      "launch_arguments": [
+        "-iwad",
+        "game.wad",
+        "-config",
+        "heretic.cfg",
+        "-extraconfig",
+        "chocolate-heretic.cfg",
+        "-savedir",
+        "savegames"
+      ],
+      "persistent_paths": [
+        "game.wad",
+        "heretic.cfg",
+        "chocolate-heretic.cfg",
+        "savegames",
+        "autoload",
+        "music-packs"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "HTIC",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "HTIC",
+          "suffix": ".png"
+        }
+      ],
+      "runtime_mutable_paths": [
+        "stdout.txt",
+        "stderr.txt"
+      ],
+      "presentation": {
+        "installation_method": "staged-game-files",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "chocolate-heretic-pc-iwad",
+            "label": "Heretic PC IWAD (selected original or demo editions)",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "original_game_title": "Heretic",
+        "variant_label": "PC",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up Heretic on Windows",
+              "instruction": "Choose the matching original Heretic IWAD or one of the listed demo editions. Portcove keeps your original file and prepares a separate copy for Play. Saved games are separate for each exact IWAD. Keep the same original with its saves; select a separate setup to change editions."
+            }
+          ],
+          "references": [
+            {
+              "title": "Linux and Mac installations you maintain",
+              "instruction": "Install the chocolate-doom package through your Linux distribution or Homebrew on Mac, then select the chocolate-heretic player with its matching IWAD. The package manager owns runtime updates. Explicit registration keeps ownership of the player, originals and actual profile with you."
+            }
+          ],
+          "warnings": [
+            "Keep saves with their creating game and runtime. Changing engines or game editions does not convert saved games.",
+            "A profile that points outside its local autoload or music-pack folders must be preserved and corrected before Play. Portcove does not rewrite existing settings."
+          ]
+        },
+        "artwork": {
+          "game_id": 6362,
+          "cover_id": 76355,
+          "image_id": "co1mwz",
+          "image_sha256": "2e4af7089e82b680fb16c4f894c8c3ac09ccb469d296fd7322c2b0d67921fc04",
+          "game_slug": "heretic",
           "match_kind": "underlying-game"
         }
       }
