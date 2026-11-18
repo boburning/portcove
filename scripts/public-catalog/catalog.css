@@ -180,6 +180,7 @@ article {
   padding-block: 2.5rem;
   border-block-start: 1px solid var(--line);
   scroll-margin-block-start: 1rem;
+  overflow-wrap: anywhere;
 }
 article h2 {
   font-size: 1.9rem;
