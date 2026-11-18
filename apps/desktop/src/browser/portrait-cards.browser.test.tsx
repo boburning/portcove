@@ -839,96 +839,103 @@ it.for([2, 4] as const)(
 );
 
 it("contains both staggered originals in an actual narrow App hero and Library", async () => {
-  await page.viewport(430, 780);
-  initializeLocalization(["en"]);
-  const snapshot = workspace("collection");
-  const port = snapshot.catalog.ports[0]!;
-  const covers = [1, 2].map((index) => ({
-    game_id: index,
-    cover_id: index,
-    image_id: `paired-fixture-${index}`,
-    image_sha256: index.toString().repeat(64),
-    game_slug: `paired-fixture-${index}`,
-    match_kind: "underlying-game" as const,
-  }));
-  port.presentation = { ...port.presentation!, collection_covers: covers };
-  transport = installInteractiveTransport("collection", (message) => {
-    throw new Error(message);
-  });
-  vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
-  vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) => artworkState(id, slot, 3));
-  const thumbnails = vi
-    .spyOn(desktopApi, "collectionCoverThumbnail")
-    .mockImplementation(async (_id, digest) => {
-      const canvas = document.createElement("canvas");
-      canvas.width = 160;
-      canvas.height = 240;
-      const ink = canvas.getContext("2d")!;
-      ink.fillStyle = digest === covers[0]!.image_sha256 ? "#9e443f" : "#536a7a";
-      ink.fillRect(0, 0, canvas.width, canvas.height);
-      ink.strokeStyle = "white";
-      ink.lineWidth = 6;
-      ink.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
-      ink.fillStyle = "white";
-      ink.font = "bold 16px sans-serif";
-      ink.fillText("SYNTHETIC", 12, 105);
-      ink.fillText(`MEMBER ${digest[0]}`, 12, 130);
-      return {
-        asset_sha256: digest,
-        choice_revision: 3,
-        png_base64: canvas.toDataURL("image/png").split(",")[1]!,
-      };
+  const previousViewport = { width: innerWidth, height: innerHeight };
+  try {
+    await page.viewport(430, 780);
+    initializeLocalization(["en"]);
+    const snapshot = workspace("collection");
+    const port = snapshot.catalog.ports[0]!;
+    const covers = [1, 2].map((index) => ({
+      game_id: index,
+      cover_id: index,
+      image_id: `paired-fixture-${index}`,
+      image_sha256: index.toString().repeat(64),
+      game_slug: `paired-fixture-${index}`,
+      match_kind: "underlying-game" as const,
+    }));
+    port.presentation = { ...port.presentation!, collection_covers: covers };
+    transport = installInteractiveTransport("collection", (message) => {
+      throw new Error(message);
     });
-  const root = document.createElement("div");
-  root.id = "root";
-  document.body.append(root);
-  await render(
-    <LocalizationProvider api={desktopApi}>
-      <App />
-    </LocalizationProvider>,
-    { container: root },
-  );
-  document.documentElement.dataset.theme = "dark";
-  await expect
-    .poll(() =>
-      document.querySelector(`.collection-entry button[data-detail-game-id="${port.id}"]`),
-    )
-    .not.toBeNull();
-  const identity = document.querySelector<HTMLButtonElement>(
-    `.collection-entry button[data-detail-game-id="${port.id}"]`,
-  )!;
-  const card = identity.closest<HTMLElement>(".collection-entry")!;
-  const library = card.querySelector<HTMLElement>(".collection-art")!;
-  library.scrollIntoView({ block: "center" });
-  await expectContainedOriginals(library, 2);
-  document.documentElement.dataset.theme = "dark";
-  await captureParityState("paired-originals-narrow-library");
-  await page.elementLocator(identity).click();
-  await expect
-    .poll(() => document.querySelector(".game-hero-detail .game-hero-collection"))
-    .not.toBeNull();
-  const hero = document.querySelector<HTMLElement>(".game-hero-detail .game-hero-collection")!;
-  hero.scrollIntoView({ block: "center", inline: "nearest" });
-  await expectContainedOriginals(hero, 2);
-  const bounds = hero.getBoundingClientRect();
-  expect(bounds.width).toBeCloseTo(288, 0);
-  expect(bounds.height).toBeCloseTo(144, 0);
-  expect(bounds.top).toBeGreaterThanOrEqual(0);
-  expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
-  expect(bounds.left).toBeGreaterThanOrEqual(0);
-  expect(bounds.right).toBeLessThanOrEqual(innerWidth);
-  const [first, second] = [...hero.querySelectorAll("img")].map((image) => {
-    const box = image.getBoundingClientRect();
-    expect(box.width / box.height).toBeCloseTo(image.naturalWidth / image.naturalHeight, 2);
-    return box;
-  });
-  expect(first!.top).toBeLessThan(second!.top);
-  expect(first!.right).toBeLessThan(second!.left);
-  for (const cover of covers)
-    expect(thumbnails).toHaveBeenCalledWith(port.id, cover.image_sha256, 3, 1);
-  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
-  document.documentElement.dataset.theme = "dark";
-  await captureParityState("paired-originals-narrow-app-hero");
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+    vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) =>
+      artworkState(id, slot, 3),
+    );
+    const thumbnails = vi
+      .spyOn(desktopApi, "collectionCoverThumbnail")
+      .mockImplementation(async (_id, digest) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 160;
+        canvas.height = 240;
+        const ink = canvas.getContext("2d")!;
+        ink.fillStyle = digest === covers[0]!.image_sha256 ? "#9e443f" : "#536a7a";
+        ink.fillRect(0, 0, canvas.width, canvas.height);
+        ink.strokeStyle = "white";
+        ink.lineWidth = 6;
+        ink.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+        ink.fillStyle = "white";
+        ink.font = "bold 16px sans-serif";
+        ink.fillText("SYNTHETIC", 12, 105);
+        ink.fillText(`MEMBER ${digest[0]}`, 12, 130);
+        return {
+          asset_sha256: digest,
+          choice_revision: 3,
+          png_base64: canvas.toDataURL("image/png").split(",")[1]!,
+        };
+      });
+    const root = document.createElement("div");
+    root.id = "root";
+    document.body.append(root);
+    await render(
+      <LocalizationProvider api={desktopApi}>
+        <App />
+      </LocalizationProvider>,
+      { container: root },
+    );
+    document.documentElement.dataset.theme = "dark";
+    await expect
+      .poll(() =>
+        document.querySelector(`.collection-entry button[data-detail-game-id="${port.id}"]`),
+      )
+      .not.toBeNull();
+    const identity = document.querySelector<HTMLButtonElement>(
+      `.collection-entry button[data-detail-game-id="${port.id}"]`,
+    )!;
+    const card = identity.closest<HTMLElement>(".collection-entry")!;
+    const library = card.querySelector<HTMLElement>(".collection-art")!;
+    library.scrollIntoView({ block: "center" });
+    await expectContainedOriginals(library, 2);
+    document.documentElement.dataset.theme = "dark";
+    await captureParityState("paired-originals-narrow-library");
+    await page.elementLocator(identity).click();
+    await expect
+      .poll(() => document.querySelector(".game-hero-detail .game-hero-collection"))
+      .not.toBeNull();
+    const hero = document.querySelector<HTMLElement>(".game-hero-detail .game-hero-collection")!;
+    hero.scrollIntoView({ block: "center", inline: "nearest" });
+    await expectContainedOriginals(hero, 2);
+    const bounds = hero.getBoundingClientRect();
+    expect(bounds.width).toBeCloseTo(288, 0);
+    expect(bounds.height).toBeCloseTo(144, 0);
+    expect(bounds.top).toBeGreaterThanOrEqual(0);
+    expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+    expect(bounds.left).toBeGreaterThanOrEqual(0);
+    expect(bounds.right).toBeLessThanOrEqual(innerWidth);
+    const [first, second] = [...hero.querySelectorAll("img")].map((image) => {
+      const box = image.getBoundingClientRect();
+      expect(box.width / box.height).toBeCloseTo(image.naturalWidth / image.naturalHeight, 2);
+      return box;
+    });
+    expect(first!.top).toBeLessThan(second!.top);
+    expect(first!.right).toBeLessThan(second!.left);
+    for (const cover of covers)
+      expect(thumbnails).toHaveBeenCalledWith(port.id, cover.image_sha256, 3, 1);
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+    document.documentElement.dataset.theme = "dark";
+    await captureParityState("paired-originals-narrow-app-hero");
+  } finally {
+    await page.viewport(previousViewport.width, previousViewport.height);
+  }
 });
 
 it.for(["local", "unavailable-local", "partial"] as const)(
