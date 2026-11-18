@@ -78,7 +78,8 @@ export function readImplementationMetadata(value: unknown): ImplementationMetada
       Object.hasOwn(dependencyKindLabels, dependency.kind) &&
       publicUrl(dependency.project_url) &&
       text(dependency.name, 128) &&
-      ["confirmed", "inferred", "contradicted"].includes(String(dependency.confidence)) &&
+      typeof dependency.confidence === "string" &&
+      ["confirmed", "inferred", "contradicted"].includes(dependency.confidence) &&
       evidence(dependency.evidence_urls) &&
       (dependency.note === undefined || text(dependency.note)) &&
       (dependency.version_scope === undefined || text(dependency.version_scope, 256)),

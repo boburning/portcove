@@ -74,7 +74,7 @@ pub(crate) enum CatalogCommand {
     },
     /// Export every descriptive listing, including projects without a managed integration.
     Listings {
-        /// Listing format: 5 keeps legacy flat references; 8 supports GitLab observations; 9 adds the first-listed date; 10 adds funding links.
+        /// Listing format: 5 keeps legacy flat references; 8 supports GitLab observations; 9 adds dates; 10 adds funding links; 11 adds cover collections; 12 adds implementation descriptions.
         #[arg(long)]
         format_version: Option<u32>,
     },

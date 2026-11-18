@@ -75,6 +75,9 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         // Funding links are directory descriptions for the same reason; the current
         // directory supplies them again while it lists the project.
         listing.funding_urls = None;
+        // Implementation explanations are directory-only too. Keep earlier strict
+        // retained-listing readers compatible without changing their launch contract.
+        listing.implementation = None;
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
             format_version: if listing.collection_covers.is_some() {
@@ -3659,6 +3662,29 @@ mod tests {
                 .funding_urls
                 .is_none()
         );
+    }
+
+    #[test]
+    fn a_retained_selection_does_not_carry_directory_implementation_descriptions() {
+        let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
+            "id":"described-project", "name":"Described project", "summary":"No operational integration.",
+            "project_url":"https://example.com/upstream",
+            "implementation":{"format_version":1,"methods":[{"kind":"source-port","evidence_urls":["https://example.com/source"]}],"dependencies":[]}
+        })).unwrap();
+        let catalog = Catalog::for_user_selected_listing(listing).unwrap();
+        let content = encode_external_catalog(&catalog, "described-project").unwrap();
+        assert!(!content.contains("implementation"), "{content}");
+        let envelope: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(envelope["format_version"], 1);
+        let retained = decode_external_catalog(&content, "described-project").unwrap();
+        assert!(
+            retained
+                .listing("described-project")
+                .unwrap()
+                .implementation
+                .is_none()
+        );
+        assert!(retained.ports().is_empty());
     }
 
     #[test]

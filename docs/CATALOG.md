@@ -48,7 +48,9 @@ than inventing an integration or grouping all ScummVM games together.
 
 Descriptions require listing format 12. Formats 5 through 11 exported for older
 strict readers omit only this inert field; ordinary requirements and restrictions
-remain. Core retains malformed/future optional envelopes without interpreting them;
+remain. Retained user-selected listings omit the field too, preserving their
+established envelope versions and compatibility with earlier strict readers.
+Core retains malformed/future optional envelopes without interpreting them;
 Desktop ignores unsupported envelope versions, unknown kinds and unsafe links.
 Authoring remains strict. Older documents may omit the field entirely.
 
