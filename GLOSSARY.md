@@ -2,11 +2,11 @@
 
 <a id="portcove"></a>
 
-This glossary defines Portcove's concepts and distinguishes them from preferred
-player wording. [Content design](docs/CONTENT-DESIGN.md) owns communication rules;
-the [design system](docs/DESIGN-SYSTEM.md#public-beta-writing-and-terminology) owns
-concrete interface labels. Definitions describe current contracts; proposed
-names remain explicitly proposed.
+Use this glossary to find what a term means and which words players see.
+Use [Content design](docs/CONTENT-DESIGN.md) for writing rules. For exact
+interface labels, use the
+[design system](docs/DESIGN-SYSTEM.md#public-beta-writing-and-terminology).
+The glossary labels proposed names separately from current terms.
 
 Start with [collection and installations](#player-collection-and-storage),
 [original files](#game-files), [saves and backups](#installations-and-saved-data),

@@ -1,14 +1,17 @@
 # Portcove frontend design system
 
-The current whole-product composition and coverage contract is [Integrated UI design](INTEGRATED-UI-DESIGN.md). Reuse the existing control, token, preference and domain-projection owners throughout; task-specific layouts do not introduce a second authority.
+Use [Integrated UI design](INTEGRATED-UI-DESIGN.md) for layouts and coverage
+across Portcove. Reuse the existing controls, design tokens, preferences, and
+domain projections. Each layout uses the same owners for these decisions.
 
 ## Path values
 
-Opaque file and folder paths use `path-value` or the existing `saved-file-path`
-primitive. They remain selectable, exact and left to right. Break long values
-across available lines without leaving an extended Windows prefix alone above
-the drive or UNC location. Preserve each consumer's existing typography and
-surface; this presentation rule never normalizes or changes a stored path.
+Display file and folder paths with `path-value` or the existing
+`saved-file-path` component. Keep the value exact, selectable, and left to
+right. If it is too long, wrap it across lines. Keep an extended Windows prefix
+with its drive or UNC location. Keep the typography and surface for each use.
+These display rules leave the stored path intact.
+
 Loading and unavailable messages are ordinary UI copy, not path values. They
 use normal word wrapping; only an actual path uses code styling and forced
 left-to-right direction.

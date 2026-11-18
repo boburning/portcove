@@ -2,10 +2,11 @@
   <img src="apps/desktop/assets/brand/generated/v2/portcove-logo-v2-transparent.png" alt="Portcove" width="240">
 </h1>
 
-**Install, update, and play native game ports.** Portcove brings community-made
-ports, including decompilations, recompilations, and engine recreations, into
-one local library. Find a project for a game you own, see which edition it needs,
-and launch it from the desktop app or a standalone command-line tool.
+Install, update, and play native game ports. A port is a separate implementation
+of an existing game. Portcove keeps community-made ports in one local
+library. These include decompilations, recompilations, and engine recreations.
+Find a project for a game you own. Check which edition it needs. Start the game
+from the desktop app or the standalone command-line tool (CLI).
 
 [Download Portcove](#download-portcove)
 · [Browse the catalog](https://boburning.github.io/portcove/catalog/browse/index.html)
@@ -19,12 +20,12 @@ _Portcove’s desktop interface with a simulated library of fictional games and 
 
 ## Download Portcove
 
-Open [Portcove releases](https://github.com/boburning/portcove/releases) and
-choose the release marked **Latest** when one is available. If only prereleases
-are available, or if you want to try a preview, choose the newest
-**Pre-release** whose tag starts with `v`. **Nightly** builds are for testing
-recent changes. Read the notes for your system before installing, and use a new
-or backed-up library when trying a preview.
+If a release is marked **Latest**, choose it from
+[Portcove releases](https://github.com/boburning/portcove/releases).
+If you want a preview or only previews are available, choose the newest
+**Pre-release** with a tag that starts with `v`. Use **Nightly** builds to test
+recent changes. Before you install, read the notes for your system. If you try
+a preview, use a new library or back up your existing library first.
 
 Under **Assets**, choose the package for your computer.
 
@@ -47,11 +48,11 @@ and the [Alpha 1 to Alpha 2 upgrade guide](docs/UPGRADING.md) are still availabl
 
 ## Your first game
 
-1. **Browse games.** Open Portcove Desktop and choose **Browse games** in the empty Library. Portcove has already selected a library folder. To use a different one, open **Settings → Library and storage → Choose another library**.
-2. **Find a port in Discover.** Search for a game or project. Check its target operating system, the original game edition it accepts, and the setup instructions from the port authors.
-3. **Supply the originals if needed.** Select the files from your own copy of the game. Portcove checks them on your computer. You can leave them where they are and save their location for reuse.
-4. **Review the installation.** For a managed port, check the version and destination, then confirm the install. If the project provides its own installer or expects an existing installation, follow that route in the port’s details.
-5. **Play from Library.** When the port is ready, choose **Play**. Some ports finish preparing their game data the first time they run.
+1. Open Portcove Desktop. In the empty Library, choose **Browse games**. Portcove selects a library folder when it opens. If you want a different folder, open **Settings → Library and storage → Choose another library**.
+2. In Discover, search for a game or project. Read the target operating systems, accepted game editions, and setup instructions.
+3. If the port needs original game files, select them from your own copy of the game. Portcove checks the files on your computer. You can save their location for reuse.
+4. If Portcove manages the port, review the version and destination before you confirm the install. If the project uses its own installer or needs an existing installation, follow the instructions in the port’s details.
+5. When the port is ready, choose **Play** in Library. Some ports prepare their game data the first time they run.
 
 Portcove does not supply ROMs, disc images, BIOS files, or commercial game data.
 Your original files stay on your computer. You can use the library and launch
@@ -59,10 +60,10 @@ installed games without a Portcove or GitHub account.
 
 ## Catalog and support
 
-One original game can have several independently maintained ports. When Discover
-groups them, you can compare the editions they accept, where they run, and what
-has been tested. A catalog entry may point you to the upstream project, help you
-register an existing install, or offer an installation that Portcove can manage.
+Different projects can maintain ports of the same game. When Discover groups
+these ports, compare their game editions, operating systems, and test results.
+A catalog entry can link to the project, help you add an existing installation,
+or offer an installation that Portcove can manage.
 For an example, [compare the ports for Majora’s Mask in the live catalog](https://boburning.github.io/portcove/catalog/browse/games/the-legend-of-zelda-majoras-mask/index.html).
 
 ![Harbor Adventure game details with Play and the Game files, Saves & backups, Versions & updates, and Manage tabs](docs/media/readme/game-details.png)
@@ -71,10 +72,10 @@ _Harbor Adventure in the same simulated library. Open a tab to find its game fil
 
 ## Manage, check, update and recover
 
-- **Update a port.** For a managed install, review an available release and keep the previous version so you can switch back. An externally managed port uses its own update process.
-- **Protect your saves.** Check which saves and settings a port declares. Portcove can back up and restore those files separately from the installed game. Keep a separate backup of your originals. [Saved data and backups](docs/CLI.md#managed-saved-data-and-backups)
-- **Check or recover an install.** Run `portcove verify` with the port ID to check its installed files. After an interrupted task, open Activity or run `portcove doctor` to see what needs attention.
-- **Try a different setup.** On the development branch, ports with reviewed mod support can keep a clean setup alongside a modded one. Each setup records the build and mod choices it uses. [Local profiles and mod packages](docs/CLI.md#local-profiles-and-mod-packages)
+- If Portcove manages the installation, review the available update. Keep the previous version so you can switch back. For other ports, follow the project's update instructions.
+- Find out which saves and settings the port lists. Portcove can back up and restore those files separately from the installed game. Back up the original game files separately. [Saved data and backups](docs/CLI.md#managed-saved-data-and-backups)
+- To check an installation, run `portcove verify` with the port ID. If a task stops before it finishes, open Activity or run `portcove doctor`.
+- On the development branch, ports with reviewed mod support can keep a setup without mods alongside a modded one. Each setup records its build and mods. [Local profiles and mod packages](docs/CLI.md#local-profiles-and-mod-packages)
 
 ## Use the CLI
 
@@ -82,9 +83,9 @@ Desktop and the CLI normally open the same library. Opening a library can create
 database or upgrade it for this version. You can browse without writing local files
 in the [web catalog](https://boburning.github.io/portcove/catalog/browse/index.html).
 
-To try the CLI, run these commands from a folder where `portcove-demo` does not
-already exist. They create a separate library there and show Lighthouse, a native
-port of Banjo-Kazooie.
+If a folder does not contain `portcove-demo`, you can try the CLI there. These
+commands create a separate library, list ports, and show Lighthouse. Lighthouse
+is a native port of Banjo-Kazooie.
 
 ```sh
 portcove --library "$PWD/portcove-demo" catalog list

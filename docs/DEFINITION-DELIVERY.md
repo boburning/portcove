@@ -1,15 +1,19 @@
 # Independent definition delivery contract
 
-This is the successor design for #245. It does not extend signed catalog format
-1, admit a new port, provision a publisher, or activate automatic delivery.
-`portcove-core` remains the sole definition, admission and lifecycle authority.
-The CLI and Tauri expose its outcomes; React and external clients present them.
-The Project owns scheduling. Completed #245/#397/#398 components supply the
-design, compatible client and configured observer; completed #254 supplies bounded
-authoring tooling. #177 owns continued discovery and normalized observations,
-#247 scoped release-health incidents/recovery, and #246 the actual protected
-publication and unchanged-client journey. #534 retains provisioning acceptance;
-component fixtures do not complete either production outcome.
+This document describes the successor design for #245. Signed catalog format 1
+keeps its own contract. Use the separate procedures for port admission, publisher
+setup, and automatic delivery.
+
+`portcove-core` decides which definitions and lifecycle operations to accept.
+The CLI and Tauri expose those results. React and external clients display them.
+Use the Project for scheduling.
+
+Completed work in #245, #397, and #398 covers the design, client, and observer.
+Completed work in #254 covers authoring tools. Find ongoing discovery and
+normalized observations in #177. Find release health and recovery in #247.
+Find protected publication and the unchanged-client workflow in #246.
+Issue #534 holds publisher setup acceptance. Both production outcomes need
+evidence beyond component fixtures.
 
 ## Implemented engine capability negotiation
 

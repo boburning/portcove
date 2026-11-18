@@ -1,9 +1,10 @@
 # Build an external Portcove client
 
-Build against the public CLI, its exported schemas and one explicitly selected
-library. Core owns admission, plans, consent-bound execution, lifecycle state and
-recovery. The client presents that authority; it does not read SQLite or infer
-permission from a catalog flag.
+Build against the public CLI and its exported schemas. Select one library.
+Core decides what the client can do, prepares plans, and runs them with the
+player's consent. Core also keeps installation state and handles recovery.
+Use the CLI to present those results. Do not read SQLite or treat a catalog flag
+as permission to act.
 
 | Stage                 | Use this recipe                                                   | Required observation or boundary                                                                                 |
 | --------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
@@ -23,13 +24,14 @@ consumer. Its protocol and process files are examples, not a general SDK or
 permission to copy core lifecycle rules. See [integration ownership](INTEGRATIONS.md)
 and the complete [CLI contract](CLI.md).
 
-Choose only the capability level the client needs. A launch-only client binds
-identity, readiness and supervised launch; library integration adds stable entry
-discovery/refresh; lifecycle integration adds explicit management, progress and
-recovery. A basic launcher is not required to implement every management command.
-Negotiate the operations and schemas actually used, and keep unsupported higher
-levels unavailable rather than accepting consequential data the client cannot
-interpret.
+Choose the capability level that the client needs. A launch-only client binds
+the selected library identity, checks readiness, and uses supervised launch.
+A library client also finds and refreshes entries. A lifecycle client adds
+management commands, progress, and recovery.
+
+Check which operations and schemas both the client and the CLI support. If
+either lacks support or the client cannot interpret a required field, keep the
+affected operation unavailable.
 
 ## Choose a CLI and fixture library
 

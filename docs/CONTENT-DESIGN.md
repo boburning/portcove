@@ -9,6 +9,17 @@ and limits without creating a new readiness, trust or recovery decision.
 
 ## Start with the player's task
 
+Use the [Plain rules from SimpleEnglish](https://github.com/AminBlg/SimpleEnglish/blob/300432a9e4c473229a7049ab61b8ca2522d9214c/skills/simple-english/SKILL.md)
+when you write or edit documentation. Aim for one action per instruction and
+20 words or fewer per instruction. Aim for 25 words or fewer per sentence in an
+explanation. Put conditions before actions. Name who or what performs each
+action. Define an unfamiliar term before the reader needs it.
+
+Keep exact interface labels, commands, paths, API fields, and quoted messages.
+Use the glossary when words identify different states or guarantees. Preserve
+uncertainty, version limits, and warnings. Keep published release notes and
+dated observations as records of what people knew at the time.
+
 Lead with the situation, then its consequence and next action. Put paths, hashes,
 test environments and engineering evidence in named optional details unless they
 are needed to choose safely. “Why this port?” begins with gameplay, controls,

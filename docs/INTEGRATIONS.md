@@ -1,16 +1,15 @@
 # External frontend integration
 
-Portcove exposes shared native-port management through its public CLI. An
-external client uses those supported operations and their current assessments
-rather than implementing separate per-port installation or recovery rules.
+Use Portcove's public CLI to manage native ports from an external client.
+Read the current state from the CLI. Use Core's installation and recovery
+rules through the CLI.
 
-Portcove Desktop remains the flagship player experience; using another
-frontend is optional and never requires a player to use a terminal. The shared
-core owns source requirements, admission, installation, updates, activation,
-rollback, persistence, launch, and recovery. The CLI exposes supported external
-entry points. An integration may translate those entry points into its own
-presentation and platform conventions, but it does not become another authority
-for Portcove lifecycle or catalog policy.
+Portcove Desktop is the main player interface. Players can use a different
+interface without opening a terminal. Core sets game-file requirements and
+decides which operations are available. It owns installation, updates,
+activation, rollback, storage, launch, and recovery. Integrations can present
+the CLI results in their own interface. Core still decides catalog and
+lifecycle policy.
 
 This document is the stable integration direction and support vocabulary. The
 [live Project](https://github.com/users/boburning/projects/1) owns priority,

@@ -1,19 +1,19 @@
 # Application updates
 
-Portcove updates itself with Tauri's standard updater plugin and a static
-`latest.json` feed per channel. This replaced the earlier custom TUF client
-(owner decision on
-[#534](https://github.com/boburning/portcove/issues/534#issuecomment-6864263340));
-no published build used that client, so there is nothing to migrate.
+Portcove uses Tauri's standard updater plugin. Each channel has a static
+`latest.json` feed that describes its available update. The plugin replaced the
+earlier custom TUF client. No published version used that client, so existing
+installations need no migration.
+See the [owner's decision on #534](https://github.com/boburning/portcove/issues/534#issuecomment-6864263340).
 
 ## Owners and independent trust claims
 
-The Tauri host owns application update trust, the channel preference, checks,
-download verification, save protection and replacement. Core owns library
-schemas, game sessions, mutation locks and all game data. React presents typed
-host results and forwards explicit player actions; it supplies no URL, key or
-path. Catalog keys cannot authorize application code, and a game or catalog
-update never updates Portcove.
+The Tauri host stores the channel preference. It checks for updates, verifies
+downloads, protects saves, and replaces the application. Core owns library
+schemas, game sessions, mutation locks, and game data. React displays typed host
+results and forwards the player's explicit choices. The host supplies URLs,
+keys, and paths. Catalog keys authorize only catalog data. Portcove uses
+separate update paths for the application, catalog, and games.
 
 Trust rests on two build inputs in
 [`tauri.conf.json`](../apps/desktop/src-tauri/tauri.conf.json):
@@ -22,13 +22,13 @@ Trust rests on two build inputs in
   for key ID `F92BD3EA87BB77B0`. The plugin verifies every downloaded package
   against it before returning any bytes to install.
 - The fixed channel feed URLs in
-  [`application_update.rs`](../apps/desktop/src-tauri/src/application_update.rs),
-  chosen at runtime from the stored channel. The feeds are served over HTTPS and
-  are unsigned; the package signature is the integrity check.
+  [`application_update.rs`](../apps/desktop/src-tauri/src/application_update.rs).
+  The host chooses the URL for the saved channel. The feeds use HTTPS. The JSON
+  is unsigned. The plugin checks the package signature for integrity.
 
-The matching private key is held as a secret in the GitHub `release` and
-`release-stable` environments, with an offline backup kept by the owner. It never
-enters the repository or ordinary builds' inputs. The base configuration keeps
+GitHub stores the private key as a secret in the `release` and `release-stable`
+environments. The owner keeps an offline backup. The repository and ordinary
+build inputs contain no private key. The base configuration keeps
 `bundle.createUpdaterArtifacts` off, so ordinary and rehearsal bundles need no key.
 The `app-release.yml` workflow turns it on with `--config` and signs with
 `TAURI_SIGNING_PRIVATE_KEY`. [Releasing](RELEASING.md) owns publication.
@@ -55,22 +55,22 @@ authority. Changing the channel discards an update found on the other channel.
 
 ## Checks and installs
 
-Release builds check shortly after startup and then every six hours while
-automatic checks are on; development builds never check automatically. The
-player can also choose Check for updates. A found update is announced in a
-global notice and in Settings with its version, date and notes. Nothing is
-downloaded or installed until the player chooses Download and restart.
+If automatic checks are on, a release build checks shortly after startup and
+every six hours after that. Development builds never check automatically.
+To check manually, choose **Check for updates**. If the app finds an update, it
+shows the version, date, and notes in a global notice and in Settings. To
+download and install it, choose **Download and restart**.
 
-Installing first downloads the package and lets the plugin verify its signature.
-On Windows the plugin then starts the per-user NSIS installer in passive mode
-and exits Portcove; the installer reopens it. On Linux (AppImage) and macOS
-(`.app` bundle, ad-hoc signed) the plugin replaces the installation and Portcove
-restarts.
+The updater downloads the package. The plugin verifies its signature before it
+installs the package. On Windows, the plugin starts the per-user NSIS installer
+in passive mode and exits Portcove. The installer reopens Portcove. On Linux
+(AppImage) and macOS (ad-hoc signed `.app` bundle), the plugin replaces the
+installation. Portcove then restarts.
 
 ## Save protection
 
 An update must not interrupt work on the player's library. Before downloading,
-the host runs Core's idle check so a busy library doesn't waste a download.
+the host runs Core's idle check so a busy library does not waste a download.
 After the download is verified, `application_update_admission`:
 
 1. takes the desktop's library-selection mutex, so the library cannot be switched

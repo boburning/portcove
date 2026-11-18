@@ -1,11 +1,10 @@
 # Project governance
 
-The public, user-owned
-[Portcove Roadmap](https://github.com/users/boburning/projects/1) is the sole live
-planning authority. Project fields may change freely without a documentation
-rewrite. GitHub issues preserve implementation-ready specifications and evidence;
-repository documentation preserves stable contracts and dated snapshots;
-`catalog.json` preserves actual port support.
+Use the public, user-owned
+[Portcove Roadmap](https://github.com/users/boburning/projects/1) for current
+plans. When a Project field changes, update the Project. Put implementation
+requirements and evidence in GitHub issues. Keep stable rules and dated
+snapshots in the docs. Record actual port support in `catalog.json`.
 
 Do not create a JSON ledger, `STATUS.md`, TODO list, milestone mirror, or second
 planning service. GitHub milestones are not the target-release authority.
