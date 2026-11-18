@@ -582,7 +582,7 @@ it("words held updates with the locale's plural forms", async () => {
     const host = await render();
     expect(host.textContent).toContain("أبقى Portcove الإصدارين الحاليين");
     expect(host.textContent).toContain("the newer file changes which mods it contains");
-    expect(host.textContent).toContain("ابحث عن كل تعديل باستخدام «ابحث عن تعديلات في GameBanana»");
+    expect(host.textContent).toContain("راجع الملفات الأحدث من GameBanana ضمن التعديلات المثبّتة");
   } finally {
     await localization.changeLanguage("en");
   }
