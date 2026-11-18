@@ -92,6 +92,19 @@ export async function adoptionReviewScenario({
     await browser.navigate().refresh();
     const { button, click } = reviewControls(browser);
     const dialog = By.css('[aria-labelledby="adopt-title"]');
+    // Native27 reached the former 15 s click wait while Library still loaded;
+    // its reload workspace reads took 14.075 s and 14.212 s. Wait for the real
+    // entry control before using the unchanged ordinary click path.
+    await browser.wait(
+      async () => {
+        const controls = await browser.findElements(button("Add games"));
+        if (controls.length !== 1) return false;
+        const control = required(controls[0]);
+        return (await control.isDisplayed()) && (await control.isEnabled());
+      },
+      60_000,
+      "The reloaded Library must expose one visible enabled Add games control",
+    );
     await click(button("Add games"));
     await click(button("Use an existing installation"));
     const trigger = button("Copy an existing installation");
