@@ -5,13 +5,13 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-const source = "535798e80243183f4030f6ea9f50940f2008e0cc",
-  run = 44320330113,
+const source = "1e3fbb9bbe42fcdd97822280a94d97163643a422",
+  run = 44331666488,
   attempt = 1,
-  artifact = 14436581394;
-const expectedZip = "f70084ce11885ce30491a87eed2d4719f033b58b265d324165b8bc17e692dc60";
+  artifact = 14444465879;
+const expectedZip = "65a292bc4fe3445e2bc87cf99b63d1afc9aa4370e9f81c61b20baebf9c31f947";
 const root = path.join("C:\\pcv", process.env.GITHUB_RUN_ID + "-" + process.env.GITHUB_RUN_ATTEMPT);
-const evidence = path.join(root, "evidence", "desktop-verify", "chocolate", "native");
+const evidence = path.join(root, "evidence", "desktop-verify", "carry-alias", "native");
 await mkdir(evidence, { recursive: true });
 await writeFile("chocolate-native-root.txt", root);
 const api = "https://api.github.com/repos/boburning/portcove";
@@ -29,7 +29,7 @@ const meta = await json(api + "/actions/artifacts/" + artifact);
 assert(
   meta.id === artifact &&
     !meta.expired &&
-    meta.size_in_bytes === 186386856 &&
+    meta.size_in_bytes === 186405809 &&
     meta.digest === "sha256:" + expectedZip &&
     meta.workflow_run.id === run &&
     meta.workflow_run.head_sha === source &&
@@ -116,52 +116,6 @@ assert(
   "Bounded test-archive extraction failed",
 );
 const executables = JSON.parse(await readFile(path.join(root, "executables.json"), "utf8"));
-const originalPackets = [
-  [
-    "doom19s.zip",
-    "https://ftpmirror1.infania.net/pub/idgames/idstuff/doom/doom19s.zip",
-    "cacf0142b31ca1af00796b4a0339e07992ac5f21bc3f81e7532fe1b5e1b486e6",
-  ],
-  [
-    "htic_v12.zip",
-    "https://ftpmirror1.infania.net/pub/idgames/idstuff/heretic/htic_v12.zip",
-    "5ffbb47e4a5750fef144c312973ee5782266b4a63474b77478103b6c1aaed39d",
-  ],
-  [
-    "hexndemo.zip",
-    "https://youfailit.net/pub/idgames/idstuff/hexen/hexndemo.zip",
-    "469ee3a254959d2fca624aec7391292fbd1ac3ebd9074b65f05cbc74de3c4572",
-  ],
-];
-for (const [name, url, sha] of originalPackets) await download(url, name, 6000000, sha);
-await python("originals");
-const titles = [
-  [
-    "chocolate-doom-family",
-    "chocolate-doom-pc-iwad",
-    "doom1.wad",
-    "chocolate-doom.exe",
-    "doomsav0\\.dsg$",
-    "58c34c61ae954493fce5ff01fd553898240a0de25658aa97b43ac9510c49581f",
-  ],
-  [
-    "chocolate-heretic",
-    "chocolate-heretic-pc-iwad",
-    "heretic1.wad",
-    "chocolate-heretic.exe",
-    "hticsav0\\.hsg$",
-    "6faa3ba85d0fb18065d6a530cf74e7d17896742b67c6acc513fcb45263ffba63",
-  ],
-  [
-    "chocolate-hexen",
-    "chocolate-hexen-pc-iwad",
-    "hexendemo.wad",
-    "chocolate-hexen.exe",
-    "hex0\\.hxs$",
-    "472a0d039acab04d0f93cb5d348ddd623270563c7c15b9b4b601e3b0f35acf23",
-  ],
-];
-const playerDigests = JSON.parse(await readFile("scripts/chocolate-hosted-players.json", "utf8"));
 const config = {
   sdk: pathToFileURL(path.resolve("product") + path.sep).href,
   product_source: source,
@@ -169,37 +123,16 @@ const config = {
   controller_source: process.env.GITHUB_SHA,
   cli: path.join(root, "portcove.exe"),
   cli_sha256: executables.cli.sha256,
-  // Alias preservation failed in retained run44330201491; repair/replay has its own #5359 candidate.
-  core_test: null,
+  core_test: path.join(root, "core-tests.exe"),
   core_test_sha256: executables.core.sha256,
   alias_temp: path.join(root, "alias-temp"),
-  library: path.join(root, "library"),
+  library: path.join(root, "unused-library"),
   evidence_dir: evidence,
-  global_chocolate_root: process.env.CHOCOLATE_KNOWN_ROAMING,
-  ui_helper: path.resolve("scripts/chocolate-hosted-ui.ps1"),
-  scenarios: ["public-original-core-lifecycle"],
+  global_chocolate_root: null,
+  ui_helper: null,
+  scenarios: ["native-short-file-alias-preservation", "native-short-directory-alias-preservation"],
   titles: [],
 };
-assert(
-  config.global_chocolate_root?.endsWith("chocolate-doom"),
-  "Observed roaming Known Folder missing",
-);
-for (const [port, profile, name, player, save_pattern, package_sha256] of titles) {
-  const b = await readFile(path.join(root, "originals", name));
-  config.titles.push({
-    port,
-    profile,
-    player,
-    player_sha256: playerDigests[player],
-    original: path.join(root, "originals", name),
-    original_sha256: createHash("sha256").update(b).digest("hex"),
-    save_pattern,
-    package_sha256,
-  });
-}
-// Doom and Heretic fully completed in retained run44336470142; this run repairs/replays Hexen only.
-config.titles = config.titles.filter((title) => title.port === "chocolate-hexen");
-config.scenarios = ["hexen-public-demo-core-lifecycle", "metadata-and-refused-deployment"];
 await writeFile(path.join(root, "native-config.json"), JSON.stringify(config, null, 2));
 await writeFile(
   path.join(evidence, "producer.json"),
@@ -209,21 +142,9 @@ await writeFile(
       run,
       attempt,
       artifact,
-      artifact_sha256: expectedZip,
-      checkout: manifest.identity.source,
-      target: checkout.parents[0].sha,
-      tree: checkout.tree.sha,
+      expected_zip_sha256: expectedZip,
       executables,
-      original_packets: originalPackets.map(([name, url, sha256]) => ({
-        name,
-        url,
-        sha256,
-        authority:
-          name === "doom19s.zip"
-            ? "transport consistency only; raw IWAD uses published GDP89 SHA1"
-            : "versioned GDP89 published SHA256",
-      })),
-      scope: "ordinary source-bound producer; native execution has its own result",
+      scope: "ordinary exact-source producer; only two Core filesystem fixtures will execute",
     },
     null,
     2,
@@ -240,7 +161,6 @@ console.log(
     run,
     attempt,
     artifact,
-    cli_sha256: executables.cli.sha256,
     core_test_sha256: executables.core.sha256,
   }),
 );

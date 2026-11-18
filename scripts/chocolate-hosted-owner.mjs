@@ -391,6 +391,15 @@ try {
       });
       assert.equal(code, 0, "alias fixture failed");
       assert(/1 passed/.test(stdout), "requested fixture did not execute");
+      assert(
+        stderr.includes("PORTCOVE_CARRY_83_OBSERVED:") &&
+          stderr.includes(
+            test.includes("_file_")
+              ? "PORTCOVE_CARRY_83_FILE_PRESERVED"
+              : "PORTCOVE_CARRY_83_DIRECTORY_PRESERVED",
+          ),
+        "Actual alias observation and preservation markers are mandatory; a conditional skip is not acceptance",
+      );
     }
   }
   for (const title of config.titles) {

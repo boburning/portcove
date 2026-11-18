@@ -5,7 +5,7 @@ const config = JSON.parse(await readFile(file, "utf8"));
 const { acquireNativeSessionLock } = await import(config.sdk + "scripts/native-session-lock.mts");
 const lease = await acquireNativeSessionLock({
   workspace: process.cwd(),
-  profile: "chocolate-public-originals-hosted",
+  profile: "carry-alias-hosted",
   scenarios: config.scenarios,
 });
 try {

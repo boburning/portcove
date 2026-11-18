@@ -1,6 +1,6 @@
 import sys,io,os,json,hashlib,struct,zipfile,tarfile,shutil
 from pathlib import Path
-mode=sys.argv[1];root=Path(sys.argv[2]);evidence=root/'evidence'/'desktop-verify'/'chocolate'/'native'
+mode=sys.argv[1];root=Path(sys.argv[2]);evidence=root/'evidence'/'desktop-verify'/'carry-alias'/'native'
 def digest(p,kind='sha256'):
  with p.open('rb') as f:return hashlib.file_digest(f,kind).hexdigest()
 def bounded_zip(data):
@@ -17,7 +17,7 @@ if mode=='outer':
    assert not i.is_dir() and ((i.external_attr>>16)&0o170000)!=0o120000
    assert i.file_size <= (4*1024**2 if i.filename=='manifest.json' else 200*1024**2)
    with z.open(i) as src,(root/i.filename).open('xb') as dest:shutil.copyfileobj(src,dest)
- m=json.loads((root/'manifest.json').read_text());assert m['identity']['run']=='44320330113' and m['identity']['attempt']=='1'
+ m=json.loads((root/'manifest.json').read_text());assert m['identity']['run']=='44331666488' and m['identity']['attempt']=='1'
  assert digest(root/'tests.tar.zst')==m['archive_sha256']
  b=(root/'tests.tar.zst').open('rb').read(18);assert b[:4]==bytes.fromhex('28b52ffd') and not(b[4]&32)
  window=(1<<((b[5]>>3)+10));window+=window//8*(b[5]&7);assert window<=256*1024**2

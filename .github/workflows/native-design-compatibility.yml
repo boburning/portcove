@@ -5,14 +5,14 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: chocolate-public-originals-${{ github.ref }}
+  group: carry-alias-native-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  chocolate-windows-lifecycle:
+  carry-windows-short-aliases:
     runs-on: windows-2022
     timeout-minutes: 30
     env:
-      PORTCOVE_PRODUCT_SOURCE: 535798e80243183f4030f6ea9f50940f2008e0cc
+      PORTCOVE_PRODUCT_SOURCE: 1e3fbb9bbe42fcdd97822280a94d97163643a422
       PORTCOVE_CONTROLLER_SOURCE: ${{ github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -26,7 +26,7 @@ jobs:
           git diff --exit-code
           if($LASTEXITCODE -ne 0){throw 'Controller is dirty'}
           $root=Join-Path 'C:\pcv' "$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
-          $native=Join-Path $root 'evidence/desktop-verify/chocolate/native'
+          $native=Join-Path $root 'evidence/desktop-verify/carry-alias/native'
           New-Item -ItemType Directory -Path $native | Out-Null
           $session=@{controller=$env:PORTCOVE_CONTROLLER_SOURCE;product=$env:PORTCOVE_PRODUCT_SOURCE;run=$env:GITHUB_RUN_ID;attempt=$env:GITHUB_RUN_ATTEMPT;os=[Environment]::OSVersion.VersionString;os_arch=[Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();process_arch=[Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString();session=[Diagnostics.Process]::GetCurrentProcess().SessionId;interactive=[Environment]::UserInteractive;powershell=$PSVersionTable.PSVersion.ToString();image=$env:ImageVersion}
           $session|ConvertTo-Json|Set-Content (Join-Path $native 'session.json') -Encoding utf8
@@ -35,14 +35,14 @@ jobs:
           "CHOCOLATE_KNOWN_ROAMING=$roaming\chocolate-doom"|Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: 535798e80243183f4030f6ea9f50940f2008e0cc
+          ref: 1e3fbb9bbe42fcdd97822280a94d97163643a422
           path: product
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .node-version
           package-manager-cache: false
-      - name: Verify the ordinary producer and public original inputs
+      - name: Verify the ordinary exact-source test producer
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -50,7 +50,7 @@ jobs:
           if((git -C product rev-parse HEAD) -ne $env:PORTCOVE_PRODUCT_SOURCE){throw 'Product source differs'}
           node scripts/chocolate-hosted-input.mjs
           if($LASTEXITCODE -ne 0){throw 'Input binding failed; no game executed'}
-      - name: Execute exact Core CLI and real game lifecycle with native admission
+      - name: Replay the two exact native alias-preservation fixtures
         shell: pwsh
         run: |
           $root=(Get-Content -Raw chocolate-native-root.txt).Trim()
