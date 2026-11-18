@@ -237,7 +237,7 @@ export function PreparationControl({
                   />
                 )}
                 <details className="mt-4">
-                  <summary data-focusable className="cursor-pointer py-2">
+                  <summary data-focusable className="disclosure-pad-2 cursor-pointer">
                     {t("preparation.details")}
                   </summary>
                   <PreparationFacts plan={plan} />
@@ -335,7 +335,7 @@ function PreparationFacts({ plan }: { plan: PreparationPlan }) {
       </dl>
       <p>{t("preparation.plan.originalSafe")}</p>
       <details>
-        <summary data-focusable className="cursor-pointer py-1">
+        <summary data-focusable className="disclosure-pad-1 cursor-pointer">
           {t("preparation.plan.ifWrong")}
         </summary>
         <div className="preparation-during" role="group" aria-label={t("preparation.plan.during")}>
@@ -345,7 +345,7 @@ function PreparationFacts({ plan }: { plan: PreparationPlan }) {
         </div>
       </details>
       <details>
-        <summary data-focusable className="cursor-pointer py-1">
+        <summary data-focusable className="disclosure-pad-1 cursor-pointer">
           {t("preparation.plan.window")}
         </summary>
         <p className="mt-2 mb-0">{t("preparation.plan.windowText")}</p>

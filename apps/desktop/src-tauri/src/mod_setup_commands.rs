@@ -6,13 +6,41 @@
 use std::path::PathBuf;
 
 use crate::{
-    DesktopResult, DesktopState, blocking_worker, game_settings_commands::read_at_generation,
-    service_at_generation,
+    DesktopResult, DesktopState, blocking_worker, desktop_contract::RecipeImportReview,
+    game_settings_commands::read_at_generation, service_at_generation,
 };
 use portcove_core::{
     ModSetupsView, PortcoveError, Profile, ProfileProgressCopy, ProfileRecipe, ProfileRecoveryPlan,
-    ProfileRevision, ProfileUpdatePolicy, ProviderUpdateObservation, RecipeImportPlan,
+    ProfileRevision, ProfileUpdatePolicy, ProviderUpdateObservation,
 };
+
+impl RecipeImportReview {
+    pub(crate) fn new(plan: portcove_core::RecipeImportPlan) -> portcove_core::Result<Self> {
+        let serialized_plan = serde_json::to_string(&plan)?;
+        let setting_values = plan
+            .recipe
+            .settings
+            .iter()
+            .map(|setting| match &setting.value {
+                portcove_core::RecipeModSettingValue::Number(value) => value.to_string(),
+                portcove_core::RecipeModSettingValue::Choice(value) => value.clone(),
+            })
+            .collect();
+        Ok(Self {
+            plan,
+            serialized_plan,
+            setting_values,
+        })
+    }
+
+    /// Decoding is transport only. The command still performs the ordinary
+    /// generation, port, plan-digest, consent and current-input checks in Core.
+    pub(crate) fn decode(
+        serialized_plan: &str,
+    ) -> portcove_core::Result<portcove_core::RecipeImportPlan> {
+        serde_json::from_str(serialized_plan).map_err(Into::into)
+    }
+}
 
 #[tauri::command]
 pub(crate) async fn get_mod_setups(
@@ -243,13 +271,13 @@ pub(crate) async fn inspect_mod_recipe(
     generation: u64,
     port_id: String,
     path: PathBuf,
-) -> DesktopResult<RecipeImportPlan> {
+) -> DesktopResult<RecipeImportReview> {
     let state = state.inner().clone();
     blocking_worker(move || {
         read_at_generation(&state, generation, |service| {
             let recipe = ProfileRecipe::read_file(&path)?;
             require_recipe_port(&port_id, &recipe)?;
-            service.plan_recipe_import(&recipe)
+            RecipeImportReview::new(service.plan_recipe_import(&recipe)?)
         })
     })
     .await
@@ -262,12 +290,13 @@ pub(crate) async fn acquire_mod_recipe_package(
     port_id: String,
     profile_id: String,
     native_id: String,
-    plan: RecipeImportPlan,
-) -> DesktopResult<RecipeImportPlan> {
+    serialized_plan: String,
+) -> DesktopResult<RecipeImportReview> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
+            let plan = RecipeImportReview::decode(&serialized_plan)?;
             require_recipe_port(&port_id, &plan.recipe)?;
             let current =
                 service.plan_recipe_import_with_acquisitions(&plan.recipe, &plan.acquisitions)?;
@@ -284,7 +313,10 @@ pub(crate) async fn acquire_mod_recipe_package(
                 .await?;
             let mut acquisitions = plan.acquisitions;
             acquisitions.push(acquisition);
-            match service.plan_recipe_import_with_acquisitions(&plan.recipe, &acquisitions) {
+            match service
+                .plan_recipe_import_with_acquisitions(&plan.recipe, &acquisitions)
+                .and_then(RecipeImportReview::new)
+            {
                 Ok(review) => Ok(review),
                 Err(error) => {
                     if let Some((acquisition, earlier)) = acquisitions.split_last()
@@ -307,11 +339,12 @@ pub(crate) async fn discard_mod_recipe_review(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     port_id: String,
-    plan: RecipeImportPlan,
+    serialized_plan: String,
 ) -> DesktopResult<()> {
     let state = state.inner().clone();
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
+        let plan = RecipeImportReview::decode(&serialized_plan)?;
         require_recipe_port(&port_id, &plan.recipe)?;
         for acquisition in &plan.acquisitions {
             if acquisition.provider_plan.port_id != port_id
@@ -337,12 +370,13 @@ pub(crate) async fn apply_mod_recipe(
     generation: u64,
     port_id: String,
     display_name: String,
-    plan: RecipeImportPlan,
+    serialized_plan: String,
     allow_code: bool,
 ) -> DesktopResult<Profile> {
     let state = state.inner().clone();
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
+        let plan = RecipeImportReview::decode(&serialized_plan)?;
         require_recipe_port(&port_id, &plan.recipe)?;
         if !plan.can_apply {
             return Err(PortcoveError::conflict("this recipe still needs exact inputs").into());
@@ -718,3 +752,7 @@ mod tests {
         assert!(require_displayed_plan(&plan, "shipwright", "a", "e").is_err());
     }
 }
+
+#[cfg(test)]
+#[path = "mod_recipe_review_tests.rs"]
+mod mod_recipe_review_tests;

@@ -436,6 +436,7 @@ void test("native receipt capture binds schema validation and reproduction input
     "apps/desktop/scripts/desktop-game-first-test.mts",
     "apps/desktop/scripts/desktop-collection-artwork-test.mts",
     "apps/desktop/scripts/desktop-review-controls.mts",
+    "apps/desktop/scripts/desktop-review-observation.mts",
     "scripts/desktop-game-first-installed-inputs.mts",
     "apps/desktop/scripts/transport-values.mts",
     "apps/desktop/scripts/desktop-source-intake-boundaries-test.mts",

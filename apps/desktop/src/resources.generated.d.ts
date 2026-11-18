@@ -2012,7 +2012,7 @@ export default interface Resources {
     "applying": "Uninstalling…",
     "cancel": "Cancel",
     "checking": "Checking installed versions…",
-    "deletedFolders_one": "Files inside these {{count, number}} installation folder will be deleted, including retained versions:",
+    "deletedFolders_one": "Files inside this installation folder will be deleted, including retained versions:",
     "deletedFolders_other": "Files inside these {{count, number}} installation folders will be deleted, including retained versions:",
     "description": "This removes all installed versions of {{name}} managed by Portcove.",
     "detailsLabel": "Files removed and data preserved",

@@ -177,7 +177,7 @@ export function SelfServiceSetup({
       )}
       {registered?.user_selected && !pending && (
         <details>
-          <summary data-focusable className="cursor-pointer py-2 font-medium">
+          <summary data-focusable className="disclosure-pad-2 cursor-pointer font-medium">
             {t("selfService.another.summary")}
           </summary>
           <div className="grid gap-3 pt-2">

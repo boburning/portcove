@@ -367,7 +367,7 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
       report.registered_source = registered;
       await selectPrimaryNavigation(browser, "Library");
       await click(button("Add games"));
-      await click(By.css('button[aria-label="Use an existing installation"]'));
+      await click(button("Use an existing installation"));
       await click(button("Copy an existing installation"));
       const dialog = By.css('[aria-labelledby="adopt-title"]');
       await browser.wait(until.elementLocated(dialog), 15_000);

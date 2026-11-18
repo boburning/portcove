@@ -1,3 +1,4 @@
+import { observeReviewSettlement } from "./desktop-review-observation.mts";
 import { fixtureObject as object } from "./desktop-scenario-state.mts";
 import type { PreparationContext } from "./desktop-preparation-test.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
@@ -367,7 +368,7 @@ export async function interruptedPreparationScenario({
         : false;
     }, 15_000);
     assert.ok(beforeRestartText);
-    assert.match(beforeRestartText, /Running game setup/);
+    assert.match(beforeRestartText, /Game setup/);
     assert.doesNotMatch(beforeRestartText, /No files were changed|The operation was cancelled/);
     await beforeRestartLog.click();
     await browser.navigate().refresh();
@@ -428,7 +429,7 @@ export async function interruptedPreparationScenario({
       await log.click();
     }
     assert.ok(row, "original retained preparation row with incomplete diagnostic capture");
-    assert.match(await row.getText(), /Running game setup/);
+    assert.match(await row.getText(), /Game setup/);
     assert.deepEqual(
       (await activities()).find((item) => item.id === activity.id),
       recovered,
@@ -594,11 +595,20 @@ export async function interruptedPreparationScenario({
     // review. Later stale-review, cancellation, restart, and accepted-cleanup
     // checks remain unchanged.
     setPreparationProcessQuiescence(library, activity.id, 1);
-    await controls.click(controls.button("Review again"));
-    await browser.wait(
-      async () =>
-        (await browser.findElement(cleanupDialog).getText()).includes(required(privatePath)),
-      15_000,
+    await observeReviewSettlement(
+      browser,
+      '[aria-labelledby="preparation-cleanup-title"]',
+      path.join(output, "preparation-quiescence-review-settlement.json"),
+      artifacts,
+      async () => {
+        await controls.click(controls.button("Review again"));
+        await browser.wait(
+          async () =>
+            (await browser.findElement(cleanupDialog).getText()).includes(required(privatePath)),
+          15_000,
+          "The fresh quiesced preparation review must show its retained folder",
+        );
+      },
     );
     await reviewRetainedCleanup(required(privatePath));
     const cleanupActionStyles = await assertDestructiveReviewAction(

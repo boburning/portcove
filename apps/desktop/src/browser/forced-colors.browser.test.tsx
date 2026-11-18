@@ -1,4 +1,5 @@
 import { captureParityState } from "../../test/parity-capture";
+import { expectDisclosureAlignment } from "../../test/disclosure-alignment";
 import { afterEach, expect, it } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -134,6 +135,10 @@ for (const theme of ["dark", "light"]) {
         <DialogContent>
           <DialogTitle>Review installation</DialogTitle>
           <Button>Continue</Button>
+          <details>
+            <summary className="disclosure-pad-2">Additional installation checks</summary>
+            <p>Review the recorded checks before continuing.</p>
+          </details>
           <ChoiceSelect
             label="Release"
             value="stable"
@@ -147,6 +152,13 @@ for (const theme of ["dark", "light"]) {
       </Dialog>,
     );
     await expect.element(page.getByRole("dialog")).toBeVisible();
+    const summary = page.getByText("Additional installation checks", { exact: true });
+    await document.fonts.ready;
+    expectDisclosureAlignment(summary.element());
+    expect(getComputedStyle(summary.element(), "::before").transitionProperty).toBe("none");
+    await summary.click();
+    expect(summary.element().closest("details")!.open).toBe(true);
+    expectDisclosureAlignment(summary.element());
     for (const element of [
       page.getByRole("dialog").element(),
       page.getByRole("button", { name: "Continue", exact: true }).element(),

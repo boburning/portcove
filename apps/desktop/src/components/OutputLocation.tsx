@@ -633,7 +633,9 @@ function OutputLocationReview({
             <OutputFact label="Existing installs">
               {preview.affected_installs.length === 0
                 ? "None"
-                : `${preview.affected_installs.length} remain at their recorded locations`}
+                : preview.affected_installs.length === 1
+                  ? "1 remains at its recorded location"
+                  : `${preview.affected_installs.length} remain at their recorded locations`}
             </OutputFact>
           </MetadataGrid>
           <p className={outputReviewCopyClass}>
