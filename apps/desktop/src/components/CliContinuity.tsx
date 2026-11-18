@@ -99,6 +99,21 @@ function CliContinuityView(model: ReturnType<typeof useCliContinuity>) {
         )}
       </section>
     );
+  if (
+    !installed &&
+    !stagedOnly &&
+    !useInPlace &&
+    (!model.port.platforms.includes(model.context.platform) ||
+      model.status?.port_actions?.some(
+        ({ action, reason }) =>
+          action === "install" &&
+          (reason === "unsupported_platform" ||
+            reason === "route_not_offered" ||
+            reason === "definition_ineligible"),
+      ))
+  )
+    return null;
+
   let command;
   try {
     command = primaryCliCommand(
