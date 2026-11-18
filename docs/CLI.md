@@ -2073,6 +2073,14 @@ portcove --library <path> --json paths <port-id>
 
 The response contains `user_data_root` plus the active, previous, and staged install roots when those versions exist. Back up the complete user-data root: catalog persistence rules may include saves, configuration, controller bindings, mods, generated assets, or upstream-specific portable state. The path remains canonical even before the directory has been populated. Treat install roots as read-only implementation state and never modify SQLite directly.
 
+In human output, `paths` labels the canonical Portcove data folder and also
+shows the active installation's confirmed backup collection folder if known.
+Run `--json backup list <port-id>` for the file rules and backup history.
+An installation you maintain shows its registered folder and program. The game
+can keep saves in a different profile. Use `--json status <port-id>` for the machine-readable
+external registration coordinates and consult the project's setup instructions
+for its save location.
+
 Portcove can also create and enumerate its own immutable snapshots:
 
 ```bash
