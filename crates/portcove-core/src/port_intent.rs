@@ -936,7 +936,10 @@ impl PortcoveService {
             }],
             LibraryMembershipOrigin::Manual,
         )?;
-        let record = self.run_install_batch(&batch.id, &mut *emit).await?;
+        // Keep the batch's large async state out of the enclosing standing
+        // future. Nested fresh installs exhausted Windows debug worker stacks;
+        // the batch still runs serially under the same locks and cancellation.
+        let record = Box::pin(self.run_install_batch(&batch.id, &mut *emit)).await?;
         for item in &record.items {
             match item.state {
                 InstallBatchItemState::Ready => {
@@ -1197,13 +1200,11 @@ mod tests {
         service
             .set_port_intent(STACK_PORT, PortIntentMode::SetUpWhenReady)
             .unwrap();
-        eprintln!("[DEBUG-standing-stack] fixture-created; fresh tar.gz and registered original");
         let handle = runtime.handle().clone();
         std::thread::Builder::new()
             .name("standing-install-stack-regression".into())
             .stack_size(2 * 1024 * 1024)
             .spawn(move || {
-                eprintln!("[DEBUG-standing-stack] entered worker; before-first-pass");
                 handle.block_on(async move {
                     let result = service.run_standing_setup(|_| {}).await.unwrap();
                     assert_eq!(result.batches.len(), 1);
@@ -1212,11 +1213,15 @@ mod tests {
                         InstallBatchItemState::Ready
                     );
                     let installed = service.status(STACK_PORT).unwrap().active.unwrap();
-                    assert_eq!(std::fs::read(installed.path.join(&executable)).unwrap(), program);
+                    assert_eq!(
+                        std::fs::read(installed.path.join(&executable)).unwrap(),
+                        program
+                    );
                     assert!(service.verify(STACK_PORT).unwrap().valid);
-                    let request = requests.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
+                    let request = requests
+                        .recv_timeout(std::time::Duration::from_secs(5))
+                        .unwrap();
                     assert!(request.starts_with("GET /runtime.tar.gz "), "{request}");
-                    eprintln!("[DEBUG-standing-stack] first-ready; archive fetched and verified; before-repeat");
                     assert!(
                         service
                             .run_standing_setup(|_| {})
@@ -1225,9 +1230,11 @@ mod tests {
                             .batches
                             .is_empty()
                     );
-                    assert_eq!(service.status(STACK_PORT).unwrap().active.unwrap().id, installed.id);
+                    assert_eq!(
+                        service.status(STACK_PORT).unwrap().active.unwrap().id,
+                        installed.id
+                    );
                     assert!(requests.try_recv().is_err());
-                    eprintln!("[DEBUG-standing-stack] repeat-completed");
                 });
             })
             .unwrap()
