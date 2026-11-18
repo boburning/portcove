@@ -820,7 +820,7 @@ it("opens review for the exact project named by a saved automatic hold", async (
   await expect.element(page.getByText("Update needs review.", { exact: false })).toBeVisible();
   await page.getByRole("button", { name: "Review update files" }).click();
 
-  expect(project).toHaveBeenCalledExactlyOnceWith("shipwright", "42", 7);
+  expect(project).toHaveBeenCalledExactlyOnceWith("shipwright", "42", 7, "gamebanana");
 });
 
 it("shows the exact runtime and offers a direct switch to clean play", async () => {

@@ -50,6 +50,9 @@ pub enum ProfileUpdatePolicy {
 #[serde(deny_unknown_fields)]
 pub struct ProviderPackageRef {
     pub provider: String,
+    /// Required for coordinates that differ from the historical compiled binding.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub binding: Option<crate::ModProviderBinding>,
     pub project: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub file: Option<String>,
@@ -1097,6 +1100,10 @@ pub(crate) fn validate_revision(revision: &ProfileRevision) -> Result<()> {
         }
     }
     for package in &revision.packages {
+        crate::provider_binding::validate_dependency_scope(
+            package.provider.as_ref(),
+            &package.provider_requires,
+        )?;
         validate_provider_requirements(
             &package.native_id,
             package.enabled,

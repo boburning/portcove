@@ -10838,6 +10838,47 @@
         ],
         "type": "object"
       },
+      "ModProviderBinding": {
+        "description": "Exact provider-side scope from a reviewed definition.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "game_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gamebanana",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "game_id"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "community": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "thunderstore",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "community"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "OriginalBinding": {
         "additionalProperties": false,
         "description": "One required original, bound by observed content and storage identity rather\nthan by path, so relocation and rescans cannot silently change which original\na profile means.",
@@ -11158,6 +11199,17 @@
         "additionalProperties": false,
         "description": "A provider's own coordinates. Provider IDs never double as native loader IDs.",
         "properties": {
+          "binding": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ModProviderBinding"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required for coordinates that differ from the historical compiled binding."
+          },
           "file": {
             "type": [
               "string",
@@ -22787,6 +22839,47 @@
         ],
         "type": "string"
       },
+      "ModProviderBinding": {
+        "description": "Exact provider-side scope from a reviewed definition.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "game_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gamebanana",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "game_id"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "community": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "thunderstore",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "community"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "MutationState": {
         "enum": [
           "not_started",
@@ -23600,6 +23693,16 @@
               {
                 "type": "null"
               }
+            ]
+          },
+          "mod_provider_bindings": {
+            "description": "Provider coordinates reviewed alongside the existing mod loader contract.",
+            "items": {
+              "$ref": "#/$defs/ModProviderBinding"
+            },
+            "type": [
+              "array",
+              "null"
             ]
           },
           "n64_runtime_at_executable_parent": {

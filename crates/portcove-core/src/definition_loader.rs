@@ -48,6 +48,17 @@ pub(crate) fn validate_definition_transition(
     if baseline_order != candidate_order {
         return Err(out_of_scope("unrelated port ordering changed"));
     }
+    if let Some(previous) = baseline
+        .ports
+        .iter()
+        .find(|port| port.id == selected_port_id)
+        && let Some(next) = candidate
+            .ports
+            .iter()
+            .find(|port| port.id == selected_port_id)
+    {
+        crate::provider_binding::validate_successor(previous, next)?;
+    }
     validate_acquisition_hold_transition(&baseline.ports, &candidate.ports, selected_port_id)?;
     validate_package_layout_transition(&baseline.ports, &candidate.ports, selected_port_id)?;
     validate_accepted_uploader_transition(&baseline.ports, &candidate.ports, selected_port_id)?;

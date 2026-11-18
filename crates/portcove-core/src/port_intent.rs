@@ -744,7 +744,16 @@ impl PortcoveService {
                     ..Default::default()
                 }
             });
-        for port_id in crate::provider_install::provider_ports() {
+        for port_id in self
+            .catalog()
+            .ports()
+            .iter()
+            .filter(|port| {
+                port.mod_provider_bindings.is_some()
+                    || crate::provider_binding::default_binding(port).is_some()
+            })
+            .map(|port| port.id.as_str())
+        {
             match self.run_eligible_provider_updates(port_id).await {
                 Ok(updates) => result.mod_updates.extend(updates),
                 Err(error) => result.mod_updates.push(crate::ProviderAutoUpdate {

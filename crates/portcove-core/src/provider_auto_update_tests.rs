@@ -731,6 +731,7 @@ fn changed_thunderstore_dependency_coordinates_invalidate_the_exact_file_hold() 
     let observation = ProviderUpdateObservation {
         native_id: "root.nrm".into(),
         provider: crate::ProviderPackageRef {
+            binding: None,
             provider: "thunderstore".into(),
             project: "Owner-Root".into(),
             file: Some("1.0.0".into()),

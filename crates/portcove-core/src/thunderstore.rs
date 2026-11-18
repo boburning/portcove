@@ -47,11 +47,6 @@ pub(crate) fn thunderstore_community(port_id: &str) -> Option<&'static str> {
         .map(|(_, community)| *community)
 }
 
-/// Ports with a reviewed community binding.
-pub(crate) fn bound_ports() -> impl Iterator<Item = &'static str> {
-    COMMUNITY_BINDINGS.iter().map(|(port, _)| *port)
-}
-
 #[derive(Clone)]
 pub struct ThunderstoreClient {
     http: ProviderHttp,

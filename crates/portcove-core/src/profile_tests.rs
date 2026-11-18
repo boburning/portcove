@@ -33,6 +33,7 @@ fn package(id: &str, requires: &[&str]) -> ResolvedPackage {
         native_id: id.into(),
         native_version: Some("1.0.0".into()),
         provider: Some(ProviderPackageRef {
+            binding: None,
             provider: "gamebanana".into(),
             project: "12345".into(),
             file: Some("67890".into()),

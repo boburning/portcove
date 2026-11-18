@@ -649,6 +649,16 @@ impl Library {
             floor.evaluate(&candidate.provenance)?;
         }
         if validate_transition {
+            let selected = candidate.publisher.stable_id();
+            if let Some(active) = state
+                .active
+                .as_ref()
+                .filter(|active| active.stored.stable_id == selected)
+            {
+                let previous = active.projection.catalog().port(selected)?;
+                let next = candidate.projection.catalog().port(selected)?;
+                crate::provider_binding::validate_successor(previous, next)?;
+            }
             let (baseline, _) =
                 crate::catalog_store::CatalogState::read(&transaction)?.resolve(Self::now())?;
             let mut catalog = candidate.projection.catalog().clone();

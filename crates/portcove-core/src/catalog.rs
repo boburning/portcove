@@ -687,6 +687,7 @@ impl Catalog {
             }
         }
         for port in &self.document.ports {
+            crate::provider_binding::validate(port)?;
             crate::managed_runtime_policy::validate_exact_exclusions(port)?;
             crate::archive_data::validate(port)?;
             crate::native_temp::validate(port)?;
