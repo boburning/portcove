@@ -14,7 +14,11 @@ import {
 } from "node:fs";
 import os from "node:os";
 import { performance } from "node:perf_hooks";
-import { createGitHubClient, type GitHubRequestPolicy } from "./github-client.mts";
+import {
+  createGitHubClient,
+  iterateGitHubPages,
+  type GitHubRequestPolicy,
+} from "./github-client.mts";
 import {
   artifactName,
   assertExactArtifactNames,
@@ -554,27 +558,86 @@ type Release = {
 };
 
 /** Every release, drafts included (the by-tag endpoint omits drafts). */
-async function listReleases(api: Awaited<ReturnType<typeof client>>) {
-  const all: Release[] = [];
-  for (let page = 1; page <= 10; page++) {
-    const response = await api.request("GET /repos/{owner}/{repo}/releases", {
-      owner: "boburning",
-      repo: "portcove",
-      per_page: 100,
-      page,
-      ...read(),
-    });
-    const releases = response.data as Release[];
-    all.push(...releases);
-    if (releases.length < 100) return all;
+export async function listReleases(api: Awaited<ReturnType<typeof client>>) {
+  const origin = "https://api.github.com";
+  const path = `/repos/${repository}/releases`;
+  const inventoryPaths = [path, "/repositories/1354613114/releases"];
+  const all = new Map<number, Release>();
+  let pages = 0;
+  try {
+    for await (const response of iterateGitHubPages(api, {
+      url: `${origin}${path}?per_page=100`,
+      prepareRequest: async (url) => {
+        const next = new URL(url);
+        if (next.origin !== origin || !inventoryPaths.includes(next.pathname) || ++pages > 100)
+          throw new Error("release inventory pagination exceeded its scope or 100-page budget");
+      },
+    })) {
+      if (!Array.isArray(response.data)) throw new Error("invalid release inventory page");
+      for (const release of response.data as Release[]) {
+        if (!Number.isSafeInteger(release.id) || release.id <= 0 || !release.tag_name)
+          throw new Error("release inventory lacks a stable ID or tag");
+        const previous = all.get(release.id);
+        if (
+          previous &&
+          (previous.tag_name !== release.tag_name || previous.draft !== release.draft)
+        )
+          throw new Error("release changed during inventory collection");
+        all.set(release.id, release);
+      }
+    }
+  } catch (cause) {
+    throw new Error("release inventory is incomplete", { cause });
   }
-  throw new Error("release inventory exceeds its bound");
+  return [...all.values()];
 }
 
-async function findRelease(api: Awaited<ReturnType<typeof client>>, tag: string) {
+export async function findPublishedRelease(api: Awaited<ReturnType<typeof client>>, tag: string) {
+  try {
+    const response = await api.request("GET /repos/{owner}/{repo}/releases/tags/{tag}", {
+      owner: "boburning",
+      repo: "portcove",
+      tag,
+      ...read(),
+    });
+    const release = response.data as Release;
+    if (
+      release.tag_name !== tag ||
+      release.draft ||
+      !Number.isSafeInteger(release.id) ||
+      release.id <= 0
+    )
+      throw new Error("published release lookup returned an unexpected identity");
+    return release;
+  } catch (error) {
+    if ((error as { status?: unknown }).status === 404) return null;
+    throw error;
+  }
+}
+
+export async function findRelease(api: Awaited<ReturnType<typeof client>>, tag: string) {
+  const published = await findPublishedRelease(api, tag);
+  if (published) return published;
   const matches = (await listReleases(api)).filter((release) => release.tag_name === tag);
   if (matches.length > 1) throw new Error(`more than one release exists for ${tag}`);
   return matches[0] ?? null;
+}
+
+export async function readReleaseById(
+  api: Awaited<ReturnType<typeof client>>,
+  id: number,
+  tag: string,
+) {
+  const response = await api.request("GET /repos/{owner}/{repo}/releases/{release_id}", {
+    owner: "boburning",
+    repo: "portcove",
+    release_id: id,
+    ...read(),
+  });
+  const release = response.data as Release;
+  if (release.id !== id || release.tag_name !== tag)
+    throw new Error("release readback returned an unexpected identity");
+  return release;
 }
 
 export async function assertAppReleaseAssets(version: string, names: readonly string[]) {
@@ -689,7 +752,7 @@ export async function publishRelease(options: {
         },
       );
   }
-  const current = (await findRelease(api, options.tag))!;
+  const current = await readReleaseById(api, release.id, options.tag);
   const actual = current.assets.map((asset) => asset.name).sort();
   if (JSON.stringify(actual) !== JSON.stringify(expected))
     throw new Error(
@@ -713,8 +776,8 @@ export async function publishRelease(options: {
 /** Writes the published release's `.sig` files, so the feed always matches the immutable bytes. */
 export async function downloadPublishedSignatures(token: string, tag: string, dir: string) {
   const api = await client(token);
-  const release = await findRelease(api, tag);
-  if (release === null || release.draft) throw new Error(`${tag} is not a published release`);
+  const release = await findPublishedRelease(api, tag);
+  if (release === null) throw new Error(`${tag} is not a published release`);
   mkdirSync(dir, { recursive: true });
   for (const asset of release.assets.filter((entry) => entry.name.endsWith(".sig"))) {
     const response = await fetch(asset.browser_download_url, {

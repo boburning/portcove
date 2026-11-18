@@ -339,7 +339,9 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
 - Each source records a collection run. Its coverage is relative to the
   declared sample.
   The catalog observation is bound to the commit. The Core observation is bound
-  to the CLI binary SHA-256, the host platform and the isolation scope. Each
+  to the CLI binary SHA-256, the host platform returned by that executable's
+  isolated `doctor` command and the isolation scope. Legacy keys derived from
+  the launcher's architecture are only reusable with matching producer evidence. Each
   Core run's revision records the binary digest and, with `--targets`, the
   build's recorded source and its `verified` or `unverified` binding ([Core
   target routes](#core-target-routes)). Without `--targets` no source is

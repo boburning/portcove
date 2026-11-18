@@ -705,6 +705,42 @@ void test("reference guides select strict new formats and retain actions and war
     });
   });
 
+  await test("launch behavior requires a scoped format-2 package and both launch stages", () => {
+    const launch = {
+      ...record,
+      feature: "launch",
+      route: "upstream-setup",
+      evidence: "upstream-reported",
+      release: "v1",
+      artifact_sha256: "a".repeat(64),
+      launch_behavior: {
+        first_launch: "asks-for-game-files",
+        repeat_launch: "starts-game-directly",
+      },
+    };
+    const valid = { format_version: 2, records: [launch] };
+    checkCatalogAdvisories(valid, platforms, 2);
+    for (const unscoped of [
+      { ...valid, format_version: 1 },
+      { ...valid, records: [{ ...launch, artifact_sha256: null }] },
+      { ...valid, records: [{ ...launch, release: null }] },
+      { ...valid, records: [{ ...launch, launch_behavior: { first_launch: "unknown" } }] },
+      { ...valid, records: [{ ...launch, route: ["managed"] }] },
+      { ...valid, records: [{ ...launch, evidence: ["observed"] }] },
+      {
+        ...valid,
+        records: [
+          {
+            ...launch,
+            launch_behavior: { ...launch.launch_behavior, first_launch: ["unknown"] },
+          },
+        ],
+      },
+    ]) {
+      assert.throws(() => checkCatalogAdvisories(unscoped, platforms, 2));
+    }
+  });
+
   await test("authoring refuses future, malformed, duplicate, unsafe and unscoped advisory content", () => {
     for (const value of [
       { ...envelope, format_version: 2 },

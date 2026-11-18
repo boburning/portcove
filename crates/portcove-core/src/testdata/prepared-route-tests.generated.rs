@@ -4,6 +4,7 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "body-harvest-recompiled",
     "doom-3-classic-dhewm3",
     "dune-ii-dune-dynasty",
+    "ecwolf-wolfenstein3d",
     "elasota-aerofoil",
     "gamebreaker20xx-fullrumble-ps1-slus01068",
     "gothic-ii-night-of-the-raven-opengothic",
@@ -22,6 +23,7 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "rustmania-racing-ray-m-w-muppet-racemania",
     "scottjco-wetrix-n64-usa-rev0-recomp",
     "snprecomp-wootbeer-sin-and-punishment",
+    "teeworlds",
     "tekrantgaming-muppet-racemania-recompiled",
     "tomba-2-recompiled",
     "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
@@ -41,6 +43,11 @@ fn prepared_guide_adoption_declared_doom_3_classic_dhewm3() {
 #[test]
 fn prepared_guide_adoption_declared_dune_ii_dune_dynasty() {
     assert_declarative_prepared_player_route("dune-ii-dune-dynasty");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_ecwolf_wolfenstein3d() {
+    assert_declarative_prepared_player_route("ecwolf-wolfenstein3d");
 }
 
 #[test]
@@ -131,6 +138,11 @@ fn prepared_guide_adoption_declared_scottjco_wetrix_n64_usa_rev0_recomp() {
 #[test]
 fn prepared_guide_adoption_declared_snprecomp_wootbeer_sin_and_punishment() {
     assert_declarative_prepared_player_route("snprecomp-wootbeer-sin-and-punishment");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_teeworlds() {
+    assert_declarative_prepared_player_route("teeworlds");
 }
 
 #[test]

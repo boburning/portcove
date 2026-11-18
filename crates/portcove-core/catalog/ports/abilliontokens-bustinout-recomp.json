@@ -11,14 +11,34 @@
       "match_kind": "underlying-game"
     },
     "name": "The Sims: Bustin' Out — Original Xbox (The Sims: Bustin' Out - Static Recompilation)",
-    "summary": "The project reports a playable Linux household in The Sims: Bustin’ Out, with experimental Hor+ widescreen. Physical gamepad use and visible save/reload are unconfirmed. Linux uses Vulkan/SDL3; Windows is intended to use Direct3D 12/XAudio2, but the README says it has never been compiled while a win64 ZIP is published. Windows play remains unconfirmed. Setup needs your own North American original-Xbox disc: default.xbe, 3211264 bytes, SHA-1 6feea04a12fb134253abe2b5662da634d0048232. Other regions and revisions need separate review. Generated game code stays local; no separate console BIOS requirement is stated. You and the project manage installation and version changes. Release files are not qualified packages in Portcove, and Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports running a household in The Sims: Bustin’ Out on Linux using the North American original Xbox game. A Windows ZIP is published, but the guide does not confirm a working Windows build. Saving and physical controller use remain unconfirmed.",
     "original_game_title": "The Sims: Bustin' Out",
     "project_url": "https://github.com/abilliontokens/bustinout-recomp",
     "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/abilliontokens/bustinout-recomp",
-    "issue_number": 2745
+    "issue_number": 2745,
+    "manual_setup": {
+      "help_url": "https://github.com/abilliontokens/bustinout-recomp",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Check default.xbe from your own North American disc. The required file is 3,211,264 bytes with SHA-1 6feea04a12fb134253abe2b5662da634d0048232. Other revisions and regions need separate confirmation."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Follow the project’s Linux Vulkan and SDL3 setup to generate the game code locally. The guide lists no separate console BIOS requirement. You manage installation and version changes."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The Linux project reports experimental widescreen. The Windows guide describes a Direct3D 12 and XAudio2 route but says it has never been compiled. The published Windows ZIP has no confirmed play result."
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

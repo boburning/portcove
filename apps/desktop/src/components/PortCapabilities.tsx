@@ -268,6 +268,14 @@ export function PortCapabilities({
                     : t("capabilities.notice.exact"),
             })}
           </strong>
+          {notice.launch_behavior && (
+            <dl>
+              <dt>{t("capabilities.launch.first")}</dt>
+              <dd>{t(`capabilities.launch.${notice.launch_behavior.first_launch}`)}</dd>
+              <dt>{t("capabilities.launch.repeat")}</dt>
+              <dd>{t(`capabilities.launch.${notice.launch_behavior.repeat_launch}`)}</dd>
+            </dl>
+          )}
           <p>{notice.explanation}</p>
           <p>
             <Trans

@@ -1,9 +1,11 @@
 # Security policy
 
-The [application update trust design](docs/UPDATER-TRUST.md) separates authenticated
-metadata, Tauri payload signatures, OS trust and catalog authority. Its tests use
-temporary disposable keys; current protected production release procedures remain
-effective and application updater behavior is not activated by the design.
+Desktop reads its application update feed from fixed HTTPS URLs. The feed JSON
+is unsigned. Before installation the updater verifies the package signature and
+checks that the signed version matches the version advertised by the feed.
+Operating-system trust and the official catalog’s TUF signatures have separate
+roles. See [application update trust](docs/UPDATER-TRUST.md) and
+[official catalog delivery](docs/SIGNED-CATALOG.md).
 
 Please report vulnerabilities through [GitHub's private vulnerability reporting form](https://github.com/boburning/portcove/security/advisories/new) rather than opening a public issue. Include the affected version, operating system, reproduction steps, expected impact, and any proof-of-concept files needed to reproduce the issue safely. If GitHub cannot show the form, contact a repository maintainer without disclosing the vulnerability publicly.
 
