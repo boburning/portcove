@@ -241,6 +241,29 @@ acquisition, staged update composition, inert external-runtime registration,
 artwork picking, appearance restart/refresh recovery, and each of the three
 standalone startup-preferences/startup-library/library-switch recovery journeys.
 This preserves the planner's standalone and incompatible-fixture refusals.
+
+For #6511, a temporary **unmerged** controller follows the #6841 qualification
+pattern. Its ordinary verification PR requires the normal five exact-head checks
+and independent source/composition review before dispatch. It binds application
+commit `c8a132183a70ef07742e21e304cdafe7e8e1f359` and tree
+`f928a9186a2c89055ec62e301e11d5bdc544918f` separately from the controller commit.
+Thirteen fixed Windows rows request only the remaining 23 scenarios; each checks
+its actual maintained plan, dependencies, artifact roles and harness budget before
+execution. This controller does not replace Main's 18 groups and must close
+unmerged with its source, logs and evidence retained. The combined Steam row
+checks the maintained eligibility-dependent Settings or Manage route; it makes no
+new singleton Settings qualification claim.
+
+The temporary nine-execution review row allows 150 minutes; its other Windows rows
+retain 90. #6840 measured about 74 minutes of cold setup/build, in addition to the
+40-minute review harness and bounded 20-minute driver publication wait. The
+existing Linux private-X11 route runs only selected setup completion with the
+qualification application, Core qualification CLI and owned probe. Its observation
+step allows 20 minutes for the maintained 1,170-second nested maximum plus cleanup
+room; the job allows 90 minutes. Product, network, cancellation and cleanup
+assertions remain unchanged. These are finite validation envelopes, not a grant of
+physical-device, minimum-OS, installed-package or gameplay acceptance.
+
 The shared hosted Windows preparation also serves the presentation jobs.
 Public `windows-2022` registers WebView2 below the application's floor, so the
 application correctly refuses to start there. With owner approval (#4879: runtime
