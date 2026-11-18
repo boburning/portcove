@@ -556,7 +556,7 @@ function catalogRank(
   if (authoredAvailability === "unavailable" || authoredAvailability === "source-only") return 5;
   const authored = availablePlatforms(port);
   if (authored.some((candidate) => candidate === platform)) return 2;
-  return authored.length || observed.length ? 4 : 3;
+  return authored.length ? 4 : 3;
 }
 
 function visibleInView(port: CatalogEntry, statuses: ReadonlyMap<string, PortStatus>, view: View) {
