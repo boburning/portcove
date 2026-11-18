@@ -497,7 +497,7 @@ it("keeps retained log recovery and manual copy in the actual Activity task deta
     );
     await page
       .getByRole("navigation", { name: "Primary navigation", exact: true })
-      .getByRole("button", { name: "Activity", exact: true })
+      .getByRole("button", { name: /^Activity/ })
       .click();
     await expect
       .poll(() => document.querySelector('[data-activity-id="fixture-retained-harbor"]'))

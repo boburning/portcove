@@ -935,6 +935,9 @@ describe("SteamGridDB picker", () => {
         });
         expect(read.mock.calls).toEqual([[], []]);
         await expect.element(page.elementLocator(panel)).toHaveAttribute("aria-busy", "true");
+        await expect.element(page.elementLocator(recovery)).toHaveAttribute("aria-busy", "true");
+        expect(recovery.textContent).toBe("Check setup again");
+        expect(panel.textContent?.split("Checking SteamGridDB setup…")).toHaveLength(2);
         expect(document.activeElement).toBe(recovery);
         expect(panel.querySelector("form")).toBeNull();
         expectContainedRecovery();

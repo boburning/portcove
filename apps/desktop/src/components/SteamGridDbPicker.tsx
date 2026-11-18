@@ -215,9 +215,10 @@ export function SteamGridDbPicker({
             className="justify-self-start"
             disabled={readingStatus}
             focusableWhenDisabled={readingStatus}
+            aria-busy={readingStatus}
             onClick={retryStatus}
           >
-            {readingStatus ? "Checking SteamGridDB setup…" : "Check setup again"}
+            Check setup again
           </Button>
         )}
       </div>
