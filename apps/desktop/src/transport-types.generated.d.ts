@@ -2496,6 +2496,11 @@ export interface PortDefinition {
   source_profile: string | null;
   summary: string;
   support_tier: SupportTier;
+  /**
+   * An explicit review of an active project. Older serialized definitions
+   * defaulted to Active, so that value alone cannot prove a declaration.
+   */
+  upstream_active_reviewed?: boolean;
   upstream_status: "active" | "retired" | "superseded" | "abandoned";
   user_data_environment: string | null;
   windows_runtime_path_policy?: WindowsRuntimePathPolicy | null;
