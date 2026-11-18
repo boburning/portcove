@@ -1964,7 +1964,7 @@ async function hashResumeScenario(context: SelectedSetupContext) {
       );
       assert.deepEqual(
         continued.report.candidates.map((item) => item.profile_id).sort(),
-        [...owned.profiles].sort(),
+        owned.profiles.toSorted(),
       );
       const newlyDiscovered = continued.report.candidates.find(
         (item) => item.profile_id !== required(initial.report.candidates[0]).profile_id,
@@ -2157,7 +2157,7 @@ export async function selectedSetupScenario({
       assert.equal(snapshot.freshness, "inputs_match");
       assert.deepEqual(
         snapshot.report.candidates.map((item) => item.profile_id).sort(),
-        [...owned.profiles].sort(),
+        owned.profiles.toSorted(),
       );
       return snapshot;
     };
@@ -2493,7 +2493,7 @@ export async function selectedSetupScenario({
         assert.ok(installPlan.source_requirements.every((item) => item.registered));
         assert.deepEqual(
           installPlan.source_requirements.map((item) => item.profile_id).sort(),
-          (port === fixture.refreshPort ? owned.profiles : [owned.profiles[0]]).slice().sort(),
+          port === fixture.refreshPort ? owned.profiles.toSorted() : [owned.profiles[0]],
         );
         return { status, install_plan: installPlan };
       });
