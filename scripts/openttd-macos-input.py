@@ -60,7 +60,13 @@ for name, url, digest, size in [
 player = inputs / "player/OpenTTD.app/Contents/MacOS/openttd"
 assert hashlib.sha256(player.read_bytes()).hexdigest() == "591d1eefb15f3d7a31bd893df8c12eb5f0422e8123d3a9c0b8cb875ca0cf2ccf"
 assert player.stat().st_mode & stat.S_IXUSR
-cli = (Path("product/target/debug/portcove")).resolve(strict=True)
+produced_cli = Path("product/target/debug/portcove").resolve(strict=True)
+# Cargo can hard-link its debug artifact. Bind the observed process to one
+# private executable name while preserving the compiled producer unchanged.
+cli = root / "portcove-cli"
+shutil.copy2(produced_cli, cli)
+assert cli.stat().st_nlink == 1
+assert hashlib.sha256(cli.read_bytes()).digest() == hashlib.sha256(produced_cli.read_bytes()).digest()
 with (inputs / "player/OpenTTD.app/Contents/Info.plist").open("rb") as handle:
     bundle = plistlib.load(handle)["CFBundleIdentifier"]
 assert bundle == "org.openttd.openttd"
@@ -69,6 +75,8 @@ global_paths = [home / "Documents/OpenTTD", home / "Library/Application Support/
 assert all(not path.exists() and not path.is_symlink() for path in global_paths), "Existing OpenTTD profile belongs to another owner"
 report = {"archives": records, "root": str(root), "player": str(player), "player_sha256": hashlib.sha256(player.read_bytes()).hexdigest(), "cli": str(cli), "cli_sha256": hashlib.sha256(cli.read_bytes()).hexdigest(), "product_source": "27b0a6e994545e622d67b3bea016d32665224192", "controller_source": os.environ["GITHUB_SHA"], "run": os.environ["GITHUB_RUN_ID"], "attempt": os.environ["GITHUB_RUN_ATTEMPT"], "scope": "Official universal Mac player and free OpenGFX; no retail originals, save upload, signing or runtime injection"}
 report["initially_absent_global_paths"] = list(map(str, global_paths))
+report["produced_cli"] = str(produced_cli)
+report["produced_cli_sha256"] = hashlib.sha256(produced_cli.read_bytes()).hexdigest()
 report["os_architecture"] = platform.machine()
 report["os_runtime"] = platform.platform()
 report["process_architecture_scope"] = "Universal package has Intel and Apple Silicon slices; runtime CPU type is not queried because the proposed query is absent from the public hosted SDK."
