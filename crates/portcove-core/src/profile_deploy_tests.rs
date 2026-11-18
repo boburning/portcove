@@ -3267,6 +3267,92 @@ fn mod_setup_draft_previews_one_order_and_refuses_a_changed_file_before_publishi
 }
 
 #[test]
+fn mod_setup_draft_can_retry_before_commit_and_finish_one_revision_after_commit() {
+    let w = world();
+    let service = &w.service;
+    let port = "starship";
+    let package = archive(&w.scratch, "base.otr", &[("assets/base", b"old")]);
+    let original = service
+        .install_mod_package(port, &w.default, &package, 1)
+        .unwrap();
+    let path = archive(&w.scratch, "queued.otr", &[("assets/new", b"new")]);
+    let review = service
+        .plan_local_mod_package(port, &w.default, &path, original.revision)
+        .unwrap();
+    let edits = ModSetupEdits {
+        packages: vec![],
+        order: None,
+        local_files: vec![LocalModDraftFile {
+            path,
+            expected_plan_sha256: review.plan_sha256,
+        }],
+    };
+    let connection = service.library.connection().unwrap();
+    connection
+        .execute_batch(
+            "CREATE TRIGGER interrupt_draft_commit BEFORE INSERT ON profile_revisions
+             BEGIN SELECT RAISE(ABORT, 'interrupted before publishing'); END;",
+        )
+        .unwrap();
+    let apply = |service: &PortcoveService| {
+        service.apply_mod_setup_draft(port, &w.default, original.revision, &[], &edits, false)
+    };
+    let before_commit = apply(service).unwrap_err();
+    assert!(
+        before_commit
+            .message
+            .contains("interrupted before publishing")
+    );
+    assert!(!before_commit.details.contains_key("setup_revision"));
+    assert_eq!(revision(&w, &w.default), original.revision);
+    assert_eq!(live_mods(&w), ["base.otr"]);
+    assert_eq!(
+        service.activate_profile(port, &w.default).unwrap(),
+        original
+    );
+    connection
+        .execute_batch(
+            "DROP TRIGGER interrupt_draft_commit;
+             CREATE TRIGGER interrupt_draft_activation BEFORE UPDATE ON profile_selection
+             WHEN NEW.materialized_revision != OLD.materialized_revision
+             BEGIN SELECT RAISE(ABORT, 'interrupted after publishing'); END;",
+        )
+        .unwrap();
+    let failure = apply(service).unwrap_err().report();
+    let committed = profile::current_revision(&connection, port, &w.default).unwrap();
+    assert_eq!(committed.parent_revision, Some(original.revision));
+    assert_eq!(
+        failure.presentation.mutation_state,
+        crate::MutationState::RecoveryRequired
+    );
+    assert_eq!(
+        failure.presentation.technical_context["setup_revision"],
+        committed.revision.to_string()
+    );
+    assert_eq!(
+        failure.presentation.technical_context["setup_revision_digest"],
+        committed.digest
+    );
+    assert_eq!(
+        profile::selection(&connection, port).unwrap(),
+        Some((w.default.clone(), original.revision))
+    );
+    assert_eq!(live_mods(&w), ["base.otr", "queued.otr"]);
+    connection
+        .execute_batch("DROP TRIGGER interrupt_draft_activation;")
+        .unwrap();
+    let restarted = PortcoveService::new(service.library().clone()).unwrap();
+    assert!(apply(&restarted).is_err());
+    assert_eq!(
+        restarted.activate_profile(port, &w.default).unwrap(),
+        committed
+    );
+    assert!(apply(&restarted).is_err());
+    assert_eq!(revision(&w, &w.default), committed.revision);
+    assert_eq!(live_mods(&w), ["base.otr", "queued.otr"]);
+}
+
+#[test]
 fn finishing_a_same_name_replacement_keeps_bytes_already_deployed_by_apply() {
     let w = world();
     let port = "starship";

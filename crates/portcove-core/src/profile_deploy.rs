@@ -1652,13 +1652,19 @@ impl PortcoveService {
             }
             let stored = layout.package(&inspection.sha256, &inspection.file_name);
             if !stored.try_exists()? || sha256_file(&stored)? != inspection.sha256 {
-                if let Some(parent) = stored.parent() {
-                    fs::create_dir_all(parent)?;
+                // A draft's reviewed provider files must remain inspectable if
+                // publishing the revision fails and the player retries.
+                if edits.is_some() && item.provider.is_some() {
+                    stage_copy(&layout, &item.private, &stored)?;
+                } else {
+                    if let Some(parent) = stored.parent() {
+                        fs::create_dir_all(parent)?;
+                    }
+                    if stored.try_exists()? {
+                        fs::remove_file(&stored)?;
+                    }
+                    fs::rename(&item.private, &stored)?;
                 }
-                if stored.try_exists()? {
-                    fs::remove_file(&stored)?;
-                }
-                fs::rename(&item.private, &stored)?;
                 if sha256_file(&stored)? != inspection.sha256 {
                     let _ = fs::remove_file(&stored);
                     return Err(PortcoveError::verification(
@@ -1683,6 +1689,14 @@ impl PortcoveService {
             ..Default::default()
         };
         self.advance_and_deploy(port_id, profile_id, &layout, &request, live)
+            .map_err(|mut error| {
+                if edits.is_some()
+                    && error.failure.mutation_state == crate::MutationState::Committed
+                {
+                    error.failure.mutation_state = crate::MutationState::RecoveryRequired;
+                }
+                error
+            })
     }
 
     /// Enables or disables an installed package as a new revision.
@@ -2231,7 +2245,9 @@ impl PortcoveService {
                 .and_then(|connection| self.reconcile_selected(port_id, layout, &connection, &next))
                 .map_err(|mut error| {
                     error.failure.mutation_state = crate::MutationState::Committed;
-                    error.detail("setup_revision", next.revision.to_string())
+                    error
+                        .detail("setup_revision", next.revision.to_string())
+                        .detail("setup_revision_digest", &next.digest)
                 })?;
         }
         Ok(next)

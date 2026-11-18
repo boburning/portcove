@@ -10,6 +10,7 @@ import {
 import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import {
+  changeModEdit,
   draftSize,
   emptyModDraft,
   type LocalModSelection,
@@ -105,7 +106,7 @@ export function ModProviderBrowser({
   }>();
   const plans = checkedDraft?.plans;
   const edits = {
-    packages: draft.packages,
+    packages: draft.packages.map(({ native_id, enabled }) => ({ native_id, enabled })),
     order: draft.order,
     local_files: localFiles.map(({ path, review }) => ({
       path,
@@ -358,11 +359,26 @@ export function ModProviderBrowser({
     } catch (error) {
       if (alive.current) {
         clearPlans();
-        const outcome = failurePresentation(error)?.mutation_state;
-        if (outcome === "committed" || outcome === "recovery_required") {
-          setDraft(emptyModDraft);
-          setReview(false);
-          setPlayOrigin(false);
+        const presentation = failurePresentation(error);
+        if (
+          presentation &&
+          (presentation.mutation_state === "committed" ||
+            presentation.mutation_state === "recovery_required")
+        ) {
+          const committedRevision = Number(presentation.technical_context.setup_revision);
+          const digest = presentation.technical_context.setup_revision_digest ?? "";
+          if (
+            Number.isSafeInteger(committedRevision) &&
+            committedRevision > revision &&
+            /^[a-f0-9]{64}$/u.test(digest)
+          ) {
+            setDraft((current) => ({
+              ...current,
+              receipt: { revision: committedRevision, digest },
+            }));
+            setReview(false);
+            setPlayOrigin(false);
+          }
         }
         setFailure(errorText(error));
         onRefresh?.();
@@ -517,18 +533,19 @@ export function ModProviderBrowser({
                 variant="outline"
                 disabled={disabled}
                 onClick={() => {
-                  const removing = installedIds.every((id) =>
-                    draft.packages.some((edit) => edit.native_id === id && edit.enabled === null),
+                  setDraft((current) =>
+                    changeModEdit(
+                      current,
+                      installedIds,
+                      installedIds.every((id) =>
+                        current.packages.some(
+                          (edit) => edit.native_id === id && edit.enabled === null,
+                        ),
+                      )
+                        ? undefined
+                        : null,
+                    ),
                   );
-                  setDraft((current) => ({
-                    ...current,
-                    packages: [
-                      ...current.packages.filter((edit) => !installedIds.includes(edit.native_id)),
-                      ...(!removing
-                        ? installedIds.map((native_id) => ({ native_id, enabled: null }))
-                        : []),
-                    ],
-                  }));
                 }}
               >
                 {t(
@@ -716,13 +733,8 @@ export function ModProviderBrowser({
                       disabled={Boolean(working)}
                       onClick={() => {
                         clearPlans();
-                        setDraft((current) => ({
-                          ...current,
-                          packages: current.packages.filter(
-                            (item) => item.native_id !== edit.native_id,
-                          ),
-                        }));
-                        if (count === 1) closeReview();
+                        setDraft((current) => changeModEdit(current, [edit.native_id], undefined));
+                        if (count === 1 && edit.beforeRemoval === undefined) closeReview();
                       }}
                     >
                       {t("mods.workspace.undo")}

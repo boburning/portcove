@@ -27,6 +27,7 @@ import { ModSetupOriginalControl } from "./ModSetupOriginalControl";
 import { ModFilePreservationControl } from "./ModFilePreservationControl";
 import { ChoiceSelect } from "./ChoiceSelect";
 import {
+  changeModEdit,
   draftSize,
   emptyModDraft,
   useModDraft,
@@ -249,6 +250,12 @@ function BoundModSetupsControl({
     port: portId,
     setup: setup?.selected?.profile.id,
     revision: setup?.selected?.profile.current_revision,
+    appliedRevision:
+      setup?.selected &&
+      view?.live?.profile_id === setup.selected.profile.id &&
+      view.live.revision === setup.selected.revision.revision
+        ? { revision: setup.selected.revision.revision, digest: setup.selected.revision.digest }
+        : undefined,
   });
   const localFiles = (draft.localFiles ?? []).filter(
     ({ review }) =>
@@ -261,9 +268,15 @@ function BoundModSetupsControl({
       localFiles: (current.localFiles ?? []).filter(({ review }) => review.plan_sha256 !== digest),
     }));
   const recoverable =
-    olderDraft?.selections.additions.filter(
+    (olderDraft?.selections.receipt ? undefined : olderDraft?.selections.additions)?.filter(
       (entry) =>
         sources.includes(entry.provider) &&
+        !setup?.selected?.revision.packages?.some(
+          ({ provider }) =>
+            provider?.provider === entry.provider &&
+            provider.project === entry.project &&
+            provider.file === entry.file,
+        ) &&
         !draft.additions.some(
           (other) => entry.provider === other.provider && entry.project === other.project,
         ),
@@ -651,13 +664,7 @@ function BoundModSetupsControl({
                 }
                 disabled={changing || blocked}
                 queueEdit={(native_id, enabled) =>
-                  setDraft((current) => ({
-                    ...current,
-                    packages: [
-                      ...current.packages.filter((edit) => edit.native_id !== native_id),
-                      ...(enabled === undefined ? [] : [{ native_id, enabled }]),
-                    ],
-                  }))
+                  setDraft((current) => changeModEdit(current, [native_id], enabled))
                 }
                 setOrder={(order) => setDraft((current) => ({ ...current, order }))}
               />
@@ -1178,10 +1185,20 @@ function ModSetupPackages({
   const ordered = draft.order ? inOverrideOrder(selected, draft.order) : applied;
   const rank = new Map(applied.map((item, index) => [item.native_id, index]));
   const term = query.trim().toLocaleLowerCase();
+  const matches = (name: string) => name.toLocaleLowerCase().includes(term);
+  const showAdditions = !editOrder && (filter === "all" || filter === "pending");
+  const providerAdditions = showAdditions
+    ? draft.additions.filter((item) => matches(item.name) || matches(item.fileName))
+    : [];
+  const localAdditions = showAdditions
+    ? localFiles.filter(({ review }) => matches(review.native_id))
+    : [];
+  const hasAdditions = draft.additions.length + localFiles.length > 0;
+  const visibleAdditions = providerAdditions.length + localAdditions.length > 0;
   const visible = editOrder
     ? ordered
     : ordered.filter((item, index) => {
-        if (term && !item.native_id.toLocaleLowerCase().includes(term)) return false;
+        if (!matches(item.native_id)) return false;
         if (filter === "on") return item.enabled;
         if (filter === "off") return !item.enabled;
         if (filter === "pending") {
@@ -1214,7 +1231,7 @@ function ModSetupPackages({
             onChange={(event) => setQuery(event.currentTarget.value)}
           />
         )}
-        {!editOrder && ordered.length > 0 && (
+        {!editOrder && (ordered.length > 0 || hasAdditions) && (
           <ChoiceSelect
             inline
             label={t("mods.workspace.installation")}
@@ -1234,27 +1251,28 @@ function ModSetupPackages({
           </Button>
         )}
       </ActionRow>
-      {draft.additions.length + localFiles.length > 0 && (
+      {visibleAdditions && (
         <ul className="m-0 grid list-none gap-1 p-0">
-          {draft.additions.map((item) => (
+          {providerAdditions.map((item) => (
             <li key={JSON.stringify([item.provider, item.project])}>
               <bdi>{item.name}</bdi> · {t("mods.workspace.pendingAddition")}
             </li>
           ))}
-          {localFiles.map(({ review }) => (
+          {localAdditions.map(({ review }) => (
             <li key={review.plan_sha256}>
               <bdi>{review.native_id}</bdi> · {t("mods.workspace.pendingAddition")}
             </li>
           ))}
         </ul>
       )}
-      {(selected.revision.packages ?? []).length === 0 ? (
+      {ordered.length === 0 && !hasAdditions && !term && filter === "all" ? (
         <p className="text-sm">{t("mods.empty")}</p>
-      ) : visible.length === 0 ? (
+      ) : visible.length === 0 && !visibleAdditions ? (
         <p role="status" className="text-sm">
           {t("mods.browse.noMatches")}
         </p>
-      ) : (
+      ) : null}
+      {visible.length > 0 && (
         <ul className="m-0 grid list-none gap-1 p-0">
           {visible.map((item, index) => {
             const pending = draft.packages.find((edit) => edit.native_id === item.native_id);

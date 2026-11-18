@@ -2072,3 +2072,270 @@ it("keeps the older draft when storage cannot save the recovered addition", asyn
     localStorage.removeItem(current);
   }
 });
+
+function fixtureProviderMods() {
+  const listing = (project_id: string, name: string) => ({
+    provider: "gamebanana",
+    project_id,
+    name,
+    version: "1.0",
+    updated_at: 1,
+    game_id: "16121",
+    obsolete: false,
+    profile_url: `https://gamebanana.com/mods/${project_id}`,
+    submitter: null,
+    files: [],
+    unreadable_files: 0,
+  });
+  const installed = listing("42", "HD Link");
+  const addition = listing("43", "Retro HUD");
+  vi.spyOn(desktopApi, "modProviderCatalog").mockResolvedValue({
+    projects: [installed, addition],
+    complete: true,
+    observed_at: 1,
+    freshness: "fresh",
+  });
+  vi.spyOn(desktopApi, "providerProject").mockImplementation(async (_port, id) => ({
+    port_id: "shipwright",
+    game_name: "Ship of Harkinian",
+    project:
+      id === installed.project_id
+        ? installed
+        : {
+            ...addition,
+            files: [
+              {
+                file_id: "9",
+                file_name: "retro-hud.zip",
+                size: 4096,
+                added_at: 1,
+                download_url: "https://gamebanana.com/dl/9",
+                claimed_md5: null,
+                archived: false,
+                claimed_scan: "clean",
+              },
+            ],
+          },
+    eligible_file_ids: id === installed.project_id ? [] : ["9"],
+    observed_at: 1,
+    freshness: "fresh",
+  }));
+}
+
+function linkedSetup() {
+  const entry = setup("default", "Default", 3, [
+    ["hd.o2r", true],
+    ["sfx.otr", false],
+  ]);
+  return {
+    ...entry,
+    revision: {
+      ...entry.revision,
+      packages: [
+        {
+          ...entry.revision.packages[0]!,
+          provider: { provider: "gamebanana", project: "42", file: "8" },
+        },
+        entry.revision.packages[1]!,
+      ],
+    },
+  };
+}
+
+it.each(["Browse mods", "Installed mods"] as const)(
+  "undoes a removal queued from %s without losing either earlier edit or load order",
+  async (entry) => {
+    fixtureProviderMods();
+    vi.spyOn(desktopApi, "modSetups").mockResolvedValue(
+      view({
+        provider: "gamebanana",
+        inventory: { port_id: "shipwright", profiles: [linkedSetup()] } as unknown as NonNullable<
+          ModSetupsView["inventory"]
+        >,
+      }),
+    );
+    const host = await render();
+    const click = async (label: string) => act(async () => button(host, label).click());
+    const control = (label: string) =>
+      page.getByRole("checkbox", { name: label, exact: false }).element() as HTMLElement;
+    await act(async () => control("hd.o2r").click());
+    await act(async () => control("sfx.otr").click());
+    await click("Edit order");
+    const move = page.getByRole("button", { name: "Move hd.o2r up" });
+    await act(async () => (move.element() as HTMLElement).click());
+    await click("Done");
+    const browseDetails = async () => {
+      await click("Browse mods");
+      const result = page.getByRole("button", { name: "HD Link" });
+      await expect.element(result).toBeVisible();
+      await act(async () => (result.element() as HTMLElement).click());
+    };
+    if (entry === "Browse mods") {
+      await browseDetails();
+      await click("Remove from setup");
+      await click("Installed mods 2");
+      await click("Undo removal");
+    } else {
+      const remove = page.getByRole("button", { name: "Remove hd.o2r from this setup" });
+      await act(async () => (remove.element() as HTMLElement).click());
+      await click("Confirm removal");
+      await browseDetails();
+      await click("Undo removal");
+    }
+    await click("Review changes");
+    const review = page.getByRole("heading", { name: "Review changes" }).element()?.parentElement;
+    expect(review?.textContent).toContain("Will turn off hd.o2r");
+    expect(review?.textContent).toContain("Will turn on sfx.otr");
+    expect(review?.textContent).toContain("New load order hd.o2r · sfx.otr");
+    expect(review?.textContent).not.toContain("Pending removal");
+    await click("Check files");
+    expect(desktopApi.previewModSetupDraft).toHaveBeenCalledWith(
+      "shipwright",
+      "default",
+      3,
+      [],
+      {
+        local_files: [],
+        packages: [
+          { native_id: "sfx.otr", enabled: true },
+          { native_id: "hd.o2r", enabled: false },
+        ],
+        order: ["hd.o2r", "sfx.otr"],
+      },
+      7,
+    );
+  },
+);
+
+it("filters pending provider and local additions and counts them only after Apply", async () => {
+  fixtureProviderMods();
+  const initial = view({ provider: "gamebanana", applied_package_count: 2 });
+  const read = vi.spyOn(desktopApi, "modSetups").mockResolvedValue(initial);
+  const providerPlan = {
+    port_id: "shipwright",
+    profile_id: "default",
+    expected_revision: 3,
+    provider: { provider: "gamebanana", project: "43", file: "9" },
+    file: { file_id: "9", file_name: "retro-hud.zip" },
+    members: [],
+    replaces: [],
+    conflicts: [],
+    unverified_claims: [],
+  } as unknown as Awaited<ReturnType<typeof desktopApi.planProviderInstall>>;
+  vi.spyOn(desktopApi, "planProviderInstall").mockResolvedValue(providerPlan);
+  vi.mocked(picker.pickModPackagePath).mockResolvedValue("/mods/ui.o2r");
+  vi.spyOn(desktopApi, "planLocalModPackage").mockResolvedValue({
+    ...localPlan,
+    native_id: "ui.o2r",
+    needs_code_permission: false,
+  });
+  vi.spyOn(desktopApi, "applyModSetupDraft").mockImplementation(async () => {
+    read.mockResolvedValue(view({ provider: "gamebanana", applied_package_count: 4 }));
+    return {} as Awaited<ReturnType<typeof desktopApi.applyModSetupDraft>>;
+  });
+  const host = await render();
+  const click = async (label: string) => act(async () => button(host, label).click());
+  await click("Browse mods");
+  const add = page
+    .getByRole("listitem")
+    .filter({ hasText: "Retro HUD" })
+    .getByRole("button", { name: "Add", exact: true });
+  await expect.element(add).toBeVisible();
+  await act(async () => (add.element() as HTMLElement).click());
+  await click("Installed mods 2");
+  await click("Add mod file…");
+  await click("Queue file");
+  const search = page.getByRole("searchbox", { name: "Search installed mods" });
+  const status = page.getByRole("combobox", { name: /Installation status/ });
+  const filter = async (name: string) => {
+    await act(async () => (status.element() as HTMLElement).click());
+    await act(async () =>
+      (page.getByRole("option", { name, exact: true }).element() as HTMLElement).click(),
+    );
+  };
+  await filter("Pending changes");
+  await search.fill("retro-hud.zip");
+  await expect.element(page.getByRole("listitem").filter({ hasText: "Retro HUD" })).toBeVisible();
+  expect(host.textContent).not.toContain("No matches on this page");
+  await search.fill("ui.o2r");
+  await expect.element(page.getByText("ui.o2r", { exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("listitem").filter({ hasText: "Retro HUD" }))
+    .not.toBeInTheDocument();
+  expect(host.textContent).not.toContain("No matches on this page");
+  await filter("Disabled");
+  await expect.element(page.getByText("ui.o2r", { exact: true })).not.toBeInTheDocument();
+  await expect.element(page.getByText("No matches on this page.")).toBeVisible();
+  await expect.element(page.getByRole("button", { name: "Installed mods 2" })).toBeVisible();
+  await click("Review changes");
+  await click("Check files");
+  await click("Apply changes");
+  await expect.element(page.getByRole("button", { name: "Installed mods 4" })).toBeVisible();
+});
+
+it("keeps the draft until the exact recovered apply revision is materialized", async () => {
+  let standingPass!: () => void;
+  vi.spyOn(standingSetup, "onStandingSetupPass").mockImplementation((listener) => {
+    standingPass = listener;
+    return () => {};
+  });
+  const library = "recovery-receipt-fixture";
+  const stored = `portcove.mod-draft.${JSON.stringify([library, "shipwright", "default"])}.3`;
+  const digest = "d".repeat(64);
+  const nextView = (materialized: number, revisionDigest = digest) => {
+    const next = setup("default", "Default", 4, [
+      ["hd.o2r", false],
+      ["sfx.otr", false],
+    ]);
+    return view({
+      inventory: {
+        port_id: "shipwright",
+        profiles: [{ ...next, revision: { ...next.revision, digest: revisionDigest } }],
+      } as unknown as NonNullable<ModSetupsView["inventory"]>,
+      live: {
+        profile_id: "default",
+        revision: materialized,
+        unmanaged: [],
+        changed_owned: [],
+        native_list: { state: "in-sync" },
+      },
+    });
+  };
+  const read = vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
+  const apply = vi.spyOn(desktopApi, "applyModSetupDraft").mockImplementation(async () => {
+    read.mockResolvedValue(nextView(3));
+    throw Object.assign(new Error("Interrupted Apply"), {
+      presentation: {
+        summary: "Finish applying the setup.",
+        technical_message: "The selected setup has an interrupted change.",
+        mutation_state: "recovery_required",
+        technical_context: { setup_revision: "4", setup_revision_digest: digest },
+        recovery_actions: [],
+      },
+    });
+  });
+  vi.spyOn(desktopApi, "useModSetup").mockImplementation(async () => {
+    read.mockResolvedValue(nextView(4, "e".repeat(64)));
+    return {} as Awaited<ReturnType<typeof desktopApi.useModSetup>>;
+  });
+  try {
+    const host = await render(false, undefined, 7, library);
+    const change = page.getByRole("checkbox", { name: "hd.o2r" });
+    await act(async () => (change.element() as HTMLElement).click());
+    const click = async (label: string) => act(async () => button(host, label).click());
+    await click("Review changes");
+    await click("Check files");
+    await click("Apply changes");
+    expect(localStorage.getItem(stored)).toContain(digest);
+    const finish = page.getByRole("button", { name: "Finish using Default" });
+    await expect.element(finish).toBeEnabled();
+    await act(async () => (finish.element() as HTMLElement).click());
+    expect(localStorage.getItem(stored)).toContain(digest);
+    read.mockResolvedValue(nextView(4));
+    await act(async () => standingPass());
+    await expect.poll(() => localStorage.getItem(stored)).toBeNull();
+    expect(apply).toHaveBeenCalledTimes(1);
+  } finally {
+    localStorage.removeItem(stored);
+  }
+});
