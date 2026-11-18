@@ -6,11 +6,26 @@ They show the desktop interface rendered in Chromium with a simulated local
 library. The [comparison scene](../../../apps/desktop/src/dev-scenarios/interactive/comparison-scene.ts)
 supplies the fictional games and geometric cover images.
 
-## Reproduce the views
+## Refresh the screenshots
 
-1. From the repository root, start the frontend with `node scripts/dev-storage.mts run -- pnpm --dir apps/desktop dev`.
-2. Open `/scenarios.html?mode=interactive&journey=comparison&embed=1` on the local development server. Use a dark color scheme and a 1440 × 900 viewport at 100% zoom. Embedded mode hides the scenario controls.
-3. In **Library**, use the heart on **Harbor desktop port** and on Collection ports **3**, **4**, **5**, **6**, and **11**. The six titles include the **Orchard Quest** entry with **Game files missing**. Open **Favorites** with the **Covers** view and **Title A–Z** sort selected.
-4. Open the **Harbor Adventure** card for **Harbor desktop port** and capture **Overview**.
+When a change affects the Library cards, sidebar, or game details, compare the
+two screenshots with the new interface. The [Desktop change history](https://github.com/boburning/portcove/commits/main/apps/desktop/src)
+shows what has changed in the frontend.
 
-When the layout changes, repeat these steps against the new revision and update the date and source link.
+After the [frontend setup](../../DEVELOPMENT-TOOLS.md#frontend-workflow), install
+the repository’s Chromium build once with `pnpm --dir apps/desktop browser:bootstrap`.
+Run this command from the repository root to capture both views.
+
+```sh
+node scripts/dev-storage.mts run --scope frontend -- node apps/desktop/scripts/capture-readme.mts
+```
+
+The command starts a local preview, marks six fictional games as favorites, and
+opens the favorited Harbor Adventure port. It captures both views at 1440 × 900
+in dark mode. It blocks external requests and checks the covers against the
+fixture images.
+
+Review both PNGs in the output directory. Check that every cover is fictional
+and that the README captions and image descriptions match the controls on screen.
+When refreshing the images, copy the pair into this folder and update the capture
+date and source link above with the revision you reviewed.

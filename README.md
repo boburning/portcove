@@ -7,32 +7,38 @@ ports, including decompilations, recompilations, and engine recreations, into
 one local library. Find a project for a game you own, see which edition it needs,
 and launch it from the desktop app or a standalone command-line tool.
 
-[Download Preview 2](https://github.com/boburning/portcove/releases/tag/v0.1.0-preview.2)
+[Download Portcove](#download-portcove)
 · [Browse the catalog](https://boburning.github.io/portcove/catalog/browse/index.html)
 · [Set up your first game](#your-first-game)
 
 ![Library Favorites showing six sample games, five ready to play and Orchard Quest with a Finish setup action](docs/media/readme/library.png)
 
-_Portcove’s desktop interface with a simulated library of fictional games and geometric covers. Captured November 18, 2026._ [Capture details](docs/media/readme/README.md)
+_Portcove’s desktop interface with a simulated library of fictional games and geometric covers._ [Capture details](docs/media/readme/README.md)
 
 <a id="project-status"></a>
 
 ## Download Portcove
 
-[Preview 2](https://github.com/boburning/portcove/releases/tag/v0.1.0-preview.2)
-is a test release. Try it with a new library or make a complete backup before
-opening an existing one. Download the package for your computer and compare
-its SHA-256 checksum with the entry in the release’s `SHA256SUMS` file.
+Open [Portcove releases](https://github.com/boburning/portcove/releases) and
+choose the release marked **Latest** when one is available. If only prereleases
+are available, or if you want to try a preview, choose the newest
+**Pre-release** whose tag starts with `v`. **Nightly** builds are for testing
+recent changes. Read the notes for your system before installing, and use a new
+or backed-up library when trying a preview.
 
-| System                        | Desktop download                                                                                                                               | First launch                                                                  |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Windows x64                   | [Per-user installer (.exe)](https://github.com/boburning/portcove/releases/download/v0.1.0-preview.2/Portcove_0.1.0-preview.2_x64-setup.exe)   | Windows may show a publisher warning because the installer is unsigned.       |
-| Linux x64                     | [AppImage](https://github.com/boburning/portcove/releases/download/v0.1.0-preview.2/Portcove_0.1.0-preview.2_amd64.AppImage)                   | Make the file executable, then open it.                                       |
-| macOS, Apple silicon or Intel | [Universal disk image (.dmg)](https://github.com/boburning/portcove/releases/download/v0.1.0-preview.2/Portcove_0.1.0-preview.2_universal.dmg) | Experimental. The app is unnotarized. See the release notes for first launch. |
+Under **Assets**, choose the package for your computer.
 
-For terminal use, Preview 2 includes a separate [Windows x64 CLI archive](https://github.com/boburning/portcove/releases/download/v0.1.0-preview.2/portcove-cli-0.1.0-preview.2-windows-x86_64.zip).
-The desktop app runs on its own. It checks for signed application updates and
-asks before installing one. [All releases and nightlies](https://github.com/boburning/portcove/releases)
+| What you want       | Look for                                                                      |
+| ------------------- | ----------------------------------------------------------------------------- |
+| Windows desktop app | The x64 installer ending in `-setup.exe`                                      |
+| Linux desktop app   | The `.AppImage` for your processor. Make it executable before opening.        |
+| macOS desktop app   | The `.dmg`. A universal build runs on both Intel and Apple silicon.           |
+| Command-line tool   | A `portcove-cli` archive for your operating system and processor, when listed |
+
+Compare the download’s SHA-256 checksum with the entry for that filename in
+the same release’s checksum file. The desktop app runs on its own. You only
+need a CLI archive if you want to use Portcove from a terminal or another launcher.
+You can also [follow release notes and nightlies in a feed reader](https://github.com/boburning/portcove/releases.atom).
 
 <a id="download-the-technical-alpha"></a>
 
@@ -57,7 +63,7 @@ One original game can have several independently maintained ports. When Discover
 groups them, you can compare the editions they accept, where they run, and what
 has been tested. A catalog entry may point you to the upstream project, help you
 register an existing install, or offer an installation that Portcove can manage.
-Check the entry for the game and system you want to use. [Explore the catalog](https://boburning.github.io/portcove/catalog/browse/index.html)
+For an example, [compare the ports for Majora’s Mask in the live catalog](https://boburning.github.io/portcove/catalog/browse/games/the-legend-of-zelda-majoras-mask/index.html).
 
 ![Harbor Adventure game details with Play and the Game files, Saves & backups, Versions & updates, and Manage tabs](docs/media/readme/game-details.png)
 
