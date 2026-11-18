@@ -253,7 +253,7 @@ the remaining measured displacement, not a saved launch scroll offset. New user
 input, navigation, library/detail changes and modal interaction take precedence;
 feedback changes never take focus or reveal a control the player left behind.
 
-Primary destinations display Library, Discover, Activity and Settings; internal `catalog`/`updates` route identities stay compatible. Ordinary Activity entry selects Tasks. Explicit game-update links select Game updates; terminal records remain in History. Application-update preferences remain in Settings. Section controls retain a non-color selected cue and keep their content mounted, hidden from interaction when inactive. The same exact-ID record tree serves Tasks and History, preserving disclosures and a focused settling record.
+Primary destinations display Library, Discover, Activity and Settings; internal `catalog`/`updates` route identities stay compatible. Ordinary Activity entry selects Tasks. Explicit game-update links select Game updates; terminal records remain in History. Application-update preferences remain in Settings. Section controls retain a non-color selected cue and keep their content mounted, hidden from interaction when inactive. The same exact-ID record tree serves Tasks and History, preserving disclosures and a focused settling record. Within Task details, preparation diagnostics form a separate block after the operation identity; leave room for the log summary’s keyboard focus outline without crossing the identifier.
 
 Cards, details and Activity use the same action-presentation selector. Core readiness remains distinct from a temporary local exclusion. Feedback names the action and game/port or library target. Independent failures remain individually dismissible; a successful mutation followed by failed refresh is presented as finished work with unavailable current state, not an instruction to repeat the mutation. Link a specific task only when its exact owned identity exists. Shared progress announces phase changes separately from numeric ticks. Cancellation requested stays pending until authoritative settlement. Invocation-backed polite messages use a status owner that exists empty before work begins, with an atomic action/target message for each invocation. Pending, execution completion, readback and terminal changes update that invocation’s message; simultaneous results do not replace one another. Real failures retain their attributed assertive notices, and visual progress does not duplicate the owned announcement. Browser lifecycle checks do not establish actual screen-reader speech.
 
@@ -552,6 +552,10 @@ report does not identify the affected file.
 In Game files settings, distinguish a library with no installed ports from
 installed ports with no missing game-file requirements; neither state proves a
 fresh file verification or launch readiness.
+Exact scan candidates use their actual Settings-row width: below 38rem, actions
+follow the full-width identity and exact path; at wider widths, keep the bounded
+18rem action column. This applies to both streaming and completed matches,
+including a medium window with both navigation sidebars visible.
 Use the saved update-policy choice verbatim in summaries. Separate an unchecked
 port, a successful last check with no update, an available update, an update
 saved for later whose activation still needs core checks, and a failed or

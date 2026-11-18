@@ -1217,11 +1217,13 @@ function ActivityRow({
           </dd>
         </dl>
         {activity.operation === "prepare" && (
-          <ActivityDiagnostic
-            key={`${generation}:${activity.id}`}
-            activityId={activity.id}
-            generation={generation}
-          />
+          <div className="mt-4">
+            <ActivityDiagnostic
+              key={`${generation}:${activity.id}`}
+              activityId={activity.id}
+              generation={generation}
+            />
+          </div>
         )}
       </details>
     </div>

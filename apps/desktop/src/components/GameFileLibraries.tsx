@@ -149,15 +149,15 @@ function CandidateAction({
         port.bios_source_profile === candidate.profile_id,
     );
     return (
-      <div className="source-candidate-actions flex min-w-0 flex-wrap justify-end gap-2 max-[55rem]:justify-start">
-        <span className="basis-full text-end text-pc-muted-foreground max-[55rem]:text-start">
+      <div className="source-candidate-actions flex min-w-0 flex-wrap justify-start gap-2 @min-[38rem]/row:justify-end">
+        <span className="basis-full text-start text-pc-muted-foreground @min-[38rem]/row:text-end">
           {status}
         </span>
         {registrationConfirmed &&
           !workspaceRefreshFailed &&
           matchingPorts.map((port) => (
             <span
-              className="basis-full text-end text-pc-muted-foreground max-[55rem]:text-start"
+              className="basis-full text-start text-pc-muted-foreground @min-[38rem]/row:text-end"
               key={`${port.id}-readiness`}
             >
               {port.name}: {portSetupLabel(statuses.get(port.id))}
@@ -291,7 +291,7 @@ function CandidateRow({
 }) {
   return (
     <div
-      className="source-health-row grid grid-cols-[minmax(0,1fr)_minmax(0,18rem)] items-center gap-x-3 gap-y-1 border-b border-pc-border py-4 max-[55rem]:grid-cols-[minmax(0,1fr)]"
+      className="source-health-row grid grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1 border-b border-pc-border py-4 @min-[38rem]/row:grid-cols-[minmax(0,1fr)_minmax(0,18rem)]"
       data-candidate-row
       data-completed-candidate={completed || undefined}
       data-live-candidate={!completed || undefined}

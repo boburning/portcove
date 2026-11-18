@@ -1,3 +1,4 @@
+import "../../styles/index.css";
 import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../../test-fixtures";
@@ -6,7 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import * as clipboard from "../../clipboard";
 import { UpdateCenter } from "../../components/UpdateCenter";
 import { failureReport, portStatus } from "../../test-fixtures";
-import type { ActivityRecord } from "../../types";
+import type { ActivityRecord, ActivityDiagnostic as Diagnostic } from "../../types";
+import { desktopApi } from "../../api";
+import { Sidebar } from "../../components/Chrome";
 
 import { installRecord, updateCenterFixtures } from "../../components/rendered-test-fixtures";
 import { captureParityState } from "../../../test/parity-capture";
@@ -531,3 +534,139 @@ it.each([true, false])("renders an empty Activity feed with completeness %s", as
     await page.viewport(1280, 800);
   }
 });
+
+it.each(
+  (["dark", "light"] as const).flatMap((theme) => [960, 430].map((width) => ({ theme, width }))),
+)(
+  "separates the retained preparation log focus outline from its operation ID in $theme at $width",
+  async ({ theme, width }) => {
+    const previousTheme = document.documentElement.dataset.theme;
+    const previousViewport = { width: innerWidth, height: innerHeight };
+    const activity: ActivityRecord = {
+      id: "d4a164c6-9af0-40d9-a99a-ee95e510ba07",
+      operation: "prepare",
+      target_kind: "port",
+      target_id: port.id,
+      status: "failed",
+      started_at: 1,
+      finished_at: 2,
+      message: null,
+      failure: failureReport(),
+      cancellation: null,
+    };
+    const stdout = "owned conversion began password=[REDACTED]";
+    const stderr = "owned conversion diagnostic on stderr";
+    const diagnostic: Diagnostic = [
+      {
+        activity_id: activity.id,
+        phase: "preparation.setup",
+        complete: true,
+        updated_at: 2,
+        stream_limit_bytes: 2 * 1024 * 1024,
+        stdout: { text: stdout, observed_bytes: stdout.length, truncated: false },
+        stderr: { text: stderr, observed_bytes: stderr.length, truncated: false },
+      },
+    ];
+    const read = vi.spyOn(desktopApi, "activityDiagnostic").mockResolvedValue(diagnostic);
+    const select = vi.fn();
+    const check = vi.fn();
+    const host = document.body.appendChild(document.createElement("div"));
+    let rendered: RenderResult | undefined;
+    try {
+      await page.viewport(width, 780);
+      document.documentElement.dataset.theme = theme;
+      rendered = await renderComponent(
+        <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
+          <Sidebar
+            view="updates"
+            setView={vi.fn()}
+            installedCount={1}
+            updateCount={0}
+            activities={[activity]}
+          />
+          <main className="workspace-main min-h-0 w-full min-w-0 overflow-auto pb-12 max-[75rem]:pb-10">
+            <UpdateCenter
+              section="tasks"
+              generation={7}
+              ports={[port]}
+              statuses={new Map()}
+              activities={[activity]}
+              activityFeed={{
+                records: [activity],
+                current_activity_ids: [],
+                attention_required_activity_ids: [activity.id],
+                recovery_required_activity_ids: [],
+                active_and_actionable_complete: true,
+                terminal_history_complete: true,
+                terminal_history_count: 1,
+                terminal_history_limit: 20,
+              }}
+              outcomes={[]}
+              diagnosticsRefreshing={false}
+              diagnosticsStale={false}
+              refreshDiagnostics={vi.fn()}
+              checkAll={check}
+              onSelect={select}
+              onOpenSettings={vi.fn()}
+            />
+          </main>
+        </div>,
+        { container: host },
+      );
+      const taskDetails = page.getByText("Task details", { exact: true });
+      await expect.element(taskDetails).toBeVisible();
+      taskDetails.element().focus();
+      await userEvent.keyboard("{Enter}");
+      const log = page.getByText("View preparation log", { exact: true });
+      await expect.element(log).toBeVisible();
+      await userEvent.tab();
+      expect(document.activeElement).toBe(log.element());
+      await userEvent.keyboard("{Enter}");
+      await expect.poll(() => read.mock.calls.length).toBe(1);
+      expect(read).toHaveBeenCalledExactlyOnceWith(activity.id, 7);
+      await expect
+        .element(page.getByRole("textbox", { name: "Preparation standard output", exact: true }))
+        .toBeVisible();
+      expect(document.activeElement).toBe(log.element());
+      const summary = log.element();
+      summary.scrollIntoView({ block: "center", behavior: "instant" });
+      await document.fonts.ready;
+      const taskContainer = fixtureValue(taskDetails.element().closest("details"), "task details");
+      const operationId = fixtureValue(
+        taskContainer.querySelector<HTMLElement>(":scope > dl > dd"),
+        "operation ID",
+      );
+      expect(operationId.textContent?.trim()).toBe(activity.id);
+      const idBounds = operationId.getBoundingClientRect();
+      const summaryBounds = summary.getBoundingClientRect();
+      const style = getComputedStyle(summary);
+      const outlineExtent =
+        parseFloat(style.outlineWidth) + Math.max(0, parseFloat(style.outlineOffset));
+      expect(style.outlineStyle).not.toBe("none");
+      expect(outlineExtent).toBeGreaterThan(0);
+      expect(summaryBounds.top - outlineExtent).toBeGreaterThanOrEqual(idBounds.bottom + 4);
+      expect(idBounds.top).toBeGreaterThanOrEqual(0);
+      expect(summaryBounds.bottom + outlineExtent).toBeLessThanOrEqual(innerHeight);
+      expect(
+        host.querySelector<HTMLTextAreaElement>(
+          'textarea[aria-label="Preparation standard output"]',
+        )?.value,
+      ).toBe(stdout);
+      expect(
+        host.querySelector<HTMLTextAreaElement>('textarea[aria-label="Preparation standard error"]')
+          ?.value,
+      ).toBe(stderr);
+      expect(host.textContent).toContain("Both output streams ended. Saved output is shown below.");
+      await captureParityState("activity-retained-preparation-log-spacing");
+      expect(select).not.toHaveBeenCalled();
+      expect(check).not.toHaveBeenCalled();
+    } finally {
+      await rendered?.unmount();
+      host.remove();
+      read.mockRestore();
+      if (previousTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = previousTheme;
+      await page.viewport(previousViewport.width, previousViewport.height);
+    }
+  },
+);

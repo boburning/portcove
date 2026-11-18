@@ -6,7 +6,7 @@ import { render as renderComponent, cleanup, type RenderResult } from "vitest-br
 import { fixtureValue } from "../test-fixtures";
 import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
-import { userEvent } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import {
   GameFileScanProvider,
@@ -30,6 +30,9 @@ import type {
   SourceRecord,
 } from "../types";
 import { GameFileLibraries } from "./GameFileLibraries";
+import { SettingsView, Sidebar } from "./Chrome";
+import { installRecord } from "./rendered-test-fixtures";
+import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 
 const saved: GameFileRoot = {
   id: "root-1",
@@ -133,6 +136,235 @@ afterEach(async () => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
+
+function expectCandidateComposition(
+  selector: string,
+  stacked: boolean,
+  path: string,
+  label: string,
+) {
+  const row = fixtureValue(document.querySelector<HTMLElement>(selector), "candidate row");
+  const identity = fixtureValue(
+    row.querySelector<HTMLElement>(":scope > div"),
+    "candidate identity",
+  );
+  const actions = fixtureValue(
+    row.querySelector<HTMLElement>(".source-candidate-actions"),
+    "candidate actions",
+  );
+  const workspace = fixtureValue(
+    row.closest<HTMLElement>("[data-saved-folders-workspace]"),
+    "saved-folder workspace",
+  );
+  const workspaceStyle = getComputedStyle(workspace);
+  const available =
+    workspace.clientWidth -
+    parseFloat(workspaceStyle.paddingLeft) -
+    parseFloat(workspaceStyle.paddingRight);
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+  expect(available < 38 * rem).toBe(stacked);
+  const rowBounds = row.getBoundingClientRect();
+  const identityBounds = identity.getBoundingClientRect();
+  const actionBounds = actions.getBoundingClientRect();
+  expect(actionBounds.top >= identityBounds.bottom - 1).toBe(stacked);
+  expect(actionBounds.left >= identityBounds.right - 1).toBe(!stacked);
+  expect(identityBounds.width).toBeGreaterThanOrEqual(stacked ? rowBounds.width - 1 : 18 * rem);
+  expect(row.textContent).toContain(label);
+  expect(row.textContent).toContain("Already added. Review game requirements in details.");
+  expect(row.textContent).toContain("Already in your library");
+  const code = fixtureValue(identity.querySelector("code"), "complete candidate path");
+  expect(code.textContent).toBe(path);
+  expect(getComputedStyle(code).direction).toBe("ltr");
+  const range = document.createRange();
+  range.selectNodeContents(identity);
+  for (const line of range.getClientRects()) {
+    expect(line.left).toBeGreaterThanOrEqual(identityBounds.left - 1);
+    expect(line.right).toBeLessThanOrEqual(identityBounds.right + 1);
+  }
+  expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth + 1);
+  row.scrollIntoView({ block: "center", behavior: "instant" });
+  const controls = [...actions.querySelectorAll("button")];
+  expect(controls).toHaveLength(2);
+  for (const target of [row, ...controls]) {
+    const bounds = target.getBoundingClientRect();
+    requireCompleteCaptureTarget(
+      {
+        target: target.textContent,
+        target_count: 1,
+        visible: target.checkVisibility(),
+        rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+        viewport: { width: innerWidth, height: innerHeight },
+      },
+      "candidate composition " + target.tagName,
+    );
+  }
+  return row;
+}
+
+it.each(
+  (["dark", "light"] as const).flatMap((theme) => [
+    { theme, layout: "dual-sidebar", viewport: 960, inlineSize: undefined, stacked: true },
+    {
+      theme,
+      layout: "below-container-boundary",
+      viewport: 1280,
+      inlineSize: "calc(51rem + var(--space-6) - 1px)",
+      stacked: true,
+    },
+    {
+      theme,
+      layout: "at-container-boundary",
+      viewport: 1280,
+      inlineSize: "calc(51rem + var(--space-6))",
+      stacked: false,
+    },
+  ]),
+)(
+  "keeps streamed and completed candidates readable in $theme $layout",
+  async ({ theme, layout, viewport, inlineSize, stacked }) => {
+    const oldTheme = document.documentElement.dataset.theme;
+    const oldViewport = { width: innerWidth, height: innerHeight };
+    const transport = installInteractiveTransport("library", (message) => {
+      throw new Error(message);
+    });
+    const source: SourceRecord = {
+      ...savedCandidate,
+      path: String.raw`D:\a\portcove\portcove\work\native-product-workflows-review-continuation\desktop-verify\2026-11-18T21-00-52-826Z-ps3xzZ\native\opengoal-jak1.iso`,
+      size: 41,
+      storage_size: 41,
+    };
+    const profile = {
+      ...sourceProfile(),
+      id: source.profile_id,
+      label: "Jak and Daxter retail disc validated by the pinned OpenGOAL extractor",
+    };
+    const port = {
+      ...portDefinition(),
+      id: "sample",
+      name: "OpenGOAL: Jak and Daxter",
+      source_profile: source.profile_id,
+    };
+    const status = {
+      ...portStatus(),
+      port_id: port.id,
+      active: installRecord({ port_id: port.id }),
+    };
+    const candidateRoot = { ...saved, path: source.path.slice(0, source.path.lastIndexOf("\\")) };
+    const completed = {
+      ...snapshot,
+      roots: [candidateRoot],
+      report: {
+        ...snapshot.report,
+        searched_roots: [candidateRoot.path],
+        candidates: [source],
+        limits_reached: [],
+      },
+    };
+    vi.mocked(desktopApi.gameFileRoots).mockResolvedValue([candidateRoot]);
+    const open = vi.fn();
+    let emit: ((event: OperationEvent) => void) | undefined;
+    let finish: ((value: GameFileScanSnapshot) => void) | undefined;
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(null);
+    vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, _generation, callback) => {
+      emit = callback;
+      return new Promise<GameFileScanSnapshot>((resolve) => {
+        finish = resolve;
+      });
+    });
+    try {
+      await page.viewport(viewport, 780);
+      document.documentElement.dataset.theme = theme;
+      await root.rerender(
+        <GameFileScanProvider generation={1}>
+          <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
+            <Sidebar
+              view="settings"
+              setView={vi.fn()}
+              installedCount={1}
+              updateCount={0}
+              activities={[]}
+            />
+            <main className="workspace-main min-h-0 w-full min-w-0 overflow-auto pb-12 max-[75rem]:pb-10">
+              <div style={{ inlineSize }}>
+                <SettingsView
+                  category="game-files"
+                  generation={1}
+                  ports={[port]}
+                  statuses={new Map([[port.id, status]])}
+                  sourceProfiles={[profile]}
+                  sources={[source]}
+                  installedCount={1}
+                  sourceRequirementsState="available"
+                  onOpenPort={open}
+                />
+              </div>
+            </main>
+          </div>
+        </GameFileScanProvider>,
+      );
+      await expect
+        .element(page.getByRole("navigation", { name: "Primary navigation", exact: true }))
+        .toBeVisible();
+      await expect
+        .element(page.getByRole("navigation", { name: "Settings categories", exact: true }))
+        .toBeVisible();
+      await click("Scan saved folders");
+      const publish = fixtureValue(emit, "owned scan event callback");
+      await act(async () => {
+        publish({
+          schema_version: 3,
+          operation_id: "owned-layout-scan",
+          parent_operation_id: null,
+          target: null,
+          sequence: 1,
+          timestamp_ms: 1,
+          operation: "discover_sources",
+          type: "started",
+        });
+        publish({
+          schema_version: 3,
+          operation_id: "owned-layout-scan",
+          parent_operation_id: null,
+          target: null,
+          sequence: 2,
+          timestamp_ms: 2,
+          operation: "discover_sources",
+          type: "source_candidate",
+          ...source,
+        });
+      });
+      await document.fonts.ready;
+      const live = expectCandidateComposition(
+        "[data-live-candidate]",
+        stacked,
+        source.path,
+        profile.label,
+      );
+      const view = fixtureValue(
+        live.querySelector<HTMLButtonElement>("button:not([data-candidate-review])"),
+        "view game details",
+      );
+      view.focus();
+      await userEvent.keyboard("{Enter}");
+      expect(open).toHaveBeenCalledExactlyOnceWith(port.id, "game-file-libraries-setup");
+      expect(document.activeElement).toBe(view);
+      await captureParityState(`game-file-candidates-${layout}`);
+      vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(completed);
+      await act(async () => fixtureValue(finish, "owned scan settlement")(completed));
+      expect(document.querySelector("[data-live-candidate]")).toBeNull();
+      expectCandidateComposition("[data-completed-candidate]", stacked, source.path, profile.label);
+      expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
+      expect(desktopApi.importSource).not.toHaveBeenCalled();
+    } finally {
+      await act(async () => finish?.(completed));
+      await root.rerender(null);
+      transport.dispose();
+      if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = oldTheme;
+      await page.viewport(oldViewport.width, oldViewport.height);
+    }
+  },
+);
 
 it("scans only after a player asks and keeps exact results as reviewed candidates", async () => {
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
