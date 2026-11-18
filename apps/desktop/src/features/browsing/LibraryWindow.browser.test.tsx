@@ -273,3 +273,50 @@ it("distinguishes a narrowed Library match from all alternatives in its logical 
   expect(group.querySelector('[data-detail-origin="library:card:library-0"]')).toBeNull();
   expect(group.querySelectorAll(".collection-actions button")).toHaveLength(1);
 });
+
+it.each(["resize", "reorder"] as const)(
+  "retains a non-first keyboard menu action when %s replaces its trigger",
+  async (transition) => {
+    await draw();
+    const group = await mountLibraryPort("library-2");
+    const origin = "library:card-more:library-2";
+    const trigger = group.querySelector<HTMLButtonElement>(`[data-detail-origin="${origin}"]`)!;
+    await act(async () => trigger.focus());
+    await act(async () => {
+      await userEvent.keyboard("{Enter}");
+    });
+    await expect.element(page.getByRole("menu")).toBeVisible();
+    const first = document.activeElement;
+    await act(async () => {
+      await userEvent.keyboard("{ArrowDown}");
+    });
+    const selected = document.activeElement as HTMLElement;
+    expect(selected).not.toBe(first);
+    expect(selected.getAttribute("role")).toBe("menuitem");
+    expect(selected.hasAttribute("data-highlighted")).toBe(true);
+    const name = selected.textContent.trim();
+    if (transition === "resize") await page.viewport(760, 800);
+    else await draw({ matching: [...ports.slice(150), ...ports.slice(0, 150)] });
+    await frames();
+    await expect.poll(() => trigger.isConnected).toBe(false);
+    await expect.element(page.getByRole("menu")).toBeVisible();
+    await expect
+      .poll(async () => {
+        await frames();
+        const active = document.activeElement as HTMLElement;
+        return active.getAttribute("role") === "menuitem" && active.hasAttribute("data-highlighted")
+          ? active.textContent.trim()
+          : undefined;
+      })
+      .toBe(name);
+    await act(async () => {
+      await userEvent.keyboard("{Escape}");
+    });
+    await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
+    await expect
+      .poll(() => (document.activeElement as HTMLElement)?.dataset.detailOrigin)
+      .toBe(origin);
+    expect(document.activeElement).toBe(document.querySelector(`[data-detail-origin="${origin}"]`));
+    expect(document.activeElement).not.toBe(trigger);
+  },
+);
