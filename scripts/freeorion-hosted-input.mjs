@@ -5,16 +5,15 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-assert.fail("Naev producer is not bound; preparation only, no input or game execution");
-const source = "889ad59f3f2607f8d39b355c85a6edab730b4f9f",
-  run = 44383634182,
+const source = "02c0beb9035893936eef4fa8d3484a74e5028059",
+  run = 44390241368,
   attempt = 1,
-  artifact = 0;
-const expectedZip = "0000000000000000000000000000000000000000000000000000000000000000";
+  artifact = 14476541615;
+const expectedZip = "42141314fc38144044d29de6201dbe8fb5efaa91eab20f105acfdc60fa12acfe";
 const root = path.join("C:\\pcv", process.env.GITHUB_RUN_ID + "-" + process.env.GITHUB_RUN_ATTEMPT);
-const evidence = path.join(root, "evidence", "desktop-verify", "naev", "native");
+const evidence = path.join(root, "evidence", "desktop-verify", "freeorion", "native");
 await mkdir(evidence, { recursive: true });
-await writeFile("naev-native-root.txt", root);
+await writeFile("freeorion-native-root.txt", root);
 const api = "https://api.github.com/repos/boburning/portcove";
 const headers = {
   Authorization: "Bearer " + process.env.GH_TOKEN,
@@ -30,7 +29,7 @@ const meta = await json(api + "/actions/artifacts/" + artifact);
 assert(
   meta.id === artifact &&
     !meta.expired &&
-    meta.size_in_bytes === 0 &&
+    meta.size_in_bytes === 185887823 &&
     meta.digest === "sha256:" + expectedZip &&
     meta.workflow_run.id === run &&
     meta.workflow_run.head_sha === source &&
@@ -70,7 +69,7 @@ await download(
   true,
 );
 async function python(mode) {
-  const p = spawn("python", ["scripts/naev-hosted-input.py", mode, root], {
+  const p = spawn("python", ["scripts/freeorion-hosted-input.py", mode, root], {
     stdio: "inherit",
   });
   const [c] = await once(p, "close");
@@ -86,7 +85,7 @@ const decoder = spawn(
   ["x", "-so", "-bso0", "-bsp0", path.join(root, "tests.tar.zst")],
   { stdio: ["ignore", "pipe", "inherit"] },
 );
-const parser = spawn("python", ["scripts/naev-hosted-input.py", "tar", root], {
+const parser = spawn("python", ["scripts/freeorion-hosted-input.py", "tar", root], {
   stdio: ["pipe", "inherit", "inherit"],
 });
 let decoded = 0,
@@ -119,9 +118,9 @@ assert(
 const executables = JSON.parse(await readFile(path.join(root, "executables.json"), "utf8"));
 const packets = [
   [
-    "naev-0.13.5-win64.exe",
-    "https://codeberg.org/naev/naev/releases/download/v0.13.5/naev-0.13.5-win64.exe",
-    "68fd20aad081a90109fad0ad79707cee96c819843c2bbfcfe8e55342ab1c1bd5",
+    "FreeOrion_v0.5.1.2_Win32_Setup.exe",
+    "https://github.com/freeorion/freeorion/releases/download/v0.5.1.2/FreeOrion_v0.5.1.2_Win32_Setup.exe",
+    "2788f7283bd04987d4bb27984e3a1c24ff5455146b66ee77b89d2aca71cd0907",
   ],
 ];
 for (const [name, url, digest] of packets) await download(url, name, 250000000, digest);
@@ -185,7 +184,7 @@ await writeFile(
       archive_sha256: "19c74aad7b09e682473b8de4c35b47e6498de97b71cae5511a231b8eb02f2b22",
       files: mesaFiles,
       scope:
-        "isolated test-only llvmpipe; no Naev stock-driver rendering, system changes or GPU qualification",
+        "isolated test-only llvmpipe; no FreeOrion stock-driver rendering, system changes or GPU qualification",
     },
     null,
     2,
@@ -200,15 +199,15 @@ const config = {
   cli_sha256: executables.cli.sha256,
   library: path.join(root, "library"),
   evidence_dir: evidence,
-  player: path.join(root, "player", "naev.exe"),
+  player: path.join(root, "player", "FreeOrion.exe"),
   player_root: path.join(root, "player"),
-  player_sha256: "9f13f7775bc521c99eec136bd3f4f7c9b24a50e1bc7eeb13c2ffa3facc6e85b9",
-  roaming: process.env.NAEV_KNOWN_ROAMING,
-  profile: path.join(root, "player", "naev-data"),
-  ui_helper: path.resolve("scripts/naev-hosted-ui.ps1"),
-  scenarios: ["naev-native-client-registration-play-normal-exit-external-preservation"],
+  player_sha256: "5df7b6e59f557ce7a0470ad3473e296650f292b9801bfb61157581c803b182df",
+  roaming: process.env.FREEORION_KNOWN_ROAMING,
+  profile: process.env.FREEORION_KNOWN_ROAMING,
+  ui_helper: path.resolve("scripts/freeorion-hosted-ui.ps1"),
+  scenarios: ["freeorion-native-client-registration-play-normal-exit-external-preservation"],
 };
-assert(config.roaming?.endsWith("Naev"));
+assert(config.roaming?.endsWith("FreeOrion"));
 await writeFile(path.join(root, "native-config.json"), JSON.stringify(config, null, 2));
 await writeFile(
   path.join(evidence, "producer.json"),
@@ -228,7 +227,7 @@ await writeFile(
         digest_authority: "observed identity only; user-selected external native client",
       })),
       scope:
-        "complete official native Naev engine/data portable payload; installer, uninstaller and plugins never executed; no Registry changes",
+        "complete official native FreeOrion engine/data payload; installer, uninstaller and bundled redistributable never executed; no Registry changes",
     },
     null,
     2,

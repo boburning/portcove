@@ -5,11 +5,11 @@ const config = JSON.parse(await readFile(file, "utf8"));
 const { acquireNativeSessionLock } = await import(config.sdk + "scripts/native-session-lock.mts");
 const lease = await acquireNativeSessionLock({
   workspace: process.cwd(),
-  profile: "naev-native-client-hosted",
+  profile: "freeorion-native-client-hosted",
   scenarios: config.scenarios,
 });
 try {
-  await import("./naev-hosted-owner.mjs");
+  await import("./freeorion-hosted-owner.mjs");
 } finally {
   const dir = config.evidence_dir;
   const cleanup = JSON.parse(
@@ -30,7 +30,8 @@ try {
         p.positive_exit === true &&
         p.input_released === true &&
         p.root_exited === true &&
-        p.child_exited === true,
+        p.child_exited === true &&
+        p.companions_quiescent === true,
     );
   if (positive) await lease.release();
   await writeFile(

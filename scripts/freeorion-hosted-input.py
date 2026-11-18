@@ -1,6 +1,6 @@
 import sys,io,os,json,hashlib,struct,zipfile,tarfile,shutil
 from pathlib import Path
-mode=sys.argv[1];root=Path(sys.argv[2]);evidence=root/'evidence'/'desktop-verify'/'naev'/'native'
+mode=sys.argv[1];root=Path(sys.argv[2]);evidence=root/'evidence'/'desktop-verify'/'freeorion'/'native'
 (evidence/('parser-runtime-'+mode+'.json')).write_text(json.dumps({'python':sys.version,'zipfile_sha256':hashlib.file_digest(Path(zipfile.__file__).open('rb'),'sha256').hexdigest(),'tarfile_sha256':hashlib.file_digest(Path(tarfile.__file__).open('rb'),'sha256').hexdigest(),'supported_tar':'regular, directory, one bounded GNU long-name prefix; PAX/sparse/links rejected before preprocessing','supported_zip':'bounded legacy EOCD; ZIP64 directory override rejected'},indent=2))
 def digest(p,kind='sha256'):
  with p.open('rb') as f:return hashlib.file_digest(f,kind).hexdigest()
@@ -21,7 +21,7 @@ if mode=='outer':
    assert not i.is_dir() and ((i.external_attr>>16)&0o170000)!=0o120000
    assert i.file_size <= (4*1024**2 if i.filename=='manifest.json' else 200*1024**2)
    with z.open(i) as src,(root/i.filename).open('xb') as dest:shutil.copyfileobj(src,dest)
- m=json.loads((root/'manifest.json').read_text());assert m['identity']['run']=='44383634182' and m['identity']['attempt']=='1'
+ m=json.loads((root/'manifest.json').read_text());assert m['identity']['run']=='44390241368' and m['identity']['attempt']=='1'
  assert digest(root/'tests.tar.zst')==m['archive_sha256']
  b=(root/'tests.tar.zst').open('rb').read(18);assert b[:4]==bytes.fromhex('28b52ffd') and not(b[4]&32)
  window=(1<<((b[5]>>3)+10));window+=window//8*(b[5]&7);assert window<=256*1024**2
@@ -58,13 +58,13 @@ elif mode=='tar':
  (root/'executables.json').write_text(json.dumps(found,indent=2))
 elif mode=='player':
  import subprocess,time,stat
- archive=root/'naev-0.13.5-win64.exe'
- # Exact reviewed NSIS bytes bind fixed 8MiB LZMA dictionary/632800-byte headers;
+ archive=root/'FreeOrion_v0.5.1.2_Win32_Setup.exe'
+ # Exact reviewed NSIS bytes bind BZip2 (900KiB maximum block)/343624-byte headers;
  # this is a finite fixture, not a generic installer or archive admission policy.
- assert archive.stat().st_size==238212694 and digest(archive)=='68fd20aad081a90109fad0ad79707cee96c819843c2bbfcfe8e55342ab1c1bd5'
- manifest_path=Path('scripts/naev-hosted-package.json');assert manifest_path.stat().st_size<3*1024**2
+ assert archive.stat().st_size==191777564 and digest(archive)=='2788f7283bd04987d4bb27984e3a1c24ff5455146b66ee77b89d2aca71cd0907'
+ manifest_path=Path('scripts/freeorion-hosted-package.json');assert manifest_path.stat().st_size<3*1024**2
  expected=json.loads(manifest_path.read_text());assert expected['archive_sha256']==digest(archive)
- files={r['path']:r for r in expected['files']};assert len(files)==7687 and sum(r['bytes']for r in files.values())==450419040
+ files={r['path']:r for r in expected['files']};assert len(files)==3477 and sum(r['bytes']for r in files.values())==233351454
  directories=set()
  for name,row in files.items():
   parts=name.split('/');assert all(x and x not in ('.','..') and x.rstrip(' .')==x and not any(c in x for c in ':*?"<>|\\') for x in parts)
@@ -83,17 +83,17 @@ elif mode=='player':
    name=p.relative_to(target).as_posix()
    if p.is_dir():assert name in directories;continue
    assert p.is_file() and name in files and name not in seen;seen.add(name)
-   assert info.st_size<=files[name]['bytes'];total+=info.st_size;assert total<=450419040
+   assert info.st_size<=files[name]['bytes'];total+=info.st_size;assert total<=233351454
    if final:
     assert info.st_size==files[name]['bytes'] and digest(p)==files[name]['sha256']
     rows.append(files[name])
-  if final:assert seen==set(files) and total==450419040
+  if final:assert seen==set(files) and total==233351454
   return rows
  # Decode into only this new owned directory. Bound disk writes during extraction,
  # process duration and positive child exit; never run the embedded installer.
  log=evidence/'package-decode.log'
  with log.open('xb') as output:
-  process=subprocess.Popen([r'C:\Program Files\7-Zip\7z.exe','x','-y','-mmt=2','-bso0','-bsp0','-o'+str(target),str(archive),'-xr!$PLUGINSDIR','-x!uninstall.exe'],stdout=output,stderr=subprocess.STDOUT)
+  process=subprocess.Popen([r'C:\Program Files\7-Zip\7z.exe','x','-y','-mmt=2','-bso0','-bsp0','-o'+str(target),str(archive),'-xr!$PLUGINSDIR','-x!Uninstall.exe','-x!vcredist_x86.exe'],stdout=output,stderr=subprocess.STDOUT)
   deadline=time.monotonic()+120
   try:
    while process.poll() is None:
@@ -105,8 +105,7 @@ elif mode=='player':
    process.wait(timeout=10)
   (evidence/'package-decode-exit.json').write_text(json.dumps({'positive_exit':process.returncode==0,'exit_code':process.returncode,'installer_executed':False}))
  rows=observe(True)
- assert (target/'datapath.lua').read_text().strip().endswith('datapath = "naev-data/"')
- with (target/'naev.exe').open('rb') as f:b=f.read(4096)
+ with (target/'FreeOrion.exe').open('rb') as f:b=f.read(4096)
  off=struct.unpack_from('<I',b,0x3c)[0];assert b[:2]==b'MZ' and off+26<=len(b) and b[off:off+4]==b'PE\0\0' and struct.unpack_from('<H',b,off+4)[0]==0x8664
- (evidence/'external-package-identities.json').write_text(json.dumps({'files':rows,'expanded_bytes':450419040,'scope':'exact private inert extraction of official portable payload; installer/uninstaller/plugin scripts never executed'}))
+ (evidence/'external-package-identities.json').write_text(json.dumps({'files':rows,'expanded_bytes':233351454,'scope':'exact private inert extraction of official complete client payload; installer/uninstaller/redistributable never executed'}))
 else:raise RuntimeError('Unknown fixed input operation')

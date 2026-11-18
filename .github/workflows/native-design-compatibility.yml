@@ -5,14 +5,14 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: naev-native-client-${{ github.ref }}
+  group: freeorion-native-client-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  naev-windows-lifecycle:
+  freeorion-windows-lifecycle:
     runs-on: windows-2022
     timeout-minutes: 30
     env:
-      PORTCOVE_PRODUCT_SOURCE: 889ad59f3f2607f8d39b355c85a6edab730b4f9f
+      PORTCOVE_PRODUCT_SOURCE: 02c0beb9035893936eef4fa8d3484a74e5028059
       PORTCOVE_CONTROLLER_SOURCE: ${{ github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -26,16 +26,16 @@ jobs:
           git diff --exit-code
           if($LASTEXITCODE -ne 0){throw 'Controller is dirty'}
           $root=Join-Path 'C:\pcv' "$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
-          $native=Join-Path $root 'evidence/desktop-verify/naev/native'
+          $native=Join-Path $root 'evidence/desktop-verify/freeorion/native'
           New-Item -ItemType Directory -Path $native | Out-Null
           $session=@{controller=$env:PORTCOVE_CONTROLLER_SOURCE;product=$env:PORTCOVE_PRODUCT_SOURCE;run=$env:GITHUB_RUN_ID;attempt=$env:GITHUB_RUN_ATTEMPT;os=[Environment]::OSVersion.VersionString;os_arch=[Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();process_arch=[Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString();session=[Diagnostics.Process]::GetCurrentProcess().SessionId;interactive=[Environment]::UserInteractive;powershell=$PSVersionTable.PSVersion.ToString();image=$env:ImageVersion}
           $session|ConvertTo-Json|Set-Content (Join-Path $native 'session.json') -Encoding utf8
           if(-not $session.interactive -or $session.session -le 0){throw 'No existing interactive session: no native acceptance performed'}
           $roaming=[Environment]::GetFolderPath([Environment+SpecialFolder]::ApplicationData)
-          "NAEV_KNOWN_ROAMING=$roaming\Naev"|Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "FREEORION_KNOWN_ROAMING=$roaming\FreeOrion"|Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: 889ad59f3f2607f8d39b355c85a6edab730b4f9f
+          ref: 02c0beb9035893936eef4fa8d3484a74e5028059
           path: product
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
@@ -48,13 +48,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if((git -C product rev-parse HEAD) -ne $env:PORTCOVE_PRODUCT_SOURCE){throw 'Product source differs'}
-          node scripts/naev-hosted-input.mjs
+          node scripts/freeorion-hosted-input.mjs
           if($LASTEXITCODE -ne 0){throw 'Input binding failed; no game executed'}
       - name: Execute exact Core CLI and real game lifecycle with native admission
         shell: pwsh
         run: |
-          $root=(Get-Content -Raw naev-native-root.txt).Trim()
-          node scripts/naev-hosted-admission.mjs (Join-Path $root 'native-config.json')
+          $root=(Get-Content -Raw freeorion-native-root.txt).Trim()
+          node scripts/freeorion-hosted-admission.mjs (Join-Path $root 'native-config.json')
           if($LASTEXITCODE -ne 0){throw 'Native lifecycle incomplete or failed; inspect retained evidence'}
       - name: Retain bounded real evidence in ordinary job logs
         if: always()

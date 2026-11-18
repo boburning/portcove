@@ -75,19 +75,19 @@ if (config.ui_helper)
     "Windows executable resolution environment is required for the owned UI observer",
   );
 assert.equal(
-  path.resolve(path.join(environment.APPDATA, "Naev")).toLowerCase(),
+  path.resolve(path.join(environment.APPDATA, "FreeOrion")).toLowerCase(),
   path.resolve(config.roaming).toLowerCase(),
   "Observed profile and engine APPDATA differ",
 );
 // Existing hosted native precedent: this VM has no physical audio endpoint.
-environment.SDL_AUDIO_DRIVER = "dummy";
+environment.SDL_AUDIODRIVER = "dummy";
 environment.ALSOFT_DRIVERS = "null";
 environment.SDL_RENDER_DRIVER = "software";
 environment.GALLIUM_DRIVER = "llvmpipe";
 environment.LIBGL_ALWAYS_SOFTWARE = "1";
 environment.SDL_OPENGL_LIBRARY = path.join(config.player_root, "opengl32.dll");
 await record("hosted-drivers", {
-  audio: "OpenAL Soft null and SDL3 dummy requested; no physical audio acceptance",
+  audio: "OpenAL Soft null and SDL2 dummy requested; no physical audio acceptance",
   renderer: "Mesa26.2.7 x64 llvmpipe requested through isolated app-local SDL_OPENGL_LIBRARY",
   scope: "visual/state lifecycle only; physical audio and hardware rendering not established",
 });
@@ -102,12 +102,14 @@ const players = new Map(),
 async function command(args, { raw = false, expectedUnsupported = false } = {}) {
   const name = String(++serial).padStart(2, "0") + "-" + args.slice(0, 2).join("-");
   const request = raw ? randomUUID() : null;
+  const separator = raw ? args.indexOf("--") : -1;
   const effective = [
     ...(raw ? [] : ["--json"]),
     "--library",
     config.library,
-    ...args,
+    ...(separator < 0 ? args : args.slice(0, separator)),
     ...(raw ? ["--request-id", request] : []),
+    ...(separator < 0 ? [] : args.slice(separator)),
   ];
   await record("phase", { name, args, request, started_at: new Date().toISOString() });
   if (raw && config.ui_helper) {
@@ -155,7 +157,7 @@ async function command(args, { raw = false, expectedUnsupported = false } = {}) 
         "-ExpectedSha256",
         title.player_sha256,
         "-TitleMode",
-        count === 0 ? "fresh" : "reopen",
+        count === 0 ? "fresh" : count === 1 ? "singleplayer" : "reopen",
         "-Evidence",
         evidence,
         "-Prefix",
@@ -183,7 +185,7 @@ async function command(args, { raw = false, expectedUnsupported = false } = {}) 
   const timedOut = new Promise((_, reject) => {
     deadline = setTimeout(
       () => reject(new Error("Managed command/pipe drain deadline exceeded")),
-      raw ? 150000 : 120000,
+      raw ? 240000 : 120000,
     );
   });
   const driverFailed = driverOutcome
@@ -290,20 +292,20 @@ async function inventory(directory) {
   await visit();
   return files.sort((a, b) => a.path.localeCompare(b.path));
 }
-config.port = "naev";
+config.port = "freeorion";
 players.set(config.port, config.player);
 const prior = await lstat(config.roaming).catch((e) => {
   if (e.code === "ENOENT") return null;
   throw e;
 });
-assert(prior === null, "Fresh VM already has Naev data; preserve it and refuse native execution");
+assert(prior === null, "Fresh VM already has FreeOrion data; preserve it and refuse native execution");
 assert.equal(
   await lstat(config.profile).catch((e) => {
     if (e.code === "ENOENT") return null;
     throw e;
   }),
   null,
-  "Fresh portable profile already exists; preserve it and refuse",
+  "Fresh external profile already exists; preserve it and refuse",
 );
 let completed = false;
 try {
@@ -321,9 +323,10 @@ try {
   const selected = await command(["status", config.port]);
   assert(selected.readiness.launchable && selected.successful_launches === 0);
   await command(["exec", config.port], { raw: true });
-  const settings = await lstat(path.join(config.profile, "conf.lua"));
+  const settings = await lstat(path.join(config.profile, "config.xml"));
   assert(settings.isFile() && settings.size > 32, "Actual client did not write its settings");
   await record("profile-after-first-play", await inventory(config.profile));
+  await command(["exec", config.port, "--", "--quickstart", "--setup.star.count", "10", "--setup.ai.player.count", "1", "--quit.hotkey", "GGK_F11"], { raw: true });
   await command(["exec", config.port], { raw: true });
   const packageBefore = await inventory(config.player_root),
     profileBefore = await inventory(config.profile);
@@ -354,7 +357,7 @@ try {
   await record("result", {
     completed: true,
     scope:
-      "Windows x64 Naev0.13.5 native client; ordinary external registration, explicit Play twice, normal owned window close, real settings and complete external byte preservation through registration-only removal. Client UI requires image inspection. No earned progress, populated save, optional plugin-manager/restart, installed Desktop, physical hardware or sibling-native claim.",
+      "Windows x64 FreeOrion0.5.1.2 native client; ordinary external registration, explicit Play with default arguments, one quickstart/AI observation, then default-argument reopen, normal owned window close, real settings and complete external byte preservation through registration-only removal. Client UI requires image inspection. No earned progress, load/save correctness, installed Desktop, physical hardware or sibling-native claim. Companion observations are separately recorded; whole-family supervision is not offered.",
   });
 } finally {
   await record("cleanup", {
