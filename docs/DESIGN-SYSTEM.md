@@ -1112,6 +1112,11 @@ and enlarged windows begin with identity and inputs; keyboard navigation reaches
 the confirmation and cancellation controls in document order. Cancellation and
 completion keep the existing context-bound return-focus owner.
 
+External-folder registration and relink reviews keep Folder, Game program and
+Previous folder values as exact left-to-right paths using the shared path-value
+wrapping rule; labels remain ordinary UI text, and extended Windows prefixes
+continue on the same first line as their path.
+
 Preparation completion reports that game data is prepared. It does not grant
 launch availability: the refreshed Core readiness and existing current-action
 projection determine Play or the next required step. Package installation,

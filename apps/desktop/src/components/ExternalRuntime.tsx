@@ -746,8 +746,12 @@ function RegisterExternalDialog({
         </DialogDescription>
         {pending === "review" && <p role="status">Checking runtime files…</p>}
         {preview?.previous_path && (
-          <p className="[overflow-wrap:anywhere]">
-            Previous folder: <code>{preview.previous_path}</code>. Its files stay where they are.
+          <p>
+            Previous folder:{" "}
+            <code dir="ltr" className="path-value whitespace-normal">
+              {preview.previous_path}
+            </code>
+            . Its files stay where they are.
           </p>
         )}
         {preview && (
@@ -759,13 +763,17 @@ function RegisterExternalDialog({
               <small className="mb-[5px] block text-[var(--color-text-muted)]">Version</small>
               {preview.version}
             </span>
-            <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+            <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
               <small className="mb-[5px] block text-[var(--color-text-muted)]">Folder</small>
-              {preview.path}
+              <code dir="ltr" className="path-value whitespace-normal">
+                {preview.path}
+              </code>
             </span>
-            <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+            <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
               <small className="mb-[5px] block text-[var(--color-text-muted)]">Game program</small>
-              {preview.executable}
+              <code dir="ltr" className="path-value whitespace-normal">
+                {preview.executable}
+              </code>
             </span>
             <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
               <small className="mb-[5px] block text-[var(--color-text-muted)]">Checked files</small>

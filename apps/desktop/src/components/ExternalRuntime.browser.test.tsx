@@ -1,9 +1,12 @@
+import "../styles/index.css";
+import { requireCompleteCaptureTarget } from "../../test/capture-target";
+import { fixtureValue } from "../test-fixtures";
 import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { currentCatalogPort } from "../catalog-test-fixtures";
 import { pickInstallFolder, pickHostToolExecutable } from "../file-picker";
@@ -964,6 +967,140 @@ it.each([
   expect(document.body.textContent).not.toContain("is carried between compatible versions");
   expect(document.body.textContent).not.toContain("Portcove retains");
 });
+
+function expectCompleteExternalPath(target: Element, label: string, path: string) {
+  expect(target.textContent).toBe(path);
+  expect(target.getAttribute("dir")).toBe("ltr");
+  expect(getComputedStyle(target).direction).toBe("ltr");
+  const text = fixtureValue(target.firstChild, `${label} path text`);
+  const firstLine = document.createRange();
+  firstLine.setStart(text, 0);
+  firstLine.setEnd(text, 12);
+  // The extended Windows prefix must share its first line with the actual drive/path.
+  expect(firstLine.getClientRects()).toHaveLength(1);
+  const range = document.createRange();
+  range.selectNodeContents(target);
+  const container = fixtureValue(
+    target.parentElement,
+    `${label} path owner`,
+  ).getBoundingClientRect();
+  for (const line of range.getClientRects()) {
+    expect(line.left).toBeGreaterThanOrEqual(container.left - 1);
+    expect(line.right).toBeLessThanOrEqual(container.right + 1);
+    requireCompleteCaptureTarget(
+      {
+        target: label,
+        target_count: 1,
+        visible: true,
+        rect: { x: line.x, y: line.y, width: line.width, height: line.height },
+        viewport: { width: innerWidth, height: innerHeight },
+      },
+      label,
+    );
+  }
+}
+
+it.each(
+  (["dark", "light"] as const).flatMap((theme) => [
+    { theme, width: 1028, height: 750 },
+    { theme, width: 430, height: 896 },
+  ]),
+)(
+  "keeps exact external review paths together in $theme at $width",
+  async ({ theme, width, height }) => {
+    const oldTheme = document.documentElement.dataset.theme;
+    const oldViewport = { width: innerWidth, height: innerHeight };
+    const path = String.raw`\\?\D:\a\portcove\portcove\work\native-product-workflows-external-runtime-review\desktop-verify\2026-11-18T21-56-52-463Z-Fxdn5N\native\player-owned-runtime`;
+    const executable = `${path}\\game.exe`;
+    const selected = { ...record, path, executable };
+    const entry = { ...port, name: "Portcove External Runtime Fixture" };
+    vi.mocked(pickInstallFolder).mockResolvedValue(path);
+    const preview = vi.spyOn(desktopApi, "previewExternalRuntime").mockResolvedValue({
+      port_id: entry.id,
+      path,
+      executable,
+      version: selected.version,
+      archive_sha256: selected.archive_sha256,
+      immutable_tree_sha256: selected.immutable_tree_sha256,
+      immutable_file_count: 17,
+      preview_sha256: "reviewed-exact-paths",
+    });
+    const register = vi.spyOn(desktopApi, "registerExternalRuntime").mockResolvedValue(selected);
+    const changed = vi.fn();
+    try {
+      await page.viewport(width, height);
+      document.documentElement.dataset.theme = theme;
+      await root.rerender(
+        <ExternalRuntimeControl
+          port={entry}
+          status={portStatus()}
+          generation={7}
+          busy={false}
+          onChanged={changed}
+        />,
+      );
+      await page.getByRole("button", { name: "Choose game folder", exact: true }).click();
+      const dialog = page.getByRole("dialog");
+      await expect.element(dialog).toBeVisible();
+      await expect.element(page.getByRole("button", { name: "Cancel", exact: true })).toHaveFocus();
+      await document.fonts.ready;
+      const metadata = fixtureValue(
+        document.querySelector('[aria-label="External runtime review"]'),
+        "actual external review metadata",
+      );
+      const pathFor = (label: string) => {
+        const heading = fixtureValue(
+          [...metadata.querySelectorAll("small")].find((small) => small.textContent === label),
+          label,
+        );
+        return fixtureValue(heading.parentElement?.querySelector("code"), `${label} exact path`);
+      };
+      expectCompleteExternalPath(pathFor("Folder"), "Folder", path);
+      expectCompleteExternalPath(pathFor("Game program"), "Game program", executable);
+      expect(metadata.textContent).toContain(selected.version);
+      expect(metadata.textContent).toContain("Checked files17");
+      await expect
+        .element(
+          page.getByText(
+            "Portcove will save this location and check the required files before each launch. It will not copy, update, back up, or delete the external folder.",
+            { exact: true },
+          ),
+        )
+        .toBeVisible();
+      const primary = page.getByRole("button", { name: "Use this installation", exact: true });
+      const cancel = page.getByRole("button", { name: "Cancel", exact: true });
+      for (const control of [cancel, primary]) {
+        await expect.element(control).toBeEnabled();
+        const bounds = control.element().getBoundingClientRect();
+        requireCompleteCaptureTarget(
+          {
+            target: "external review action",
+            target_count: 1,
+            visible: true,
+            rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+            viewport: { width: innerWidth, height: innerHeight },
+          },
+          "external review action",
+        );
+      }
+      expect(dialog.element().scrollWidth).toBeLessThanOrEqual(dialog.element().clientWidth);
+      expect(preview).toHaveBeenCalledExactlyOnceWith(entry.id, path, 7);
+      expect(register).not.toHaveBeenCalled();
+      expect(changed).not.toHaveBeenCalled();
+      await captureParityState("external-registration-exact-paths");
+      await userEvent.keyboard("{Tab}");
+      await expect.element(primary).toHaveFocus();
+      await userEvent.keyboard("{Enter}");
+      expect(register).toHaveBeenCalledExactlyOnceWith(entry.id, path, "reviewed-exact-paths", 7);
+      expect(changed).toHaveBeenCalledOnce();
+    } finally {
+      await root.rerender(null);
+      if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = oldTheme;
+      await page.viewport(oldViewport.width, oldViewport.height);
+    }
+  },
+);
 
 it("reviews an exact player-owned folder before registering it", async () => {
   vi.mocked(pickInstallFolder).mockResolvedValue(record.path);
