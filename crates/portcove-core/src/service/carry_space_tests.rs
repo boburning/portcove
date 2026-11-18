@@ -24,6 +24,15 @@ async fn low_space_fixture() -> (
 
 #[tokio::test]
 async fn low_space_carry_restores_displaced_rows_and_records_no_copies() {
+    assert_space_carry_restoration(false).await;
+}
+
+#[tokio::test]
+async fn staging_exhaustion_restores_rows_and_records_unknown_available_space() {
+    assert_space_carry_restoration(true).await;
+}
+
+async fn assert_space_carry_restoration(during_staging: bool) {
     let (_temporary, service, active, target) = low_space_fixture().await;
     let old = b"earlier player settings";
     let new = b"updated player settings";
@@ -56,19 +65,37 @@ async fn low_space_carry_restores_displaced_rows_and_records_no_copies() {
         .library
         .try_lock_port("portable-fixture", "low-space-fixture")
         .unwrap();
+    let writes = std::cell::Cell::new(0);
+    let writer = |output: &mut fs::File, bytes: &[u8]| {
+        writes.set(writes.get() + 1);
+        if writes.get() == 2 {
+            crate::carry_step::write_staging(output, &bytes[..1])?;
+            return Err(std::io::ErrorKind::StorageFull.into());
+        }
+        crate::carry_step::write_staging(output, bytes)
+    };
     let outcome = service
-        .carry_unknown_files_with_space(&active, &target, &|root| {
-            assert_eq!(
-                fs::canonicalize(root).unwrap(),
-                fs::canonicalize(&target.path).unwrap()
-            );
-            Ok((0, 10 * 1024 * 1024 * 1024))
-        })
+        .carry_unknown_files_with_staging_writer(
+            &active,
+            &target,
+            &|root| {
+                assert_eq!(
+                    fs::canonicalize(root).unwrap(),
+                    fs::canonicalize(&target.path).unwrap()
+                );
+                Ok((
+                    if during_staging { u64::MAX } else { 0 },
+                    10 * 1024 * 1024 * 1024,
+                ))
+            },
+            during_staging.then_some(&writer),
+        )
         .unwrap()
         .unwrap();
+    assert_eq!(writes.get(), if during_staging { 2 } else { 0 });
     assert!(outcome.insufficient_space);
     assert_eq!(outcome.not_carried_count, Some(2));
-    assert_eq!(outcome.available_bytes, Some(0));
+    assert_eq!(outcome.available_bytes, (!during_staging).then_some(0));
     assert!(outcome.required_bytes.unwrap() >= crate::carry_step::RESERVE_BYTES);
     assert!(outcome.carried.is_empty());
     assert!(outcome.removed.is_empty());
@@ -103,9 +130,14 @@ async fn low_space_carry_restores_displaced_rows_and_records_no_copies() {
     assert_eq!(recorded["not_carried_count"], 2);
     assert_eq!(recorded["required_bytes"], outcome.required_bytes.unwrap());
     assert_eq!(
-        recorded["available_bytes"],
-        outcome.available_bytes.unwrap()
+        recorded
+            .get("available_bytes")
+            .and_then(serde_json::Value::as_u64),
+        outcome.available_bytes
     );
+    if during_staging {
+        assert!(recorded.get("available_bytes").is_none());
+    }
     assert_eq!(
         service
             .status("portable-fixture")
@@ -119,6 +151,15 @@ async fn low_space_carry_restores_displaced_rows_and_records_no_copies() {
 
 #[tokio::test]
 async fn low_space_after_partial_publication_keeps_the_switch_on_hold() {
+    assert_partial_carry_space_hold(false).await;
+}
+
+#[tokio::test]
+async fn staging_exhaustion_after_partial_publication_keeps_the_switch_on_hold() {
+    assert_partial_carry_space_hold(true).await;
+}
+
+async fn assert_partial_carry_space_hold(during_staging: bool) {
     let (_temporary, service, active, target) = low_space_fixture().await;
     let placed = b"already published player data";
     let waiting = b"not yet published player data";
@@ -148,13 +189,37 @@ async fn low_space_after_partial_publication_keeps_the_switch_on_hold() {
         .library
         .try_lock_port("portable-fixture", "low-space-partial-fixture")
         .unwrap();
+    let writes = std::cell::Cell::new(0);
+    let writer = |output: &mut fs::File, bytes: &[u8]| {
+        writes.set(writes.get() + 1);
+        crate::carry_step::write_staging(output, &bytes[..1])?;
+        Err(std::io::ErrorKind::StorageFull.into())
+    };
     let error = service
-        .carry_unknown_files_with_space(&active, &target, &|_| Ok((0, 10 * 1024 * 1024 * 1024)))
+        .carry_unknown_files_with_staging_writer(
+            &active,
+            &target,
+            &|_| {
+                Ok((
+                    if during_staging { u64::MAX } else { 0 },
+                    10 * 1024 * 1024 * 1024,
+                ))
+            },
+            during_staging.then_some(&writer),
+        )
         .unwrap_err();
+    assert_eq!(writes.get(), u32::from(during_staging));
     assert_eq!(
         error.details.get("available_bytes").map(String::as_str),
-        Some("0")
+        (!during_staging).then_some("0")
     );
+    assert!(!fs::read_dir(&target.path).unwrap().any(|entry| {
+        entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with(crate::carry_step::STAGING_PREFIX)
+    }));
     assert!(
         error
             .details

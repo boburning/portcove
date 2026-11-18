@@ -218,7 +218,13 @@ taking 60.
    A failure in stage or verify deletes every temporary file and changes
    nothing in T:
    - out of space (the check is a snapshot; another writer can fill the disk):
-     record `insufficient_space`, carry nothing, and the switch goes ahead;
+     destination creation, write, timestamp, sync or private retention failures
+     with a storage-full error discard all private temporary copies before
+     recording `insufficient_space` and allowing the switch to continue. The
+     required-byte estimate is retained; an unknown current free-space reading
+     is omitted. A cleanup failure holds. Source IO and publication errors do
+     not use this nonblocking outcome, and an earlier partial publication still
+     holds until the carry can finish;
    - a source changed during the copy: `carried_file_changed`, which holds;
    - a source locked by another program (a Windows sharing violation):
      `carried_file_unreadable`, which holds and is retryable; it is the only
