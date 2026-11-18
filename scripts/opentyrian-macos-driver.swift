@@ -162,9 +162,15 @@ func snapshot(_ roots: [URL]) throws -> [String: String] {
             let key = "\(index)/\(file.path.dropFirst(root.path.count + 1))"
             try require(result.count < 8000, "External inventory exceeds bound")
             if values.isSymbolicLink == true {
-                try require(root == package && file.resolvingSymlinksInPath().path.hasPrefix(package.path + "/"), "Link escapes the publisher package")
                 let target = try fm.destinationOfSymbolicLink(atPath: file.path)
-                try require(!target.hasPrefix("/"), "Absolute publisher link")
+                try require(target.utf8.count <= 4096, "Link target exceeds observation bound")
+                if root == package {
+                    try require(file.resolvingSymlinksInPath().path.hasPrefix(package.path + "/") && !target.hasPrefix("/"), "Link escapes the publisher package")
+                } else {
+                    // macOS creates links to shared user folders in sandbox
+                    // homes. Observe their text only; never inspect their data.
+                    try require(root == profile.deletingLastPathComponent(), "Unexpected external profile link")
+                }
                 result[key] = "symlink:" + target
                 enumerator.skipDescendants()
             } else if values.isRegularFile == true {
@@ -243,7 +249,7 @@ do {
     let after = try snapshot(externalRoots)
     try write("external-after-removal", after)
     try require(before == after && (status["external_runtime"] == nil || status["external_runtime"] is NSNull), "Registration removal changed external bytes or retained registration")
-    try write("result", ["phase": "complete-pending-image-inspection", "native_exit": 0, "profile_root": profile.path, "settings_bytes": settingsSize, "settings_sha256": try digest(settings), "preserved_entries": before.count, "scope": "Publisher universal Mac package menu, normal exit and fresh settings creation; screenshots require inspection; no mission gameplay, populated-save restoration, audio, physical controls, Tauri or managed maintenance claim"])
+    try write("result", ["phase": "complete-pending-image-inspection", "native_exit": 0, "profile_root": profile.path, "settings_bytes": settingsSize, "settings_sha256": try digest(settings), "preserved_entries": before.count, "external_link_contents": "not traversed or inspected", "scope": "Publisher universal Mac package menu, normal exit and fresh settings creation; screenshots require inspection; no mission gameplay, populated-save restoration, audio, physical controls, Tauri or managed maintenance claim"])
 
 
 } catch {
