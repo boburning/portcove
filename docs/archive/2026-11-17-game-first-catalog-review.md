@@ -179,3 +179,42 @@ change to that target-authored record is its additive original-game metadata.
 Target changes to the official desktop guide are retained. Current native
 catalog assertions and the independent baseline include the added listing;
 application acceptance is still owned by #8076.
+
+
+## November 18 later catalog reconciliation
+
+Target `f1e167f032e6285a7d1e57cc31703ccea2817eaa` adds six records. Primary
+upstream evidence, rather than generated grouping output, establishes these
+relationships. Existing player and source-edition requirements remain separate.
+
+| Added record | Reviewed identity and primary evidence |
+| --- | --- |
+| `chocolate-heretic` | Existing `heretic`, joining Crispy Heretic; [game code](https://github.com/chocolate-doom/chocolate-doom/blob/chocolate-doom-3.1.1/src/heretic/d_main.c). |
+| `chocolate-hexen` | Existing `hexen`, joining Crispy Hexen and v64recomp; [game code](https://github.com/chocolate-doom/chocolate-doom/blob/chocolate-doom-3.1.1/src/hexen/h2_main.c). |
+| `ecwolf-wolfenstein3d` | Existing `wolfenstein-3d`, joining ReflectionHLE; this record is scoped to Wolfenstein 3D/WL1, despite the broader [ECWolf engine](https://maniacsvault.net/ecwolf/). |
+| `f-zero-x-n64hub` | Existing `f-zero-x`, joining G-Diffuser; [pinned README](https://github.com/n64hub/f-zero-x-recomp/blob/v0.1.16/README.md). No 64DD/other-region compatibility is inferred. |
+| `n64hub-mario-golf-n64-usa-n64recomp` | New `mario-golf-nintendo-64`, distinct from the same-name handheld game; [pinned README](https://github.com/n64hub/mario-golf-recomp/blob/v0.1.28/README.md). |
+| `pok-mon-pokopia-recompia` | New `pokemon-pokopia`; [publisher repository](https://github.com/Dittobyte/Recompia) and [pinned launcher](https://github.com/Dittobyte/Recompia/blob/v0.15.0/launcher/README.md). Optional modifications do not create another original-game identity. |
+
+Chocolate Doom's earlier multi-game reason above is historical. The target now
+separately catalogs Heretic and Hexen and introduces a managed Doom player.
+The current Chocolate Doom record still accepts distinct Doom or Doom II IWADs
+and its external registration guide also accepts Doom/Freedoom. Its updated
+review therefore remains multi-game, without assigning one original-game ID.
+All new managed integration, source, persistence and runtime declarations remain
+intact. [Upstream release](https://github.com/chocolate-doom/chocolate-doom/releases/tag/chocolate-doom-3.1.1)
+retains separate game players.
+
+Target guide updates for Guitar Hero II, Lost Odyssey, Monster Hunter Generations
+Ultimate and Verdite2 retain their existing reviewed identities. Optional imported
+songs, four discs, package updates and prepared registration do not change those
+games; all target holds, profiles and original-file requirements remain intact.
+
+The reconciled universe is **1,557 records / 439 operational definitions**,
+**1,519 identified records / 1,173 games**, **243 multi-option families / 589
+member records**, and **38 standalone project entries / 1,211 production groups**.
+The 29 multi-game, two framework, seven unresolved and eleven deliberate
+separation dispositions remain unchanged. The independent fixture retains prior
+audits and Android reconciliation and appends these exact reviewed memberships.
+These counts require normal generated-projection and application verification;
+this dated review does not claim native or published application acceptance.

@@ -1,6 +1,6 @@
 import { replacePreparedFile } from "./prepared-file-replacement.mts";
 import type { TestContext } from "node:test";
-import type { ResourceCapacityOptions } from "./resource-capacity.mts";
+import type { ResourceCapacityOptions, ResourceLease } from "./resource-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 function record(value: unknown): Record<string, unknown> {
   assert.ok(isRecord(value));
@@ -368,6 +368,338 @@ void test("host bridge retains external reservations on lost connection and fail
   }
 });
 
+void test("host bridge aborts queued acquisition on input EOF or error", async (t) => {
+  for (const failure of ["EOF", "error", "buffered EOF"]) {
+    await t.test(failure, { timeout: 5000 }, async (context) => {
+      const input = new PassThrough(),
+        output = new PassThrough();
+      const entered = Promise.withResolvers<AbortSignal>();
+      const acquisition = Promise.withResolvers<never>();
+      context.after(() => {
+        acquisition.reject(new Error("Injected test cleanup"));
+        input.destroy();
+        output.end();
+      });
+      const messages = bridgeMessages(output);
+      const result = serveHostBridge(input, output, {
+        acquire: async (_profile, _metadata, options) => {
+          assert.ok(options?.signal);
+          options.signal.addEventListener(
+            "abort",
+            () => acquisition.reject(options.signal?.reason),
+            {
+              once: true,
+            },
+          );
+          entered.resolve(options.signal);
+          return acquisition.promise;
+        },
+        probe: () => assert.fail("A queued request must not probe custody"),
+      }).catch((error: unknown) => error);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        bridgeWrite(input, {
+          action: "acquire",
+          bridge: bridgeConfig,
+          invocation: randomUUID(),
+          custodyFile: "/owned/custody.json",
+          profile: "analysis",
+          waitMs: 5000,
+        });
+        const signal = await entered.promise;
+        if (failure === "error") input.destroy(new Error("Injected input failure"));
+        else {
+          if (failure === "buffered EOF") bridgeWrite(input, { action: "register" });
+          input.end();
+        }
+        const error = await Promise.race([
+          result,
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error("Queued acquisition did not abort")), 1000);
+          }),
+        ]);
+        assert.ok(error instanceof Error);
+        assert.equal(signal.aborted, true);
+        assert.equal(error, signal.reason);
+        assert.match(error.message, /WSL bridge connection closed/u);
+        assert.deepEqual((await messages.next()).value, {
+          version: 1,
+          action: "error",
+          code: "PORTCOVE_HOST_BRIDGE_FAILED",
+          message: error.message,
+        });
+      } finally {
+        clearTimeout(timer);
+        acquisition.reject(new Error("Injected test cleanup"));
+        await result;
+        input.destroy();
+        output.end();
+      }
+    });
+  }
+});
+
+void test("host bridge preserves pipelined registration and release while acquisition is pending", async (t) => {
+  for (const delivery of ["one chunk", "buffered stream", "split UTF-8"]) {
+    await t.test(delivery, { timeout: 5000 }, async (context) => {
+      const input = new PassThrough(),
+        output = new PassThrough();
+      const entered = Promise.withResolvers<void>();
+      const acquisition = Promise.withResolvers<ResourceLease>();
+      context.after(() => {
+        acquisition.reject(new Error("Injected test cleanup"));
+        input.destroy();
+        output.end();
+      });
+      const invocation = randomUUID();
+      const calls: string[] = [];
+      const result = serveHostBridge(input, output, {
+        root: await fixture(t),
+        acquire: async (_profile, metadata) => {
+          assert.equal(metadata?.command, "WSL FixtureLinux: Fixture 🎮 setup");
+          calls.push("acquire");
+          entered.resolve();
+          return acquisition.promise;
+        },
+        probe: (_external, phase) => {
+          calls.push(phase + "-probe");
+          return { invocation, owner: { pid: 1, identity: "linux:original" }, child: null };
+        },
+      }).catch((error: unknown) => error);
+      const acquire = {
+        action: "acquire",
+        bridge: bridgeConfig,
+        invocation,
+        custodyFile: "/owned/custody.json",
+        profile: "analysis",
+        waitMs: 5000,
+        command: "Fixture 🎮 setup",
+      };
+      try {
+        if (delivery !== "buffered stream") {
+          const bytes = Buffer.from(
+            [acquire, { action: "register" }, { action: "release" }]
+              .map((message) => JSON.stringify({ version: 1, ...message }) + "\n")
+              .join(""),
+          );
+          if (delivery === "split UTF-8") {
+            const split = bytes.indexOf(Buffer.from("🎮")) + 1;
+            assert.ok(split > 0);
+            input.write(bytes.subarray(0, split));
+            input.write(bytes.subarray(split));
+          } else input.write(bytes);
+        } else bridgeWrite(input, acquire);
+        await entered.promise;
+        if (delivery === "buffered stream") {
+          bridgeWrite(input, { action: "register" });
+          bridgeWrite(input, { action: "release" });
+          await new Promise<void>((resolve) => setImmediate(resolve));
+        }
+        assert.deepEqual(calls, ["acquire"]);
+        assert.equal(output.readableLength, 0, "No lifecycle ACK may precede acquisition");
+        acquisition.resolve({
+          inherited: false,
+          queueMs: 0,
+          childEnvironment: {},
+          reference: { root: "fixture", slots: [{ name: "slot-0", token: invocation }] },
+          registerChild: async () => assert.fail("Host registration must use its custody probe"),
+          registerExternal: async () => {
+            calls.push("external");
+          },
+          release: async () => {
+            calls.push("release");
+          },
+        });
+        assert.equal(await result, undefined);
+        assert.equal(input.destroyed, true);
+        assert.equal(input.listenerCount("data"), 0);
+        assert.equal(input.listenerCount("end"), 0);
+        assert.equal(input.listenerCount("error"), 0);
+        const messages = bridgeMessages(output);
+        assert.equal((await messages.next()).value?.action, "admitted");
+        assert.equal((await messages.next()).value?.action, "registered");
+        assert.equal((await messages.next()).value?.action, "released");
+        assert.deepEqual(calls, [
+          "acquire",
+          "external",
+          "register-probe",
+          "release-probe",
+          "release",
+        ]);
+      } finally {
+        acquisition.reject(new Error("Injected test cleanup"));
+        input.destroy();
+        await result;
+        output.end();
+      }
+    });
+  }
+});
+
+void test(
+  "host bridge retains a lease that resolves after queued EOF",
+  { timeout: 5000 },
+  async (t) => {
+    const input = new PassThrough(),
+      output = new PassThrough();
+    const entered = Promise.withResolvers<AbortSignal>();
+    const acquisition = Promise.withResolvers<ResourceLease>();
+    t.after(() => {
+      acquisition.reject(new Error("Injected test cleanup"));
+      input.destroy();
+      output.end();
+    });
+    const invocation = randomUUID();
+    let external: unknown;
+    let releases = 0;
+    const result = serveHostBridge(input, output, {
+      acquire: async (_profile, _metadata, options) => {
+        assert.ok(options?.signal);
+        entered.resolve(options.signal);
+        return acquisition.promise;
+      },
+      probe: () => assert.fail("EOF does not authorize a release probe"),
+    }).catch((error: unknown) => error);
+    try {
+      bridgeWrite(input, {
+        action: "acquire",
+        bridge: bridgeConfig,
+        invocation,
+        custodyFile: "/owned/custody.json",
+        profile: "analysis",
+        waitMs: 5000,
+      });
+      const signal = await entered.promise;
+      const aborted = new Promise<void>((resolve) =>
+        signal.addEventListener("abort", () => resolve(), { once: true }),
+      );
+      input.end();
+      await aborted;
+      acquisition.resolve({
+        inherited: false,
+        queueMs: 0,
+        childEnvironment: {},
+        reference: { root: "fixture", slots: [{ name: "slot-0", token: invocation }] },
+        registerChild: async () => assert.fail("No child may register after EOF"),
+        registerExternal: async (value) => {
+          external = value;
+        },
+        release: async () => {
+          releases++;
+        },
+      });
+      const error = await result;
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /external reservation retained/u);
+      assert.ok(isRecord(external));
+      assert.equal(external.invocation, invocation);
+      assert.equal(releases, 0);
+      const messages = bridgeMessages(output);
+      assert.equal((await messages.next()).value?.action, "admitted");
+      assert.equal((await messages.next()).value?.action, "error");
+    } finally {
+      acquisition.reject(new Error("Injected test cleanup"));
+      input.destroy();
+      await result;
+      output.end();
+    }
+  },
+);
+
+void test("host bridge refuses malformed input and bounded-backlog overflow", async (t) => {
+  await t.test("malformed first message", { timeout: 5000 }, async (context) => {
+    const input = new PassThrough(),
+      output = new PassThrough();
+    const result = serveHostBridge(input, output, {
+      acquire: async () => assert.fail("Malformed input must never reach acquisition"),
+    }).catch((error: unknown) => error);
+    context.after(() => {
+      input.destroy();
+      output.end();
+    });
+    input.write("{invalid-json}\n");
+    const error = await result;
+    assert.ok(error instanceof SyntaxError);
+    assert.equal(input.destroyed, true);
+    const messages = bridgeMessages(output);
+    const failure = (await messages.next()).value;
+    assert.equal(failure?.action, "error");
+    assert.equal(failure?.message, error.message);
+    output.end();
+  });
+  for (const { name, chunks } of [
+    { name: "ASCII", chunks: ["x".repeat(16384), "y".repeat(16384), "z"] },
+    { name: "multibyte", chunks: Array.from({ length: 3 }, () => "€".repeat(4000)) },
+  ])
+    await t.test(`${name} fragmented backlog while queued`, { timeout: 5000 }, async (context) => {
+      const input = new PassThrough(),
+        output = new PassThrough();
+      const entered = Promise.withResolvers<AbortSignal>();
+      const acquisition = Promise.withResolvers<never>();
+      context.after(() => {
+        acquisition.reject(new Error("Injected test cleanup"));
+        input.destroy();
+        output.end();
+      });
+      const result = serveHostBridge(input, output, {
+        acquire: async (_profile, _metadata, options) => {
+          assert.ok(options?.signal);
+          options.signal.addEventListener(
+            "abort",
+            () => acquisition.reject(options.signal?.reason),
+            {
+              once: true,
+            },
+          );
+          entered.resolve(options.signal);
+          return acquisition.promise;
+        },
+        probe: () => assert.fail("Overflow cannot authorize custody probing"),
+      }).catch((error: unknown) => error);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        bridgeWrite(input, {
+          action: "acquire",
+          bridge: bridgeConfig,
+          invocation: randomUUID(),
+          custodyFile: "/owned/custody.json",
+          profile: "analysis",
+          waitMs: 5000,
+        });
+        const signal = await entered.promise;
+        for (const [index, chunk] of chunks.entries()) {
+          input.write(chunk);
+          if (index < chunks.length - 1)
+            assert.equal(signal.aborted, false, "A backlog within 32KiB must remain eligible");
+        }
+        const error = await Promise.race([
+          result,
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(
+              () => reject(new Error("Byte overflow did not abort acquisition")),
+              1000,
+            );
+          }),
+        ]);
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /Host bridge message exceeds bound/u);
+        assert.equal(error, signal.reason);
+        assert.equal(signal.aborted, true);
+        assert.equal(input.destroyed, true);
+        const messages = bridgeMessages(output);
+        const failure = (await messages.next()).value;
+        assert.equal(failure?.action, "error");
+        assert.equal(failure?.message, error.message);
+      } finally {
+        clearTimeout(timer);
+        acquisition.reject(new Error("Injected test cleanup"));
+        input.destroy();
+        await result;
+        output.end();
+      }
+    });
+});
+
 void test("host bridge bounds wire input and refuses missing or foreign nested delegation", async () => {
   const input = new PassThrough();
   const result = bridgeMessages(input).next();
@@ -378,6 +710,92 @@ void test("host bridge bounds wire input and refuses missing or foreign nested d
     verifyHostReference({ reference: { root: "/foreign", slots: [] } }),
     /Invalid host resource delegation/u,
   );
+});
+
+void test("host bridge preserves UTF-8 decoding, EOF and exact byte boundaries", async (t) => {
+  await t.test("codepoints split across consumed bytes", { timeout: 5000 }, async (context) => {
+    const input = new PassThrough();
+    context.after(() => input.destroy());
+    const messages = bridgeMessages(input);
+    const expected = { version: 1, value: "港€🎮" };
+    const next = messages.next();
+    for (const byte of Buffer.from(JSON.stringify(expected) + "\n")) {
+      input.write(Buffer.from([byte]));
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    assert.deepEqual((await next).value, expected);
+    input.end();
+    assert.equal((await messages.next()).done, true);
+  });
+  await t.test(
+    "partial codepoint buffered while parser is paused",
+    { timeout: 5000 },
+    async (context) => {
+      const input = new PassThrough();
+      context.after(() => input.destroy());
+      const messages = bridgeMessages(input);
+      const first = messages.next();
+      bridgeWrite(input, { action: "first" });
+      assert.equal((await first).value?.action, "first");
+      const expected = { version: 1, value: "港€🎮" };
+      const bytes = Buffer.from(JSON.stringify(expected) + "\n");
+      const split = bytes.indexOf(Buffer.from("€")) + 1;
+      input.write(bytes.subarray(0, split));
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      input.write(bytes.subarray(split));
+      input.end();
+      assert.deepEqual((await messages.next()).value, expected);
+      assert.equal((await messages.next()).done, true);
+    },
+  );
+  await t.test("incomplete UTF-8 at EOF remains truncated input", async () => {
+    const input = new PassThrough();
+    const next = bridgeMessages(input).next();
+    input.end(Buffer.from([0xe2, 0x82]));
+    await assert.rejects(next, /Truncated host bridge message/u);
+  });
+  await t.test("already decoded string input remains supported", async () => {
+    const input = new PassThrough();
+    input.setEncoding("utf8");
+    const expected = { version: 1, value: "港€🎮" };
+    const messages = bridgeMessages(input);
+    const next = messages.next();
+    input.end(Buffer.from(JSON.stringify(expected) + "\n"));
+    assert.deepEqual((await next).value, expected);
+    assert.equal((await messages.next()).done, true);
+  });
+  await t.test("invalid UTF-8 retains replacement decoding", async () => {
+    const input = new PassThrough();
+    const messages = bridgeMessages(input);
+    const next = messages.next();
+    input.end(
+      Buffer.concat([
+        Buffer.from('{"version":1,"value":"'),
+        Buffer.from([0xe2]),
+        Buffer.from('"}\n'),
+      ]),
+    );
+    assert.deepEqual((await next).value, { version: 1, value: "�" });
+    assert.equal((await messages.next()).done, true);
+  });
+  for (const character of ["x", "€"]) {
+    await t.test(`${character} exact 32KiB frame`, async () => {
+      const input = new PassThrough();
+      const available = 32768 - Buffer.byteLength(JSON.stringify({ version: 1, value: "" }) + "\n");
+      const count = Math.floor(available / Buffer.byteLength(character));
+      const expected = {
+        version: 1,
+        value: character.repeat(count) + "x".repeat(available % Buffer.byteLength(character)),
+      };
+      const bytes = Buffer.from(JSON.stringify(expected) + "\n");
+      assert.equal(bytes.length, 32768);
+      const messages = bridgeMessages(input);
+      const next = messages.next();
+      input.end(bytes);
+      assert.deepEqual((await next).value, expected);
+      assert.equal((await messages.next()).done, true);
+    });
+  }
 });
 
 void test(

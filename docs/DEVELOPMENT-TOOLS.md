@@ -3842,7 +3842,12 @@ verifier rather than a mutable worktree.
 The exact Linux supervisor is registered before the host ACK permits the original
 payload gate to open. Release independently checks supervisor exit, cleanup
 receipt and directory identity. Connection loss or uncertain cleanup retains
-custody. Windows process-identity inspection retains a finite 15-second harness
+custody. While admission is pending, input EOF or error aborts acquisition while
+preserving buffered protocol bytes. A lease that resolves despite cancellation
+retains external custody; connection loss never authorizes its release.
+The host bounds queued raw bytes to 32 KiB; UTF-8 decoding stays inside the
+message parser so stream lengths retain byte units.
+Windows process-identity inspection retains a finite 15-second harness
 budget under host I/O load; host release allows 65 seconds for its bounded
 remote cleanup probe and identity checks. Timeouts retain custody. The host adapter's --recover action consumes the original reference and
 invocation before using existing external-capacity recovery. Prelaunch recovery

@@ -259,10 +259,10 @@ impl Adapter for StandardAdapter {
         checkpoint()?;
         crate::runtime_data_policy::validate(port)?;
         if port.managed_initialization.is_some() {
-            crate::managed_tfe::validate(port)?;
+            crate::managed_initialization::validate(port)?;
             if platform != Platform::WindowsX86_64 {
                 return Err(PortcoveError::unsupported(
-                    "managed TFE initialization requires Windows",
+                    "managed portable initialization requires Windows",
                 ));
             }
         }
@@ -398,7 +398,11 @@ impl Adapter for StandardAdapter {
             }
             _ => Vec::new(),
         };
-        let mut arguments = port.launch_arguments.clone();
+        let mut arguments = if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::arguments(port, &working_directory, checkpoint)?
+        } else {
+            port.launch_arguments.clone()
+        };
         arguments.extend(adapter_arguments);
         if platform == Platform::LinuxX86_64
             && port.external_profile_policy == Some(crate::ExternalProfilePolicy::Doom3LinuxV1)
@@ -464,10 +468,10 @@ impl Adapter for StandardAdapter {
         checkpoint()?;
         crate::runtime_data_policy::validate(port)?;
         if port.managed_initialization.is_some() {
-            crate::managed_tfe::validate(port)?;
+            crate::managed_initialization::validate(port)?;
             if platform != Platform::WindowsX86_64 {
                 return Err(PortcoveError::unsupported(
-                    "managed TFE initialization requires Windows",
+                    "managed portable initialization requires Windows",
                 ));
             }
         }
@@ -523,6 +527,23 @@ impl Adapter for StandardAdapter {
         }
         if let Some(name) = &port.portable_marker_file {
             create_missing_portable_marker_file(&working_directory, name)?;
+        }
+        if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::inspect(port, &working_directory, checkpoint)?;
+            let record = request.source_record.ok_or_else(|| {
+                PortcoveError::source("Chocolate requires its checked original IWAD")
+            })?;
+            if source != Some(record.path.as_path()) {
+                return Err(PortcoveError::verification(
+                    "Chocolate original changed its selected path",
+                ));
+            }
+            crate::managed_chocolate::require_original(
+                port,
+                &working_directory,
+                record,
+                checkpoint,
+            )?;
         }
         let sealed_source = crate::preparation::source::sealed(library, port, install_root)?;
         let immutable_managed_psx_source = self.0 == AdapterKind::PsxRecompManaged
@@ -618,7 +639,7 @@ impl Adapter for StandardAdapter {
             )?;
             checkpoint()?;
         }
-        if port.managed_initialization.is_some() {
+        if port.managed_initialization.is_some() && !crate::managed_chocolate::applies(port) {
             let record = request.source_record.ok_or_else(|| {
                 PortcoveError::source("managed original data needs its checked registration")
             })?;
@@ -650,7 +671,7 @@ impl Adapter for StandardAdapter {
         }
         crate::n64_graphics::prepare(port, platform, &working_directory, checkpoint)?;
         if port.managed_initialization.is_some() {
-            crate::managed_tfe::prepare(&working_directory, checkpoint)?;
+            crate::managed_initialization::prepare(port, &working_directory, checkpoint)?;
         }
         self.launch_spec_with_executable(request, checkpoint)
     }

@@ -8,6 +8,11 @@
   .preparation-control > p {
     max-inline-size: 65ch;
   }
+  /* Paths are exact identifiers: fill the line rather than stranding a \\? prefix. */
+  .path-value,
+  .saved-file-path {
+    word-break: break-all;
+  }
   .saved-file-path {
     display: block;
     padding: 0;

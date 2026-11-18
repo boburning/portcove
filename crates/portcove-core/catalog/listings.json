@@ -21414,7 +21414,7 @@
       "id": "chocolate-doom-family",
       "name": "Chocolate Doom",
       "original_game_title": "Doom",
-      "summary": "Play Doom with Chocolate Doom, or use the separate Chocolate Heretic, Hexen and Strife players with their matching game data.",
+      "summary": "Play Doom or Doom II with the original game files, or try Doom’s shareware episode.",
       "project_url": "https://github.com/chocolate-doom/chocolate-doom",
       "artwork": {
         "game_id": 673,
@@ -21432,20 +21432,20 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Choose your player on Windows",
-            "instruction": "The Windows download for this entry is the Chocolate Doom x86-64 ZIP. The publisher release offers separate chocolate-heretic, chocolate-hexen and chocolate-strife ZIPs. Keep the matching player, setup utility and DLLs together. Run the setup utility to configure controls and audio, then use the game executable to play."
-          },
-          {
-            "title": "Select the IWAD for the game you want to play",
-            "instruction": "Point the matching player at your IWAD with -iwad followed by the file path. Chocolate Doom accepts Doom IWADs or the freely available Freedoom data. Chocolate Heretic accepts the original Heretic IWAD or heretic1.wad from the v1.2 shareware release. Use hexen.wad or the original four-level demo IWAD with Chocolate Hexen, and strife1.wad with Chocolate Strife. Keep accompanying Strife voice data with the IWAD. The engine packages contain no original game data."
+            "title": "Set up Doom on Windows",
+            "instruction": "Choose the matching original Doom IWAD or one of the listed demo editions. Portcove keeps your original file and prepares a separate copy for Play. Saved games are separate for each exact IWAD. Keep the same original with its saves; select a separate setup to change editions."
           }
         ],
         "warnings": [
-          "Keep your actual IWADs, settings, saved games, autoload files and the creating runtime before changing versions or switching engine variants.",
-          "If a final text screen appears after you choose Quit, press a key to close the player."
+          "Keep saves with their creating game and runtime. Changing engines or game editions does not convert saved games.",
+          "A profile that points outside its local autoload or music-pack folders must be preserved and corrected before Play. Portcove does not rewrite existing settings."
         ],
         "help_url": "https://www.chocolate-doom.org/wiki/index.php/Downloads",
         "references": [
+          {
+            "title": "Heretic and Strife on Windows",
+            "instruction": "The official release also offers separate chocolate-heretic and chocolate-strife Windows ZIPs. Keep each player, setup utility and DLLs together in an installation you maintain. Supply the matching Heretic IWAD, or the Strife IWAD and its accompanying voice data. These upstream alternatives retain their own setup, updates and data ownership; this managed Doom entry does not convert them into managed routes."
+          },
           {
             "title": "Install a distribution package on Linux or Mac",
             "instruction": "Use your Linux distribution’s chocolate-doom package for all four players. Debian packages are available on x86-64 and ARM64. On Intel or Apple Silicon Mac, use brew install chocolate-doom on a supported Homebrew host. Run the matching chocolate-doom, chocolate-heretic, chocolate-hexen or chocolate-strife command. Your package manager owns updates."
@@ -21470,11 +21470,112 @@
         "macos-x86-64",
         "macos-aarch64"
       ],
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "chocolate-doom-",
-          "-win64.zip"
+      "variant_label": "PC"
+    },
+    {
+      "id": "chocolate-heretic",
+      "name": "Chocolate Heretic",
+      "original_game_title": "Heretic",
+      "summary": "Play Heretic with the original game files, or try its shareware episode.",
+      "project_url": "https://github.com/chocolate-doom/chocolate-doom",
+      "artwork": {
+        "game_id": 6362,
+        "cover_id": 76355,
+        "image_id": "co1mwz",
+        "image_sha256": "2e4af7089e82b680fb16c4f894c8c3ac09ccb469d296fd7322c2b0d67921fc04",
+        "game_slug": "heretic",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 8105,
+      "listed_at": "2026-11-18",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "setup_url": "https://www.chocolate-doom.org/wiki/index.php/Downloads",
+      "release_url": "https://github.com/chocolate-doom/chocolate-doom/releases/tag/chocolate-doom-3.1.1",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up Heretic on Windows",
+            "instruction": "Choose the matching original Heretic IWAD or one of the listed demo editions. Portcove keeps your original file and prepares a separate copy for Play. Saved games are separate for each exact IWAD. Keep the same original with its saves; select a separate setup to change editions."
+          }
+        ],
+        "references": [
+          {
+            "title": "Linux and Mac installations you maintain",
+            "instruction": "Install the chocolate-doom package through your Linux distribution or Homebrew on Mac, then select the chocolate-heretic player with its matching IWAD. The package manager owns runtime updates. Explicit registration keeps ownership of the player, originals and actual profile with you."
+          }
+        ],
+        "warnings": [
+          "Keep saves with their creating game and runtime. Changing engines or game editions does not convert saved games.",
+          "A profile that points outside its local autoload or music-pack folders must be preserved and corrected before Play. Portcove does not rewrite existing settings."
         ]
+      },
+      "variant_label": "PC",
+      "original_game": {
+        "format_version": 1,
+        "id": "heretic",
+        "evidence_urls": [
+          "https://github.com/chocolate-doom/chocolate-doom/blob/chocolate-doom-3.1.1/src/heretic/d_main.c"
+        ],
+        "source_editions": []
+      }
+    },
+    {
+      "id": "chocolate-hexen",
+      "name": "Chocolate Hexen",
+      "original_game_title": "Hexen",
+      "summary": "Play Hexen with its original v1.1 game files or the four-level demo.",
+      "project_url": "https://github.com/chocolate-doom/chocolate-doom",
+      "artwork": {
+        "game_id": 3512,
+        "cover_id": 76354,
+        "image_id": "co1mwy",
+        "image_sha256": "4b88f98af3997f8fb298284318b37aefd24c925bdf7c375c7e92153107c80ecb",
+        "game_slug": "hexen-beyond-heretic",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 8101,
+      "listed_at": "2026-11-18",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "setup_url": "https://www.chocolate-doom.org/wiki/index.php/Downloads",
+      "release_url": "https://github.com/chocolate-doom/chocolate-doom/releases/tag/chocolate-doom-3.1.1",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up Hexen on Windows",
+            "instruction": "Choose the matching original Hexen IWAD or one of the listed demo editions. Portcove keeps your original file and prepares a separate copy for Play. Saved games are separate for each exact IWAD. Keep the same original with its saves; select a separate setup to change editions."
+          }
+        ],
+        "references": [
+          {
+            "title": "Linux and Mac installations you maintain",
+            "instruction": "Install the chocolate-doom package through your Linux distribution or Homebrew on Mac, then select the chocolate-hexen player with its matching IWAD. The package manager owns runtime updates. Explicit registration keeps ownership of the player, originals and actual profile with you."
+          }
+        ],
+        "warnings": [
+          "Keep saves with their creating game and runtime. Changing engines or game editions does not convert saved games.",
+          "A profile that points outside its local autoload or music-pack folders must be preserved and corrected before Play. Portcove does not rewrite existing settings."
+        ]
+      },
+      "variant_label": "PC",
+      "original_game": {
+        "format_version": 1,
+        "id": "hexen",
+        "evidence_urls": [
+          "https://github.com/chocolate-doom/chocolate-doom/blob/chocolate-doom-3.1.1/src/hexen/h2_main.c"
+        ],
+        "source_editions": []
       }
     },
     {
@@ -31297,6 +31398,72 @@
       }
     },
     {
+      "id": "ecwolf-wolfenstein3d",
+      "project_url": "https://maniacsvault.net/ecwolf/",
+      "name": "Wolfenstein 3D (ECWolf)",
+      "summary": "Play Wolfenstein 3D with ECWolf using your original game files or the public shareware. Set up an installation you maintain, then add it to Portcove.",
+      "issue_number": 6767,
+      "listed_at": "2026-11-18",
+      "original_game_title": "Wolfenstein 3D",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "setup_url": "https://maniacsvault.net/ecwolf/download.php",
+      "release_url": "https://maniacsvault.net/ecwolf/download.php",
+      "recommended_download_channel": "stable",
+      "manual_setup": {
+        "help_url": "https://maniacsvault.net/ecwolf/download.php",
+        "steps": [
+          {
+            "title": "Prepare the Windows player and Wolfenstein game files",
+            "instruction": "Download the official Windows x64 ECWolf ZIP and extract the complete package. Keep ecwolf.exe, ecwolf.pk3 and the accompanying files together. For the public Wolfenstein 3D 1.4 shareware, extract wolf3d14.zip and copy its eight .WL1 files beside ecwolf.exe. Keep your original download separately. WOLF3D.EXE and CATALOG.EXE from the old DOS distribution are not the ECWolf player. The ecwolf.exe selection step below applies to Windows."
+          },
+          {
+            "title": "Set up the Linux package",
+            "instruction": "Install the official matching Ubuntu amd64 package with your system package manager so its dependencies and system data are present. Put the complete matching .WL1 data set in ~/.config/ecwolf, or the ecwolf folder below your XDG_CONFIG_HOME. Preserve the filenames and their case. Select /usr/games/ecwolf and its containing folder in Portcove; enter --data and WL1 as two separate arguments. Review the details, add the game, then choose Play. Use the system package manager or upstream to update this installation."
+          },
+          {
+            "title": "Use the upstream Mac app",
+            "instruction": "Use the official universal Mac app from the DMG and put matching game data in ~/Library/Application Support/ECWolf. Open the upstream app directly. Keep ~/Library/Preferences/ecwolf.cfg and ~/Documents/ECWolf/Savegames backed up separately, together with any chosen custom paths. This Mac route uses upstream setup and updates."
+          },
+          {
+            "title": "Select the prepared player",
+            "instruction": "Select ecwolf.exe and use its containing folder as the working directory. Enter these literal argument values in order, one array item per argument: [\"--data\",\"WL1\"]. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+          }
+        ],
+        "warnings": [
+          "Keep your actual saves, settings, original game files, mods and their creating ECWolf version backed up with the game closed before changing versions. Save compatibility with another version or engine is not established."
+        ],
+        "references": [
+          {
+            "title": "Android and other processor builds",
+            "instruction": "The official download page also offers Android APKs, Windows ARM64 and Linux ARM packages. Choose the matching upstream build and follow its setup notes. Upstream warns that Android support is buggy; check its system-version notes before installing. Android installation, updates and saved data stay with the app and the player. Portcove desktop registration does not manage these other host routes."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: Windows Roaming AppData/ECWolf settings and Windows Saved Games/ECWolf progress, including upstream fallback locations; Linux XDG configuration/ecwolf and data/ecwolf/savegames folders; original game files, mods and any explicit --config or --savedir locations. Back up these locations separately; registration does not migrate or certify their compatibility."
+          }
+        ]
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "wolfenstein-3d",
+        "evidence_urls": [
+          "https://maniacsvault.net/ecwolf/",
+          "https://maniacsvault.net/ecwolf/download.php"
+        ],
+        "source_editions": []
+      }
+    },
+    {
       "id": "edf2027-edf-3-recompilation-from-the-360-version-v0-3-0-beta-invisivel46-earth-defense-force-2017",
       "name": "Earth Defense Force 2017 — EDF2027: EDF 3 recompilation from the 360 version (v0.3.0-beta) (invisivel46)",
       "original_game_title": "Earth Defense Force 2017",
@@ -32829,6 +32996,61 @@
         "image_sha256": "fa002a23f123663d907a3d67091929e1969d905b79e27d83c1c5a3616257bcaa",
         "game_slug": "f-e-a-r-files",
         "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "f-zero-x-n64hub",
+      "name": "F-Zero X / n64hub",
+      "summary": "Race in a native Windows or Linux build using your own first-revision USA F-Zero X ROM.",
+      "project_url": "https://github.com/n64hub/f-zero-x-recomp",
+      "original_game_title": "F-Zero X",
+      "issue_number": 5939,
+      "listed_at": "2026-11-18",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "FZeroXRecompiled-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "FZeroXRecompiled-",
+          "-linux-x64.tar.gz"
+        ]
+      },
+      "release_url": "https://github.com/n64hub/f-zero-x-recomp/releases/tag/v0.1.16",
+      "setup_url": "https://github.com/n64hub/f-zero-x-recomp/blob/v0.1.16/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Open the project launcher",
+            "instruction": "Extract the archive for your system and open FZeroXRecompiled.exe on Windows or FZeroXRecompiled on Linux from the extracted folder. Keep the assets beside the program. Windows needs the Visual C++ 2015–2022 x64 Redistributable. Linux needs glibc 2.35 or newer, a Vulkan driver, GTK 3 and FreeType."
+          },
+          {
+            "title": "Load your original game",
+            "instruction": "Choose Load ROM and select your own first-revision USA F-Zero X cartridge dump, a 16 MiB big-endian .z64. Then choose Start Game. Other regions and the 64DD expansion are outside this release’s ROM support."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep your racing records and settings",
+            "instruction": "The project uses %LOCALAPPDATA%/FZeroXRecompiled on Windows and ~/.config/FZeroXRecompiled on Linux by default. Keep the actual profile if you use the project’s portable.txt marker or a Linux APP_FOLDER_PATH override. You maintain the downloaded program and should back up the profile separately."
+          }
+        ],
+        "warnings": [
+          "The project’s game saves and settings stay outside Portcove’s backups."
+        ]
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "f-zero-x",
+        "evidence_urls": [
+          "https://github.com/n64hub/f-zero-x-recomp/blob/v0.1.16/README.md"
+        ],
+        "source_editions": []
       }
     },
     {
@@ -37917,27 +38139,35 @@
       "id": "guitar-hero-classic-noahbaxter-guitar-hero-ii-plus-classic-harmonix-song-imports",
       "name": "Guitar Hero II (plus classic Harmonix song imports) — Guitar Hero Classic (noahbaxter)",
       "original_game_title": "Guitar Hero II",
-      "summary": "This release uses a disc-folder setup and remains in development. GHClassic is not confirmed to be the same project as Recomp-Hero-2; use the instructions for this implementation. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
+      "summary": "Upstream publishes preview packages for Windows x86-64, Linux x86-64 and Apple Silicon. Use your own USA Guitar Hero II disc image for setup. Additional original Guitar Hero discs are optional imports.",
       "project_url": "https://github.com/noahbaxter/GHClassic",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/noahbaxter/GHClassic",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/noahbaxter/GHClassic/blob/v0.9/README.md#install",
       "manual_setup": {
         "steps": [
           {
             "title": "Check the required game files",
-            "instruction": "Use your own USA PlayStation 2 Guitar Hero II SLUS-21447 ISO. Other original Guitar Hero discs are optional imports."
+            "instruction": "Use your own USA PlayStation 2 Guitar Hero II disc (SLUS-21447) as an ISO, CHD or BIN. Other original Guitar Hero discs are optional imports."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Use the portable Windows or Linux runtime folder, or the macOS disk image. Place your own USA SLUS21447 disc in PUT_DISC_HERE. Follow GHClassic’s instructions; the archived ghpc prototype points to this replacement project."
+            "title": "Set up the Windows or Linux package",
+            "instruction": "Extract the ZIP and put the disc image in PUT_DISC_HERE beside the game."
+          },
+          {
+            "title": "Set up the Apple Silicon package",
+            "instruction": "Open the disk image and drag GHClassic to Applications. Run it once to open the PUT_DISC_HERE folder in ~/Library/Application Support/GHClassic. Put your disc image there."
           }
         ],
         "warnings": [
           "This release uses a disc-folder setup and remains in development. GHClassic is not confirmed to be the same project as Recomp-Hero-2; use the instructions for this implementation.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/noahbaxter/GHClassic"
+        "help_url": "https://github.com/noahbaxter/GHClassic/blob/v0.9/README.md#install"
       },
       "issue_number": 3000,
       "listed_at": "2026-10-25",
@@ -37949,6 +38179,9 @@
         "game_slug": "guitar-hero-ii",
         "match_kind": "underlying-game"
       },
+      "release_url": "https://github.com/noahbaxter/GHClassic/releases/tag/v0.9",
+      "recommended_download_channel": "beta",
+      "download_block_reason": "Portcove has identified the upstream v0.9 game packages. Package acquisition remains on hold until their contents and permission to use them through Portcove are reviewed.",
       "original_game": {
         "format_version": 1,
         "id": "guitar-hero-ii",
@@ -45570,7 +45803,7 @@
     {
       "id": "lost-odyssey-recomp",
       "name": "Lost Odyssey Recomp",
-      "summary": "Explore Lost Odyssey Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Upstream v1.1.0 publishes Windows x86-64, Linux x86-64, Apple Silicon and Android ARM64 packages. The upstream importer opens when game data is missing. Import Disc 1 to start, then use Settings → System → Import discs & DLC to add more discs later.",
       "project_url": "https://github.com/freefrank/LostOdysseyRecomp",
       "issue_number": 744,
       "listed_at": "2026-10-23",
@@ -45578,9 +45811,34 @@
         "https://ko-fi.com/dotslash",
         "https://buymeacoffee.com/dotslash"
       ],
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/freefrank/LostOdysseyRecomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "compatibility": {
+        "format_version": 2,
+        "records": [
+          {
+            "id": "lost-odyssey-1-1-0-windows-entry",
+            "feature": "launch",
+            "platform": "windows-x86-64",
+            "route": "upstream-setup",
+            "release": "v1.1.0",
+            "artifact_sha256": "df82ac4e111f4c23ef925e6c044676e045bca421b657efbb4234591ddc6cb9ab",
+            "explanation": "The Windows ZIP opens the importer if it cannot find game data. Start the same copy again to reuse its imported Disc 1. Open Settings → System → Import discs & DLC to add more discs.",
+            "provenance": "https://github.com/freefrank/LostOdysseyRecomp/blob/v1.1.0/docs/INSTALLING.md#how-the-game-is-found",
+            "observed_at": 1795014000,
+            "evidence": "upstream-reported",
+            "launch_behavior": {
+              "first_launch": "asks-for-game-files",
+              "repeat_launch": "starts-game-directly"
+            }
+          }
+        ]
+      },
+      "setup_url": "https://github.com/freefrank/LostOdysseyRecomp/blob/v1.1.0/docs/INSTALLING.md",
       "artwork": {
         "game_id": 7057,
         "cover_id": 178444,
@@ -45589,6 +45847,8 @@
         "game_slug": "lost-odyssey",
         "match_kind": "underlying-game"
       },
+      "release_url": "https://github.com/freefrank/LostOdysseyRecomp/releases/tag/v1.1.0",
+      "download_block_reason": "Portcove downloads are on hold while the prepared runtime, save behavior and update ownership are verified.",
       "original_game": {
         "format_version": 1,
         "id": "lost-odyssey",
@@ -49417,13 +49677,16 @@
     {
       "id": "monster-hunter-generations-ultimate-mhgurecomp",
       "name": "Monster Hunter Generations Ultimate (MHGURecomp)",
-      "summary": "An experimental Monster Hunter Generations Ultimate port translating 32-bit ARM code to C on x64 hosts. Code-changing cheats use interpreter fallbacks; it does not guarantee interpreter-free execution. The project claims a dozen hunts and multiplayer, without independent play observations. Its release includes mhgugame.dll, expressly identified as translated game code outside the project license, and optional donor saves/event data. Package downloads remain unavailable until contents and applicable permissions are reviewed; a no-game-files banner does not resolve those conditions. A local-generation source route is separate. Windows 10/11 x64 needs AVX2 and Vulkan 1.2; Windows/Arch Linux ZIPs exist, and Gentoo/NVIDIA/Wayland source play is reported. The non-AVX2 v2 flag is untested. Use your own 1.4.0 title 0100770008DD8000, main build prefix FB08F1D20FD1204F, with updated ExeFS and complete merged RomFS under data. No separate keys/firmware input is described after extraction. Portcove offers no setup or launch integration and has not tested gameplay.",
+      "summary": "Upstream publishes a Windows x86-64 ZIP, a native Linux x86-64 tarball and an experimental Android ARM64 APK. Setup uses your own Monster Hunter Generations Ultimate 1.4.0 ExeFS and RomFS. The desktop releases include a separate upstream updater. Desktop needs AVX2 and Vulkan 1.2. Linux also needs glibc 2.39 or later. Android requires Android 10 or later, Vulkan 1.1 and a controller.",
       "original_game_title": "Monster Hunter Generations Ultimate",
       "project_url": "https://github.com/morerokk/MHGURecomp",
       "listed_at": "2026-10-25",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/morerokk/MHGURecomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/morerokk/MHGURecomp/blob/0.17.8/README.md#installation",
       "artwork": {
         "game_id": 25623,
         "cover_id": 68007,
@@ -49433,6 +49696,8 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2950,
+      "release_url": "https://github.com/morerokk/MHGURecomp/releases/tag/0.17.8",
+      "download_block_reason": "The upstream packages include translated game code excluded from the project license. Portcove downloads are on hold pending a review of component permissions or a released package that prepares the code from the player’s own files.",
       "original_game": {
         "format_version": 1,
         "id": "monster-hunter-generations-ultimate",
@@ -51255,6 +51520,61 @@
         "id": "n3-ninety-nine-nights",
         "evidence_urls": [
           "https://github.com/WK2D/N3-Ninety-Nine-Nights-Recomp"
+        ],
+        "source_editions": []
+      }
+    },
+    {
+      "id": "n64hub-mario-golf-n64-usa-n64recomp",
+      "name": "Mario Golf (N64) / n64hub",
+      "summary": "Play Mario Golf in a native Windows or Linux build using your own USA Nintendo 64 ROM.",
+      "project_url": "https://github.com/n64hub/mario-golf-recomp",
+      "original_game_title": "Mario Golf",
+      "issue_number": 6275,
+      "listed_at": "2026-11-18",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "MarioGolfRecompiled-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "MarioGolfRecompiled-",
+          "-linux-x64.tar.gz"
+        ]
+      },
+      "release_url": "https://github.com/n64hub/mario-golf-recomp/releases/tag/v0.1.28",
+      "setup_url": "https://github.com/n64hub/mario-golf-recomp/blob/v0.1.28/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Open the project launcher",
+            "instruction": "Extract the archive for your system and open MarioGolfRecompiled.exe on Windows or MarioGolfRecompiled on Linux from the extracted folder. Keep the assets beside the program. Windows needs the Visual C++ 2015–2022 x64 Redistributable. Linux needs glibc 2.35 or newer, a Vulkan driver, GTK 3 and FreeType."
+          },
+          {
+            "title": "Load your original game",
+            "instruction": "Choose Load ROM and select your own USA Mario Golf cartridge dump in big-endian .z64 format. The launcher accepts the 32 MiB image or the common 24 MiB dump and pads the latter. Choose Start Game."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep your tournaments and settings",
+            "instruction": "The project uses %LOCALAPPDATA%/MarioGolfRecompiled on Windows and ~/.config/MarioGolfRecompiled on Linux by default. Keep the actual profile if you use the project’s portable.txt marker or a Linux APP_FOLDER_PATH override. The project reports that Save and Quit writes tournament progress. Resuming it after restart remains unverified. You maintain the downloaded program and should back up the profile separately."
+          }
+        ],
+        "warnings": [
+          "The project’s game saves and settings stay outside Portcove’s backups."
+        ]
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "mario-golf-nintendo-64",
+        "evidence_urls": [
+          "https://github.com/n64hub/mario-golf-recomp/blob/v0.1.28/README.md"
         ],
         "source_editions": []
       }
@@ -57842,6 +58162,71 @@
         "evidence_urls": [
           "https://github.com/sp00nznet/pod-recomp/blob/v0.1.0/README.md#quick-start",
           "https://github.com/sp00nznet/pod-recomp"
+        ],
+        "source_editions": []
+      }
+    },
+    {
+      "id": "pok-mon-pokopia-recompia",
+      "name": "Pokémon Pokopia / Recompia",
+      "summary": "Use the Recompia launcher to prepare your own Pokémon Pokopia dump, then return to it for Play, settings and updates.",
+      "project_url": "https://github.com/Dittobyte/Recompia",
+      "original_game_title": "Pokémon Pokopia",
+      "issue_number": 7248,
+      "listed_at": "2026-11-18",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "PokopiaRecomp-",
+          "-win64.zip"
+        ],
+        "linux-x86-64": [
+          "PokopiaRecomp-",
+          "-linux-x64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "Recompia-",
+          "-macos-arm64.zip"
+        ]
+      },
+      "release_url": "https://github.com/Dittobyte/Recompia/releases/tag/v0.15.0",
+      "setup_url": "https://github.com/Dittobyte/Recompia/blob/v0.15.0/launcher/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game in Recompia",
+            "instruction": "Extract the package for your system. Open PokopiaLauncher.exe on Windows, PokopiaLauncher.AppImage on Linux, or PokopiaLauncher on Apple silicon Mac. Select your own Pokémon Pokopia game data at version 2.0.1a, then choose Set up. The launcher assembles the game and translates shaders on your computer. You can pause and continue setup from the launcher."
+          },
+          {
+            "title": "Return to the launcher to Play",
+            "instruction": "After setup, open the same launcher and choose Play. To use Steam, add the launcher with no launch options. Version 0.15.0 removed direct --play so the launcher can check for updates before playing."
+          }
+        ],
+        "references": [
+          {
+            "title": "Use the upstream update and save controls",
+            "instruction": "Use Recompia’s Update and Set up again controls when it asks to rebuild. Solo saves default to the save folder inside the game directory. Keep the actual folder if you changed save_dir in pkp.ini or set NXRT_FS_SAVE_DIR. Keep any separate co-op save folders as well. Recompia says its update retains saves and shaders. Back them up separately from Portcove."
+          },
+          {
+            "title": "Choose the native Linux ARM64 package",
+            "instruction": "For Linux on ARM64, choose the linux-arm64 tarball from the upstream release page. It contains an ARM64 AppImage for setup. Follow the same upstream original-file and setup instructions."
+          }
+        ],
+        "warnings": [
+          "Keep a separate backup before switching between solo and co-op setups. Co-op uses a separate save and starts from the beginning."
+        ]
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "pokemon-pokopia",
+        "evidence_urls": [
+          "https://github.com/Dittobyte/Recompia",
+          "https://github.com/Dittobyte/Recompia/blob/v0.15.0/launcher/README.md"
         ],
         "source_editions": []
       }
@@ -82435,8 +82820,11 @@
       "project_url": "https://github.com/Voicedrew11/verdite2",
       "issue_number": 1900,
       "listed_at": "2026-10-23",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/Voicedrew11/verdite2",
       "original_game_title": "King's Field (US)",
       "manual_setup": {
@@ -82482,6 +82870,7 @@
         "game_slug": "kings-field",
         "match_kind": "underlying-game"
       },
+      "release_url": "https://github.com/Voicedrew11/verdite2/releases/tag/v0.6.1",
       "original_game": {
         "format_version": 1,
         "id": "kings-field-ii",

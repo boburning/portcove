@@ -274,6 +274,8 @@
     "chibi-robo-pc-armandpro12-armandpro12-chibi-robo-plug-into-adventure",
     "chili-con-carnage-pc-mikethesavage-chili-con-carnage",
     "chocolate-doom-family",
+    "chocolate-heretic",
+    "chocolate-hexen",
     "chrissotraidis-bluewake",
     "chrissotraidis-kartpad",
     "citrongames-dora64",
@@ -454,6 +456,7 @@
     "eandis-sdoj-recomp",
     "earthbound-recomp",
     "earthworm-jim-hd-pc-port-devex780-earthworm-jim-hd",
+    "ecwolf-wolfenstein3d",
     "edf2027-edf-3-recompilation-from-the-360-version-v0-3-0-beta-invisivel46-earth-defense-force-2017",
     "edwin2929-sma3-recomp-android",
     "egg-of-time-chrono-trigger-nds",
@@ -482,6 +485,7 @@
     "f-e-a-r-360-recompiled-juansolo457-f-e-a-r-f-e-a-r-files-xbox-360",
     "f-e-a-r-360-recompiled-juansolo457-f-e-a-r-files-xbox-360",
     "f-zero-snes-recomp",
+    "f-zero-x-n64hub",
     "fable-ii-recomp",
     "fallout-2-fallout-2-community-edition",
     "fallout-fallout-community-edition",
@@ -844,6 +848,7 @@
     "mx-vs-atv-alive-native-windows-recompilation-gw1337x-mx-vs-atv-alive",
     "mythologykombat-paumedes-mortal-kombat-mythologies-sub-zero",
     "n3-recompiled-wk2d-n3-ninety-nine-nights",
+    "n64hub-mario-golf-n64-usa-n64recomp",
     "n64hub-perfect-dark-recomp",
     "n64hub-rayman-2-recomp-n64-usa",
     "n64hub-rush-2049-recomp",
@@ -977,6 +982,7 @@
     "piratesatworldsendrecomp-elguslml-pirates-of-the-caribbean-at-world-s-end",
     "planescape-torment-original-gemrb",
     "pod-gold-sp00nznet-recomp",
+    "pok-mon-pokopia-recompia",
     "poka-poka-jm5557-monster-hunter-diary-poka-poka-felyne-village-g",
     "poke-francl35-monster-hunter-portable-2nd-g-optional-fucomplete-mod",
     "pokemon-blue-gen1recomp",
@@ -1790,6 +1796,7 @@
       "tekrantgaming-earthworm-jim-hd-recompiled"
     ],
     "f-zero": ["craigshaw-fzerorecomp", "f-zero-snes-recomp"],
+    "f-zero-x": ["f-zero-x-n64hub", "g-diffuser"],
     "final-fantasy-tactics-advance": [
       "final-fantasy-tactics-advance-fftarecomp",
       "james2doyle-ffta-recomp"
@@ -1878,7 +1885,12 @@
       "hg-kunodemetries-haunting-ground",
       "hg2-kunodemetries-haunting-ground"
     ],
-    "hexen": ["hexen-crispy-doom-family", "v64recomp-hexen-us-polaco1782-hexen-n64"],
+    "heretic": ["chocolate-heretic", "heretic-crispy-doom-family"],
+    "hexen": [
+      "chocolate-hexen",
+      "hexen-crispy-doom-family",
+      "v64recomp-hexen-us-polaco1782-hexen-n64"
+    ],
     "hydro-thunder-hurricane": [
       "hydro-thunder-hurricane-recompiled-visibou-hydro-thunder-hurricane",
       "monscriser-hydrothunderport"
@@ -2387,6 +2399,7 @@
     ],
     "wipeout": ["alexbeav-wipeout-recomp", "wipeout-phantom-edition"],
     "wipeout-xl": ["alexbeav-wipeout-xl-recomp", "njh-1001-wipeout2k97xl"],
+    "wolfenstein-3d": ["ecwolf-wolfenstein3d", "wolfenstein-3d-reflectionhle"],
     "wwe-2k14": [
       "itsbybanshee-wwe2k14-pc",
       "wwe-2k14-native-pc-recompilation-jarrodfeng-wwe-2k14",
@@ -2474,5 +2487,30 @@
       "https://wiki.openttd.org/en/Community/Patches/Compiling%20and%20installing%20the%20unofficial%20Android%20port"
     ],
     "decision": "Same original Transport Tycoon Deluxe, separate Android implementation and external setup/update/player-data owner. Reviewed expected membership extends the original audit; no relationship was derived from generated output."
-  }
+  },
+  "target_reconciliations": [
+    {
+      "target_revision": "f1e167f032e6285a7d1e57cc31703ccea2817eaa",
+      "added_port_ids": [
+        "chocolate-heretic",
+        "chocolate-hexen",
+        "ecwolf-wolfenstein3d",
+        "f-zero-x-n64hub",
+        "n64hub-mario-golf-n64-usa-n64recomp",
+        "pok-mon-pokopia-recompia"
+      ],
+      "assignment_proposal_sha256": "7fe138758c0e2d0432a1ea531479c097f4328c64800115fb5e4ab806847393e9",
+      "evidence_urls": [
+        "https://github.com/Dittobyte/Recompia",
+        "https://github.com/Dittobyte/Recompia/blob/v0.15.0/launcher/README.md",
+        "https://github.com/chocolate-doom/chocolate-doom/blob/chocolate-doom-3.1.1/src/heretic/d_main.c",
+        "https://github.com/chocolate-doom/chocolate-doom/blob/chocolate-doom-3.1.1/src/hexen/h2_main.c",
+        "https://github.com/n64hub/f-zero-x-recomp/blob/v0.1.16/README.md",
+        "https://github.com/n64hub/mario-golf-recomp/blob/v0.1.28/README.md",
+        "https://maniacsvault.net/ecwolf/",
+        "https://maniacsvault.net/ecwolf/download.php"
+      ],
+      "decision": "Reviewed primary evidence joins Heretic, Hexen, Wolfenstein 3D and F-Zero X families; distinct Mario Golf Nintendo 64 and Pokémon Pokopia singletons. Current Chocolate Doom remains multi-game across Doom/Doom II/Freedoom IWAD routes; target managed integration remains intact. No source/save/platform compatibility is inferred."
+    }
+  ]
 }

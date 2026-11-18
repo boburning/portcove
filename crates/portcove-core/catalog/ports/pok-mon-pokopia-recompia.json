@@ -1,0 +1,55 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pok-mon-pokopia-recompia",
+    "name": "Pokémon Pokopia / Recompia",
+    "summary": "Use the Recompia launcher to prepare your own Pokémon Pokopia dump, then return to it for Play, settings and updates.",
+    "project_url": "https://github.com/Dittobyte/Recompia",
+    "original_game_title": "Pokémon Pokopia",
+    "issue_number": 7248,
+    "listed_at": "2026-11-18",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "download_asset_hints": {
+      "windows-x86-64": ["PokopiaRecomp-", "-win64.zip"],
+      "linux-x86-64": ["PokopiaRecomp-", "-linux-x64.tar.gz"],
+      "macos-aarch64": ["Recompia-", "-macos-arm64.zip"]
+    },
+    "release_url": "https://github.com/Dittobyte/Recompia/releases/tag/v0.15.0",
+    "setup_url": "https://github.com/Dittobyte/Recompia/blob/v0.15.0/launcher/README.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the game in Recompia",
+          "instruction": "Extract the package for your system. Open PokopiaLauncher.exe on Windows, PokopiaLauncher.AppImage on Linux, or PokopiaLauncher on Apple silicon Mac. Select your own Pokémon Pokopia game data at version 2.0.1a, then choose Set up. The launcher assembles the game and translates shaders on your computer. You can pause and continue setup from the launcher."
+        },
+        {
+          "title": "Return to the launcher to Play",
+          "instruction": "After setup, open the same launcher and choose Play. To use Steam, add the launcher with no launch options. Version 0.15.0 removed direct --play so the launcher can check for updates before playing."
+        }
+      ],
+      "references": [
+        {
+          "title": "Use the upstream update and save controls",
+          "instruction": "Use Recompia’s Update and Set up again controls when it asks to rebuild. Solo saves default to the save folder inside the game directory. Keep the actual folder if you changed save_dir in pkp.ini or set NXRT_FS_SAVE_DIR. Keep any separate co-op save folders as well. Recompia says its update retains saves and shaders. Back them up separately from Portcove."
+        },
+        {
+          "title": "Choose the native Linux ARM64 package",
+          "instruction": "For Linux on ARM64, choose the linux-arm64 tarball from the upstream release page. It contains an ARM64 AppImage for setup. Follow the same upstream original-file and setup instructions."
+        }
+      ],
+      "warnings": [
+        "Keep a separate backup before switching between solo and co-op setups. Co-op uses a separate save and starts from the beginning."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-pokopia",
+      "evidence_urls": [
+        "https://github.com/Dittobyte/Recompia",
+        "https://github.com/Dittobyte/Recompia/blob/v0.15.0/launcher/README.md"
+      ],
+      "source_editions": []
+    }
+  }
+}

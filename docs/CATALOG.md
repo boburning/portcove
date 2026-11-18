@@ -70,7 +70,7 @@ release observation: the observer declaration hash excludes it.
 
 ## Descriptive compatibility advisories
 
-The optional `listing.compatibility` format-1 envelope belongs to the existing
+The optional `listing.compatibility` envelope belongs to the existing
 single per-port authored record. Use existing generated setup warnings and exact
 recommendation observations first; no bulk backfill is required. This envelope
 contains only remaining descriptive facts, never acquisition restrictions,
@@ -85,6 +85,13 @@ An artifact digest requires its actual release. The envelope is bounded to
 observations uses format 8. Authoring rejects malformed, future, unknown
 and command-bearing content. Runtime interpretation makes invalid or future
 optional content unavailable without changing operation eligibility.
+
+Format 1 carries general advisories. Format 2 requires at least one launch
+record with `launch_behavior.first_launch` and `launch_behavior.repeat_launch`.
+Each stage uses `starts-game-directly`, `opens-project-launcher`,
+`asks-for-game-files`, or `unknown`. Both stages describe the same platform,
+route, release and package SHA-256. Use `upstream-setup` for a documented setup
+route outside Portcove. Record any repeat-launch preconditions in the explanation.
 
 Route-wide management facts need no invented artifact identity. Version-specific
 failures retain their exact release/artifact/edition scope; a date or a missing
@@ -1194,6 +1201,20 @@ bounded quick filter observations are distinct: the latter returns `NotChecked`
 for this shape. See [managed Dark Forces setup and recovery](reference/managed-tfe.md)
 for player workflow, persistence boundaries and the removal recovery hold.
 
+The closed `chocolate-family-portable-v1` initializer requires staged-source
+capability **38**. It selects one official Windows Chocolate Doom, Heretic or
+Hexen package and a checked whole IWAD. Core creates only a missing local extra
+configuration, preserving existing compatible bytes. Autoload and music-pack
+paths stay local. Save directories are derived from the actual IWAD's SHA-256,
+so different original editions do not share slots. Actual IWAD bytes are checked
+before preparation, data movement and spawning; a changed original or incomplete
+dataset holds the operation. An explicit setup deployment retains its existing
+whole-dataset replacement authority. The recipe does not initialize TFE files,
+import host profiles, run a setup utility or accept catalog-supplied file contents.
+Older consumers must refuse the unknown initializer/capability. See
+[managed Chocolate profiles](reference/managed-chocolate.md) for ownership and
+preservation boundaries.
+
 ## STFS package extraction
 
 `stfs-directory` extracts a player's original Xbox 360 STFS package (an Xbox Live
@@ -1961,7 +1982,10 @@ official package, require a catalog-pinned immutable tree, inspect unrelated
 external contents or acquire ownership of them. Runtime replacement belongs to
 the player or selected upstream launcher. Only launch and registration removal
 are offered; external installation, save and settings files remain untouched by
-removal. The launched program can make its normal writes; this is no sandbox.
+removal. The launched program can make its normal writes; this is no sandbox. The
+[ECWolf reference](reference/ecwolf.md) records an official-package example with
+separate non-owning Windows/Linux registration, upstream Mac/Android setup and
+external data locations.
 
 Supervision and launch results describe the selected native program; only a
 definition with the reviewed Windows tracked handoff also waits for in-folder

@@ -627,7 +627,11 @@ function CompletedScan({
           <div key={`${path}:${index}`}>
             <p>
               {issue.message}{" "}
-              {path && <code className="[overflow-wrap:anywhere] whitespace-normal">{path}</code>}
+              {path && (
+                <code dir="ltr" className="path-value whitespace-normal">
+                  {path}
+                </code>
+              )}
             </p>
             {path &&
               choices.length > 0 &&
@@ -1465,10 +1469,10 @@ export function GameFileLibraries({
         pendingBatchReturn.current = { review: currentBatchReview, departing };
         setBatchReview(undefined);
       }}
+      onChanged={onAdded}
       onDone={() => {
         if (!accepts()) return;
         setBatchReview(undefined);
-        void onAdded?.();
       }}
     />
   );

@@ -113,6 +113,7 @@ fn failed_location_falls_back_but_a_selected_root_never_changes_on_capacity_fail
                 Some(&platform),
                 host.session_id,
                 Surface::Cli,
+                &host.support_directory,
             )
             .unwrap();
             assert!(prepared.allocation.is_some());
@@ -139,6 +140,8 @@ fn failed_location_falls_back_but_a_selected_root_never_changes_on_capacity_fail
     );
     assert!(guard.is_none());
     assert!(!disabled.used_fallback());
+    assert_eq!(disabled.support_directory(), disabled.directory());
+    assert_eq!(fallback.support_directory(), fallback.directory());
     assert_eq!(
         disabled.directory(),
         Some(
@@ -306,9 +309,12 @@ fn blocked_bootstrap_returns_unavailable_and_late_preparation_cannot_start_a_wri
     let (entered, observe) = mpsc::sync_channel(1);
     let (release, wait) = mpsc::sync_channel(1);
     let started = Instant::now();
-    let (host, guard) =
-        HostDiagnostics::bootstrap(Surface::Desktop, false, move |session, surface| {
+    let (host, guard) = HostDiagnostics::bootstrap(
+        Surface::Desktop,
+        false,
+        move |session, surface, support_directory| {
             let directory = portcove_core::prepare_support_log_directory(&worker_root).unwrap();
+            let _ = support_directory.set(directory.clone());
             let prepared = HostDiagnostics::prepare_session(directory, session, surface);
             assert!(prepared.allocation.is_some());
             // The caller must probe the actual canonical namespace, not reconstruct it.
@@ -319,7 +325,8 @@ fn blocked_bootstrap_returns_unavailable_and_late_preparation_cannot_start_a_wri
             // lease. The caller's receive deadline must not join or release it.
             wait.recv_timeout(Duration::from_secs(5)).unwrap();
             Some(prepared)
-        });
+        },
+    );
     let elapsed = started.elapsed();
     assert!(elapsed >= Duration::from_millis(BOOTSTRAP_TIMEOUT_MS));
     assert!(
@@ -331,6 +338,15 @@ fn blocked_bootstrap_returns_unavailable_and_late_preparation_cannot_start_a_wri
     assert!(host.directory().is_none());
     assert!(host.session_directory().is_none());
     assert_eq!(host.health().flush_state, writer::FlushState::Unavailable);
+    assert_eq!(
+        host.support_directory(),
+        Some(
+            fs::canonicalize(temp.path())
+                .unwrap()
+                .join("diagnostics")
+                .as_path()
+        )
+    );
     let session = observe.recv_timeout(Duration::from_secs(2)).unwrap();
     let lease = writer::open_owned(&session.join(writer::WRITER_LOCK_NAME), false).unwrap();
     let error: io::Error = lease.try_lock().unwrap_err().into();
@@ -357,7 +373,120 @@ fn blocked_bootstrap_returns_unavailable_and_late_preparation_cannot_start_a_wri
     let marker: serde_json::Value =
         serde_json::from_slice(&fs::read(session.join(SESSION_MARKER)).unwrap()).unwrap();
     assert_eq!(marker["complete"], false);
+    let export_root = host.support_directory().unwrap();
+    assert_eq!(
+        export_root,
+        fs::canonicalize(temp.path()).unwrap().join("diagnostics")
+    );
+    let exported = portcove_core::export_support_bundle(portcove_core::SupportBundleRequest {
+        destination_dir: export_root,
+        logs_dir: Some(export_root),
+        library: None,
+        startup_failure: None,
+    })
+    .unwrap();
+    assert!(exported.path.is_file());
+    assert!(!exported.manifest.library_available);
     assert_eq!(host.health().flush_state, writer::FlushState::Unavailable);
+}
+
+#[test]
+fn late_validated_root_reaches_existing_handles_without_rebinding_or_enabling_logging() {
+    let temp = tempfile::tempdir().unwrap();
+    let expected = fs::canonicalize(temp.path())
+        .unwrap()
+        .join("chosen/diagnostics");
+    let worker_root = expected.clone();
+    let (release, wait) = mpsc::sync_channel(1);
+    let (published, publication) = mpsc::sync_channel(1);
+    let (host, guard, worker) = HostDiagnostics::bootstrap_worker(
+        Surface::Desktop,
+        false,
+        move |session, surface, support_directory| {
+            wait.recv_timeout(Duration::from_secs(5)).unwrap();
+            let directory = portcove_core::prepare_support_log_directory(&worker_root).unwrap();
+            support_directory.set(directory.clone()).unwrap();
+            // Selection is immutable even if another location later becomes available.
+            assert!(
+                support_directory
+                    .set(worker_root.with_file_name("other"))
+                    .is_err()
+            );
+            let prepared = HostDiagnostics::prepare_session(directory, session, surface);
+            published.send(()).unwrap();
+            Some(prepared)
+        },
+    );
+    let retained = host.clone();
+    assert!(guard.is_none());
+    assert!(host.bootstrap_timed_out());
+    assert!(host.directory().is_none());
+    assert!(retained.support_directory().is_none());
+    release.send(()).unwrap();
+    publication.recv_timeout(Duration::from_secs(2)).unwrap();
+    assert_eq!(retained.support_directory(), Some(expected.as_path()));
+    assert_eq!(host.support_directory(), retained.support_directory());
+    assert!(retained.directory().is_none());
+    assert!(retained.session_directory().is_none());
+    assert!(retained.bootstrap_timed_out());
+    assert_eq!(
+        retained.health().flush_state,
+        writer::FlushState::Unavailable
+    );
+    let exported = portcove_core::export_support_bundle(portcove_core::SupportBundleRequest {
+        destination_dir: retained.support_directory().unwrap(),
+        logs_dir: retained.support_directory(),
+        library: None,
+        startup_failure: None,
+    })
+    .unwrap();
+    assert_eq!(exported.path.parent(), Some(expected.as_path()));
+    assert!(!exported.manifest.library_available);
+    assert!(!expected.with_file_name("other").exists());
+    let worker = worker.expect("bootstrap worker was not started");
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while !worker.is_finished() {
+        assert!(Instant::now() < deadline, "bootstrap worker did not finish");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    worker.join().unwrap();
+    assert_eq!(
+        retained.health().flush_state,
+        writer::FlushState::Unavailable
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn unsafe_export_root_is_never_published_after_bootstrap() {
+    let temp = tempfile::tempdir().unwrap();
+    let foreign = temp.path().join("foreign");
+    fs::create_dir(&foreign).unwrap();
+    let alias = temp.path().join("alias");
+    std::os::unix::fs::symlink(&foreign, &alias).unwrap();
+    let requested = alias.join("diagnostics");
+    let (host, guard, worker) = HostDiagnostics::bootstrap_worker(
+        Surface::Desktop,
+        false,
+        move |session, surface, support_directory| {
+            HostDiagnostics::prepare_in(&requested, session, surface, support_directory)
+        },
+    );
+    let worker = worker.expect("bootstrap worker was not started");
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while !worker.is_finished() {
+        assert!(
+            Instant::now() < deadline,
+            "unsafe-root validation did not finish"
+        );
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    worker.join().unwrap();
+    assert!(guard.is_none());
+    assert!(host.support_directory().is_none());
+    assert!(host.session_directory().is_none());
+    assert_eq!(host.health().flush_state, writer::FlushState::Unavailable);
+    assert!(!foreign.join("diagnostics").exists());
 }
 
 #[test]

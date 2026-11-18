@@ -448,7 +448,7 @@ mod tests {
         let status = status();
         let mut listing: crate::PortListing = serde_json::from_value(json!({"id":"fixture", "name":"Fixture", "summary":"Fixture", "project_url":"https://example.com/fixture"})).unwrap();
         for value in [
-            json!({ "format_version": 2 }),
+            json!({ "format_version": 3 }),
             json!({ "format_version": 1, "records": "wrong" }),
         ] {
             listing.compatibility = Some(value);
@@ -510,6 +510,44 @@ mod tests {
             assert_eq!(report.routes[3].features[0].mode, CapabilityMode::Automatic);
             assert_eq!(serde_json::to_value(&status).unwrap(), before);
         }
+    }
+
+    #[test]
+    fn first_launch_and_repeat_play_require_exact_package_evidence() {
+        let status = status();
+        let mut listing: crate::PortListing = serde_json::from_value(json!({
+            "id":"fixture", "name":"Fixture", "summary":"Fixture",
+            "project_url":"https://example.com/fixture"
+        }))
+        .unwrap();
+        let mut record = json!({
+            "id":"entry-point", "feature":"launch", "platform":crate::Platform::current().unwrap(),
+            "route":"upstream-setup", "release":"v1", "artifact_sha256":"a".repeat(64),
+            "explanation":"Import the original files once.",
+            "provenance":"https://example.com/evidence", "observed_at":1,"evidence":"upstream-reported",
+            "launch_behavior":{"first_launch":"asks-for-game-files", "repeat_launch":"starts-game-directly"}
+        });
+        listing.compatibility = Some(json!({"format_version":2,"records":[record.clone()]}));
+        let mut report = PortCapabilityReport::from_status(&status, &[], None);
+        report.add_advisories(&listing, &status);
+        let notice = serde_json::to_value(&report.advisories[0]).unwrap();
+        assert_eq!(notice["applicability"], "context-required");
+        assert_eq!(
+            notice["notice"]["launch_behavior"]["first_launch"],
+            "asks-for-game-files"
+        );
+        assert_eq!(
+            notice["notice"]["launch_behavior"]["repeat_launch"],
+            "starts-game-directly"
+        );
+        assert_eq!(report.routes[3].features[0].mode, CapabilityMode::Automatic);
+
+        record["artifact_sha256"] = serde_json::Value::Null;
+        listing.compatibility = Some(json!({"format_version":2,"records":[record]}));
+        let mut report = PortCapabilityReport::from_status(&status, &[], None);
+        report.add_advisories(&listing, &status);
+        assert_eq!(report.advisory_state, "invalid");
+        assert!(report.advisories.is_empty());
     }
 
     #[test]

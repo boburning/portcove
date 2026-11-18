@@ -3319,6 +3319,15 @@ a timely result can start the writer; late preparation is discarded without
 starting a writer or installing a subscriber. There is no automatic retry.
 Logging initialization failure never changes an otherwise valid startup outcome.
 
+The original safely validated host root is retained once selected, separately
+from writer readiness. Explicit support export and its folder action read that
+immutable selection in their existing blocking worker; they do not reread
+preferences, select the current library's log directory or retry logging. A late
+bootstrap may make this destination available without enabling a writer or
+changing unavailable diagnostic health. Until root preparation succeeds, export
+reports the location as unavailable. Core still validates the destination and
+owns bounded collection, redaction and atomic archive publication.
+
 Positive-sink qualification fixtures use the diagnostics crate's nondefault
 `qualification-fixtures` feature and an exact child-only
 `PORTCOVE_DIAGNOSTICS_QUALIFICATION_PREPARED=1` opt-in. They reuse actual location

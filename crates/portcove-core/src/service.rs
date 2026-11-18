@@ -43,7 +43,9 @@ mod backups;
 mod carry;
 mod protection;
 use crate::AdapterKind;
-pub use protection::{InstallationProtection, PlayerDataProtection, ProtectionDeclaration};
+pub use protection::{
+    InstallationProtection, PlayerDataProtection, ProtectionDeclaration, ProtectionInstallRole,
+};
 mod catalog_download;
 mod catalog_download_identity;
 mod catalog_download_provider;
@@ -96,7 +98,10 @@ mod capabilities;
 mod forbidden_memories_qualification;
 mod launch_preparation;
 mod listings;
-pub use advisories::{AdvisoryApplicability, CapabilityAdvisory, PortCapabilityNotice};
+pub use advisories::{
+    AdvisoryApplicability, CapabilityAdvisory, LaunchBehavior, LaunchEntryBehavior,
+    PortCapabilityNotice,
+};
 pub use capabilities::{
     CapabilityFeature, CapabilityMode, PortCapabilityFeature, PortCapabilityReport,
     PortCapabilityRoute,
@@ -2925,7 +2930,7 @@ impl PortcoveService {
             ));
         }
         crate::runtime_data_policy::refuse_adoption(port)?;
-        crate::managed_tfe::refuse_adoption(port)?;
+        crate::managed_initialization::refuse_adoption(port)?;
         crate::managed_shared_preferences::refuse_scope_transfer(port)?;
         crate::definition_acquisition::refuse_restricted_adoption(catalog, &port.id)?;
         self.require_definition_operation(
@@ -5741,16 +5746,31 @@ impl PortcoveService {
                             "managed ReGaiden requires its reviewed fixed launch and installation folder",
                         ));
                     }
-                    crate::managed_tfe::check(retained_port, &spec.working_directory, &|| {
-                        operation.checkpoint()
-                    })?;
+                    crate::managed_initialization::check(
+                        retained_port,
+                        &spec.working_directory,
+                        &|| operation.checkpoint(),
+                    )?;
+                    if crate::managed_chocolate::applies(retained_port) {
+                        crate::managed_chocolate::check_spec(retained_port, &spec, &|| {
+                            operation.checkpoint()
+                        })?;
+                        self.recheck_chocolate_launch_data(
+                            retained_port,
+                            install,
+                            source_override,
+                            Some(&operation),
+                        )?;
+                    }
                     crate::runtime_data_policy::check_launch(
                         retained_port,
                         &spec.working_directory,
                         &self.library.user_dir(&install.port_id),
                         &spec.arguments,
                     )?;
-                    if retained_port.managed_initialization.is_some() && !spec.arguments.is_empty()
+                    if retained_port.managed_initialization.is_some()
+                        && !crate::managed_chocolate::applies(retained_port)
+                        && !spec.arguments.is_empty()
                     {
                         return Err(PortcoveError::verification(
                             "managed TFE requires its fixed no-argument launch",
@@ -7101,16 +7121,28 @@ impl PortcoveService {
         install_root: &Path,
     ) -> Result<Vec<PathBuf>> {
         self.library.require_no_ghostship_recovery(&port.id)?;
-        // A profile change made the canonical data newer than this build's copy.
-        // Collecting now would copy the stale build over the selected profile.
-        if crate::profile_deploy::restore_pending(&self.library.user_dir(&port.id)) {
-            return Ok(Vec::new());
-        }
         let contract = self.persistence_contract(port, install_root)?;
         let port = &contract.port;
+        // A profile change made the canonical data newer than this build's copy.
+        // Collecting now would copy the stale build over the selected profile.
+        // Chocolate has no reviewed profile deployment: an unrelated marker
+        // cannot suppress its ordinary dataset checks and collection.
+        if !crate::managed_chocolate::applies(port)
+            && crate::profile_deploy::restore_pending(&self.library.user_dir(&port.id))
+        {
+            return Ok(Vec::new());
+        }
         self.require_completed_restore(&port.id)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, install_root)?;
+        if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::require_compatible_data(
+                port,
+                &user_root,
+                &persistent_root,
+                &|| Ok(()),
+            )?;
+        }
         self.require_psx_data_receipt_readable(port, install_root)?;
         if crate::persistence::requires_restore_receipt(port)
             && !install_root.join(LAUNCH_MARKER).is_file()
@@ -7206,6 +7238,14 @@ impl PortcoveService {
         let install_root = self.managed_install_root(&port.id, install_root)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, &install_root)?;
+        if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::require_compatible_data(
+                port,
+                &user_root,
+                &persistent_root,
+                &|| Ok(()),
+            )?;
+        }
         crate::preparation::source::require_canonical_originals(port, &self.library)?;
         crate::native_temp::require_canonical_data(port, &self.library)?;
         self.require_psx_data_receipt_readable(port, &install_root)?;
@@ -19809,6 +19849,127 @@ fn main() {
             fs::write(path, bytes).unwrap();
         }
         register_existing_test_artifact_with_port(library, port, version, &root, artifact, active)
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn chocolate_collection_uses_retained_recipe_despite_current_catalog_and_profile_marker() {
+        const ID: &str = "chocolate-doom-family";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let port = Catalog::embedded().unwrap().port(ID).unwrap().clone();
+        let install = register_forward_install(
+            &library,
+            &port,
+            "chocolate-doom-3.1.1",
+            true,
+            &[("game.wad", b"synthetic original A")],
+        );
+        let user = library.user_dir(ID);
+        fs::create_dir_all(&user).unwrap();
+        fs::write(user.join("game.wad"), b"synthetic original B").unwrap();
+        // An unrelated marker retained by an import is not profile authority.
+        crate::profile_deploy::mark_restore_pending(&crate::profile_deploy::Layout::for_user(
+            &user,
+        ))
+        .unwrap();
+        let mut service = service_with_release(library, "chocolate-doom-3.1.1");
+        let mut document = service.catalog().authoritative_document();
+        let current = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == ID)
+            .unwrap();
+        current.managed_initialization = None;
+        current.windows_runtime_path_policy = None;
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        assert!(!crate::managed_chocolate::applies(
+            service.catalog().port(ID).unwrap()
+        ));
+        // Exercise the public caller that supplies today's catalog, while the
+        // installation's creating contract still owns collection and refusal.
+        let error = service
+            .collect_user_data_from_install(ID, &install.path)
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert_eq!(
+            fs::read(install.path.join("game.wad")).unwrap(),
+            b"synthetic original A"
+        );
+        assert_eq!(
+            fs::read(user.join("game.wad")).unwrap(),
+            b"synthetic original B"
+        );
+        assert!(crate::profile_deploy::restore_pending(&user));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn chocolate_refused_deployment_preserves_prepared_data_before_first_spawn() {
+        const ID: &str = "chocolate-doom-family";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let port = Catalog::embedded().unwrap().port(ID).unwrap().clone();
+        // A synthetic retained runtime exercises profile/data operations only;
+        // it establishes neither official acquisition nor executable acceptance.
+        let artifact = ArtifactIdentity {
+            asset_name: "chocolate-doom-fixture-win64.zip".into(),
+            sha256: hex::encode(Sha256::digest(b"synthetic Chocolate fixture")),
+            size: 4,
+        };
+        let root = library.versions_dir().join(ID).join(&artifact.sha256);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("chocolate-doom.exe"), b"test").unwrap();
+        fs::write(root.join("game.wad"), b"synthetic original A").unwrap();
+        crate::managed_chocolate::prepare(&port, &root, &|| Ok(())).unwrap();
+        fs::write(root.join("default.cfg"), b"departing setup controls").unwrap();
+        fs::write(root.join("DOOM00.png"), b"departing screenshot").unwrap();
+        let install = register_existing_test_artifact_with_port(
+            &library,
+            &port,
+            "chocolate-doom-3.1.1",
+            &root,
+            artifact,
+            true,
+        );
+        let service = service_with_release(library.clone(), "chocolate-doom-3.1.1");
+        let names = [
+            "game.wad",
+            "default.cfg",
+            "chocolate-doom.cfg",
+            "DOOM00.png",
+        ];
+        let before: Vec<_> = names
+            .iter()
+            .map(|name| fs::read(root.join(name)).unwrap())
+            .collect();
+        assert!(!root.join(LAUNCH_MARKER).exists());
+        // Default metadata does not grant a deployment contract or permission
+        // to replace prepared data. Test activation of that real profile.
+        let profile = service.ensure_default_profile(ID).unwrap();
+        assert!(profile.is_default);
+        assert_eq!(profile.port_id, ID);
+        let error = service.activate_profile(ID, &profile.id).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Unsupported);
+        assert!(error.message.contains("no reviewed mod package contract"));
+        assert!(!crate::profile_deploy::restore_pending(
+            &library.user_dir(ID)
+        ));
+        assert!(
+            !crate::profile_deploy::Layout::for_user(&library.user_dir(ID))
+                .store()
+                .join("state")
+                .exists()
+        );
+        // Ordinary retained restoration cannot delete prepared data merely
+        // because no launch marker or canonical snapshot exists yet.
+        service.restore_retained_user_data_to(&install).unwrap();
+        for (name, bytes) in names.iter().zip(&before) {
+            assert_eq!(&fs::read(root.join(name)).unwrap(), bytes, "{name}");
+        }
+        assert!(!root.join(LAUNCH_MARKER).exists());
     }
 
     #[tokio::test]

@@ -172,6 +172,8 @@ fn entry_with_reference(document: &Value, reference: &str, port_index: usize) ->
         version
     } else if typed.mod_package_policy.is_some() {
         24
+    } else if crate::managed_chocolate::applies(&typed) {
+        crate::managed_chocolate::CAPABILITY
     } else if crate::persistence::ready_staged_archive(&typed) {
         23
     } else if crate::managed_runtime_policy::requires_provider_resolution(&typed) {

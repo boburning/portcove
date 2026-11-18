@@ -1,4 +1,16 @@
-use portcove_core::{CapabilityFeature as F, CapabilityMode as M, PortCapabilityReport};
+use portcove_core::{
+    CapabilityFeature as F, CapabilityMode as M, LaunchEntryBehavior, PortCapabilityReport,
+    ProtectionInstallRole,
+};
+
+fn entry_behavior(value: LaunchEntryBehavior) -> &'static str {
+    match value {
+        LaunchEntryBehavior::StartsGameDirectly => "Starts the game directly",
+        LaunchEntryBehavior::OpensProjectLauncher => "Opens the project launcher",
+        LaunchEntryBehavior::AsksForGameFiles => "Asks for game files",
+        LaunchEntryBehavior::Unknown => "Unknown",
+    }
+}
 
 pub(crate) fn port_capabilities(report: &PortCapabilityReport) -> String {
     let mut lines = vec![format!("{} — What works and known issues", report.port_id),
@@ -69,7 +81,17 @@ pub(crate) fn port_capabilities(report: &PortCapabilityReport) -> String {
     for record in &report.advisories {
         let notice = &record.notice;
         lines.push(format!("Applicability: {:?}", record.applicability));
-        lines.push(format!("\n{}: {}\nScope: {:?} / {}; release {:?}; artifact {:?}; edition {:?}. Later versions do not inherit failure or recovery.\nSource: {}; observed {} ({})", notice.id, notice.explanation, notice.platform, notice.route, notice.release, notice.artifact_sha256, notice.edition, notice.provenance, notice.observed_at, notice.evidence));
+        lines.push(format!("\n{}: {}\nScope: {:?} / {}; release {:?}; artifact {:?}; edition {:?}.\nSource: {}; observed {} ({})", notice.id, notice.explanation, notice.platform, notice.route, notice.release, notice.artifact_sha256, notice.edition, notice.provenance, notice.observed_at, notice.evidence));
+        if let Some(behavior) = &notice.launch_behavior {
+            lines.push(format!(
+                "First launch: {}",
+                entry_behavior(behavior.first_launch)
+            ));
+            lines.push(format!(
+                "Repeat Play: {}",
+                entry_behavior(behavior.repeat_launch)
+            ));
+        }
         if let Some(workaround) = &notice.workaround {
             lines.push(workaround.clone());
         }
@@ -94,6 +116,25 @@ pub(crate) fn port_capabilities(report: &PortCapabilityReport) -> String {
         }
     }
     if let Some(protection) = &report.protection {
+        lines.push(format!(
+            "Portcove saves and settings folder: {}",
+            protection.managed_data.path.display()
+        ));
+        for installation in &protection.installations {
+            if installation.role != ProtectionInstallRole::Active {
+                continue;
+            }
+            if let Some(root) = &installation.collection_root {
+                lines.push(format!("Save collection starts in: {}", root.display()));
+            }
+            for candidate in &installation.collection_candidates {
+                lines.push(format!(
+                    "  {} ({:?})",
+                    candidate.path.display(),
+                    candidate.state
+                ));
+            }
+        }
         lines.push(format!("Latest completed backup: {}. Review effective coverage and exclusions with backup list.", if protection.latest_completed_backup.is_some() { "recorded; restore verifies the selected snapshot" } else { "none recorded" }));
     }
     lines.extend(
