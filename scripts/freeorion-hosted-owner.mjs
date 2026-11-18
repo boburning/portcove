@@ -80,14 +80,12 @@ assert.equal(
   "Observed profile and engine APPDATA differ",
 );
 // Existing hosted native precedent: this VM has no physical audio endpoint.
-environment.SDL_AUDIODRIVER = "dummy";
-environment.ALSOFT_DRIVERS = "null";
 environment.SDL_RENDER_DRIVER = "software";
 environment.GALLIUM_DRIVER = "llvmpipe";
 environment.LIBGL_ALWAYS_SOFTWARE = "1";
 environment.SDL_OPENGL_LIBRARY = path.join(config.player_root, "opengl32.dll");
 await record("hosted-drivers", {
-  audio: "OpenAL Soft null and SDL2 dummy requested; no physical audio acceptance",
+  audio: "Upstream audio.effects.enabled=false/audio.music.enabled=false; default-device dialog retained from first run; no audio acceptance",
   renderer: "Mesa26.2.7 x64 llvmpipe requested through isolated app-local SDL_OPENGL_LIBRARY",
   scope: "visual/state lifecycle only; physical audio and hardware rendering not established",
 });
@@ -307,6 +305,22 @@ assert.equal(
   null,
   "Fresh external profile already exists; preserve it and refuse",
 );
+// Explicit upstream settings for an isolated VM without a physical audio endpoint.
+// Upstream reads persistent_config.xml without a version check; ordinary config.xml
+// remains absent so its creation is actual client evidence, not the seeded fixture.
+await mkdir(config.profile);
+const initialSettings = Buffer.from(`<?xml version="1.0"?>
+<XMLDoc>
+  <audio><effects><enabled>0</enabled></effects><music><enabled>0</enabled></music></audio>
+  <video><fullscreen><enabled>0</enabled></fullscreen><windowed><width>960</width><height>640</height><left>20</left><top>20</top></windowed></video>
+</XMLDoc>
+`);
+await writeFile(path.join(config.profile, "persistent_config.xml"), initialSettings, { flag: "wx" });
+await record("initial-host-configuration", {
+  file: path.join(config.profile, "persistent_config.xml"), contents: initialSettings.toString(), sha256: sha(initialSettings),
+  reason: "First run44411472697 showed an OpenAL initialization modal; upstream audio flags disable Enable. Window960x640 fits observed runner desktop.",
+  scope: "muted visual/client and companion observations, not default-device/physical audio or minimum-host acceptance",
+});
 let completed = false;
 try {
   await record("external-before-play", await inventory(config.player_root));
@@ -357,7 +371,7 @@ try {
   await record("result", {
     completed: true,
     scope:
-      "Windows x64 FreeOrion0.5.1.2 native client; ordinary external registration, explicit Play with default arguments, one quickstart/AI observation, then default-argument reopen, normal owned window close, real settings and complete external byte preservation through registration-only removal. Client UI requires image inspection. No earned progress, load/save correctness, installed Desktop, physical hardware or sibling-native claim. Companion observations are separately recorded; whole-family supervision is not offered.",
+      "Windows x64 FreeOrion0.5.1.2 native client; ordinary external registration, explicit Play with default arguments, one quickstart/AI observation, then default-argument reopen, normal owned window close, real settings and complete external byte preservation through registration-only removal. Client UI requires image inspection. Muted audio-disabled test configuration; no earned progress, load/save correctness, installed Desktop, default sound-device/physical audio, physical hardware or sibling-native claim. Companion observations are separately recorded; whole-family supervision is not offered.",
   });
 } finally {
   await record("cleanup", {
