@@ -749,14 +749,7 @@ pub(crate) async fn preview_mod_setup_draft(
 ) -> DesktopResult<portcove_core::ModSetupDraftPreview> {
     crate::blocking_service_at_generation(state.inner().clone(), generation, move |service| {
         service
-            .preview_mod_setup_draft(
-                &port_id,
-                &profile_id,
-                expected_revision,
-                &plans,
-                &edits,
-                allow_code,
-            )
+            .preview_mod_setup_draft(&port_id, &profile_id, expected_revision, &plans, &edits)
             .map_err(Into::into)
     })
     .await
