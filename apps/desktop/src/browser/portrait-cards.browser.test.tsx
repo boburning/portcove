@@ -257,6 +257,12 @@ it.for([
       }
       window.scrollTo(0, 0);
       await document.fonts.ready;
+      // A pointer left over a cover must not redefine the resting-grid measurement.
+      await page
+        .elementLocator(
+          document.querySelector<HTMLElement>(".collection-identity, .discover-game-identity")!,
+        )
+        .hover();
       const { frames, fallback } = await assertPortraitLayout(view, theme, width, height);
       await page.screenshot({
         path: `../../../../outputs/uiux-game-titles/after-${view}-${theme}-${width}-${frames[0]!.width}x${frames[0]!.height}-top.png`,
@@ -559,6 +565,16 @@ async function assertPortraitLayout(
   width: number,
   height: number,
 ) {
+  // Hover deliberately lifts a cover. Clear the pointer and let that transition
+  // settle before comparing the untransformed grid, including after a resize.
+  await page.elementLocator(document.body).hover({ position: { x: 1, y: 1 } });
+  await expect
+    .poll(() =>
+      [...document.querySelectorAll<HTMLElement>(".collection-art")].every(
+        (element) => getComputedStyle(element).transform === "none",
+      ),
+    )
+    .toBe(true);
   const frames = [...document.querySelectorAll<HTMLElement>(".collection-art")].map((element) => {
     const rect = element.getBoundingClientRect();
     return {
