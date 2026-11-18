@@ -32,6 +32,7 @@ fn world() -> (tempfile::TempDir, PortcoveService, String) {
         native_id: id.into(),
         native_version: None,
         provider: Some(ProviderPackageRef {
+            binding: None,
             provider: "gamebanana".into(),
             project: project.into(),
             file: Some(file.into()),
@@ -189,4 +190,41 @@ async fn an_unreadable_installed_identity_is_reported_not_dropped() {
     drop(temporary);
     assert_eq!(observations.len(), 1);
     assert_eq!(observations[0].state, ProviderUpdateState::Unavailable);
+}
+
+#[tokio::test]
+async fn a_project_returned_for_another_game_cannot_offer_an_update() {
+    let other = json_response(
+        r#"{"_sName":"Wrong game","_sVersion":"3","_aGame":{"_idRow":999},"_bIsObsolete":false,"_aFiles":[{"_idRow":12,"_sFile":"pack.zip","_nFilesize":10,"_bIsArchived":false}]}"#,
+    );
+    let observations = observe(vec![other]).await;
+    assert_eq!(observations[0].state, ProviderUpdateState::Unavailable);
+    assert!(observations[0].newer_files.is_empty());
+    assert!(
+        observations[0]
+            .reason
+            .as_deref()
+            .unwrap()
+            .contains("association")
+    );
+}
+
+#[tokio::test]
+async fn an_explicitly_withdrawn_binding_remains_visible_as_unavailable() {
+    let (_temporary, mut service, profile) = world();
+    let mut document = service.catalog().authoritative_document();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "starship")
+        .unwrap();
+    port.mod_provider_bindings = Some(Vec::new());
+    service.replace_catalog_for_test(crate::Catalog::from_document(document).unwrap());
+    let observations = service
+        .check_provider_updates("starship", &profile)
+        .await
+        .unwrap();
+    assert_eq!(observations.len(), 1);
+    assert_eq!(observations[0].state, ProviderUpdateState::Unavailable);
+    assert_eq!(observations[0].provider.provider, "gamebanana");
 }

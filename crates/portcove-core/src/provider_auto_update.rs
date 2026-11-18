@@ -472,11 +472,17 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<Vec<ProviderAutoUpdate>> {
-        if crate::provider_install::bound_provider(port_id).is_none() {
+        let port = self.catalog().port(port_id)?;
+        let clients = crate::provider_binding::bindings(port)
+            .iter()
+            .map(|binding| {
+                ProviderClient::for_definition(&self.library, port, Some(binding.provider()))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        if clients.is_empty() && crate::provider_binding::configured_bindings(port).is_none() {
             return Ok(Vec::new());
         }
-        let client = ProviderClient::for_port(&self.library, port_id)?;
-        self.run_eligible_provider_updates_via(&client, port_id)
+        self.run_eligible_provider_updates_for(&clients, port_id)
             .await
     }
 
@@ -491,12 +497,23 @@ impl PortcoveService {
             .await
     }
 
+    #[cfg(test)]
     pub(crate) async fn run_eligible_provider_updates_via(
         &self,
         client: &ProviderClient,
         port_id: &str,
     ) -> Result<Vec<ProviderAutoUpdate>> {
+        self.run_eligible_provider_updates_for(std::slice::from_ref(client), port_id)
+            .await
+    }
+
+    async fn run_eligible_provider_updates_for(
+        &self,
+        clients: &[ProviderClient],
+        port_id: &str,
+    ) -> Result<Vec<ProviderAutoUpdate>> {
         let layout = self.deploy_layout(port_id)?;
+        let port = self.catalog().port(port_id)?;
         let setups = self
             .profile_inventory(port_id)?
             .profiles
@@ -504,11 +521,11 @@ impl PortcoveService {
             .filter(|view| {
                 view.profile.intent.update_policy == ProfileUpdatePolicy::AutomaticEligible
             })
-            .map(|view| view.profile)
             .collect::<Vec<_>>();
         let mut results = Vec::new();
         let mut checks = Vec::new();
-        for setup in setups {
+        for view in &setups {
+            let setup = &view.profile;
             let mut record =
                 |native_ids: Vec<String>,
                  project_id: Option<String>,
@@ -534,8 +551,26 @@ impl PortcoveService {
                         });
                     }
                 };
-            let revision =
-                match self.library.connection().and_then(|connection| {
+            if crate::provider_binding::configured_bindings(port).is_some() {
+                for package in &view.revision.packages {
+                    if let Some(reference) = &package.provider
+                        && !clients
+                            .iter()
+                            .any(|client| client.provider() == reference.provider)
+                    {
+                        record(
+                            vec![package.native_id.clone()],
+                            Some(reference.project.clone()),
+                            None,
+                            Some(ProviderAutoUpdateOutcome::Unavailable {
+                                reason: "this package's provider scope is no longer reviewed for this port".into(),
+                            }),
+                        );
+                    }
+                }
+            }
+            for client in clients {
+                let revision = match self.library.connection().and_then(|connection| {
                     profile::current_revision(&connection, port_id, &setup.id)
                 }) {
                     Ok(revision) => revision,
@@ -544,32 +579,33 @@ impl PortcoveService {
                         continue;
                     }
                 };
-            let observations = match self
-                .check_provider_updates_for_revision(client, &revision)
-                .await
-            {
-                Ok(observations) => observations,
-                Err(error) => {
-                    record(Vec::new(), None, None, Some(classify(error)));
-                    continue;
+                let observations = match self
+                    .check_provider_updates_for_revision(client, &revision)
+                    .await
+                {
+                    Ok(observations) => observations,
+                    Err(error) => {
+                        record(Vec::new(), None, None, Some(classify(error)));
+                        continue;
+                    }
+                };
+                for installed in installed_files(&revision, &observations) {
+                    let names = installed
+                        .packages
+                        .iter()
+                        .map(|package| package.native_id.clone())
+                        .collect::<Vec<_>>();
+                    let outcome = self
+                        .update_one(client, &layout, port_id, &setup.id, &installed)
+                        .await;
+                    record(
+                        names,
+                        Some(installed.project.clone()),
+                        chosen_candidate(client, installed.observation)
+                            .map(|file| file.file_id.clone()),
+                        outcome,
+                    );
                 }
-            };
-            for installed in installed_files(&revision, &observations) {
-                let names = installed
-                    .packages
-                    .iter()
-                    .map(|package| package.native_id.clone())
-                    .collect::<Vec<_>>();
-                let outcome = self
-                    .update_one(client, &layout, port_id, &setup.id, &installed)
-                    .await;
-                record(
-                    names,
-                    Some(installed.project.clone()),
-                    chosen_candidate(client, installed.observation)
-                        .map(|file| file.file_id.clone()),
-                    outcome,
-                );
             }
         }
         if let Err(error) = remember_checks(&layout, &checks) {

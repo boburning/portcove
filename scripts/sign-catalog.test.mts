@@ -389,6 +389,20 @@ void test("catalog size guard reads Core bounds and fails above its stated margi
   assert.equal(accepted.stdout.trim().split("\n").length, 3);
 });
 
+void test("legacy signer refuses a mod provider withdrawal before key access", (t) => {
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  rmSync(item.key);
+  writeFileSync(
+    item.catalog,
+    JSON.stringify({ ports: [{ id: "shipwright", mod_provider_bindings: [] }] }),
+  );
+  const result = item.run();
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Format-1 signed catalogs cannot deliver mod provider bindings/u);
+  assert.equal(existsSync(item.output), false);
+});
+
 void test("legacy signer refuses Shipwright working-directory persistence before key access", (t) => {
   const item = fixture();
   t.after(() => rmSync(item.root, { recursive: true, force: true }));

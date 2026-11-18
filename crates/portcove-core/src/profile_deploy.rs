@@ -2357,6 +2357,9 @@ pub struct ModSetupsView {
     /// `thunderstore`), if any.
     #[serde(default)]
     pub provider: Option<String>,
+    /// Reviewed provider choices when the game offers more than one.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub providers: Vec<String>,
     /// The game's current installation. A setup whose build differs stays on
     /// its own build; an upgraded copy can use this one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2383,7 +2386,7 @@ impl PortcoveService {
         port_id: &str,
         inventory: impl FnOnce(&str) -> Result<crate::ProfileInventory>,
     ) -> Result<ModSetupsView> {
-        self.catalog().port(port_id)?;
+        let port = self.catalog().port(port_id)?;
         let Ok(layout) = self.deploy_layout(port_id) else {
             return Ok(ModSetupsView {
                 port_id: port_id.into(),
@@ -2395,6 +2398,7 @@ impl PortcoveService {
                 held_updates: Vec::new(),
                 last_automatic_checks: Vec::new(),
                 provider: None,
+                providers: Vec::new(),
                 current_install_id: None,
                 progress_copy_supported: false,
             });
@@ -2409,8 +2413,17 @@ impl PortcoveService {
         Ok(ModSetupsView {
             held_updates,
             last_automatic_checks: crate::provider_auto_update::last_checks(&layout, &inventory),
-            provider: crate::provider_install::bound_provider(port_id)
-                .map(|(provider, _)| provider.to_owned()),
+            provider: crate::provider_binding::default_binding(port)
+                .map(|binding| binding.provider().to_owned()),
+            providers: crate::provider_binding::configured_bindings(port)
+                .filter(|bindings| bindings.len() > 1)
+                .map(|bindings| {
+                    bindings
+                        .iter()
+                        .map(|binding| binding.provider().to_owned())
+                        .collect()
+                })
+                .unwrap_or_default(),
             current_install_id,
             progress_copy_supported: crate::portable_saves::contract_for(port_id).is_some(),
             port_id: port_id.into(),

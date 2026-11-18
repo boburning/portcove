@@ -648,6 +648,21 @@ impl Library {
         if let Some(floor) = &state.replay_floor {
             floor.evaluate(&candidate.provenance)?;
         }
+        let selected = candidate.publisher.stable_id();
+        let has_explicit_scope = candidate
+            .projection
+            .catalog()
+            .port(selected)?
+            .mod_provider_bindings
+            .is_some();
+        let held_legacy_scope: bool = transaction.query_row(
+            "SELECT EXISTS(SELECT 1 FROM definition_provider_scope_floor WHERE port_id=?1)",
+            [selected],
+            |row| row.get(0),
+        )?;
+        if held_legacy_scope && !has_explicit_scope {
+            return Err(crate::provider_binding::implicit_successor());
+        }
         if validate_transition {
             let (baseline, _) =
                 crate::catalog_store::CatalogState::read(&transaction)?.resolve(Self::now())?;
@@ -658,6 +673,13 @@ impl Library {
                 &baseline,
                 &catalog,
                 candidate.publisher.stable_id(),
+            )?;
+        }
+        if has_explicit_scope {
+            transaction.execute(
+                "INSERT INTO definition_provider_scope_floor(port_id) VALUES(?1)
+                 ON CONFLICT(port_id) DO NOTHING",
+                [selected],
             )?;
         }
         if state.active_json.as_deref() == Some(active_json.as_str())
