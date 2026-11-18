@@ -144,9 +144,14 @@ it("lists setups and mods in priority order and binds changes to the reviewed re
   expect(read).toHaveBeenCalledTimes(3);
 });
 
-it.each(["custom", "default"] as const)(
-  "keeps one selected package state across switches and repeated empty reads from %s",
-  async (initialProfile) => {
+it.each([
+  ["custom", null],
+  ["default", null],
+  ["custom", "gamebanana"],
+  ["default", "gamebanana"],
+] as const)(
+  "keeps one selected package state across switches and repeated empty reads from %s with provider %s",
+  async (initialProfile, provider) => {
     const packages: [string, boolean][] = [
       ["textures.o2r", true],
       ["music.otr", false],
@@ -192,7 +197,7 @@ it.each(["custom", "default"] as const)(
       package_types: ["o2r", "otr"],
       later_mods_take_priority: true,
       held_updates: [],
-      provider: null,
+      provider,
       inventory: {
         port_id: "shipwright",
         profiles: [profile("default"), profile("custom")],
