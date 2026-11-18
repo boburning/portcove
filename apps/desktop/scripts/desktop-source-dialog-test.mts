@@ -900,7 +900,9 @@ export async function sourceDialogScenario({
     const discoveryActivity = By.xpath(
       `//div[contains(@class, "activity-row") and @data-activity-id=${JSON.stringify(sourceDiscovery.id)}]//button[@aria-label="Open Game files settings for Portcove library"]`,
     );
-    await browser.wait(until.elementLocated(discoveryActivity), 15_000);
+    // Native27 still awaited the updated Activity row after a 20.687 s workspace
+    // read, with another read pending. Keep its exact identity and accessible name.
+    await browser.wait(until.elementLocated(discoveryActivity), 60_000);
     await click(discoveryActivity);
     await browser.wait(
       () =>
@@ -1956,7 +1958,7 @@ async function hashResumeScenario(context: SelectedSetupContext) {
       );
       assert.deepEqual(
         continued.report.candidates.map((item) => item.profile_id).sort(),
-        [...owned.profiles].sort(),
+        owned.profiles.toSorted(),
       );
       const newlyDiscovered = continued.report.candidates.find(
         (item) => item.profile_id !== required(initial.report.candidates[0]).profile_id,
@@ -2149,7 +2151,7 @@ export async function selectedSetupScenario({
       assert.equal(snapshot.freshness, "inputs_match");
       assert.deepEqual(
         snapshot.report.candidates.map((item) => item.profile_id).sort(),
-        [...owned.profiles].sort(),
+        owned.profiles.toSorted(),
       );
       return snapshot;
     };
@@ -2485,7 +2487,7 @@ export async function selectedSetupScenario({
         assert.ok(installPlan.source_requirements.every((item) => item.registered));
         assert.deepEqual(
           installPlan.source_requirements.map((item) => item.profile_id).sort(),
-          (port === fixture.refreshPort ? owned.profiles : [owned.profiles[0]]).slice().sort(),
+          port === fixture.refreshPort ? owned.profiles.toSorted() : [owned.profiles[0]],
         );
         return { status, install_plan: installPlan };
       });
