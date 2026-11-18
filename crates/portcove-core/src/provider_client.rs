@@ -1,6 +1,5 @@
-//! The mod provider a game has a reviewed binding for. A game has at most one;
-//! its binding, never a provider listing, says which community or game ID is
-//! authoritative.
+//! A reviewed mod provider binding. The binding identifies the provider's game
+//! or community independently of provider listings.
 use std::path::Path;
 
 use crate::{
@@ -24,13 +23,29 @@ pub(crate) enum ProviderClient {
 
 impl ProviderClient {
     pub(crate) fn for_port(library: &Library, port_id: &str) -> Result<Self> {
-        if let Some(game) = gamebanana_game(port_id) {
+        let provider = Self::sources(port_id).next().ok_or_else(unbound)?;
+        Self::for_source(library, port_id, provider)
+    }
+
+    pub(crate) fn sources(port_id: &str) -> impl Iterator<Item = &'static str> {
+        gamebanana_game(port_id)
+            .map(|_| crate::gamebanana::PROVIDER)
+            .into_iter()
+            .chain(thunderstore_community(port_id).map(|_| crate::thunderstore::PROVIDER))
+    }
+
+    pub(crate) fn for_source(library: &Library, port_id: &str, provider: &str) -> Result<Self> {
+        if provider == crate::gamebanana::PROVIDER
+            && let Some(game) = gamebanana_game(port_id)
+        {
             return Ok(Self::GameBanana {
                 client: GameBananaClient::for_library(library)?,
                 game,
             });
         }
-        if let Some(community) = thunderstore_community(port_id) {
+        if provider == crate::thunderstore::PROVIDER
+            && let Some(community) = thunderstore_community(port_id)
+        {
             return Ok(Self::Thunderstore {
                 client: ThunderstoreClient::for_library(library)?,
                 community,

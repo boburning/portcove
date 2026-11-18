@@ -3191,3 +3191,109 @@ fn mod_inventory_metadata_keeps_current_runtime_policy_refusals() {
             .is_err()
     );
 }
+
+#[test]
+fn mod_setup_draft_previews_one_order_and_refuses_a_changed_file_before_publishing() {
+    let w = world();
+    let port = "starship";
+    let original = archive(&w.scratch, "base.otr", &[("assets/shared", b"old")]);
+    let current = w
+        .service
+        .install_mod_package(port, &w.default, &original, 1)
+        .unwrap();
+    let first = archive(&w.scratch, "a.otr", &[("assets/shared", b"a")]);
+    let last = archive(&w.scratch, "b.otr", &[("assets/shared", b"b")]);
+    let files = [first, last].map(|path| {
+        let review = w
+            .service
+            .plan_local_mod_package(port, &w.default, &path, current.revision)
+            .unwrap();
+        LocalModDraftFile {
+            path,
+            expected_plan_sha256: review.plan_sha256,
+        }
+    });
+    let edits = ModSetupEdits {
+        packages: vec![ModSetupPackageEdit {
+            native_id: "base.otr".into(),
+            enabled: Some(false),
+        }],
+        order: None,
+        local_files: files.to_vec(),
+    };
+    let preview = w
+        .service
+        .preview_mod_setup_draft(port, &w.default, current.revision, &[], &edits)
+        .unwrap();
+    assert_eq!(preview.order, ["a.otr", "b.otr"]);
+    assert_eq!(preview.conflicts.first().unwrap().winner, "b.otr");
+
+    archive(&w.scratch, "b.otr", &[("assets/changed", b"replacement")]);
+    assert!(
+        w.service
+            .apply_mod_setup_draft(port, &w.default, current.revision, &[], &edits, false)
+            .is_err()
+    );
+    let layout = w.service.deploy_layout(port).unwrap();
+    assert_eq!(
+        sha256_file(&layout.mods().join("base.otr")).unwrap(),
+        sha256_file(&original).unwrap()
+    );
+    assert_eq!(
+        profile::current_revision(&w.service.library.connection().unwrap(), port, &w.default)
+            .unwrap(),
+        current
+    );
+
+    archive(&w.scratch, "b.otr", &[("assets/shared", b"b")]);
+    let next = w
+        .service
+        .apply_mod_setup_draft(port, &w.default, current.revision, &[], &edits, false)
+        .unwrap();
+    assert_eq!(next.parent_revision, Some(current.revision));
+    assert_eq!(next.save_group, current.save_group);
+    assert_eq!(
+        enabled_in_override_order(&next)
+            .iter()
+            .map(|item| item.native_id.as_str())
+            .collect::<Vec<_>>(),
+        preview.order
+    );
+    assert!(
+        w.service
+            .apply_mod_setup_draft(port, &w.default, current.revision, &[], &edits, false)
+            .is_err()
+    );
+}
+
+#[test]
+fn finishing_a_same_name_replacement_keeps_bytes_already_deployed_by_apply() {
+    let w = world();
+    let port = "starship";
+    let source = archive(&w.scratch, "mod.otr", &[("assets/one", b"old")]);
+    let before = w
+        .service
+        .install_mod_package(port, &w.default, &source, 1)
+        .unwrap();
+    let source = archive(&w.scratch, "mod.otr", &[("assets/two", b"new")]);
+    let after = w
+        .service
+        .install_mod_package(port, &w.default, &source, before.revision)
+        .unwrap();
+    let layout = w.service.deploy_layout(port).unwrap();
+    let connection = w.service.library.connection().unwrap();
+    // Simulate termination after placing the target bytes but before recording
+    // the materialized revision.
+    profile::set_selection(&connection, port, &w.default, before.revision).unwrap();
+    w.service
+        .reconcile_selected(port, &layout, &connection, &after)
+        .unwrap();
+    assert_eq!(
+        sha256_file(&layout.mods().join("mod.otr")).unwrap(),
+        after.packages[0].sha256
+    );
+    assert_eq!(
+        profile::selection(&connection, port).unwrap(),
+        Some((w.default, after.revision))
+    );
+}

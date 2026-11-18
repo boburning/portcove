@@ -1,6 +1,6 @@
 import type { DetailDestination } from "../../view-model";
 
-export const detailSections = ["overview", "files", "saves", "versions", "manage"] as const;
+export const detailSections = ["overview", "files", "mods", "saves", "versions", "manage"] as const;
 export type DetailSection = (typeof detailSections)[number];
 export type DetailOpening = {
   token: number;

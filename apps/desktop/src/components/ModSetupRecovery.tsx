@@ -14,6 +14,8 @@ type Props = {
   generation: number;
   locked: boolean;
   blocked: boolean;
+  pendingCount?: number;
+  onRestored?: () => void;
   perform: (action: () => Promise<unknown>, success: string) => Promise<boolean>;
 };
 
@@ -24,6 +26,8 @@ export function ModSetupRecovery({
   generation,
   locked,
   blocked,
+  pendingCount = 0,
+  onRestored,
   perform,
 }: Props) {
   const { t } = useAppTranslation("gameSettings");
@@ -123,6 +127,7 @@ export function ModSetupRecovery({
         ),
       t("mods.recovery.applied"),
     );
+    if (ok) onRestored?.();
     if (request.current.id !== id) return;
     if (ok) {
       close();
@@ -197,6 +202,12 @@ export function ModSetupRecovery({
               {plan.update_policy === "automatic_eligible" && (
                 <p className="text-sm">{t("mods.recovery.automatic")}</p>
               )}
+              {pendingCount > 0 && (
+                <p role="status">{t("mods.workspace.restorePending", { count: pendingCount })}</p>
+              )}
+              <h6 className="font-semibold">{t("mods.workspace.currentMods")}</h6>
+              <RecoveryPackages target={plan.current} />
+              <h6 className="font-semibold">{t("mods.workspace.restoredMods")}</h6>
               <RecoveryPackages target={plan.target} />
               {plan.holds.length > 0 && (
                 <div role="alert">

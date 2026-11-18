@@ -177,11 +177,12 @@ test("every declared secondary mutation is refused without reaching Core", async
       },
     ],
     [
-      "apply_provider_install",
+      "apply_mod_setup_draft",
       {
         profileId: options.fixtures.setupId,
-        expectedPlanSha256: options.fixtures.sha,
-        plan: options.fixtures.providerPlan,
+        expectedRevision: 2,
+        plans: [options.fixtures.providerPlan],
+        edits: { packages: [], order: null, local_files: [] },
         allowCode: false,
       },
     ],

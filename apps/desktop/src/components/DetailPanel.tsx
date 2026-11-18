@@ -1,3 +1,5 @@
+import { useAppTranslation } from "../localization";
+import { Trans } from "react-i18next";
 import { ImplementationFacts } from "../features/browsing/ImplementationFacts";
 import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";
 import { SetupIntentChoice } from "./SetupIntentChoice";
@@ -102,7 +104,8 @@ import { BackupHistory } from "./BackupHistory";
 import { PortableSaves } from "./PortableSaves";
 import { ProtectionSummary } from "./ProtectionSummary";
 import { GameSettingsControl } from "./GameSettingsControl";
-import { ModSetupsControl } from "./ModSetupsControl";
+import { ModSetupsControl, type ModPlayState } from "./ModSetupsControl";
+import { readModSetupInventory } from "../features/mod-setups/read-mod-setup-inventory";
 import type { BackupReadState } from "../features/backups/use-port-backups";
 import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
 import type { Perform } from "../features/operations/use-operation-state";
@@ -192,6 +195,7 @@ interface DetailPanelProps {
   pickBios?: AsyncAction | undefined;
   busy?: string | undefined;
   libraryGeneration?: number;
+  libraryRoot?: string | undefined;
   gameFileQueryContext?: string;
   gameFileFilterContext?: GameFileFilterContext | undefined;
   gameFileObservation?: GameFileObservationPresentation | undefined;
@@ -411,6 +415,7 @@ export function DetailPanel(props: DetailPanelProps) {
       busy={effectiveBusy}
       outputExternalBusy={actionState.busy}
       libraryGeneration={props.libraryGeneration ?? 0}
+      libraryRoot={props.libraryRoot}
       outputLocationChanged={props.outputLocationChanged}
       externalRuntimeChanged={props.externalRuntimeChanged}
       checkAgain={props.checkAgain}
@@ -511,6 +516,7 @@ function DetailBody(model: {
   busy?: string | undefined;
   outputExternalBusy?: string | undefined;
   libraryGeneration: number;
+  libraryRoot?: string | undefined;
   outputLocationChanged?: (() => void) | undefined;
   externalRuntimeChanged?: (() => void) | undefined;
   checkAgain?: (() => Promise<unknown>) | undefined;
@@ -521,6 +527,31 @@ function DetailBody(model: {
   const { busy } = model;
   const managedPreparation = needsManagedPreparation(model.port, model.installed, model.status);
   const external = usesExternalRuntimeRoute(model.port, model.status);
+  const { t: tMods } = useAppTranslation("gameSettings");
+  const activeInstall = model.status?.active?.id;
+  const modsKey = `${model.libraryGeneration}:${model.port.id}:${activeInstall}`;
+  const [modSupport, setModSupport] = useState<string>();
+  const [observedModPlay, setModPlay] = useState<ModPlayState>();
+  const modPlay =
+    observedModPlay?.port === model.port.id &&
+    observedModPlay.generation === model.libraryGeneration
+      ? observedModPlay
+      : undefined;
+  const [reviewFromPlay, requestModReview] = useState(0);
+  useEffect(() => {
+    if (external || !activeInstall) return;
+    let current = true;
+    void readModSetupInventory(model.port.id, model.libraryGeneration)
+      .then((view) => {
+        if (current && view.supported) setModSupport(modsKey);
+      })
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [external, activeInstall, model.port.id, model.libraryGeneration, modsKey]);
+  const modsAvailable = !external && Boolean(activeInstall) && modSupport === modsKey;
+
   const setupRoutes = setupRoutePresentation(
     model.displayPort ?? { ...model.port, definition: model.port },
     model.status,
@@ -571,7 +602,38 @@ function DetailBody(model: {
       installation={detailInstallationLabel(model.status, directInstall)}
       action={(reveal) =>
         model.installed && model.launchReady ? (
-          <DetailHeaderAction {...{ model, busy }} />
+          <div className="grid justify-items-end gap-1">
+            <DetailHeaderAction
+              {...{
+                model,
+                busy: modPlay?.busy && modsAvailable ? tMods("mods.browse.installing") : busy,
+              }}
+            />
+            {modsAvailable && modPlay && (
+              <>
+                <span className="text-xs text-pc-muted-foreground">
+                  <Trans
+                    t={tMods}
+                    i18nKey="mods.workspace.playUses"
+                    components={{ name: <bdi>{modPlay.name}</bdi> }}
+                  />
+                </span>
+                {modPlay.pending > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={modPlay.busy || Boolean(busy)}
+                    onClick={() => {
+                      reveal("mods");
+                      requestModReview((request) => request + 1);
+                    }}
+                  >
+                    {tMods("mods.workspace.review")}
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         ) : (
           <Button
             data-focusable
@@ -630,10 +692,28 @@ function DetailBody(model: {
         </>
       )}
     >
-      {(reveal) => ({
+      {(reveal, currentSection) => ({
         overview: <DetailOverviewSection model={model} />,
         files: <DetailFilesSection {...{ model, managedPreparation }} />,
-        saves: <DetailSavesSection {...{ model, external, reveal }} />,
+        ...(modsAvailable
+          ? {
+              mods: (
+                <ModSetupsControl
+                  key={modsKey}
+                  portId={model.port.id}
+                  generation={model.libraryGeneration}
+                  libraryRoot={model.libraryRoot}
+                  busy={Boolean(busy)}
+                  openGameFiles={() => reveal("files")}
+                  active={currentSection === "mods"}
+                  onPlayState={setModPlay}
+                  reviewFromPlay={reviewFromPlay}
+                  onAppliedFromPlay={() => reveal("overview")}
+                />
+              ),
+            }
+          : {}),
+        saves: <DetailSavesSection {...{ model, external }} />,
         versions: <DetailVersionsSection {...{ model, external }} />,
         manage: <DetailManageSection {...{ model, external, reveal }} />,
       })}
@@ -4087,11 +4167,9 @@ function DetailManageSection({
 function DetailSavesSection({
   model,
   external,
-  reveal,
 }: {
   model: Parameters<typeof DetailBody>[0];
   external: boolean;
-  reveal: import("./DetailLayout").RevealDetailSection;
 }) {
   return (
     <div className="grid gap-5">
@@ -4152,15 +4230,6 @@ function DetailSavesSection({
           installId={model.status.active.id}
           generation={model.libraryGeneration}
           busy={Boolean(model.busy)}
-        />
-      )}
-      {!external && model.status?.active && (
-        <ModSetupsControl
-          key={`${model.libraryGeneration}:${model.port.id}:${Boolean(model.busy)}`}
-          portId={model.port.id}
-          generation={model.libraryGeneration}
-          busy={Boolean(model.busy)}
-          openGameFiles={() => reveal("files")}
         />
       )}
     </div>

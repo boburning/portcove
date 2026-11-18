@@ -814,6 +814,18 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "mod_setup_draft_preview",
+                serde_json::json!(schema_for_contract::<portcove_core::ModSetupDraftPreview>(
+                    contract
+                )),
+            ),
+            (
+                "provider_catalog",
+                serde_json::json!(schema_for_contract::<portcove_core::ProviderCatalog>(
+                    contract
+                )),
+            ),
+            (
                 "provider_browse_page",
                 serde_json::json!(schema_for_contract::<portcove_core::ProviderBrowsePage>(
                     contract

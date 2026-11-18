@@ -1659,6 +1659,7 @@ mod provider_text_tests {
 
     fn project(obsolete: bool, unreadable: u32, archived: bool) -> ProviderProject {
         ProviderProject {
+            listing: None,
             provider: "gamebanana".into(),
             project_id: "42".into(),
             name: "HD Link".into(),
@@ -1685,6 +1686,7 @@ mod provider_text_tests {
 
     fn view(project: ProviderProject, freshness: ProviderFreshness) -> ProviderProjectView {
         ProviderProjectView {
+            eligible_file_ids: None,
             port_id: "shipwright".into(),
             game_name: "Ship of Harkinian".into(),
             project,

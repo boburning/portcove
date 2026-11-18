@@ -579,32 +579,40 @@ pub(crate) async fn open_provider_mod_project(
     generation: u64,
     port_id: String,
     project_id: String,
+    source: Option<String>,
 ) -> DesktopResult<()> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
-            let reviewed = service.provider_project(&port_id, &project_id).await?;
+            let reviewed = match source {
+                Some(source) => {
+                    service
+                        .provider_project_for_source(&port_id, &source, &project_id)
+                        .await?
+                }
+                None => service.provider_project(&port_id, &project_id).await?,
+            };
             crate::open_host_target(std::ffi::OsStr::new(&reviewed.project.profile_url))
         },
     )
     .await
 }
 
-/// One page of a bound game's GameBanana mods. Reads only.
+/// Bounded read-only catalog for one of the port's reviewed sources.
 #[tauri::command]
-pub(crate) async fn browse_provider_mods(
+pub(crate) async fn get_mod_provider_catalog(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     port_id: String,
-    page: u32,
-) -> DesktopResult<portcove_core::ProviderBrowsePage> {
+    source: String,
+) -> DesktopResult<portcove_core::ProviderCatalog> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
             service
-                .browse_provider_mods(&port_id, page)
+                .mod_provider_catalog(&port_id, &source)
                 .await
                 .map_err(Into::into)
         },
@@ -619,15 +627,21 @@ pub(crate) async fn get_provider_project(
     generation: u64,
     port_id: String,
     project_id: String,
+    source: Option<String>,
 ) -> DesktopResult<portcove_core::ProviderProjectView> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
-            service
-                .provider_project(&port_id, &project_id)
-                .await
-                .map_err(Into::into)
+            match source {
+                Some(source) => {
+                    service
+                        .provider_project_for_source(&port_id, &source, &project_id)
+                        .await
+                }
+                None => service.provider_project(&port_id, &project_id).await,
+            }
+            .map_err(Into::into)
         },
     )
     .await
@@ -642,16 +656,32 @@ pub(crate) async fn plan_provider_install(
     port_id: String,
     profile_id: String,
     project_id: String,
+    source: Option<String>,
     file_id: String,
 ) -> DesktopResult<portcove_core::ProviderInstallPlan> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
-            service
-                .plan_provider_install(&port_id, &profile_id, &project_id, &file_id)
-                .await
-                .map_err(Into::into)
+            match source {
+                Some(source) => {
+                    service
+                        .plan_provider_install_for_source(
+                            &port_id,
+                            &profile_id,
+                            &source,
+                            &project_id,
+                            &file_id,
+                        )
+                        .await
+                }
+                None => {
+                    service
+                        .plan_provider_install(&port_id, &profile_id, &project_id, &file_id)
+                        .await
+                }
+            }
+            .map_err(Into::into)
         },
     )
     .await
@@ -702,6 +732,57 @@ pub(crate) async fn apply_provider_install(
         };
         service
             .apply_provider_install(&plan, &authorization.token)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn preview_mod_setup_draft(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    expected_revision: u64,
+    plans: Vec<portcove_core::ProviderInstallPlan>,
+    edits: portcove_core::ModSetupEdits,
+) -> DesktopResult<portcove_core::ModSetupDraftPreview> {
+    crate::blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .preview_mod_setup_draft(
+                &port_id,
+                &profile_id,
+                expected_revision,
+                &plans,
+                &edits,
+                allow_code,
+            )
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn apply_mod_setup_draft(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    expected_revision: u64,
+    plans: Vec<portcove_core::ProviderInstallPlan>,
+    edits: portcove_core::ModSetupEdits,
+    allow_code: bool,
+) -> DesktopResult<ProfileRevision> {
+    crate::blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .apply_mod_setup_draft(
+                &port_id,
+                &profile_id,
+                expected_revision,
+                &plans,
+                &edits,
+                allow_code,
+            )
             .map_err(Into::into)
     })
     .await

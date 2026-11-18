@@ -472,11 +472,13 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<Vec<ProviderAutoUpdate>> {
-        if crate::provider_install::bound_provider(port_id).is_none() {
+        let clients = ProviderClient::sources(port_id)
+            .map(|source| ProviderClient::for_source(&self.library, port_id, source))
+            .collect::<Result<Vec<_>>>()?;
+        if clients.is_empty() {
             return Ok(Vec::new());
         }
-        let client = ProviderClient::for_port(&self.library, port_id)?;
-        self.run_eligible_provider_updates_via(&client, port_id)
+        self.run_eligible_provider_updates_for_sources(&clients, port_id)
             .await
     }
 
@@ -491,9 +493,19 @@ impl PortcoveService {
             .await
     }
 
+    #[cfg(test)]
     pub(crate) async fn run_eligible_provider_updates_via(
         &self,
         client: &ProviderClient,
+        port_id: &str,
+    ) -> Result<Vec<ProviderAutoUpdate>> {
+        self.run_eligible_provider_updates_for_sources(std::slice::from_ref(client), port_id)
+            .await
+    }
+
+    async fn run_eligible_provider_updates_for_sources(
+        &self,
+        clients: &[ProviderClient],
         port_id: &str,
     ) -> Result<Vec<ProviderAutoUpdate>> {
         let layout = self.deploy_layout(port_id)?;
@@ -534,8 +546,8 @@ impl PortcoveService {
                         });
                     }
                 };
-            let revision =
-                match self.library.connection().and_then(|connection| {
+            for client in clients {
+                let revision = match self.library.connection().and_then(|connection| {
                     profile::current_revision(&connection, port_id, &setup.id)
                 }) {
                     Ok(revision) => revision,
@@ -544,32 +556,33 @@ impl PortcoveService {
                         continue;
                     }
                 };
-            let observations = match self
-                .check_provider_updates_for_revision(client, &revision)
-                .await
-            {
-                Ok(observations) => observations,
-                Err(error) => {
-                    record(Vec::new(), None, None, Some(classify(error)));
-                    continue;
+                let observations = match self
+                    .check_provider_updates_for_revision(client, &revision)
+                    .await
+                {
+                    Ok(observations) => observations,
+                    Err(error) => {
+                        record(Vec::new(), None, None, Some(classify(error)));
+                        continue;
+                    }
+                };
+                for installed in installed_files(&revision, &observations) {
+                    let names = installed
+                        .packages
+                        .iter()
+                        .map(|package| package.native_id.clone())
+                        .collect::<Vec<_>>();
+                    let outcome = self
+                        .update_one(client, &layout, port_id, &setup.id, &installed)
+                        .await;
+                    record(
+                        names,
+                        Some(installed.project.clone()),
+                        chosen_candidate(client, installed.observation)
+                            .map(|file| file.file_id.clone()),
+                        outcome,
+                    );
                 }
-            };
-            for installed in installed_files(&revision, &observations) {
-                let names = installed
-                    .packages
-                    .iter()
-                    .map(|package| package.native_id.clone())
-                    .collect::<Vec<_>>();
-                let outcome = self
-                    .update_one(client, &layout, port_id, &setup.id, &installed)
-                    .await;
-                record(
-                    names,
-                    Some(installed.project.clone()),
-                    chosen_candidate(client, installed.observation)
-                        .map(|file| file.file_id.clone()),
-                    outcome,
-                );
             }
         }
         if let Err(error) = remember_checks(&layout, &checks) {

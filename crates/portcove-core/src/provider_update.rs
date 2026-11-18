@@ -53,9 +53,20 @@ impl PortcoveService {
         profile_id: &str,
     ) -> Result<Vec<ProviderUpdateObservation>> {
         self.catalog().port(port_id)?;
-        let client = ProviderClient::for_port(&self.library, port_id)?;
-        self.check_provider_updates_via(&client, port_id, profile_id)
-            .await
+        let sources = ProviderClient::sources(port_id).collect::<Vec<_>>();
+        if sources.is_empty() {
+            return Err(crate::provider_client::unbound());
+        }
+        let revision = profile::current_revision(&self.library.connection()?, port_id, profile_id)?;
+        let mut observations = Vec::new();
+        for source in sources {
+            let client = ProviderClient::for_source(&self.library, port_id, source)?;
+            observations.extend(
+                self.check_provider_updates_for_revision(&client, &revision)
+                    .await?,
+            );
+        }
+        Ok(observations)
     }
 
     #[cfg(test)]
@@ -70,6 +81,7 @@ impl PortcoveService {
             .await
     }
 
+    #[cfg(test)]
     pub(crate) async fn check_provider_updates_via(
         &self,
         client: &ProviderClient,

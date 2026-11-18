@@ -16,8 +16,8 @@ use serde_json::Value;
 use crate::{
     Library, PortcoveError, Result,
     mod_provider::{
-        Observed, ProviderFileCandidate, ProviderPage, ProviderProject, ThunderstoreDependency,
-        sanitize_text,
+        Observed, ProviderFileCandidate, ProviderListing, ProviderPage, ProviderProject,
+        ThunderstoreDependency, artwork_url, sanitize_text,
     },
     provider_http::ProviderHttp,
 };
@@ -75,8 +75,20 @@ impl ThunderstoreClient {
         Self::build(library, root)
     }
 
-    /// Every package in one community, in the provider's listing order.
+    /// Every readable package in one community, in the provider's listing order.
     pub async fn community(&self, community: &str) -> Result<Observed<Vec<ProviderProject>>> {
+        let observed = self.community_catalog(community).await?;
+        Ok(Observed {
+            value: observed.value.0,
+            observed_at: observed.observed_at,
+            freshness: observed.freshness,
+        })
+    }
+
+    pub(crate) async fn community_catalog(
+        &self,
+        community: &str,
+    ) -> Result<Observed<(Vec<ProviderProject>, usize)>> {
         if !plain_name(community, true) {
             return Err(PortcoveError::usage(
                 "a Thunderstore community name is a plain slug",
@@ -88,7 +100,9 @@ impl ThunderstoreClient {
         let community = community.to_owned();
         self.http
             .observe(url, move |value| {
-                parse_listing(value, &community, &web_root)
+                let projects = parse_listing(value, &community, &web_root)?;
+                let total = value.as_array().map_or(0, Vec::len);
+                Ok((projects, total))
             })
             .await
     }
@@ -324,7 +338,39 @@ fn parse_package(value: &Value, community: &str, web_root: &str) -> Option<Provi
         .filter(|file| !file.archived)
         .max_by_key(|file| file.added_at)
         .map(|file| file.file_id.clone());
+    let versions = value["versions"]
+        .as_array()
+        .filter(|versions| versions.len() <= MAX_VERSIONS);
+    let artwork = versions
+        .and_then(|versions| {
+            versions
+                .iter()
+                .find(|version| version["version_number"].as_str() == latest.as_deref())
+        })
+        .and_then(|version| artwork_url(version["icon"].as_str()?, "ccdn.thunderstore.io"));
     Some(ProviderProject {
+        listing: Some(ProviderListing {
+            categories: value["categories"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .take(32)
+                .filter_map(Value::as_str)
+                .map(sanitize_text)
+                .filter(|name| !name.is_empty())
+                .collect(),
+            artwork,
+            created_at: timestamp(&value["date_created"]),
+            downloads: versions
+                .filter(|versions| !versions.is_empty())
+                .and_then(|versions| {
+                    versions.iter().try_fold(0u64, |total, version| {
+                        total.checked_add(version["downloads"].as_u64()?)
+                    })
+                }),
+            likes: None,
+            ratings: value["rating_score"].as_u64(),
+        }),
         provider: PROVIDER.into(),
         profile_url: format!("{web_root}/c/{community}/p/{namespace}/{name}/"),
         project_id,

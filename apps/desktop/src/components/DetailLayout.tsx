@@ -36,6 +36,8 @@ function sectionLabel(t: TFunction<"detail">, section: DetailSection): string {
       return t("section.overview");
     case "files":
       return t("section.files");
+    case "mods":
+      return t("section.mods");
     case "saves":
       return t("section.saves");
     case "versions":
@@ -119,7 +121,10 @@ export function DetailLayout({
   attention?: ((reveal: RevealDetailSection) => ReactNode) | undefined;
   close: () => void;
   steam?: boolean | undefined;
-  children: (reveal: RevealDetailSection) => Partial<Record<DetailSection, ReactNode>>;
+  children: (
+    reveal: RevealDetailSection,
+    selected: DetailSection,
+  ) => Partial<Record<DetailSection, ReactNode>>;
 }) {
   const { t } = useAppTranslation("detail");
   const setupIdentities = platformIdentities(platforms, upstreamPlatforms);
@@ -182,7 +187,7 @@ export function DetailLayout({
     });
     return () => cancelAnimationFrame(frame);
   }, [identity, opening, selected, pending]);
-  const panels = children(reveal);
+  const panels = children(reveal, selected);
   const sections = detailSections.filter((section) => panels[section] !== undefined);
   const managementSection = panels.manage !== undefined ? "manage" : "files";
   const sourceSystems = [
@@ -384,7 +389,7 @@ export function DetailLayout({
             <h2
               id={`detail-section-${section}`}
               tabIndex={-1}
-              className={section === "overview" ? "sr-only" : "mb-5 text-xl"}
+              className={section === "overview" || section === "mods" ? "sr-only" : "mb-5 text-xl"}
             >
               {sectionLabel(t, section)}
             </h2>

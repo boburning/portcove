@@ -14,7 +14,7 @@ export type ModUpdateControlProps = {
   automaticChecks: ModAutoUpdateCheck[];
   disabled: boolean;
   setPolicy: (policy: ModUpdatePolicy) => void;
-  showProject: (projectId: string) => void;
+  showProject: (projectId: string, source?: string, files?: string[]) => void;
 };
 
 const policies = ["keep_current", "review_updates", "automatic_eligible"] as const;
@@ -198,7 +198,13 @@ export function ModUpdateControl({
                     className="justify-self-start"
                     variant="outline"
                     disabled={disabled || busy}
-                    onClick={() => showProject(observation.provider.project)}
+                    onClick={() =>
+                      showProject(
+                        observation.provider.project,
+                        observation.provider.provider,
+                        observation.newer_files.map((file) => file.file_id),
+                      )
+                    }
                   >
                     {t("mods.updates.reviewFiles")}
                   </Button>

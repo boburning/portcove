@@ -661,7 +661,12 @@ impl PortcoveService {
         }
         if let Some(acquisition) = prior.iter().find(|item| {
             reviewed_origin(&item.provider_plan, native_id).is_ok_and(|(origin, _)| {
-                origin.project == project
+                Some(origin.provider.as_str())
+                    == package
+                        .provider
+                        .as_ref()
+                        .map(|reference| reference.provider.as_str())
+                    && origin.project == project
                     && origin.file.as_deref() == Some(file.as_str())
                     && item
                         .provider_plan
@@ -678,8 +683,16 @@ impl PortcoveService {
             verified_acquisitions(recipe, &layout, std::slice::from_ref(&reused))?;
             return Ok(reused);
         }
-        let client =
-            crate::provider_client::ProviderClient::for_port(&self.library, &recipe.port_id)?;
+        let source = &package
+            .provider
+            .as_ref()
+            .expect("a reviewed provider file")
+            .provider;
+        let client = crate::provider_client::ProviderClient::for_source(
+            &self.library,
+            &recipe.port_id,
+            source,
+        )?;
         let mode = ProviderInstallMode::Recipe {
             identity: &recipe.identity_sha256,
             byte_budget: MAX_ACQUISITION_BYTES - used_bytes,
@@ -1528,10 +1541,13 @@ fn plannable_provider_file(
     port_id: &str,
     provider: &ProviderPackageRef,
 ) -> Option<(&'static str, String, String)> {
-    let (bound, label) = crate::provider_install::bound_provider(port_id)?;
-    if provider.provider != bound {
-        return None;
-    }
+    let bound = crate::provider_client::ProviderClient::sources(port_id)
+        .find(|source| *source == provider.provider)?;
+    let label = if bound == crate::gamebanana::PROVIDER {
+        "GameBanana"
+    } else {
+        "Thunderstore"
+    };
     let file = provider.file.as_deref()?;
     // GameBanana IDs are numbers, named in their canonical form.
     if bound == crate::gamebanana::PROVIDER {

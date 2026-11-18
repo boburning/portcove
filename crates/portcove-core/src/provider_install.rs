@@ -57,10 +57,10 @@ pub(crate) fn gamebanana_game(port_id: &str) -> Option<u64> {
 
 /// Ports with a reviewed provider binding, for passes that visit each of them.
 pub(crate) fn provider_ports() -> impl Iterator<Item = &'static str> {
-    GAMEBANANA_BINDINGS
-        .iter()
-        .map(|(port, _)| *port)
-        .chain(crate::thunderstore::bound_ports())
+    GAMEBANANA_BINDINGS.iter().map(|(port, _)| *port).chain(
+        crate::thunderstore::bound_ports()
+            .filter(|port| !GAMEBANANA_BINDINGS.iter().any(|(id, _)| id == port)),
+    )
 }
 
 /// The provider a port has a reviewed binding for, and its name in messages.
@@ -98,6 +98,9 @@ pub struct ProviderWrapper {
 pub struct ProviderInstallPlan {
     pub port_id: String,
     pub profile_id: String,
+    /// Private workspace reviews use distinct staging even for the same file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub review_nonce: Option<String>,
     /// Profile revision this plan was reviewed against.
     pub expected_revision: u64,
     pub provider: ProviderPackageRef,
@@ -122,9 +125,23 @@ pub struct ProviderInstallPlan {
     pub plan_sha256: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ModSetupDraftPreview {
+    pub order: Vec<String>,
+    pub conflicts: Vec<AssetConflict>,
+    pub conflicts_truncated: bool,
+}
+
+struct PreparedModSetupDraft {
+    packages: Vec<crate::profile_deploy::StagedPackage>,
+    provider_directories: Vec<PathBuf>,
+    _local_directories: Vec<tempfile::TempDir>,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ProviderInstallMode<'a> {
     Reviewed,
+    Workspace,
     Automatic,
     Recipe { identity: &'a str, byte_budget: u64 },
 }
@@ -133,7 +150,7 @@ impl ProviderInstallMode<'_> {
     fn staging_root(self, layout: &Layout) -> PathBuf {
         let store = layout.store();
         match self {
-            Self::Reviewed => store.join("staged"),
+            Self::Reviewed | Self::Workspace => store.join("staged"),
             Self::Automatic => store.join("automatic-staged"),
             Self::Recipe { identity, .. } => store.join("recipe-staged").join(identity),
         }
@@ -141,7 +158,7 @@ impl ProviderInstallMode<'_> {
 
     pub(crate) fn staging(self, layout: &Layout, digest: &str) -> PathBuf {
         match self {
-            Self::Reviewed => layout.staged(digest),
+            Self::Reviewed | Self::Workspace => layout.staged(digest),
             Self::Automatic | Self::Recipe { .. } => self.staging_root(layout).join(digest),
         }
     }
@@ -171,7 +188,7 @@ fn target(plan: &ProviderInstallPlan) -> Result<String> {
     ))?)
 }
 
-fn validate_offer(
+pub(crate) fn validate_offer(
     client: &ProviderClient,
     project: &ProviderProject,
     file: &ProviderFileCandidate,
@@ -202,6 +219,19 @@ fn validate_offer(
         ));
     }
     Ok(())
+}
+
+pub(crate) fn accepts_provider_file(port_id: &str, file: &ProviderFileCandidate) -> bool {
+    let extension = file
+        .file_name
+        .rsplit_once('.')
+        .map(|(_, extension)| extension.to_ascii_lowercase())
+        .unwrap_or_default();
+    adapter_extensions(port_id).is_some_and(|extensions| {
+        (extension == "zip" || extensions.contains(&extension.as_str()))
+            && file.size > 0
+            && file.size <= MAX_DOWNLOAD_BYTES
+    })
 }
 
 fn matches_dependency_coordinates(
@@ -434,6 +464,27 @@ impl PortcoveService {
         let client = ProviderClient::for_port(&self.library, port_id)?;
         self.plan_provider_install_via(&client, port_id, profile_id, project_id, file_id)
             .await
+    }
+
+    pub async fn plan_provider_install_for_source(
+        &self,
+        port_id: &str,
+        profile_id: &str,
+        source: &str,
+        project_id: &str,
+        file_id: &str,
+    ) -> Result<ProviderInstallPlan> {
+        self.catalog().port(port_id)?;
+        let client = ProviderClient::for_source(&self.library, port_id, source)?;
+        self.plan_provider_install_in_mode(
+            &client,
+            port_id,
+            profile_id,
+            project_id,
+            file_id,
+            ProviderInstallMode::Workspace,
+        )
+        .await
     }
 
     #[cfg(test)]
@@ -799,6 +850,8 @@ impl PortcoveService {
         let mut plan = ProviderInstallPlan {
             port_id: port_id.into(),
             profile_id: profile_id.into(),
+            review_nonce: (mode == ProviderInstallMode::Workspace)
+                .then(|| uuid::Uuid::new_v4().to_string()),
             expected_revision: current.revision,
             provider: root.provider.clone(),
             project_name: project.name.clone(),
@@ -908,7 +961,12 @@ impl PortcoveService {
                 )?;
             }
         }
-        if !recomp_members.is_empty() && !matches!(mode, ProviderInstallMode::Recipe { .. }) {
+        if !recomp_members.is_empty()
+            && !matches!(
+                mode,
+                ProviderInstallMode::Recipe { .. } | ProviderInstallMode::Workspace
+            )
+        {
             let _guard = self
                 .library
                 .try_read_lock_port(port_id, "plan-provider-recomp")?;
@@ -1070,8 +1128,8 @@ impl PortcoveService {
     ) -> Result<ProfileRevision> {
         let layout = self.deploy_layout(&plan.port_id)?;
         // A plan is caller-supplied data: re-establish what planning established.
-        if bound_provider(&plan.port_id)
-            .is_none_or(|(provider, _)| plan.provider.provider != provider)
+        if !ProviderClient::sources(&plan.port_id)
+            .any(|provider| plan.provider.provider == provider)
             || plan.members.is_empty()
             || plan.members.len() > MAX_MEMBERS
             || plan.wrappers.len() > MAX_MEMBERS
@@ -1158,45 +1216,8 @@ impl PortcoveService {
         if !recomp {
             consume()?;
         }
-        let recorded = crate::profile_deploy::consented_code(&layout).unwrap_or_default();
         let staged_dir = mode.staging(&layout, &plan.plan_sha256);
-        let mut staged = Vec::new();
-        for member in &plan.members {
-            let path = staged_dir.join(&member.file_name);
-            if !path.try_exists()? || sha256_file(&path)? != member.sha256 {
-                return Err(PortcoveError::verification(
-                    "the reviewed package bytes are missing or changed; plan again",
-                )
-                .detail("package", &member.file_name));
-            }
-            // The same loader review a local install gets.
-            // Code is allowed only for packages the authorized plan reported as
-            // running code, and only for their reviewed bytes.
-            let allowed = (!member.runs_code.is_empty()).then_some(member.sha256.as_str());
-            let origin = wrapper_members.get(member.file_name.as_str());
-            let mut item = inspect_for_port(
-                &plan.port_id,
-                path,
-                Some(
-                    origin
-                        .map_or(&plan.provider, |member| member.provider)
-                        .clone(),
-                ),
-                CodePolicy::Consent {
-                    allowed,
-                    recorded: &recorded,
-                },
-            )?;
-            if item.inspection.sha256 != member.sha256 {
-                return Err(PortcoveError::verification(
-                    "the reviewed package bytes changed during inspection; plan again",
-                ));
-            }
-            if let Some(origin) = origin {
-                item.provider_requires.clone_from(&origin.requirements);
-            }
-            staged.push(item);
-        }
+        let staged = inspect_reviewed_members(plan, &layout, &staged_dir, &wrapper_members)?;
         if recomp {
             let connection = self.library.connection()?;
             let current = profile::current_revision(&connection, &plan.port_id, &plan.profile_id)?;
@@ -1224,8 +1245,239 @@ impl PortcoveService {
         Ok(revision)
     }
 
+    /// Commit one reviewed draft through the same deployment and recovery path
+    /// as a single provider install. No per-package revision is published.
+    pub fn apply_mod_setup_draft(
+        &self,
+        port_id: &str,
+        profile_id: &str,
+        expected_revision: u64,
+        plans: &[ProviderInstallPlan],
+        edits: &crate::ModSetupEdits,
+        allow_code: bool,
+    ) -> Result<ProfileRevision> {
+        let layout = self.deploy_layout(port_id)?;
+        let _guard = self
+            .library
+            .try_lock_port(port_id, "apply-mod-setup-draft")?;
+        self.recover_switch_locked(port_id, &layout)?;
+        let current = profile::current_revision(&self.library.connection()?, port_id, profile_id)?;
+        if current.revision != expected_revision {
+            return Err(PortcoveError::conflict(
+                "the setup changed; review the changes again",
+            ));
+        }
+        let prepared =
+            self.prepare_mod_setup_draft(&layout, &current, plans, edits, Some(allow_code))?;
+        let revision = self.apply_mod_setup_draft_locked(
+            port_id,
+            profile_id,
+            expected_revision,
+            prepared.packages,
+            Some(edits),
+        )?;
+        for directory in prepared.provider_directories {
+            let _ = fs::remove_dir_all(directory);
+        }
+        Ok(revision)
+    }
+
+    /// Shows precedence and asset overlaps for the exact proposed setup.
+    pub fn preview_mod_setup_draft(
+        &self,
+        port_id: &str,
+        profile_id: &str,
+        expected_revision: u64,
+        plans: &[ProviderInstallPlan],
+        edits: &crate::ModSetupEdits,
+    ) -> Result<ModSetupDraftPreview> {
+        let layout = self.deploy_layout(port_id)?;
+        let _guard = self
+            .library
+            .try_read_lock_port(port_id, "preview-mod-setup-draft")?;
+        let current = profile::current_revision(&self.library.connection()?, port_id, profile_id)?;
+        if current.revision != expected_revision {
+            return Err(PortcoveError::conflict(
+                "the setup changed; review the changes again",
+            ));
+        }
+        let prepared = self.prepare_mod_setup_draft(&layout, &current, plans, edits, None)?;
+        let next = crate::profile_deploy::proposed_mod_setup(
+            port_id,
+            &current,
+            &prepared.packages,
+            Some(edits),
+        )?;
+        self.review_recomp_changes(
+            &layout,
+            &next,
+            prepared
+                .packages
+                .iter()
+                .filter(|staged| {
+                    next.packages.iter().any(|item| {
+                        item.enabled
+                            && item.native_id == staged.inspection.file_name
+                            && item.sha256 == staged.inspection.sha256
+                    })
+                })
+                .filter_map(|staged| staged.recomp.as_ref()),
+            None,
+        )?;
+        let ordered = crate::profile_deploy::enabled_in_override_order(&next);
+        let order = ordered.iter().map(|item| item.native_id.clone()).collect();
+        let mut owned_paths = Vec::new();
+        let mut truncated = false;
+        if crate::native_mod_list::recomp_game(port_id).is_none() {
+            let mut remaining = 100_000usize;
+            for item in ordered {
+                let paths = if let Some(staged) = prepared.packages.iter().find(|staged| {
+                    staged.inspection.sha256 == item.sha256
+                        && staged.inspection.file_name == item.native_id
+                }) {
+                    staged.inspection.asset_paths.clone()
+                } else {
+                    let stored = layout.package(&item.sha256, &item.native_id);
+                    let inspected = inspect_asset_archive(&stored)?;
+                    if inspected.sha256 != item.sha256 {
+                        return Err(PortcoveError::verification(
+                            "a stored mod changed; review the setup again",
+                        )
+                        .detail("package", &item.native_id));
+                    }
+                    inspected.asset_paths
+                };
+                if paths.len() > remaining {
+                    truncated = true;
+                    break;
+                }
+                remaining -= paths.len();
+                owned_paths.push((item.native_id.as_str(), paths));
+            }
+        }
+        let assets = owned_paths
+            .iter()
+            .map(|(id, paths)| (*id, paths.as_slice()))
+            .collect::<Vec<_>>();
+        let mut conflicts = asset_conflicts(&assets);
+        // An omitted mod may win an overlap. A partial inspection cannot report winners.
+        if truncated {
+            conflicts.clear();
+        } else if conflicts.len() > MAX_REPORTED_CONFLICTS {
+            truncated = true;
+            conflicts.truncate(MAX_REPORTED_CONFLICTS);
+        }
+        Ok(ModSetupDraftPreview {
+            order,
+            conflicts,
+            conflicts_truncated: truncated,
+        })
+    }
+
+    fn prepare_mod_setup_draft(
+        &self,
+        layout: &Layout,
+        current: &ProfileRevision,
+        plans: &[ProviderInstallPlan],
+        edits: &crate::ModSetupEdits,
+        allow_code: Option<bool>,
+    ) -> Result<PreparedModSetupDraft> {
+        if plans.len() + edits.local_files.len() > 16 || edits.packages.len() > 1024 {
+            return Err(PortcoveError::usage("the setup draft is too large"));
+        }
+        if plans.is_empty()
+            && edits.packages.is_empty()
+            && edits.order.is_none()
+            && edits.local_files.is_empty()
+        {
+            return Err(PortcoveError::usage("the setup draft has no changes"));
+        }
+        let port_id = &current.build.port_id;
+        let profile_id = &current.profile_id;
+        let expected_revision = current.revision;
+        let mut staged = BTreeMap::<String, crate::profile_deploy::StagedPackage>::new();
+        let mut directories = Vec::new();
+        for plan in plans {
+            if &plan.port_id != port_id
+                || &plan.profile_id != profile_id
+                || plan.expected_revision != expected_revision
+                || !ProviderClient::sources(port_id).any(|source| source == plan.provider.provider)
+                || plan.members.is_empty()
+                || plan.members.len() > MAX_MEMBERS
+                || plan.wrappers.len() > MAX_MEMBERS
+                || plan
+                    .members
+                    .iter()
+                    .any(|member| !profile::valid_native_id(&member.file_name))
+                || digest(plan)? != plan.plan_sha256
+            {
+                return Err(PortcoveError::conflict(
+                    "a file review belongs to another setup revision or has changed",
+                ));
+            }
+            let runs_code = plan
+                .members
+                .iter()
+                .any(|member| !member.runs_code.is_empty());
+            let directory = ProviderInstallMode::Reviewed.staging(layout, &plan.plan_sha256);
+            let wrappers = wrapper_members(plan, &[])?;
+            let members = inspect_reviewed_members(plan, layout, &directory, &wrappers)?;
+            for member in members {
+                let id = &member.inspection.file_name;
+                if let Some(previous) = staged.get(id) {
+                    if previous.inspection.sha256 != member.inspection.sha256
+                        || previous.provider != member.provider
+                        || previous.provider_requires != member.provider_requires
+                    {
+                        return Err(PortcoveError::conflict(
+                            "two queued files supply different copies of the same mod",
+                        )
+                        .detail("package", id));
+                    }
+                } else {
+                    staged.insert(id.clone(), member);
+                }
+            }
+            if let Some(allow_code) = allow_code {
+                let authorization = if runs_code && allow_code {
+                    self.authorize_provider_install_allowing_code(plan)?
+                } else {
+                    self.authorize_provider_install(plan)?
+                };
+                self.library.consume_authorization(
+                    &authorization.token,
+                    if runs_code { ACTION_WITH_CODE } else { ACTION },
+                    &target(plan)?,
+                    &plan.plan_sha256,
+                )?;
+            }
+            directories.push(directory);
+        }
+        let mut local_staging = Vec::new();
+        for file in &edits.local_files {
+            let (directory, item) =
+                self.inspect_local_draft_file(layout, current, file, allow_code.unwrap_or(true))?;
+            let native_id = item.inspection.file_name.clone();
+            if staged.insert(native_id.clone(), item).is_some() {
+                return Err(
+                    PortcoveError::conflict("two files in the draft supply the same mod")
+                        .detail("package", native_id),
+                );
+            }
+            local_staging.push(directory);
+        }
+        Ok(PreparedModSetupDraft {
+            packages: staged.into_values().collect(),
+            provider_directories: directories,
+            _local_directories: local_staging,
+        })
+    }
+
     /// Discards a reviewed plan's private staging.
     pub fn discard_provider_install(&self, plan: &ProviderInstallPlan) -> Result<()> {
+        let _guard = self
+            .library
+            .try_lock_port(&plan.port_id, "discard-provider-install")?;
         self.discard_provider_install_in_mode(plan, ProviderInstallMode::Reviewed)
     }
 
@@ -1248,6 +1500,53 @@ impl PortcoveService {
         }
         Ok(())
     }
+}
+
+fn inspect_reviewed_members(
+    plan: &ProviderInstallPlan,
+    layout: &Layout,
+    staged_dir: &Path,
+    wrapper_members: &std::collections::BTreeMap<&str, ReviewedMember<'_>>,
+) -> Result<Vec<crate::profile_deploy::StagedPackage>> {
+    let recorded = crate::profile_deploy::consented_code(layout).unwrap_or_default();
+    let mut staged = Vec::new();
+    for member in &plan.members {
+        let path = staged_dir.join(&member.file_name);
+        if !path.try_exists()? || sha256_file(&path)? != member.sha256 {
+            return Err(PortcoveError::verification(
+                "the reviewed package bytes are missing or changed; plan again",
+            )
+            .detail("package", &member.file_name));
+        }
+        // The same loader review a local install gets.
+        // Code is allowed only for packages the authorized plan reported as
+        // running code, and only for their reviewed bytes.
+        let allowed = (!member.runs_code.is_empty()).then_some(member.sha256.as_str());
+        let origin = wrapper_members.get(member.file_name.as_str());
+        let mut item = inspect_for_port(
+            &plan.port_id,
+            path,
+            Some(
+                origin
+                    .map_or(&plan.provider, |member| member.provider)
+                    .clone(),
+            ),
+            CodePolicy::Consent {
+                allowed,
+                recorded: &recorded,
+            },
+        )?;
+        if item.inspection.sha256 != member.sha256 {
+            return Err(PortcoveError::verification(
+                "the reviewed package bytes changed during inspection; plan again",
+            ));
+        }
+        if let Some(origin) = origin {
+            item.provider_requires.clone_from(&origin.requirements);
+        }
+        staged.push(item);
+    }
+    Ok(staged)
 }
 
 #[cfg(test)]

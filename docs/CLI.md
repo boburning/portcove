@@ -2650,10 +2650,17 @@ can't tell whether the code is safe, and installs only through **Allow their cod
 install** (or **Allow its code and install** for one mod), which consents to exactly
 that reviewed plan.
 
-Desktop's Setups and mods panel offers the same flow for the setup in use when the
-game has a binding: find mods, show a mod's files, review a file (the same plan,
-shown before anything changes) and install it only after an explicit Install;
-Cancel discards the review. Stale data offers no review.
+Desktop's **Mods** workspace uses the same reviewed bindings and exact file identities.
+**Browse mods** searches, filters, and sorts the available catalog before paging.
+When the provider supplies only part of a catalog, the count and results are labeled
+as partial. **Installed mods** lists the applied packages in load order, including
+disabled packages. Queued additions and edits stay separate until **Apply changes**.
+**Review changes** binds the preview to the selected setup and base revision and
+shows the combined order and overlaps. Applying publishes one successor, with
+explicit permission for reviewed files that run code. The draft keeps file choices
+and edits. Private download staging belongs to the review and is discarded when
+the review closes. Setup history restores the selected revision's mods and retains
+the setup's current save group.
 
 `provider-browse` and `provider-project` only read. `provider-browse` lists one page
 (20 mods, pages 1–50; GameBanana's most downloaded first) of the bound game's mods

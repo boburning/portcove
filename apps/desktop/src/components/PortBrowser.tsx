@@ -16,6 +16,7 @@ import {
 import { GroupedDiscover, IdentityChips } from "../features/browsing/GroupedDiscover";
 import { GroupedLibrary } from "../features/browsing/GroupedLibrary";
 import { groupCatalog, groupCountLabel } from "../features/browsing/original-game";
+import { CollectionLayoutToggle } from "./CollectionLayoutToggle";
 import { PortSearch } from "./PortSearch";
 import { controlFocus, floatingMotion } from "./ui/control-style";
 import { gameTitle, gameProjectLabel, gameIdentityLabel } from "../port-identity";
@@ -38,8 +39,6 @@ import type { CollectionLayout } from "../features/browsing/use-collection-layou
 import {
   ArrowRight,
   Heart,
-  LayoutGrid,
-  List,
   Play,
   Save,
   Boxes,
@@ -1992,36 +1991,6 @@ function collectionViewLabel(
 
 function libraryResultCount(visible: number, installed: number) {
   return `${visible} of ${installed} in your library`;
-}
-
-function CollectionLayoutToggle({
-  layout,
-  onChange,
-}: {
-  layout: "covers" | "rows";
-  onChange: (layout: "covers" | "rows") => void;
-}) {
-  return (
-    <div role="group" aria-label="Collection view" className="ms-auto flex flex-wrap gap-1">
-      <span className="self-center text-xs text-pc-muted-foreground">View</span>
-      {(["covers", "rows"] as const).map((nextLayout) => (
-        <Button
-          key={nextLayout}
-          variant={layout === nextLayout ? "selected" : "ghost"}
-          size="sm"
-          aria-pressed={layout === nextLayout}
-          aria-label={nextLayout === "rows" ? "Compact rows" : "Covers"}
-          data-focusable
-          onClick={() => onChange(nextLayout)}
-        >
-          <Icon glyph={nextLayout === "covers" ? LayoutGrid : List} size="sm" />
-          <span className="collection-layout-label">
-            {nextLayout === "covers" ? "Covers" : "Rows"}
-          </span>
-        </Button>
-      ))}
-    </div>
-  );
 }
 
 function BrowserCollectionTools({

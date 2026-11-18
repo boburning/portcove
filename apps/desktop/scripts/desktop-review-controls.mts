@@ -26,7 +26,7 @@ export async function preparationLogControl(browser: WebDriver, row: WebElement)
 /** Reveal the real panel through its tab; scrolling cannot reveal hidden content. */
 export async function revealDetailSection(
   browser: WebDriver,
-  label: "Overview" | "Game files" | "Saves & backups" | "Versions & updates" | "Manage",
+  label: "Overview" | "Game files" | "Mods" | "Saves & backups" | "Versions & updates" | "Manage",
 ) {
   const tab = await browser.wait(
     until.elementLocated(

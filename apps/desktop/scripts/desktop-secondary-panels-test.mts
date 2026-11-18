@@ -234,14 +234,23 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         5_000,
       );
     };
-    const openSaves = async () => {
+    const openDetails = async () => {
       await selectPrimaryNavigation(browser, "Discover");
       const search = await browser.findElement(By.id("port-search"));
       await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, portId);
       await clearCatalogFilters(browser);
       await selectCatalogPort(browser, portId);
-      await revealDetailSection(browser, "Saves & backups");
+    };
+    const openMods = async () => {
+      await openDetails();
+      await revealDetailSection(browser, "Mods");
       await text("Setups and mods");
+      const installed = await browser.findElement(By.css(".mod-workspace-views button:last-child"));
+      await clickVisible(browser, installed);
+    };
+    const openSaves = async () => {
+      await openDetails();
+      await revealDetailSection(browser, "Saves & backups");
     };
     const observedAction = async (command: string, action: () => Promise<unknown>) => {
       const previous = (await probe.capture()).trace.filter(
@@ -410,7 +419,7 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
           ),
         );
         await probe.phase("mods");
-        await openSaves();
+        await openMods();
         const original = await findButton("Review original game files");
         await clickVisible(browser, original);
         await text("Other registered originals");
@@ -433,7 +442,7 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         await text("Owned presentation fixture refused this action.");
         await capture(`${theme}-original-refused`, original);
 
-        await openSaves();
+        await openMods();
         const recipe = await findButton("Open setup recipe…");
         await clickVisible(browser, recipe);
         await confirmNative(
@@ -453,17 +462,19 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         await click(button("Close review"));
         await focused(recipe);
 
-        await openSaves();
-        await click(button("Find mods on GameBanana…"));
-        await click(button(`Show files of ${fixtures.providerProject.project.name}`));
-        await click(button(`Review ${fixtures.providerPlan.file.file_name}`));
-        const install = await findButton("Install");
+        await openMods();
+        await click(button("Browse mods"));
+        await click(button(fixtures.providerProject.project.name));
+        await click(button(`Add ${fixtures.providerPlan.file.file_name}`));
+        await click(button("Review changes"));
+        await click(button("Check files"));
+        const install = await findButton("Apply changes");
         await capture(`${theme}-provider-review`, install);
-        await observedAction("apply_provider_install", () => clickVisible(browser, install));
+        await observedAction("apply_mod_setup_draft", () => clickVisible(browser, install));
         await text("Owned presentation fixture refused this action.");
         await capture(`${theme}-provider-refused`);
 
-        await openSaves();
+        await openMods();
         await click(button("Retained game versions"));
         const retirement = await findButton(
           `Review retiring ${fixtures.retirement.revision.build.artifact.asset_name} (offer 1)`,
@@ -479,7 +490,7 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         await focused(retirement);
 
         await probe.phase("preservation");
-        await openSaves();
+        await openMods();
         const reviewFile = await findButton(`Review ${fixtures.modName}`);
         await clickVisible(browser, reviewFile);
         const preserve = await findButton("Preserve file");

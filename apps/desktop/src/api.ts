@@ -160,6 +160,12 @@ export interface PortableSaveChoices {
   replaceDivergedProgress: boolean;
 }
 
+type ModSetupDraftEdits = {
+  packages: { native_id: string; enabled: boolean | null }[];
+  order: string[] | null;
+  local_files: { path: string; expected_plan_sha256: string }[];
+};
+
 export const desktopApi = {
   gameSettings: (portId: string, generation: number) =>
     invoke<import("./types").GameSettingsView>("get_game_settings", { portId, generation }),
@@ -526,19 +532,24 @@ export const desktopApi = {
       profileId,
       generation,
     }),
-  openProviderModProject: (portId: string, projectId: string, generation: number) =>
-    invoke<void>("open_provider_mod_project", { portId, projectId, generation }),
-  browseProviderMods: (portId: string, page: number, generation: number) =>
-    invoke<import("./types").ProviderBrowsePage>("browse_provider_mods", {
+  openProviderModProject: (
+    portId: string,
+    projectId: string,
+    generation: number,
+    source?: string,
+  ) => invoke<void>("open_provider_mod_project", { portId, projectId, generation, source }),
+  modProviderCatalog: (portId: string, source: string, generation: number) =>
+    invoke<import("./types").ProviderCatalog>("get_mod_provider_catalog", {
       portId,
-      page,
+      source,
       generation,
     }),
-  providerProject: (portId: string, projectId: string, generation: number) =>
+  providerProject: (portId: string, projectId: string, generation: number, source?: string) =>
     invoke<import("./types").ProviderProjectView>("get_provider_project", {
       portId,
       projectId,
       generation,
+      source,
     }),
   planProviderInstall: (
     portId: string,
@@ -546,6 +557,7 @@ export const desktopApi = {
     projectId: string,
     fileId: string,
     generation: number,
+    source?: string,
   ) =>
     invoke<import("./types").ProviderInstallPlan>("plan_provider_install", {
       portId,
@@ -553,6 +565,41 @@ export const desktopApi = {
       projectId,
       fileId,
       generation,
+      source,
+    }),
+  previewModSetupDraft: (
+    portId: string,
+    profileId: string,
+    expectedRevision: number,
+    plans: readonly import("./types").ProviderInstallPlan[],
+    edits: ModSetupDraftEdits,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupDraftPreview>("preview_mod_setup_draft", {
+      portId,
+      profileId,
+      expectedRevision,
+      plans,
+      edits,
+      generation,
+    }),
+  applyModSetupDraft: (
+    portId: string,
+    profileId: string,
+    expectedRevision: number,
+    plans: readonly import("./types").ProviderInstallPlan[],
+    edits: ModSetupDraftEdits,
+    generation: number,
+    allowCode: boolean,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("apply_mod_setup_draft", {
+      portId,
+      profileId,
+      expectedRevision,
+      plans,
+      edits,
+      generation,
+      allowCode,
     }),
   applyProviderInstall: (
     portId: string,
