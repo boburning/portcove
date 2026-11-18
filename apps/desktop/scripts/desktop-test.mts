@@ -1789,7 +1789,8 @@ async function restartApplication(
           selectedSetupRestart ||
             acquisitionRestart ||
             interruptedPreparationSession ||
-            reviewedWorkflowSession
+            reviewedWorkflowSession ||
+            selection.selected_scenarios.includes("native-standing-setup-source-return")
             ? name
             : cleanupName,
         );

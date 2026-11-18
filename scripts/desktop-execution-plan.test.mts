@@ -2112,3 +2112,61 @@ void test("MM selection binds only its normal CLI and exact private inputs", () 
     /exact standalone/u,
   );
 });
+
+void test("standing setup keeps both restart inventories separate from final cleanup", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("function requiresReadOnlyRestart(");
+  const end = source.indexOf("// Interrupt only this harness", start);
+  assert.ok(start >= 0 && end > start);
+  const names: string[] = [];
+  const restoreOriginal = async () => {};
+  const context = {
+    assert,
+    process: { platform: "win32" },
+    selection: { selected_scenarios: ["native-standing-setup-source-return"] },
+    linuxSelectedSession: false,
+    historySession: false,
+    preferencesRecoverySession: false,
+    savedLibraryRecoverySession: false,
+    hostPublicationSession: false,
+    identityBoundSession: true,
+    interruptedPreparationSession: false,
+    reviewedWorkflowSession: false,
+    executionPlan: { fixtures: { acquisitionJourney: false } },
+    cleanupName: "backup-focus",
+    captureBackupFocusCleanup: (name: string) => {
+      names.push(name);
+      return "owned-inventory";
+    },
+    readFile: async () => "{}",
+    readNativeProcessSnapshot: (value: unknown) => value,
+    validateBackupFocusInventory: () => {},
+    stopBackupFocusDriver: () => {},
+    connect: () => {},
+    driverBrowser: () => {},
+    ownedSession: {
+      restart: async ({ capture, prepare }: { capture: () => Promise<void>; prepare: unknown }) => {
+        assert.equal(prepare, names.length === 0 ? restoreOriginal : undefined);
+        await capture();
+        return "restarted";
+      },
+    },
+  };
+  runInNewContext(`${source.slice(start, end)}\nglobalThis.restart = restartApplication;`, context);
+  const restart: unknown = Reflect.get(context, "restart");
+  assert.ok(typeof restart === "function");
+  assert.equal(
+    await Reflect.apply(restart, undefined, ["standing-original-return", restoreOriginal]),
+    "restarted",
+  );
+  assert.equal(await Reflect.apply(restart, undefined, ["standing-retained"]), "restarted");
+  await assert.rejects(async () => {
+    await Reflect.apply(restart, undefined, ["standing-retained", restoreOriginal]);
+  }, /Identity-bound restart cannot rewrite fixture state/u);
+  context.captureBackupFocusCleanup(context.cleanupName);
+  assert.deepEqual(names, ["standing-original-return", "standing-retained", "backup-focus"]);
+  assert.equal(new Set(names).size, 3, "All session inventories must remain exclusive");
+});
