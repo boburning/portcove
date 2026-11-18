@@ -41952,6 +41952,51 @@
       }
     },
     {
+      "id": "midtown-madness-3-lakshya16157",
+      "name": "Midtown Madness 3 / lakshya16157",
+      "summary": "Race in a native Windows or Linux build prepared from your own Midtown Madness 3 Xbox disc image.",
+      "project_url": "https://github.com/lakshya16157/midtown-madness-3-PC-Native",
+      "original_game_title": "Midtown Madness 3",
+      "issue_number": 5988,
+      "listed_at": "2026-11-18",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "MM3-Setup.exe"
+        ],
+        "linux-x86-64": [
+          "MM3-Linux-x86_64.tar.gz"
+        ]
+      },
+      "release_url": "https://github.com/lakshya16157/midtown-madness-3-PC-Native/releases/tag/v2.8.1",
+      "setup_url": "https://github.com/lakshya16157/midtown-madness-3-PC-Native/blob/v2.8.1/README.md#install-and-play",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game from your Xbox disc image",
+            "instruction": "On Windows, use MM3-Setup.exe. On Linux, extract the tarball and run sh install.sh from the extracted MM3-Linux folder. Linux needs Python 3.9 or newer, a Vulkan driver, and python3-tk if you use the setup window. Use your own original USA or Europe/Australia disc image. Check the release’s supported disc notes for other regions."
+          },
+          {
+            "title": "Play again and reopen settings",
+            "instruction": "Use the installed Midtown Madness 3 shortcut. For Steam or another frontend that accepts scripts, use mm3_recomp.exe on Windows or play-midtown-madness-3.sh on Linux. Add --play to start the game directly or --settings to open settings."
+          }
+        ],
+        "references": [
+          {
+            "title": "Back up the installation’s player data",
+            "instruction": "Your saves stay in game_files inside the installation. Keep that folder and display.ini, launcher.ini and language.ini. On Windows, use the project’s update control. On Linux, download the new tarball from the project and install it over the existing installation to keep saves and settings."
+          }
+        ],
+        "warnings": [
+          "Back up the game’s files yourself before replacing or removing an installation."
+        ]
+      }
+    },
+    {
       "id": "midtown-madness-3-static-recompilation-taxidriverhk-midtown-madness-3",
       "name": "Midtown Madness 3 — Midtown Madness 3 — Static Recompilation (taxidriverhk)",
       "original_game_title": "Midtown Madness 3",
@@ -55314,6 +55359,48 @@
         "image_sha256": "731ea4d96ffcccd7a38732608d576e488cb4b19c0a78b64cc4563dc966ca76c4",
         "game_slug": "ridge-racer-6",
         "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "rtrainsim-openrts",
+      "name": "RTrainSim / openRTS",
+      "summary": "Drive trains in a native Windows build using the routes and rolling stock from your own RTrainSim installation.",
+      "project_url": "https://github.com/SmileDoge/openRTS",
+      "original_game_title": "RTrainSim",
+      "issue_number": 5782,
+      "listed_at": "2026-11-18",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "openRTS-windows-x64-",
+          ".zip"
+        ]
+      },
+      "release_url": "https://github.com/SmileDoge/openRTS/releases/tag/v0.22.0",
+      "setup_url": "https://github.com/SmileDoge/openRTS/blob/v0.22.0/INSTALL_EN.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Open the start menu",
+            "instruction": "Extract the ZIP and open openrts_game.exe from the extracted folder. Install the x64 Microsoft Visual C++ Redistributable if needed. The project requires a graphics driver with Vulkan or DirectX 12."
+          },
+          {
+            "title": "Choose your RTrainSim folder",
+            "instruction": "In the start menu, set the folder of your own RTrainSim installation with routes and rolling stock. The menu remembers the folder. Return to openrts_game.exe to choose a route or save, or open Settings to change the folder."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep saves and settings",
+            "instruction": "The default profile is %LOCALAPPDATA%/openRTS. If you use the project’s portable.txt marker, the profile stays beside the program. Open the profile from the project’s Settings and back it up separately. It holds viewer_state.ini, saves grouped by route and RTS_TAPES. The project’s start menu handles updates and lets you turn off checks at startup."
+          }
+        ],
+        "warnings": [
+          "Portcove does not back up this project’s profile."
+        ]
       }
     },
     {
