@@ -190,75 +190,84 @@ it.each([
     const save = vi.spyOn(desktopApi, "setSteamGridDbKey");
     const clear = vi.spyOn(desktopApi, "clearSteamGridDbKey");
     const diagnostic = `Controlled setup check refused: C:\\Synthetic\\${"x".repeat(200)}\\credential-store`;
-    await root.rerender(
-      <LocalizationProvider api={desktopApi}>
-        <App />
-      </LocalizationProvider>,
-    );
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page
-      .getByRole("navigation", { name: "Settings categories", exact: true })
-      .getByRole("button", { name: "Integrations", exact: true })
-      .click();
-    document.documentElement.dataset.theme = theme;
-    const row = settingsRow();
-    const scope = page.elementLocator(row);
-    row.scrollIntoView({ block: "center", inline: "nearest" });
-    await expect.element(scope).toHaveAttribute("aria-busy", "true");
-    await expect
-      .element(scope.getByRole("status"))
-      .toHaveTextContent("Checking SteamGridDB setup…");
-    expect(row.querySelector("input")).toBeNull();
-    await captureParityState("steamgriddb-setup-reading");
-    await act(async () => first.reject(new Error(diagnostic)));
-    await expect.element(scope).toHaveAttribute("aria-busy", "false");
-    await expect.element(scope.getByRole("alert")).toHaveTextContent(diagnostic);
-    await expect
-      .element(scope.getByRole("status"))
-      .toHaveTextContent(
-        "Couldn't check SteamGridDB setup. Check again to see whether a key is saved.",
+    try {
+      await root.rerender(
+        <LocalizationProvider api={desktopApi}>
+          <App />
+        </LocalizationProvider>,
       );
-    const button = scope.getByRole("button", { name: "Check setup again", exact: true }).element();
-    const recovery = page.elementLocator(button);
-    button.scrollIntoView({ block: "center", inline: "nearest" });
-    const expectContainedRecovery = async () => {
+      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await page
+        .getByRole("navigation", { name: "Settings categories", exact: true })
+        .getByRole("button", { name: "Integrations", exact: true })
+        .click();
+      document.documentElement.dataset.theme = theme;
+      const row = settingsRow();
+      const scope = page.elementLocator(row);
+      row.scrollIntoView({ block: "center", inline: "nearest" });
+      await expect.element(scope).toHaveAttribute("aria-busy", "true");
+      await expect
+        .element(scope.getByRole("status"))
+        .toHaveTextContent("Checking SteamGridDB setup…");
+      expect(row.querySelector("input")).toBeNull();
+      await captureParityState("steamgriddb-setup-reading");
+      await act(async () => first.reject(new Error(diagnostic)));
+      await expect.element(scope).toHaveAttribute("aria-busy", "false");
+      await expect.element(scope.getByRole("alert")).toHaveTextContent(diagnostic);
+      await expect
+        .element(scope.getByRole("status"))
+        .toHaveTextContent(
+          "Couldn't check SteamGridDB setup. Check again to see whether a key is saved.",
+        );
+      const button = scope
+        .getByRole("button", { name: "Check setup again", exact: true })
+        .element();
+      button.scrollIntoView({ block: "center", inline: "nearest" });
+      const expectContainedRecovery = async () => {
+        expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth + 1);
+        expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+        await expect.element(page.elementLocator(button)).toBeVisible();
+        expect(button.isConnected).toBe(true);
+        const bounds = button.getBoundingClientRect();
+        expect(bounds.top).toBeGreaterThanOrEqual(0);
+        expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+      };
+      await expectContainedRecovery();
+      await captureParityState("steamgriddb-setup-refused");
+      await page.elementLocator(button).click();
+      await expect.element(scope).toHaveAttribute("aria-busy", "true");
+      await expectContainedRecovery();
+      expect(row.querySelector("input")).toBeNull();
+      await captureParityState("steamgriddb-setup-retrying");
+      await act(async () => retry.resolve({ configured: theme === "dark" }));
+      await expect.element(scope).toHaveAttribute("aria-busy", "false");
+      await expect.element(page.elementLocator(button)).toHaveFocus();
+      await expect.element(scope.getByRole("alert")).not.toBeInTheDocument();
+      expect(
+        scope
+          .getByRole("button", { name: "Remove key", exact: true })
+          .elements()
+          .map((element) => (element as HTMLButtonElement).disabled),
+      ).toEqual(theme === "dark" ? [false] : []);
+      expect(
+        scope
+          .getByLabelText("SteamGridDB API key", { exact: true })
+          .elements()
+          .map((element) => element.getAttribute("type")),
+      ).toEqual(theme === "dark" ? [] : ["password"]);
+      expect(read).toHaveBeenCalledTimes(2);
+      expect(save).not.toHaveBeenCalled();
+      expect(clear).not.toHaveBeenCalled();
+      row.scrollIntoView({ block: "center", inline: "nearest" });
       expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth + 1);
       expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
-      await expect.element(recovery).toBeVisible();
-      const bounds = button.getBoundingClientRect();
-      expect(bounds.top).toBeGreaterThanOrEqual(0);
-      expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
-    };
-    await expectContainedRecovery();
-    await captureParityState("steamgriddb-setup-refused");
-    await recovery.click();
-    await expect.element(scope).toHaveAttribute("aria-busy", "true");
-    await expectContainedRecovery();
-    expect(row.querySelector("input")).toBeNull();
-    await captureParityState("steamgriddb-setup-retrying");
-    await act(async () => retry.resolve({ configured: theme === "dark" }));
-    await expect.element(scope).toHaveAttribute("aria-busy", "false");
-    await expect.element(recovery).toHaveFocus();
-    await expect.element(scope.getByRole("alert")).not.toBeInTheDocument();
-    expect(
-      scope
-        .getByRole("button", { name: "Remove key", exact: true })
-        .elements()
-        .map((element) => (element as HTMLButtonElement).disabled),
-    ).toEqual(theme === "dark" ? [false] : []);
-    expect(
-      scope
-        .getByLabelText("SteamGridDB API key", { exact: true })
-        .elements()
-        .map((element) => element.getAttribute("type")),
-    ).toEqual(theme === "dark" ? [] : ["password"]);
-    expect(read).toHaveBeenCalledTimes(2);
-    expect(save).not.toHaveBeenCalled();
-    expect(clear).not.toHaveBeenCalled();
-    row.scrollIntoView({ block: "center", inline: "nearest" });
-    expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth + 1);
-    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
-    await captureParityState("steamgriddb-setup-recovered");
+      await captureParityState("steamgriddb-setup-recovered");
+    } finally {
+      await act(async () => {
+        first.resolve({ configured: false });
+        retry.resolve({ configured: false });
+      });
+    }
   },
 );
 
