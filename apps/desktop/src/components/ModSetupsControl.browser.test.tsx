@@ -1648,7 +1648,7 @@ it("checks a named provider file and asks permission for the resulting exact cod
     provider_checks: [],
     plan_sha256: "b".repeat(64),
     code_approval: [{ native_id: "retro.nrm", sha256: "c".repeat(64), runs: ["recompiled_code"] }],
-  } as RecipeImportPlan);
+  });
   vi.spyOn(desktopApi, "inspectModRecipe").mockResolvedValue(plan);
   let reject!: (error: Error) => void;
   const refused = new Promise<never>((_resolve, rejectAttempt) => {
