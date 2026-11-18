@@ -1,3 +1,4 @@
+import { ImplementationFacts } from "../features/browsing/ImplementationFacts";
 import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";
 import { SetupIntentChoice } from "./SetupIntentChoice";
 import { PortCapabilities } from "./PortCapabilities";
@@ -3862,6 +3863,7 @@ function DetailOverviewEvidence({ model }: { model: Parameters<typeof DetailBody
         busy={Boolean(model.busy)}
         detailsContext={[model.backups, model.backupProtection, model.backupReadState]}
       />
+      <ImplementationFacts port={model.displayPort ?? model.port} />
       <details className="mt-6">
         <summary data-focusable>Project status and release information</summary>
         <ProjectReleaseSummary port={model.port} />
