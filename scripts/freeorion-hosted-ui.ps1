@@ -15,6 +15,8 @@ public static class FreeOrionWindow {
   System.Threading.Thread.Sleep(300);GetWindowThreadProcessId(h,out owner);
   if(owner!=pid || GetForegroundWindow()!=h)throw new Exception("Owned foreground changed");
  }
+ [DllImport("user32.dll",SetLastError=true)] static extern bool SetWindowPos(IntPtr h,IntPtr after,int x,int y,int cx,int cy,uint flags);
+ public static void MoveOwned(IntPtr h,uint pid){uint owner;GetWindowThreadProcessId(h,out owner);if(owner!=pid||GetForegroundWindow()!=h)throw new Exception("Owned move target differs");if(!SetWindowPos(h,IntPtr.Zero,24,24,0,0,0x0001u|0x0004u|0x0010u))throw new Exception("Owned native window move failed");}
  public static bool ForegroundOwned(IntPtr h,uint pid){uint owner;GetWindowThreadProcessId(h,out owner);return owner==pid && GetForegroundWindow()==h;}
  [DllImport("user32.dll",EntryPoint="MapVirtualKeyW",ExactSpelling=true)] static extern uint MapVirtualKey(uint code,uint type);
  [DllImport("user32.dll",SetLastError=true)] static extern uint SendInput(uint n,Input[] i,int size);
@@ -167,6 +169,16 @@ try {
  Start-Sleep -Seconds 2
  Assert-Owned
  Capture 'client-window'
+ if($TitleMode -eq 'fresh'){
+  # Upstream HandleWindowMove commits actual settings; ordinary startup alone need not.
+  Assert-Owned;[FreeOrionWindow]::MoveOwned($window,[uint32]$ownedGame.Id)
+  $settings=Join-Path $env:APPDATA 'FreeOrion/config.xml'
+  $settingsDeadline=[DateTime]::UtcNow.AddSeconds(5)
+  while(-not (Test-Path -LiteralPath $settings) -and [DateTime]::UtcNow -lt $settingsDeadline){Assert-Owned;Start-Sleep -Milliseconds 100}
+  if(-not (Test-Path -LiteralPath $settings)){throw 'Actual native window move did not commit settings'}
+  $steps.Add(@{operation='native-owned-window-move';x=24;y=24;settings=$settings;at=[DateTime]::UtcNow.ToString('o')})
+  Capture 'settings-window-moved'
+ }
  if($TitleMode -eq 'singleplayer'){
   $ready=$false;$gameDeadline=[DateTime]::UtcNow.AddSeconds(90)
   while([DateTime]::UtcNow -lt $gameDeadline){
