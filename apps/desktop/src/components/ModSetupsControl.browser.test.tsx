@@ -256,7 +256,7 @@ it.each(["custom", "default"] as const)(
       initialProfile
     ]();
     if (startsPopulated)
-      await page.getByRole("button", { name: "Use Default", exact: true }).click();
+      await page.getByRole("button", { name: "Switch to clean play", exact: true }).click();
     expect(use.mock.calls).toEqual(startsPopulated ? [["shipwright", "default", 7]] : []);
     expect(read).toHaveBeenCalledTimes(startsPopulated ? 2 : 1);
     expect(button(host, "Add mod file…").disabled).toBe(startsPopulated);
