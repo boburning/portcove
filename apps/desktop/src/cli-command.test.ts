@@ -59,6 +59,55 @@ describe("GUI to CLI continuity", () => {
     expect(command.missing).toEqual([]);
   });
 
+  it("copies a usable setup command when no source is needed or registration already exists", () => {
+    const optional = { ...port, optional_game_source: true, bios_source_profile: null };
+    const cases = [
+      {
+        definition: { ...optional, source_profile: null },
+        path: "",
+        registered: {},
+        include: false,
+        missing: [],
+      },
+      { definition: optional, path: "", registered: {}, include: false, missing: [] },
+      {
+        definition: optional,
+        path: "/selected/source",
+        registered: {},
+        include: true,
+        missing: [],
+      },
+      {
+        definition: { ...optional, optional_game_source: false },
+        path: "",
+        registered: { game: true },
+        include: false,
+        missing: [],
+      },
+      {
+        definition: { ...optional, optional_game_source: false },
+        path: "",
+        registered: {},
+        include: true,
+        missing: ["source-path"],
+      },
+    ];
+    for (const { definition, path, registered, include, missing } of cases) {
+      const command = primaryCliCommand(
+        context,
+        definition,
+        undefined,
+        "stable",
+        path,
+        "",
+        registered,
+      );
+      expect(command.args).toContain("ensure");
+      expect(command.args.includes("--source")).toBe(include);
+      expect(command.missing).toEqual(missing);
+    }
+  });
+
   it("launches the active installation with the exact library and no ensure operation", () => {
     const status = { ...portStatus(), active: { id: "active" } } as PortStatus;
     const command = primaryCliCommand(context, port, status, "stable");

@@ -19,6 +19,7 @@ function useCliContinuity({
   channel,
   sourcePath,
   biosPath,
+  registered,
 }: {
   generation: number;
   port: PortDefinition;
@@ -26,6 +27,7 @@ function useCliContinuity({
   channel: ReleaseChannel;
   sourcePath: string;
   biosPath: string;
+  registered?: { game?: boolean; bios?: boolean };
 }) {
   const [loaded, setLoaded] = useState<{
     generation: number;
@@ -54,7 +56,7 @@ function useCliContinuity({
       current = false;
     };
   }, [generation, attempt]);
-  return { port, status, channel, sourcePath, biosPath, context, setAttempt, error };
+  return { port, status, channel, sourcePath, biosPath, registered, context, setAttempt, error };
 }
 
 export function CliContinuity(props: Parameters<typeof useCliContinuity>[0]) {
@@ -106,6 +108,7 @@ function CliContinuityView(model: ReturnType<typeof useCliContinuity>) {
       model.channel,
       model.sourcePath,
       model.biosPath,
+      model.registered,
     );
   } catch {
     return (
