@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { ListFilter, Puzzle, RefreshCw, X } from "lucide-react";
 import { Trans } from "react-i18next";
 import { useFilterPanel } from "../features/browsing/useFilterPanel";
@@ -122,24 +122,6 @@ export function ModProviderCatalog({
   const searchId = useId();
   const resultHeading = useId();
   const { open, setOpen, panelId, trigger, heading, panel, close } = useFilterPanel();
-  useEffect(() => {
-    if (!active) return;
-    const focusSearch = (event: KeyboardEvent) => {
-      if (
-        (event.ctrlKey || event.metaKey) &&
-        !event.altKey &&
-        !event.shiftKey &&
-        event.key.toLowerCase() === "f"
-      ) {
-        event.preventDefault();
-        event.stopPropagation();
-        document.getElementById(searchId)?.focus();
-      }
-    };
-    document.addEventListener("keydown", focusSearch, true);
-    return () => document.removeEventListener("keydown", focusSearch, true);
-  }, [active, searchId]);
-
   const projects = catalog?.projects ?? [];
   const availableCategories = [
     ...new Set([
@@ -200,7 +182,10 @@ export function ModProviderCatalog({
   return (
     <section className="mod-catalog min-w-0" aria-labelledby={resultHeading}>
       <div className="library-query-tools mb-4">
-        <search className="browse-toolbar flex flex-wrap items-center gap-2">
+        <search
+          className="browse-toolbar flex flex-wrap items-center gap-2"
+          data-active-mod-search={active ? "" : undefined}
+        >
           <PortSearch
             id={searchId}
             searchLabel={t("mods.workspace.search")}

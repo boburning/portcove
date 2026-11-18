@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
+import { ChoiceSelect } from "./components/ChoiceSelect";
 import { useCommandSurface } from "./use-command-surface";
 import type { View } from "./view-model";
 
@@ -8,7 +9,15 @@ afterEach(async () => {
   await cleanup();
   vi.restoreAllMocks();
 });
-function SearchContext({ view, navigate }: { view: View; navigate: (view: View) => void }) {
+function SearchContext({
+  view,
+  navigate,
+  browseMods = false,
+}: {
+  view: View;
+  navigate: (view: View) => void;
+  browseMods?: boolean;
+}) {
   useCommandSurface({
     view,
     installedCount: 0,
@@ -24,6 +33,17 @@ function SearchContext({ view, navigate }: { view: View; navigate: (view: View) 
       {(view === "library" || view === "catalog") && (
         <input id="port-search" aria-label="Current search" />
       )}
+      {browseMods && (
+        <search data-active-mod-search="">
+          <input type="search" aria-label="Search mods" />
+          <ChoiceSelect
+            label="Sort"
+            value="downloads"
+            options={[{ value: "downloads", label: "Most downloaded" }]}
+            onChange={vi.fn()}
+          />
+        </search>
+      )}
       <input aria-label="Editing a value" />
       <div contentEditable suppressContentEditableWarning>
         <span data-editable-child>Editable content</span>
@@ -37,6 +57,25 @@ it.for(["library", "catalog"] as const)("searches %s without changing its route"
   await page.getByRole("button", { name: "Workspace" }).click();
   await userEvent.keyboard("{Control>}f{/Control}");
   await expect.element(page.getByRole("textbox", { name: "Current search" })).toHaveFocus();
+  expect(navigate).not.toHaveBeenCalled();
+});
+it("focuses Browse mods search and respects an open sort popup", async () => {
+  const navigate = vi.fn();
+  await render(<SearchContext view="catalog" navigate={navigate} browseMods />);
+  page.getByRole("button", { name: "Workspace" }).element().focus();
+  await userEvent.keyboard("{Control>}f{/Control}");
+  const search = page.getByRole("searchbox", { name: "Search mods" });
+  await expect.element(search).toHaveFocus();
+
+  page.getByRole("combobox", { name: "Sort" }).element().focus();
+  await userEvent.keyboard("{Enter}");
+  const popup = page.getByRole("listbox");
+  await expect.element(popup).toBeVisible();
+  const focused = document.activeElement;
+  expect(popup.element().contains(focused)).toBe(true);
+  await userEvent.keyboard("{Control>}f{/Control}");
+  await expect.element(popup).toBeVisible();
+  expect(document.activeElement).toBe(focused);
   expect(navigate).not.toHaveBeenCalled();
 });
 it("leaves nested editable and composing events untouched", async () => {
