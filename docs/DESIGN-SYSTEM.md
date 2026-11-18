@@ -1153,7 +1153,8 @@ keeps one ownership/path summary and puts future-install choices after its
 regular action rows.
 
 Per-game setup choices distinguish an unread choice, an active read and a settled
-read failure. A failed read clears the busy state, keeps changes unavailable and
+read failure. The initial read shows Reading choices… and leaves unknown choices
+unselected. A failed read clears the busy state, keeps changes unavailable and
 offers Read again. The recovery control retains focus while rereading and after
 success. A later failed reread preserves the last confirmed choice without
 enabling changes; another game or library cannot inherit its pending result.

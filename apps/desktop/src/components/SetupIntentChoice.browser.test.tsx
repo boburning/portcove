@@ -60,6 +60,7 @@ it("settles a refused read and retries once while retaining the recovery control
   const save = vi.spyOn(desktopApi, "setPortIntent");
   await render(<SetupIntentChoice portId="harbor" generation={7} />);
   await expect.element(choices()).toHaveAttribute("aria-busy", "true");
+  await expect.element(choices().getByRole("status")).toHaveTextContent("Reading choices…");
   expect(radios().every((radio) => radio.disabled && !radio.checked)).toBe(true);
   await act(async () => first.reject(new Error("Controlled choice read refusal.")));
   await expect.element(choices()).toHaveAttribute("aria-busy", "false");
@@ -219,9 +220,10 @@ it.each([
     const diagnostic = `Could not read setup choices at C:\\Synthetic\\${"x".repeat(200)}\\choices.json`;
     const recordedFailure = `Controlled earlier setup failure: C:\\Synthetic\\${"y".repeat(200)}\\{{count}}.json`;
     const recoveredMode = theme === "dark" ? "set_up_when_ready" : "notify";
+    const first = deferred<PortIntent[]>();
     const read = vi
       .spyOn(desktopApi, "portIntents")
-      .mockRejectedValueOnce(new Error(diagnostic))
+      .mockReturnValueOnce(first.promise)
       .mockReturnValueOnce(retry.promise);
     document.documentElement.dataset.theme = theme;
     await render(
@@ -252,6 +254,13 @@ it.each([
       expect(recoveryBounds.top).toBeGreaterThanOrEqual(0);
       expect(recoveryBounds.bottom).toBeLessThanOrEqual(innerHeight);
     };
+    await expect.element(choices()).toHaveAttribute("aria-busy", "true");
+    await expect.element(choices().getByRole("status")).toHaveTextContent("Reading choices…");
+    expect(radios().every((radio) => radio.disabled && !radio.checked)).toBe(true);
+    field.scrollIntoView({ block: "center", inline: "nearest" });
+    await captureParityState("setup-intent-initial-reading");
+    await act(async () => first.reject(new Error(diagnostic)));
+    await expect.element(choices().getByRole("status")).not.toBeInTheDocument();
     await expect
       .element(page.getByRole("button", { name: "Read again", exact: true }))
       .toBeEnabled();

@@ -142,6 +142,7 @@ function BoundSetupIntentChoice({ portId, generation, installed = false }: Props
             </span>
           </label>
         ))}
+      {!loaded && reading && !readFailed && <p role="status">{t("intent.reading")}</p>}
       {intent?.explicitly_uninstalled_at && !installed && (
         <div>
           <p>{t("intent.uninstalled")}</p>
