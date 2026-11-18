@@ -93,34 +93,6 @@ pub(crate) struct RecipeImportReview {
     pub(crate) setting_values: Vec<String>,
 }
 
-impl RecipeImportReview {
-    pub(crate) fn new(plan: portcove_core::RecipeImportPlan) -> portcove_core::Result<Self> {
-        let serialized_plan = serde_json::to_string(&plan)?;
-        let setting_values = plan
-            .recipe
-            .settings
-            .iter()
-            .map(|setting| match &setting.value {
-                portcove_core::RecipeModSettingValue::Number(value) => value.to_string(),
-                portcove_core::RecipeModSettingValue::Choice(value) => value.clone(),
-            })
-            .collect();
-        Ok(Self {
-            plan,
-            serialized_plan,
-            setting_values,
-        })
-    }
-
-    /// Decoding is transport only. The command still performs the ordinary
-    /// generation, port, plan-digest, consent and current-input checks in Core.
-    pub(crate) fn decode(
-        serialized_plan: &str,
-    ) -> portcove_core::Result<portcove_core::RecipeImportPlan> {
-        serde_json::from_str(serialized_plan).map_err(Into::into)
-    }
-}
-
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct CliCommandContext {
     pub(crate) library_root: PathBuf,
