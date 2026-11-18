@@ -357,8 +357,8 @@ export async function collectProgress(
   const checked = now.toISOString();
   const opted = new Set(sources.filter((s) => s.opt_out).map((s) => s.repository.toLowerCase()));
   const budget = new DiscoveryBudget("ordinary");
-  const transport =
-    read ?? (async (url: string) => createDiscoveryTransport(budget, "").request("GET", url));
+  const external = createDiscoveryTransport(budget, "", undefined, { backoff: "origin" });
+  const transport = read ?? (async (url: string) => external.request("GET", url));
   const results: ProgressResult[] = [];
   for (const source of sources) {
     const base = { key: progressKey(source), source, checked_at: checked };

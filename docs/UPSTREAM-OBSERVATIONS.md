@@ -1236,6 +1236,8 @@ introduced. Collection uses the maintained discovery HTTP transport, its byte,
 redirect, request and deadline limits, with a generic JSON/text Accept header for
 external providers. GitHub-specific media types remain scoped to the GitHub API.
 Each source failure is isolated and retains its last-good observation.
+Progress-provider `Retry-After` applies to its HTTPS origin. Independent origins
+can continue, while request, byte and time limits remain shared across the batch.
 
 Adapters read ByteMatch and decomp.dev version-specific structured JSON,
 frogress's exact reviewed project/version/category/measure, and project-owned

@@ -920,11 +920,14 @@ impl Catalog {
                 let recommended_download_channel = listing.recommended_download_channel;
                 let release_url = listing.release_url.clone();
                 let setup_url = listing.setup_url.clone().or(projected.setup_url.clone());
+                let implementation = projected.implementation.clone().or_else(|| {
+                    (listing.project_url == projected.project_url
+                        && listing.original_game == projected.original_game)
+                        .then(|| listing.implementation.clone())
+                        .flatten()
+                });
                 *listing = PortListing {
-                    implementation: listing
-                        .implementation
-                        .clone()
-                        .or(projected.implementation.clone()),
+                    implementation,
                     compatibility: listing.compatibility.clone(),
                     upstream_observation: listing.upstream_observation.clone(),
                     availability_override_reason: listing.availability_override_reason.clone(),
@@ -1419,6 +1422,80 @@ mod tests {
         assert_eq!(listing.summary, "Accepted presentation correction.");
         assert!(listing.artwork.is_none());
         assert!(catalog.listings().len() >= catalog.ports().len());
+
+        let baseline = Catalog::embedded().unwrap();
+        let original = baseline.listing("zelda64-recomp").unwrap();
+        assert!(original.implementation.is_some());
+        for case in [
+            "explicit",
+            "same-scope",
+            "project",
+            "game",
+            "edition",
+            "missing-identity",
+        ] {
+            let mut document = baseline.authoritative_document();
+            let port = document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == original.id)
+                .unwrap();
+            let presentation = port.presentation.as_mut().unwrap();
+            presentation.implementation = None;
+            let expected = match case {
+                "explicit" => {
+                    let mut corrected = original.implementation.clone().unwrap();
+                    corrected["methods"][0]["kind"] = json!("source-port");
+                    corrected["dependencies"][0]["version_scope"] = json!("accepted correction");
+                    presentation.implementation = Some(corrected.clone());
+                    Some(corrected)
+                }
+                "same-scope" => original.implementation.clone(),
+                "project" => {
+                    port.project_url = "https://example.invalid/corrected-project".into();
+                    None
+                }
+                "game" => {
+                    presentation.original_game.as_mut().unwrap().id = "corrected-game".into();
+                    None
+                }
+                "edition" => {
+                    presentation.original_game.as_mut().unwrap().source_editions[0].id =
+                        "corrected-edition".into();
+                    None
+                }
+                "missing-identity" => {
+                    presentation.original_game = None;
+                    None
+                }
+                _ => unreachable!(),
+            };
+            let projected = Catalog::from_json(&serde_json::to_string(&document).unwrap())
+                .unwrap()
+                .with_embedded_listings()
+                .unwrap();
+            assert_eq!(
+                projected.listing("zelda64-recomp").unwrap().implementation,
+                expected,
+                "{case}"
+            );
+            let exported = projected.listing_document().export_format(12).unwrap();
+            assert_eq!(
+                exported
+                    .listings
+                    .iter()
+                    .find(|row| row.id == original.id)
+                    .unwrap()
+                    .implementation,
+                expected,
+                "{case}"
+            );
+            assert_eq!(
+                serde_json::to_value(projected.authoritative_document()).unwrap(),
+                serde_json::to_value(document).unwrap(),
+                "{case}"
+            );
+        }
     }
 
     #[test]

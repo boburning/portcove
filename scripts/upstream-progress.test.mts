@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import childProcess from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
 import {
   collectProgress,
   parseProgress,
@@ -11,6 +13,8 @@ import {
 } from "./upstream-progress.mts";
 import { boundedDiscoveryRequest } from "./discovery-http.mts";
 import { progressCollectionSql, visibleProgress } from "./maintenance-progress.mts";
+import { createDiscoveryTransport, DiscoveryBudget } from "./discovery-budget.mts";
+import { isRecord } from "./runtime-values.mts";
 const source: ProgressSource = {
   repository: "doldecomp/melee",
   game_key: "super-smash-bros-melee",
@@ -37,6 +41,78 @@ const report = (percent: unknown = 99.99997) =>
       total_functions: "9007199254740994",
     },
   });
+void test("production progress transport isolates origin backoff but keeps aggregate bounds", async (t) => {
+  const calls: string[] = [];
+  let aggregateProbe = false;
+  const subprocess = t.mock.method(childProcess, "spawnSync", (...parameters: unknown[]) => {
+    assert.equal(parameters[0], process.execPath);
+    const settings = parameters[2];
+    assert.ok(isRecord(settings) && typeof settings.input === "string");
+    const input: unknown = JSON.parse(settings.input);
+    assert.ok(isRecord(input) && typeof input.url === "string");
+    assert.equal(input.method, "GET");
+    assert.equal(input.token, "");
+    assert.ok(Number(input.cap) > 0 && Number(input.cap) <= 2 * 1024 * 1024);
+    assert.ok(Number(input.maxRequests) > 0 && Number(input.maxRequests) <= 5);
+    assert.ok(Number(input.timeout) > 0 && Number(input.timeout) <= 20000);
+    const origin = new URL(input.url).origin;
+    calls.push(origin);
+    const throttled = aggregateProbe || origin === "https://decomp.dev";
+    const text = throttled ? "" : report();
+    const stdout = JSON.stringify({
+      requests: 1,
+      bytes: aggregateProbe ? 1 : Buffer.byteLength(text),
+      status: throttled ? 429 : 200,
+      headers: {},
+      text,
+      ...(throttled ? { backoff_until: new Date(Date.now() + 3600000).toISOString() } : {}),
+    });
+    return { pid: 1, output: [null, stdout, ""], stdout, stderr: "", status: 0, signal: null };
+  });
+  syncBuiltinESMExports();
+  try {
+    const result = await collectProgress(
+      [source, { ...source, version: "GALE02" }, { ...source, provider: "bytematch" }],
+      undefined,
+      new Date("2026-11-17T01:00:00Z"),
+    );
+    assert.deepEqual(
+      result.results.map((row) => row.status),
+      ["unavailable", "failed", "observed"],
+    );
+    assert.deepEqual(calls, ["https://decomp.dev", "https://bytematch.dev"]);
+    aggregateProbe = true;
+    const shared = createDiscoveryTransport(new DiscoveryBudget("ordinary"), "");
+    assert.equal((await shared.request("GET", "https://decomp.dev/probe")).status, 429);
+    const sharedCalls = calls.length;
+    await assert.rejects(shared.request("GET", "https://bytematch.dev/probe"), /backoff/u);
+    assert.equal(calls.length, sharedCalls, "existing callers retain batch-wide backoff");
+    for (const exhausted of ["requests", "bytes", "time"]) {
+      let clock = Date.now();
+      const budget = new DiscoveryBudget("ordinary", undefined, () => clock);
+      const transport = createDiscoveryTransport(budget, "", undefined, { backoff: "origin" });
+      const before = calls.length;
+      if (exhausted === "time") clock += budget.limits.milliseconds;
+      else if (exhausted === "bytes")
+        assert.throws(
+          () => budget.charge("GET", "previous reads", 1, budget.limits.bytes, "200"),
+          /budget/u,
+        );
+      else {
+        budget.charge("GET", "previous reads", budget.limits.requests - 1, 0, "200");
+        assert.equal((await transport.request("GET", "https://decomp.dev/probe")).status, 429);
+      }
+      const admitted = calls.length;
+      await assert.rejects(transport.request("GET", "https://bytematch.dev/probe"), /budget/u);
+      assert.equal(calls.length, admitted, exhausted);
+      assert.equal(admitted - before, exhausted === "requests" ? 1 : 0, exhausted);
+      assert.equal(budget.usage.backoff_until, undefined, "backoff remains origin-scoped");
+    }
+  } finally {
+    subprocess.mock.restore();
+    syncBuiltinESMExports();
+  }
+});
 void test("progress preserves raw precision, exact edition/commit, separate metrics and counts", () => {
   const row = parseProgress(source, report());
   assert.equal(row.metrics.find((m) => m.kind === "matching-code")?.value, "99.99997");
