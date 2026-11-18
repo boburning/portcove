@@ -1916,6 +1916,9 @@ pub(crate) fn statuses(statuses: &[PortStatus], catalog: &portcove_core::Catalog
 fn carried_files(status: &portcove_core::CarriedFilesStatus) -> String {
     let outcome = &status.outcome;
     let mut lines = vec![format!("  Active version: {}", clean(&status.to_version))];
+    if let Some(version) = &status.from_version {
+        lines.push(format!("  Version before the switch: {}", clean(version)));
+    }
     if outcome.source_modified {
         lines.push(
             "  Files were left with the earlier version because its program files changed.".into(),

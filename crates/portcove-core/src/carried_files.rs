@@ -68,6 +68,23 @@ pub(crate) fn decode_outcome(text: &str) -> Option<CarriedFileOutcome> {
     {
         return None;
     }
+    if let Some(counts) = &outcome.counts {
+        if [
+            (counts.carried, outcome.carried.len()),
+            (counts.removed, outcome.removed.len()),
+            (counts.kept_separately, outcome.kept_separately.len()),
+            (counts.source_unreadable, outcome.source_unreadable.len()),
+            (
+                counts.new_version_ships_file,
+                outcome.new_version_ships_file.len(),
+            ),
+        ]
+        .iter()
+        .any(|(count, examples)| *count < *examples as u64)
+        {
+            return None;
+        }
+    }
     Some(outcome)
 }
 
@@ -96,6 +113,12 @@ mod tests {
         let mut excessive = legacy_outcome();
         excessive["carried"] = serde_json::json!(vec!["file"; 65]);
         assert!(decode_outcome(&excessive.to_string()).is_none());
+        let mut contradictory = legacy_outcome();
+        contradictory["counts"] = serde_json::json!({
+            "carried": 0, "removed": 0, "kept_separately": 0,
+            "source_unreadable": 0, "new_version_ships_file": 0
+        });
+        assert!(decode_outcome(&contradictory.to_string()).is_none());
     }
 
     #[test]
