@@ -294,6 +294,7 @@
       "title": "¿Retirar la opción de recuperación {{revision}}?"
     },
     "runtimeHeld": "El entorno de ejecución de esta configuración requiere atención.",
+    "runtimePresent": "Se comprueban los archivos instalados del juego antes de jugar o copiar este perfil.",
     "runtimeVersion": "Versión del juego {{version}}",
     "separator": ", ",
     "setups": "Perfiles",

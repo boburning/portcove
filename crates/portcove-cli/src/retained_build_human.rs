@@ -12,6 +12,9 @@ use crate::human::{clean, platform_name, port_name, utc_time};
 fn availability(value: RetainedBuildAvailability) -> &'static str {
     match value {
         RetainedBuildAvailability::Verified => "Verified local build",
+        RetainedBuildAvailability::Present => {
+            "Local build metadata checked; installed files not checked"
+        }
         RetainedBuildAvailability::Missing => "Missing local build",
         RetainedBuildAvailability::Changed => "Changed local build",
         RetainedBuildAvailability::Held => "Held by current policy or lifecycle state",

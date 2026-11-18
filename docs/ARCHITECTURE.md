@@ -31,6 +31,20 @@ without cancelling or overlapping backend IPC. Recovery stays outside query
 execution. Activity ordering, pending-change handoff and diagnostic revision guards
 remain explicit; query cancellation only stops frontend continuations.
 
+Mod setup inventory requests share one frontend read lane per port and library
+generation, including across component remounts while native work is outstanding.
+Refreshes arriving during a read coalesce into one subsequent read; each current
+consumer receives its batch's result. Settled results are discarded, and outgoing
+components retain their publication fencing. After abandoned-stage cleanup, Core
+`preview_mod_setups` checks each current setup's registered installation identity,
+manifest, executable presence and current policy without traversing immutable
+payloads or historical builds. `present` means those metadata checks passed;
+it does not claim current payload integrity. Missing, changed and held metadata
+remain distinct. The explicit `mod_setups`, `profile_inventory` and retained-build APIs,
+setup mutations, automatic-update execution, deployment and launch retain their
+existing verification. Live mod drift is still observed separately. No settled
+inventory result or execution authorization is cached by the preview.
+
 Desktop interface enlargement is presentation authority: `InterfaceSizeController`
 serializes the existing Tauri WebView zoom API and persists acknowledged choices
 within the browser profile, independently of library generations. React owns
