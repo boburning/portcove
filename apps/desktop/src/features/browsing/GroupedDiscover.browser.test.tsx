@@ -216,6 +216,7 @@ it.each(["control", "origin"] as const)(
       trigger.click();
     });
     await expect.poll(() => document.activeElement?.closest('[role="dialog"]')).not.toBeNull();
+    await page.viewport(760, 800);
     host.style.width = "420px";
     await expect
       .poll(async () => {
@@ -243,5 +244,14 @@ it.each(["control", "origin"] as const)(
       })
       .toBe(replacement);
     expect(replacement.isConnected).toBe(true);
+    await expect.poll(() => document.querySelector('[role="dialog"]')).toBeNull();
+    const bounds = workspace.getBoundingClientRect();
+    await expect
+      .poll(async () => {
+        await frames();
+        const rect = replacement.getBoundingClientRect();
+        return rect.top >= bounds.top && rect.bottom <= bounds.bottom;
+      })
+      .toBe(true);
   },
 );

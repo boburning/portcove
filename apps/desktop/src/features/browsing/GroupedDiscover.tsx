@@ -266,7 +266,7 @@ export function GroupedDiscover({
                     getComputedStyle(control).visibility !== "hidden",
                 )
               : [];
-            return (
+            const target =
               controls.find((control, index) =>
                 saved?.originKey
                   ? control.dataset.detailOrigin === saved.originKey
@@ -275,8 +275,11 @@ export function GroupedDiscover({
                     : index === saved?.controlIndex,
               ) ??
               controls[0] ??
-              null
-            );
+              null;
+            // Responsive regrouping keeps the return card mounted, but it can
+            // move outside the viewport while focus belongs to the dialog.
+            target?.scrollIntoView({ block: "nearest", inline: "nearest" });
+            return target;
           }}
         >
           {comparison && (
