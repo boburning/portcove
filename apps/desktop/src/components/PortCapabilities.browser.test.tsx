@@ -2,6 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
+import { requireCompleteCaptureTarget } from "../../test/capture-target";
 import { captureParityState } from "../../test/parity-capture";
 import { desktopApi } from "../api";
 import { portDefinition, portStatus } from "../test-fixtures";
@@ -380,3 +381,99 @@ it("keeps complete advisory and recorded scopes readable in narrow detail column
     else document.documentElement.dataset.theme = previousTheme;
   }
 });
+
+it.each(["dark", "light"] as const)(
+  "captures scoped first-launch and repeat Play evidence in %s at compact width",
+  async (theme) => {
+    const previousViewport = { width: innerWidth, height: innerHeight };
+    const previousTheme = document.documentElement.dataset.theme;
+    const artifact = "b".repeat(64);
+    const value = report();
+    value.advisory_state = "available";
+    value.advisories = [
+      {
+        applicability: "context-required",
+        notice: {
+          id: "synthetic-launch-stages",
+          feature: "launch",
+          platform: "windows-x86-64",
+          route: "upstream-setup",
+          release: "synthetic-v1",
+          artifact_sha256: artifact,
+          edition: null,
+          explanation:
+            "Synthetic package evidence: supply your original game files once, then reopen the same prepared copy to play.",
+          launch_behavior: {
+            first_launch: "asks-for-game-files",
+            repeat_launch: "starts-game-directly",
+          },
+          provenance: "https://example.com/launch-stages",
+          observed_at: 1,
+          evidence: "upstream-reported",
+          workaround: null,
+        },
+      },
+    ];
+    const query = vi.spyOn(desktopApi, "portCapabilities").mockResolvedValue(value);
+    const launch = vi.spyOn(desktopApi, "launch");
+    try {
+      await page.viewport(430, 780);
+      document.documentElement.dataset.theme = theme;
+      const { host, render } = await mount();
+      host.className = "detail-evidence";
+      // Match the existing compact App rail and detail content insets.
+      host.style.cssText =
+        "display:grid;grid-template-columns:minmax(0,1fr);width:calc(100% - 60px);margin-inline-start:60px;padding:20px;box-sizing:border-box";
+      await render(1);
+      await document.fonts.ready;
+      const behaviors = [...host.querySelectorAll("dl")].filter(
+        (list) => list.querySelector("dt")?.textContent === "First launch",
+      );
+      expect(behaviors).toHaveLength(1);
+      const behavior = behaviors.at(0);
+      if (!behavior?.parentElement) throw new Error("Expected one launch-behavior notice");
+      const notice = behavior.parentElement;
+      expect([...behavior.children].map((item) => [item.localName, item.textContent])).toEqual([
+        ["dt", "First launch"],
+        ["dd", "Asks for game files"],
+        ["dt", "Repeat Play"],
+        ["dd", "Starts the game directly"],
+      ]);
+      expect(notice.textContent).toContain("Launch · upstream-reported · Exact context required");
+      expect(notice.textContent).toContain(
+        `Scope: windows-x86-64 · Upstream setup and saved downloads · release synthetic-v1 · artifact ${artifact}.`,
+      );
+      expect(notice.textContent).toContain("These details apply to the scope shown above.");
+      expect(notice.querySelector("a")?.getAttribute("href")).toBe(
+        "https://example.com/launch-stages",
+      );
+      notice.scrollIntoView({ block: "center" });
+      const bounds = notice.getBoundingClientRect();
+      requireCompleteCaptureTarget(
+        {
+          target: "first and repeat launch evidence",
+          target_count: behaviors.length,
+          visible: notice.checkVisibility(),
+          rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+          viewport: { width: innerWidth, height: innerHeight },
+        },
+        "first and repeat launch evidence",
+      );
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+      expect(host.scrollWidth).toBeLessThanOrEqual(host.clientWidth + 1);
+      const range = document.createRange();
+      range.selectNodeContents(notice);
+      for (const rect of range.getClientRects()) {
+        expect(rect.left).toBeGreaterThanOrEqual(bounds.left - 1);
+        expect(rect.right).toBeLessThanOrEqual(bounds.right + 1);
+      }
+      expect(query).toHaveBeenCalledExactlyOnceWith("sample", 1);
+      expect(launch).not.toHaveBeenCalled();
+      await captureParityState("capabilities-first-repeat-launch-evidence");
+    } finally {
+      if (previousTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = previousTheme;
+      await page.viewport(previousViewport.width, previousViewport.height);
+    }
+  },
+);
