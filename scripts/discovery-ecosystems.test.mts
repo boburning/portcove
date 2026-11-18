@@ -14,7 +14,7 @@ import {
   parseLeadState,
   leadSearchFamilyCount,
 } from "./discovery-leads.mts";
-import { collectRecompBoardSource } from "./daily-discovery-sources.mts";
+import { collectPcgamingwikiSource, collectRecompBoardSource } from "./daily-discovery-sources.mts";
 
 const now = "2026-10-25T04:00:00.000Z";
 const entry = (id = "game", repo = "ports/game", updated = now) =>
@@ -113,6 +113,59 @@ void test("the actual feed collector flags a lost overlap and preserves inaccess
   await assert.rejects(async () => await collectRecompBoardSource(context, state), /unavailable/u);
   assert.equal((saved["recomp-board-feed"] as { status: number }).status, 403);
 });
+void test("the wiki capture hands table evidence off to a human reviewer", async () => {
+  const saved: Record<string, unknown> = {};
+  let status = 200;
+  let body = "<table><tr><td>Changed implementation</td></tr></table>";
+  const context = {
+    http: {
+      request: async (method: string, url: string) => {
+        assert.equal(method, "GET");
+        assert.equal(url, "https://www.pcgamingwiki.com/wiki/List_of_unofficial_ports");
+        return { status, text: body, headers: {}, requests: 1, bytes: Buffer.byteLength(body) };
+      },
+    },
+    save: (name: string, value: unknown) => {
+      saved[name] = value;
+    },
+  };
+  const changed = await collectPcgamingwikiSource(context);
+  assert.equal(changed.status, "partial");
+  assert.deepEqual(changed.records, []);
+  assert.match(String(changed.next_action), /revision.*corroborate leads upstream/u);
+  assert.match(String(changed.coverage), /manual review/u);
+
+  body = "<table><thead><tr><th>Game</th></tr></thead><tbody></tbody></table>";
+  const empty = await collectPcgamingwikiSource(context);
+  assert.equal(empty.status, "partial");
+  assert.deepEqual(empty.records, []);
+  assert.equal((saved.pcgamingwiki as { text: string }).text, body);
+
+  body = " ";
+  assert.equal((await collectPcgamingwikiSource(context)).status, "inaccessible");
+  status = 403;
+  body = "Forbidden";
+  const denied = await collectPcgamingwikiSource(context);
+  assert.equal(denied.status, "inaccessible");
+  assert.equal(denied.http_status, 403);
+  const previous = advanceDiscovery(emptyCheckpoint(), {
+    observed_at: now,
+    sources: [
+      {
+        ...changed,
+        status: "complete",
+        records: [{ key: "reviewed-row", fingerprint: "a".repeat(64) }],
+      },
+    ],
+  });
+  for (const source of [changed, empty, denied]) {
+    assert.deepEqual(
+      advanceDiscovery(previous, { observed_at: now, sources: [source] }).sources,
+      previous.sources,
+    );
+  }
+});
+
 void test("manifest omission remains Unknown and independent toolchains/source systems remain explicit", () => {
   const result = parseRecompManifest({
     game: "Game",
