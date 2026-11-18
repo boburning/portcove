@@ -464,8 +464,24 @@ fn unsafe_export_root_is_never_published_after_bootstrap() {
     fs::create_dir(&foreign).unwrap();
     let alias = temp.path().join("alias");
     std::os::unix::fs::symlink(&foreign, &alias).unwrap();
-    let (host, guard) =
-        HostDiagnostics::start_in(&alias.join("diagnostics"), Surface::Desktop, false);
+    let requested = alias.join("diagnostics");
+    let (host, guard, worker) = HostDiagnostics::bootstrap_worker(
+        Surface::Desktop,
+        false,
+        move |session, surface, support_directory| {
+            HostDiagnostics::prepare_in(&requested, session, surface, support_directory)
+        },
+    );
+    let worker = worker.expect("bootstrap worker was not started");
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while !worker.is_finished() {
+        assert!(
+            Instant::now() < deadline,
+            "unsafe-root validation did not finish"
+        );
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    worker.join().unwrap();
     assert!(guard.is_none());
     assert!(host.support_directory().is_none());
     assert!(host.session_directory().is_none());
