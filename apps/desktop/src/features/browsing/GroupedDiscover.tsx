@@ -16,6 +16,8 @@ import { ArrowRight, GitCompareArrows, Heart, Star } from "lucide-react";
 import { ArtworkFrame, artworkDisplayNotice } from "../../components/Artwork";
 import { useArtwork, useArtworkVisibility, useCompanionCover } from "../../artwork";
 import { ExternalLink } from "../../components/ExternalLink";
+import { CapabilityNoticeScope } from "../../components/PortCapabilities";
+import { LaunchBehaviorStages } from "../../components/LaunchBehaviorStages";
 import { Button } from "../../components/ui/button";
 import { Chip } from "../../components/ui/chip";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../../components/ui/dialog";
@@ -264,7 +266,15 @@ export function GroupedDiscover({
                           </p>
                         )}
                       </header>
-                      <ComparisonPortFacts port={port} status={status} single={single} />
+                      <ComparisonPortFacts
+                        port={port}
+                        status={status}
+                        single={single}
+                        platform={
+                          evidence.context.platform || devicePlatform || evidence.report?.platform
+                        }
+                        edition={evidence.context.edition}
+                      />
                       <div className="grid min-w-0 content-start gap-2">
                         <ImplementationFacts port={port} />
                         <GameComparisonEvidence
@@ -337,22 +347,53 @@ function ComparisonPortFacts({
   port,
   status,
   single,
+  platform,
+  edition,
 }: {
   port: CatalogEntry;
   status: PortStatus | undefined;
   single: boolean;
+  platform: PortDefinition["platforms"][number] | undefined;
+  edition: string;
 }) {
   const { t } = useAppTranslation("browsing");
+  const { t: tDetail } = useAppTranslation("detail");
   const setupLabel = installationMethodLabel(port);
   const setupKnown = setupLabel !== "Unavailable in this catalog";
   const filesListed = Boolean(port.presentation?.source_requirements?.length);
   const ownershipKnown = Boolean(status?.active || status?.external_runtime);
+  const report = port.listingStatus?.capabilities;
+  const launchNotices =
+    report?.format_version === 1 && report.port_id === port.id
+      ? report.advisories.filter(
+          ({ notice, applicability }) =>
+            notice.launch_behavior &&
+            applicability !== "historical" &&
+            notice.platform === platform &&
+            (!edition || !notice.edition || notice.edition === edition),
+        )
+      : [];
   return (
     <>
-      {(!single || setupKnown) && (
+      {(!single || setupKnown || launchNotices.length > 0) && (
         <div>
           <h4>{t("discover.compare.setup")}</h4>
           <p>{setupLabel}</p>
+          {launchNotices.map(({ notice, applicability }) =>
+            notice.launch_behavior ? (
+              <div className="mt-3 grid gap-1 text-sm" key={notice.id}>
+                <LaunchBehaviorStages behavior={notice.launch_behavior} />
+                <p>{notice.explanation}</p>
+                <CapabilityNoticeScope notice={notice} />
+                {applicability === "context-required" && (
+                  <p>{tDetail("capabilities.notice.exact")}</p>
+                )}
+                <ExternalLink href={notice.provenance}>
+                  {tDetail("capabilities.notice.source")}
+                </ExternalLink>
+              </div>
+            ) : null,
+          )}
         </div>
       )}
       {(!single || filesListed) && (

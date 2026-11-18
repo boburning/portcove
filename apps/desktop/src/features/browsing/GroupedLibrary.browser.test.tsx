@@ -8,7 +8,7 @@ import {
   portDefinition,
   portStatus,
 } from "../../test-fixtures";
-import type { LibraryOrganization, OrganizationChange } from "../../types";
+import type { LibraryOrganization, OrganizationChange, PortCapabilityReport } from "../../types";
 import { OrganizationControls, type Organization } from "../organization/OrganizationControls";
 import { GroupedLibrary } from "./GroupedLibrary";
 import { GroupedDiscover } from "./GroupedDiscover";
@@ -61,6 +61,76 @@ const empty: LibraryOrganization = {
   update_notices: {},
   setup_confirmations: [],
 };
+
+it("shows scoped launch stages beside the matching port in Discover", async () => {
+  const notice: PortCapabilityReport["advisories"][number]["notice"] = {
+    id: "upstream-setup-fixture",
+    feature: "launch",
+    platform: "windows-x86-64",
+    route: "upstream-setup",
+    release: "v1",
+    artifact_sha256: "a".repeat(64),
+    edition: null,
+    explanation: "Import the disc once before using the prepared game.",
+    provenance: "https://example.com/fixture",
+    observed_at: 1,
+    evidence: "upstream-reported",
+    workaround: null,
+    launch_behavior: { first_launch: "asks-for-game-files", repeat_launch: "starts-game-directly" },
+  };
+  const known = {
+    ...first,
+    listingStatus: {
+      port_id: first.id,
+      status: { ...portStatus(), port_id: first.id },
+      actions: [],
+      capabilities: {
+        format_version: 1,
+        port_id: first.id,
+        advisory_state: "available",
+        advisories: [
+          { notice, applicability: "context-required" },
+          {
+            notice: {
+              ...notice,
+              id: "wrong-host",
+              explanation: "Different platform",
+              platform: "linux-x86-64",
+            },
+            applicability: "historical",
+          },
+        ],
+        routes: [],
+        observations: [],
+        protection: null,
+        settings: null,
+        detail_problems: [],
+        source_readiness: null,
+        setup_guide: null,
+        pending_setup: null,
+      } satisfies PortCapabilityReport,
+    },
+  };
+  const read = vi.spyOn(desktopApi, "portCapabilities");
+  await render(
+    <GroupedDiscover
+      all={[known, second]}
+      matching={[known, second]}
+      statuses={new Map()}
+      devicePlatform="windows-x86-64"
+      onSelect={vi.fn()}
+      onFavoriteToggle={vi.fn()}
+    />,
+  );
+  await page.getByRole("button", { name: "Compare ports", exact: true }).click();
+  const project = page.getByRole("article", { name: /First project/ });
+  await expect.element(project.getByText("Asks for game files")).toBeVisible();
+  await expect.element(project.getByText("Starts the game directly")).toBeVisible();
+  await expect.element(project.getByText("Exact context required")).toBeVisible();
+  await expect.element(project.getByText(/Scope:.*release v1/)).toBeVisible();
+  expect(document.body.textContent).not.toContain("Different platform");
+  expect(read).not.toHaveBeenCalled();
+});
 
 it("requires an acknowledged choice, retains alternatives and targets the chosen stable port", async () => {
   const launch = vi.fn();

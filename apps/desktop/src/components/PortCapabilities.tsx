@@ -7,6 +7,7 @@ import type { PortCapabilityReport, PortStatus } from "../types";
 import { capabilityActionReason } from "../features/port-actions/port-action-presentation";
 import { useAppTranslation } from "../localization";
 import { ExternalLink } from "./ExternalLink";
+import { LaunchBehaviorStages } from "./LaunchBehaviorStages";
 import { Button } from "./ui/button";
 
 /** Catalog feature ids get player labels; an unrecognized id stays visible as data. */
@@ -124,6 +125,23 @@ function noticeScope(
       {part}
     </Fragment>
   ));
+}
+
+export function CapabilityNoticeScope({
+  notice,
+}: {
+  notice: PortCapabilityReport["advisories"][number]["notice"];
+}) {
+  const { t } = useAppTranslation("detail");
+  return (
+    <p>
+      <Trans
+        t={t}
+        i18nKey="capabilities.notice.scope"
+        components={{ scope: <span>{noticeScope(t, notice)}</span> }}
+      />
+    </p>
+  );
 }
 
 /** Selected-entry read only. Cancellation and generation keys prevent stale detail publication. */
@@ -268,22 +286,9 @@ export function PortCapabilities({
                     : t("capabilities.notice.exact"),
             })}
           </strong>
-          {notice.launch_behavior && (
-            <dl>
-              <dt>{t("capabilities.launch.first")}</dt>
-              <dd>{t(`capabilities.launch.${notice.launch_behavior.first_launch}`)}</dd>
-              <dt>{t("capabilities.launch.repeat")}</dt>
-              <dd>{t(`capabilities.launch.${notice.launch_behavior.repeat_launch}`)}</dd>
-            </dl>
-          )}
+          {notice.launch_behavior && <LaunchBehaviorStages behavior={notice.launch_behavior} />}
           <p>{notice.explanation}</p>
-          <p>
-            <Trans
-              t={t}
-              i18nKey="capabilities.notice.scope"
-              components={{ scope: <span>{noticeScope(t, notice)}</span> }}
-            />
-          </p>
+          <CapabilityNoticeScope notice={notice} />
           {(notice.release || notice.artifact_sha256 || notice.edition) && (
             <p>{t("capabilities.notice.versionSpecific")}</p>
           )}
