@@ -380,6 +380,10 @@ fn implementation_descriptions_export_with_an_explicit_legacy_reader_fence() {
     }
     let read = |arguments: &[&str]| {
         let output = command(temporary.path())
+            .env(
+                "PORTCOVE_APPLICATION_RUNTIME_LOCK",
+                home.join("application-runtime.lock"),
+            )
             .env("HOME", &home)
             .env("USERPROFILE", &home)
             .env("APPDATA", &config)
