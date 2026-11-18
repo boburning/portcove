@@ -10,7 +10,8 @@ import {
   supersededRunIds,
   waitForCancelledRun,
 } from "./ci-supersede.mts";
-import { workflowStep } from "./ci-workflow-fixture.mts";
+import { workflowJob, workflowStep } from "./ci-workflow-fixture.mts";
+import { isRecord } from "./runtime-values.mts";
 
 const run = (id: number, ...pulls: number[]) => ({
   id,
@@ -286,8 +287,17 @@ void test("fast pull request producers stop at once when a newer head superseded
     "utf8",
   );
   const uses = "uses: ./.github/actions/stop-if-superseded";
-  // classify, the three Windows Rust producers and the Linux quality, frontend, browser and catalog producers.
-  assert.equal(ci.split(uses).length - 1, 8);
+  // Classifier, Windows Rust and helpers, Linux quality, frontend, browser and catalog.
+  assert.equal(ci.split(uses).length - 1, 9);
+  const helpers = workflowJob("windows_helpers");
+  assert.ok(Array.isArray(helpers.steps));
+  const stop: unknown = helpers.steps[1];
+  assert.ok(isRecord(stop));
+  assert.equal(stop.uses, "./.github/actions/stop-if-superseded");
+  assert.equal(
+    stop.if,
+    "${{ github.event_name == 'pull_request' && !inputs.force_qualification }}",
+  );
   for (const block of ci.split(uses).slice(1)) {
     assert.match(
       block,
