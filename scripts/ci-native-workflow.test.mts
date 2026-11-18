@@ -254,10 +254,10 @@ void test("temporary native controller preserves exact remaining selections, art
   const job = workflowJob("product_workflows", source);
   const section = workflowJobSource(source, "product_workflows");
   assert.equal(job["runs-on"], "windows-2022");
-  // Finite cold-build + 40-minute harness + exact-driver wait calibration (#6511).
+  // Finite cold-build, measured review/install aggregate harnesses and exact-driver wait (#6511).
   assert.equal(
     job["timeout-minutes"],
-    "${{ matrix.selection == 'review-continuation' && 150 || 90 }}",
+    "${{ (matrix.selection == 'review-continuation' || matrix.selection == 'install-steam-artwork') && 150 || 90 }}",
   );
   assert.equal(
     job.if,
@@ -280,8 +280,6 @@ void test("temporary native controller preserves exact remaining selections, art
       "preliminary-selected-setup",
       "saved-folder-hash-resume",
       "external-runtime-review",
-      "startup-preferences-recovery",
-      "startup-library-recovery",
       "library-switch-recovery",
       "minimized-preparation-continuity",
       "closed-preparation-recovery",
@@ -311,11 +309,11 @@ void test("temporary native controller preserves exact remaining selections, art
       cli_required: execution.fixtures.owned,
       probe_required: execution.fixtures.owned,
     });
-    assert.equal(group.source, "6c01ccf660a2e9412e0e5106e820e226ae76fd9e");
+    assert.equal(group.source, "3acc0c67843cb0169cb3df00e5be9bff362caf1b");
     requested.push(...scenarios);
   }
-  assert.equal(requested.length, 23);
-  assert.equal(new Set(requested).size, 23);
+  assert.equal(requested.length, 21);
+  assert.equal(new Set(requested).size, 21);
   assert.deepEqual(requested, [
     "native-interrupted-preparation-recovery",
     "native-source-intake-and-discovery-dialogs",
@@ -333,8 +331,6 @@ void test("temporary native controller preserves exact remaining selections, art
     "native-preliminary-selected-setup",
     "native-saved-folder-hash-resume",
     "native-external-runtime-review",
-    "native-startup-preferences-recovery",
-    "native-startup-library-recovery",
     "native-library-switch-recovery",
     "native-minimized-preparation-continuity",
     "native-closed-preparation-recovery",

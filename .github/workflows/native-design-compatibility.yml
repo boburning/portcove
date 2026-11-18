@@ -281,8 +281,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
-      SOURCE_HEAD: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
-      SOURCE_TREE: f5de79fcc3a823d8b17dfaf3b878cd365d466900
+      SOURCE_HEAD: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
+      SOURCE_TREE: 5c98d23b7b236043c322620142be606230d87da0
       CONTROLLER_HEAD: ${{ github.sha }}
       CARGO_TARGET_DIR: ${{ github.workspace }}/work/slice3-native-${{ github.sha }}
     steps:
@@ -662,15 +662,16 @@ jobs:
     # (run 43513519698) mid-harness and discarded its own failure evidence.
     # #6840 measured ~74 minutes of cold setup/build before native work.
     # The nine-execution review row retains a 40-minute harness and the shared
-    # exact-driver publication wait retains 20 minutes; allow finite report/cleanup room.
-    timeout-minutes: ${{ matrix.selection == 'review-continuation' && 150 || 90 }}
+    # exact-driver publication wait retains 20 minutes. The measured six-case install/Steam
+    # group now gets 30 minutes inside 150 minutes for cold setup, driver wait and cleanup.
+    timeout-minutes: ${{ (matrix.selection == 'review-continuation' || matrix.selection == 'install-steam-artwork') && 150 || 90 }}
     strategy:
       fail-fast: false
       max-parallel: 4
       matrix:
         include:
           - selection: review-continuation
-            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
+            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
             scenarios:
               - native-interrupted-preparation-recovery
               - native-source-intake-and-discovery-dialogs
@@ -702,7 +703,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: install-steam-artwork
-            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
+            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
             scenarios:
               - install-progress-cancellation
               - install-commit-refresh-recovery
@@ -722,14 +723,14 @@ jobs:
                     "native-local-artwork-picker-and-recovery",
                   ],
                 "setup": [],
-                "harness_ms": 600000,
+                "harness_ms": 1800000,
                 "qualification_features": ["qualification-fixtures"],
                 "cli_features": [],
                 "cli_required": true,
                 "probe_required": true,
               }
           - selection: saved-folder-selected-setup
-            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
+            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
             scenarios:
               - native-saved-folder-selected-setup
             expected_plan:
@@ -743,7 +744,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: preliminary-selected-setup
-            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
+            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
             scenarios:
               - native-preliminary-selected-setup
             expected_plan:
@@ -757,7 +758,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: saved-folder-hash-resume
-            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
+            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
             scenarios:
               - native-saved-folder-hash-resume
             expected_plan:
@@ -771,7 +772,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: external-runtime-review
-            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
+            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
             scenarios:
               - native-external-runtime-review
             expected_plan:
@@ -784,36 +785,8 @@ jobs:
                 "cli_required": false,
                 "probe_required": false,
               }
-          - selection: startup-preferences-recovery
-            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
-            scenarios:
-              - native-startup-preferences-recovery
-            expected_plan:
-              {
-                "selected": ["native-startup-preferences-recovery"],
-                "setup": [],
-                "harness_ms": 180000,
-                "qualification_features": [],
-                "cli_features": [],
-                "cli_required": false,
-                "probe_required": false,
-              }
-          - selection: startup-library-recovery
-            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
-            scenarios:
-              - native-startup-library-recovery
-            expected_plan:
-              {
-                "selected": ["native-startup-library-recovery"],
-                "setup": [],
-                "harness_ms": 180000,
-                "qualification_features": [],
-                "cli_features": [],
-                "cli_required": false,
-                "probe_required": false,
-              }
           - selection: library-switch-recovery
-            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
+            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
             scenarios:
               - native-library-switch-recovery
             expected_plan:
@@ -827,7 +800,7 @@ jobs:
                 "probe_required": false,
               }
           - selection: minimized-preparation-continuity
-            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
+            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
             scenarios:
               - native-minimized-preparation-continuity
             expected_plan:
@@ -841,7 +814,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: closed-preparation-recovery
-            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
+            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
             scenarios:
               - native-closed-preparation-recovery
             expected_plan:
@@ -855,7 +828,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: secondary-panels
-            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
+            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
             scenarios:
               - native-secondary-panel-presentation
             expected_plan:
@@ -869,7 +842,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: public-collection
-            source: 6c01ccf660a2e9412e0e5106e820e226ae76fd9e
+            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
             scenarios:
               - native-collection-artwork-presentation
             expected_plan:
@@ -884,7 +857,7 @@ jobs:
               }
     env:
       SOURCE_HEAD: ${{ matrix.source }}
-      SOURCE_TREE: f5de79fcc3a823d8b17dfaf3b878cd365d466900
+      SOURCE_TREE: 5c98d23b7b236043c322620142be606230d87da0
       CONTROLLER_HEAD: ${{ github.sha }}
       EXPECTED_NATIVE_PLAN: ${{ toJSON(matrix.expected_plan) }}
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-product-workflows-${{ matrix.selection }}

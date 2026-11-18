@@ -245,17 +245,20 @@ This preserves the planner's standalone and incompatible-fixture refusals.
 For #6511, a temporary **unmerged** controller follows the #6841 qualification
 pattern. Its ordinary verification PR requires the normal five exact-head checks
 and independent source/composition review before dispatch. It binds application
-commit `6c01ccf660a2e9412e0e5106e820e226ae76fd9e` and tree
-`f5de79fcc3a823d8b17dfaf3b878cd365d466900` separately from the controller commit.
-Thirteen fixed Windows rows request only the remaining 23 scenarios; each checks
+commit `3acc0c67843cb0169cb3df00e5be9bff362caf1b` and tree
+`5c98d23b7b236043c322620142be606230d87da0` separately from the controller commit.
+Eleven fixed Windows rows request only the remaining 21 scenarios; each checks
 its actual maintained plan, dependencies, artifact roles and harness budget before
 execution. This controller does not replace Main's 18 groups and must close
 unmerged with its source, logs and evidence retained. The combined Steam row
 checks the maintained eligibility-dependent Settings or Manage route; it makes no
 new singleton Settings qualification claim.
 
-The temporary nine-execution review row allows 150 minutes; its other Windows rows
-retain 90. #6840 measured about 74 minutes of cold setup/build, in addition to the
+The temporary nine-execution review and measured six-case install/Steam rows allow
+150 minutes; other Windows rows retain 90. The install/Steam aggregate alone receives
+a 30-minute harness allowance after the original 600-second run exceeded its budget.
+Standalone, per-case and product deadlines are unchanged. Two unchanged successful
+startup recovery rows from run 44395050884 are retained and omitted from this follow-up. #6840 measured about 74 minutes of cold setup/build, in addition to the
 40-minute review harness and bounded 20-minute driver publication wait. The
 existing Linux private-X11 route runs only selected setup completion with the
 qualification application, Core qualification CLI and owned probe. Its observation

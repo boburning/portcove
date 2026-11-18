@@ -2975,6 +2975,43 @@ void test("reload is opt-in for restart and full profiles", () => {
   );
 });
 
+void test("only the measured six-case install and Steam aggregate receives its calibrated watchdog", () => {
+  const scenarios = [
+    "install-progress-cancellation",
+    "install-commit-refresh-recovery",
+    "native-staged-update-composition",
+    "native-reviewed-steam-entry-add-and-remove",
+    "native-reviewed-steam-batch-add",
+    "native-local-artwork-picker-and-recovery",
+  ];
+  for (const order of [scenarios, [...scenarios].reverse()]) {
+    const selection = resolveDesktopSelection({ scenarios: order });
+    assert.deepEqual(selection.setup_scenarios, []);
+    assert.equal(desktopHarnessDeadlineMs(selection), 1_800_000);
+  }
+  for (const [index, scenario] of scenarios.entries()) {
+    assert.equal(
+      desktopHarnessDeadlineMs(resolveDesktopSelection({ scenarios: [scenario] })),
+      index === 3 || index === 4 ? 600_000 : 180_000,
+      `Keep the standalone ${scenario} allowance`,
+    );
+    assert.equal(
+      desktopHarnessDeadlineMs(
+        resolveDesktopSelection({ scenarios: scenarios.filter((item) => item !== scenario) }),
+      ),
+      600_000,
+      "A smaller combination keeps its original allowance",
+    );
+  }
+  assert.equal(
+    desktopHarnessDeadlineMs(
+      resolveDesktopSelection({ scenarios: [...scenarios, "accessibility"] }),
+    ),
+    600_000,
+    "An unrelated larger selection does not inherit the exact aggregate calibration",
+  );
+});
+
 void test("large lifecycle profiles receive a bounded profile-scale watchdog", () => {
   assert.equal(
     desktopHarnessDeadlineMs(resolveDesktopSelection({ profile: "presentation" })),
