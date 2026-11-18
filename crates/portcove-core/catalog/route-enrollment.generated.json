@@ -68,6 +68,21 @@
       "managed_native": true
     },
     {
+      "port_id": "freeorion",
+      "prepared_player": {
+        "executable": "FreeOrion.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "Windows %APPDATA%/FreeOrion saves, settings and mods",
+          "Linux XDG configuration and data/freeorion folders, or ~/.config/freeorion and ~/.local/share/freeorion",
+          "Mac ~/Library/Application Support/FreeOrion settings, saves and mods",
+          "every custom save or user-data location; separately running upstream servers and AI retain their own writes"
+        ]
+      },
+      "managed_native": false
+    },
+    {
       "port_id": "gamebreaker20xx-fullrumble-ps1-slus01068",
       "prepared_player": {
         "executable": "FullRumble.exe",
