@@ -93,6 +93,7 @@ export function checkImplementationMetadata(
       "note",
     ]);
     if (
+      typeof dependency.kind !== "string" ||
       !(dependencyKinds as readonly unknown[]).includes(dependency.kind) ||
       typeof dependency.confidence !== "string" ||
       !["confirmed", "inferred", "contradicted"].includes(dependency.confidence) ||

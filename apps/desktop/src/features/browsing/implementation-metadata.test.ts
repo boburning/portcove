@@ -8,6 +8,7 @@ import {
 import { evaluateCatalogQuery } from "./catalog-query";
 import { portDefinition } from "../../test-fixtures";
 import type { CatalogEntry } from "./catalog-entry";
+import type { PortListing } from "../../types";
 
 function realEntry(id: string): CatalogEntry {
   const authored = JSON.parse(
@@ -15,11 +16,13 @@ function realEntry(id: string): CatalogEntry {
       new URL(`../../../../../crates/portcove-core/catalog/ports/${id}.json`, import.meta.url),
       "utf8",
     ),
-  );
+  ) as {
+    listing: Omit<PortListing, "platforms"> & Partial<Pick<PortListing, "platforms">>;
+  };
   return {
     ...portDefinition(),
     ...authored.listing,
-    listing: authored.listing,
+    listing: { ...authored.listing, platforms: authored.listing.platforms ?? [] },
     presentation: {
       ...portDefinition().presentation,
       implementation: authored.listing.implementation,

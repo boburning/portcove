@@ -1129,7 +1129,7 @@ void test("implementation descriptions project without changing source, route or
   assert.deepEqual(projected.platforms, before.platforms);
   assert.deepEqual(record.listing.original_game, without.listing.original_game);
   assert.equal(source.directory.format_version, 12);
-  const dependency = record.listing.implementation!.dependencies[0]!;
+  const dependency = record.listing.implementation.dependencies[0]!;
   for (const invalid of [
     { ...record.listing.implementation, format_version: 999 },
     {
