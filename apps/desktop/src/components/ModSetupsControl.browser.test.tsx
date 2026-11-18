@@ -1037,9 +1037,13 @@ it("shows the saved original hold and selects an exact registered alternative", 
   expect(host.textContent).toContain("D:/Old/recorded.z64");
   expect(button(host, "Use this original").disabled).toBe(true);
   await act(async () =>
-    page.getByRole("combobox", { name: /^Other registered originals/ }).click(),
+    (
+      page.getByRole("combobox", { name: /^Other registered originals/ }).element() as HTMLElement
+    ).click(),
   );
-  await act(async () => page.getByRole("option", { name: "D:/Other/original.z64" }).click());
+  await act(async () =>
+    (page.getByRole("option", { name: "D:/Other/original.z64" }).element() as HTMLElement).click(),
+  );
   await act(async () => button(host, "Use this original").click());
 
   expect(select).toHaveBeenCalledWith(originalTarget, alternativeInstanceId);
@@ -1066,8 +1070,10 @@ it("keeps the exact original and action focus through a transient refusal and re
   const use = page.getByRole("button", { name: "Use this original" });
 
   await act(async () => button(host, "Review original game files").click());
-  await act(async () => choose.click());
-  await act(async () => page.getByRole("option", { name: "D:/Other/original.z64" }).click());
+  await act(async () => (choose.element() as HTMLElement).click());
+  await act(async () =>
+    (page.getByRole("option", { name: "D:/Other/original.z64" }).element() as HTMLElement).click(),
+  );
   await act(async () => use.click());
   await expect.element(use).toHaveAttribute("aria-disabled", "true");
   await expect.element(use).toHaveFocus();
@@ -1108,8 +1114,10 @@ it("requires another original review when the setup revision changes after a ref
   const choose = page.getByRole("combobox", { name: /^Other registered originals/ });
 
   await act(async () => button(host, "Review original game files").click());
-  await act(async () => choose.click());
-  await act(async () => page.getByRole("option", { name: "D:/Other/original.z64" }).click());
+  await act(async () => (choose.element() as HTMLElement).click());
+  await act(async () =>
+    (page.getByRole("option", { name: "D:/Other/original.z64" }).element() as HTMLElement).click(),
+  );
   await act(async () => page.getByRole("button", { name: "Use this original" }).click());
   await expect.element(choose).not.toBeInTheDocument();
   await expect.element(page.getByRole("heading", { name: "Setups and mods" })).toHaveFocus();
