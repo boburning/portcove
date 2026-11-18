@@ -345,7 +345,7 @@ uses the same 60px rail. Keep task controls
 in the workspace flow. [Theme ownership](THEME.md#whole-interface-enlargement-and-reflow) owns
 the controller, persistence and native/browser evidence boundaries.
 
-Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+Display game release streams as **Stable**, **Preview** and **Rolling**. Use the [CLI channel contract](CLI.md#release-channels) when translating stored values into labels.
 
 - Import only controls demonstrated by current product needs. Checked-in controls should stay close to official composition, refs, events, and accessibility behavior; do not put a near-identical Portcove wrapper around every shadcn control.
 - A specific Base UI control may be replaced when a reproducible Tauri, controller, accessibility, or supported-platform failure remains after bounded repair. Preserve the shared API, semantics, and theme where practical, record the evidence, and review the replacement independently; one incompatible control does not reopen the selected system.
@@ -498,16 +498,15 @@ saved update policy. A successful launch activity says **Process exited**, with
 an explicit explanation that successful process termination does not establish
 tested gameplay. Keep update and activity statuses in readable sentence case.
 
-Details first offers Review game update without a disposition selector for an
-unidentified candidate. Its first review retains the saved policy's current
-default (automatic installs; other policies keep for later). Once Core supplies
-the release, show its consequences and offer the alternate action through a new
-reviewed plan. Switching action never reuses the previous plan's fingerprint.
+For an available game update, **Update now** and **Download for later** select
+the immediate action. A saved policy governs future updates. Review the release
+and its consequences for the selected action. If the player switches actions,
+get a new plan before applying it.
 Details labels matching saved checks as earlier observations, shows their update
 version when available, and makes Check for updates primary when no available or
 saved candidate is known. Manual review remains available as a secondary action.
 The optional application-update choice notice uses a secondary review action;
-ordinary first-use Add games remains the primary task.
+the empty Library keeps **Browse games** as its primary action.
 
 Use **Check method** for a configured way to inspect game files; say whether a check
 actually ran and what it found separately. Show the planned output folder with
@@ -1039,13 +1038,13 @@ for work the application did not perform.
 
 The genuine first-use Library omits collection layout, sorting and filter tools
 until there is content or a browsing constraint to operate on. Keep its mascot
-compact (4rem) and Add games visible at the supported minimum window, including
-the initial application-update choice notice. Filtered no-results retains its
+compact (4rem) and keep Browse games visible at the supported minimum window,
+including with the initial application-update choice notice.
 reset and filtering controls; hiding first-use tools must not clear preferences.
 
-Library's heading Add games action and empty-state primary action open the
-same in-flow workspace. Keep source choice, current port identity and the next
-review action together. Start with three routes: Browse games (opens Discover,
+In an empty Library, **Browse games** takes the player directly to Discover.
+**Add games** opens the in-flow setup workspace. Keep the source choice, current
+port and next review action together. Its three routes are Browse games (Discover,
 where choosing a game always happens), Scan a folder, or use an existing
 installation. Show only the selected route's actual inputs and requirements. In
 Add games, "Choose folder to scan" saves the chosen folder and scans the saved

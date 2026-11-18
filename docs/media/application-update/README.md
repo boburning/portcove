@@ -50,8 +50,8 @@ executable hash and fixture marker.
 
 For your own installation, close all Portcove windows and run **status first**;
 perform only the repair it actually names. Healthy coordination state does not
-prove a healthy library or roll back a library migration. See the [complete
-recovery procedure](../../UPGRADING.md#application-updater-recovery-without-the-gui).
+prove a healthy library or roll back a library migration. These commands belonged to the October test build. For a current package, use
+[the recovery steps for your operating system](../../UPGRADING.md#recover-when-portcove-will-not-open).
 
 ## Exact evidence and limits
 
