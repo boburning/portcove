@@ -560,6 +560,8 @@ Controller input explicitly enables the gold focus outline; browser keyboard heu
 
 Vertical navigation visits the nearest visual row before considering horizontal alignment. Entering a new control group starts at its first control, so headers cannot skip filters, the first port card, or account actions. Within a card grid, vertical movement preserves the column. Search and Commands share the 42-pixel control height; search focus outlines the complete field including its icon and shortcut. External links use the desktop's system-browser bridge, which accepts only reviewed HTTPS project and GitHub device-login destinations and preserves the shared child-process environment policy.
 
+External-link failure feedback belongs to the latest attempt for the current destination and opener. A superseded response cannot replace newer feedback. Changing that context clears the old error while preserving the anchor and keyboard focus; it does not cancel a browser-open request already sent to the desktop.
+
 Portcove targets dense desktop use and a minimum 960-pixel-wide Tauri window. At narrower supported widths, the shell reduces nonessential labels and column count before hiding technical data. Reduced-motion preference removes nonessential transitions and progress animation.
 
 ## Game artwork
