@@ -1,3 +1,4 @@
+import "../styles/index.css";
 import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
@@ -240,6 +241,7 @@ it("connects a registered preliminary selection to truthful port guidance and bo
   expect(document.body.textContent).toContain("Catalog ports using this profile: Preliminary port");
   expect(document.body.textContent).toContain("Preliminary port: Ready for setup review");
   expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(1);
+  await captureParityState("game-files-registered-preliminary-selection-fixture");
   await act(async () =>
     document.querySelector<HTMLInputElement>("[data-setup-review-port]")!.click(),
   );

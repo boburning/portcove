@@ -23,9 +23,9 @@ const outputReviewClass =
 const outputReviewTitleClass =
   "output-review-title flex flex-wrap items-start justify-between gap-3";
 const outputCodeClass =
-  "block [overflow-wrap:anywhere] rounded-pc-md bg-[var(--color-bg-inset)] p-2 text-[var(--color-interactive-text)]";
+  "path-value block rounded-pc-md bg-[var(--color-bg-inset)] p-2 text-[var(--color-interactive-text)]";
 const outputReviewCodeClass =
-  "block [overflow-wrap:anywhere] rounded-pc-md bg-[var(--color-bg-subtle)] p-2 text-[var(--color-interactive-text)]";
+  "path-value block rounded-pc-md bg-[var(--color-bg-subtle)] p-2 text-[var(--color-interactive-text)]";
 const outputReviewCopyClass =
   "m-0 flex items-center gap-2 text-xs text-[var(--color-text-secondary)]";
 const outputProblemClass =
@@ -313,7 +313,7 @@ export function OutputLocationControl({
           {source}
         </span>
       </div>
-      <code className={outputCodeClass} title={location?.effective_output_directory}>
+      <code dir="ltr" className={outputCodeClass} title={location?.effective_output_directory}>
         {location?.effective_output_directory ?? "Loading current folder…"}
       </code>
       {location && (
@@ -500,7 +500,9 @@ function OutputLocationStatus({
         <ul aria-label="Retained old folders" className="grid gap-1 text-xs">
           {result.old_paths_retained.map((path) => (
             <li key={path}>
-              <code className="break-all">{path}</code>
+              <code dir="ltr" className="break-all">
+                {path}
+              </code>
             </li>
           ))}
         </ul>
@@ -515,7 +517,9 @@ function OutputLocationStatus({
         <ul aria-label="Folders awaiting safe cleanup" className="grid gap-1 text-xs">
           {status.cleanup_pending_paths.map((path) => (
             <li key={path}>
-              <code className="break-all">{path}</code>
+              <code dir="ltr" className="break-all">
+                {path}
+              </code>
             </li>
           ))}
         </ul>
@@ -619,6 +623,7 @@ function OutputLocationReview({
             </span>
           </div>
           <code
+            dir="ltr"
             className={outputReviewCodeClass}
             title={preview.proposed.effective_output_directory}
           >
@@ -757,7 +762,7 @@ function OutputRelocationReview({
             {plan.installs.length} version{plan.installs.length === 1 ? "" : "s"}
           </span>
         </div>
-        <code className={outputReviewCodeClass} title={plan.destination_root}>
+        <code dir="ltr" className={outputReviewCodeClass} title={plan.destination_root}>
           {plan.destination_root}
         </code>
         <MetadataGrid className="max-[48rem]:grid-cols-1">
@@ -798,7 +803,8 @@ function OutputRelocationReview({
                   .join(" · ")}
               </span>
               <code
-                className="col-span-full text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]"
+                dir="ltr"
+                className="path-value col-span-full text-xs text-[var(--color-text-secondary)]"
                 title={item.install.path}
               >
                 {item.install.path}

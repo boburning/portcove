@@ -1,3 +1,4 @@
+import "../styles/index.css";
 import { captureParityState } from "../../test/parity-capture";
 import { render as renderComponent, cleanup } from "vitest-browser-react";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -415,6 +416,148 @@ it.each(["copy", "move", "use_current_location"] as const)(
       expect(apply).toHaveBeenCalledOnce();
     } finally {
       await act(async () => root.unmount());
+    }
+  },
+);
+
+it.each([
+  { theme: "dark", width: 960, height: 640 },
+  { theme: "light", width: 960, height: 640 },
+  { theme: "dark", width: 430, height: 780 },
+  { theme: "light", width: 430, height: 780 },
+] as const)(
+  "separates discovery controls and preliminary results in $theme at $width",
+  async ({ theme, width, height }) => {
+    const incoming = {
+      theme: document.documentElement.dataset.theme,
+      width: innerWidth,
+      height: innerHeight,
+    };
+    const profile: SourceProfile = {
+      id: "owned",
+      label: "Owned disc files checked by the upstream game-data extractor",
+      kind: "upstream-validated-disc",
+      accepted_extensions: ["iso"],
+      accepted_sha1: [],
+      accepted_sha256: [],
+      disc: null,
+      members: [],
+    };
+    const { source } = sourceImportFixtures();
+    const rootPath = "D:/Synthetic discovery presentation/Original game files";
+    const report: SourceDiscoveryReport = {
+      searched_roots: [rootPath],
+      searched_profiles: [profile.id],
+      candidates: [],
+      preliminary_selections: [
+        {
+          profile_id: profile.id,
+          path: source.path,
+          observed_digests: [],
+          components: [],
+          validator: {
+            contract_id: "owned-disc-v1",
+            tool_id: "owned-validator",
+            protocol_version: "1",
+            result: "not_run",
+          },
+          assessment: {
+            health: "not_baselined",
+            classification: { state: "not_evaluated" },
+            contract: { state: "not_evaluated" },
+            admission: { state: "admitted", mode: "structural_checks" },
+            evidence: [],
+          },
+          record: source,
+          message: "Synthetic preliminary selection; validation has not run",
+        },
+      ],
+      entries_examined: 1,
+      files_hashed: 0,
+      hash_bytes: 0,
+      symlinks_skipped: 0,
+      limits_reached: [],
+      issues: [],
+      issues_omitted: 0,
+    };
+    vi.mocked(picker.pickInstallFolder).mockResolvedValue(rootPath);
+    const discover = vi.spyOn(desktopApi, "discoverSources").mockResolvedValue(report);
+    const imported = vi
+      .spyOn(desktopApi, "importSource")
+      .mockRejectedValue(new Error("Import must require a reviewed choice"));
+    const host = document.createElement("div");
+    document.body.append(host);
+    const rendered = await renderComponent(null, { container: host });
+    try {
+      await page.viewport(width, height);
+      document.documentElement.dataset.theme = theme;
+      await rendered.rerender(
+        <SourceDiscoveryButton generation={7} profiles={[profile]} disabled={false} />,
+      );
+      await page.getByRole("button", { name: "Find required files", exact: true }).click();
+      const dialog = await page
+        .getByRole("dialog", { name: "Find required files", exact: true })
+        .element();
+      await document.fonts.ready;
+      expect(dialog.textContent).not.toContain("REQUIRED FILES");
+      expect(dialog.getAttribute("aria-describedby")).toBe("source-discovery-description");
+      const select = dialog.querySelector<HTMLElement>("#source-profile-select")!;
+      const inboxActions = dialog.querySelector<HTMLElement>(".source-inbox-actions")!;
+      const folderLabel = [...dialog.querySelectorAll("label")].find(
+        (item) => item.textContent === "Search folder",
+      )!;
+      const folderInput = dialog.querySelector<HTMLInputElement>("#source-search-root")!;
+      const stores = dialog.querySelector<HTMLElement>(
+        '[aria-label="Games installed by Steam, GOG or Epic"]',
+      )!;
+      expect(
+        inboxActions.getBoundingClientRect().top - select.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(8);
+      expect(
+        folderLabel.getBoundingClientRect().top - inboxActions.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(16);
+      expect(
+        stores.getBoundingClientRect().top -
+          folderInput.parentElement!.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(8);
+      expect(dialog.scrollWidth).toBeLessThanOrEqual(dialog.clientWidth + 1);
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+      await captureParityState("source-discovery-rhythm-controls");
+      await page.getByRole("combobox", { name: /^Required files/ }).click();
+      await page.getByRole("option", { name: profile.label, exact: true }).click();
+      await page.getByRole("button", { name: "Choose folder", exact: true }).click();
+      await page.getByRole("button", { name: "Search this folder", exact: true }).click();
+      const preliminary = await page
+        .getByRole("heading", { name: "Preliminary selections", exact: true })
+        .element();
+      const summary = [...dialog.querySelectorAll("p")].find((item) =>
+        item.textContent?.startsWith("Found no exact matches."),
+      )!;
+      expect(
+        preliminary.getBoundingClientRect().top - summary.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(16);
+      expect(
+        preliminary.nextElementSibling!.getBoundingClientRect().top -
+          preliminary.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(8);
+      expect(preliminary.parentElement?.textContent).toContain("Validation has not run");
+      expect(discover).toHaveBeenCalledWith(
+        { roots: [rootPath], profile_ids: [profile.id], limits: expect.any(Object) },
+        expect.any(Function),
+      );
+      expect(imported).not.toHaveBeenCalled();
+      preliminary.scrollIntoView({ block: "center" });
+      expect(dialog.scrollWidth).toBeLessThanOrEqual(dialog.clientWidth + 1);
+      await captureParityState("source-discovery-rhythm-preliminary");
+      await page.getByRole("button", { name: "Close", exact: true }).click();
+      await expect.poll(() => document.activeElement?.textContent).toBe("Find required files");
+    } finally {
+      await cleanup();
+      host.remove();
+      vi.restoreAllMocks();
+      if (incoming.theme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = incoming.theme;
+      await page.viewport(incoming.width, incoming.height);
     }
   },
 );
