@@ -1,18 +1,23 @@
 import { useEffect, useEffectEvent, useState } from "react";
 import { getCurrentWebview, type DragDropEvent } from "@tauri-apps/api/webview";
 
-export interface NativeSourceDropTarget {
+export interface ExactNativeSourceDropTarget {
   portId: string;
   profileId: string;
 }
+
+export type NativeSourceDropTarget = ExactNativeSourceDropTarget | { gameId: string };
 
 export interface NativeSourceDragState {
   active: boolean;
   pathCount: number;
   targetPortId?: string;
+  targetGameId?: string;
 }
 
 export type NativeSourceDrop = NativeSourceDropTarget & { paths: string[] };
+export type NativeSourceGameDrop = { gameId: string; paths: string[] };
+export type ExactNativeSourceDrop = ExactNativeSourceDropTarget & { paths: string[] };
 
 const idleState: NativeSourceDragState = { active: false, pathCount: 0 };
 
@@ -22,11 +27,12 @@ export function sourceDropTargetAt(
   scale = window.devicePixelRatio || 1,
 ): NativeSourceDropTarget | undefined {
   const element = elementAt(position.x / scale, position.y / scale)?.closest<HTMLElement>(
-    "[data-source-drop-profile-id]",
+    "[data-source-drop-profile-id], [data-source-drop-game-id]",
   );
   const portId = element?.dataset.sourceDropPortId;
   const profileId = element?.dataset.sourceDropProfileId;
-  return portId && profileId ? { portId, profileId } : undefined;
+  const gameId = element?.dataset.sourceDropGameId;
+  return portId && profileId ? { portId, profileId } : gameId ? { gameId } : undefined;
 }
 
 export function createNativeSourceDropCoordinator(
@@ -52,7 +58,15 @@ export function createNativeSourceDropCoordinator(
       return;
     }
     if (event.type === "enter") pathCount = event.paths.length;
-    update({ active: true, pathCount, ...(target ? { targetPortId: target.portId } : {}) });
+    update({
+      active: true,
+      pathCount,
+      ...(target
+        ? "portId" in target
+          ? { targetPortId: target.portId }
+          : { targetGameId: target.gameId }
+        : {}),
+    });
   };
 }
 

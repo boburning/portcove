@@ -35,6 +35,12 @@
       "image_sha256": "9d52d23bb2122aa4484bf3d971ecffea246fcced40234bae059106a95f950f40",
       "game_slug": "gears-of-war-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "gears-of-war-3",
+      "evidence_urls": ["https://github.com/GloriousEggroll/squarehole360"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

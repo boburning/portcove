@@ -35,6 +35,12 @@
       "image_sha256": "96f35b0fd243c28e8b6f6863cbf4477cd465a296e089fa53bf971f39af98f4ca",
       "game_slug": "burnout-3-takedown",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "burnout-3-takedown",
+      "evidence_urls": ["https://github.com/sp00nznet/burnout3"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

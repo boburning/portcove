@@ -18,7 +18,13 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/FrankHUN88453/CoD3Recomp",
-    "issue_number": 2639
+    "issue_number": 2639,
+    "original_game": {
+      "format_version": 1,
+      "id": "call-of-duty-3",
+      "evidence_urls": ["https://github.com/FrankHUN88453/CoD3Recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

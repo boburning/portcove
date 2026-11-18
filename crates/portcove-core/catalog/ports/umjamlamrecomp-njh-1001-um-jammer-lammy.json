@@ -35,6 +35,12 @@
       "image_sha256": "0f3c205d12c5d24eddc87090cc2d654358ed38a30ad2dda61968c7269b803213",
       "game_slug": "um-jammer-lammy",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "um-jammer-lammy",
+      "evidence_urls": ["https://github.com/NJH-1001/UmJamLamRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

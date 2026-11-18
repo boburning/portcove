@@ -61,6 +61,15 @@
     },
     "original_game_title": "Cave Story",
     "release_url": "https://github.com/doukutsu-rs/doukutsu-rs/releases",
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "cave-story",
+      "evidence_urls": [
+        "https://github.com/doukutsu-rs/doukutsu-rs/blob/8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c/README.md",
+        "https://github.com/doukutsu-rs/doukutsu-rs"
+      ],
+      "source_editions": []
+    }
   }
 }

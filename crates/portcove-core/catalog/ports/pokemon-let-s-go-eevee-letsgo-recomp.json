@@ -18,6 +18,12 @@
       "image_sha256": "0dacb4e6e10b389c28590062eb7e5b7b4b68184d1999cddb48e1a072dd5112d3",
       "game_slug": "pokemon-lets-go-eevee",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-lets-go-eevee",
+      "evidence_urls": ["https://github.com/raulzrrs/letsgo-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

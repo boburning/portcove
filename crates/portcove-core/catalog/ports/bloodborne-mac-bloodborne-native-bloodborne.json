@@ -35,6 +35,12 @@
       "image_sha256": "5dc4f67d642758fe0d879abd14a2c3fa5da821e5e3a5eeda29278e875d76c1ae",
       "game_slug": "bloodborne",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "bloodborne",
+      "evidence_urls": ["https://github.com/bloodborne-native/bloodborne-mac"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

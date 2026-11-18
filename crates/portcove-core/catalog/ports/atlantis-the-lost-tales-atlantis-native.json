@@ -44,6 +44,15 @@
         }
       ],
       "help_url": "https://github.com/ripleyXLR8/atlantis-native/blob/44ad4d0f9c1ccd449c6d895ee6a7bf4f798d3df7/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "atlantis-the-lost-tales",
+      "evidence_urls": [
+        "https://github.com/ripleyXLR8/atlantis-native",
+        "https://github.com/ripleyXLR8/atlantis-native/blob/44ad4d0f9c1ccd449c6d895ee6a7bf4f798d3df7/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -48,6 +48,15 @@
         }
       ],
       "help_url": "https://flathub.org/apps/org.sauerbraten.Sauerbraten"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "cube-2-sauerbraten",
+      "evidence_urls": [
+        "https://flathub.org/apps/org.sauerbraten.Sauerbraten",
+        "https://sourceforge.net/projects/sauerbraten/"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

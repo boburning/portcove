@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/chrissotraidis/galaxypad"
     },
-    "issue_number": 3405
+    "issue_number": 3405,
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-galaxy",
+      "evidence_urls": ["https://github.com/chrissotraidis/galaxypad"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -35,6 +35,12 @@
       "image_sha256": "de65215aad138480bd60338894b0dc02dfc15d0c032ebff4dae1ee50c47b3603",
       "game_slug": "wwe-smackdown-here-comes-the-pain",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wwe-smackdown-here-comes-the-pain",
+      "evidence_urls": ["https://github.com/BigDaddyJRich/hctp-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

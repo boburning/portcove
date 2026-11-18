@@ -18,6 +18,12 @@
       "image_sha256": "96b88558ba797f3257b777cb850e5f64541e241256049615e3e980599e4e5a31",
       "game_slug": "pokemon-lets-go-pikachu",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-lets-go-pikachu",
+      "evidence_urls": ["https://github.com/raulzrrs/letsgo-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -7,7 +7,12 @@ import { Button } from "../../components/ui/button";
 import { gameProjectLabel, gameTitle } from "../../port-identity";
 import type { Organization } from "../organization/OrganizationControls";
 import type { CatalogEntry } from "./catalog-entry";
-import { groupCatalog, type GameGroup } from "./original-game";
+import {
+  gameGroupPresentationPort,
+  gameGroupTitle,
+  groupCatalog,
+  type GameGroup,
+} from "./original-game";
 import { resolveGameChoice } from "./game-choice";
 import { ImplementationChoice, ownsChoiceFocus } from "./ImplementationChoice";
 import { ImplementationFacts } from "./GameAlternatives";
@@ -29,7 +34,7 @@ export function GroupedLibrary({
   matching: readonly CatalogEntry[];
   statuses: ReadonlyMap<string, PortStatus>;
   organization?: Organization | undefined;
-  renderPort: (port: CatalogEntry) => ReactNode;
+  renderPort: (port: CatalogEntry, presentationPort?: CatalogEntry) => ReactNode;
   onSelect: (portId: string, originKey?: string) => void;
   layout?: CollectionLayout;
 }) {
@@ -61,7 +66,7 @@ function LibraryGame({
   group: GameGroup;
   statuses: ReadonlyMap<string, PortStatus>;
   organization: Organization | undefined;
-  renderPort: (port: CatalogEntry) => ReactNode;
+  renderPort: (port: CatalogEntry, presentationPort?: CatalogEntry) => ReactNode;
   onSelect: (portId: string, originKey?: string) => void;
   layout: CollectionLayout;
 }) {
@@ -77,18 +82,18 @@ function LibraryGame({
     statuses,
     organization?.snapshot ? (preferences ?? {}) : undefined,
   );
-  const first = group.matchingPorts[0]!;
+  const first = gameGroupPresentationPort(group);
   return (
     <section
       ref={root}
       tabIndex={-1}
       className="min-w-0"
-      aria-label={t("library.portsLabel", { title: gameTitle(first) })}
+      aria-label={t("library.portsLabel", { title: gameGroupTitle(group) })}
       data-library-game-id={group.id}
       data-detail-return-group={group.id}
     >
       {choice.port ? (
-        renderPort(choice.port)
+        renderPort(choice.port, first)
       ) : (
         <LibraryChoicePrompt {...{ group, first, choice, layout, organization, restore }} />
       )}

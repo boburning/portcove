@@ -35,6 +35,12 @@
       "image_sha256": "cbba41f0bef3466aa161ae886d1b90b12651c238eda31d036bf9aa08d7d65890",
       "game_slug": "immercenary",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "immercenary",
+      "evidence_urls": ["https://github.com/vs-sr-dev/pc-immercenary"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

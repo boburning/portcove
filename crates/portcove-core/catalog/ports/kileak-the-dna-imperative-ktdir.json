@@ -45,6 +45,16 @@
       "warnings": [
         "Use only an actual copy/components you are permitted to use. Preserve the complete creating runtime and every effective original, profile, mod, generated-code/cache and custom root before changes; another selected executable can share data."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kileak-the-dna-imperative",
+      "evidence_urls": [
+        "https://github.com/NJH-1001/KTDIR",
+        "https://github.com/NJH-1001/KTDIR/releases/tag/v0.1.1"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Kileak: The DNA Imperative"
   }
 }

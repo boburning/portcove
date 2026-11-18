@@ -32,6 +32,16 @@
       "warnings": [],
       "help_url": "https://github.com/jakobkhansen/SilksongAndroid/blob/v2.0.0/README.md"
     },
-    "release_url": "https://github.com/jakobkhansen/SilksongAndroid/releases"
+    "release_url": "https://github.com/jakobkhansen/SilksongAndroid/releases",
+    "original_game": {
+      "format_version": 1,
+      "id": "hollow-knight-silksong",
+      "evidence_urls": [
+        "https://github.com/jakobkhansen/SilksongAndroid/blob/v2.0.0/README.md",
+        "https://github.com/jakobkhansen/SilksongAndroid"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Hollow Knight: Silksong"
   }
 }

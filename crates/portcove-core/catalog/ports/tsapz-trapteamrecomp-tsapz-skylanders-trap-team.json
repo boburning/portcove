@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/tsapZ/TrapTeamRecomp"
     },
-    "issue_number": 3152
+    "issue_number": 3152,
+    "original_game": {
+      "format_version": 1,
+      "id": "skylanders-trap-team",
+      "evidence_urls": ["https://github.com/tsapZ/TrapTeamRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

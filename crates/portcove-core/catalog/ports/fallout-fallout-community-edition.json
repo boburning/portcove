@@ -55,6 +55,15 @@
           "instruction": "Preserve the complete external runtime/original data, fallout.cfg, actual master_patches/data root including SAVEGAME and slot contents, music, mods, screenshots/logs and unknown files. Retain every configured external root and old creating copy; another executable directory alone does not prove save or instance isolation. No arbitrary Fallout mod or cross-version save compatibility is established."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "fallout",
+      "evidence_urls": [
+        "https://github.com/alexbatalov/fallout1-ce",
+        "https://github.com/alexbatalov/fallout1-ce/tree/a8c37ea47f3dd1c60bd1fa56b82e688ab4643856"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

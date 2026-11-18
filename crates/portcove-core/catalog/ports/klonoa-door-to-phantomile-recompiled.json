@@ -26,7 +26,13 @@
       "game_slug": "klonoa-door-to-phantomile",
       "match_kind": "underlying-game"
     },
-    "issue_number": 77
+    "issue_number": 77,
+    "original_game": {
+      "format_version": 1,
+      "id": "klonoa-door-to-phantomile",
+      "evidence_urls": ["https://github.com/TechnicallyComputers/Klonoa-Door-to-Phantomile"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

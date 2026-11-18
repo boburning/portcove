@@ -1948,3 +1948,27 @@ void test("secondary panel presentation keeps isolated Windows custody and compl
     [id],
   );
 });
+
+void test("game-first production relationship expectations have selected-only immutable custody", () => {
+  const fixture = "scripts/fixtures/game-first-catalog-relationships.json";
+  const selected = planDesktopExecution(
+    resolveDesktopSelection({
+      scenarios: ["native-game-first-choice-and-restart"],
+      platform: "win32",
+    }),
+    { platform: "win32" },
+  );
+  assert.equal(
+    selected.receiptInputs.filter((input) => input.kind === "file" && input.path === fixture)
+      .length,
+    1,
+  );
+  const smoke = planDesktopExecution(
+    resolveDesktopSelection({ profile: "smoke", platform: "win32" }),
+    { platform: "win32" },
+  );
+  assert.equal(
+    smoke.receiptInputs.filter((input) => input.kind === "file" && input.path === fixture).length,
+    0,
+  );
+});

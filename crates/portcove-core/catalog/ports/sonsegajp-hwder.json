@@ -17,6 +17,13 @@
       "image_sha256": "6bcb2e3eb76fd024f9f503605a3625b8beacd0bb4645301addacaa113c08def8",
       "game_slug": "hyrule-warriors-definitive-edition",
       "match_kind": "underlying-game"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "hyrule-warriors-definitive-edition",
+      "evidence_urls": ["https://github.com/sonsegajp/HWDER"],
+      "source_editions": []
+    },
+    "original_game_title": "Hyrule Warriors: Definitive Edition"
   }
 }

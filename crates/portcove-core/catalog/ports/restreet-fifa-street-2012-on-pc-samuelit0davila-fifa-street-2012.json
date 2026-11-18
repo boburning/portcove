@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/samuelit0davila/fifa-street-pc-port"
     },
-    "issue_number": 3206
+    "issue_number": 3206,
+    "original_game": {
+      "format_version": 1,
+      "id": "fifa-street-2012",
+      "evidence_urls": ["https://github.com/samuelit0davila/fifa-street-pc-port"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

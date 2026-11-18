@@ -35,6 +35,12 @@
       "image_sha256": "577638e28e7820042550512af99ae8e42c954556068e72ce71eae7f2f21e3f60",
       "game_slug": "ea-sports-ufc-4",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ea-sports-ufc-4",
+      "evidence_urls": ["https://github.com/schans-arg/UFC4-PC-Port"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

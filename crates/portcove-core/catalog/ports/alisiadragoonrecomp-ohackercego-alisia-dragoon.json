@@ -35,6 +35,12 @@
       "image_sha256": "9789b970a541250eaf8b0c38edc9f2ae540bfa2e3d0e00924674165b1374156b",
       "game_slug": "alisia-dragoon",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "alisia-dragoon",
+      "evidence_urls": ["https://github.com/ohackercego/AlisiaDragoonRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

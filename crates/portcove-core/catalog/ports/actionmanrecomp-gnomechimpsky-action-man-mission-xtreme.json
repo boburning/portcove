@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/GnomeChimpsky/ActionManRecomp"
     },
-    "issue_number": 3439
+    "issue_number": 3439,
+    "original_game": {
+      "format_version": 1,
+      "id": "action-man-mission-xtreme",
+      "evidence_urls": ["https://github.com/GnomeChimpsky/ActionManRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

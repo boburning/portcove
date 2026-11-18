@@ -18,6 +18,13 @@
       "game_slug": "vandal-hearts",
       "match_kind": "underlying-game"
     },
-    "download_block_reason": "New downloads are waiting for applicable permission covering the selected package’s upstream-disclosed embedded Konami static game data and Sony BIOS-derived kanji. The project GPL grant expressly excludes those inherited/original-derived components. Reconsider an exact attributable permitted package/component route, reviewed asset-clean alternative or lawful owned-input prepared route; a local build or old matching digest alone does not expand that grant."
+    "download_block_reason": "New downloads are waiting for applicable permission covering the selected package’s upstream-disclosed embedded Konami static game data and Sony BIOS-derived kanji. The project GPL grant expressly excludes those inherited/original-derived components. Reconsider an exact attributable permitted package/component route, reviewed asset-clean alternative or lawful owned-input prepared route; a local build or old matching digest alone does not expand that grant.",
+    "original_game": {
+      "format_version": 1,
+      "id": "vandal-hearts",
+      "evidence_urls": ["https://github.com/HalmyLyseas/VandalHearts-PcPort"],
+      "source_editions": []
+    },
+    "original_game_title": "Vandal Hearts"
   }
 }

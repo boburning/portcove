@@ -42,6 +42,15 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/freeorion/freeorion/blob/v0.5.1.2/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "freeorion",
+      "evidence_urls": [
+        "https://github.com/freeorion/freeorion/blob/v0.5.1.2/README.md",
+        "https://github.com/freeorion/freeorion"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
@@ -49,7 +58,10 @@
     "target_key": "freeorion",
     "origin": {
       "project_url": "https://github.com/freeorion/freeorion",
-      "repository": { "host": "github.com", "id": "33066062" }
+      "repository": {
+        "host": "github.com",
+        "id": "33066062"
+      }
     },
     "decisions": []
   }

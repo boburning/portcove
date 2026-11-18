@@ -1,13 +1,21 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { test } from "vite-plus/test";
 import {
   captureGameFirstTarget,
+  readGameFirstRelationships,
+  inspectGameFirstRelationships,
+  gameFirstPresentationFamilies,
   observeGameFirstCaptureReadiness,
   readGameFirstObservation,
 } from "./desktop-game-first-test.mts";
 import { failureReport, portStatus, installedLaunchStatus } from "../src/test-fixtures.ts";
 import { transportValue } from "./transport-values.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
+import type {
+  GameFirstObservedDefinition,
+  GameFirstObservedListing,
+} from "./desktop-game-first-test.mts";
 import type { ScenarioInvoke } from "./desktop-scenario-context.mts";
 import type {
   PortStatus,
@@ -550,4 +558,139 @@ test("normal installed launch captions retain Core permission and unknown compat
     { ...status, port_actions: [launchAction, launchAction] },
   ] satisfies PortStatus[])
     assert.throws(() => requireDirectLaunchLabel("Try launch", refused));
+});
+
+/** Generated authored inputs omit serde defaults. Validate only this oracle's
+ * consumed fields; these test projections are deliberately not runtime IPC DTOs. */
+function authoredIdentity(value: unknown) {
+  if (value === undefined || value === null) return value;
+  assert.ok(isRecord(value) && typeof value.id === "string");
+  return { ...value, id: value.id };
+}
+function authoredTitle(value: unknown) {
+  assert.ok(value === undefined || value === null || typeof value === "string");
+  return value;
+}
+function authoredListing(value: unknown): GameFirstObservedListing {
+  assert.ok(isRecord(value) && typeof value.id === "string" && typeof value.name === "string");
+  const identity = authoredIdentity(value.original_game);
+  const title = authoredTitle(value.original_game_title);
+  return {
+    id: value.id,
+    name: value.name,
+    ...(identity !== undefined ? { original_game: identity } : {}),
+    ...(title !== undefined ? { original_game_title: title } : {}),
+  };
+}
+function authoredDefinition(value: unknown): GameFirstObservedDefinition {
+  assert.ok(isRecord(value) && typeof value.id === "string" && typeof value.name === "string");
+  assert.ok(
+    value.source_profile === undefined ||
+      value.source_profile === null ||
+      typeof value.source_profile === "string",
+  );
+  assert.ok(isRecord(value.release), "Authored operational release object must be retained intact");
+  const presentation = value.presentation;
+  assert.ok(presentation === undefined || presentation === null || isRecord(presentation));
+  const identity = authoredIdentity(presentation?.original_game);
+  const title = authoredTitle(presentation?.original_game_title);
+  return {
+    id: value.id,
+    name: value.name,
+    release: value.release,
+    ...(value.source_profile !== undefined ? { source_profile: value.source_profile } : {}),
+    ...(presentation !== undefined
+      ? {
+          presentation:
+            presentation === null
+              ? null
+              : {
+                  ...(identity !== undefined ? { original_game: identity } : {}),
+                  ...(title !== undefined ? { original_game_title: title } : {}),
+                },
+        }
+      : {}),
+  };
+}
+async function productionWorkspace() {
+  const catalog: unknown = JSON.parse(
+    await readFile(
+      new URL("../../../crates/portcove-core/catalog/catalog.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const listings: unknown = JSON.parse(
+    await readFile(
+      new URL("../../../crates/portcove-core/catalog/listings.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.ok(isRecord(catalog) && Array.isArray(catalog.ports));
+  assert.ok(isRecord(listings) && Array.isArray(listings.listings));
+  const ports: unknown[] = catalog.ports;
+  const directory: unknown[] = listings.listings;
+  return {
+    catalog: { ports: ports.map(authoredDefinition) },
+    listing_catalog: { listings: directory.map(authoredListing) },
+  };
+}
+
+test("native relationship observation checks every independent reviewed family against real production documents", async () => {
+  const { expected, sha256 } = await readGameFirstRelationships();
+  assert.match(sha256, /^[a-f0-9]{64}$/u);
+  const actual = await productionWorkspace();
+  const observed = inspectGameFirstRelationships(actual, expected);
+  assert.equal(observed.provenance.length, 1550);
+  assert.equal(new Set(observed.provenance.map((row) => row.port_id)).size, 1550);
+  assert.ok(observed.provenance.some((row) => row.definition && row.listing));
+  assert.ok(observed.provenance.some((row) => !row.definition && row.listing));
+  for (const id of gameFirstPresentationFamilies)
+    assert.ok((expected.families[id]?.length ?? 0) >= 2);
+  assert.equal(expected.families["the-legend-of-zelda-majoras-mask"]!.length, 4);
+  assert.equal(expected.families["perfect-dark"]!.length, 6);
+  assert.equal(expected.families["the-legend-of-zelda-the-wind-waker"]!.length, 6);
+});
+
+test("native relationship observation refuses missing, contaminated and falsely grouped actual entries", async () => {
+  const { expected } = await readGameFirstRelationships();
+  const original = await productionWorkspace();
+  const missing = structuredClone(original);
+  const removed = expected.families["banjo-kazooie"]![0];
+  missing.catalog.ports = missing.catalog.ports.filter((row) => row.id !== removed);
+  missing.listing_catalog.listings = missing.listing_catalog.listings.filter(
+    (row) => row.id !== removed,
+  );
+  assert.throws(() => inspectGameFirstRelationships(missing, expected));
+  for (const portId of [
+    Object.keys(expected.project_entries)[0],
+    "ajncsystem-shadowofthecolossus-pc",
+  ]) {
+    const changed = structuredClone(original);
+    const identity = original.listing_catalog.listings.find(
+      (row) => row.id === "2ship2harkinian",
+    )!.original_game!;
+    const definition = changed.catalog.ports.find((row) => row.id === portId);
+    if (definition) {
+      assert.ok(definition.presentation);
+      definition.presentation.original_game = identity;
+    }
+    changed.listing_catalog.listings.find((row) => row.id === portId)!.original_game = identity;
+    assert.throws(
+      () => inspectGameFirstRelationships(changed, expected),
+      /Complete reviewed family/u,
+    );
+  }
+});
+
+test("native readback keeps definition authority when accepted listing descriptive identity disagrees", async () => {
+  const { expected } = await readGameFirstRelationships();
+  const actual = await productionWorkspace();
+  const definition = actual.catalog.ports.find((row) => row.id === "2ship2harkinian")!;
+  const listing = actual.listing_catalog.listings.find((row) => row.id === definition.id)!;
+  listing.original_game = { ...listing.original_game!, id: "untrusted-listing-collision" };
+  const observed = inspectGameFirstRelationships(actual, expected);
+  const entry = observed.entries.find((row) => row.id === definition.id)!;
+  assert.equal(entry.presentation?.original_game?.id, "the-legend-of-zelda-majoras-mask");
+  assert.equal(entry.source_profile, definition.source_profile);
+  assert.equal(entry.release, definition.release);
 });

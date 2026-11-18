@@ -36,6 +36,12 @@
       "image_sha256": "8515cbb4f7c29c638c5e257793739734270e01a85f9d445bcadf306f93326e3b",
       "game_slug": "hot-shots-tennis",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "hot-shots-tennis",
+      "evidence_urls": ["https://github.com/FIZL0/opentennis"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

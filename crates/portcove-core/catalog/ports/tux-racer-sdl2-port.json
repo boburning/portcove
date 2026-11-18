@@ -56,6 +56,15 @@
         }
       ],
       "help_url": "https://github.com/labbej27/tuxracer/blob/main/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tux-racer",
+      "evidence_urls": [
+        "https://github.com/labbej27/tuxracer/blob/main/README.md",
+        "https://github.com/labbej27/tuxracer"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

@@ -55,7 +55,13 @@
         }
       ]
     },
-    "download_block_reason": "Portcove downloads are paused because the package includes scene images captured from the game. They can resume when upstream publishes a package that creates them from your own game files."
+    "download_block_reason": "Portcove downloads are paused because the package includes scene images captured from the game. They can resume when upstream publishes a package that creates them from your own game files.",
+    "original_game": {
+      "format_version": 1,
+      "id": "kingdom-hearts-chain-of-memories-gba",
+      "evidence_urls": ["https://github.com/MatyMeatBoy/ReKHCoM"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

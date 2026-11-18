@@ -49,6 +49,15 @@
         "Core does not authenticate the disc set, generated code, component rights or build provenance. Managed acquisition, Install, Update, Backup, Rollback, migration and external deletion are unoffered. Gameplay/save-load, new native game runs, other platforms and installed/protected-client delivery remain unqualified by this route."
       ],
       "help_url": "https://github.com/mstan/BattleArenaToshindenRecomp#readme"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "battle-arena-toshinden",
+      "evidence_urls": [
+        "https://github.com/mstan/BattleArenaToshindenRecomp#readme",
+        "https://github.com/mstan/BattleArenaToshindenRecomp"
+      ],
+      "source_editions": []
     }
   }
 }

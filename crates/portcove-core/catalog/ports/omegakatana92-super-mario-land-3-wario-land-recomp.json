@@ -49,6 +49,16 @@
         }
       ],
       "help_url": "https://github.com/omegakatana92/Super-Mario-Land-3-Wario-Land-Recomp-/blob/47eb0a67fe54e6a7966d5e949c51292b82e1e573/README.md"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wario-land-super-mario-land-3",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Super-Mario-Land-3-Wario-Land-Recomp-/blob/47eb0a67fe54e6a7966d5e949c51292b82e1e573/README.md",
+        "https://github.com/omegakatana92/Super-Mario-Land-3-Wario-Land-Recomp-"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Wario Land: Super Mario Land 3"
   }
 }

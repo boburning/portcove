@@ -47,6 +47,15 @@
         "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
         "Before changing versions, keep a copy of the working game and every data and profile folder it uses. Another executable may use those same folders."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "syndicate-wars",
+      "evidence_urls": [
+        "https://github.com/swfans/syndwarsfx/tree/a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
+        "https://github.com/swfans/syndwarsfx"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

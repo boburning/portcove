@@ -53,6 +53,15 @@
       ],
       "help_url": "https://github.com/Endprodukt/cannonball-dx/blob/afbe061c50ad1aa50795daa98e4ab689a4d3ca46/README.md"
     },
-    "download_block_reason": "The published CannonballDX_1.04.zip includes an OutRun ROM archive. The engine licenses do not establish permission for those original-game contents, so Portcove does not acquire this package. Existing permitted copies remain external. Reconsider with an asset-free player package or attributable permission for the included game data."
+    "download_block_reason": "The published CannonballDX_1.04.zip includes an OutRun ROM archive. The engine licenses do not establish permission for those original-game contents, so Portcove does not acquire this package. Existing permitted copies remain external. Reconsider with an asset-free player package or attributable permission for the included game data.",
+    "original_game": {
+      "format_version": 1,
+      "id": "outrun",
+      "evidence_urls": [
+        "https://github.com/Endprodukt/cannonball-dx/blob/afbe061c50ad1aa50795daa98e4ab689a4d3ca46/README.md",
+        "https://github.com/Endprodukt/cannonball-dx"
+      ],
+      "source_editions": []
+    }
   }
 }

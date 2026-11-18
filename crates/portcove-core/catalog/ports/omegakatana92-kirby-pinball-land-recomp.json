@@ -49,6 +49,16 @@
         }
       ],
       "help_url": "https://github.com/omegakatana92/Kirby-Pinball-Land-Recomp/blob/502d3bd646819fe5b7d15cd668d30c1ef7ca7cf3/README.md"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kirbys-pinball-land",
+      "evidence_urls": [
+        "https://github.com/omegakatana92/Kirby-Pinball-Land-Recomp/blob/502d3bd646819fe5b7d15cd668d30c1ef7ca7cf3/README.md",
+        "https://github.com/omegakatana92/Kirby-Pinball-Land-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Kirby's Pinball Land"
   }
 }

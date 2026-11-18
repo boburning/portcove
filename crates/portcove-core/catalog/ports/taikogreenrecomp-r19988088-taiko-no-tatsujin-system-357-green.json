@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/R19988088/TaikoGreenRecomp"
     },
-    "issue_number": 3445
+    "issue_number": 3445,
+    "original_game": {
+      "format_version": 1,
+      "id": "taiko-no-tatsujin-system-357-green",
+      "evidence_urls": ["https://github.com/R19988088/TaikoGreenRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

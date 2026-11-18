@@ -35,6 +35,12 @@
       "image_sha256": "d82029c253fcd97e6bcd5ca3e81b7acad498a8d0caa8d546d07e2990da2fc9c8",
       "game_slug": "dragon-ball-z-infinite-world",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-ball-z-infinite-world",
+      "evidence_urls": ["https://github.com/TheSlackbringer/dbziw-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

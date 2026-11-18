@@ -27,7 +27,13 @@
       "game_slug": "street-fighter-alpha-3",
       "match_kind": "underlying-game"
     },
-    "issue_number": 85
+    "issue_number": 85,
+    "original_game": {
+      "format_version": 1,
+      "id": "street-fighter-alpha-3",
+      "evidence_urls": ["https://github.com/TechnicallyComputers/Street-Fighter-Alpha-3-Recomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

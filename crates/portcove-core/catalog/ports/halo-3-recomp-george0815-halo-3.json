@@ -35,6 +35,12 @@
       "image_sha256": "026e609d82d4877a549ff5c1f3de5600e77561d47de3be86e047e1fa26363cbc",
       "game_slug": "halo-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "halo-3",
+      "evidence_urls": ["https://github.com/george0815/halo-3-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

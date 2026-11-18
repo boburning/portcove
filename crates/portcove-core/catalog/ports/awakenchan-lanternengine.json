@@ -18,7 +18,13 @@
       "game_slug": "bloodborne",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2829
+    "issue_number": 2829,
+    "original_game": {
+      "format_version": 1,
+      "id": "bloodborne",
+      "evidence_urls": ["https://github.com/Awakenchan/LanternEngine"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

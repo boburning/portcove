@@ -50,6 +50,15 @@
       "warnings": [
         "Use the exact supported Turok: Rage Wars ROM and retain its actual data root; this guide does not qualify other titles, save compatibility or native gameplay."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "turok-rage-wars",
+      "evidence_urls": [
+        "https://github.com/wootbeer/PaxDino/blob/edfac2ea7bd941ce5df8e04afe930d92711a392b/README.md",
+        "https://github.com/wootbeer/PaxDino"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

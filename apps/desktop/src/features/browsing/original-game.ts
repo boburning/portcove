@@ -1,4 +1,5 @@
 import { canonicalIdentityId } from "../identity/identity-style";
+import { gameTitle } from "../../port-identity";
 import type { CatalogEntry } from "./catalog-entry";
 
 export function originalGame(port: CatalogEntry) {
@@ -54,4 +55,19 @@ export function groupCountLabel(groups: readonly GameGroup[]): string {
   if (games || !unknown) parts.push(`${games} ${games === 1 ? "game" : "games"}`);
   if (unknown) parts.push(`${unknown} ungrouped ${unknown === 1 ? "project" : "projects"}`);
   return parts.join(" + ");
+}
+
+/** Presentation uses the whole family, independently of ordering, filters or action choice. */
+export function gameGroupPresentationPort(group: GameGroup): CatalogEntry {
+  return [...group.ports].sort((left, right) => {
+    const title = (port: CatalogEntry) => Boolean(port.presentation?.original_game_title?.trim());
+    return (
+      Number(title(right)) - Number(title(left)) ||
+      (left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
+    );
+  })[0]!;
+}
+
+export function gameGroupTitle(group: GameGroup): string {
+  return gameTitle(gameGroupPresentationPort(group));
 }

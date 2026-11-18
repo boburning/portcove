@@ -62,7 +62,16 @@
       "windows-x86-64": ["mdk-recomp-", "-windows-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "MDK"
+    "original_game_title": "MDK",
+    "original_game": {
+      "format_version": 1,
+      "id": "mdk",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/mdk-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/mdk-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

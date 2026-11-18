@@ -46,6 +46,15 @@
       "warnings": [
         "Keep the exact stock USA N64 image and the complete package-local Data/settings tree; this Windows player is x86, not an assumed x64 build."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "goldeneye-007",
+      "evidence_urls": [
+        "https://github.com/murkantor/Project-Midas/blob/9062f9f120b7f64d39e5db59500ed50e8e7a6686/readme.md",
+        "https://github.com/murkantor/Project-Midas"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -48,6 +48,15 @@
           "instruction": "For a single snapshot in the working folder, start OpenSupaplex with --force-savegame-sav. Press Ctrl+W during the level to write SAVEGAME.SAV. Close the game before copying that file. To resume in a fresh folder with the same original data, copy the snapshot there and start with --load-savegame."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "supaplex",
+      "evidence_urls": [
+        "https://github.com/sergiou87/open-supaplex/blob/v7.2.2/README.md",
+        "https://github.com/sergiou87/open-supaplex"
+      ],
+      "source_editions": []
     }
   }
 }

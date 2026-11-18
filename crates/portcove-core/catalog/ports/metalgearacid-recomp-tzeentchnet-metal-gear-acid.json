@@ -35,6 +35,12 @@
       "image_sha256": "b00309c8e2516b2eea310ab294af8c4ba87efb50d6caf1c4548a504991bb4c0b",
       "game_slug": "metal-gear-acid",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-gear-acid",
+      "evidence_urls": ["https://github.com/Tzeentchnet/MetalGearAcid-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

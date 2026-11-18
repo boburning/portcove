@@ -18,7 +18,13 @@
       "game_slug": "doraemon-story-of-seasons-friends-of-the-great-kingdom",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2980
+    "issue_number": 2980,
+    "original_game": {
+      "format_version": 1,
+      "id": "doraemon-story-of-seasons-friends-of-the-great-kingdom",
+      "evidence_urls": ["https://github.com/colonnellotong/MacNativePorts"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -46,6 +46,15 @@
       "warnings": [
         "Back up the original retail installation before switching engines; game saves and engine preferences are in different locations."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "earthsiege-2",
+      "evidence_urls": [
+        "https://github.com/kevinfoley/Herculan",
+        "https://github.com/kevinfoley/Herculan/blob/e65c0634c741f252fa7a32064698a13caaa45530/README.MD"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

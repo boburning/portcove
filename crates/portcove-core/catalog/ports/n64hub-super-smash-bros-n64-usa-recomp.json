@@ -41,7 +41,16 @@
     "download_asset_hints": {
       "windows-x86-64": ["SmashBrosRecompiled-", "-windows-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros",
+      "evidence_urls": [
+        "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
+        "https://github.com/n64hub/super-smash-bros-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "route_facts_v1": {
     "format_version": 1,

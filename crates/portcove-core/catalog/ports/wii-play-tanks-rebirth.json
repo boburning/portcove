@@ -42,6 +42,16 @@
           "instruction": "Close the game and preserve My Games/Tanks Rebirth under the Documents folder used by .NET. This is where the player stores its saves, campaigns, mods and resource packs. Keep a known-working package to return to when trying another release."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tanks-rebirth",
+      "evidence_urls": [
+        "https://github.com/RighteousRyan1/TanksRebirth/releases/tag/1.9.2-alpha",
+        "https://github.com/RighteousRyan1/TanksRebirth"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Tanks Rebirth"
   }
 }

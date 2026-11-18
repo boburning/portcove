@@ -35,6 +35,12 @@
       "image_sha256": "6ae8ebbfad2ea7b17a41adf0d96795772550755ff59e99b6d4d84a04019605b4",
       "game_slug": "robox",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "robox",
+      "evidence_urls": ["https://github.com/Eggscantfly/robox-recompiled"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

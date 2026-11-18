@@ -46,7 +46,16 @@
     "download_asset_hints": {
       "windows-x86-64": ["PokerSmash-", "-win64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "poker-smash",
+      "evidence_urls": [
+        "https://github.com/darkuni/poker-smash-recomp/blob/0465face8472373cac3283e13655206941310a62/README.md",
+        "https://github.com/darkuni/poker-smash-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

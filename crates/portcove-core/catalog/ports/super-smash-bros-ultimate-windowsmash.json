@@ -18,7 +18,13 @@
       "game_slug": "super-smash-bros-ultimate",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2937
+    "issue_number": 2937,
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros-ultimate",
+      "evidence_urls": ["https://github.com/OpenSmash-Ultimate/WindowSmash"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

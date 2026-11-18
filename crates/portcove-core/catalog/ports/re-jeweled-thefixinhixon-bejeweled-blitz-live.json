@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/thefixinhixon/Re-Jeweled"
     },
-    "issue_number": 3251
+    "issue_number": 3251,
+    "original_game": {
+      "format_version": 1,
+      "id": "bejeweled-blitz-live",
+      "evidence_urls": ["https://github.com/thefixinhixon/Re-Jeweled"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

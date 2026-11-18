@@ -53,6 +53,15 @@
         }
       ],
       "help_url": "https://github.com/sp00nznet/skifree/blob/v0.4.0/README.md#download"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "skifree",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/skifree/blob/v0.4.0/README.md#download",
+        "https://github.com/sp00nznet/skifree"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

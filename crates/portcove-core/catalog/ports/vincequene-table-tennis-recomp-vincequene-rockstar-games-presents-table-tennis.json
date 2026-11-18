@@ -35,6 +35,12 @@
       "image_sha256": "512af1e90d933acea84e17303348cec279dac19e9bc51cfac0097e633d9d4fa5",
       "game_slug": "rockstar-games-presents-table-tennis",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "rockstar-games-presents-table-tennis",
+      "evidence_urls": ["https://github.com/vincequene/rockstar-table-tennis-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

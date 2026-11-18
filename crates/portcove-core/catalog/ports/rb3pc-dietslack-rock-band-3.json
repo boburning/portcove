@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/dietslack/rb3pc"
     },
-    "issue_number": 3209
+    "issue_number": 3209,
+    "original_game": {
+      "format_version": 1,
+      "id": "rock-band-3",
+      "evidence_urls": ["https://github.com/dietslack/rb3pc"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

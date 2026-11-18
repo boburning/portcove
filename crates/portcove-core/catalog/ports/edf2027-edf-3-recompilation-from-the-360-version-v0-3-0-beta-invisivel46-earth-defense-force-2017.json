@@ -35,6 +35,12 @@
       "image_sha256": "b123151d473952fbfdeb5860b170c1c1cfc0a7d13d4fbe36569bc0d4867622c0",
       "game_slug": "earth-defense-force-2017",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "earth-defense-force-2017",
+      "evidence_urls": ["https://github.com/invisivel46/edf2027"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

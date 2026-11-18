@@ -54,6 +54,16 @@
         }
       ]
     },
-    "download_block_reason": "Fresh acquisition of the selected LCSNative Windows player is held while an attributable permission or authorized-source basis for its statically linked, original-derived Liberty City Stories generated game-code component remains unresolved. The PSPRecomp runtime MIT licence and possession of the required EBOOT.ELF do not establish that separate component’s permission. Resume on an applicable reviewed basis or a supported route excluding it; independently permitted existing completed copies remain distinct."
+    "download_block_reason": "Fresh acquisition of the selected LCSNative Windows player is held while an attributable permission or authorized-source basis for its statically linked, original-derived Liberty City Stories generated game-code component remains unresolved. The PSPRecomp runtime MIT licence and possession of the required EBOOT.ELF do not establish that separate component’s permission. Resume on an applicable reviewed basis or a supported route excluding it; independently permitted existing completed copies remain distinct.",
+    "original_game": {
+      "format_version": 1,
+      "id": "grand-theft-auto-liberty-city-stories",
+      "evidence_urls": [
+        "https://github.com/elmasas/lcs-recomp",
+        "https://github.com/elmasas/lcs-recomp/blob/ab91e87fe38f3efc5e4443069e7ce6b5a43e615b/README.md"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Grand Theft Auto: Liberty City Stories"
   }
 }

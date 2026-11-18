@@ -35,6 +35,12 @@
       "image_sha256": "1684d392682f169410893ad887957e8f246ad4939ac6f572d521207f15c616a1",
       "game_slug": "worms-world-party",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "worms-world-party",
+      "evidence_urls": ["https://github.com/nvd123-YT/WormsWorldPartyRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

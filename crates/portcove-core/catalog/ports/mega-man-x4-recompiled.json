@@ -41,6 +41,16 @@
       "warnings": [
         "Before changing versions, keep a copy of the working game and all original files, profiles, mods, generated caches and custom data locations. Another executable may use the same saved data."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-x4",
+      "evidence_urls": [
+        "https://github.com/mstan/MegaManX4Recomp",
+        "https://github.com/mstan/MegaManX4Recomp/tree/81612a235bac1cd39720988c7a69866cb01cf613"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Mega Man X4"
   }
 }

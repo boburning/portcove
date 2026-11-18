@@ -35,6 +35,12 @@
       "image_sha256": "fc6838d51020a8454581da137981a7dc1b64794ea4cc546167e25084a8b245d5",
       "game_slug": "dynasty-warriors-gundam-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dynasty-warriors-gundam-2",
+      "evidence_urls": ["https://github.com/Adeelshah001/DWG2Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

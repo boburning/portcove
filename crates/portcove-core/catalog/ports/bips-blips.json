@@ -42,5 +42,13 @@
         }
       ]
     }
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "Authored scope names Bips, BipsGold and BipsPlatinum. Preserve the multi-game series scope rather than assigning one of those originals.",
+    "evidence_urls": [
+      "https://github.com/joyrider3774/blips/blob/v4.0/README.md",
+      "https://github.com/joyrider3774/blips"
+    ]
   }
 }

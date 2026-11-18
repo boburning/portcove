@@ -52,6 +52,12 @@
       "image_sha256": "55d491ea767f2758b1974622c94192fc9bf1766e946d7275bf89f80b60091a32",
       "game_slug": "naev",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "naev",
+      "evidence_urls": ["https://naev.org/downloads/", "https://codeberg.org/naev/naev"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

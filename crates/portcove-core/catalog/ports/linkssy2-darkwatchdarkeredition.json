@@ -46,6 +46,15 @@
       "warnings": [
         "Attach only the actual active prepared darkwatch_xbe.exe and its version directory. Keep the full upstream installation; its Play wrapper returns before gameplay ends."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "darkwatch",
+      "evidence_urls": [
+        "https://github.com/linkssy2/DarkwatchDarkerEdition/blob/57f1e32364db6294bcd04e366f01b5a119f8bb74/README.md",
+        "https://github.com/linkssy2/DarkwatchDarkerEdition"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

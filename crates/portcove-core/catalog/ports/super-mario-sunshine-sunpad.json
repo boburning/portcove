@@ -48,6 +48,16 @@
           "instruction": "Keep the complete upstream app and your saved data recoverable. You or upstream own updates and backups; Portcove does not provide managed Update, Backup or Rollback for this route."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-sunshine",
+      "evidence_urls": [
+        "https://github.com/chrissotraidis/sunpad/blob/d40a0674afa7189c14bfd6ce6f099dd275b46397/docs/MACOS.md",
+        "https://github.com/chrissotraidis/sunpad"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Super Mario Sunshine"
   }
 }

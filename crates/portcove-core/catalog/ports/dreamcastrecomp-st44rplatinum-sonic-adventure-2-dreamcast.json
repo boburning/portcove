@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/st44rplatinum/dreamcastRecomp"
     },
-    "issue_number": 3597
+    "issue_number": 3597,
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-adventure-2-dreamcast",
+      "evidence_urls": ["https://github.com/st44rplatinum/dreamcastRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

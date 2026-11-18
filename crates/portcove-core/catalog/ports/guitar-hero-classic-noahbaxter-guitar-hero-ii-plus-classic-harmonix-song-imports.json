@@ -3,7 +3,7 @@
   "listing": {
     "id": "guitar-hero-classic-noahbaxter-guitar-hero-ii-plus-classic-harmonix-song-imports",
     "name": "Guitar Hero II (plus classic Harmonix song imports) — Guitar Hero Classic (noahbaxter)",
-    "original_game_title": "Guitar Hero II (plus classic Harmonix song imports)",
+    "original_game_title": "Guitar Hero II",
     "summary": "This release uses a disc-folder setup and remains in development. GHClassic is not confirmed to be the same project as Recomp-Hero-2; use the instructions for this implementation. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/noahbaxter/GHClassic",
     "platforms": [],
@@ -35,6 +35,12 @@
       "image_sha256": "31cff9ee4bf15d460535fb3da9d11cbd7b15f9bdd104235b6150695003c1fa3c",
       "game_slug": "guitar-hero-ii",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "guitar-hero-ii",
+      "evidence_urls": ["https://github.com/noahbaxter/GHClassic"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

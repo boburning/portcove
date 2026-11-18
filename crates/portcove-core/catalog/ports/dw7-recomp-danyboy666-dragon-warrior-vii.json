@@ -35,6 +35,12 @@
       "image_sha256": "b1bd8472e154b0a9b852e4369edd7addb548b82571f0240115ed3086f0ec248c",
       "game_slug": "dragon-warrior-vii",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-warrior-vii",
+      "evidence_urls": ["https://github.com/danyboy666/DW7-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

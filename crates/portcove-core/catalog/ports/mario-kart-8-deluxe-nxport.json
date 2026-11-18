@@ -18,7 +18,13 @@
       "game_slug": "mario-kart-8-deluxe",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2970
+    "issue_number": 2970,
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-kart-8-deluxe",
+      "evidence_urls": ["https://github.com/nxporting/nxport"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

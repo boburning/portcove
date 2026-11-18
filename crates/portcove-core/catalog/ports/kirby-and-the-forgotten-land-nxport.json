@@ -18,6 +18,12 @@
       "image_sha256": "b8e49e86f247d86702968589428cbdb7544dac07c7ab55ccca56ee13539e61ef",
       "game_slug": "kirby-and-the-forgotten-land",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kirby-and-the-forgotten-land",
+      "evidence_urls": ["https://github.com/nxporting/nxport"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

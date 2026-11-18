@@ -12,7 +12,7 @@
     },
     "name": "Def Jam Vendetta (PlayStation 2) (Def Jam Vendetta Recompiled)",
     "summary": "Windows x64 Def Jam Vendetta player prepared upstream from your own USA SLUS-20639 disc. Complete the official settings/setup build before registering files/Def Jam Vendetta Recompiled.exe with its matching game data. Upstream owns updates, rebuilds and saves. Preserve the complete installation, settings and game/mc0 memory-card folders.",
-    "original_game_title": "Def Jam Vendetta (PlayStation 2)",
+    "original_game_title": "Def Jam Vendetta",
     "project_url": "https://github.com/jcsix694/def-jam-vendetta-recomp",
     "issue_number": 2561,
     "listed_at": "2026-10-25",
@@ -64,7 +64,16 @@
     "download_asset_hints": {
       "windows-x86-64": ["Def-Jam-Vendetta-Recompiled-", "Windows.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "def-jam-vendetta",
+      "evidence_urls": [
+        "https://github.com/jcsix694/def-jam-vendetta-recomp",
+        "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/README.md"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

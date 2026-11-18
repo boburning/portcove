@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/JesusTaylo/rumble-roses-xx-recomp"
     },
-    "issue_number": 3234
+    "issue_number": 3234,
+    "original_game": {
+      "format_version": 1,
+      "id": "rumble-roses-xx",
+      "evidence_urls": ["https://github.com/JesusTaylo/rumble-roses-xx-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

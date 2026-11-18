@@ -16,7 +16,13 @@
       "game_slug": "space-station-silicon-valley",
       "match_kind": "underlying-game"
     },
-    "issue_number": 107
+    "issue_number": 107,
+    "original_game": {
+      "format_version": 1,
+      "id": "space-station-silicon-valley",
+      "evidence_urls": ["https://github.com/Cellenseres/SSSV_Recomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "stable",

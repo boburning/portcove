@@ -42,6 +42,16 @@
       "warnings": [
         "Before changing versions, keep a copy of the working game and all original files, profiles, mods, generated caches and custom data locations. Another executable may use the same saved data."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "viva-pinata-trouble-in-paradise",
+      "evidence_urls": [
+        "https://github.com/SolarCookies/TiP-Recomp/tree/be5e91c8a83da21d976902962c61688c849cf29d",
+        "https://github.com/SolarCookies/TiP-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Viva Piñata: Trouble in Paradise"
   }
 }

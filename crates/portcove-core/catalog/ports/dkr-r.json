@@ -44,6 +44,15 @@
           "instruction": "Linux normally uses $XDG_CONFIG_HOME/dkr-port or ~/.config/dkr-port. Portable mode uses dkr-runtime-data beside the application. Changing modes selects a different profile on the next launch. Use DKR-R’s Save Manager to export progress and back up your settings and installed content separately."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "diddy-kong-racing",
+      "evidence_urls": [
+        "https://github.com/ThatGuyMcd/DKR-R/blob/53a78c3e32714957df3e4bad43c1ef7fc82f96dc/README.md",
+        "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/README.md"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

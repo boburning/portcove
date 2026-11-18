@@ -40,6 +40,22 @@ installation lock or host scheduler is created for interface scaling. See
 
 Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
 
+Game-group presentation uses the complete explicitly identified family, with a
+stable authored-title/stable-port-ID representative independent of filters and
+implementation choice. The representative supplies the game title and accepted
+cover only; Core assessments and exact port/install identities still govern
+actions. Global command search returns one game for an original-title query and
+exact port options for project queries. Its game detail destination respects an
+explicit preferred implementation or the sole visible installed implementation;
+opening details never persists an implementation choice.
+
+Native grouped file drops retain their paths in ephemeral React state while an
+ambiguous group asks for a specific implementation. The continuation binds the
+library generation and accepted definition/listing snapshots. Selection then
+uses the exact current port's source profile and existing Core source-review
+route. Sharing an original-game ID grants no original-file or save compatibility.
+A resolved eligible implementation keeps its exact direct drop target.
+
 ## Current ownership and deliverables
 
 Game integrations use the [upstream-first ownership contract](CATALOG.md#integration-ownership).

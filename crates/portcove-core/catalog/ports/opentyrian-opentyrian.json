@@ -49,6 +49,15 @@
     "download_asset_hints": {
       "macos-x86-64": ["-macos-universal.zip"],
       "macos-aarch64": ["-macos-universal.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tyrian",
+      "evidence_urls": [
+        "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md",
+        "https://github.com/opentyrian/opentyrian"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

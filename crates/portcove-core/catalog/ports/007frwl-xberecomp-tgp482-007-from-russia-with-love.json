@@ -45,7 +45,13 @@
         }
       ]
     },
-    "issue_number": 3175
+    "issue_number": 3175,
+    "original_game": {
+      "format_version": 1,
+      "id": "007-from-russia-with-love",
+      "evidence_urls": ["https://github.com/TGP482/007FRWL-XBERecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

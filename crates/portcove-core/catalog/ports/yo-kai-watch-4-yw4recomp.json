@@ -19,7 +19,13 @@
       "game_slug": "yo-kai-watch-4-plus-plus",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2952
+    "issue_number": 2952,
+    "original_game": {
+      "format_version": 1,
+      "id": "yo-kai-watch-4",
+      "evidence_urls": ["https://github.com/ILFforever/YW4Recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

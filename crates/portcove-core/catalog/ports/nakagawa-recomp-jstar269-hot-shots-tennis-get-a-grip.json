@@ -35,6 +35,12 @@
       "image_sha256": "e36b1e01506e009f5a1b47909ae1a5eb338545209a0af0bec9e9b78d89b62fb0",
       "game_slug": "hot-shots-tennis-get-a-grip",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "hot-shots-tennis-get-a-grip",
+      "evidence_urls": ["https://github.com/Jstar269/nakagawa-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

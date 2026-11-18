@@ -18,7 +18,13 @@
       "game_slug": "the-legend-of-zelda-tears-of-the-kingdom",
       "match_kind": "underlying-game"
     },
-    "issue_number": 3028
+    "issue_number": 3028,
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-tears-of-the-kingdom",
+      "evidence_urls": ["https://github.com/OJZen/totk-mobile"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

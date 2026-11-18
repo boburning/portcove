@@ -51,6 +51,17 @@
         }
       ],
       "help_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/blob/v1.1.0/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "timesplitters-2",
+      "evidence_urls": [
+        "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/blob/v1.1.0/README.md",
+        "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck",
+        "https://api.github.com/repositories/1449120748",
+        "https://api.github.com/repos/Destinity13/TimeSplitters-2-Native-Linux-Recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

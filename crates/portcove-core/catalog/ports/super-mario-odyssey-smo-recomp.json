@@ -18,7 +18,13 @@
       "game_slug": "super-mario-odyssey",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2944
+    "issue_number": 2944,
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-odyssey",
+      "evidence_urls": ["https://github.com/Coz-0/smo-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -47,6 +47,12 @@
         }
       ],
       "help_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "zombies-ate-my-neighbors",
+      "evidence_urls": ["https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port"],
+      "source_editions": []
     }
   },
   "integration": {

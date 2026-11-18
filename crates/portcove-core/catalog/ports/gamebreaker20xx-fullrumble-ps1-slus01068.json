@@ -30,6 +30,15 @@
       "warnings": [
         "Keep your original disc image and the memory-card files. Use the game’s own updater outside a Portcove Play session, then review the changed program in Portcove."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "nascar-rumble",
+      "evidence_urls": [
+        "https://github.com/GameBreaker20XX/FullRumble/blob/1089369f3a05916319524004977314af6a305703/README.md",
+        "https://github.com/GameBreaker20XX/FullRumble"
+      ],
+      "source_editions": []
     }
   },
   "route_facts_v1": {

@@ -44,6 +44,15 @@
           "instruction": "Upstream has Mac and Android build material. The reviewed release has neither an Intel or Apple Silicon Mac app nor an Android APK."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "captain-claw",
+      "evidence_urls": [
+        "https://github.com/pjasicek/OpenClaw/blob/v0.3/README.md",
+        "https://github.com/pjasicek/OpenClaw"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -35,6 +35,12 @@
       "image_sha256": "c73c19aa7d34af0997834cadb7857fee5a60bff38658d2c99062720576a7ee1e",
       "game_slug": "fight-night-champion",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "fight-night-champion",
+      "evidence_urls": ["https://github.com/whompay/FNCReborn"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -62,7 +62,16 @@
       ]
     },
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
-    "download_block_reason": "Portcove downloads are held for the bundled Wolfenstein 3D shareware data. Debian-derived packages supply the C-Dogs campaigns without that bundle."
+    "download_block_reason": "Portcove downloads are held for the bundled Wolfenstein 3D shareware data. Debian-derived packages supply the C-Dogs campaigns without that bundle.",
+    "original_game": {
+      "format_version": 1,
+      "id": "c-dogs",
+      "evidence_urls": [
+        "https://cxong.github.io/cdogs-sdl/downloads.html",
+        "https://github.com/cxong/cdogs-sdl"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

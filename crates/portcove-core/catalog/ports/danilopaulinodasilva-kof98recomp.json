@@ -46,6 +46,15 @@
       "warnings": [
         "Use AES kof98h with the AES BIOS, not an MVS set. Windows preparation is explicitly untried upstream; only attach an actually completed windowed native build, preserving its existing data."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-king-of-fighters-98",
+      "evidence_urls": [
+        "https://github.com/danilopaulinodasilva/kof98recomp",
+        "https://github.com/danilopaulinodasilva/kof98recomp/blob/17113d96149937e963bf1f357d924118c87ee67f/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

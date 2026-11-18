@@ -18,7 +18,13 @@
       "game_slug": "super-mario-bros-35",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2948
+    "issue_number": 2948,
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-bros-35",
+      "evidence_urls": ["https://github.com/sm35recomp/sm35recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

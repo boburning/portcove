@@ -35,6 +35,12 @@
       "image_sha256": "f474d6e3334d216175111ae7af62b9e81a039f716f6641c1b2d5bba48f613c8b",
       "game_slug": "cyber-troopers-virtual-on",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "cyber-troopers-virtual-on",
+      "evidence_urls": ["https://github.com/drakenabarion/virtualon_pc"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

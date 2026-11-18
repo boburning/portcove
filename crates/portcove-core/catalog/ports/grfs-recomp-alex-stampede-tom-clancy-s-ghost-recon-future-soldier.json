@@ -35,6 +35,12 @@
       "image_sha256": "7ec36d6b03b96236c1764ef5cdb5a6f05dd03f5782eb44366e606c48e28b4155",
       "game_slug": "tom-clancy-s-ghost-recon-future-soldier",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tom-clancy-s-ghost-recon-future-soldier",
+      "evidence_urls": ["https://github.com/alex-stampede/GRFS-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

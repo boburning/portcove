@@ -18,7 +18,13 @@
       "game_slug": "blade-ii-the-return-of-evil",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2979
+    "issue_number": 2979,
+    "original_game": {
+      "format_version": 1,
+      "id": "blade-ii-the-return-of-evil",
+      "evidence_urls": ["https://github.com/ha7rock/blade2-mobile"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

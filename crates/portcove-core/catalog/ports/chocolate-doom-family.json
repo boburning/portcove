@@ -70,5 +70,13 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The record explicitly offers separate ChocolateDoom, Heretic, Hexen and Strife players with their matching data. A sole Doom identity would hide or mislabel the other originals.",
+    "evidence_urls": [
+      "https://www.chocolate-doom.org/wiki/index.php/Downloads",
+      "https://github.com/chocolate-doom/chocolate-doom"
+    ]
   }
 }

@@ -66,6 +66,16 @@
       "linux-x86-64": ["opentyrian2000-", "-amd64.deb"],
       "macos-x86-64": ["opentyrian2000-macOS.zip"],
       "macos-aarch64": ["opentyrian2000-macOS.zip"]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tyrian",
+      "evidence_urls": [
+        "https://github.com/andyvand/opentyrian2000#readme",
+        "https://github.com/andyvand/opentyrian2000"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Tyrian"
   }
 }

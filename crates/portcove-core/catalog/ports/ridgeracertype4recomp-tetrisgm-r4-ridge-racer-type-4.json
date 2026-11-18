@@ -18,6 +18,12 @@
       "image_sha256": "f910bb7fab7ac1e9c56480d7376bcf3e18613d98736808ffedff72d9bf52aac1",
       "game_slug": "r4-ridge-racer-type-4--1",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "r4-ridge-racer-type-4",
+      "evidence_urls": ["https://github.com/tetrisgm/RidgeRacerType4Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

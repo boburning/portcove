@@ -35,6 +35,12 @@
       "image_sha256": "885b91f94d9b98b87afa1c6acbf6d362ce642386551334ba52a02ddf283ed0fe",
       "game_slug": "legend-of-legaia",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "legend-of-legaia",
+      "evidence_urls": ["https://github.com/AndrewAltimit/legend-of-legaia-re"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

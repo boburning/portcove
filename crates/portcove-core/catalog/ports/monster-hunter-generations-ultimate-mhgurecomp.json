@@ -18,7 +18,13 @@
       "game_slug": "monster-hunter-generations-ultimate",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2950
+    "issue_number": 2950,
+    "original_game": {
+      "format_version": 1,
+      "id": "monster-hunter-generations-ultimate",
+      "evidence_urls": ["https://github.com/morerokk/MHGURecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

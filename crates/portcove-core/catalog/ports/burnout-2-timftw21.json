@@ -46,6 +46,15 @@
       "image_sha256": "74976a1b89848f15359717c555c095d5a35564b92636404faf8cb1c1cf4475b1",
       "game_slug": "burnout-2-point-of-impact",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "burnout-2-point-of-impact",
+      "evidence_urls": [
+        "https://github.com/timftw21/burnout2-recompilation/blob/2259fea7d99e16436456ce49467833dd918b1b7c/README.md",
+        "https://github.com/timftw21/burnout2-recompilation"
+      ],
+      "source_editions": []
     }
   }
 }

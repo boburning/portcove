@@ -45,6 +45,16 @@
       "warnings": [
         "Use the complete v0.7.12-alpha native frontend with the exact USA/Australia Rev-0 ROM and existing firmware/profile/save paths. The runner can continue after Portcove’s frontend activity ends. Preserve build-specific states and use actual game controls to quit; no managed/native acceptance is implied."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "metroid-prime-hunters",
+      "evidence_urls": [
+        "https://github.com/mstan/MetroidPrimeHuntersRecomp/blob/ec81d42a6d620990fa8a653edf940b578c67438e/README.md",
+        "https://github.com/mstan/MetroidPrimeHuntersRecomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Metroid Prime Hunters"
   }
 }

@@ -50,6 +50,15 @@
       "warnings": [
         "Keep the original package and actual runtime save root. Portable settings do not prove save isolation, roster compatibility or online acceptance."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "3-on-3-nhl-arcade",
+      "evidence_urls": [
+        "https://github.com/startupandhold/3on3ArcadeRecomp/blob/efcd9e5a0c46e0177b76b93d336ab701667e8539/README.md",
+        "https://github.com/startupandhold/3on3ArcadeRecomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

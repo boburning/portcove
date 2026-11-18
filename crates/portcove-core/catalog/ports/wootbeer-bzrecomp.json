@@ -46,6 +46,15 @@
       "warnings": [
         "Use the N64 USA Rev0 original and preserve all per-player Controller Paks. Keep the existing portable/LocalAppData choice; no save or hardware compatibility is inferred from another port."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "battlezone-rise-of-the-black-dogs",
+      "evidence_urls": [
+        "https://github.com/wootbeer/bzrecomp/blob/89be9674c28c5a488addb2f8173efc5862ef0dd6/README.md",
+        "https://github.com/wootbeer/bzrecomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

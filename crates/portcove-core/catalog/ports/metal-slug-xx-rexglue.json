@@ -31,6 +31,16 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/FluffyQuack/rexglue-MetalSlugXX#readme"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-slug-xx",
+      "evidence_urls": [
+        "https://github.com/FluffyQuack/rexglue-MetalSlugXX#readme",
+        "https://github.com/FluffyQuack/rexglue-MetalSlugXX"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Metal Slug XX"
   }
 }

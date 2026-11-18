@@ -47,6 +47,15 @@
         "Use only content and a copy you are already permitted to use. Engine licensing does not grant original-game, music, mod or third-party rights.",
         "Preserve complete creating runtimes and all effective player-data roots before changes; shared profiles are not isolated by another executable."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tomb-raider",
+      "evidence_urls": [
+        "https://github.com/XProger/OpenLara/tree/f145f0b9892ad2c509210d2b09f124a39fa79b7f",
+        "https://github.com/XProger/OpenLara"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -28,7 +28,16 @@
       "warnings": [],
       "help_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/blob/v0.14.0/README.md"
     },
-    "original_game_title": "Knuckles' Chaotix"
+    "original_game_title": "Knuckles' Chaotix",
+    "original_game": {
+      "format_version": 1,
+      "id": "knuckles-chaotix",
+      "evidence_urls": [
+        "https://github.com/YuutaTsubasa/ChaotixRecompiled/blob/v0.14.0/README.md",
+        "https://github.com/YuutaTsubasa/ChaotixRecompiled"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

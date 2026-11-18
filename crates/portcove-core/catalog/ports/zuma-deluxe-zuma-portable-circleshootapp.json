@@ -47,6 +47,15 @@
         "Use only components you are already permitted to use; public engine source or releases do not grant original-game, music, mod or middleware rights.",
         "Keep the complete creating runtime and all actual effective data/profile roots before changes. Another executable can share the same player profile."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "zuma-deluxe",
+      "evidence_urls": [
+        "https://github.com/kyle-sylvestre/CircleShootApp/tree/090dc13912c8bb2b0f55dbdf3c6ff79cfe694ef2",
+        "https://github.com/kyle-sylvestre/CircleShootApp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -35,6 +35,12 @@
       "image_sha256": "1f279ee6591e0bc580f8305c47052c7ccfe2ccd819cdb0cf5895ae3760dbb8db",
       "game_slug": "super-robot-taisen-z",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-robot-taisen-z",
+      "evidence_urls": ["https://github.com/SloppyWyn/SRWZ-native"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

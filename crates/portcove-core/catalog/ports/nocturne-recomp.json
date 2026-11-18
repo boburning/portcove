@@ -17,7 +17,13 @@
       "game_slug": "nocturnerecomp",
       "match_kind": "port"
     },
-    "issue_number": 101
+    "issue_number": 101,
+    "original_game": {
+      "format_version": 1,
+      "id": "castlevania-symphony-of-the-night",
+      "evidence_urls": ["https://github.com/birabittoh/NocturneRecomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "stable",

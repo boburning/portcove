@@ -56,6 +56,15 @@
           "instruction": "Keep the entire creating runtime and its actual ambermoon.cfg, Saves, SavesRemake, Screenshots, error.txt, mods, music, custom and unknown files. Windows can instead use roaming AppData/Ambermoon.net, and existing fallback configuration can affect a different runtime copy. Retain the entire effective profile, original and Advanced save-version directories and any external --data/DataPath locations. External SaveOption=DataFolder can write into the original data folder; preserve that whole directory before changes. A different executable does not isolate a shared profile, and save compatibility or migration is not certified."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ambermoon",
+      "evidence_urls": [
+        "https://github.com/Pyrdacor/Ambermoon.net",
+        "https://github.com/Pyrdacor/Ambermoon.net/blob/v1.15.2/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

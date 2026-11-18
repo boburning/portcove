@@ -46,6 +46,15 @@
       "warnings": [
         "Select installed khdays-native.exe with its full writable install as CWD. Preserve raw DS backups, settings and optional locally generated HD content; editor, server and installer are separate routes."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kingdom-hearts-358-2-days",
+      "evidence_urls": [
+        "https://github.com/Yokimitsuro/khdays-port/blob/065a94b2a4c55b5217ffd023d8736af21e2d6851/README.md",
+        "https://github.com/Yokimitsuro/khdays-port"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

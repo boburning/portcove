@@ -47,6 +47,13 @@
           "instruction": "Keep the entire creating project, original ISO/extracted data, generated C/image and matching native runtime. Saves and mods are relative to the chosen working directory; PS2_SAVE_DIR overrides saves. ac5_settings.ini, ac5_pipelines.cache and ac5_pipelines.keys live beside ac5.exe. These are this runtime’s memory-card format, explicitly not PCSX2 cards. Preserve every save, setting, mod, Lua/native plugin, cache, log, backup and custom root with the creating version. Apache-2.0 project code and separate ImGui/Lua/dependency notices do not license your original game or arbitrary mods."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ace-combat-5-the-unsung-war",
+      "evidence_urls": ["https://github.com/sal063/Ace-Combat-5-Static-recompilation"],
+      "source_editions": []
+    },
+    "original_game_title": "Ace Combat 5: The Unsung War"
   }
 }

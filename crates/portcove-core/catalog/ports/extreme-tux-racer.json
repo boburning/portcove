@@ -44,6 +44,15 @@
         }
       ],
       "help_url": "https://sourceforge.net/projects/extremetuxracer/files/releases/"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "extreme-tux-racer",
+      "evidence_urls": [
+        "https://sourceforge.net/projects/extremetuxracer/files/releases/",
+        "https://sourceforge.net/projects/extremetuxracer/"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

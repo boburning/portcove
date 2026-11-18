@@ -82,5 +82,13 @@
         "executables": ["oracles.exe"]
       }
     }
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The retained Add ROM guide explicitly offers Oracle of Ages OR Oracle of Seasons. Neither title is selected by a retained per-record argument; preserve this shared two-game launcher separately from each original.",
+    "evidence_urls": [
+      "https://github.com/kirby-letsgo/oracles-decomp",
+      "https://github.com/kirby-letsgo/oracles-decomp#readme"
+    ]
   }
 }

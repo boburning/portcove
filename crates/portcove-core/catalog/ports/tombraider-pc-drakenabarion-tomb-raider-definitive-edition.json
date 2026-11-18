@@ -35,6 +35,12 @@
       "image_sha256": "cf5335f20072574e32d5854a052a63267dffdd945414bb83195becbf1b773ca9",
       "game_slug": "tomb-raider-definitive-edition",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tomb-raider-definitive-edition",
+      "evidence_urls": ["https://github.com/drakenabarion/tombraider_pc"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

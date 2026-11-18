@@ -55,6 +55,15 @@
           "instruction": "Keep the complete runtime/original data, fallout2.cfg, actual configured master-patches root (normally data) and its SAVEGAME/SLOT contents, music, mods, logs and unknowns, including configured external/legacy roots. Preserve the old creating copy before upstream replacement. Another runtime folder is not a save/instance isolation or cross-version state-compatibility guarantee."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "fallout-2",
+      "evidence_urls": [
+        "https://github.com/alexbatalov/fallout2-ce",
+        "https://github.com/alexbatalov/fallout2-ce/tree/9fb917c357b20d95d597bed4d67904c29cd5c753"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

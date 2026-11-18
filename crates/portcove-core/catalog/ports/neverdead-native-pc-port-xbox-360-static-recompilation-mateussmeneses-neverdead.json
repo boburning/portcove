@@ -35,6 +35,12 @@
       "image_sha256": "b2a7b2c074e784e666315d9ca7083aedda701ef160061b07a3df98d74554cddc",
       "game_slug": "neverdead",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "neverdead",
+      "evidence_urls": ["https://github.com/mateussmeneses/neverdead-port"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

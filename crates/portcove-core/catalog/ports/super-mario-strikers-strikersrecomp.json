@@ -17,6 +17,16 @@
       "image_sha256": "9953c59416011cdbe3074beed3a4ac8863368b7e11c1d31cf11445864279dc8b",
       "game_slug": "super-mario-strikers",
       "match_kind": "underlying-game"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-strikers",
+      "evidence_urls": [
+        "https://github.com/aharonahdoot/StrikersRecomp/blob/cd88f71f5a836c103484c038454b4143000d883c/README.md",
+        "https://github.com/aharonahdoot/StrikersRecomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Super Mario Strikers"
   }
 }

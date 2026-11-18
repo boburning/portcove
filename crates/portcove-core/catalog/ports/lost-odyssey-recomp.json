@@ -18,6 +18,13 @@
       "image_sha256": "c066384a5aeb7b43d45f30b695b19ab3ff3507c62a3f0ca1dcc577a57c96b65d",
       "game_slug": "lost-odyssey",
       "match_kind": "underlying-game"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "lost-odyssey",
+      "evidence_urls": ["https://github.com/freefrank/LostOdysseyRecomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Lost Odyssey"
   }
 }

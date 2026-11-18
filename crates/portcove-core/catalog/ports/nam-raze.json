@@ -54,6 +54,15 @@
       "image_sha256": "0a934d6b1364dc322b01a1ede408ab9e4f9b63db7a62f53d94fbeba41b721f4f",
       "game_slug": "nam",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "nam",
+      "evidence_urls": [
+        "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt",
+        "https://github.com/ZDoom/Raze"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

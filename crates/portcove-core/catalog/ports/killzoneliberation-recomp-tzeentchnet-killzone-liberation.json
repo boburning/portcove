@@ -35,6 +35,12 @@
       "image_sha256": "195b5b23821523ff6569d4e5e6d6276ba1c2017ca325406316607d6ff1bd3909",
       "game_slug": "killzone-liberation",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "killzone-liberation",
+      "evidence_urls": ["https://github.com/Tzeentchnet/KillzoneLiberation-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

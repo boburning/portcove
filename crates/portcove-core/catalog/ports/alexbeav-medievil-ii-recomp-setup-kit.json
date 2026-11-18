@@ -58,7 +58,17 @@
       "macos-x86-64": ["medievil-ii-recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["medievil-ii-recomp-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "medievil-ii",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp"
+      ],
+      "source_editions": []
+    },
+    "variant_label": "Build from setup kit"
   },
   "psx_managed_windows_v1": "split-mods",
   "integration": {

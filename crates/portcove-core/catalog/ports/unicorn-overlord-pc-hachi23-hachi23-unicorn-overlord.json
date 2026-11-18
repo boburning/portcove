@@ -35,6 +35,12 @@
       "image_sha256": "82d5a9db373079330736b880d24d2d4d751bfdf418499684a46bd333e1a9ec85",
       "game_slug": "unicorn-overlord--1",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "unicorn-overlord",
+      "evidence_urls": ["https://github.com/hachi23/unicorn_overlord_pc"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

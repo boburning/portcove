@@ -18,6 +18,12 @@
       "image_sha256": "37c73a03d0d783e2f57efb3a3da627ca1a4f095edf72b0f29dd7fcc005d35789",
       "game_slug": "metroid-dread",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "metroid-dread",
+      "evidence_urls": ["https://github.com/yozander2009-stack/Metroid-Dread-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

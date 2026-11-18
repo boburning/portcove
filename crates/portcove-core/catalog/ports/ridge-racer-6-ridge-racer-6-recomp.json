@@ -46,6 +46,15 @@
       "warnings": [
         "Use the actual 0.1.5 package layout and already prepared game paths. Preserve redirected Documents data; the no-launcher BAT is not a wait-through-game executable."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ridge-racer-6",
+      "evidence_urls": [
+        "https://github.com/Sirhalo23/RidgeRacer6-Recompilation/blob/1ef2f480553d65bbb2e37a05621b22da161ae8c3/README.md",
+        "https://github.com/Sirhalo23/RidgeRacer6-Recompilation"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

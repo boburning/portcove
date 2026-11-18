@@ -35,6 +35,12 @@
       "image_sha256": "852f816c4ec2d0fb24eac200a8cbef31e3ac821ee6ca45893ac7404b48d9d273",
       "game_slug": "fight-night-round-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "fight-night-round-3",
+      "evidence_urls": ["https://github.com/djultra64/Fight-Night-Round-3-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

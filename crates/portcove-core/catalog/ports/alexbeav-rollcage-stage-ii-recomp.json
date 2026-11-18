@@ -57,7 +57,16 @@
       "macos-x86-64": ["rollcagestageii-", "-macos-x64.zip"],
       "windows-x86-64": ["rollcagestageii-", "-windows-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "rollcage-stage-ii",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "integration": {

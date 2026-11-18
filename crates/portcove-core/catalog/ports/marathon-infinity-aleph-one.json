@@ -47,6 +47,15 @@
     "download_asset_hints": {
       "macos-x86-64": ["MarathonInfinity-", "-Mac.dmg"],
       "macos-aarch64": ["MarathonInfinity-", "-Mac.dmg"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "marathon-infinity",
+      "evidence_urls": [
+        "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf",
+        "https://github.com/Aleph-One-Marathon/alephone"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

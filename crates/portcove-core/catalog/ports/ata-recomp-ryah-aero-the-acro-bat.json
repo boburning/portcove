@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/Ryah/ATA-Recomp"
     },
-    "issue_number": 3562
+    "issue_number": 3562,
+    "original_game": {
+      "format_version": 1,
+      "id": "aero-the-acro-bat",
+      "evidence_urls": ["https://github.com/Ryah/ATA-Recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

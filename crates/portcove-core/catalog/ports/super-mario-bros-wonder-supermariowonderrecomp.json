@@ -18,7 +18,13 @@
       "game_slug": "super-mario-bros-wonder",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2941
+    "issue_number": 2941,
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-bros-wonder",
+      "evidence_urls": ["https://github.com/BluetufieBugado/SuperMarioWonderRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

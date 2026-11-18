@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/m1ndcrap/Cars-Race-O-Rama-Recompiled"
     },
-    "issue_number": 3304
+    "issue_number": 3304,
+    "original_game": {
+      "format_version": 1,
+      "id": "cars-race-o-rama",
+      "evidence_urls": ["https://github.com/m1ndcrap/Cars-Race-O-Rama-Recompiled"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

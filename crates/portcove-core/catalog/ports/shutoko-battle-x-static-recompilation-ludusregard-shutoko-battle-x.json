@@ -3,7 +3,7 @@
   "listing": {
     "id": "shutoko-battle-x-static-recompilation-ludusregard-shutoko-battle-x",
     "name": "Shutoko Battle X — Shutoko Battle X Static Recompilation (ludusregard)",
-    "original_game_title": "Shutoko Battle X",
+    "original_game_title": "Import Tuner Challenge",
     "summary": "The project documents a fix for a quest-race black screen. Full progression remains unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ludusregard/SBX-Recomp",
     "artwork": {
@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/ludusregard/SBX-Recomp"
     },
-    "issue_number": 3220
+    "issue_number": 3220,
+    "original_game": {
+      "format_version": 1,
+      "id": "import-tuner-challenge",
+      "evidence_urls": ["https://github.com/ludusregard/SBX-Recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

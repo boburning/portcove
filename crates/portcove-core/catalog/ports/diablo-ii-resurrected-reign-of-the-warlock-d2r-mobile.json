@@ -18,7 +18,13 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/jhaizhou-ops/d2r-mobile",
-    "issue_number": 2978
+    "issue_number": 2978,
+    "original_game": {
+      "format_version": 1,
+      "id": "diablo-ii-resurrected-reign-of-the-warlock",
+      "evidence_urls": ["https://github.com/jhaizhou-ops/d2r-mobile"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import { portDefinition, portStatus } from "./test-fixtures";
+import { filterCommands } from "./components/CommandPalette";
 import { commandSurfaceCommands, withLibraryVisibility } from "./use-command-surface";
 
 function commands(recent = true) {
@@ -113,10 +114,10 @@ describe("command surface game search", () => {
       checkAll: vi.fn(async () => undefined),
       focusSearch: vi.fn(),
       focusLibrarySearch: vi.fn(),
-    }).filter(({ id }) => id.startsWith("game:"));
+    }).filter(({ id }) => id.startsWith("port:"));
     expect(games.map(({ id, group, searchOnly }) => [id, group, searchOnly])).toEqual([
-      ["game:library-game", "Games in your library", true],
-      ["game:discover-game", "Games in Discover", true],
+      ["port:library-game", "Projects in your library", true],
+      ["port:discover-game", "Projects in Discover", true],
     ]);
     games[1]!.action();
     expect(setSelectedId).toHaveBeenCalledWith("discover-game");
@@ -139,4 +140,59 @@ describe("command surface Library visibility", () => {
     ]);
     expect(withLibraryVisibility(games, undefined)).toEqual(games);
   });
+});
+
+it("shows one original-game result but preserves exact project and edition-alias search", () => {
+  const selected = vi.fn();
+  const game = {
+    format_version: 1 as const,
+    id: "shared-game",
+    evidence_urls: ["https://example.test/game"],
+    source_editions: [
+      {
+        id: "regional-edition",
+        title: "Regional Alias",
+        evidence_urls: ["https://example.test/edition"],
+      },
+    ],
+  };
+  const port = (id: string, name: string) => ({
+    ...portDefinition(),
+    id,
+    name,
+    presentation: { original_game_title: "Original Game", original_game: game },
+  });
+  const available = commandSurfaceCommands({
+    games: [
+      { port: port("project-alpha", "Alpha Engine"), inLibrary: false },
+      { port: port("project-beta", "Beta Player"), inLibrary: true },
+    ],
+    installedCount: 1,
+    busy: false,
+    setView: vi.fn(),
+    setAdoptOpen: vi.fn(),
+    setSelectedId: selected,
+    checkAll: vi.fn(async () => undefined),
+    focusSearch: vi.fn(),
+    focusLibrarySearch: vi.fn(),
+  });
+  const title = filterCommands(available, "Original Game");
+  expect(title).toHaveLength(1);
+  expect(title[0]).toMatchObject({
+    id: "game:shared-game",
+    label: "Original Game",
+    group: "Games in your library",
+  });
+  title[0]!.action();
+  expect(selected).toHaveBeenLastCalledWith("project-beta");
+  expect(filterCommands(available, "Regional Alias").map(({ id }) => id)).toEqual([
+    "game:shared-game",
+  ]);
+  const exact = filterCommands(available, "Alpha Engine");
+  expect(exact.map(({ id }) => id)).toEqual(["option:project-alpha"]);
+  exact[0]!.action();
+  expect(selected).toHaveBeenLastCalledWith("project-alpha");
+  expect(filterCommands(available, "project-beta").map(({ id }) => id)).toEqual([
+    "option:project-beta",
+  ]);
 });

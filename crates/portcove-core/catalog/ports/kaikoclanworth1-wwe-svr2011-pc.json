@@ -18,7 +18,13 @@
       "game_slug": "wwe-smackdown-vs-raw-2011",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2856
+    "issue_number": 2856,
+    "original_game": {
+      "format_version": 1,
+      "id": "wwe-smackdown-vs-raw-2011",
+      "evidence_urls": ["https://github.com/KaikoClanworth1/wwe-svr2011-pc"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

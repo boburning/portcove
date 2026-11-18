@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/jM5557/ailu-puzzle"
     },
-    "issue_number": 3094
+    "issue_number": 3094,
+    "original_game": {
+      "format_version": 1,
+      "id": "felyne-puzzle-airu-de-puzzle",
+      "evidence_urls": ["https://github.com/jM5557/ailu-puzzle"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

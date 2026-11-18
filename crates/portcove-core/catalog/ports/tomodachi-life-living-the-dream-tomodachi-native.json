@@ -18,6 +18,12 @@
       "image_sha256": "eaa5ab3451530ae4851571c6c1750d73f03ef95bc74ec881f4c99b9cb7824632",
       "game_slug": "tomodachi-life-living-the-dream",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tomodachi-life-living-the-dream",
+      "evidence_urls": ["https://github.com/kuosuko/tomodachi-native"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

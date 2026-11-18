@@ -35,6 +35,12 @@
       "image_sha256": "9b33c4dc9209885f2e437bd55d79be54e4b154114b68b466ac74cb945186a7bb",
       "game_slug": "battle-hunter",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "battle-hunter",
+      "evidence_urls": ["https://github.com/salman95/BattleHunterRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -1,3 +1,7 @@
+import {
+  requireOriginalGameDecision,
+  checkOriginalGameConsistency,
+} from "./catalog-game-review.mts";
 import { renderRetainedPreparedTests } from "./catalog-retained-prepared.mts";
 import { acceptedPlayerRouteExpectations } from "./package-player-observation.mts";
 import { routeEnrollment, renderRouteTests } from "./catalog-route-facts.mts";
@@ -373,6 +377,11 @@ function compatibilityFixtureReview(catalog: CurrentCatalog) {
   );
 }
 const authored = readCatalogSource(catalogRoot);
+// Repository completeness is an authoring/review gate, never a legacy runtime requirement.
+if (process.argv.includes("--check")) {
+  for (const record of authored.records) requireOriginalGameDecision(record, authored.records);
+  checkOriginalGameConsistency(authored.records, true);
+}
 const current = authored.catalog;
 // Listing-only entries can already own reviewed covers before gaining an
 // integration. Supply those accepted facts only to artwork preparation; Core's

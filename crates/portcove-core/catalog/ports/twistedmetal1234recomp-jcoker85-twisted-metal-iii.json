@@ -35,6 +35,12 @@
       "image_sha256": "9248295519cff53d10c3b130077714e6fc005ae3e6c74e43c6ac046a0e533949",
       "game_slug": "twisted-metal-iii",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "twisted-metal-iii",
+      "evidence_urls": ["https://github.com/jcoker85/TwistedMetal1234Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

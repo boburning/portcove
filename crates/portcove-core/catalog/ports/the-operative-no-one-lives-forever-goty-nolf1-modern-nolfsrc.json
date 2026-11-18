@@ -47,6 +47,15 @@
         "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
         "Before changing versions, keep a copy of the working game and every data and profile folder it uses. Another executable may use those same folders."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-operative-no-one-lives-forever-goty",
+      "evidence_urls": [
+        "https://github.com/nolffan/nolfsrc/tree/6f61ddcfe33ff374f984264ff357a74a81291ffe",
+        "https://github.com/nolffan/nolfsrc"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

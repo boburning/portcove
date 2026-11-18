@@ -26,7 +26,13 @@
       "game_slug": "twisted-metal-4",
       "match_kind": "underlying-game"
     },
-    "issue_number": 87
+    "issue_number": 87,
+    "original_game": {
+      "format_version": 1,
+      "id": "twisted-metal-4",
+      "evidence_urls": ["https://github.com/TechnicallyComputers/TwistedMetal4Recomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

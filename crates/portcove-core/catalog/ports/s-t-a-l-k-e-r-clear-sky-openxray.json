@@ -69,6 +69,15 @@
           "instruction": "Keep the complete engine and original files and the actual app_data_root defined by the selected fsgame.ltx. The CI packages and source instructions describe player-managed setup. Confirm a normal start and quit before attaching any prepared native player."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "s-t-a-l-k-e-r-clear-sky",
+      "evidence_urls": [
+        "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play",
+        "https://github.com/OpenXRay/xray-16"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

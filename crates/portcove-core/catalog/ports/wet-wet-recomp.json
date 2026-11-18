@@ -46,6 +46,15 @@
       "warnings": [
         "Exact original revision and default SDK save-root placement remain unknown. Preserve the actual existing prepared installation and all active data roots; direct wet.exe launch does not inherit every launcher option."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wet",
+      "evidence_urls": [
+        "https://github.com/Supermedo/wet-recomp/blob/d324f40eedef7fdd79241e6b7c4197380c4768e7/README.md",
+        "https://github.com/Supermedo/wet-recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -65,5 +65,14 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "framework",
+    "reason": "The retained guide states that Luanti supplies the engine and the player must install/select a separate ContentDB game, such as Minetest Game. Worlds/mods are not one identified original game.",
+    "evidence_urls": [
+      "https://www.luanti.org/en/downloads/",
+      "https://docs.luanti.org/",
+      "https://github.com/luanti-org/luanti"
+    ]
   }
 }

@@ -18,5 +18,10 @@
       "game_slug": "tekken-3--1",
       "match_kind": "underlying-game"
     }
+  },
+  "original_game_review": {
+    "disposition": "unresolved",
+    "reason": "Retained listing has generic Explore text with no setup/source facts; authenticated primary HEAD read returned HTTP404. Recover attributable upstream original-game target evidence before assigning a canonical ID.",
+    "evidence_urls": ["https://github.com/fabioap-cpu/Tekken3Recomp"]
   }
 }

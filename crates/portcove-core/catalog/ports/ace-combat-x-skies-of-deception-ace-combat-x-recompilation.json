@@ -49,6 +49,13 @@
           "instruction": "Keep the entire creating project, generated image/native code, original UMD-derived files, extraction manifests, runtime libraries and permitted fonts. Default saves use memstick/PSP/SAVEDATA relative to the chosen CWD; PSPRECO_MEMSTICK overrides that root. Default pspreco.toml is CWD-relative; PSPRECO_SETTINGS overrides it. Keep textures/ULUS10176 and PSPRECO_TEXTURES, PSPRECO_FONTDIR and every other actual custom path, with mods/scripts, caches, logs and backups. Retain project GPL-2.0 and separate ImGui, ATRAC decoder, Basis/zstd and font notices. The source calls its PPSSPP PGF fonts freely licensed; this is an upstream attribution, not a new grant for PSP firmware or the original game. No cross-game/save compatibility is assumed."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ace-combat-x-skies-of-deception",
+      "evidence_urls": ["https://github.com/sal063/Ace-Combat-X-Recompilation"],
+      "source_editions": []
+    },
+    "original_game_title": "Ace Combat X: Skies of Deception"
   }
 }

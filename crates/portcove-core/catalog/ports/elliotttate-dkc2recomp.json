@@ -33,7 +33,16 @@
       "help_url": "https://github.com/elliotttate/DKC2Recomp#readme"
     },
     "original_game_title": "Donkey Kong Country 2: Diddy's Kong Quest",
-    "platforms": ["macos-aarch64"]
+    "platforms": ["macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "donkey-kong-country-2-diddy-s-kong-quest",
+      "evidence_urls": [
+        "https://github.com/elliotttate/DKC2Recomp#readme",
+        "https://github.com/elliotttate/DKC2Recomp"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

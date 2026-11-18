@@ -35,6 +35,12 @@
       "image_sha256": "4aab623f688228957109155b7daff2a6b4a402eaa06df4938133722034dc9b66",
       "game_slug": "ridge-racer--1",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ridge-racer",
+      "evidence_urls": ["https://github.com/RobGreenUK/Ridge-Racer-PS1-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

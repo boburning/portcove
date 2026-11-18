@@ -51,6 +51,15 @@
         }
       ],
       "help_url": "https://www.supertux.org/download"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "supertux",
+      "evidence_urls": [
+        "https://www.supertux.org/download",
+        "https://github.com/SuperTux/supertux"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
@@ -58,7 +67,10 @@
     "target_key": "supertux",
     "origin": {
       "project_url": "https://github.com/SuperTux/supertux",
-      "repository": { "host": "github.com", "id": "14650917" }
+      "repository": {
+        "host": "github.com",
+        "id": "14650917"
+      }
     },
     "decisions": []
   }

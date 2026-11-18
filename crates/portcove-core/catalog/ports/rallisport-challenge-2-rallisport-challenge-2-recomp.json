@@ -46,6 +46,15 @@
       "warnings": [
         "Select the Windows-specific package, preserve the shared xboxrecomp save root, and retain the unresolved exact-XBE fingerprint. Wine reports are not physical Windows qualification."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "rallisport-challenge-2",
+      "evidence_urls": [
+        "https://github.com/Mortify7612/RallisportChallenge2-decomp/blob/5bdbaaf9f9691ee604fc4754cdaa91384b62f84e/README.md",
+        "https://github.com/Mortify7612/RallisportChallenge2-decomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

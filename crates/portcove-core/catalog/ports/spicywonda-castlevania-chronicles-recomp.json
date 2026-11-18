@@ -46,6 +46,15 @@
       "warnings": [
         "Select top-level Play.exe and retain runtime/. Its supported waiting launch preserves the data-directory context; keep active and legacy card copies, and finish upstream updates separately."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "castlevania-chronicles",
+      "evidence_urls": [
+        "https://github.com/Spicywonda/castlevania-chronicles-recomp/blob/0b578b91c14eeb25c06185d660954b86ff092fff/README.md",
+        "https://github.com/Spicywonda/castlevania-chronicles-recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
