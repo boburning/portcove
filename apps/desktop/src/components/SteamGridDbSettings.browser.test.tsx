@@ -234,13 +234,22 @@ it.each([
     await expectContainedRecovery();
     expect(row.querySelector("input")).toBeNull();
     await captureParityState("steamgriddb-setup-retrying");
-    await act(async () => retry.resolve({ configured: false }));
+    await act(async () => retry.resolve({ configured: theme === "dark" }));
     await expect.element(scope).toHaveAttribute("aria-busy", "false");
     await expect.element(recovery).toHaveFocus();
     await expect.element(scope.getByRole("alert")).not.toBeInTheDocument();
-    await expect
-      .element(scope.getByLabelText("SteamGridDB API key", { exact: true }))
-      .toHaveAttribute("type", "password");
+    expect(
+      scope
+        .getByRole("button", { name: "Remove key", exact: true })
+        .elements()
+        .map((element) => (element as HTMLButtonElement).disabled),
+    ).toEqual(theme === "dark" ? [false] : []);
+    expect(
+      scope
+        .getByLabelText("SteamGridDB API key", { exact: true })
+        .elements()
+        .map((element) => element.getAttribute("type")),
+    ).toEqual(theme === "dark" ? [] : ["password"]);
     expect(read).toHaveBeenCalledTimes(2);
     expect(save).not.toHaveBeenCalled();
     expect(clear).not.toHaveBeenCalled();
@@ -250,6 +259,61 @@ it.each([
     await captureParityState("steamgriddb-setup-recovered");
   },
 );
+
+it("shows the configured image-check progress and mixed summary in actual App Settings", async () => {
+  await page.viewport(960, 640);
+  document.documentElement.dataset.theme = "dark";
+  container.id = "root";
+  transport = installInteractiveTransport("library", (message) => {
+    throw new Error(message);
+  });
+  vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockResolvedValue({ configured: true });
+  const imageCheck = deferred<SteamGridDbListingReport>();
+  const check = vi
+    .spyOn(desktopApi, "checkSteamGridDbListings")
+    .mockReturnValue(imageCheck.promise);
+  await root.rerender(
+    <LocalizationProvider api={desktopApi}>
+      <App />
+    </LocalizationProvider>,
+  );
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Settings categories", exact: true })
+    .getByRole("button", { name: "Integrations", exact: true })
+    .click();
+  document.documentElement.dataset.theme = "dark";
+  const row = settingsRow();
+  const scope = page.elementLocator(row);
+  await expect
+    .element(scope.getByRole("button", { name: "Check SteamGridDB images", exact: true }))
+    .toBeEnabled();
+  await scope.getByRole("button", { name: "Check SteamGridDB images", exact: true }).click();
+  await expect
+    .element(scope.getByRole("button", { name: "Checking SteamGridDB images…", exact: true }))
+    .toBeDisabled();
+  row.scrollIntoView({ block: "center", inline: "nearest" });
+  await captureParityState("steamgriddb-images-check-pending");
+  await act(async () =>
+    imageCheck.resolve({
+      checked_at: 1,
+      images: [
+        checked({ status: "listed" }),
+        checked({ status: "not_listed" }),
+        checked({ status: "unknown", reason: "unavailable" }),
+        checked({ status: "unknown", reason: "check_stopped" }, false),
+      ],
+      stopped: { reason: "time_limit" },
+      recorded: true,
+      ...counts,
+    }),
+  );
+  await expect.element(scope.getByText(/4 SteamGridDB images:/)).toBeVisible();
+  expect(check).toHaveBeenCalledExactlyOnceWith(1);
+  row.scrollIntoView({ block: "center", inline: "nearest" });
+  expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth + 1);
+  await captureParityState("steamgriddb-images-check-summary");
+});
 
 it("saves the player's own key without ever showing it back, then removes it", async () => {
   vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockResolvedValue({ configured: false });
