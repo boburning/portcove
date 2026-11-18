@@ -1,3 +1,4 @@
+import { requireCompleteCaptureTarget } from "../../test/capture-target";
 import "../styles/index.css";
 import { captureParityState } from "../../test/parity-capture";
 import { render as renderComponent, cleanup } from "vitest-browser-react";
@@ -5,7 +6,12 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
-import type { SourceDiscoveryReport, SourceImportPlan, SourceProfile } from "../types";
+import type {
+  SourceDiscoveryLimits,
+  SourceDiscoveryReport,
+  SourceImportPlan,
+  SourceProfile,
+} from "../types";
 import {
   SourceDiscoveryButton,
   SourceImportReview,
@@ -495,7 +501,7 @@ it.each([
         <SourceDiscoveryButton generation={7} profiles={[profile]} disabled={false} />,
       );
       await page.getByRole("button", { name: "Find required files", exact: true }).click();
-      const dialog = await page
+      const dialog = page
         .getByRole("dialog", { name: "Find required files", exact: true })
         .element();
       await document.fonts.ready;
@@ -527,7 +533,7 @@ it.each([
       await page.getByRole("option", { name: profile.label, exact: true }).click();
       await page.getByRole("button", { name: "Choose folder", exact: true }).click();
       await page.getByRole("button", { name: "Search this folder", exact: true }).click();
-      const preliminary = await page
+      const preliminary = page
         .getByRole("heading", { name: "Preliminary selections", exact: true })
         .element();
       const summary = [...dialog.querySelectorAll("p")].find((item) =>
@@ -542,13 +548,51 @@ it.each([
       ).toBeGreaterThanOrEqual(8);
       expect(preliminary.parentElement?.textContent).toContain("Validation has not run");
       expect(discover).toHaveBeenCalledWith(
-        { roots: [rootPath], profile_ids: [profile.id], limits: expect.any(Object) },
+        {
+          roots: [rootPath],
+          profile_ids: [profile.id],
+          limits: {
+            max_entries: 10_000,
+            max_depth: 6,
+            max_file_bytes: 2 * 1024 * 1024 * 1024,
+            max_hash_bytes: 16 * 1024 * 1024 * 1024,
+            max_candidates: 64,
+          } satisfies SourceDiscoveryLimits,
+        },
         expect.any(Function),
       );
       expect(imported).not.toHaveBeenCalled();
       preliminary.scrollIntoView({ block: "center" });
       expect(dialog.scrollWidth).toBeLessThanOrEqual(dialog.clientWidth + 1);
       await captureParityState("source-discovery-rhythm-preliminary");
+      if (width === 430) {
+        const footer = dialog.querySelector<HTMLElement>('[data-slot="dialog-footer"]')!;
+        footer.scrollIntoView({ block: "center", behavior: "instant" });
+        const actions = [...footer.querySelectorAll<HTMLButtonElement>("button")];
+        expect(actions.map((action) => action.textContent)).toEqual([
+          "Close",
+          "Search this folder",
+        ]);
+        const dialogBounds = dialog.getBoundingClientRect();
+        for (const action of actions) {
+          const bounds = action.getBoundingClientRect();
+          requireCompleteCaptureTarget(
+            {
+              target: action.textContent!,
+              target_count: 1,
+              visible: action.checkVisibility(),
+              rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+              viewport: { width: innerWidth, height: innerHeight },
+            },
+            action.textContent!,
+          );
+          expect(bounds.left).toBeGreaterThanOrEqual(dialogBounds.left);
+          expect(bounds.right).toBeLessThanOrEqual(dialogBounds.right);
+          expect(bounds.top).toBeGreaterThanOrEqual(dialogBounds.top);
+          expect(bounds.bottom).toBeLessThanOrEqual(dialogBounds.bottom);
+        }
+        await captureParityState("source-discovery-rhythm-preliminary-footer");
+      }
       await page.getByRole("button", { name: "Close", exact: true }).click();
       await expect.poll(() => document.activeElement?.textContent).toBe("Find required files");
     } finally {

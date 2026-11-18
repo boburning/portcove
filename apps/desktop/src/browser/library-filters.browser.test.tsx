@@ -468,14 +468,28 @@ it("retains Library narrowing and readiness counts for membership without relaxi
   await userEvent.click(await filterChoice("Not in my library (0)"));
   await closeFilters();
   await userEvent.click(button("Toggle snapshot"));
-  await expectReadinessOption("Ready (unavailable)");
-  await expect.element(page.getByText("Ports unavailable", { exact: true })).toBeInTheDocument();
+  await expectReadinessOption("Ready (unavailable)", true);
+  await expect
+    .element(page.getByRole("status", { name: "Search results", exact: true }))
+    .toHaveTextContent("Loading search results");
+  await expect
+    .element(page.getByText("Ports unavailable", { exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByText("Nothing in your library matches", { exact: true }))
+    .not.toBeInTheDocument();
   await expect
     .element(button("Remove Library membership: In my library filter"))
     .toBeInTheDocument();
   await userEvent.click(button("Remove Library membership: In my library filter"));
+  await expect
+    .element(button("Remove Library membership: In my library filter"))
+    .not.toBeInTheDocument();
   await userEvent.click(button("Toggle snapshot"));
-  await expectReadinessOption("Ready (2)");
+  await expectReadinessOption("Ready (2)", true);
+  await expect
+    .element(page.getByRole("status", { name: "Search results", exact: true }))
+    .not.toHaveTextContent("Loading search results");
   expect(invoke).not.toHaveBeenCalled();
 }, 45_000);
 

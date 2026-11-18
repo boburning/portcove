@@ -1,3 +1,4 @@
+import { requireCompleteCaptureTarget } from "../../test/capture-target";
 import "../styles/index.css";
 import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
@@ -242,6 +243,25 @@ it("connects a registered preliminary selection to truthful port guidance and bo
   expect(document.body.textContent).toContain("Preliminary port: Ready for setup review");
   expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(1);
   await captureParityState("game-files-registered-preliminary-selection-fixture");
+  const candidate = document.querySelector<HTMLElement>("[data-preliminary-selection]")!;
+  const reviewAction = candidate.querySelector<HTMLButtonElement>("[data-candidate-review]")!;
+  expect(reviewAction.textContent).toBe("Check these files");
+  expect(reviewAction.disabled).toBe(false);
+  candidate.scrollIntoView({ block: "center", behavior: "instant" });
+  for (const target of [candidate, reviewAction]) {
+    const bounds = target.getBoundingClientRect();
+    requireCompleteCaptureTarget(
+      {
+        target: "registered preliminary " + target.tagName,
+        target_count: 1,
+        visible: target.checkVisibility(),
+        rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+        viewport: { width: innerWidth, height: innerHeight },
+      },
+      "registered preliminary " + target.tagName,
+    );
+  }
+  await captureParityState("game-files-registered-preliminary-candidate-actions-fixture");
   await act(async () =>
     document.querySelector<HTMLInputElement>("[data-setup-review-port]")!.click(),
   );

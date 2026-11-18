@@ -1,3 +1,4 @@
+import { requireCompleteCaptureTarget } from "../../test/capture-target";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { captureParityState } from "../../test/parity-capture";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
@@ -174,6 +175,34 @@ it.each([
       }
       expect(dialog!.scrollWidth).toBeLessThanOrEqual(dialog!.clientWidth + 1);
       await captureParityState(`preparation-path-prefix-${name}`);
+      if (width === 430) {
+        const footer = dialog!.querySelector<HTMLElement>('[data-slot="dialog-footer"]')!;
+        footer.scrollIntoView({ block: "center", behavior: "instant" });
+        const actions = [...footer.querySelectorAll<HTMLButtonElement>("button")];
+        expect(actions.map((action) => action.textContent)).toEqual([
+          "Cancel review",
+          "Finish setup",
+        ]);
+        const dialogBounds = dialog!.getBoundingClientRect();
+        for (const action of actions) {
+          const bounds = action.getBoundingClientRect();
+          requireCompleteCaptureTarget(
+            {
+              target: action.textContent!,
+              target_count: 1,
+              visible: action.checkVisibility(),
+              rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+              viewport: { width: innerWidth, height: innerHeight },
+            },
+            action.textContent!,
+          );
+          expect(bounds.left).toBeGreaterThanOrEqual(dialogBounds.left);
+          expect(bounds.right).toBeLessThanOrEqual(dialogBounds.right);
+          expect(bounds.top).toBeGreaterThanOrEqual(dialogBounds.top);
+          expect(bounds.bottom).toBeLessThanOrEqual(dialogBounds.bottom);
+        }
+        await captureParityState(`preparation-path-prefix-${name}-footer`);
+      }
     } finally {
       if (previousTheme === undefined) delete document.documentElement.dataset.theme;
       else document.documentElement.dataset.theme = previousTheme;

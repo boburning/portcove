@@ -1,3 +1,4 @@
+import { requireCompleteCaptureTarget } from "../../test/capture-target";
 import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
@@ -207,6 +208,34 @@ describe("per-game install folder", () => {
         expect(range.getClientRects().length).toBe(1);
         expect(dialog!.scrollWidth).toBeLessThanOrEqual(dialog!.clientWidth + 1);
         await captureParityState(`output-path-prefix-${name}`);
+        if (width === 430) {
+          const footer = dialog!.querySelector<HTMLElement>('[data-slot="dialog-footer"]')!;
+          footer.scrollIntoView({ block: "center", behavior: "instant" });
+          const actions = [...footer.querySelectorAll<HTMLButtonElement>("button")];
+          expect(actions.map((action) => action.textContent)).toEqual([
+            "Use this folder for future installs",
+            "Cancel review",
+          ]);
+          const dialogBounds = dialog!.getBoundingClientRect();
+          for (const action of actions) {
+            const bounds = action.getBoundingClientRect();
+            requireCompleteCaptureTarget(
+              {
+                target: action.textContent!,
+                target_count: 1,
+                visible: action.checkVisibility(),
+                rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+                viewport: { width: innerWidth, height: innerHeight },
+              },
+              action.textContent!,
+            );
+            expect(bounds.left).toBeGreaterThanOrEqual(dialogBounds.left);
+            expect(bounds.right).toBeLessThanOrEqual(dialogBounds.right);
+            expect(bounds.top).toBeGreaterThanOrEqual(dialogBounds.top);
+            expect(bounds.bottom).toBeLessThanOrEqual(dialogBounds.bottom);
+          }
+          await captureParityState(`output-path-prefix-${name}-footer`);
+        }
       } finally {
         if (previousTheme === undefined) delete document.documentElement.dataset.theme;
         else document.documentElement.dataset.theme = previousTheme;
