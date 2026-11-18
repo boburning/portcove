@@ -1806,9 +1806,9 @@ export default interface Resources {
       "manualCopy": "Retained log for manual copy",
       "none": "No retained diagnostic capture is available. Older activity details may be available in a redacted support report in Settings.",
       "phase": {
-        "extract": "Preparing game files",
+        "extract": "Game file preparation",
         "other": "Preparation log",
-        "setup": "Running game setup"
+        "setup": "Game setup"
       },
       "reading": "Reading the retained log…",
       "readingWithPrevious": "Reading the retained log… Showing the last loaded capture while the current log is checked.",

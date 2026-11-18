@@ -127,12 +127,12 @@ it("keeps completed conversion output beside an interrupted setup phase", async 
   await open();
   const phases = [...host.querySelectorAll("section")];
   expect(phases).toHaveLength(2);
-  expect(fixtureValue(phases[0], "phases[0]").textContent).toContain("Preparing game files");
+  expect(fixtureValue(phases[0], "phases[0]").textContent).toContain("Game file preparation");
   expect(fixtureValue(phases[0], "phases[0]").textContent).toContain("earlier conversion output");
   expect(fixtureValue(phases[0], "phases[0]").textContent).toContain(
     "Both output streams ended. Saved output is shown below",
   );
-  expect(fixtureValue(phases[1], "phases[1]").textContent).toContain("Running game setup");
+  expect(fixtureValue(phases[1], "phases[1]").textContent).toContain("Game setup");
   expect(fixtureValue(phases[1], "phases[1]").textContent).toContain(
     "Only the output saved before the last observation is available",
   );
@@ -283,7 +283,7 @@ it("keeps an unfamiliar phase neutral and preserves its exact copied log", async
   await root.rerender(<ActivityDiagnostic activityId="owned" generation={1} />);
   await open();
   expect(host.querySelector("h3")?.textContent).toBe("Preparation log");
-  expect(host.textContent).not.toContain("Running game setup");
+  expect(host.textContent).not.toContain("Game setup");
   await click("Copy retained log");
   expect(JSON.parse(vi.mocked(copyText).mock.calls.at(-1)![0])).toEqual(capture);
 });
@@ -510,6 +510,11 @@ it("keeps retained log recovery and manual copy in the actual Activity task deta
     await expect
       .element(row.getByRole("textbox", { name: "Preparation standard output", exact: true }))
       .toHaveValue(capture[0].stdout.text);
+    await expect
+      .element(row.getByRole("heading", { name: "Game setup", exact: true }))
+      .toBeVisible();
+    expect(row.element().textContent).toContain("Both output streams ended.");
+    expect(row.element().textContent).not.toContain("Running game setup");
     await row.getByRole("button", { name: "Refresh captured log", exact: true }).click();
     await expect
       .element(row.getByRole("button", { name: "Refresh captured log", exact: true }))

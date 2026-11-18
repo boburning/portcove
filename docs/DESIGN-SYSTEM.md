@@ -1172,7 +1172,9 @@ outcomes and cancellation settlement remain visible on task rows. Operation IDs
 and retained preparation logs share Task details; they do not compete with the
 next action or hide mutation/uncertainty summaries.
 Retained log phases use subordinate headings and grouped stream labels, fields
-and observation metadata. Prior output remains visible through refresh and
+and observation metadata. Phase headings name the saved work without implying
+that a completed or failed task is still running; stream completeness remains
+separate from the task outcome. Prior output remains visible through refresh and
 clipboard failures, with the exact manual-copy field beside its explanation.
 Application-update status follows local and host-reported active installation
 before offering ready-to-download copy. Phase and byte progress belong to the
