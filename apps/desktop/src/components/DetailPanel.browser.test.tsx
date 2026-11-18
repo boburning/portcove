@@ -538,7 +538,15 @@ it("keeps an unknown external installation's folder and maintenance facts distin
     .element(facts.getByText(status.external_runtime.path, { exact: true }))
     .toBeVisible();
   await expect
-    .element(facts.getByText("You maintain this folder and its updates.", { exact: true }))
+    .element(facts.getByText(status.external_runtime.executable, { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      facts.getByText(
+        "You maintain this folder and its updates. Review Saves & backups for any data Portcove can protect.",
+        { exact: true },
+      ),
+    )
     .toBeVisible();
   expect(
     document.querySelector('[data-confirmed-play]:not(:disabled):not([aria-disabled="true"])'),

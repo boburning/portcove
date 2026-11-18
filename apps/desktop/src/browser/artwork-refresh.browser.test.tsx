@@ -61,7 +61,8 @@ it("retains a decoded cover with truthful stale feedback and read-only recovery"
   const detail = page.getByRole("region", { name: "Detail image", exact: true });
   await expect.element(cover.getByRole("button", { name: "Reset to default" })).toBeEnabled();
   const src = host.querySelector<HTMLImageElement>("img")!.src;
-  const reads = vi.mocked(desktopApi.artwork).mock.calls.length;
+  const calls = vi.mocked(desktopApi.artwork).mock.calls;
+  const reads = calls.length;
   vi.mocked(desktopApi.artwork).mockRejectedValueOnce(new Error("Artwork read unavailable."));
   await userEvent.click(cover.getByRole("button", { name: "Refresh artwork" }));
   await expect.element(cover.getByRole("alert")).toHaveTextContent("Artwork read unavailable.");
@@ -83,7 +84,7 @@ it("retains a decoded cover with truthful stale feedback and read-only recovery"
   await expect.element(cover.getByRole("button", { name: "Reset to default" })).toBeEnabled();
   await expect.element(cover.getByRole("alert")).not.toBeInTheDocument();
   expect(host.textContent).not.toContain("Showing previously loaded artwork.");
-  expect(vi.mocked(desktopApi.artwork).mock.calls.length).toBe(reads + 2);
+  expect(calls.slice(reads).map(([, slot]) => slot)).toEqual(["cover", "detail", "cover"]);
   expect(desktopApi.importArtwork).not.toHaveBeenCalled();
   expect(desktopApi.resetArtwork).not.toHaveBeenCalled();
 });
