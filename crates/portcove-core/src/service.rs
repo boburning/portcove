@@ -1468,6 +1468,11 @@ impl PortcoveService {
             )));
         }
         let output_location = self.output_location(port_id, output_directory)?;
+        crate::runtime_path_policy::check_user_data_root(
+            port,
+            platform,
+            &output_location.user_data_root,
+        )?;
         crate::runtime_path_policy::check_output_root(
             port,
             platform,
@@ -3254,7 +3259,7 @@ impl PortcoveService {
         emit(operation.started());
         let result = async {
             let port = self.catalog.port(port_id)?;
-            self.output_location(port_id, overrides.output_directory)?;
+            let output_location = self.output_location(port_id, overrides.output_directory)?;
             let _operation = self.library.try_lock_port(port_id, "install")?;
             let status = self.status(port_id)?;
             self.require_managed_runtime_ownership(&status)?;
@@ -3270,8 +3275,13 @@ impl PortcoveService {
                     port.name
                 )));
             }
-            self.library.ensure_settings(port_id, selected_channel)?;
             let platform = Platform::current()?;
+            crate::runtime_path_policy::check_user_data_root(
+                port,
+                platform,
+                &output_location.user_data_root,
+            )?;
+            self.library.ensure_settings(port_id, selected_channel)?;
             // A direct request needs a fresh installer refusal before it can
             // select a different version on the player's behalf.
             let release = operation
@@ -3538,9 +3548,15 @@ impl PortcoveService {
             acquired,
         } = intent;
         let output_location = self.output_location(&port.id, overrides.output_directory)?;
+        let platform = Platform::current()?;
+        crate::runtime_path_policy::check_user_data_root(
+            port,
+            platform,
+            &output_location.user_data_root,
+        )?;
         crate::runtime_path_policy::check_output_root(
             port,
-            Platform::current()?,
+            platform,
             &output_location.effective_output_directory,
         )?;
         let release = resolution.release.clone();

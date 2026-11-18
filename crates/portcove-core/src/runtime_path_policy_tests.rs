@@ -580,3 +580,24 @@ fn native_policy_checks_packaged_data_beyond_selected_executable() {
     validate(&bad).unwrap();
     assert_eq!(minimum_capability(&bad), 7);
 }
+
+#[test]
+fn open_surge_windows_profile_guard_uses_the_retained_binding() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("surge-the-rabbit-opensurge").unwrap().clone();
+    let plain = Path::new("D:\\Game library\\user\\surge-the-rabbit-opensurge");
+    let unicode = Path::new("D:\\Game library Ω\\user\\surge-the-rabbit-opensurge");
+
+    // Old retained definitions already declare this environment binding.
+    assert!(port.windows_runtime_path_policy.is_none());
+    check_user_data_root(&port, Platform::WindowsX86_64, plain).unwrap();
+    let error = check_user_data_root(&port, Platform::WindowsX86_64, unicode).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+    assert_eq!(
+        error.presentation().presentation_key,
+        "opensurge_user_data_path_unsupported"
+    );
+    check_user_data_root(&port, Platform::LinuxX86_64, unicode).unwrap();
+    port.user_data_environment = None;
+    check_user_data_root(&port, Platform::WindowsX86_64, unicode).unwrap();
+}
