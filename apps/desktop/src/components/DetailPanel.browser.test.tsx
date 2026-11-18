@@ -207,6 +207,8 @@ it.each(
         expect(details.open).toBe(originalOpen);
         expect(document.activeElement).toBe(summary);
         expectManualSummaryGeometry(label, direction);
+        if (direction === "ltr" && tab === "Game files")
+          await captureParityState("detail-manual-requirements-trailing-chevron");
       }
       await page.getByText("Folder for a future install", { exact: true }).click();
       await expect.element(page.getByText(folderError, { exact: false })).toBeVisible();

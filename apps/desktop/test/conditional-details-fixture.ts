@@ -21,8 +21,9 @@ export function conditionalDetailsFixture(configuration: ConditionalDetailsConfi
     : undefined;
   const longPath =
     "F:/Synthetic presentation only/" + "Harbor Adventure and the Forgotten Islands/".repeat(5);
-  const status = globalThis.structuredClone(workspace("details").statuses[0]);
-  if (!status.active) throw new Error("The maintained details fixture requires a recorded install");
+  const status = globalThis.structuredClone(workspace("details").statuses.at(0));
+  if (!status?.active)
+    throw new Error("The maintained details fixture requires a recorded install");
   status.port_id = port.id;
   status.active.port_id = port.id;
   status.active.id = `fixture-${port.id}`;
