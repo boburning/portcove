@@ -229,6 +229,12 @@ export function PreparationControl({
                     {message ?? t("preparation.status.starting")}
                   </p>
                   <p className="text-pc-muted-foreground">{t("preparation.keepOpen")}</p>
+                  {plan.inputs.setup_tool && (
+                    <p className="text-pc-muted-foreground">
+                      <strong>{t("preparation.plan.window")}</strong>{" "}
+                      {t("preparation.plan.windowText")}
+                    </p>
+                  )}
                 </div>
                 {operationId && (
                   <OperationCancellation
