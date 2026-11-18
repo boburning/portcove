@@ -5,6 +5,14 @@
     "name": "Signus: The Artefact Wars",
     "summary": "Play the open-source release of Signus with the complete game data and the upstream bugfix patch.",
     "project_url": "https://github.com/signus-game/signus",
+    "artwork": {
+      "game_id": 70464,
+      "cover_id": 51377,
+      "image_id": "puyeaw80zv35bynot9aj",
+      "image_sha256": "0d66ab3754ae499702ae2856b1e3765092d5d75f5baa6bcbc7dd0d997f0ce82c",
+      "game_slug": "signus-the-artifact-wars",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 6093,
     "listed_at": "2026-11-15",
     "original_game_title": "Signus: The Artefact Wars",

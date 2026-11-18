@@ -622,11 +622,15 @@ jobs:
               - native-external-cli-reconciliation
               - native-ready-detail-composition
               - native-game-return-continuity
-              - native-game-update-review
               - native-missing-readiness-recovery
               - native-retained-contract-repair-state
               - native-update-settings-save-without-execution
               - native-release-channel-selection-and-restart
+          # Serves its offered release from the owned install fixture instead of the
+          # live provider API, so it builds with qualification fixtures (#4879).
+          - selection: owned-update-review
+            scenarios:
+              - native-game-update-review
           - selection: owned-recovery
             scenarios:
               - native-preparation-cancellation

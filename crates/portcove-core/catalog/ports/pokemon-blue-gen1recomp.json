@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "pokemon-blue-gen1recomp",
+    "artwork": {
+      "game_id": 1511,
+      "cover_id": 266335,
+      "image_id": "co5pi7",
+      "image_sha256": "da39e547225cadcd7350c01316cfcd15215e5209e848fe6c044dc2a386f4ed59",
+      "game_slug": "pokemon-blue-version",
+      "match_kind": "underlying-game"
+    },
     "name": "Pokémon Blue (Gen1Recomp / G1R Deluxe)",
     "summary": "Import your own exact blue original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
     "original_game_title": "Pokémon Blue",

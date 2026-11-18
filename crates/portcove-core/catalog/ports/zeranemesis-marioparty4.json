@@ -5,6 +5,14 @@
     "name": "Mario Party 4 (Party Board (zeranemesis port))",
     "summary": "Attach the prepared PartyBoard Windows player for the packaged Mario Party 4 USA or Europe revisions. Select the native player rather than the detached script or optional online companion, and preserve its SDL preference root and regional memory cards.",
     "original_game_title": "Mario Party 4",
+    "artwork": {
+      "game_id": 2330,
+      "cover_id": 119141,
+      "image_id": "co2jxh",
+      "image_sha256": "46115e471f2e3265d4b3ffe4f05945cdde7945c12f067dde680374281236ddd9",
+      "game_slug": "mario-party-4",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/zeranemesis/Marioparty4",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

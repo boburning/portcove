@@ -411,7 +411,20 @@ fn openomf_appimage_requires_27_in_fresh_and_retained_readers() {
 #[test]
 fn native_mac_bundle_tar_xz_requires_version_26_and_reviewed_bundle() {
     let catalog = crate::Catalog::embedded().unwrap();
-    let port = catalog.port("wolfenstein-3d-reflectionhle").unwrap();
+    // The embedded record now also opts its Linux layout into the program
+    // format classifier, which requires version 36 (covered by
+    // linux_program_format_classifier_requires_native_36_...). Check the Mac
+    // bundle contract on the record as it was before that opt-in.
+    let mut port = catalog
+        .port("wolfenstein-3d-reflectionhle")
+        .unwrap()
+        .clone();
+    let linux = port
+        .reviewed_package_layouts
+        .remove(&crate::Platform::LinuxX86_64)
+        .unwrap();
+    assert!(linux.classify_linux_programs_by_format);
+    let port = &port;
     let mut entry = entry_for_port(port);
     for minimum in [25, 26] {
         entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
@@ -614,6 +627,30 @@ fn macos_library_filter_requires_native_30_for_fresh_and_retained_reads() {
 }
 
 #[test]
+fn linux_program_format_classifier_requires_native_36_for_fresh_and_retained_reads() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for id in ["wolfenstein-3d-reflectionhle", "pilotwings-64-dgv-recomp"] {
+        let port = catalog.port(id).unwrap();
+        let mut entry = entry_for_port(port);
+        entry["required_capabilities"][0]["maximum_version"] = json!(36);
+        for minimum in [35, 36] {
+            entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+            let bytes = serde_json::to_vec(&entry).unwrap();
+            for result in [
+                inspect(&entry),
+                index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+            ] {
+                if minimum == 36 {
+                    assert!(result.unwrap().capabilities().compatible, "{id}");
+                } else {
+                    assert!(result.unwrap_err().message.contains("version 36"), "{id}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn reviewed_package_layouts_require_a_capable_native_reader() {
     let mut port = fixture_catalog().ports()[0].clone();
     port.adapter = crate::AdapterKind::NativePortable;
@@ -621,6 +658,7 @@ fn reviewed_package_layouts_require_a_capable_native_reader() {
         port.platforms[0],
         crate::ReviewedPackageLayout {
             ignore_verified_macos_libraries: false,
+            classify_linux_programs_by_format: false,
             directories: vec![],
             executables: vec!["fixture.exe".to_owned()],
         },
@@ -1154,6 +1192,9 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
         assert!(inspect(&entry).unwrap().capabilities().compatible);
         entry["required_capabilities"][0]["minimum_version"] = json!(37);
         entry["required_capabilities"][0]["maximum_version"] = json!(37);
+        assert!(inspect(&entry).unwrap().capabilities().compatible);
+        entry["required_capabilities"][0]["minimum_version"] = json!(39);
+        entry["required_capabilities"][0]["maximum_version"] = json!(39);
         assert!(!inspect(&entry).unwrap().capabilities().compatible);
         let old = packet["rows"]
             .as_array()
@@ -1480,6 +1521,9 @@ fn psx_package_preserving_activation_requires_new_admission_floor_but_retains_v1
     assert!(inspect(&entry).unwrap().capabilities().compatible);
     entry["required_capabilities"][0]["minimum_version"] = json!(5);
     entry["required_capabilities"][0]["maximum_version"] = json!(5);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    entry["required_capabilities"][0]["minimum_version"] = json!(6);
+    entry["required_capabilities"][0]["maximum_version"] = json!(6);
     assert!(!inspect(&entry).unwrap().capabilities().compatible);
 
     // A texture-pack folder needs the retained-scope reader.
@@ -1790,6 +1834,8 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             version
         } else if port.mod_package_policy.is_some() {
             24
+        } else if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::CAPABILITY
         } else if crate::persistence::ready_staged_archive(port) {
             23
         } else if crate::managed_runtime_policy::requires_provider_resolution(port) {
@@ -2476,4 +2522,33 @@ fn native_originals_require_native6_in_fresh_and_retained_readers() {
             .capabilities()
             .compatible
     );
+}
+
+#[test]
+fn native_relative_originals_require_capability_37_in_fresh_and_retained_readers() {
+    let mut port = crate::native_temp::tests::port();
+    port.source_profile = Some("exact-relative-originals".into());
+    port.runtime_source_set.push(crate::RuntimeSourceTarget {
+        source_filenames: vec!["base/pak000.pk4".into()],
+        destination: "base/pak000.pk4".into(),
+        materialization: crate::RuntimeSourceMaterialization::Copy,
+    });
+    port.runtime_source_hashes
+        .insert("base/pak000.pk4".into(), "a".repeat(64));
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["maximum_version"] = json!(37);
+    for minimum in [36, 37] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if minimum == 36 {
+                assert!(result.unwrap_err().message.contains("version 37"));
+            } else {
+                assert!(result.unwrap().capabilities().compatible);
+            }
+        }
+    }
 }

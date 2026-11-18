@@ -47,6 +47,12 @@ not inline message dictionaries. This adds no supported product language.
 
 ## Runtime ownership
 
+The version-switch file result uses the existing `detail` namespace. Recorded
+counts remain distinct from legacy path examples with unknown totals. Version
+and path values stay literal in direction-aware containers; an unavailable
+earlier folder is translated text, not a fabricated path. This disclosure adds
+no supported locale or file action.
+
 - A saved `null` locale means `System default`; explicit supported values are canonical BCP 47 tags. Core validates bounded tag syntax but does not decide which product locales exist.
 - The React resolver accepts an explicitly saved `ar-XB` preference and the English language family. Unsupported, malformed, missing, or removed locales safely resolve to English. System locales, including `ar-XB`, do not select the engineering preview.
 - The provider updates i18next, `html[lang]`, `html[dir]`, and Base UI's `DirectionProvider` together. It does not key or remount the application, so a live change retains screen state and focus.
@@ -178,6 +184,9 @@ unless the copy change is intended and reviewed.
 | Discover cards and port comparison: card and identity labels with plural project counts, chip titles, favorites, drop targets, actions, and comparison headings, ownership and empty states (game and project names, system, platform and channel labels stay exact)                 | `features/browsing/GroupedDiscover.tsx`                    | `browsing`          |
 | Game settings panel and review: heading, unavailable states, editor hints and validation, review dialog, value labels and the installation-changed error (thrown already translated; setting and choice labels stay catalog data, Core failures stay verbatim)                       | `components/GameSettingsPanel.tsx`                         | `gameSettings`      |
 | Setups and mods: heading, explanations, mod-list sync notes, setup rows with plural counts, mod toggles, add and copy actions, outcomes and the app-owned game-changed error as a typed code (setup names, mod ids and provider names stay exact; Core failures stay verbatim)       | `components/ModSetupsControl.tsx`                          | `gameSettings`      |
+| Create a named clean setup                                                                                                                                                                                                                                                           | `components/CreateCleanModSetup.tsx`                       | `gameSettings`      |
+| Exact setup recovery review                                                                                                                                                                                                                                                          | `components/ModSetupRecovery.tsx`                          | `gameSettings`      |
+| Retained runtime retirement review                                                                                                                                                                                                                                                   | `components/ModSetupRuntimeRetirement.tsx`                 | `gameSettings`      |
 | GameBanana mods for a setup: find, files, review and install, stale and refusal states, plural counts (provider names, file names, versions and digests stay exact; Core failures stay verbatim)                                                                                     | `components/ModProviderBrowser.tsx`                        | `gameSettings`      |
 | Discover card observations (readiness, acquisition and setup-route text follow their producers' migrations)                                                                                                                                                                          | `features/port-actions/BrowsePortObservations.tsx`         | `browsing`          |
 | Navigation hints (keyboard key names stay literal)                                                                                                                                                                                                                                   | `components/ui.tsx`                                        | `common`            |

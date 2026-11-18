@@ -1,0 +1,63 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mindustry",
+    "name": "Mindustry",
+    "original_game_title": "Mindustry",
+    "summary": "Build factories, supply your defenses, and command units in an open-source tower-defense strategy game.",
+    "project_url": "https://github.com/Anuken/Mindustry",
+    "artwork": {
+      "game_id": 83368,
+      "cover_id": 481338,
+      "image_id": "coabei",
+      "image_sha256": "dd4f2a49b6b08059e2d2e45cc81642722d3a470cee6e110bf8a610f446bb3243",
+      "game_slug": "mindustry",
+      "match_kind": "port"
+    },
+    "issue_number": 6506,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://anuke.itch.io/mindustry",
+    "setup_url": "https://mindustrygame.github.io/wiki/",
+    "download_block_reason": "Get Mindustry from the publisher or your package manager. That choice determines how you update the game.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your desktop download",
+          "instruction": "The publisher’s itch.io page has downloads for Windows x64, Linux x64, and Mac. Extract the whole ZIP and open its launcher. On Linux ARM64, use the community Flathub package."
+        },
+        {
+          "title": "Run the publisher’s Java download",
+          "instruction": "The GitHub release also offers Mindustry.jar for Windows x64, Linux x64, and Intel or Apple Silicon Mac. Use a matching 64-bit Java runtime. Build 160.7 requires Java 17 or later. On Windows or Linux, run java -jar Mindustry.jar. On Mac, run java -XstartOnFirstThread -jar Mindustry.jar."
+        },
+        {
+          "title": "Start and save a local game",
+          "instruction": "Choose Play, then Campaign or Custom Game. To save a custom game, open the pause menu, select Save Game, then New Save. Open Play and Load Game from the title screen to resume it."
+        }
+      ],
+      "warnings": [
+        "Before updating the game or moving it to a new computer, close it and copy the whole Mindustry data folder. Keep settings.bin with saves so named saves and preferences come across, and include any maps, schematics, and mods you want to keep."
+      ],
+      "references": [
+        {
+          "title": "Find your desktop data",
+          "instruction": "For the standalone game, look in %APPDATA%/Mindustry on Windows, ~/Library/Application Support/Mindustry on Mac, and ~/.local/share/Mindustry on Linux. On Linux, use $XDG_DATA_HOME/Mindustry if you set XDG_DATA_HOME. Flathub keeps the folder at ~/.var/app/com.github.Anuken.Mindustry/data/Mindustry."
+        },
+        {
+          "title": "Get the Android version",
+          "instruction": "The publisher links to Google Play and F-Droid from the Mindustry website and offers an APK on itch.io. Use the same store for future updates so the app keeps its signing identity."
+        }
+      ],
+      "help_url": "https://mindustrygame.github.io/"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mindustry",
+    "origin": {
+      "project_url": "https://github.com/Anuken/Mindustry"
+    },
+    "decisions": []
+  }
+}

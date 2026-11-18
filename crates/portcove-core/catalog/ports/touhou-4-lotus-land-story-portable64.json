@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "touhou-4-lotus-land-story-portable64",
+    "artwork": {
+      "game_id": 45964,
+      "cover_id": 217575,
+      "image_id": "co4nvr",
+      "image_sha256": "f32a4573b6f8f10dceacef3bbe57797253a94262417436d35f833df7d597f26c",
+      "game_slug": "touhou-gensoukyou-lotus-land-story",
+      "match_kind": "underlying-game"
+    },
     "name": "Touhou 4: Lotus Land Story — Portable 64-bit",
     "original_game_title": "Touhou Gensokyo: Lotus Land Story",
     "summary": "Play the native desktop preview using your own PC-98 game image and external font and sound resources.",

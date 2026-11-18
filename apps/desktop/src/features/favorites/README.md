@@ -19,16 +19,15 @@ publication. No second persistent favorite store exists. Reload reads that store
 no catalog metadata, share URL, scan, network or installation/source mutation is
 performed. The Library view still requires real library membership.
 
-Discover and listing cards use one game-level Favorite control that reads this
-store together with the organization game-level choice; see the
-[organization contract](../organization/README.md). Removing it clears both.
+Discover, Library and details use one Favorite control for each authored game.
+Entries without authored game identity keep their own identity. The
+[organization contract](../organization/README.md) defines the two-store removal
+and readback rule.
 
-Favorites filtering consumes the already search/channel/readiness/query-narrowed
-cached ports. Its chip count is the number of favorites within those results;
-the displayed port count includes the Favorites predicate. Clear search and
-filters also clears that predicate, without clearing stored choices. The
-predicate is session state; confirmed favorites persist independently. Unknown
-queries remain unresolved under the existing evaluator.
+Favorites resolve across the full catalog before search, channel, readiness and
+collection filters narrow the displayed set. The view counts each matching game
+once. The Library view still requires membership. Clear search and filters
+also clears the view selection, without changing stored choices.
 
 Unavailable reads are distinct from an empty set. Browsing and launch remain
 usable; errors preserve confirmed state and offer Retry favorites. A rejected

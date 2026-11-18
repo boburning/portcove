@@ -10,7 +10,7 @@ import {
 } from "../features/operations/operation-presentation";
 import type { Perform } from "../features/operations/use-operation-state";
 import { gameIdentityLabel } from "../port-identity";
-import type { PortStatus } from "../types";
+import type { PortDefinition, PortStatus } from "../types";
 import { ExternalLaunchWarnings } from "./AuthoredSetupWarnings";
 import { CatalogDownloadControl, PendingSetupActions } from "./CatalogDownload";
 import { AuthoredPreparationGuidance, UserSelectedRuntimeControl } from "./ExternalRuntime";
@@ -21,6 +21,7 @@ import { ActionRow, Notice } from "./ui/patterns";
 
 export interface SelfServiceSetupProps {
   entry: CatalogEntry;
+  devicePlatform?: PortDefinition["platforms"][number] | undefined;
   libraryRoot?: string | undefined;
   status?: PortStatus | undefined;
   generation: number;
@@ -32,6 +33,7 @@ export interface SelfServiceSetupProps {
 /** Non-owning setup only. Managed installation remains in the strict detail pane. */
 export function SelfServiceSetup({
   entry,
+  devicePlatform,
   libraryRoot,
   status,
   generation,
@@ -175,7 +177,7 @@ export function SelfServiceSetup({
       )}
       {registered?.user_selected && !pending && (
         <details>
-          <summary data-focusable className="cursor-pointer py-2 font-medium">
+          <summary data-focusable className="disclosure-pad-2 cursor-pointer font-medium">
             {t("selfService.another.summary")}
           </summary>
           <div className="grid gap-3 pt-2">
@@ -214,6 +216,7 @@ export function SelfServiceSetup({
             {t("selfService.launchDetails")}
           </h2>
           <UserSelectedRuntimeControl
+            devicePlatform={devicePlatform}
             libraryRoot={libraryRoot}
             port={routeEntry}
             status={status}

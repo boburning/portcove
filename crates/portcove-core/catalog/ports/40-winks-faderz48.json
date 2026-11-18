@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "40-winks-faderz48",
+    "artwork": {
+      "game_id": 5568,
+      "cover_id": 158221,
+      "image_id": "co3e31",
+      "image_sha256": "7199943a64e9e1cdf218094ccdbc72b4658f7793b84b66cca059a588be67c2e1",
+      "game_slug": "40-winks",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/Faderz48/40-Winks-PC-Port",
     "name": "40 Winks / Faderz48",
     "summary": "Build and play 40 Winks on Windows or Linux with upstream’s setup tools and your own clean USA Nintendo 64 ROM.",

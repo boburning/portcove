@@ -2,6 +2,7 @@
   "failure": {
     "copied": "تم النسخ",
     "copyExitCode": "نسخ رمز الخروج",
+    "copyFailed": "تعذّر نسخ رمز الخروج. حدّد الرمز أعلاه وانسخه، أو حاول مرة أخرى.",
     "exitCode": "رمز الخروج <code/>",
     "label": "آخر تشغيل",
     "openActivity": "فتح النشاط",
@@ -9,6 +10,7 @@
   },
   "runtimes": {
     "aspnetCore": "ASP.NET Core Runtime {{version}}",
+    "checking": "جارٍ التحقق…",
     "directxJune2010": "DirectX End-User Runtime (يونيو 2010)",
     "dotnetDesktop": ".NET Desktop Runtime {{version}}",
     "dotnetFramework": ".NET {{name}} {{version}}",
@@ -17,7 +19,10 @@
     "item": "{{name}} ({{architecture}})",
     "label": "مكونات Microsoft",
     "missing": "على الأرجح ينقص Windows شيء تحتاجه هذه اللعبة لتبدأ:",
-    "nextAction": "ثبّت ما هو مدرج من Microsoft، ثم ابدأ اللعبة مرة أخرى.",
+    "nextAction": "ثبّت المكونات المدرجة من Microsoft، ثم أعد التحقق هنا.",
+    "present": "المكونات التي تم التحقق منها مثبّتة.",
+    "recheck": "إعادة التحقق من المكونات",
+    "unconfirmed": "تعذّر على Portcove التأكد من تثبيت جميع المكونات المطلوبة. يمكنك إعادة التحقق.",
     "visualCpp2010": "Microsoft Visual C++ 2010 Redistributable",
     "visualCpp2012": "Microsoft Visual C++ 2012 Redistributable",
     "visualCpp2013": "Microsoft Visual C++ 2013 Redistributable",

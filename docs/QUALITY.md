@@ -411,6 +411,12 @@ defer is left to finish. The re-run is best effort; if it does not happen, use "
 all jobs" on the head's CI run; re-running only failed jobs keeps the draft
 classification. Push, qualification, release and reused plans never defer.
 
+The ready transition has a finite 25-minute API budget inside a 30-minute job,
+polling once per minute while classification or cancelled-run gate jobs wait
+for runners. The 64-request cap and terminal-state check remain enforced;
+ordinary supersede events retain their four-minute API and five-minute job
+budgets. Expiry preserves the run and the same all-jobs recovery instruction.
+
 A superseded pull request run stops taking runners before its cancellation arrives.
 The supersede workflow needs a runner of its own to cancel older runs, and under
 queue pressure that can take as long as any other job. The classifier and the fast
@@ -452,6 +458,62 @@ limits, rationale and result. More execution time alone is not a permission ques
 This authority does not change application cancellation, shutdown, locking,
 network, security or other behavioral deadlines, acceptance or release authority.
 A pass under a larger budget proves completion under that budget.
+
+The November 18 Native27 Windows run at `eaae775d` (output
+`2026-11-18T12-56-04-004Z-K6Cg8V`, preparation live by 13:05 UTC) retained a
+15-second timeout waiting for the backup review's “Review again” control after
+the harness deliberately changed saved data. The host refused the stale review;
+the failure capture still showed the apply awaiting settlement. Its trace records
+consecutive workspace readbacks of 11,032 and 11,063 milliseconds. The same run's
+discovery Activity row lookup expired while updated history was pending: its
+workspace reads took 20,687 and 9,169 milliseconds. The existing-install copy entry
+also expired on “Add games” while the refreshed Library still loaded; its reload
+reads took 14,075 and 14,212 milliseconds. Exact attribution of these reads to the
+frontend promises is unproven. Those two specific row/settlement lookups now have
+60 seconds, matching the existing confirmed-restore wait; copy entry separately
+waits up to 60 seconds for the exact visible enabled “Add games” control before its
+ordinary click. Activity identity, accessible name and focus assertions, consent,
+stale-review refusal, saved-data and backup assertions, retry policy, cleanup and
+application/IPC/safety deadlines remain unchanged. The original failures remain
+evidence; these calibrations alone do not establish successful native workflows.
+
+The November 17 Linux Heavy Rust calibration raises the parent's adopting-reaper
+exit wait from 5 to 30 seconds. A guarded desktop build at `95f11af1` returned
+payload status 0 and eventually published a positive quiescence receipt, but its
+wrapper retained the lock after the former five-second wait expired. The receipt's
+write and final inode-change timestamps were 5.784 seconds apart, consistent with
+delayed durable publication. The finite 30-second parent wait leaves room for the
+reaper's unchanged five-second descendant drain, receipt flush/publication and
+scheduling. Explicit wait overrides, non-Linux five-second waits, receipt checks,
+successful reaper exit and lock retention on unproved cleanup remain unchanged.
+Controlled-clock runner tests cover delayed success, failure and the finite
+deadline; they do not turn the retained original wrapper failure into a pass or
+establish a new native build observation.
+
+The private virtual-X11 wrapper derives its harness wait from the existing
+selected-scenario deadline plus its 60-second startup/retention margin, then
+allows the existing 30-second outer cleanup margin. Its former fixed 240/270-second
+waits could preempt the selected-setup journey's maintained 600-second deadline;
+that selection now receives finite 660/690-second wrapper waits. Ordinary
+180-second selections and GTK-only readiness keep their 240/270-second waits.
+Selection validation, scenario assertions, namespace joins, failure evidence and
+native/resource lock retention remain unchanged. Contract checks establish budget
+coordination, not a completed native selected-setup observation.
+
+The November 18 private-X11 input calibration separates input custody from those
+operation waits. An ordinary `98f988ed` application with `6c2d3ab4` tooling failed
+before namespace launch: the shared 60-second capture limit expired after copying
+the 150,319,296-byte pinned Node executable, during its remaining verification or
+publication. The eight inputs totalled 152,779,458 bytes; capture copies, hashes
+and durably verifies them repeatedly. Prelaunch capture and verification now have
+300 seconds; the independent postjoin live-input scan has 120 seconds. The Linux
+command guard includes both phases, the unchanged namespace outer wait and a
+60-second command margin: 750 seconds for ordinary/GTK selections and 1,170 for
+the standalone 600-second selected-setup journeys. Callers supplying an outer
+execution guard must use that derived command budget. Content and identity checks,
+partial failure evidence, namespace joins and native/resource lock retention remain
+unchanged. Controlled-clock tests exercise completion beyond the former minute
+and finite capture/postjoin failure; they are not a native application observation.
 
 The strict default nextest profile, used by local runs and qualification,
 allows zero automatic test retries. By explicit owner decision (November 2026),

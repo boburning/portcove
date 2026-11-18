@@ -393,6 +393,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 size,
                 sha256,
                 ignore_verified_macos_libraries,
+                classify_linux_programs_by_format,
             },
     } = &cli.command
     {
@@ -406,7 +407,10 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 platform,
                 *size,
                 sha256,
-                *ignore_verified_macos_libraries,
+                portcove_core::PackageProgramFilter {
+                    ignore_verified_macos_libraries: *ignore_verified_macos_libraries,
+                    classify_linux_programs_by_format: *classify_linux_programs_by_format,
+                },
             )?,
             |layout| {
                 format!(
@@ -419,23 +423,28 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         return Ok(ExitCode::SUCCESS);
     }
     if let Commands::Catalog {
-        command: CatalogCommand::InspectListings { path },
+        command:
+            CatalogCommand::InspectListings {
+                path,
+                format_version,
+            },
     } = &cli.command
     {
         let file = std::fs::File::open(path)?;
         let mut bytes = String::new();
         file.take(8 * 1024 * 1024 + 1).read_to_string(&mut bytes)?;
-        render_read_success(
-            mode,
-            "catalog.inspect-listings",
-            portcove_core::CatalogListingDocument::from_json(&bytes)?,
-            |document| {
-                format!(
-                    "Validated {} descriptive listings.",
-                    document.listings.len()
-                )
-            },
-        )?;
+        let document = portcove_core::CatalogListingDocument::from_json(&bytes)?;
+        let document = if let Some(version) = format_version {
+            document.export_format(*version)?
+        } else {
+            document
+        };
+        render_read_success(mode, "catalog.inspect-listings", document, |document| {
+            format!(
+                "Validated {} descriptive listings.",
+                document.listings.len()
+            )
+        })?;
         return Ok(ExitCode::SUCCESS);
     }
     if let Commands::Catalog {
@@ -579,12 +588,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         return Ok(ExitCode::SUCCESS);
     }
     if matches!(&cli.command, Commands::Capabilities) {
-        render_read_success(
-            mode,
-            "capabilities",
-            CapabilityDocument::current(),
-            human::capabilities,
-        )?;
+        let mut capabilities = CapabilityDocument::current();
+        capabilities.commands.extend(profile_command_capabilities());
+        render_read_success(mode, "capabilities", capabilities, human::capabilities)?;
         return Ok(ExitCode::SUCCESS);
     }
     if let Commands::Schema {
@@ -1454,10 +1460,13 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 service.game_file_root_match_profiles(&root_id)?,
                 |profiles| human::game_file_root_match_profiles(profiles, service.catalog()),
             )?,
-            GameFileRootCommand::Stores => render_read_success(
+            GameFileRootCommand::Stores { profile_id } => render_read_success(
                 mode,
                 "source.roots.stores",
-                service.store_game_installs()?,
+                match profile_id.as_deref() {
+                    Some(profile_id) => service.store_game_installs_for_profile(profile_id)?,
+                    None => service.store_game_installs()?,
+                },
                 human::store_game_installs,
             )?,
             GameFileRootCommand::Add { path } => render_read_success(
@@ -3918,7 +3927,7 @@ fn command_name(command: &Commands) -> &'static str {
                 GameFileRootCommand::Snapshot => "source.roots.snapshot",
                 GameFileRootCommand::Matches(_) => "source.roots.matches",
                 GameFileRootCommand::Profiles { .. } => "source.roots.profiles",
-                GameFileRootCommand::Stores => "source.roots.stores",
+                GameFileRootCommand::Stores { .. } => "source.roots.stores",
                 GameFileRootCommand::Add { .. } => "source.roots.add",
                 GameFileRootCommand::Relink { .. } => "source.roots.relink",
                 GameFileRootCommand::Remove { .. } => "source.roots.remove",
@@ -5417,7 +5426,7 @@ mod tests {
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
         assert_eq!(capabilities.port_capability_schema, Some(1));
-        assert_eq!(capabilities.listing_formats, [5, 6, 7, 8, 9, 10]);
+        assert_eq!(capabilities.listing_formats, [5, 6, 7, 8, 9, 10, 11, 12]);
         assert!(
             capabilities
                 .commands

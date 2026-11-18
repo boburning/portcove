@@ -17,8 +17,10 @@ use crate::{PortcoveError, Result};
 
 const MAX_INDEX_BYTES: u64 = 32 * 1024;
 const MAX_BLOCKS: usize = 1024;
-const MAX_BLOCK_BYTES: u64 = 64 * 1024 * 1024;
-const DECODER_MEMORY_BYTES: u64 = 96 * 1024 * 1024;
+const MAX_BLOCK_BYTES: u64 = 128 * 1024 * 1024;
+// The verified worker accounts for packed and decoded bytes. JGR Patch Pack
+// 0.73.5 uses a single block of about 42 MiB packed and 116 MiB decoded.
+const DECODER_MEMORY_BYTES: u64 = 160 * 1024 * 1024;
 
 struct CheckedFile<'a> {
     file: File,
@@ -219,6 +221,45 @@ pub(crate) mod tests {
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
         let repeated = reader.read(&mut [0; 1]).unwrap_err();
         assert_eq!(repeated.kind(), error.kind());
+    }
+
+    #[test]
+    fn verified_xz_reader_accepts_a_single_block_above_the_previous_limits() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join(ASSET);
+        let decoded_len = 100 * 1024 * 1024;
+        let mut data = vec![0; decoded_len];
+        // Supply enough incompressible bytes to stay within the expansion ratio.
+        let mut random = 1_u32;
+        for byte in &mut data[..1024 * 1024] {
+            random ^= random << 13;
+            random ^= random >> 17;
+            random ^= random << 5;
+            *byte = random.to_le_bytes()[0];
+        }
+        let bytes = encode_xz(
+            &data,
+            &LzmaEncProps::new().with_dict_size(1 << 16),
+            CheckType::Crc64,
+            0,
+        )
+        .unwrap();
+        drop(data);
+        let stream = read_stream_index_ending_at(
+            &mut Cursor::new(&bytes),
+            bytes.len() as u64,
+            MAX_INDEX_BYTES,
+        )
+        .unwrap();
+        assert_eq!(stream.index.block_count(), 1);
+        assert_eq!(stream.index.largest_block(), decoded_len as u64);
+        fs::write(&source, &bytes).unwrap();
+
+        let mut reader = open(&source, bytes.len() as u64, &|| Ok(())).unwrap();
+        assert_eq!(
+            io::copy(&mut reader, &mut io::sink()).unwrap(),
+            decoded_len as u64
+        );
     }
 
     #[test]

@@ -65,6 +65,41 @@
           "instruction": "Preserve ~/.config/Zelda64Recompiled on Linux, or your actual custom profile. For Flatpak also keep ~/.var/app/io.github.zelda64recomp.zelda64recomp. Back up the original, saves, mods and settings before replacing an upstream copy."
         }
       ]
+    },
+    "implementation": {
+      "format_version": 1,
+      "methods": [
+        {
+          "kind": "static-recompilation",
+          "evidence_urls": [
+            "https://github.com/Zelda64Recomp/Zelda64Recomp/blob/b65c482ed672258eb684ab94a4e8c8aa662615ee/README.md"
+          ],
+          "note": "Translates the Nintendo 64 program into native code with N64: Recompiled. Original game assets are still required."
+        }
+      ],
+      "dependencies": [
+        {
+          "kind": "toolchain",
+          "project_url": "https://github.com/Mr-Wiseguy/N64Recomp",
+          "name": "N64: Recompiled",
+          "confidence": "confirmed",
+          "version_scope": "Source revision b65c482ed672258eb684ab94a4e8c8aa662615ee",
+          "evidence_urls": [
+            "https://github.com/Zelda64Recomp/Zelda64Recomp/blob/b65c482ed672258eb684ab94a4e8c8aa662615ee/README.md"
+          ]
+        },
+        {
+          "kind": "library",
+          "project_url": "https://github.com/rt64/rt64",
+          "name": "RT64",
+          "confidence": "confirmed",
+          "version_scope": "Source revision b65c482ed672258eb684ab94a4e8c8aa662615ee",
+          "evidence_urls": [
+            "https://github.com/Zelda64Recomp/Zelda64Recomp/blob/b65c482ed672258eb684ab94a4e8c8aa662615ee/README.md"
+          ],
+          "note": "The project identifies RT64 as its rendering engine."
+        }
+      ]
     }
   },
   "integration": {
@@ -115,7 +150,16 @@
           "verification": "catalog-rules"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Install with Portcove",
+            "instruction": "Use a compatible North American Majora’s Mask cartridge dump you own. Portcove checks the original and installs the managed package for this device. Select Play when setup is complete."
+          }
+        ],
+        "warnings": []
+      }
     }
   }
 }

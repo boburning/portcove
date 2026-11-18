@@ -1,3 +1,4 @@
+import { hostedAmendmentMarker, parseHostedAmendment } from "./hosted-discovery-amendment.mts";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -178,6 +179,14 @@ export function runHostedIntakeWorker(
   return report;
 }
 
+export function hostedTriggerRequest(event: unknown): unknown {
+  if (!isRecord(event) || !isRecord(event.comment)) return undefined;
+  const { body, id } = event.comment;
+  return typeof body === "string" && body.startsWith(hostedAmendmentMarker)
+    ? parseHostedAmendment(body).request_comment
+    : id;
+}
+
 function main() {
   const root = fileURLToPath(new URL("../", import.meta.url));
   const directory = path.join(root, "work/hosted-discovery-intake");
@@ -185,7 +194,26 @@ function main() {
   const result = runHostedIntakePasses((pass, requests, remainingMs) =>
     runHostedIntakeWorker(root, directory, pass, requests, remainingMs),
   );
-  writeFileSync(path.join(directory, "summary.json"), JSON.stringify(result, null, 2));
+  // A comment event reports its own proposal result. The ledger still retains
+  // the outcomes of all other queue entries, including historical holds.
+  const event: unknown =
+    process.env.GITHUB_EVENT_NAME === "issue_comment" && process.env.GITHUB_EVENT_PATH
+      ? JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"))
+      : null;
+  const trigger = hostedTriggerRequest(event);
+  const triggered = result.outcomes.find((o) => o.request === trigger);
+  const passed =
+    typeof trigger === "number"
+      ? triggered !== undefined && triggered.status !== "incomplete"
+      : result.status === "passed";
+  writeFileSync(
+    path.join(directory, "summary.json"),
+    JSON.stringify(
+      { ...result, trigger_request: trigger, trigger_status: triggered?.status },
+      null,
+      2,
+    ),
+  );
   if (process.env.GITHUB_STEP_SUMMARY) {
     const rows = result.outcomes.flatMap(({ request, status, counts }) =>
       counts
@@ -207,7 +235,7 @@ function main() {
       { flag: "a" },
     );
   }
-  if (result.status !== "passed") process.exitCode = 1;
+  if (!passed) process.exitCode = 1;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {

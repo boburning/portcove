@@ -74,7 +74,7 @@ pub(crate) enum CatalogCommand {
     },
     /// Export every descriptive listing, including projects without a managed integration.
     Listings {
-        /// Listing format: 5 keeps legacy flat references; 8 supports GitLab observations; 9 adds the first-listed date; 10 adds funding links.
+        /// Listing format: 5 keeps legacy flat references; 8 supports GitLab observations; 9 adds dates; 10 adds funding links; 11 adds cover collections; 12 adds implementation descriptions.
         #[arg(long)]
         format_version: Option<u32>,
     },
@@ -124,8 +124,12 @@ pub(crate) enum CatalogCommand {
         /// Exclude verified shared libraries from the macOS program inventory.
         #[arg(long)]
         ignore_verified_macos_libraries: bool,
+        /// Count Linux executable-mode files by content, excluding verified ELF shared libraries.
+        #[arg(long)]
+        classify_linux_programs_by_format: bool,
     },
     /// Derive a verified local archive's package shape and its shadow drift verdict.
+    #[command(visible_alias = "inspect-package-drift")]
     InspectPackageShape {
         /// Local ZIP, TAR.GZ, or Linux x86-64 TAR.XZ package archive.
         archive: PathBuf,
@@ -152,6 +156,9 @@ pub(crate) enum CatalogCommand {
         /// Inert versioned listings JSON file to inspect.
         #[arg(long)]
         path: PathBuf,
+        /// Export this validated directory for a supported strict reader.
+        #[arg(long)]
+        format_version: Option<u32>,
     },
     /// Inspect a fixed local managed-definition publication bundle without authority or library writes.
     InspectDefinitionPublication {

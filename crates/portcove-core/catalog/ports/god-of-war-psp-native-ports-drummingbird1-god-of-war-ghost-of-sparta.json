@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "god-of-war-psp-native-ports-drummingbird1-god-of-war-ghost-of-sparta",
+    "artwork": {
+      "game_id": 550,
+      "cover_id": 157488,
+      "image_id": "co3dio",
+      "image_sha256": "50840850fdc815d738747bce267ab7611fce3f6a0df8073ea718548e6791ed71",
+      "game_slug": "god-of-war-ghost-of-sparta",
+      "match_kind": "underlying-game"
+    },
     "name": "God of War: Ghost of Sparta — God of War PSP native ports (DrummingBird1)",
     "original_game_title": "God of War: Ghost of Sparta",
     "summary": "The v1.2.1 launcher builds locally with pinned portable tools. Upstream reports automated tours loading every level, but neither game has a complete playthrough confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",

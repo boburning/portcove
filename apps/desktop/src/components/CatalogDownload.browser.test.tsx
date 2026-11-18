@@ -1295,7 +1295,10 @@ it("retains a manually selected setup target and literal arguments across remoun
     .fill("C:/Upstream data");
   await page.getByText("Advanced launch options", { exact: true }).click();
   await page
-    .getByRole("textbox", { name: "Launch arguments", exact: true })
+    .getByRole("textbox", {
+      name: "Launch options (advanced) (one per line, optional)",
+      exact: true,
+    })
     .fill("--data\nC:/Original files");
   await root.rerender(
     <SelfServiceSetup
@@ -1321,7 +1324,7 @@ it("retains a manually selected setup target and literal arguments across remoun
   expect(document.body.textContent).toContain(executable);
 });
 
-it("keeps authored save warnings visible before reviewing a download", async () => {
+it("shows save warnings without promoting an unscoped guide step to a download instruction", async () => {
   const warned = catalogEntries(
     undefined,
     {
@@ -1330,7 +1333,7 @@ it("keeps authored save warnings visible before reviewing a download", async () 
         {
           ...listing,
           manual_setup: {
-            steps: [{ title: "Choose the player", instruction: "Extract the complete package." }],
+            steps: [{ title: "Set up macOS", instruction: "Open the macOS disk image." }],
             warnings: ["Back up the shared save folder separately."],
             references: [
               { title: "Inspected version", instruction: "Version one used profile/save.bin." },
@@ -1346,6 +1349,8 @@ it("keeps authored save warnings visible before reviewing a download", async () 
     <CatalogDownloadControl entry={warned} generation={9} busy={false} perform={perform} />,
   );
   await click("Check upstream downloads");
+  await expect.element(page.getByRole("button", { name: "Review download" })).toBeVisible();
+  expect(document.body.textContent).not.toContain("Open the macOS disk image.");
   const warning = page.getByText("Back up the shared save folder separately.", { exact: true });
   await expect.element(warning).toBeVisible();
   expect(warning.element().closest("details")).toBeNull();

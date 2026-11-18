@@ -158,12 +158,11 @@ export async function launchLinuxNativeSession(
     buffer = "";
     rejectReady(error);
   };
-  let resolveReady!: (receipt: NamespaceReceipt) => void;
-  let rejectReady!: (error?: unknown) => void;
-  const readiness = new Promise<NamespaceReceipt>((resolve, reject) => {
-    resolveReady = resolve;
-    rejectReady = reject;
-  });
+  const {
+    promise: readiness,
+    resolve: resolveReady,
+    reject: rejectReady,
+  } = Promise.withResolvers<NamespaceReceipt>();
   const protocol = child.stdio[3];
   assert.ok(protocol);
   protocol.on("data", (data: Buffer) => {

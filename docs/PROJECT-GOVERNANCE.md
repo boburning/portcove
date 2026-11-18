@@ -108,7 +108,10 @@ release campaign. Planned work remains selectable without committing speculative
 family-wide enhancement lists.
 
 `capture-port` creates the repository issue immediately, adds it to the Project,
-and initializes neutral Watchlist fields. A public New
+and initializes neutral Watchlist fields. After the creation receipt, it reads the
+exact issue’s active and archived memberships and verifies the selected Project
+item by its REST and opaque IDs. An unconfirmed attachment keeps the receipt for
+`normalize-port` recovery. A public New
 Port form submission enters the same contract when a maintainer runs
 `normalize-port --issue <number>`. Normalization preserves contributor content,
 requires the canonical `[Port]` title plus direct-upstream and lowercase
@@ -119,7 +122,17 @@ and fills neutral values only where fields are unset. Both intake paths preserve
 existing parent relationships and leave unparented issues unparented.
 When a researched port is later admitted to the operational catalog, rerunning
 `normalize-port` links its existing key only when both the exact catalog ID and
-normalized direct upstream match. Listing-only keys, other games sharing an
+normalized direct upstream match. When the research key differs, the
+`normalize-port` CLI command (and the workflow that runs it) links instead when
+exactly one catalog listing records this issue as its `issue_number`, that
+listing's ID is an operational catalog entry whose normalized `project_url`
+matches the issue's direct upstream, and the issue title names the listing's
+original game or listing name. It refuses an issue claimed by several or
+malformed listings, a differing upstream, a title naming another game, or a
+listing claim that contradicts the issue's existing catalog ID. A claim by a
+research-only listing that is not yet in the operational catalog leaves the
+research key unchanged. Discovery and hosted intake do not pass listings and
+use only the exact-key rule. Other listing-only keys, other games sharing an
 upstream and unreviewed upstream changes remain research identities. This does
 not promote Project qualification or change support. Normalization refuses a
 changed issue preimage before publishing its marker update.

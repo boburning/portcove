@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "darkuni-afterburner-climax-recomp",
+    "artwork": {
+      "game_id": 20085,
+      "cover_id": 117692,
+      "image_id": "co2it8",
+      "image_sha256": "ad86e1041f7cb8e7fd7965a2b8d38b6eb88420c72c7306079cb83a9107227104",
+      "game_slug": "after-burner-climax",
+      "match_kind": "underlying-game"
+    },
     "name": "After Burner Climax (darkuni Recomp)",
     "summary": "Play After Burner Climax with darkuni’s Windows recompilation and your own purchased Xbox 360 package.",
     "project_url": "https://github.com/darkuni/afterburner-climax-recomp",

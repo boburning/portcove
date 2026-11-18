@@ -10,7 +10,8 @@ import {
   type UpstreamTransport,
 } from "./maintenance-upstream.mts";
 import { newCatalogObserverCheckpoint } from "./catalog-upstream-observer.mts";
-import { snapshotName } from "./observer-checkpoint-artifact.mts";
+import { encodeStreamingObserverSnapshot, snapshotName } from "./observer-checkpoint-artifact.mts";
+import { encodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import {
   catalog,
@@ -277,6 +278,7 @@ function observerRuns() {
       artifact?: Record<string, unknown>;
       producer?: Partial<{ run: number; attempt: number; source: string }>;
       archive?: (bytes: Buffer) => Buffer;
+      member?: Buffer;
     } = {},
   ) => {
     const producer = {
@@ -297,7 +299,9 @@ function observerRuns() {
       producer,
       files: { "catalog/checkpoint.json": newCatalogObserverCheckpoint() },
     };
-    const archive = createAuditZip([["checkpoint.json", JSON.stringify(snapshot)]]);
+    const archive = createAuditZip([
+      ["checkpoint.json", options.member ?? JSON.stringify(snapshot)],
+    ]);
     const id = 1000 + archives.size;
     artifacts.get(value.id)!.push({
       id,
@@ -390,6 +394,38 @@ void test("the newest qualifying schedule or push run is selected and bound", as
   assert.deepEqual(input.checkpoint, newCatalogObserverCheckpoint());
   assert.deepEqual(input.catalog, { ...observerCatalog, listings: observerListings.listings });
   assert.deepEqual(fixture.downloads, [`repos/boburning/portcove/actions/artifacts/${id}/zip`]);
+});
+
+void test("streaming snapshots deliver a logical controller to maintenance facts", async () => {
+  const fixture = observerRuns();
+  const run = fixture.run(108, "schedule", 5);
+  const controller = checkpoint({
+    [keyOf("owner/alpha")]: progress("owner/alpha", ["alpha"]),
+  });
+  const stored = encodeStoredObserverCheckpoint(controller);
+  assert.notEqual(stored, controller, "fixture controller must be compacted on read");
+  const snapshot = await encodeStreamingObserverSnapshot(
+    {
+      format: 1,
+      authority: "observer-checkpoint-cache-only",
+      repository: "boburning/portcove",
+      repository_id: 1354613114,
+      workflow: ".github/workflows/configured-upstream-observer.yml",
+      ref: "refs/heads/main",
+      config_sha256: observerConfigDigest,
+      created_at: new Date(Date.now() - 1000).toISOString(),
+      producer: { run: run.id, attempt: run.run_attempt, source: run.head_sha },
+      files: { "catalog/checkpoint.json": controller },
+    },
+    Date.now() + 60_000,
+  );
+  fixture.retain(run, { member: snapshot.bytes });
+  const input = await fixture.read();
+  assert.deepEqual(input.checkpoint, controller);
+  assert.deepEqual(
+    [...upstreamFacts(input.checkpoint, input.catalog, now).facts.keys()],
+    ["port:alpha"],
+  );
 });
 
 void test("a foreign producer run is refused before any artifact is read", async () => {

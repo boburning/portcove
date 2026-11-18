@@ -59,7 +59,10 @@ export async function boundedDiscoveryRequest(input: unknown, fetcher: typeof fe
         signal: AbortSignal.timeout(Math.ceil(remaining)),
         headers: {
           "User-Agent": "Portcove bounded discovery",
-          Accept: "application/vnd.github+json",
+          Accept:
+            url.origin === "https://api.github.com"
+              ? "application/vnd.github+json"
+              : "application/json, text/plain;q=0.9, text/html;q=0.8, */*;q=0.5",
           ...(url.origin === "https://api.github.com" && typeof input.token === "string"
             ? { Authorization: `Bearer ${input.token}` }
             : {}),

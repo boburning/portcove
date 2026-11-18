@@ -86,6 +86,7 @@ import {
   leadPaths,
   mergeExternalList,
   parseExternalList,
+  bindExternalListSource,
   recordExternalListFailure,
   selectExternalResolutions,
 } from "./discovery-external-lists.mts";
@@ -830,7 +831,10 @@ export class DiscoverySession {
       if (!externalListDue(this.leads.external, list.id, at)) continue;
       const left = this.budget.remaining();
       // One list read may follow up to four redirects; keep the research reserve after them.
-      if (left.requests < 22 || left.bytes < list.cap + 1024 * 1024) {
+      if (
+        left.requests < 22 + ("revision_repository" in list ? 2 : 0) ||
+        left.bytes < list.cap + 1024 * 1024
+      ) {
         this.journal.notes.push({
           phase: "external-list",
           source: list.id,
@@ -841,17 +845,69 @@ export class DiscoverySession {
       }
       const name = `external-list-${list.id}`;
       try {
+        let sourceUrl: string = list.url;
+        let revision: string | undefined;
+        if ("revision_repository" in list) {
+          const resolved = await this.source.sdk.request({
+            method: "GET",
+            url: `https://api.github.com/repos/${list.revision_repository}/commits/main`,
+          });
+          if (
+            !isRecord(resolved.data) ||
+            typeof resolved.data.sha !== "string" ||
+            !/^[a-f0-9]{40}$/u.test(resolved.data.sha)
+          )
+            throw new Error("External source revision unavailable");
+          revision = resolved.data.sha;
+          sourceUrl = `https://raw.githubusercontent.com/${list.revision_repository}/${revision}/${list.revision_path}`;
+        }
         const response = await this.source.http.request(
           "GET",
-          list.url,
+          sourceUrl,
           undefined,
           false,
           list.cap,
         );
-        this.save(name, { url: list.url, ...response });
+        this.save(name, { url: sourceUrl, revision, ...response });
         if (response.status !== 200)
           throw new Error(`External list returned HTTP ${String(response.status)}`);
-        const parsed = parseExternalList(list.id, response.text);
+        let parsed = parseExternalList(list.id, response.text);
+        if (revision) parsed = bindExternalListSource(parsed, response.text, sourceUrl, revision);
+        if (
+          "reviewed_revision" in list &&
+          revision !== list.reviewed_revision &&
+          !this.leads.external?.lists[list.id]
+        ) {
+          const baselineUrl = `https://raw.githubusercontent.com/${list.revision_repository}/${list.reviewed_revision}/${list.revision_path}`;
+          const baseline = await this.source.http.request(
+            "GET",
+            baselineUrl,
+            undefined,
+            false,
+            list.cap,
+          );
+          this.save(`${name}-reviewed-baseline`, { url: baselineUrl, ...baseline });
+          if (baseline.status !== 200)
+            throw new Error(
+              "Reviewed external source baseline unavailable; retain canonical overlap as unknown",
+            );
+          const baselineParsed = bindExternalListSource(
+            parseExternalList(list.id, baseline.text),
+            baseline.text,
+            baselineUrl,
+            list.reviewed_revision,
+          );
+          this.leads = {
+            ...this.leads,
+            external: mergeExternalList(
+              this.leads.external,
+              list.id,
+              baselineParsed,
+              at,
+              path.join(this.runDir, `${name}-reviewed-baseline.json`),
+            ),
+          };
+        }
         this.leads = linkExternalHints(
           {
             ...this.leads,
@@ -1169,6 +1225,9 @@ export class DiscoverySession {
     lead.status = outcome;
     lead.disposition = { reason: text(v.reason), resume: text(v.resume) };
     lead.checked_at = this.journal.started_at;
+    for (const hint of Object.values(this.leads.external?.hints ?? {}))
+      if (hint.resolution?.id === lead.id) delete hint.source_change;
+    delete lead.external_change;
     if (!this.knownLeadUrls().has(lead.url.toLowerCase())) this.researchedLeads.add(lead.id);
     this.persist();
     return lead;

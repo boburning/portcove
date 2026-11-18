@@ -124,6 +124,26 @@ describe("detail workspace navigation", () => {
     expect(selectedId).toBeUndefined();
   });
 
+  it("returns to the containing panel while a saved-folder review action reloads", async () => {
+    const panel = document.createElement("article");
+    panel.dataset.detailOrigin = "game-file-libraries-setup";
+    panel.tabIndex = -1;
+    const review = document.createElement("button");
+    review.dataset.detailOrigin = "ready-game-notice:port-a:hash";
+    const refresh = document.createElement("button");
+    panel.append(refresh, review);
+    document.body.append(panel);
+
+    await act(async () => navigation.open("port-a", review.dataset.detailOrigin, "files"));
+    review.remove();
+    await act(async () => navigation.close());
+
+    expect(document.activeElement).toBe(panel);
+    refresh.focus();
+    panel.append(review);
+    expect(document.activeElement).toBe(refresh);
+  });
+
   it("restores the stable command trigger after a command opens details", async () => {
     const commandTrigger = document.createElement("button");
     commandTrigger.dataset.detailOrigin = "command-trigger:library";

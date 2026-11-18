@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { desktopApi } from "../../api";
-import type { GameFileRoot, GameFileScanSnapshot, SourceRecord } from "../../types";
+import type { GameFileRoot, GameFileScanSnapshot, OperationEvent, SourceRecord } from "../../types";
 import { errorText, isCancellation } from "../../view-model";
 
 export const gameFileScanLimits = {
@@ -18,7 +18,6 @@ export const gameFileScanLimits = {
   max_hash_bytes: 16 * 1024 * 1024 * 1024,
   max_candidates: 64,
 };
-export const maxAvailableRootsPerScan = 8;
 export function availableRootCount(roots: readonly GameFileRoot[]) {
   return roots.filter((root) => root.availability === "available").length;
 }
@@ -26,6 +25,7 @@ export function availableRootCount(roots: readonly GameFileRoot[]) {
 type ScanState = {
   scanning: boolean;
   operationId?: string;
+  completedBatches?: number;
   candidates: Pick<SourceRecord, "profile_id" | "path" | "sha256" | "size">[];
   completion: number;
   result?: GameFileScanSnapshot;
@@ -46,7 +46,10 @@ export function useGameFileScan(generation: number) {
       delete current.active;
     };
   }, []);
-  const start = async (readRoots = () => desktopApi.gameFileRoots(generation)) => {
+  const start = async (
+    readRoots = () => desktopApi.gameFileRoots(generation),
+    finishScanId?: string,
+  ) => {
     const current = owner.current;
     if (current.active || current.disposed) return;
     const token = {};
@@ -59,10 +62,7 @@ export function useGameFileScan(generation: number) {
     try {
       const roots = await readRoots();
       if (!accepts()) return;
-      if (availableRootCount(roots) > maxAvailableRootsPerScan) {
-        notice =
-          "A scan supports at most eight available folders. Remove an available folder and scan again.";
-      } else if (!availableRootCount(roots)) {
+      if (!availableRootCount(roots)) {
         notice = "No saved folder is available. Reconnect or relink one, then scan again.";
       } else {
         // A corrupt old observation must not prevent Core's explicit fresh-scan recovery.
@@ -76,6 +76,9 @@ export function useGameFileScan(generation: number) {
             ? snapshot
             : undefined;
         const continuing = continuingScan();
+        if (finishScanId !== undefined && continuing?.matches?.scan_id !== finishScanId) {
+          throw new Error("This saved scan changed. Refresh folders before trying to finish it.");
+        }
         const limits = continuing?.limits ?? gameFileScanLimits;
         if (
           Object.entries(gameFileScanLimits).some(
@@ -95,39 +98,46 @@ export function useGameFileScan(generation: number) {
           }));
         }
         let acceptingEvents = true;
-        result = await desktopApi
-          .scanGameFileRoots(limits, generation, (event) => {
-            if (!acceptingEvents || !accepts()) return;
-            if (event.type === "started") {
-              setState((previous) => ({ ...previous, operationId: event.operation_id }));
-            }
-            if (event.schema_version === 3 && event.type === "source_candidate") {
-              setState((previous) => ({
-                ...previous,
-                candidates: previous.candidates.some(
-                  (candidate) =>
-                    candidate.profile_id === event.profile_id && candidate.path === event.path,
-                )
-                  ? previous.candidates
-                  : [
-                      ...previous.candidates,
-                      {
-                        profile_id: event.profile_id,
-                        path: event.path,
-                        sha256: event.sha256,
-                        size: event.size,
-                      },
-                    ].slice(0, limits.max_candidates),
-              }));
-            }
-          })
-          .finally(() => {
-            // oxlint-disable-next-line react/immutability -- oxc#28401: invocation-local binding.
-            acceptingEvents = false;
-          });
+        const receive = (event: OperationEvent) => {
+          if (!acceptingEvents || !accepts()) return;
+          if (event.type === "started") {
+            setState((previous) => ({ ...previous, operationId: event.operation_id }));
+          }
+          if (event.type === "progress" && event.phase_id === "saved_folder_scan_checkpoints") {
+            setState((previous) => ({ ...previous, completedBatches: event.completed }));
+          }
+          if (event.schema_version === 3 && event.type === "source_candidate") {
+            setState((previous) => ({
+              ...previous,
+              candidates: previous.candidates.some(
+                (candidate) =>
+                  candidate.profile_id === event.profile_id && candidate.path === event.path,
+              )
+                ? previous.candidates
+                : [
+                    ...previous.candidates,
+                    {
+                      profile_id: event.profile_id,
+                      path: event.path,
+                      sha256: event.sha256,
+                      size: event.size,
+                    },
+                  ].slice(0, limits.max_candidates),
+            }));
+          }
+        };
+        const scanRequest =
+          finishScanId === undefined
+            ? desktopApi.scanGameFileRoots(limits, generation, receive)
+            : desktopApi.scanGameFileRoots(limits, generation, receive, finishScanId);
+        result = await scanRequest.finally(() => {
+          // oxlint-disable-next-line react/immutability -- oxc#28401: invocation-local binding.
+          acceptingEvents = false;
+        });
       }
     } catch (value) {
-      if (isCancellation(value)) notice = "Scan cancelled. The previous results were kept.";
+      if (isCancellation(value))
+        notice = "Scan cancelled. Results from completed batches were kept.";
       else error = errorText(value);
     } finally {
       if (accepts()) {

@@ -473,7 +473,7 @@ export async function gameFirstScenarios({
       );
       assert.deepEqual(
         matchingIds.sort((a, b) => a.localeCompare(b)),
-        [...pair].sort((a, b) => a.localeCompare(b)),
+        pair.toSorted((a, b) => a.localeCompare(b)),
         "Only explicit game identities may form this group; other search matches remain independent",
       );
       for (const port of ports)

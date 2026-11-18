@@ -29,12 +29,20 @@ export function focusableControls(scope: HTMLElement | Document = navigationScop
   return [...scope.querySelectorAll<HTMLElement>(selector)].filter(visibleControl);
 }
 
-export function focusAndReveal(item: HTMLElement | null | undefined) {
-  const region = item?.closest<HTMLElement>("[data-focus-region]");
-  if (item && region) regionFocus.set(region, item);
-  item?.focus({ preventScroll: true });
-  item?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  if (item) containWithinScroller(item);
+export function focusAndReveal(
+  item: HTMLElement | null | undefined,
+  { centerBeforeFocus = false } = {},
+) {
+  if (!item) return;
+  const region = item.closest<HTMLElement>("[data-focus-region]");
+  if (region) regionFocus.set(region, item);
+  // Default consumers can resize on focus. A completion handoff centers before
+  // focusin so workspace feedback reflow records the destination's new position.
+  const moveFocus = () => item.focus({ preventScroll: true });
+  if (!centerBeforeFocus) moveFocus();
+  item.scrollIntoView({ block: centerBeforeFocus ? "center" : "nearest", inline: "nearest" });
+  containWithinScroller(item);
+  if (centerBeforeFocus) moveFocus();
 }
 
 /**

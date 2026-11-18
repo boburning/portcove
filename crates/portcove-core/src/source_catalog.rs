@@ -813,6 +813,7 @@ impl SourceIdentityProfile {
         )?;
 
         let mut deterministic_owners = HashMap::new();
+        let mut relative_directory_only = None;
         for variant in &self.variants {
             require_text(&variant.title, "source variant title")?;
             validate_text_values("source product code", &variant.product_codes)?;
@@ -835,6 +836,20 @@ impl SourceIdentityProfile {
                 )?;
                 representation.validate(validators)?;
                 if !variant.legacy_projection_only {
+                    if let SourceRepresentationKind::RelativeFileSet { members } =
+                        &representation.kind
+                    {
+                        let directory_only = crate::relative_file_set::requires_directory(members);
+                        if relative_directory_only
+                            .replace(directory_only)
+                            .is_some_and(|earlier| earlier != directory_only)
+                        {
+                            return Err(PortcoveError::usage(format!(
+                                "{} mixes ZIP-compatible and directory-only relative file sets",
+                                self.id
+                            )));
+                        }
+                    }
                     for key in representation.deterministic_match_keys()? {
                         if let Some(previous) =
                             deterministic_owners.insert(key, variant.id.as_str())

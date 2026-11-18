@@ -1,0 +1,81 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "street-rod-sdl3-port",
+    "name": "Street Rod / SDL3 Port",
+    "summary": "Use your own DOS Street Rod game data with the Windows package or a source build on Linux or Mac.",
+    "original_game_title": "Street Rod",
+    "project_url": "https://github.com/kylofon/street-rod-sdl3",
+    "issue_number": 5855,
+    "listed_at": "2026-11-17",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/kylofon/street-rod-sdl3/blob/v0.1.0/README.md",
+    "release_url": "https://github.com/kylofon/street-rod-sdl3/releases/tag/v0.1.0",
+    "download_asset_hints": {
+      "windows-x86-64": ["srport-", "-win64.zip"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare a writable copy of your original game",
+          "instruction": "Use your own DOS Street Rod data, or get the free DOS files from the copyright owner through the link in the upstream guide. Keep SR.EXE, LIB1, LIB2 and HOT_DATA together in a writable Game copy. For optional Street Rod SE cars, keep SRSE.EXE and its matching data in Game/datadisk."
+        },
+        {
+          "title": "Use the upstream Windows setup",
+          "instruction": "Extract the complete Windows x64 ZIP into its own folder and keep both executables and every DLL together. Open Street Rod.exe to choose your data and options. Choose original cars or Street Rod SE cars deliberately. The launcher uses the matching dataset for each."
+        },
+        {
+          "title": "Build the direct player on Linux",
+          "instruction": "The reviewed release has no Linux package. Use the upstream source with a C11 compiler, CMake 3.24 or newer and SDL3 development files. From the repository root, run cmake -S srport -B build -DCMAKE_BUILD_TYPE=Release -DSR_LAUNCHER=OFF -DCMAKE_C_STANDARD_LIBRARIES=-lm, then cmake --build build --target srport. The extra math-library flag is needed on Linux. Keep the built srport and its SDL3 runtime available. The Windows ZIP and launcher are not used on Linux."
+        },
+        {
+          "title": "Build the direct player on Mac",
+          "instruction": "Use a C11 compiler, CMake 3.24 or newer and the macOS SDL3 framework from SDL’s official development package. Keep SDL3.framework in a stable folder. From the repository root, run cmake -S srport -B build -DCMAKE_BUILD_TYPE=Release -DSR_LAUNCHER=OFF -DSDL3_DIR=\"/full/path/SDL3.framework/Resources/CMake\" -DCMAKE_BUILD_RPATH=\"/full/path/framework-folder\", then cmake --build build --target srport. Replace both paths with your actual framework locations. Build on the Mac you will use, so the player matches Intel or Apple Silicon. Keep the framework folder in place after building. The Windows ZIP and launcher are not used. Native Mac game startup and saving have not been tested."
+        },
+        {
+          "title": "Register the actual player in Portcove",
+          "instruction": "On Windows, choose srport.exe as the existing installation; on Linux or Mac, choose the built srport. Choose the player’s containing directory as the working directory. Add --game-dir and your writable game-data folder as two separate arguments. For Street Rod SE, choose the datadisk folder. Review the selected player, folder and arguments, then choose Play. The separate upstream launcher can stay open or close while its game continues."
+        }
+      ],
+      "warnings": [
+        "Use your own original game files. The native port includes reconstructed original program behavior and its own separately licensed port code."
+      ],
+      "references": [
+        {
+          "title": "Keep your settings and progress before replacing files",
+          "instruction": "Back up HOTROD1.SAV through HOTROD15.SAV and hall_dat with each working dataset. Keep the original-car and datadisk-car folders separate so each retains its own progress. Copy %APPDATA%/Street Rod/settings.ini as well. Close both the player and launcher before replacing files. Portcove keeps a launch registration. You and upstream own runtime replacement and backups. Removing the registration leaves the working files and profile in place."
+        },
+        {
+          "title": "SDL3 development framework for Mac",
+          "instruction": "Get the official SDL3 development download from https://github.com/libsdl-org/SDL/releases/latest. Use SDL3.framework from the macos-arm64_x86_64 folder in SDL3.xcframework. The iOS and simulator frameworks are different targets."
+        },
+        {
+          "title": "Other platforms",
+          "instruction": "Windows x64 has the reviewed official package. Linux x64 uses the upstream source build described above, with no reviewed Linux package. Intel Mac and Apple Silicon use the upstream source build described above. Both native architectures were built; Mac game execution remains untested, and there is no reviewed Mac package. Android has no reviewed package or mobile host integration. Those platforms do not inherit the Windows or Linux observations."
+        }
+      ],
+      "help_url": "https://github.com/kylofon/street-rod-sdl3/blob/v0.1.0/README.md"
+    },
+    "artwork": {
+      "game_id": 19229,
+      "cover_id": 289884,
+      "image_id": "co67oc",
+      "image_sha256": "427b375020b0410bd5c2bb0661ca1d395fc88e6636e58572654245291016aad0",
+      "game_slug": "street-rod",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "street-rod-sdl3-port",
+    "origin": {
+      "project_url": "https://github.com/kylofon/street-rod-sdl3",
+      "repository": {
+        "host": "github.com",
+        "id": "1389478996"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "wwe-smackdown-vs-raw-2007-native-pc-linux-steam-deck-nefariousjosiah-wwe-smackdown-vs-raw-2007",
+    "artwork": {
+      "game_id": 7252,
+      "cover_id": 212983,
+      "image_id": "co4kc7",
+      "image_sha256": "67695ffc1a9bc9a5b41ef3d1ce2df91b84223497b65b7ed1e351f43577744f1d",
+      "game_slug": "wwe-smackdown-vs-raw-2007",
+      "match_kind": "underlying-game"
+    },
     "name": "WWE SmackDown vs. Raw 2007 — WWE SmackDown vs. Raw 2007 — native PC, Linux & Steam Deck (nefariousjosiah)",
     "original_game_title": "WWE SmackDown vs. Raw 2007",
     "summary": "The project describes gameplay. Keyboard and widescreen behaviour have incomplete testing. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",

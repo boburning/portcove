@@ -35,11 +35,18 @@ interface ProbeObservation {
 interface HoldObservation extends ProbeObservation {
   originalAvailability: string | null;
 }
+interface HoldCleanupFailure {
+  message: string;
+  restored: boolean;
+  injected?: number;
+  originalAvailability?: string | null;
+}
 interface HeldObservations {
   injection: string;
   launch_before: PortStatus;
   launch_during?: PortStatus;
   launch_probe?: HoldObservation;
+  launch_cleanup_failure?: HoldCleanupFailure;
   install_before?: PortStatus;
   install_during?: PortStatus;
   install_after?: PortStatus;
@@ -47,6 +54,7 @@ interface HeldObservations {
   selected_source?: string;
   review_text?: string;
   install_probe?: HoldObservation;
+  install_cleanup_failure?: HoldCleanupFailure;
   failure?: string;
 }
 type HoldContext = Pick<ReadinessContext, "browser" | "output" | "artifacts" | "command"> & {
@@ -67,6 +75,7 @@ function readinessCommand(command: FixtureCommand) {
 }
 import { errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
+import { requireTrustedProbeCleanup } from "./desktop-owned-ipc-probe.mts";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
@@ -81,6 +90,8 @@ import {
 // Calibrated from 10 s (#4879): the readiness omission appears only on the next
 // get_workspace_snapshot, which takes 6-15 s on the hosted debug build
 // (run 43616138586). Harness only.
+// Held assessments use the same refresh path, including a joined in-flight read
+// before the new snapshot; the former 10s hold wait ended before any injection.
 const READINESS_REFRESH_MS = 60_000;
 
 export async function injectActionHold(browser: WebDriver, portId: string, action: string) {
@@ -171,46 +182,75 @@ export async function injectActionHold(browser: WebDriver, portId: string, actio
 export async function restoreActionHold(
   browser: WebDriver,
   expectedAvailability: string,
+  options: {
+    primaryFailure?: { error: unknown } | undefined;
+    recordFailure?: (failure: HoldCleanupFailure) => void;
+  } = {},
 ): Promise<HoldObservation> {
-  const result = object(
-    await browser.executeAsyncScript<unknown>((done: (result: unknown) => void) => {
-      const runtime = window as ReadinessWindow;
-      const probe = runtime.__portcoveActionHoldProbe;
-      if (!probe) return done({ installed: false });
-      window.fetch = probe.original;
-      delete runtime.__portcoveActionHoldProbe;
-      const observation = {
-        injected: probe.injected,
-        originalAvailability: probe.originalAvailability,
-        restored: window.fetch === probe.original,
-      };
-      const native = runtime.__TAURI_INTERNALS__;
-      if (!native) throw new Error("Native bridge unavailable");
-      void native
-        .invoke("plugin:event|emit", {
-          event: "portcove://library-changed",
-          payload: "action-hold-probe-restored",
-        })
-        .then(
-          () => done(observation),
-          (error: unknown) => done({ ...observation, error: String(error) }),
-        );
-    }),
-  );
-  assert.equal(result.restored, true, JSON.stringify(result));
-  assert.ok(
-    typeof result.injected === "number" && result.injected > 0,
-    "The held assessment must reach an actual native snapshot",
-  );
-  assert.equal(result.originalAvailability, expectedAvailability);
-  assert.equal(result.error, undefined, JSON.stringify(result));
-  assert.ok(typeof result.originalAvailability === "string");
-  return {
-    ...result,
-    injected: result.injected,
-    restored: true,
-    originalAvailability: result.originalAvailability,
-  };
+  let restored = false;
+  let observation: Record<string, unknown> | undefined;
+  try {
+    const result = object(
+      await browser.executeAsyncScript<unknown>((done: (result: unknown) => void) => {
+        const runtime = window as ReadinessWindow;
+        const probe = runtime.__portcoveActionHoldProbe;
+        if (!probe) return done({ installed: false });
+        window.fetch = probe.original;
+        delete runtime.__portcoveActionHoldProbe;
+        const observation = {
+          injected: probe.injected,
+          originalAvailability: probe.originalAvailability,
+          restored: window.fetch === probe.original,
+        };
+        const native = runtime.__TAURI_INTERNALS__;
+        if (!native) throw new Error("Native bridge unavailable");
+        void native
+          .invoke("plugin:event|emit", {
+            event: "portcove://library-changed",
+            payload: "action-hold-probe-restored",
+          })
+          .then(
+            () => done(observation),
+            (error: unknown) => done({ ...observation, error: String(error) }),
+          );
+      }),
+    );
+    observation = result;
+    restored = result.restored === true;
+    assert.equal(result.restored, true, JSON.stringify(result));
+    assert.ok(
+      typeof result.injected === "number" && result.injected > 0,
+      "The held assessment must reach an actual native snapshot",
+    );
+    assert.equal(result.originalAvailability, expectedAvailability);
+    assert.equal(result.error, undefined, JSON.stringify(result));
+    assert.ok(typeof result.originalAvailability === "string");
+    return {
+      ...result,
+      injected: result.injected,
+      restored: true,
+      originalAvailability: result.originalAvailability,
+    };
+  } catch (error) {
+    const failure = options.primaryFailure ? options.primaryFailure.error : error;
+    try {
+      options.recordFailure?.({
+        message: errorMessage(error),
+        restored,
+        ...(typeof observation?.injected === "number" ? { injected: observation.injected } : {}),
+        ...(typeof observation?.originalAvailability === "string" ||
+        observation?.originalAvailability === null
+          ? { originalAvailability: observation.originalAvailability }
+          : {}),
+      });
+    } catch (recordError) {
+      console.error("Could not record held-assessment cleanup failure", errorMessage(recordError));
+    }
+    // A restored but unused injection is still a failed observation. Unknown
+    // fetch restoration additionally requires the existing outer teardown.
+    requireTrustedProbeCleanup({ trustworthy: restored }, failure);
+    throw failure;
+  }
 }
 
 async function observeHeldLaunch({
@@ -222,6 +262,7 @@ async function observeHeldLaunch({
   held,
 }: HoldContext & { held: HeldObservations }) {
   const command = readinessCommand(rawCommand);
+  let primaryFailure: { error: unknown } | undefined;
   try {
     await injectActionHold(browser, port.id, "launch");
     await browser.wait(
@@ -229,7 +270,8 @@ async function observeHeldLaunch({
         (await browser.findElement(By.css(".detail-panel")).getText()).includes(
           "Launch is on hold. The catalog publisher was revoked.",
         ),
-      10_000,
+      READINESS_REFRESH_MS,
+      "Held launch assessment did not reach the native detail after refresh",
     );
     await revealDetailSection(browser, "Game files");
     const play = await browser.findElement(By.css(".detail-panel .primary-actions button"));
@@ -249,13 +291,29 @@ async function observeHeldLaunch({
     held.launch_during = command(["status", port.id]);
     assert.equal(required(held.launch_during.active).id, required(held.launch_before.active).id);
     assert.equal(held.launch_during.successful_launches, held.launch_before.successful_launches);
+  } catch (error) {
+    primaryFailure = { error };
+    throw error;
   } finally {
-    held.launch_probe = await restoreActionHold(browser, "allowed");
+    held.launch_probe = await restoreActionHold(browser, "allowed", {
+      primaryFailure,
+      recordFailure: (failure) => {
+        held.launch_cleanup_failure = failure;
+      },
+    });
   }
-  await browser.wait(async () => {
-    const play = await primaryActionState(browser);
-    return play?.text === "Try launch" && play.enabled;
-  }, 10_000);
+  // Calibrated from 10 s (#4879): restoring the hold emits a library change whose
+  // debug-build workspace refresh takes 5-15 s; branch run 43783868461 (and run
+  // 43743277016) still showed the held launch after 10 s. "Try launch" and an
+  // enabled action are still required.
+  await browser.wait(
+    async () => {
+      const play = await primaryActionState(browser);
+      return play?.text === "Try launch" && play.enabled;
+    },
+    60_000,
+    "Restored launch hold did not return to Try launch",
+  );
 }
 
 /**
@@ -301,6 +359,7 @@ async function observeHeldInstall({
   held.review_text = await browser.findElement(installDialog).getText();
   assert.match(held.review_text, /v0\.1\.4/);
   assert.match(held.review_text, /Install folder/);
+  let primaryFailure: { error: unknown } | undefined;
   try {
     await injectActionHold(browser, openPete.id, "install");
     await browser.wait(
@@ -309,7 +368,8 @@ async function observeHeldInstall({
         (await browser.findElement(By.css(".detail-panel")).getText()).includes(
           "Setup is on hold. The catalog publisher was revoked.",
         ),
-      10_000,
+      READINESS_REFRESH_MS,
+      "Held installation assessment did not reach the native detail after refresh",
     );
     const primary = await browser.findElement(By.css(".detail-panel .primary-actions button"));
     assert.equal(await primary.getText(), "Installation unavailable");
@@ -335,8 +395,16 @@ async function observeHeldInstall({
     held.install_during = command(["status", openPete.id]);
     assert.equal(held.install_during.active ?? null, null);
     assert.deepEqual(command(["source", "list"]), held.sources_before);
+  } catch (error) {
+    primaryFailure = { error };
+    throw error;
   } finally {
-    held.install_probe = await restoreActionHold(browser, "waiting");
+    held.install_probe = await restoreActionHold(browser, "waiting", {
+      primaryFailure,
+      recordFailure: (failure) => {
+        held.install_cleanup_failure = failure;
+      },
+    });
   }
   await browser.wait(async () => {
     const reviews = await browser.findElements(controls.button("Review installation"));
@@ -359,17 +427,29 @@ async function observeActionHolds({ browser, output, artifacts, command, port }:
     injection: "replace one assessed action in actual native workspace snapshots only",
     launch_before: readinessCommand(command)(["status", port.id]),
   };
+  let primaryFailure: { error: unknown } | undefined;
   try {
     await observeHeldLaunch({ browser, output, artifacts, command, port, held });
     await observeHeldInstall({ browser, output, artifacts, command, port, held });
   } catch (error) {
+    primaryFailure = { error };
     held.failure = errorMessage(error);
-    throw error;
-  } finally {
-    const report = path.join(output, "native-action-hold-observations.json");
+  }
+  let receiptFailure: { error: unknown } | undefined;
+  const report = path.join(output, "native-action-hold-observations.json");
+  try {
     await writeFile(report, JSON.stringify(held, null, 2), { flag: "wx" });
     artifacts.push(report);
+  } catch (error) {
+    receiptFailure = { error };
+    console.error("Could not retain held-assessment observations", errorMessage(error), {
+      failure: held.failure,
+      launch_cleanup_failure: held.launch_cleanup_failure,
+      install_cleanup_failure: held.install_cleanup_failure,
+    });
   }
+  if (primaryFailure) throw primaryFailure.error;
+  if (receiptFailure) throw receiptFailure.error;
 }
 
 async function detailLayout(browser: WebDriver, summary: string) {

@@ -1,7 +1,7 @@
 import { startDevelopmentScenarios } from "../start";
 import { act } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { startInteractiveScenarios, stopInteractiveScenarios } from "./entry";
 import { recoveryKey } from "./transport";
 import { desktopApi } from "../../api";
@@ -33,8 +33,13 @@ afterEach(async () => {
   window.history.replaceState(null, "", "/");
 });
 
-async function mount(journey: string) {
-  window.history.replaceState(null, "", `/scenarios.html?mode=interactive&journey=${journey}`);
+async function mount(journey: string, embedded = false) {
+  const embed = embedded ? "&embed=1" : "";
+  window.history.replaceState(
+    null,
+    "",
+    `/scenarios.html?mode=interactive&journey=${journey}${embed}`,
+  );
   document.body.innerHTML = new DOMParser().parseFromString(
     scenarioShell,
     "text/html",
@@ -278,6 +283,39 @@ it("returns to the exact older recovery activity after opening its game", async 
   await click("Back to previous workspace");
   await expect.poll(() => document.activeElement?.getAttribute("data-detail-origin")).toBe(origin);
   expect(document.querySelector('[data-activity-id="recovery-history-12"]')).not.toBeNull();
+});
+
+it("reveals the entire Activity target focus ring after returning at a narrow width", async () => {
+  await page.viewport(430, 780);
+  // Measure real document scrolling instead of the inert scrollTo used by other scenarios.
+  Reflect.deleteProperty(HTMLElement.prototype, "scrollTo");
+  try {
+    await mount("activity", true);
+    await navigateTo("Activity");
+    const target = '[data-detail-origin="updates:activity:fixture-retained-harbor:target"]';
+    const opener = page.getByRole("button", { name: "Harbor Adventure", exact: true });
+    await expect.element(opener).toBeVisible();
+    document.querySelector<HTMLButtonElement>(target)!.focus();
+    await userEvent.keyboard("{Enter}");
+
+    const back = page.getByRole("button", { name: "Back to previous workspace", exact: true });
+    await expect.element(back).toBeVisible();
+    document.querySelector<HTMLButtonElement>("[data-detail-back]")!.focus();
+    await userEvent.keyboard("{Enter}");
+
+    await expect.poll(() => document.activeElement?.matches(target)).toBe(true);
+    const restored = document.querySelector<HTMLButtonElement>(target)!;
+    const ring = getComputedStyle(restored);
+    expect(restored.matches(":focus-visible")).toBe(true);
+    expect(ring.outlineStyle).toBe("solid");
+    const outlineEnd =
+      restored.getBoundingClientRect().bottom +
+      parseFloat(ring.outlineWidth) +
+      parseFloat(ring.outlineOffset);
+    expect(outlineEnd).toBeLessThanOrEqual(window.innerHeight);
+  } finally {
+    await page.viewport(1280, 800);
+  }
 });
 
 it("opens current Settings read surfaces without fixture refusals", async () => {

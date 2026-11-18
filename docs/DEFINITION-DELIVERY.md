@@ -202,6 +202,12 @@ starts without inheriting the job handle. Fresh and retained indexed Snap64
 entries that declare the tracked handoff require version 35. Previously
 admitted tracked definitions for other ports retain their original minimum.
 
+Native portable version 36 recognizes `classify_linux_programs_by_format` in
+reviewed Linux x86-64 package layouts. Fresh and retained entries using that
+option require version 36. Core still fingerprints ELF programs, `#!` scripts,
+program and script names, and any library-named file whose header is not a
+verified shared object.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted
@@ -1811,6 +1817,11 @@ observations. Exact native tag identities use the existing project/tag reference
 IDs retain their shape, and older incapable readers refuse the directory while
 retaining their last-good selection. This is data compatibility, not a publisher
 grant or permission to acquire or execute a package.
+
+Listing format 12 adds optional implementation methods and shared dependencies.
+Earlier-format exports omit that inert envelope while preserving setup facts and
+acquisition restrictions. A format-12 publication needs compatible reader coverage;
+this implementation does not authorize a protected publication or change its keys.
 
 Listing formats 9 (first-listed dates) and 10 (funding links) follow the same rule.
 A delivered directory declares one format for the whole snapshot, so publishing at

@@ -31,6 +31,8 @@ export interface PreparationContext {
   artifacts: string[];
   cli: string;
   tool: string;
+  /** Owned install-fixture catalog when the update review serves its own release. */
+  catalogPath?: string;
   confirmNative: ReturnType<typeof nativeConfirmation>;
   restartApplication: (
     name: string,
@@ -152,6 +154,7 @@ import {
   setupReviewButton,
 } from "./desktop-review-controls.mts";
 import { readinessScenario } from "./desktop-readiness-test.mts";
+import { secondaryPanelsScenario } from "./desktop-secondary-panels-test.mts";
 import { steamEntryScenario } from "./desktop-steam-entry-test.mts";
 import { sourceDialogScenario } from "./desktop-source-dialog-test.mts";
 import { primaryFilePickerScenario } from "./desktop-primary-file-picker-test.mts";
@@ -163,6 +166,10 @@ import { listenerLifetimeScenario } from "./desktop-listener-lifetime-test.mts";
 // reload on "Opening your Portcove library" past 15 s. The wait returns as soon
 // as primary navigation renders.
 const reloadBootstrapBudgetMs = 60_000;
+// Native run 17 still had a fresh workspace read pending after the former 15s
+// cancellation-row wait; its preceding read took 23.926s. Launch settlement also
+// includes game exit and save collection, as the existing first Play wait does.
+const nativeSettlementBudgetMs = 60_000;
 
 export function assertPreparationReviewSummary(text: string) {
   const normalized = text.replace(/\s+/gu, " ").trim();
@@ -1026,6 +1033,97 @@ export function assertPreparedLibrarySummary(
   assert.equal(text.replace(/\s+/gu, " ").trim(), `${installed.length} in your library`);
 }
 
+export interface LibraryFooterKeyboardPoint {
+  originFocused: boolean;
+  withinCard: boolean;
+  footerFocused: boolean;
+  tabStops: number;
+}
+
+/** Follow the actual Tab order; never rescue a skipped action with focus() or scrolling. */
+export async function reachLibraryFooterAction(
+  observe: () => Promise<LibraryFooterKeyboardPoint>,
+  pressTab: () => Promise<void>,
+) {
+  const origin = await observe();
+  assert.ok(origin.originFocused && origin.withinCard, "Start at the owned Library More action");
+  assert.ok(Number.isSafeInteger(origin.tabStops) && origin.tabStops > 0);
+  for (let step = 0; step < origin.tabStops; step++) {
+    await pressTab();
+    const point = await observe();
+    assert.ok(point.withinCard, "Tab left the owned Library card before its primary action");
+    if (point.footerFocused) return { ...point, tabPresses: step + 1 };
+  }
+  throw new Error("The owned Library primary action was not reached through its Tab order");
+}
+
+export function libraryFooterKeyboardPoint(originSelector: string) {
+  const origin = document.querySelector(originSelector);
+  if (!(origin instanceof HTMLButtonElement)) throw new Error("Library More action disappeared");
+  const card = origin.closest(".collection-entry");
+  if (!card) throw new Error("Library action has no owning card");
+  const footer = card.querySelector<HTMLButtonElement>(
+    '.library-entry-footer .library-card-action:not(:disabled):not([aria-disabled="true"])',
+  );
+  if (!footer) throw new Error("The owned Library card has no enabled primary action");
+  const rectangle = footer.getBoundingClientRect();
+  const workspace = document.querySelector('main[data-focus-region="workspace"]');
+  const clip = workspace?.getBoundingClientRect();
+  const style = getComputedStyle(footer);
+  const outlineWidth = Number.parseFloat(style.outlineWidth || "0");
+  const ring =
+    style.outlineStyle === "none" || !Number.isFinite(outlineWidth) || outlineWidth <= 0
+      ? 0
+      : outlineWidth + Math.max(0, Number.parseFloat(style.outlineOffset || "0"));
+  return {
+    originFocused: document.activeElement === origin,
+    withinCard: card.contains(document.activeElement),
+    footerFocused: document.activeElement === footer,
+    tabStops: [
+      ...card.querySelectorAll<HTMLElement>(
+        "button,a[href],input,select,textarea,summary,[tabindex]",
+      ),
+    ].filter(
+      (element) =>
+        element.tabIndex >= 0 &&
+        !element.matches(':disabled,[aria-disabled="true"]') &&
+        element.getClientRects().length > 0,
+    ).length,
+    name: footer.getAttribute("aria-label") || footer.textContent?.trim(),
+    documentFocused: document.hasFocus(),
+    zoom: localStorage.getItem("portcove.appearance.interface-size"),
+    rectangle: {
+      top: rectangle.top,
+      bottom: rectangle.bottom,
+      left: rectangle.left,
+      right: rectangle.right,
+    },
+    ring,
+    fullyVisible:
+      rectangle.top - ring >= Math.max(0, clip?.top ?? 0) - 1 &&
+      rectangle.bottom + ring <= Math.min(innerHeight, clip?.bottom ?? innerHeight) + 1 &&
+      rectangle.left - ring >= Math.max(0, clip?.left ?? 0) - 1 &&
+      rectangle.right + ring <= Math.min(innerWidth, clip?.right ?? innerWidth) + 1,
+  };
+}
+
+export function libraryFooterCaptureReady(point: {
+  footerFocused: boolean;
+  documentFocused: boolean;
+  fullyVisible: boolean;
+  zoom: string | null;
+  ring: number;
+}) {
+  return (
+    point.footerFocused &&
+    point.documentFocused &&
+    point.fullyVisible &&
+    point.zoom === "200" &&
+    Number.isFinite(point.ring) &&
+    point.ring > 0
+  );
+}
+
 /** Observe one owned Library action and retain its exact visual evidence. */
 export async function captureLibraryAction(
   browser: WebDriver,
@@ -1088,6 +1186,45 @@ export async function captureLibraryAction(
       ),
   });
   artifacts.push(capture.image.path, capture.receipt);
+  const reached = await reachLibraryFooterAction(
+    () => executeBrowserScript(browser, libraryFooterKeyboardPoint, selector),
+    () => browser.actions().sendKeys(Key.TAB).perform(),
+  );
+  await browser.wait(
+    async () => {
+      const point = await executeBrowserScript(browser, libraryFooterKeyboardPoint, selector);
+      return libraryFooterCaptureReady(point);
+    },
+    5_000,
+    "The Tab-reached Library primary action and its focus ring must fit at200%",
+  );
+  const footerSelector = `.collection-entry:has(${selector}) .library-entry-footer .library-card-action:not(:disabled):not([aria-disabled="true"])`;
+  const footerCapture = await captureSettledVisual({
+    browser,
+    output,
+    name: `library-${theme}-${layout === "Covers" ? "covers" : "rows"}-200-footer`,
+    scenario: "native-library-layout",
+    target: footerSelector,
+    observeTarget: () =>
+      executeBrowserScript(browser, observeVisibleTarget, footerSelector, "visual" as const),
+    readiness: async () => {
+      const point = await executeBrowserScript(browser, libraryFooterKeyboardPoint, selector);
+      return {
+        ready: libraryFooterCaptureReady(point),
+        point,
+        tabPresses: reached.tabPresses,
+        feedbackFixture: "Owned DOM-only artwork feedback; imported artwork remains available",
+        interaction: "Actual Tab from More; no forced focus or scrolling",
+      };
+    },
+  });
+  artifacts.push(footerCapture.image.path, footerCapture.receipt);
+  for (let step = 0; step < reached.tabPresses; step++)
+    await browser.actions().keyDown(Key.SHIFT).sendKeys(Key.TAB).keyUp(Key.SHIFT).perform();
+  assert.ok(
+    (await executeBrowserScript(browser, libraryFooterKeyboardPoint, selector)).originFocused,
+    "Reverse Tab must return to the original Library More action",
+  );
 }
 
 export async function settleDirectPreparationRecovery(browser: WebDriver) {
@@ -1120,6 +1257,7 @@ export async function preparationScenarios({
   artifacts,
   cli,
   tool,
+  catalogPath,
   confirmNative,
   restartApplication,
   interruptApplication,
@@ -1138,7 +1276,12 @@ export async function preparationScenarios({
     assert.equal(response.ok, true);
     return transportValue(contract, response.value);
   };
-  const command = ownedFixtureCommand({ cli, library, output });
+  const command = ownedFixtureCommand({
+    cli,
+    library,
+    output,
+    ...(catalogPath === undefined ? {} : { catalogPath }),
+  });
   const host: Platform =
     process.platform === "win32"
       ? "windows-x86-64"
@@ -1525,8 +1668,14 @@ export async function preparationScenarios({
         );
       };
       await visibleAction(confirm);
-      await browser.actions().sendKeys(Key.TAB).perform();
       const cancel = await browser.findElement(button("Cancel review"));
+      // The two disclosure summaries precede the footer in the real tab order.
+      // Forward Tab wraps through them before returning to the action buttons.
+      for (const control of [recoveryGuidance, windowGuidance, cancel, confirm]) {
+        await browser.actions().sendKeys(Key.TAB).perform();
+        await visibleAction(control);
+      }
+      await browser.actions().keyDown(Key.SHIFT).sendKeys(Key.TAB).keyUp(Key.SHIFT).perform();
       await visibleAction(cancel);
       const enlarged = path.join(output, "preparation-native-400-observation.json");
       await writeFile(
@@ -1546,6 +1695,12 @@ export async function preparationScenarios({
         { flag: "wx" },
       );
       artifacts.push(enlarged);
+      const enlargedImage = path.join(output, "preparation-native-400.png");
+      await writeFile(enlargedImage, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(enlargedImage);
       // Exercise the real dismissal at enlargement; focus and geometry alone
       // do not establish that the action can actually be used.
       await cancel.click();
@@ -1558,6 +1713,18 @@ export async function preparationScenarios({
         install.id,
         "Enlarged dismissal must not prepare",
       );
+    } catch (error) {
+      try {
+        const failureImage = path.join(output, "preparation-native-400-failure.png");
+        await writeFile(failureImage, await browser.takeScreenshot(), {
+          encoding: "base64",
+          flag: "wx",
+        });
+        artifacts.push(failureImage);
+      } catch (captureError) {
+        console.error("Could not capture the enlarged preparation failure", captureError);
+      }
+      throw error;
     } finally {
       await shortcut("0");
       await browser.wait(
@@ -1671,7 +1838,7 @@ export async function preparationScenarios({
     // most of 15 s (job 132417354795 timed out at 24.5 s on "Working: launch").
     await browser.wait(
       async () => (await status(port.id)).successful_launches > 0,
-      60_000,
+      nativeSettlementBudgetMs,
       "Try launch did not record a successful launch",
     );
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
@@ -1964,6 +2131,16 @@ export async function preparationScenarios({
       5000,
       "Returning from overflow details must focus the originating card menu",
     );
+  });
+  await secondaryPanelsScenario({
+    browser,
+    scenario,
+    library,
+    output,
+    artifacts,
+    invoke: invokeRaw,
+    portId: "opengoal-jak1",
+    confirmNative,
   });
   await scenario("native-library-layout", async () => {
     const first = await seed("opengoal-jak1", "success");
@@ -2730,7 +2907,8 @@ export async function preparationScenarios({
       artifacts.push(afterClickPath);
       await browser.wait(
         async () => (await status(port.id)).successful_launches > before.successful_launches,
-        15_000,
+        nativeSettlementBudgetMs,
+        "Game return did not record a completed successful launch",
       );
       await browser.wait(
         () =>
@@ -2746,13 +2924,13 @@ export async function preparationScenarios({
             gameIdentityLabel(port),
             before.successful_launches,
           ),
-        15_000,
-        "Library did not render the completed launch after the game exited",
+        nativeSettlementBudgetMs,
+        "Library Continue card did not reflect the completed launch after game exit",
       );
       await browser.wait(
         async () =>
           (await play.isEnabled()) && (await play.getAttribute("aria-disabled")) !== "true",
-        15_000,
+        nativeSettlementBudgetMs,
         "Launch origin remained excluded after game return and workspace readback",
       );
       const settled = await executeBrowserScript(browser, launchContinuityPoint, play);
@@ -3096,9 +3274,13 @@ export async function preparationScenarios({
         15_000,
         "Damaged installation verification did not expose its actual failure",
       );
+      // Calibrated from 5 s (#4879): branch run 43783868461 still showed "Check
+      // installed files" disabled after 5 s while the failed verification's
+      // debug-build workspace refresh settled. The action must still re-enable.
       await browser.wait(
         async () => (await browser.findElement(By.css(".primary-actions button"))).isEnabled(),
-        5_000,
+        60_000,
+        "Damaged installation verification did not re-enable its action",
       );
       assert.deepEqual(required((await status(port.id)).readiness).blockers, [
         "invalid_installation",
@@ -3762,7 +3944,7 @@ export async function preparationScenarios({
         until.elementLocated(
           By.css(`.activity-row.cancelled[data-activity-id="${required(activity).id}"]`),
         ),
-        15_000,
+        nativeSettlementBudgetMs,
         "Cancelled preparation must remain discoverable after navigating away",
       );
       const cancelledText = await cancelledRow.getText();
@@ -3786,7 +3968,7 @@ export async function preparationScenarios({
       await selectPrimaryNavigation(browser, "Activity");
       await browser.wait(
         until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
-        15_000,
+        nativeSettlementBudgetMs,
         "Cancelled preparation must remain discoverable after navigating away and returning",
       );
       await browser.navigate().refresh();
@@ -3801,7 +3983,8 @@ export async function preparationScenarios({
       await selectPrimaryNavigation(browser, "Activity");
       await browser.wait(
         until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
-        15_000,
+        nativeSettlementBudgetMs,
+        "Cancelled preparation details must remain discoverable after reload",
       );
       const row = await browser.findElement(By.css(".activity-row.cancelled"));
       assert.match(await row.getText(), /An earlier attempt left unfinished work/);
@@ -3838,7 +4021,7 @@ export async function preparationScenarios({
         15_000,
         "The retained preparation log must render after expansion",
       );
-      assert.match(await row.getText(), /Preparing game files/);
+      assert.match(await row.getText(), /Game file preparation/);
       assert.match(await row.getText(), /owned conversion began/);
       assert.doesNotMatch(
         await row.getText(),

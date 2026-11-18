@@ -47,23 +47,6 @@ pub(crate) fn session_job_name(session_id: &str) -> Option<String> {
     plain.then(|| format!("Local\\Portcove.LaunchSession.{session_id}"))
 }
 
-/// Normalizes a Win32 path for a case-insensitive containment comparison:
-/// verbatim prefixes are removed, separators unified and trailing separators
-/// dropped. It never touches the filesystem.
-#[cfg_attr(not(windows), allow(dead_code))]
-fn comparable_windows_path(path: &str) -> String {
-    let path = path.replace('/', "\\");
-    // `\\?\` verbatim prefix; `\\?\UNC\server\share` becomes `\\server\share`.
-    let path = match path.strip_prefix("\\\\?\\") {
-        Some(verbatim) => match verbatim.strip_prefix("UNC\\") {
-            Some(unc) => format!("\\\\{unc}"),
-            None => verbatim.to_owned(),
-        },
-        None => path,
-    };
-    path.trim_end_matches('\\').to_lowercase()
-}
-
 /// Whether a session job member keeps a tracked-handoff session running. Only
 /// a process whose image lies inside the session's install root holds it; a
 /// browser, launcher client or editor the game opened elsewhere does not. An
@@ -73,8 +56,8 @@ pub(crate) fn member_holds_session(image: Option<&str>, install_root: &str) -> b
     let Some(image) = image else {
         return true;
     };
-    let root = comparable_windows_path(install_root);
-    let image = comparable_windows_path(image);
+    let root = crate::path::comparable_windows_path(install_root);
+    let image = crate::path::comparable_windows_path(image);
     !root.is_empty()
         && image
             .strip_prefix(&root)

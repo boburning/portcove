@@ -339,22 +339,33 @@ function immutableJson(directory: string, name: string, value: unknown) {
 }
 function artworkCatalog(records: readonly AuthoredPort[]): ArtworkCatalog {
   return {
-    ports: records.map(({ listing, integration }) => ({
-      id: listing.id,
-      name: listing.name,
-      project_url: listing.project_url,
-      ...(listing.original_game_title
-        ? {
-            underlying_game: {
-              names: [listing.original_game_title],
-              project_url: listing.project_url,
-              evidence_url: listing.project_url,
-            },
-          }
-        : {}),
-      ...(integration?.source_profile ? { source_profile: integration.source_profile } : {}),
-      presentation: { ...(listing.artwork ? { artwork: listing.artwork } : {}) },
-    })),
+    ports: records.map(({ listing, integration, igdb_regional_cover }) => {
+      const presentation = integration?.presentation;
+      const companion = isRecord(presentation) ? presentation.companion_cover : undefined;
+      return {
+        id: listing.id,
+        name: listing.name,
+        project_url: listing.project_url,
+        ...(igdb_regional_cover ? { igdb_regional_cover } : {}),
+        ...(listing.original_game_title
+          ? {
+              underlying_game: {
+                names: [listing.original_game_title],
+                project_url: listing.project_url,
+                evidence_url: listing.project_url,
+              },
+            }
+          : {}),
+        ...(integration?.source_profile ? { source_profile: integration.source_profile } : {}),
+        presentation: {
+          ...(listing.artwork ? { artwork: listing.artwork } : {}),
+          ...(listing.collection_covers !== undefined
+            ? { collection_covers: listing.collection_covers }
+            : {}),
+          ...(companion !== undefined ? { companion_cover: companion } : {}),
+        },
+      };
+    }),
   };
 }
 function cachedValue(directory: string, key: string, input: string): unknown {
@@ -449,6 +460,15 @@ function preparedRecordOutputs(
     if (isRecord(presentation) && presentation.artwork !== undefined)
       copy.listing.artwork = presentation.artwork;
     else delete copy.listing.artwork;
+    if (isRecord(presentation) && presentation.collection_covers !== undefined)
+      copy.listing.collection_covers = presentation.collection_covers;
+    else delete copy.listing.collection_covers;
+    const integrationPresentation = copy.integration?.presentation;
+    if (isRecord(integrationPresentation)) {
+      if (isRecord(presentation) && presentation.companion_cover !== undefined)
+        integrationPresentation.companion_cover = presentation.companion_cover;
+      else delete integrationPresentation.companion_cover;
+    }
     return checkedAuthoredPort(copy);
   });
   const shared: Record<string, unknown> = structuredClone(authored.catalog);

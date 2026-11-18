@@ -61,15 +61,14 @@ describe("DAT files", () => {
     expect(host.textContent).toContain("Nintendo - Nintendo 64 (20261113)");
     expect(host.textContent).toContain("Ready · 2 entries");
 
-    await act(async () =>
-      host
-        .querySelector<HTMLButtonElement>(
-          "[aria-label='Remove DAT file Nintendo - Nintendo 64 (20261113)']",
-        )!
-        .click(),
-    );
+    const removeButton = host.querySelector<HTMLButtonElement>(
+      "[aria-label='Remove DAT file Nintendo - Nintendo 64 (20261113)']",
+    )!;
+    removeButton.focus();
+    await act(async () => removeButton.click());
     expect(remove).toHaveBeenCalledWith(ready.id);
     expect(host.textContent).toContain("No DAT files added.");
+    expect(document.activeElement).toBe(addButton);
   });
 
   it("holds the controls while the file picker is open", async () => {
@@ -82,11 +81,63 @@ describe("DAT files", () => {
     const addButton = [...host.querySelectorAll("button")].find(
       (button) => button.textContent === "Add DAT file",
     )!;
+    addButton.focus();
     await act(async () => addButton.click());
-    expect(addButton.disabled).toBe(true);
+    expect(addButton.getAttribute("aria-disabled")).toBe("true");
+    expect(document.activeElement).toBe(addButton);
     await act(async () => choose(null));
-    expect(addButton.disabled).toBe(false);
+    expect(addButton.getAttribute("aria-disabled")).not.toBe("true");
+    expect(document.activeElement).toBe(addButton);
     expect(add).not.toHaveBeenCalled();
+  });
+
+  it("refreshes a failed inventory without picking a file and returns focus to Add", async () => {
+    let available = false;
+    const load = vi.fn(async () => {
+      if (!available) throw new Error("Saved DAT list is temporarily unavailable.");
+      return [ready];
+    });
+    const pick = vi.fn();
+    await act(async () => root.rerender(<DatReferenceSettings load={load} pick={pick} />));
+    expect(host.querySelector("[role='alert']")?.textContent).toContain(
+      "Portcove couldn’t read your saved DAT files.",
+    );
+    const refresh = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Refresh DAT files",
+    )!;
+    const addButton = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Add DAT file",
+    )!;
+    refresh.focus();
+    available = true;
+    await act(async () => refresh.click());
+    expect(host.querySelector("[role='alert']")).toBeNull();
+    expect(host.textContent).toContain("Ready · 2 entries");
+    expect(document.activeElement).toBe(addButton);
+    expect(pick).not.toHaveBeenCalled();
+  });
+
+  it("keeps an acknowledged removal out of the list if refreshing fails", async () => {
+    const remaining = { ...ready, id: "fedcba9876543210", name: "Another DAT file" };
+    let removed = false;
+    const load = async () => {
+      if (removed) throw new Error("Saved DAT list is temporarily unavailable.");
+      return [ready, remaining];
+    };
+    const remove = vi.fn(async () => {
+      removed = true;
+    });
+    await act(async () => root.rerender(<DatReferenceSettings load={load} remove={remove} />));
+    const removeButton = host.querySelector<HTMLButtonElement>(
+      "[aria-label='Remove DAT file Nintendo - Nintendo 64 (20261113)']",
+    )!;
+    removeButton.focus();
+    await act(async () => removeButton.click());
+    expect(remove).toHaveBeenCalledExactlyOnceWith(ready.id);
+    expect(removeButton.isConnected).toBe(false);
+    expect(host.textContent).toContain("Another DAT file");
+    expect(host.textContent).toContain("Refresh DAT files");
+    expect(document.activeElement?.textContent).toBe("Add DAT file");
   });
 
   it("shows why a saved DAT file is not used", async () => {

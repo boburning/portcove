@@ -337,7 +337,8 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
 });
 
 it("reviews preparation through desktopApi, waits for progress, cancels, fails and completes a fresh review", async () => {
-  mount("setup");
+  await page.viewport(960, 640);
+  mount("setup", true);
   await userEvent.click(
     page.getByRole("button", {
       name: "View details for Harbor Adventure",
@@ -356,6 +357,7 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
     )
     .toBeEnabled();
   expect(next.element().textContent).toContain("Harbor Adventure");
+  await userEvent.click(page.getByRole("tab", { name: "Game files", exact: true }));
   await userEvent.click(setupReview());
   await expect.element(page.getByRole("dialog").getByText("Uses", { exact: true })).toBeVisible();
   await expect.element(page.getByText("fixture/owned.iso", { exact: true })).toBeVisible();
@@ -394,7 +396,17 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
   await expect
     .poll(() => document.querySelector('[aria-labelledby="port-detail-title"]')?.textContent)
     .toContain("Ready to play");
-  await expect.element(page.getByRole("button", { name: "Play", exact: true })).toHaveFocus();
+  const play = page.getByRole("button", { name: "Play", exact: true });
+  await expect.element(play).toHaveFocus();
+  // Leading feedback also moves during completion. Measure after its reflow
+  // so focus on an offscreen button cannot pass this handoff check.
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+  const { left, top, width, height } = play.element().getBoundingClientRect();
+  expect(
+    play.element().contains(document.elementFromPoint(left + width / 2, top + height / 2)),
+  ).toBe(true);
   await captureParityState("preparation-completed-fixture");
 }, 45_000);
 
@@ -552,6 +564,80 @@ it.each(parityCases)(
   },
   90_000,
 );
+
+it("exposes the visible Add games titles as names and the supporting copy as descriptions", async () => {
+  await startParityScene("collection", { theme: "light", width: 430, height: 780 });
+  await page.getByRole("button", { name: "Add games", exact: true }).click();
+  const choices = page.getByRole("group", { name: "Ways to add games", exact: true });
+  for (const [title, description] of [
+    ["Browse games", "Pick a game in Discover, then see what you need to play it."],
+    ["Scan a folder", "Choose a folder of your game files; Portcove finds the supported ones."],
+    [
+      "Use an existing installation",
+      "Copy a supported installation or keep using its current folder.",
+    ],
+  ] as const) {
+    const button = choices.getByRole("button", { name: title, exact: true });
+    await expect.element(button).toHaveAccessibleDescription(description);
+  }
+  const result = await axe.run(choices.element(), {
+    runOnly: { type: "rule", values: ["label-content-name-mismatch"] },
+  });
+  expect(result.violations).toEqual([]);
+});
+
+it("keeps focus inside the command palette at both Tab boundaries", async () => {
+  await startParityScene("collection", { theme: "light", width: 430, height: 780 });
+  const trigger = page.getByRole("button", { name: /Search games and pages/i });
+  await trigger.click();
+  const dialog = page.getByRole("dialog");
+  const search = dialog.getByRole("combobox", { name: "Search commands" });
+  const last = dialog.getByRole("button", { name: "Close", exact: true });
+  const help = dialog.getByText("Navigation help", { exact: true });
+  await expect.element(search).toHaveFocus();
+  const popup = dialog.element();
+  const escaped: EventTarget[] = [];
+  const watchFocus = ({ target }: FocusEvent) => {
+    if (target instanceof Node && !popup.contains(target)) escaped.push(target);
+  };
+  document.addEventListener("focusin", watchFocus);
+  try {
+    for (const query of ["", "unmatched palette input"]) {
+      await search.fill(query);
+      await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+      await expect.element(last).toHaveFocus();
+      await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+      await expect.element(help).toHaveFocus();
+      await userEvent.keyboard("{Tab}");
+      await expect.element(last).toHaveFocus();
+      await userEvent.keyboard("{Tab}");
+      await expect.element(search).toHaveFocus();
+    }
+    expect(escaped).toEqual([]);
+  } finally {
+    document.removeEventListener("focusin", watchFocus);
+  }
+  await userEvent.keyboard("{Escape}");
+  await expect.element(trigger).toHaveFocus();
+});
+
+it("keeps enlarged command palette help inside a scrollable viewport", async () => {
+  await startParityScene("collection", { theme: "light", width: 960, height: 640 });
+  const root = document.documentElement;
+  const previousFontSize = root.style.fontSize;
+  root.style.fontSize = "32px";
+  try {
+    await page.getByRole("button", { name: /Search games and pages/i }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByText("Navigation help", { exact: true }).click();
+    const popup = dialog.element();
+    expect(popup.getBoundingClientRect().bottom).toBeLessThanOrEqual(innerHeight);
+    expect(getComputedStyle(popup).overflowY).toBe("auto");
+    expect(popup.scrollHeight).toBeGreaterThan(popup.clientHeight);
+  } finally {
+    root.style.fontSize = previousFontSize;
+  }
+});
 
 it.each(parityCases)(
   "captures all five detail tabs in $theme at $width × $height",

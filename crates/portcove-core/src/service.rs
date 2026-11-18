@@ -1472,7 +1472,7 @@ impl PortcoveService {
             return Err(crate::cartridge_build::retired_creation());
         }
         let resolution = self
-            .resolve_release(port, selected_channel, platform)
+            .resolve_install_selection(port, selected_channel, platform, &status)
             .await?;
         let release = resolution.release;
         let mut preservation_notices = port.preservation_notices();
@@ -2823,6 +2823,95 @@ impl PortcoveService {
         Ok(resolved)
     }
 
+    async fn resolve_install_selection(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        status: &PortStatus,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        let resolution = self.resolve_release(port, channel, platform).await?;
+        if first_managed_install(status)
+            && let Some(verdict) =
+                self.current_package_shape_refusal(port, platform, &resolution.release)?
+        {
+            return self
+                .resolve_shape_fallback(port, platform, &resolution)
+                .await?
+                .ok_or_else(|| {
+                    crate::package_shape::withheld::refusal(port, &resolution.release, &verdict)
+                });
+        }
+        Ok(resolution)
+    }
+
+    async fn resolve_shape_fallback(
+        &self,
+        port: &PortDefinition,
+        platform: Platform,
+        withheld: &crate::ScopedResolvedRelease,
+    ) -> Result<Option<crate::ScopedResolvedRelease>> {
+        if withheld.fallback_reason.is_some() {
+            return Ok(None);
+        }
+        let Some(resolved) = self
+            .releases
+            .resolve_shape_fallback(port, platform, withheld.scope.as_ref(), &withheld.release)
+            .await?
+        else {
+            return Ok(None);
+        };
+        resolved.require_selection(port, platform, withheld.release.channel)?;
+        if resolved.release.version == withheld.release.version
+            || !crate::package_shape::reviewed_release_digests(port, platform)
+                .iter()
+                .any(|(version, sha256)| {
+                    *version == resolved.release.version
+                        && sha256.eq_ignore_ascii_case(&resolved.release.asset.sha256)
+                })
+        {
+            return Err(PortcoveError::verification(
+                "provider fallback is not an exact reviewed release for the current definition",
+            ));
+        }
+        Installer::new(self.library.clone())?.require_github_artifact_identity(
+            &port.id,
+            &resolved.release,
+            resolved.github_identity.as_ref(),
+        )?;
+        Ok(Some(resolved))
+    }
+
+    fn current_package_shape_refusal(
+        &self,
+        port: &PortDefinition,
+        platform: Platform,
+        release: &ResolvedRelease,
+    ) -> Result<Option<crate::package_shape::ShapeVerdict>> {
+        let Some(capability) =
+            crate::package_shape::selected_enforcement_capability(&self.catalog, port)?
+        else {
+            return Ok(None);
+        };
+        Ok(crate::package_shape::withheld::current(
+            &self.library,
+            port,
+            platform,
+            release,
+            capability,
+            || {
+                Installer::new(self.library.clone())
+                    .and_then(|installer| installer.local_shape_baseline(port, platform))
+                    .ok()
+                    .flatten()
+            },
+        )
+        .unwrap_or_else(|error| {
+            tracing::warn!(%error, port_id = %port.id, "could not read the package shape observation");
+            None
+        }))
+    }
+
     pub(crate) fn require_definition_adoption(
         &self,
         catalog: &Catalog,
@@ -2836,7 +2925,7 @@ impl PortcoveService {
             ));
         }
         crate::runtime_data_policy::refuse_adoption(port)?;
-        crate::managed_tfe::refuse_adoption(port)?;
+        crate::managed_initialization::refuse_adoption(port)?;
         crate::managed_shared_preferences::refuse_scope_transfer(port)?;
         crate::definition_acquisition::refuse_restricted_adoption(catalog, &port.id)?;
         self.require_definition_operation(
@@ -3037,7 +3126,9 @@ impl PortcoveService {
         release: &ResolvedRelease,
         observed_activity: Option<&crate::UpstreamActivity>,
     ) -> Result<UpdateCheck> {
-        let runtime = crate::runtime::required(self.catalog.port(port_id)?, Platform::current()?);
+        let port = self.catalog.port(port_id)?;
+        let platform = Platform::current()?;
+        let runtime = crate::runtime::required(port, platform);
         let installed_runtime = status
             .active
             .as_ref()
@@ -3056,7 +3147,13 @@ impl PortcoveService {
             .map(|install| self.install_matches_release(install, release, runtime.as_ref()))
             .transpose()?
             .is_none_or(|matches| !matches);
-        let port = self.catalog.port(port_id)?;
+        if update_available
+            && let Some(verdict) = self.current_package_shape_refusal(port, platform, release)?
+        {
+            return Err(crate::package_shape::withheld::refusal(
+                port, release, &verdict,
+            ));
+        }
         let check = UpdateCheck {
             port_id: port_id.into(),
             channel: status.channel,
@@ -3170,6 +3267,8 @@ impl PortcoveService {
             }
             self.library.ensure_settings(port_id, selected_channel)?;
             let platform = Platform::current()?;
+            // A direct request needs a fresh installer refusal before it can
+            // select a different version on the player's behalf.
             let release = operation
                 .interruptible(self.resolve_release(port, selected_channel, platform))
                 .await?;
@@ -3178,8 +3277,41 @@ impl PortcoveService {
                 operation: &operation,
                 emit: &mut emit,
             };
-            self.apply_scoped_release(port, status, overrides, release, activate, &mut reporter)
-                .await
+            let first_install = first_managed_install(&status);
+            let result = self
+                .apply_scoped_release(
+                    port,
+                    status.clone(),
+                    overrides,
+                    release.clone(),
+                    activate,
+                    &mut reporter,
+                )
+                .await;
+            if first_install
+                && let Err(error) = &result
+                && matches!(
+                    error.known_cause(),
+                    Some(crate::failure::KnownFailureCause::PackageShapeDrift)
+                )
+                && !error.details.contains_key("cleanup_state")
+                && let Some(fallback) = operation
+                    .interruptible(self.resolve_shape_fallback(port, platform, &release))
+                    .await?
+            {
+                operation.observe_release(&fallback.release.version, None);
+                return self
+                    .apply_scoped_release(
+                        port,
+                        status,
+                        overrides,
+                        fallback,
+                        activate,
+                        &mut reporter,
+                    )
+                    .await;
+            }
+            result
         }
         .await;
         let result = self.finish_activity(activity, result);
@@ -3323,12 +3455,20 @@ impl PortcoveService {
             &port.id,
         )?;
         let platform = Platform::current()?;
+        let first_install = first_managed_install(&status);
         let resolution = if scope.is_some()
             || crate::managed_runtime_policy::requires_provider_resolution_on(port, platform)
+            || (first_install
+                && !crate::package_shape::reviewed_release_digests(port, platform).is_empty())
         {
             let resolved = reporter
                 .operation
-                .interruptible(self.resolve_release(port, release.channel, platform))
+                .interruptible(self.resolve_install_selection(
+                    port,
+                    release.channel,
+                    platform,
+                    &status,
+                ))
                 .await?;
             if resolved.release.asset != release.asset
                 || resolved.release.version != release.version
@@ -4284,6 +4424,11 @@ impl PortcoveService {
         crate::runtime::require_ready(&port, Platform::current()?, &staged)?;
         self.managed_install_root(port_id, &staged.path)?;
         Installer::new(self.library.clone())?.verify_critical(&staged, &qualification)?;
+        crate::profile::require_default_recovery_capacity(
+            &self.library.connection()?,
+            port_id,
+            &staged.id,
+        )?;
         if let Some(active) = &status.active {
             // The first mutation follows; a snapshot failure stops the change here.
             self.snapshot_before_version_change(
@@ -4826,6 +4971,7 @@ impl PortcoveService {
         let mut result: Result<Vec<PathBuf>> = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "remove")?;
+            crate::profile_file_preservation::require_idle(&self.library, port_id)?;
             let locked_preview = self.preview_removal(port_id)?;
             self.library.consume_authorization(
                 authorization_token,
@@ -5268,6 +5414,7 @@ impl PortcoveService {
         let mut legacy_data_seal = None;
         let result = (|| {
             self.require_completed_restore(port_id)?;
+            self.require_materialized_profile_recovery(port_id)?;
             let launch_catalog = self.catalog_for_installed_fallback(port_id)?;
             let port = launch_catalog.port(port_id).ok();
             let active = self
@@ -5594,16 +5741,31 @@ impl PortcoveService {
                             "managed ReGaiden requires its reviewed fixed launch and installation folder",
                         ));
                     }
-                    crate::managed_tfe::check(retained_port, &spec.working_directory, &|| {
-                        operation.checkpoint()
-                    })?;
+                    crate::managed_initialization::check(
+                        retained_port,
+                        &spec.working_directory,
+                        &|| operation.checkpoint(),
+                    )?;
+                    if crate::managed_chocolate::applies(retained_port) {
+                        crate::managed_chocolate::check_spec(retained_port, &spec, &|| {
+                            operation.checkpoint()
+                        })?;
+                        self.recheck_chocolate_launch_data(
+                            retained_port,
+                            install,
+                            source_override,
+                            Some(&operation),
+                        )?;
+                    }
                     crate::runtime_data_policy::check_launch(
                         retained_port,
                         &spec.working_directory,
                         &self.library.user_dir(&install.port_id),
                         &spec.arguments,
                     )?;
-                    if retained_port.managed_initialization.is_some() && !spec.arguments.is_empty()
+                    if retained_port.managed_initialization.is_some()
+                        && !crate::managed_chocolate::applies(retained_port)
+                        && !spec.arguments.is_empty()
                     {
                         return Err(PortcoveError::verification(
                             "managed TFE requires its fixed no-argument launch",
@@ -6459,15 +6621,14 @@ impl PortcoveService {
         let catalog = self.catalog_for_installed_fallback(port_id)?;
         let port = catalog.port(port_id)?;
         let collected = self.collect_user_data_from(port, &install_root)?;
-        // A reorder made in the game's mod menu becomes the profile's next revision.
-        // Best effort: the data is already collected, so a failure here must not
-        // leave the session unfinished. The reorder stays reported and is adopted
-        // again before the next profile change or launch.
-        if let Err(error) = self.adopt_native_mod_order_locked(port_id) {
+        // A supported edit in the game's mod menu becomes the next setup
+        // revision. The session can finish after saving player data even if
+        // the native edit needs review or an interrupted projection must resume.
+        if let Err(error) = self.reconcile_native_mod_list_locked(port_id) {
             tracing::warn!(
                 port_id,
                 error = %error.message,
-                "the game's mod order could not be recorded after play"
+                "the game's mod changes could not be recorded after play"
             );
         }
         Ok(collected)
@@ -6641,6 +6802,13 @@ impl PortcoveService {
         Ok(self.catalog.port(port_id)?.persistent_paths.clone())
     }
 
+    pub(crate) fn installed_progress_paths(&self, install: &InstallRecord) -> Result<Vec<String>> {
+        Ok(self
+            .persistence_contract_for_install(install)?
+            .port
+            .persistent_paths)
+    }
+
     fn persistence_contract_for_install(
         &self,
         install: &InstallRecord,
@@ -6778,7 +6946,7 @@ impl PortcoveService {
         Ok(contracts)
     }
 
-    fn require_completed_restore(&self, port_id: &str) -> Result<()> {
+    pub(crate) fn require_completed_restore(&self, port_id: &str) -> Result<()> {
         self.library.require_no_settings_recovery(port_id)?;
         self.require_completed_backup_restore(port_id)
     }
@@ -6948,16 +7116,28 @@ impl PortcoveService {
         install_root: &Path,
     ) -> Result<Vec<PathBuf>> {
         self.library.require_no_ghostship_recovery(&port.id)?;
-        // A profile change made the canonical data newer than this build's copy.
-        // Collecting now would copy the stale build over the selected profile.
-        if crate::profile_deploy::restore_pending(&self.library.user_dir(&port.id)) {
-            return Ok(Vec::new());
-        }
         let contract = self.persistence_contract(port, install_root)?;
         let port = &contract.port;
+        // A profile change made the canonical data newer than this build's copy.
+        // Collecting now would copy the stale build over the selected profile.
+        // Chocolate has no reviewed profile deployment: an unrelated marker
+        // cannot suppress its ordinary dataset checks and collection.
+        if !crate::managed_chocolate::applies(port)
+            && crate::profile_deploy::restore_pending(&self.library.user_dir(&port.id))
+        {
+            return Ok(Vec::new());
+        }
         self.require_completed_restore(&port.id)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, install_root)?;
+        if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::require_compatible_data(
+                port,
+                &user_root,
+                &persistent_root,
+                &|| Ok(()),
+            )?;
+        }
         self.require_psx_data_receipt_readable(port, install_root)?;
         if crate::persistence::requires_restore_receipt(port)
             && !install_root.join(LAUNCH_MARKER).is_file()
@@ -7053,6 +7233,14 @@ impl PortcoveService {
         let install_root = self.managed_install_root(&port.id, install_root)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, &install_root)?;
+        if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::require_compatible_data(
+                port,
+                &user_root,
+                &persistent_root,
+                &|| Ok(()),
+            )?;
+        }
         crate::preparation::source::require_canonical_originals(port, &self.library)?;
         crate::native_temp::require_canonical_data(port, &self.library)?;
         self.require_psx_data_receipt_readable(port, &install_root)?;
@@ -7280,6 +7468,14 @@ fn output_authorization_target(port_id: &str, output_directory: Option<&Path>) -
         .transpose()?
         .unwrap_or_else(|| "<library-default>".into());
     Ok(format!("{port_id}\n{destination}"))
+}
+
+fn first_managed_install(status: &PortStatus) -> bool {
+    status.active.is_none()
+        && status.previous.is_none()
+        && status.staged.is_none()
+        && status.acquisition.is_none()
+        && status.external_runtime.is_none()
 }
 
 fn output_destination_fingerprint(preview: &OutputDestinationPreview) -> Result<String> {
@@ -8166,6 +8362,126 @@ mod tests {
         assert_eq!(
             after.last_update_check.unwrap().check.channel,
             ReleaseChannel::Beta
+        );
+    }
+
+    #[tokio::test]
+    async fn shape_refusal_changes_only_fresh_install_selection() {
+        use crate::package_shape::{PackageShape, PackageShapeRecord, ShapeVerdict};
+
+        struct ShapeFallbackProvider {
+            latest: ResolvedRelease,
+            older: ResolvedRelease,
+        }
+
+        #[async_trait::async_trait]
+        impl ReleaseProvider for ShapeFallbackProvider {
+            async fn resolve(
+                &self,
+                _: &PortDefinition,
+                _: ReleaseChannel,
+                _: Platform,
+            ) -> Result<ResolvedRelease> {
+                Ok(self.latest.clone())
+            }
+
+            async fn resolve_shape_fallback(
+                &self,
+                port: &PortDefinition,
+                platform: Platform,
+                scope: Option<&crate::DefinitionAcquisitionScope>,
+                withheld: &ResolvedRelease,
+            ) -> Result<Option<crate::ScopedResolvedRelease>> {
+                assert!(scope.is_none());
+                assert_eq!(*withheld, self.latest);
+                let mut selection = crate::ScopedResolvedRelease::legacy(self.older.clone())
+                    .for_selection(port, platform, withheld.channel)?;
+                selection.fallback_reason = Some("wait for latest package review".into());
+                Ok(Some(selection))
+            }
+        }
+
+        let temp = tempfile::tempdir().unwrap();
+        let library = Library::open(temp.path().join("library")).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("super-mario-world-recomp").unwrap();
+        let platform = Platform::WindowsX86_64;
+        let channel = ReleaseChannel::Stable;
+        let reviewed = crate::package_shape::reviewed_release_digests(port, platform);
+        let (_, older_digest) = reviewed
+            .iter()
+            .find(|(version, _)| *version == "v0.15.9")
+            .unwrap();
+        let release = |version: &str, sha256: &str| ResolvedRelease {
+            version: version.into(),
+            channel,
+            published_at: None,
+            asset: crate::ReleaseAsset {
+                name: "game.zip".into(),
+                url: format!("https://example.invalid/{version}/game.zip"),
+                size: 42,
+                sha256: sha256.into(),
+            },
+            uploader_continuity: None,
+        };
+        let latest = release("v0.16.0", &"b".repeat(64));
+        let older = release("v0.15.9", older_digest);
+        let service = PortcoveService::with_provider(
+            library.clone(),
+            Arc::new(ShapeFallbackProvider {
+                latest: latest.clone(),
+                older: older.clone(),
+            }),
+        )
+        .unwrap();
+        let mut status = service.status(&port.id).unwrap();
+        assert_eq!(
+            service
+                .resolve_install_selection(port, channel, platform, &status)
+                .await
+                .unwrap()
+                .release,
+            latest
+        );
+
+        let shape = PackageShape {
+            programs: Some(vec!["alternate.exe".into()]),
+            ..PackageShape::default()
+        };
+        let (verdict, provenance) =
+            crate::package_shape::evaluate(port, platform, &latest.asset.sha256, &shape, None);
+        assert!(matches!(verdict, ShapeVerdict::Drifted { .. }));
+        crate::package_shape::withheld::record(
+            &library,
+            port,
+            platform,
+            &latest,
+            crate::package_shape::enforcement_capability(port.adapter).unwrap(),
+            &PackageShapeRecord {
+                shape_version: crate::package_shape::SHAPE_VERSION,
+                shape: Some(shape),
+                provenance,
+                verdict,
+            },
+        )
+        .unwrap();
+        let fallback = service
+            .resolve_install_selection(port, channel, platform, &status)
+            .await
+            .unwrap();
+        assert_eq!(fallback.release, older);
+        assert!(fallback.fallback_reason.is_some());
+
+        register_zelda_install(&library, "v1", true);
+        status.previous = service.status("zelda64-recomp").unwrap().active;
+        assert!(status.previous.is_some());
+        assert_eq!(
+            service
+                .resolve_install_selection(port, channel, platform, &status)
+                .await
+                .unwrap()
+                .release,
+            latest
         );
     }
 
@@ -11104,24 +11420,24 @@ mod tests {
         register_zelda_install(&library, "v1", true);
         register_zelda_install(&library, "v2", false);
 
-        let error = service_with_fault(
+        let service = service_with_fault(
             library.clone(),
             LifecycleFaultPoint::ActivationMetadataCommitted,
-        )
-        .activate_staged("zelda64-recomp")
-        .unwrap_err();
+        );
+        let port_id = "zelda64-recomp";
+        let default = service.ensure_default_profile(port_id).unwrap();
+        let error = service.activate_staged(port_id).unwrap_err();
         assert!(error.message.contains("injected lifecycle failure"));
 
+        let committed = service.profile_revisions(port_id, &default.id).unwrap();
+        assert_eq!(committed.len(), 2);
+
         let recovered = service_with_release(library, "v2");
-        assert_eq!(
-            recovered
-                .status("zelda64-recomp")
-                .unwrap()
-                .active
-                .unwrap()
-                .version,
-            "v2"
-        );
+        let active = recovered.status(port_id).unwrap().active.unwrap();
+        assert_eq!(active.version, "v2");
+        let revisions = recovered.profile_revisions(port_id, &default.id).unwrap();
+        assert_eq!(revisions, committed);
+        assert_eq!(revisions[1].build.install_id, active.id);
         assert!(recovered.repair_plan().unwrap().items.is_empty());
     }
 
@@ -11191,8 +11507,15 @@ mod tests {
         staged.manifest_sha256 = hex::encode(Sha256::digest(&bytes));
         library.update_install_manifest(&staged).unwrap();
         let store = OperationStore::new(library.clone());
+        let activity = library
+            .begin_activity(
+                ActivityOperation::Activate,
+                ActivityTargetKind::Port,
+                Some("zelda64-recomp"),
+            )
+            .unwrap();
         let mut operation = LifecycleOperation::new(
-            "unrecorded-activation",
+            &activity.id,
             LifecycleOperationKind::Activate,
             "zelda64-recomp",
         );
@@ -11204,9 +11527,18 @@ mod tests {
         let status = recovered.status("zelda64-recomp").unwrap();
         assert_eq!(status.active.unwrap().id, active.id);
         assert_eq!(status.staged.unwrap().id, staged.id);
-        let retained = store.get(&operation.id).unwrap().unwrap();
-        let error = retained.last_error.unwrap();
-        assert!(error.contains("holding back this version"), "{error}");
+        assert!(store.get(&operation.id).unwrap().is_none());
+        assert!(!library.has_unfinished_lifecycle("zelda64-recomp").unwrap());
+        let held = library
+            .activities(10)
+            .unwrap()
+            .into_iter()
+            .find(|record| record.id == activity.id)
+            .unwrap();
+        assert_eq!(held.status, ActivityStatus::Failed);
+        let error = held.failure.unwrap();
+        assert_eq!(error.details["reason"], "provider_uploader_not_observed");
+        assert_eq!(error.details["recovery_action"], "check_for_updates");
     }
 
     #[test]
@@ -16472,8 +16804,8 @@ fn main() {
         register_existing_test_install(&library, "opengoal-jak1", "v1", &install, true);
         let folder = temporary.path().join("nas");
         fs::create_dir(&folder).unwrap();
-        let folder = library.add_game_file_root(&folder).unwrap().path;
         let source_path = folder.join("jak1.iso");
+        let folder = library.add_game_file_root(&folder).unwrap().path;
         fs::write(&source_path, b"registered source").unwrap();
         let (storage_sha256, storage_size) = crate::adapter::hash_file(&source_path).unwrap();
         library
@@ -19514,6 +19846,127 @@ fn main() {
         register_existing_test_artifact_with_port(library, port, version, &root, artifact, active)
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn chocolate_collection_uses_retained_recipe_despite_current_catalog_and_profile_marker() {
+        const ID: &str = "chocolate-doom-family";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let port = Catalog::embedded().unwrap().port(ID).unwrap().clone();
+        let install = register_forward_install(
+            &library,
+            &port,
+            "chocolate-doom-3.1.1",
+            true,
+            &[("game.wad", b"synthetic original A")],
+        );
+        let user = library.user_dir(ID);
+        fs::create_dir_all(&user).unwrap();
+        fs::write(user.join("game.wad"), b"synthetic original B").unwrap();
+        // An unrelated marker retained by an import is not profile authority.
+        crate::profile_deploy::mark_restore_pending(&crate::profile_deploy::Layout::for_user(
+            &user,
+        ))
+        .unwrap();
+        let mut service = service_with_release(library, "chocolate-doom-3.1.1");
+        let mut document = service.catalog().authoritative_document();
+        let current = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == ID)
+            .unwrap();
+        current.managed_initialization = None;
+        current.windows_runtime_path_policy = None;
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        assert!(!crate::managed_chocolate::applies(
+            service.catalog().port(ID).unwrap()
+        ));
+        // Exercise the public caller that supplies today's catalog, while the
+        // installation's creating contract still owns collection and refusal.
+        let error = service
+            .collect_user_data_from_install(ID, &install.path)
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert_eq!(
+            fs::read(install.path.join("game.wad")).unwrap(),
+            b"synthetic original A"
+        );
+        assert_eq!(
+            fs::read(user.join("game.wad")).unwrap(),
+            b"synthetic original B"
+        );
+        assert!(crate::profile_deploy::restore_pending(&user));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn chocolate_refused_deployment_preserves_prepared_data_before_first_spawn() {
+        const ID: &str = "chocolate-doom-family";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let port = Catalog::embedded().unwrap().port(ID).unwrap().clone();
+        // A synthetic retained runtime exercises profile/data operations only;
+        // it establishes neither official acquisition nor executable acceptance.
+        let artifact = ArtifactIdentity {
+            asset_name: "chocolate-doom-fixture-win64.zip".into(),
+            sha256: hex::encode(Sha256::digest(b"synthetic Chocolate fixture")),
+            size: 4,
+        };
+        let root = library.versions_dir().join(ID).join(&artifact.sha256);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("chocolate-doom.exe"), b"test").unwrap();
+        fs::write(root.join("game.wad"), b"synthetic original A").unwrap();
+        crate::managed_chocolate::prepare(&port, &root, &|| Ok(())).unwrap();
+        fs::write(root.join("default.cfg"), b"departing setup controls").unwrap();
+        fs::write(root.join("DOOM00.png"), b"departing screenshot").unwrap();
+        let install = register_existing_test_artifact_with_port(
+            &library,
+            &port,
+            "chocolate-doom-3.1.1",
+            &root,
+            artifact,
+            true,
+        );
+        let service = service_with_release(library.clone(), "chocolate-doom-3.1.1");
+        let names = [
+            "game.wad",
+            "default.cfg",
+            "chocolate-doom.cfg",
+            "DOOM00.png",
+        ];
+        let before: Vec<_> = names
+            .iter()
+            .map(|name| fs::read(root.join(name)).unwrap())
+            .collect();
+        assert!(!root.join(LAUNCH_MARKER).exists());
+        // Default metadata does not grant a deployment contract or permission
+        // to replace prepared data. Test activation of that real profile.
+        let profile = service.ensure_default_profile(ID).unwrap();
+        assert!(profile.is_default);
+        assert_eq!(profile.port_id, ID);
+        let error = service.activate_profile(ID, &profile.id).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Unsupported);
+        assert!(error.message.contains("no reviewed mod package contract"));
+        assert!(!crate::profile_deploy::restore_pending(
+            &library.user_dir(ID)
+        ));
+        assert!(
+            !crate::profile_deploy::Layout::for_user(&library.user_dir(ID))
+                .store()
+                .join("state")
+                .exists()
+        );
+        // Ordinary retained restoration cannot delete prepared data merely
+        // because no launch marker or canonical snapshot exists yet.
+        service.restore_retained_user_data_to(&install).unwrap();
+        for (name, bytes) in names.iter().zip(&before) {
+            assert_eq!(&fs::read(root.join(name)).unwrap(), bytes, "{name}");
+        }
+        assert!(!root.join(LAUNCH_MARKER).exists());
+    }
+
     #[tokio::test]
     async fn sonic2_installations_before_the_disposable_replay_logs_keep_their_data_lifecycle() {
         const ID: &str = "sonic-the-hedgehog-2-recomp";
@@ -19610,6 +20063,7 @@ fn main() {
         const STATE: &str = "mods/preloaded/state.toml";
         for (id, old_version, new_version) in [
             ("super-mario-world-recomp", "v0.12.0", "v0.15.9"),
+            ("super-mario-world-recomp", "v0.15.9", "v0.15.10"),
             (
                 "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
                 "v0.6.1",
@@ -21780,11 +22234,13 @@ mod journal_diagnostic_tests {
         tables
             .into_iter()
             .map(|table| {
-                let sql = format!(
-                    "SELECT * FROM \"{}\" ORDER BY rowid",
-                    table.replace('"', "\"\"")
-                );
-                let mut q = db.prepare(&sql).unwrap();
+                let select = format!("SELECT * FROM \"{}\"", table.replace('"', "\"\""));
+                let columns = db.prepare(&select).unwrap().column_count();
+                let order = (1..=columns)
+                    .map(|position| position.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let mut q = db.prepare(&format!("{select} ORDER BY {order}")).unwrap();
                 let values = q
                     .query_map([], |row| {
                         (0..row.as_ref().column_count())

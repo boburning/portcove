@@ -4,6 +4,14 @@
     "id": "devil-may-cry-recomp-web-native-awest813-devil-may-cry",
     "name": "Devil May Cry — Devil May Cry Recomp (web/native) (awest813)",
     "original_game_title": "Devil May Cry",
+    "artwork": {
+      "game_id": 134,
+      "cover_id": 436183,
+      "image_id": "co9ck7",
+      "image_sha256": "9d36a30485711695159e534666c5866311270b75024cfb629bddcd6eac11e560",
+      "game_slug": "devil-may-cry",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reports startup through Mission 1 on the dmc-port branch, natively and in a browser at 60 FPS. Gran Turismo 4 and God of War II reports do not establish Devil May Cry coverage. Full-game completion and stability remain unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/awest813/DMC-Recomp",
     "listed_at": "2026-10-25",

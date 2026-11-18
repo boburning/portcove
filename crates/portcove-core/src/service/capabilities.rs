@@ -548,7 +548,9 @@ mod tests {
                 .as_deref(),
             Some("2026-11-09")
         );
-        assert!(dated.export_format(11).is_err());
+        assert!(dated.export_format(11).is_ok());
+        assert!(dated.export_format(12).is_ok());
+        assert!(dated.export_format(13).is_err());
     }
 
     fn funded_listing(urls: &[&str]) -> crate::PortListing {

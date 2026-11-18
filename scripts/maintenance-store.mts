@@ -53,6 +53,8 @@ export const storeTables = [
   ["portcove_maintenance.reconsiderations", 'reconsideration_id COLLATE "C"'],
   ["portcove_maintenance.notifications", 'notification_key COLLATE "C"'],
   ["portcove_maintenance.operations", 'operation_id COLLATE "C"'],
+  ["portcove_maintenance.discovery_intake_batches", "request_comment"],
+  ["portcove_maintenance.discovery_intake_candidates", "request_comment, candidate_index"],
 ] as const;
 
 const queryParameters = new Map([
@@ -319,7 +321,7 @@ function readLedger(environment: NodeJS.ProcessEnv): AppliedMigration[] {
   return rows as AppliedMigration[];
 }
 
-function sqlLiteral(value: string) {
+export function sqlLiteral(value: string) {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
@@ -390,8 +392,8 @@ export type StoreDigest = Record<string, { rows: number; sha256: string }>;
 const digestSettings =
   "SET LOCAL TimeZone = 'UTC'; SET LOCAL DateStyle = 'ISO, MDY'; SET LOCAL IntervalStyle = 'postgres'; SET LOCAL extra_float_digits = 1;";
 
-function digestExpression() {
-  const fields = storeTables.map(
+function digestExpression(tables = storeTables.slice()) {
+  const fields = tables.map(
     ([table, order]) =>
       `${sqlLiteral(table)}, (SELECT json_build_object('rows', count(*), 'sha256', encode(sha256(convert_to(coalesce(string_agg(t::text, E'\\n' ORDER BY ${order}), ''), 'UTF8')), 'hex')) FROM ${table} t)`,
   );
@@ -407,7 +409,7 @@ export function restoreVerification(tables: StoreDigest) {
   return `${digestSettings}
 DO $portcove_verify$
 DECLARE
-  actual jsonb := (SELECT ${digestExpression()})::jsonb;
+  actual jsonb := (SELECT ${digestExpression(storeTables.filter(([table]) => Object.hasOwn(tables, table)))})::jsonb;
   expected jsonb := ${sqlLiteral(JSON.stringify(tables))}::jsonb;
   mismatched text;
 BEGIN
@@ -576,12 +578,13 @@ async function writeBackup(environment: NodeJS.ProcessEnv, output: string) {
 }
 
 /** Exactly the store's tables, each with an integer row count and a SHA-256 digest. */
-function validTableDigests(tables: unknown): tables is StoreDigest {
+function validTableDigests(tables: unknown, schemaVersion: number): tables is StoreDigest {
   if (typeof tables !== "object" || tables === null || Array.isArray(tables)) return false;
   const entries: [string, unknown][] = Object.entries(tables);
+  const expected = schemaVersion < 5 ? storeTables.slice(0, -2) : storeTables;
   return (
-    entries.length === storeTables.length &&
-    storeTables.every(([table]) => Object.hasOwn(tables, table)) &&
+    entries.length === expected.length &&
+    expected.every(([table]) => Object.hasOwn(tables, table)) &&
     entries.every(
       ([, digest]) =>
         typeof digest === "object" &&
@@ -608,7 +611,9 @@ export function readBackupManifest(input: string): BackupManifest {
     value.dump?.file !== dumpFileName ||
     !/^[0-9a-f]{64}$/u.test(value.dump.sha256 ?? "") ||
     !Array.isArray(value.migrations) ||
-    !validTableDigests(value.tables)
+    !Number.isSafeInteger(value.schema_version) ||
+    value.schema_version !== value.migrations.length ||
+    !validTableDigests(value.tables, value.schema_version)
   )
     throw new MaintenanceStoreError("Backup manifest has an unsupported format");
   return value as BackupManifest;
@@ -673,6 +678,8 @@ export function restore(
         ...migrations.flat(),
         "-f",
         roles,
+        "-c",
+        "UPDATE portcove_maintenance_meta.discovery_intake_activation SET active = false;",
       ],
       environment,
       { timeoutMs: dumpTimeoutMs },

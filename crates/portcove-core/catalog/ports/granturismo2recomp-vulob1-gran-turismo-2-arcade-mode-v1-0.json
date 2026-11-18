@@ -6,6 +6,14 @@
     "original_game_title": "Gran Turismo 2 (Arcade Mode v1.0)",
     "summary": "Information only. The project reports early menus, races and driving, with widescreen, PGXP and skipped-FMV limitations. This is unfinished and Portcove has not confirmed a playthrough. Downloads, builds, registration and launch are unavailable because the README contradicts itself about committed generated game C and the tree used for release builds. The exact build route or a clean reproducible own-disc route must be established first; this does not determine general copyright status or whether a native player exists. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/VuloB1/GranTurismo2Recomp",
+    "artwork": {
+      "game_id": 1597,
+      "cover_id": 93687,
+      "image_id": "co20af",
+      "image_sha256": "a6f251729a583e075d008435e77d8c7aa52b966890e45e2aa8ebb20dd3a2f6c0",
+      "game_slug": "gran-turismo-2",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",

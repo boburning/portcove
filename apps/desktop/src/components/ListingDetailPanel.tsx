@@ -1,12 +1,15 @@
+import type { useFavorites } from "../features/favorites/use-favorites";
 import { releaseKey } from "../features/browsing/download-identity";
 import { upstreamUpdatesDestination } from "../features/browsing/upstream-links";
 import { ArrowRight, FolderOpen, Save } from "lucide-react";
 import type { ReactNode } from "react";
-import { FavoriteGameButton } from "../features/organization/OrganizationControls";
+import {
+  FavoriteGameButton,
+  FavoritePreferenceFailure,
+} from "../features/organization/OrganizationControls";
 import { ListingMaintenanceFacts } from "../features/browsing/ListingMaintenanceFacts";
 import type { CatalogEntry } from "../features/browsing/catalog-entry";
 import {
-  availablePlatforms,
   listingActionAssessment,
   listingAvailabilityLabel,
 } from "../features/browsing/catalog-entry";
@@ -16,7 +19,7 @@ import type { PortStatus } from "../types";
 import { platformLabel } from "../view-model";
 import { ArtworkControls } from "./Artwork";
 import { DetailLayout } from "./DetailLayout";
-import { ChoiceFailure, SetupStatement, type DetailOrganization } from "./DetailChoices";
+import { SetupStatement, type DetailOrganization } from "./DetailChoices";
 import { ExternalLink } from "./ExternalLink";
 import { SelfServiceSetup } from "./SelfServiceSetup";
 import { PortCapabilities } from "./PortCapabilities";
@@ -76,7 +79,11 @@ function renderListingEvidence(listing: CatalogEntry["listing"]) {
   );
 }
 
-function renderListingRequirements(entry: CatalogEntry) {
+function renderListingRequirements(
+  entry: CatalogEntry,
+  platforms: CatalogEntry["platforms"],
+  registeredPlatform: CatalogEntry["platforms"][number] | undefined,
+) {
   return (
     <dl className="detail-facts">
       <div>
@@ -87,17 +94,27 @@ function renderListingRequirements(entry: CatalogEntry) {
             : "Requirements not specified"}
         </dd>
       </div>
+      {registeredPlatform && (
+        <div>
+          <dt>Recorded installation platforms</dt>
+          <dd>{platformLabel(registeredPlatform)}</dd>
+        </div>
+      )}
       <div>
-        <dt>Runs on</dt>
+        <dt>Upstream project platforms</dt>
         <dd>
-          {availablePlatforms(entry).length
-            ? availablePlatforms(entry).map(platformLabel).join(" · ")
+          {platforms.length
+            ? platforms.map(platformLabel).join(" · ")
             : "Platforms not yet confirmed"}
         </dd>
       </div>
       <div>
         <dt>Installation</dt>
-        <dd>Upstream setup / external registration</dd>
+        <dd>
+          {registeredPlatform
+            ? "Externally maintained installation"
+            : "Upstream setup / external registration"}
+        </dd>
       </div>
       <div>
         <dt>Update channel</dt>
@@ -120,13 +137,13 @@ export function ListingDetailPanel({
   openSupport,
   organization,
   groupPorts,
-  favoriteControl,
+  favorites,
   implementationControl,
   managementSupplement,
 }: {
   entry: CatalogEntry;
   groupPorts?: readonly CatalogEntry[] | undefined;
-  favoriteControl?: ReactNode;
+  favorites?: ReturnType<typeof useFavorites> | undefined;
   implementationControl?: ReactNode;
   managementSupplement?: ReactNode;
   libraryRoot?: string | undefined;
@@ -141,6 +158,7 @@ export function ListingDetailPanel({
   organization?: DetailOrganization | undefined;
 }) {
   const listing = entry.listing;
+  const platforms = listing?.platforms ?? (entry.definition ? [] : entry.platforms);
   const updates = listing && upstreamUpdatesDestination(listing.project_url, listing.release_url);
   const registered = status?.external_runtime;
   const launch = listingActionAssessment(entry.listingStatus, "launch");
@@ -168,27 +186,24 @@ export function ListingDetailPanel({
         <DetailLayout
           backLabel={backLabel}
           port={entry}
+          platforms={registered ? [registered.platform] : []}
+          upstreamPlatforms={platforms.filter((platform) => platform !== registered?.platform)}
           managementSupplement={managementSupplement}
           favoriteControl={
             <>
               {implementationControl}
-              {registered ? (
-                favoriteControl
-              ) : (
-                <>
-                  <FavoriteGameButton
-                    port={entry}
-                    groupPorts={groupPorts ?? [entry]}
-                    organization={organization}
-                  />
-                  {organization && <ChoiceFailure organization={organization} />}
-                </>
-              )}
+              <FavoriteGameButton
+                port={entry}
+                groupPorts={groupPorts}
+                organization={organization}
+                favorites={favorites}
+              />
+              <FavoritePreferenceFailure favorites={favorites} organization={organization} />
             </>
           }
           projectUrl={listing?.project_url}
           openSupport={openSupport}
-          overviewRequirements={renderListingRequirements(entry)}
+          overviewRequirements={renderListingRequirements(entry, platforms, registered?.platform)}
           overviewActions={(reveal) => (
             <div className="detail-journey-links">
               <Button

@@ -1,4 +1,5 @@
 import { captureParityState } from "../../test/parity-capture";
+import { expectDisclosureAlignment } from "../../test/disclosure-alignment";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -12,6 +13,103 @@ import type { PortOutputLocation, ReadinessBlocker, SourceHealth } from "../type
 import "../styles/index.css";
 
 afterEach(cleanup);
+
+it.each(["dark", "light"] as const)(
+  "aligns all padded disclosure markers to the first wrapped line in %s",
+  async (theme) => {
+    const oldTheme = document.documentElement.dataset.theme;
+    const oldFontSize = document.documentElement.style.fontSize;
+    const oldViewport = { width: innerWidth, height: innerHeight };
+    await page.viewport(430, 780);
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.fontSize = "16px";
+    try {
+      await render(
+        <div style={{ inlineSize: 260, padding: 16 }}>
+          {["ltr", "rtl"].map((direction) => (
+            <section key={direction} dir={direction}>
+              {[1, 2, 3].map((spacing) => (
+                <details key={spacing}>
+                  <summary className={`disclosure-pad-${spacing}`}>
+                    {direction === "rtl"
+                      ? "تفاصيل التثبيت ونتائج الفحص والملفات المحفوظة"
+                      : "Installation details, recorded checks and preserved game files"}
+                  </summary>
+                  <p>Recorded details remain separate from current checks.</p>
+                </details>
+              ))}
+            </section>
+          ))}
+        </div>,
+      );
+      await document.fonts.ready;
+      const summaries = [...document.querySelectorAll<HTMLElement>("summary")];
+      expect(summaries).toHaveLength(6);
+      for (const [index, summary] of summaries.entries()) {
+        // Retain the existing 4/8/12 px hit-area padding as well as the drawn alignment.
+        const padding = [4, 8, 12][index % 3];
+        expect(parseFloat(getComputedStyle(summary).paddingBlockStart)).toBe(padding);
+        expect(parseFloat(getComputedStyle(summary).paddingBlockEnd)).toBe(padding);
+        const text = document.createRange();
+        text.selectNodeContents(summary);
+        expect(text.getClientRects().length).toBeGreaterThan(1);
+        expectDisclosureAlignment(summary);
+        expect(summary.scrollWidth).toBeLessThanOrEqual(summary.clientWidth + 1);
+        summary.focus();
+        await userEvent.keyboard("{Enter}");
+        expect(summary.closest("details")!.open).toBe(true);
+        expectDisclosureAlignment(summary);
+        await userEvent.keyboard("{Enter}");
+        expect(summary.closest("details")!.open).toBe(false);
+      }
+      await captureParityState("disclosure-spacing-wrapped-ltr-rtl");
+    } finally {
+      document.documentElement.style.fontSize = oldFontSize;
+      if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = oldTheme;
+      await page.viewport(oldViewport.width, oldViewport.height);
+    }
+  },
+);
+
+it.each(["dark", "light"] as const)(
+  "aligns the actual Versions future-preferences disclosure in %s",
+  async (theme) => {
+    const oldTheme = document.documentElement.dataset.theme;
+    const oldViewport = { width: innerWidth, height: innerHeight };
+    await page.viewport(430, 780);
+    document.documentElement.dataset.theme = theme;
+    try {
+      const props = installedSourceDetail("road-rash-64-recompiled", "not_checked");
+      props.actions.check = vi.fn();
+      await render(<DetailPanel {...props} />);
+      await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
+      const summary = page.getByText("Future update preferences", { exact: true });
+      await expect.element(summary).toBeVisible();
+      summary.element().scrollIntoView({ block: "center" });
+      await document.fonts.ready;
+      expectDisclosureAlignment(summary.element());
+      summary.element().focus();
+      await userEvent.keyboard("{Enter}");
+      expect(summary.element().closest("details")!.open).toBe(true);
+      expectDisclosureAlignment(summary.element());
+      await expect.element(page.getByText(/Saving them does not run an update/)).toBeVisible();
+      await userEvent.keyboard("{Enter}");
+      expect(summary.element().closest("details")!.open).toBe(false);
+      expect(document.activeElement).toBe(summary.element());
+      const bounds = summary.element().getBoundingClientRect();
+      expect(bounds.top).toBeGreaterThanOrEqual(0);
+      expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+      await captureParityState("versions-future-preferences-disclosure-aligned");
+      expect(props.actions.check).not.toHaveBeenCalled();
+      expect(props.actions.launch).not.toHaveBeenCalled();
+    } finally {
+      if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = oldTheme;
+      await page.viewport(oldViewport.width, oldViewport.height);
+    }
+  },
+);
 
 function installedSourceDetail(
   id: string,

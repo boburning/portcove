@@ -395,6 +395,94 @@ void test("existing issue membership is reused after complete pagination", async
   assert.deepEqual(cursors, [null, "page2"]);
 });
 
+void test("fresh port membership reads the exact issue across active and archived pages", async () => {
+  const cursors: unknown[] = [];
+  const client = await sdkRoadmap(config, {
+    graphql(query, variables) {
+      assert.match(query, /includeArchived:true/u);
+      assert.equal(variables.id, "I_source");
+      cursors.push(variables.after);
+      return {
+        node: {
+          id: "I_source",
+          projectItems: {
+            totalCount: 2,
+            nodes: variables.after
+              ? [
+                  {
+                    id: "PVTI_selected",
+                    databaseId: 301,
+                    isArchived: false,
+                    project: { id: "PVT" },
+                  },
+                ]
+              : [{ id: "PVTI_other", databaseId: 302, isArchived: true, project: { id: "other" } }],
+            pageInfo: { hasNextPage: !variables.after, endCursor: variables.after ? null : "p2" },
+          },
+        },
+      };
+    },
+  });
+  assert.deepEqual(await client.issueProjectMemberships("I_source"), [
+    { id: "PVTI_other", databaseId: 302, isArchived: true, projectId: "other" },
+    { id: "PVTI_selected", databaseId: 301, isArchived: false, projectId: "PVT" },
+  ]);
+  assert.deepEqual(cursors, [null, "p2"]);
+});
+
+void test("fresh port membership rechecks an initially invisible issue once", async () => {
+  for (const persistent of [false, true]) {
+    let calls = 0;
+    const client = await sdkRoadmap(config, {
+      graphql(_query, variables) {
+        assert.equal(variables.after, null);
+        calls++;
+        return {
+          node:
+            calls === 1 || persistent
+              ? null
+              : {
+                  id: "I_source",
+                  projectItems: {
+                    totalCount: 0,
+                    nodes: [],
+                    pageInfo: { hasNextPage: false, endCursor: null },
+                  },
+                },
+        };
+      },
+    });
+    if (persistent)
+      await assert.rejects(client.issueProjectMemberships("I_source"), /identity mismatch/u);
+    else assert.deepEqual(await client.issueProjectMemberships("I_source"), []);
+    assert.equal(calls, 2);
+  }
+});
+
+void test("fresh port membership fails closed on a wrong issue, incomplete page or malformed item", async () => {
+  for (const node of [
+    { id: "I_wrong", projectItems: { totalCount: 0, nodes: [], pageInfo: { hasNextPage: false } } },
+    {
+      id: "I_source",
+      projectItems: { totalCount: 1, nodes: [], pageInfo: { hasNextPage: false } },
+    },
+    {
+      id: "I_source",
+      projectItems: {
+        totalCount: 1,
+        nodes: [{ id: "PVTI_selected", databaseId: 301, project: { id: "PVT" } }],
+        pageInfo: { hasNextPage: false },
+      },
+    },
+  ]) {
+    const client = await sdkRoadmap(config, { graphql: () => ({ node }) });
+    await assert.rejects(
+      client.issueProjectMemberships("I_source"),
+      /incomplete GitHub inventory/u,
+    );
+  }
+});
+
 void test("complete Project context reads every field page with opaque identity checks", async () => {
   const cursors: unknown[] = [];
   const client = await sdkRoadmap(config, {

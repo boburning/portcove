@@ -41,6 +41,7 @@ fn world() -> (tempfile::TempDir, PortcoveService, String) {
         size: 10,
         enabled: true,
         requires: Vec::new(),
+        provider_requires: Vec::new(),
     };
     let request = ProfileRevisionRequest {
         expected_revision: 1,

@@ -1,0 +1,57 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "extreme-tux-racer",
+    "name": "Extreme Tux Racer",
+    "original_game_title": "Extreme Tux Racer",
+    "artwork": {
+      "game_id": 51248,
+      "cover_id": 306404,
+      "image_id": "co6kf8",
+      "image_sha256": "ab725fc9b94b567a50d17512d0aad6ab303d21e9a7cc3cb1a1e7204466df95aa",
+      "game_slug": "extreme-tux-racer",
+      "match_kind": "port"
+    },
+    "summary": "Race Tux down snowy slopes, collect herring, and try to beat your best time.",
+    "project_url": "https://sourceforge.net/projects/extremetuxracer/",
+    "issue_number": 6474,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "release_url": "https://sourceforge.net/projects/extremetuxracer/files/releases/",
+    "setup_url": "https://sourceforge.net/projects/extremetuxracer/files/releases/",
+    "download_block_reason": "Get the Windows x64 installer from the publisher or use your Linux package manager.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install the desktop game",
+          "instruction": "On Windows x64, open the stable release folder and run ExtremeTuxRacer.msi. Then use the Extreme Tux Racer Start menu shortcut. On Debian or Ubuntu, install extremetuxracer from your distribution and open Extreme Tux Racer. On Linux x86-64 or ARM64, you can also install the community package net.sourceforge.ExtremeTuxRacer from Flathub. Use the same package source for updates."
+        },
+        {
+          "title": "Start your first race",
+          "instruction": "Choose an existing player or select Register a new player. Choose your character and select Enter. Select Practice, choose Bunny Hill, then select Race!"
+        },
+        {
+          "title": "Keep your players and high scores",
+          "instruction": "Close the game before copying your profile. On Windows, copy the config folder in the game’s installation folder. On Linux, copy the etr folder under your configuration directory, usually ~/.config/etr. If the game uses an existing ~/.etr folder, copy that folder instead. For Flatpak, copy ~/.var/app/net.sourceforge.ExtremeTuxRacer/.etr. Restore using the same package and keep the backup until you can see your players and scores."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Check Mac and Android availability",
+          "instruction": "The current desktop release has no Intel or Apple Silicon Mac package. The separate drodin/extremetuxracer project offers its older Android APK under release 0.8.107 on GitHub. It uses a separate profile, and device compatibility has not been verified."
+        }
+      ],
+      "help_url": "https://sourceforge.net/projects/extremetuxracer/files/releases/"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "extreme-tux-racer",
+    "origin": {
+      "project_url": "https://sourceforge.net/projects/extremetuxracer/"
+    },
+    "decisions": []
+  }
+}

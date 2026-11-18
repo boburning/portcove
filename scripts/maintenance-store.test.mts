@@ -3,6 +3,7 @@ import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
+import { postgresIntakeCheckpoints } from "./hosted-discovery-intake-checkpoint.mts";
 import {
   backup,
   batchedStatements,
@@ -165,6 +166,29 @@ void test(
     const executor = source.as("executor_login");
     runSql(collector, seed);
     runSql(executor, executorSeed);
+    const journal = postgresIntakeCheckpoints(executor);
+    const first = "prepared";
+    const next = "attempted with 'quoted' evidence";
+    const initialSlot = { port_key: "example-port", delivery: { status: first } };
+    const nextSlot = { ...initialSlot, delivery: { status: "create-attempted" } };
+    assert.equal(journal.load(177), null);
+    assert.equal(journal.save(177, hex("a"), 0, first, null, [initialSlot]), 1);
+    assert.throws(
+      () => journal.save(177, hex("a"), 1, next, { body: "wrong", hash: hex("b") }, [nextSlot]),
+      /advanced concurrently/u,
+    );
+    assert.equal(
+      journal.save(177, hex("a"), 1, next, { body: first, hash: hex("b") }, [nextSlot]),
+      2,
+    );
+    assert.deepEqual(journal.load(177), {
+      revision: 2,
+      request_sha256: hex("a"),
+      receipt_body: next,
+      previous_receipt_sha256: hex("b"),
+      candidates: [nextSlot],
+    });
+    assert.throws(() => postgresIntakeCheckpoints(collector).load(177), /permission denied/u);
 
     const history: unknown = JSON.parse(
       runSql(
@@ -381,6 +405,13 @@ void test(
     );
     runSql(target.owner, "CREATE ROLE executor_login LOGIN IN ROLE portcove_maintenance_executor;");
     const restoredExecutor = target.as("executor_login");
+    const restoredJournal = postgresIntakeCheckpoints(restoredExecutor);
+    assert.throws(() => restoredJournal.load(177), /inactive on the restored maintenance store/u);
+    assert.throws(
+      () => restoredJournal.save(178, hex("a"), 0, first, null, [initialSlot]),
+      /advanced concurrently/u,
+    );
+
     runSql(
       restoredExecutor,
       `UPDATE portcove_maintenance.operations SET state = 'completed', revision = 4,

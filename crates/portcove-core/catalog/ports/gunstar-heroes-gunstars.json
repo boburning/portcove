@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "gunstar-heroes-gunstars",
+    "artwork": {
+      "game_id": 6405,
+      "cover_id": 181813,
+      "image_id": "co3wad",
+      "image_sha256": "f7e5092e239205de58efbd3bfeddd433cd49ae5ce454dcc10dbfaae97864573d",
+      "game_slug": "gunstar-heroes",
+      "match_kind": "underlying-game"
+    },
     "name": "Gunstar Heroes (gunstars)",
     "summary": "A native engine for Gunstar Heroes using your own original cartridge data.",
     "original_game_title": "Gunstar Heroes",

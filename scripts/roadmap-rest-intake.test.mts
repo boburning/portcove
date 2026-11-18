@@ -115,6 +115,12 @@ function fixture(
     planningConflict?: boolean;
     autoAdd?: boolean;
     projectChanged?: boolean;
+    archived?: boolean;
+    duplicateMembership?: boolean;
+    wrongMembershipItem?: boolean;
+    missingNewMembership?: boolean;
+    delayedNewMembership?: boolean;
+    membershipUnavailable?: boolean;
   } = {},
 ) {
   const rows = [issue(1)];
@@ -142,6 +148,8 @@ function fixture(
   let projectReads = 0;
   let current = rows[0]!,
     markerCalls = 0;
+  let attached = options.autoAdd === true;
+  let attachedMembershipReads = 0;
   const item = () => ({
     id: 100,
     node_id: "PVTI-new",
@@ -176,7 +184,8 @@ function fixture(
       }
       if (method === "POST" && path === `${root}/items`) {
         if (options.ambiguous) throw new Error("ambiguous provider write");
-        return response({ value: item() }, {}, 201);
+        attached = true;
+        return response(item(), {}, 201);
       }
       if (method === "PATCH" && path === `${root}/items/100`) {
         for (const update of body.fields as { id: number; value: string }[]) {
@@ -209,11 +218,33 @@ function fixture(
         updated_at: `2026-01-01T00:00:${String(options.projectChanged ? ++projectReads : 0).padStart(2, "0")}Z`,
       });
     if (path === `${root}/fields`) return response(fields);
-    if (path === `${root}/items`) return response(options.autoAdd ? [item()] : []);
     if (path === `${root}/items/100`) return response(item());
     throw new Error(`Unexpected fixture GET ${path}`);
   };
-  const api = { read: async (endpoint: string) => invoke("GET", endpoint), write: invoke };
+  const api = {
+    read: async (endpoint: string) => invoke("GET", endpoint),
+    write: invoke,
+    issueProjectMemberships: async (issueId: string) => {
+      assert.equal(issueId, current.node_id);
+      if (options.membershipUnavailable) throw new Error("Incomplete issue memberships");
+      if (!attached) return [];
+      attachedMembershipReads++;
+      if (
+        options.missingNewMembership ||
+        (options.delayedNewMembership && attachedMembershipReads === 1)
+      )
+        return [];
+      const membership = {
+        id: options.wrongMembershipItem ? "PVTI-other-case" : "PVTI-new",
+        databaseId: 100,
+        projectId: "PVT",
+        isArchived: options.archived === true,
+      };
+      return options.duplicateMembership
+        ? [membership, { ...membership, id: "PVTI-duplicate", databaseId: 101 }]
+        : [membership];
+    },
+  };
   const client = new RestPortIntakeClient(config, api);
   const input = {
     title: "Example",
@@ -221,7 +252,14 @@ function fixture(
     portKey: "example-game-project",
   };
   if (options.duplicate) rows[0]!.body = renderPortIssueBody(input);
-  return { client, input, writes, rows, api };
+  return {
+    client,
+    input,
+    writes,
+    rows,
+    api,
+    attachedMembershipReads: () => attachedMembershipReads,
+  };
 }
 
 await test("REST repository proof covers closed issues, rejects partial/drifting reads and binds its reader", async () => {
@@ -339,7 +377,7 @@ await test("production REST SDK adapter performs inventory, creation and exact r
       });
     },
   });
-  const client = RestPortIntakeClient.fromSDK(config, sdk);
+  const client = RestPortIntakeClient.fromSDK(config, sdk, source.api.issueProjectMemberships);
   let receipt = false;
   const created = await client.createPortIssue({
     ...source.input,
@@ -350,6 +388,7 @@ await test("production REST SDK adapter performs inventory, creation and exact r
   assert(receipt);
   assert.equal((await client.directProjectItem(created.itemId)).content?.number, 2);
   assert(observations.includes(`GET /repos/${config.repository}/issues`));
+  assert(!observations.some((value) => /^GET .+\/projectsV2\/\d+\/items$/u.test(value)));
   assert.equal(source.writes.filter((value) => value.method === "POST").length, 2);
 });
 
@@ -394,6 +433,44 @@ await test("board activity preserves exact positive membership but invalidates a
   assert.deepEqual(
     negative.writes.map((write) => write.method),
     ["POST"],
+  );
+});
+
+await test("exact issue memberships stop unchecked Project writes", async () => {
+  for (const options of [
+    { autoAdd: true, archived: true },
+    { autoAdd: true, duplicateMembership: true },
+    { autoAdd: true, wrongMembershipItem: true },
+    { membershipUnavailable: true },
+  ]) {
+    const { client, input, writes } = fixture(options);
+    await assert.rejects(() => client.createPortIssue(input));
+    assert.deepEqual(
+      writes.map((write) => write.method),
+      ["POST"],
+    );
+  }
+  const { client, input, writes, attachedMembershipReads } = fixture({
+    missingNewMembership: true,
+  });
+  await assert.rejects(() => client.createPortIssue(input), /membership was not confirmed/u);
+  assert.equal(attachedMembershipReads(), 2);
+  assert.deepEqual(
+    writes.map((write) => write.method),
+    ["POST", "POST"],
+  );
+});
+
+await test("REST intake rechecks delayed membership without replaying the acknowledged add", async () => {
+  const { client, input, writes, attachedMembershipReads } = fixture({
+    delayedNewMembership: true,
+  });
+  const result = await client.createPortIssue(input);
+  assert.equal((await client.directProjectItem(result.itemId)).content?.number, 2);
+  assert.equal(attachedMembershipReads(), 2);
+  assert.deepEqual(
+    writes.map(({ method }) => method),
+    ["POST", "POST", "PATCH"],
   );
 });
 
@@ -468,6 +545,9 @@ await test("REST issue inventory ignores PR-only edits but refuses creations and
     };
     const client = new RestPortIntakeClient(config, {
       read,
+      issueProjectMemberships: async () => {
+        throw new Error("unexpected membership read");
+      },
       write: async () => {
         throw new Error("unexpected write");
       },

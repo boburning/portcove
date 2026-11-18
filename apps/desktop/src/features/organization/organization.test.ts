@@ -1,6 +1,12 @@
 import { expect, it } from "vite-plus/test";
 import type { LibraryOrganization } from "../../types";
-import { favoriteForPort, organizedPorts, savedGameId, savedForPort } from "./OrganizationControls";
+import {
+  favoriteForPort,
+  favoriteGroupIds,
+  organizedPorts,
+  savedGameId,
+  savedForPort,
+} from "./OrganizationControls";
 import { portDefinition } from "../../test-fixtures";
 import { setupConfirmed, updateNoticeHidden } from "./organization";
 
@@ -158,4 +164,19 @@ it("treats a port-level Favorite and a game-level choice as one favorite game", 
   expect(favoriteForPort(gameLevel, new Set(), port)).toBe(true);
   expect(organizedPorts([port], empty, "saved", true, [port], new Set([port.id]))).toEqual([port]);
   expect(organizedPorts([port], empty, "saved", true, [port], new Set())).toEqual([]);
+});
+
+it("resolves Favorite from a filtered-out sibling without treating unknown IDs as games", () => {
+  const identity = {
+    format_version: 1 as const,
+    id: "authored-title",
+    source_editions: [],
+    evidence_urls: ["https://example.com/game"],
+  };
+  const first = { ...portDefinition(), id: "first", presentation: { original_game: identity } };
+  const second = { ...first, id: "second" };
+  const other = { ...portDefinition(), id: "other" };
+  expect(
+    favoriteGroupIds([first, second, other], undefined, new Set(["second", "unknown"])),
+  ).toEqual(new Set(["game:authored-title"]));
 });

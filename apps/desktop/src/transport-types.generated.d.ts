@@ -375,6 +375,7 @@ export type ExternalProfilePolicy =
   | "recomp-direct-v1"
   | "doom3-linux-v1"
   | "openjk-unix-v1"
+  | "endless-sky-desktop-v1"
   | "openomf-linux-v1"
   | "vcmi-windows-v1";
 export type GameSettingsFormat = "json" | "ini";
@@ -409,7 +410,8 @@ export type LaunchDiscChoice = "psx-settings-selected";
 /**
  * Closed initialization recipes, never catalog-supplied scripts or file contents.
  */
-export type ManagedInitialization = "tfe-dark-forces-v1.22.420" | "tfe-dark-forces-portable-v1";
+export type ManagedInitialization =
+  "tfe-dark-forces-v1.22.420" | "tfe-dark-forces-portable-v1" | "chocolate-family-portable-v1";
 /**
  * Preserve complete mod package versions without replacing packaged defaults.
  * This grants neither executable trust nor mod/save compatibility.
@@ -823,8 +825,37 @@ export type OutputListingStatuses = PortListingStatus[];
  * What the package would run on the player's machine if enabled.
  */
 export type RecompExecution = "recompiled_code" | "native_libraries" | "external_code";
-export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
+/**
+ * `Present` is limited to ordinary setup metadata previews; it does not
+ * establish current immutable payload integrity. Strict inspection uses `Verified`.
+ */
+export type RetainedBuildAvailability = "verified" | "present" | "missing" | "changed" | "held" | "unavailable";
 export type OriginalAvailability = "verified" | "missing" | "changed";
+/**
+ * What one standing pass did about one installed provider file.
+ */
+export type ProviderAutoUpdateOutcome =
+  | {
+      file_id: string;
+      outcome: "applied";
+      revision: number;
+      [k: string]: unknown;
+    }
+  | {
+      outcome: "held";
+      reason: string;
+      [k: string]: unknown;
+    }
+  | {
+      outcome: "deferred";
+      reason: string;
+      [k: string]: unknown;
+    }
+  | {
+      outcome: "unavailable";
+      reason: string;
+      [k: string]: unknown;
+    };
 export type OfficialCatalogAutomaticOutcome =
   "turned_off" | "not_configured" | "already_running" | "unavailable" | "refreshed";
 export type DefinitionDeliveryServing =
@@ -925,6 +956,8 @@ export type PortableSaveFileEffect = ("add" | "replace" | "unchanged") | "remove
  * How incoming progress relates to this device's progress, by content only.
  */
 export type PortableSaveRelation = ("no-local-progress" | "already-current") | "continues" | "diverged";
+export type RecipeModSettingValue = number | string;
+export type ProfileRecoveryProgress = "keep_current";
 /**
  * How current an observation is. A confirmed empty result is `Fresh`; an outage
  * that falls back to earlier data is `Stale`, never an empty list.
@@ -1272,9 +1305,12 @@ export interface TransportOutputs {
   listing_delivery_status: ListingDeliveryStatus;
   listing_statuses: OutputListingStatuses;
   live_mods: LiveMods;
+  local_mod_package_plan: OutputLocalModPackagePlan;
   managed_route_change_preview: OutputManagedRouteChangePreview;
   managed_route_change_result: OutputManagedRouteChangeResult;
   mod_code_review: OutputModCodeReview;
+  mod_file_preservation_plan: ModFilePreservationPlan;
+  mod_file_preservation_result: OutputModFilePreservationResult;
   mod_setups_view: OutputModSetupsView;
   official_catalog_automatic_refresh: OutputOfficialCatalogAutomaticRefresh;
   official_catalog_review: OfficialCatalogReview;
@@ -1298,13 +1334,17 @@ export interface TransportOutputs {
   preparation_options: PreparationOptions;
   preparation_plan: OutputPreparationPlan;
   profile_inventory: ProfileInventory;
+  profile_original_instance: ProfileOriginalInstance;
+  profile_original_review: OutputProfileOriginalReview;
   profile_recipe: ProfileRecipe;
+  profile_recovery_plan: OutputProfileRecoveryPlan;
   profile_revision: ProfileRevision;
   provider_browse_page: OutputProviderBrowsePage;
-  provider_install_plan: OutputProviderInstallPlan;
+  provider_install_plan: ProviderInstallPlan;
   provider_project_view: OutputProviderProjectView;
   provider_update_observation: OutputProviderUpdateObservation;
-  recipe_import_plan: OutputRecipeImportPlan;
+  recipe_acquisition_plan: RecipeAcquisitionPlan;
+  recipe_import_plan: RecipeImportPlan;
   recommendation_metadata: OutputRecommendationMetadata;
   reconcile_batch_outcome: OutputReconcileBatchOutcome;
   reconcile_result: ReconcileResult;
@@ -1376,6 +1416,7 @@ export interface TransportOutputs {
   desktop_game_file_query_snapshot: OutputGameFileQuerySnapshot;
   desktop_game_file_roots: OutputGameFileRoots;
   desktop_game_file_scan_match_page: OutputGameFileScanMatchPage;
+  desktop_game_file_scan_registered_matches: OutputDesktopGameFileScanRegisteredMatches;
   desktop_game_file_scan_snapshot: OutputGameFileScanSnapshot;
   desktop_install_batch: InstallBatchRecord;
   desktop_install_batch_review: OutputDesktopInstallBatchReview;
@@ -1393,6 +1434,7 @@ export interface TransportOutputs {
   desktop_port_intents: OutputDesktopPortIntents;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_ready_notices_enabled: OutputDesktopAutomaticSnapshotsEnabled;
+  desktop_recipe_import_review: OutputDesktopRecipeImportReview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
   desktop_root_setup_consent: OutputDesktopRootSetupConsent;
   desktop_root_setup_consents: OutputDesktopRootSetupConsents;
@@ -1633,6 +1675,10 @@ export interface PortStatus {
    */
   acquisition?: GameUpdateAcquisition | null;
   active: InstallRecord | null;
+  /**
+   * Recorded file preservation during the switch to the current active version.
+   */
+  carried_files?: CarriedFilesStatus | null;
   channel: ReleaseChannel;
   /**
    * Successor-definition policy decisions. Legacy catalog ports retain an empty list.
@@ -1683,6 +1729,50 @@ export interface UploaderContinuityRecord {
   basis: UploaderContinuityBasis;
   uploaded_at?: string | null;
   uploader_id?: number | null;
+  [k: string]: unknown;
+}
+/**
+ * A historical outcome applicable only to the currently active target installation.
+ * The source may since have been removed; absent coordinates must stay absent.
+ */
+export interface CarriedFilesStatus {
+  from_install_id: string;
+  from_path: string | null;
+  from_version: string | null;
+  outcome: CarriedFileOutcome;
+  to_install_id: string;
+  to_path: string;
+  to_version: string;
+  [k: string]: unknown;
+}
+/**
+ * The result of carrying files during one switch, rather than an operation failure.
+ * Older rows have path examples but no complete counts or byte observations.
+ */
+export interface CarriedFileOutcome {
+  available_bytes?: number | null;
+  carried: string[];
+  carried_bytes?: number | null;
+  counts?: CarriedFileCounts | null;
+  insufficient_space: boolean;
+  kept_separately: string[];
+  new_version_ships_file: string[];
+  not_carried_count?: number | null;
+  removed: string[];
+  required_bytes?: number | null;
+  source_modified: boolean;
+  source_unreadable: string[];
+  [k: string]: unknown;
+}
+/**
+ * Complete counts recorded before the bounded path examples are truncated.
+ */
+export interface CarriedFileCounts {
+  carried: number;
+  kept_separately: number;
+  new_version_ships_file: number;
+  removed: number;
+  source_unreadable: number;
   [k: string]: unknown;
 }
 /**
@@ -2526,6 +2616,19 @@ export interface ReviewedHoldArtifact {
  */
 export interface PortPresentation {
   artwork?: IgdbArtwork | null;
+  /**
+   * Reviewed constituent-game covers for a multi-game project. Display only.
+   */
+  collection_covers?: IgdbArtwork[] | null;
+  /**
+   * Cover for the second game in a combined definition's Discover card.
+   */
+  companion_cover?: IgdbArtwork | null;
+  /**
+   * Optional descriptive implementation methods and dependencies. Malformed or future
+   * content is unavailable as explanation and never changes operation authority.
+   */
+  implementation?: unknown;
   installation_method: InstallationMethod;
   manual_preparation?: string | null;
   manual_setup?: ManualSetupGuide | null;
@@ -2766,6 +2869,11 @@ export interface UserPreparedRuntimeSpec {
  * (including DLLs) are not fingerprinted and may change between releases.
  */
 export interface ReviewedPackageLayout {
+  /**
+   * Classify Linux executable-mode files by content: only files starting
+   * with an ELF or `#!` header count, and verified ELF shared libraries do not.
+   */
+  classify_linux_programs_by_format?: boolean;
   /**
    * Lowercase top-level directory names of the package root, sorted.
    */
@@ -3108,6 +3216,10 @@ export interface PortListing {
    */
   availability_override_reason?: string | null;
   /**
+   * Display samples of a project's constituent games. Requires listing format 11.
+   */
+  collection_covers?: IgdbArtwork[] | null;
+  /**
    * Inert optional advisory envelope. Invalid/future content is unavailable as advice,
    * never an acquisition restriction or an operation grant. Requires listing format 7.
    */
@@ -3135,6 +3247,11 @@ export interface PortListing {
    */
   funding_urls?: string[] | null;
   id: string;
+  /**
+   * Optional descriptive implementation methods and dependencies. Malformed or future
+   * content is unavailable as explanation and never changes operation authority.
+   */
+  implementation?: unknown;
   issue_number?: number | null;
   /**
    * The UTC date (`YYYY-MM-DD`) this listing was first added to the directory.
@@ -3903,6 +4020,10 @@ export interface OutputGameFileScanMatchQuery {
   limit: number;
   offset: number;
   /**
+   * Only matches for this source profile.
+   */
+  profile_id?: string | null;
+  /**
    * Only matches inside this saved folder.
    */
   root_id?: string | null;
@@ -3989,6 +4110,10 @@ export interface SourceDiscoveryReport {
   [k: string]: unknown;
 }
 export interface SourceDiscoveryIssue {
+  /**
+   * Profiles whose bounded direct inspection can check this skipped file.
+   */
+  direct_check_profiles?: string[];
   message: string;
   path: string | null;
   profile_id: string | null;
@@ -4502,6 +4627,10 @@ export interface LibraryMetadata {
   profiles?: LibraryProfile[];
   retained_build_references?: RetainedBuildReference[];
   schema_version: number;
+  /**
+   * Other admitted original locations in metadata schema 12.
+   */
+  source_instances?: SourceRecord[];
   source_references: SourceRecord[];
   [k: string]: unknown;
 }
@@ -4709,12 +4838,22 @@ export interface ResolvedPackage {
   native_id: string;
   native_version?: string | null;
   provider?: ProviderPackageRef | null;
+  provider_requires?: ProviderRequirement[];
   /**
    * Native IDs this package requires, from native metadata (not provider claims).
    */
   requires?: string[];
   sha256: string;
   size: number;
+}
+/**
+ * One exact provider wrapper and the complete set of native members it supplied.
+ */
+export interface ProviderRequirement {
+  members: {
+    [k: string]: string;
+  };
+  provider: ProviderPackageRef;
 }
 /**
  * One binding per (port, setup). The caller supplies a stable opaque setup ID,
@@ -4914,12 +5053,57 @@ export interface LiveMods {
         state: "unreadable";
         [k: string]: unknown;
       };
+  /**
+   * An authorized file move waiting for recovery, even if the live name disappeared.
+   */
+  pending_preservation?: ModFilePreservationPlan | null;
   profile_id: string | null;
   revision: number | null;
   /**
    * Files in the mods folder this profile did not install; never touched.
    */
   unmanaged: string[];
+  [k: string]: unknown;
+}
+export interface ModFilePreservationPlan {
+  file_name: string;
+  observed: ModFileIdentity;
+  plan_sha256: string;
+  port_id: string;
+  profile_id: string;
+  /**
+   * For an edited managed file, the exact package that will be restored.
+   */
+  restore: ModFileIdentity | null;
+  revision: number;
+  revision_sha256: string;
+  /**
+   * Distinguishes a rediscovered copy of the same bytes from prior preserved copies.
+   */
+  slot: number;
+}
+export interface ModFileIdentity {
+  sha256: string;
+  size: number;
+}
+/**
+ * Exact review of a file chosen for one setup. Paths stay local to the caller.
+ */
+export interface OutputLocalModPackagePlan {
+  asset_count: number;
+  conflicts_truncated: boolean;
+  expected_revision: number;
+  missing_required_mods: string[];
+  native_id: string;
+  needs_code_permission: boolean;
+  overlapping_mods: string[];
+  plan_sha256: string;
+  profile_id: string;
+  replaces: string[];
+  replaces_enabled: boolean;
+  required_mods: string[];
+  sha256: string;
+  size: number;
   [k: string]: unknown;
 }
 export interface OutputManagedRouteChangePreview {
@@ -4963,6 +5147,15 @@ export interface OutputModCodeReview {
   sha256: string;
   [k: string]: unknown;
 }
+export interface OutputModFilePreservationResult {
+  plan: ModFilePreservationPlan;
+  /**
+   * Outside the loader's effective mod directories. The regular local package
+   * review may use this path, without granting execution or ownership here.
+   */
+  preserved_path: string;
+  [k: string]: unknown;
+}
 /**
  * Everything a game-level mods view needs in one read: whether the game has a
  * reviewed mod contract, its setups and what is live now. Read-only.
@@ -4983,6 +5176,10 @@ export interface OutputModSetupsView {
    */
   inventory: ProfileInventory | null;
   /**
+   * Results of the last automatic check, even after reopening the library.
+   */
+  last_automatic_checks?: ProviderAutoUpdateCheck[];
+  /**
    * True when reviewed loader source shows that the later of two mods changing
    * the same asset wins. False when the order is kept but which mod wins is not
    * established.
@@ -4994,6 +5191,11 @@ export interface OutputModSetupsView {
    */
   package_types: string[];
   port_id: string;
+  /**
+   * This game has a reviewed progress contract. Runtime and save contents
+   * are checked again during an explicit copy.
+   */
+  progress_copy_supported?: boolean;
   /**
    * The mod provider this game has a reviewed binding for (`gamebanana` or
    * `thunderstore`), if any.
@@ -5028,6 +5230,10 @@ export interface ProfileInventory {
 }
 export interface ProfileView {
   build_availability: RetainedBuildAvailability;
+  /**
+   * Version of the exact installed runtime this setup resolves to.
+   */
+  build_version?: string | null;
   originals: OriginalStatus[];
   profile: Profile;
   revision: ProfileRevision;
@@ -5036,6 +5242,21 @@ export interface ProfileView {
 export interface OriginalStatus {
   availability: OriginalAvailability;
   binding: OriginalBinding;
+  [k: string]: unknown;
+}
+/**
+ * The last automatic check of an installed provider file or setup.
+ */
+export interface ProviderAutoUpdateCheck {
+  candidate_file_id: string | null;
+  checked_at: number;
+  native_ids: string[];
+  profile_id: string;
+  project_id: string | null;
+  /**
+   * None means a current observation offered no update.
+   */
+  result: ProviderAutoUpdateOutcome | null;
   [k: string]: unknown;
 }
 /**
@@ -5544,6 +5765,23 @@ export interface SourceInspectionProblem {
   tool_id?: string | null;
   [k: string]: unknown;
 }
+export interface ProfileOriginalInstance {
+  binding: OriginalBinding;
+  instance_id: string;
+  path: string;
+  [k: string]: unknown;
+}
+export interface OutputProfileOriginalReview {
+  current_instance_id: string;
+  current_path: string | null;
+  embedded: boolean;
+  /**
+   * Other saved instances whose current bytes the retained contract admits.
+   */
+  instances: ProfileOriginalInstance[];
+  source_profile: SourceProfile;
+  [k: string]: unknown;
+}
 export interface ProfileRecipe {
   format: number;
   /**
@@ -5557,15 +5795,28 @@ export interface ProfileRecipe {
   port_id: string;
   runtime: RecipeRuntime;
   /**
+   * Portable, exact-package settings. Omitted by format 1.
+   */
+  settings?: RecipeModSetting[];
+  /**
    * Inputs this recipe cannot reproduce; always stated, never implied.
    */
   uncaptured: string[];
 }
 /**
- * A reference to an original, by content identity only. No path, no payload.
+ * Local original identity, without its path or payload.
  */
 export interface RecipeOriginal {
   requirement_id: string;
+  sha256: string;
+  size: number;
+  /**
+   * Earlier recipes identified content only. Format 3 also binds its saved representation.
+   */
+  storage?: RecipeOriginalStorage | null;
+}
+export interface RecipeOriginalStorage {
+  observed_identity_sha256?: string | null;
   sha256: string;
   size: number;
 }
@@ -5574,6 +5825,7 @@ export interface RecipePackage {
   native_id: string;
   native_version: string | null;
   provider: ProviderPackageRef | null;
+  provider_requires?: ProviderRequirement[];
   requires: string[];
   sha256: string;
   size: number;
@@ -5584,6 +5836,38 @@ export interface RecipeRuntime {
   installed_contract_sha256: string;
   platform: Platform;
   runtime: RuntimeIdentity | null;
+}
+/**
+ * Exactly one reviewed, manifest-declared option in a shareable recipe.
+ */
+export interface RecipeModSetting {
+  native_id: string;
+  option_id: string;
+  package_sha256: string;
+  value: RecipeModSettingValue;
+}
+/**
+ * The exact setup change for review. Applying it preserves the current save group.
+ * Recovery does not restore an old save or claim save compatibility.
+ */
+export interface OutputProfileRecoveryPlan {
+  current: ProfileRevision;
+  holds: RetainedBuildGap[];
+  originals: OriginalStatus[];
+  plan_sha256: string;
+  progress: ProfileRecoveryProgress;
+  selected_revision: number | null;
+  target: ProfileRevision;
+  update_policy: ProfileUpdatePolicy;
+  [k: string]: unknown;
+}
+export interface RetainedBuildGap {
+  code: ErrorCode;
+  details: {
+    [k: string]: string;
+  };
+  message: string;
+  [k: string]: unknown;
 }
 export interface OutputProviderBrowsePage {
   /**
@@ -5671,9 +5955,23 @@ export interface ProviderFileCandidate {
   file_id: string;
   file_name: string;
   size: number;
+  /**
+   * Exact provider coordinates, independent of native loader requirements.
+   * Absent for providers that do not supply this field.
+   */
+  thunderstore_dependencies?: ThunderstoreDependency[] | null;
   [k: string]: unknown;
 }
-export interface OutputProviderInstallPlan {
+/**
+ * One exact Thunderstore dependency coordinate from a version listing.
+ */
+export interface ThunderstoreDependency {
+  namespace: string;
+  package: string;
+  version: string;
+  [k: string]: unknown;
+}
+export interface ProviderInstallPlan {
   conflicts: AssetConflict[];
   conflicts_truncated: boolean;
   /**
@@ -5705,6 +6003,10 @@ export interface OutputProviderInstallPlan {
    * What this plan relies on without verifying.
    */
   unverified_claims: string[];
+  /**
+   * Exact Thunderstore wrapper closure in dependency-first order.
+   */
+  wrappers?: ProviderWrapper[];
   [k: string]: unknown;
 }
 /**
@@ -5731,6 +6033,16 @@ export interface PlanMember {
   runs_code?: RecompExecution[];
   sha256: string;
   size: number;
+  [k: string]: unknown;
+}
+export interface ProviderWrapper {
+  download_sha256: string;
+  download_size: number;
+  file: ProviderFileCandidate;
+  members: {
+    [k: string]: string;
+  };
+  provider: ProviderPackageRef;
   [k: string]: unknown;
 }
 export interface OutputProviderProjectView {
@@ -5793,8 +6105,19 @@ export interface OutputProviderUpdateObservation {
   version_changed: boolean;
   [k: string]: unknown;
 }
-export interface OutputRecipeImportPlan {
+/**
+ * Private provider staging bound to one exact recipe and expected package.
+ */
+export interface RecipeAcquisitionPlan {
+  native_id: string;
+  provider_plan: ProviderInstallPlan;
+  recipe_identity_sha256: string;
+  [k: string]: unknown;
+}
+export interface RecipeImportPlan {
+  acquisitions?: RecipeAcquisitionPlan[];
   can_apply: boolean;
+  code_approval?: RecipeCodeApproval[];
   /**
    * Why applying is not possible yet; empty when every input is present.
    */
@@ -5806,8 +6129,22 @@ export interface OutputRecipeImportPlan {
   originals: RecipeInputPlan[];
   packages: RecipeInputPlan[];
   plan_sha256: string;
+  /**
+   * Missing packages with an exact coordinate that the player can check.
+   */
+  provider_checks?: string[];
   recipe: ProfileRecipe;
   runtime: RecipeInputPlan;
+  /**
+   * Exact, path-free local resolutions consumed by the reviewed import.
+   */
+  verified_originals?: OriginalBinding[];
+  [k: string]: unknown;
+}
+export interface RecipeCodeApproval {
+  native_id: string;
+  runs: RecompExecution[];
+  sha256: string;
   [k: string]: unknown;
 }
 export interface RecipeInputPlan {
@@ -5890,14 +6227,6 @@ export interface RetainedBuild {
   offered_by: string[];
   previous: boolean;
   retained_by: string[];
-  [k: string]: unknown;
-}
-export interface RetainedBuildGap {
-  code: ErrorCode;
-  details: {
-    [k: string]: string;
-  };
-  message: string;
   [k: string]: unknown;
 }
 /**
@@ -6323,9 +6652,17 @@ export interface OutputStoreGameInstalls {
  */
 export interface StoreGameInstall {
   /**
+   * Reviewed search hint. The source profile still verifies the actual files.
+   */
+  original_folder?: StoreOriginalFolder | null;
+  /**
    * Canonical existing folder.
    */
   path: string;
+  /**
+   * Stable store product identity when the installation metadata supplies one.
+   */
+  product_id?: string | null;
   /**
    * The saved game-file folder at exactly this path, when there is one.
    */
@@ -6335,6 +6672,11 @@ export interface StoreGameInstall {
    * The store's title for the game; a label, never an identity.
    */
   title: string;
+  [k: string]: unknown;
+}
+export interface StoreOriginalFolder {
+  path: string;
+  profile_id: string;
   [k: string]: unknown;
 }
 export interface OutputUpdateBatchOutcome {
@@ -6489,6 +6831,14 @@ export interface OutputDesktopCliCommandContext {
   executable: string | null;
   library_root: string;
   platform: Platform;
+  [k: string]: unknown;
+}
+/**
+ * Retained matches for the current registration of each source profile.
+ */
+export interface OutputDesktopGameFileScanRegisteredMatches {
+  candidates: SourceRecord[];
+  preliminary_selections: SourceInspection[];
   [k: string]: unknown;
 }
 export interface InstallBatchRecord {
@@ -6728,6 +7078,20 @@ export interface PortMaintenance {
   update_policy: UpdatePolicy;
   [k: string]: unknown;
 }
+/**
+ * A recipe review's display data and its exact Core-owned import plan.
+ * JavaScript numbers cannot preserve every JSON number representation, so
+ * only the unchanged serialized plan is sent back for Core to verify and use.
+ */
+export interface OutputDesktopRecipeImportReview {
+  plan: RecipeImportPlan;
+  serialized_plan: string;
+  /**
+   * Exact native text in the same order as `plan.recipe.settings`.
+   */
+  setting_values: string[];
+  [k: string]: unknown;
+}
 export interface RootSetupConsent {
   enabled_at: number;
   enrollment: RootSetupEnrollment;
@@ -6773,7 +7137,7 @@ export interface RootSetupImplementation {
   [k: string]: unknown;
 }
 /**
- * What one standing-setup pass did for each game it considered.
+ * What one standing pass did for the games and mods it considered.
  */
 export interface OutputDesktopStandingSetup {
   /**
@@ -6789,6 +7153,10 @@ export interface OutputDesktopStandingSetup {
    * Games that could not start; the others were not affected.
    */
   failures: StandingSetupFailure[];
+  /**
+   * The game setup queue could not be read. Mod updates still ran.
+   */
+  game_setup_unavailable?: string | null;
   /**
    * Provider updates for mod setups whose policy allows unattended updates.
    */

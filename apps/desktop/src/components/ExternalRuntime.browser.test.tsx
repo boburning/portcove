@@ -306,9 +306,7 @@ it.each([
     expect(document.body.textContent?.includes("They will be kept exactly")).toBe(
       keepsExactArguments,
     );
-    expect(document.querySelector('textarea[aria-label="Launch arguments"]') === null).toBe(
-      keepsExactArguments,
-    );
+    expect(document.querySelector("textarea") === null).toBe(keepsExactArguments);
     await click("Review launch details");
     expect(preview).toHaveBeenCalledExactlyOnceWith(
       port.id,
@@ -393,7 +391,12 @@ it("reviews explicit user launch details without accepted-package or file-manage
   expect(document.body.textContent).not.toContain("Archive SHA-256");
   await click("Choose game executable…");
   await page.getByText("Advanced launch options", { exact: true }).click();
-  await page.getByRole("textbox", { name: "Launch arguments" }).fill("--data\nC:\\Original files");
+  await page
+    .getByRole("textbox", {
+      name: "Launch options (advanced) (one per line, optional)",
+      exact: true,
+    })
+    .fill("--data\nC:\\Original files");
   await click("Review launch details");
   expect(preview).toHaveBeenCalledExactlyOnceWith(
     port.id,
@@ -421,6 +424,49 @@ it("reviews explicit user launch details without accepted-package or file-manage
     7,
   );
   expect(changed).toHaveBeenCalledOnce();
+});
+
+it("reviews the resolved Mac bundle program and preserves an explicitly selected start folder", async () => {
+  const directory = "/Games";
+  const bundle = `${directory}/OpenLoco.app`;
+  const programDirectory = `${bundle}/Contents/MacOS`;
+  const executable = `${programDirectory}/OpenLoco`;
+  const entry = {
+    ...port,
+    definition: {
+      ...port,
+      executable_hints: { "macos-aarch64": ["OpenLoco.app/Contents/MacOS/OpenLoco"] },
+    },
+  };
+  vi.mocked(pickHostToolExecutable).mockResolvedValue(bundle);
+  const preview = vi.spyOn(desktopApi, "previewUserSelectedRuntime").mockResolvedValue({
+    port_id: entry.id,
+    executable,
+    path: directory,
+    version: "user-managed",
+    archive_sha256: "",
+    immutable_tree_sha256: "",
+    immutable_file_count: 0,
+    user_selected: { arguments: [] },
+    preview_sha256: "bundle-review",
+    shared_preferences: null,
+  });
+  await root.rerender(
+    <UserSelectedRuntimeControl
+      port={entry}
+      devicePlatform="macos-aarch64"
+      status={portStatus()}
+      generation={7}
+      busy={false}
+    />,
+  );
+  await click("Choose game executable…");
+  const startFolder = page.getByRole("textbox", { name: "Start in folder", exact: true });
+  await expect.element(startFolder).toHaveValue(programDirectory);
+  await startFolder.fill(directory);
+  await click("Review launch details");
+  await expect.element(page.getByText(executable, { exact: true })).toBeVisible();
+  expect(preview).toHaveBeenCalledExactlyOnceWith(entry.id, bundle, directory, [], 7);
 });
 
 it.each(["current", "older"] as const)(

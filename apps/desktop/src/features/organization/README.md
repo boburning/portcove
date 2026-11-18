@@ -7,12 +7,18 @@ statements. Missing catalog identities remain stored. These choices never create
 an installation, authorize a task, change Core readiness or establish gameplay
 testing. Favorites retain their existing owner.
 
-Players see one Favorite term. A game shows as favorite when either its game-level
-choice (`saved_game_ids`) or any port-level Favorite marks it; removing it clears
-both, so no hidden choice keeps it favorited. The two stores keep separate owners and
-no data migrates. Existing choices stay readable. Adding from a game-level control
-stores the game-level choice. `followed_port_ids` is presented as update notices
-("Notify me of updates"); it only shows a notice and never installs.
+A game is a Favorite when its game-level choice (`saved_game_ids`), a known
+sibling's legacy Saved alias, or any known sibling port Favorite marks it. Adding
+a Favorite writes the authored game choice. Removing it clears the game choice
+and known Saved aliases, then explicitly sets each marked sibling port Favorite
+to false. Unknown IDs remain stored and existing values are read without a
+migration. The control shows the last confirmed state during writes. If a write
+fails or its reply is lost, Retry favorites rereads both stores. If the game is
+still a Favorite, removing it again only clears choices that still mark it.
+
+`followed_port_ids` controls **Update notices** for each port independently.
+Turning notices on shows new download notices for that port. It never installs
+anything.
 
 `preferred_port_by_game` remembers a deliberate implementation choice by explicit
 `original_game.id` and stable port ID. The default empty map may be omitted from

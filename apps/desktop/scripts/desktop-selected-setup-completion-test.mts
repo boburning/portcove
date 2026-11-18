@@ -686,7 +686,7 @@ export async function selectedSetupCompletionScenario({
       report.observations.continued_scan = snapshot;
       assert.deepEqual(
         snapshot.report.candidates.map((item) => item.profile_id).sort(),
-        [...owned.profiles].sort(),
+        owned.profiles.toSorted(),
       );
       assert.deepEqual(await read("get_sources"), [], "Discovery must not register inputs");
       await click(
@@ -1391,7 +1391,7 @@ export async function selectedSetupCompletionScenario({
       ]);
       assert.deepEqual(
         biosPlan.source_requirements.map((item) => item.profile_id).sort(),
-        [...owned.profiles].sort(),
+        owned.profiles.toSorted(),
       );
       assert.ok(biosPlan.source_requirements.every((item) => item.registered));
       assert.deepEqual(await read("get_statuses"), statusesBeforeBiosPlan);

@@ -24,6 +24,14 @@
   "collection": {
     "withCount": "<name/> ({{total}})"
   },
+  "comparisonNotice": {
+    "available": "عُثر على تنزيل جديد: {{version}}.",
+    "effect": "يعرض Portcove إشعارًا عند العثور على تنزيل جديد لهذا المنفذ. لا يثبّت أي شيء.",
+    "label": "إشعارات تحديث {{port}}",
+    "markSeen": "وضع علامة مقروء على إشعار التحديث",
+    "off": "إشعارات التحديث متوقفة",
+    "on": "إشعارات التحديث مفعّلة"
+  },
   "edit": {
     "create": "إنشاء مجموعة",
     "nameLabel": "اسم المجموعة",
@@ -38,11 +46,15 @@
     "write": "تعذر على Portcove تأكيد التغييرات. تُعرض آخر اختياراتك المؤكدة."
   },
   "favorite": {
+    "count_one": "{{count, number}} لعبة",
+    "count_other": "{{count, number}} ألعاب",
+    "countUnavailable": "غير متاح",
     "favorite": "مفضلة",
-    "favorited": "في المفضلة",
     "label": "إضافة {{game}} إلى المفضلة",
     "removeTitle": "إزالة من المفضلة",
-    "title": "إضافة إلى المفضلة"
+    "retry": "إعادة التحقق من المفضلة",
+    "title": "إضافة إلى المفضلة",
+    "unconfirmed": "تعذر على Portcove تأكيد المفضلة. أعد المحاولة للتحقق مما حُفظ."
   },
   "group": {
     "discover": "مجموعات الاستكشاف",

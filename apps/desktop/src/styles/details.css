@@ -226,19 +226,16 @@
     margin-block-start: var(--space-5);
   }
   .detail-tab {
-    min-block-size: 3.25rem;
+    min-block-size: 2.75rem;
   }
   @media (max-width: 42rem) {
     .detail-tab-list {
-      flex-wrap: nowrap;
-      gap: 1.25rem;
-      overflow-x: auto;
-      scrollbar-width: thin;
+      column-gap: 0.25rem;
     }
     .detail-tab {
-      flex-shrink: 0;
-      min-block-size: 2.75rem;
-      white-space: nowrap;
+      max-inline-size: 100%;
+      overflow-wrap: anywhere;
+      padding-inline: var(--space-2);
     }
   }
   .detail-tab-panel {
@@ -585,9 +582,6 @@
     .detail-title {
       font-size: 1.75rem;
     }
-    .detail-tab-list {
-      column-gap: 20px;
-    }
     .detail-tab-panel input {
       min-width: 0;
     }
@@ -665,7 +659,7 @@
     border-block-start: 1px solid var(--color-border-subtle);
   }
   .detail-file-observations > summary {
-    padding-block: var(--space-2);
+    --disclosure-padding: var(--space-2);
     cursor: pointer;
     font-size: var(--text-sm);
     font-weight: 400;

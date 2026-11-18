@@ -97,7 +97,19 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own G-Police - Weapons of Justice (USA) complete CHD (SLUS-00798, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned."
+      "manual_preparation": "Select your own G-Police - Weapons of Justice (USA) complete CHD (SLUS-00798, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the exact original files",
+            "instruction": "Use your own G-Police - Weapons of Justice (USA) disc (SLUS-00798) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove checks the first data track and track count. Keep the complete disc intact."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
   }

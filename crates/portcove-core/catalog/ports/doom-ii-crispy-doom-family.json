@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "doom-ii-crispy-doom-family",
+    "artwork": {
+      "game_id": 312,
+      "cover_id": 303937,
+      "image_id": "co6iip",
+      "image_sha256": "9aaabe14844aa0f4152bc03a571c5e8f327dfa173469a2fd9e8cfc302e6fe6db",
+      "game_slug": "doom-ii-hell-on-earth",
+      "match_kind": "underlying-game"
+    },
     "name": "Doom II (Crispy Doom family)",
     "summary": "Install the official Crispy Doom Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
     "original_game_title": "Doom II",

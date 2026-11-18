@@ -9,6 +9,7 @@ type DetailReturn = {
   returnPortId: string;
   groupKey: string | undefined;
   originKey: string | undefined;
+  ancestorOriginKey: string | undefined;
   scrollTop: number;
   token: number;
 };
@@ -26,10 +27,11 @@ export function useDetailWorkspaceNavigation(
   const open = useCallback(
     (portId: string, originKey?: string, destination?: DetailDestination) => {
       const token = ++sequence.current;
+      const exactTrigger = originKey
+        ? document.querySelector<HTMLElement>(`[data-detail-origin="${CSS.escape(originKey)}"]`)
+        : null;
       const trigger =
-        (originKey
-          ? document.querySelector<HTMLElement>(`[data-detail-origin="${CSS.escape(originKey)}"]`)
-          : null) ??
+        exactTrigger ??
         document.querySelector<HTMLElement>(`[data-detail-game-id="${CSS.escape(portId)}"]`);
       current.current = {
         portId,
@@ -37,6 +39,9 @@ export function useDetailWorkspaceNavigation(
         groupKey: trigger?.closest<HTMLElement>("[data-detail-return-group]")?.dataset
           .detailReturnGroup,
         originKey,
+        ancestorOriginKey:
+          exactTrigger?.parentElement?.closest<HTMLElement>("[data-detail-origin]")?.dataset
+            .detailOrigin,
         scrollTop: workspaceScrollTop(workspace.current),
         token,
       };
@@ -79,7 +84,7 @@ export function useDetailWorkspaceNavigation(
               `[data-detail-origin="${CSS.escape(origin.originKey)}"]`,
             )
           : null;
-        const sameGame =
+        const returnTarget =
           target ??
           document.querySelector<HTMLElement>(
             `[data-detail-game-id="${CSS.escape(origin.returnPortId)}"]`,
@@ -88,18 +93,23 @@ export function useDetailWorkspaceNavigation(
             ? document.querySelector<HTMLElement>(
                 `[data-detail-return-group="${CSS.escape(origin.groupKey)}"] [data-detail-game-id]`,
               )
+            : null) ??
+          (origin.ancestorOriginKey
+            ? document.querySelector<HTMLElement>(
+                `[data-detail-origin="${CSS.escape(origin.ancestorOriginKey)}"]`,
+              )
             : null);
         // The originating control may live inside a disclosure remounted closed.
         // Restore its visibility before restoring scroll and keyboard focus.
         for (
-          let disclosure = sameGame?.parentElement?.closest("details");
+          let disclosure = returnTarget?.parentElement?.closest("details");
           disclosure;
           disclosure = disclosure.parentElement?.closest("details")
         ) {
           disclosure.open = true;
         }
         scrollWorkspaceTo(workspace.current, origin.scrollTop);
-        if (sameGame) focusAndReveal(sameGame);
+        if (returnTarget) focusAndReveal(returnTarget);
         else focusRegion("workspace");
       });
     },

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "darkuni-mylifeking-recomp",
+    "artwork": {
+      "game_id": 21054,
+      "cover_id": 127210,
+      "image_id": "co2q5m",
+      "image_sha256": "30c780d62487c5466f220004a47b15461ac702a423e469f82ef1f5b6921d1bce",
+      "game_slug": "final-fantasy-crystal-chronicles-my-life-as-a-king",
+      "match_kind": "underlying-game"
+    },
     "name": "Final Fantasy Crystal Chronicles: My Life as a King (darkuni Recomp)",
     "summary": "Play My Life as a King with darkuni's Windows recompilation and your own WiiWare WAD.",
     "project_url": "https://github.com/darkuni/mylifeking-recomp",

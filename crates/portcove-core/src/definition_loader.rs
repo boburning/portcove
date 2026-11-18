@@ -575,6 +575,7 @@ mod tests {
         let platform = crate::Platform::WindowsX86_64;
         let layout = |name: &str| crate::ReviewedPackageLayout {
             ignore_verified_macos_libraries: false,
+            classify_linux_programs_by_format: false,
             directories: vec![],
             executables: vec![name.to_owned()],
         };

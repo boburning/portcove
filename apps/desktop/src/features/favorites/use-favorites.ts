@@ -55,33 +55,32 @@ export function useFavorites(generation: number) {
     };
   }, [generation, loadFavorites]);
   const ids = snapshot.generation === generation ? snapshot.ids : undefined;
-  const toggle = useCallback(
-    async (portId: string) => {
+  const setPorts = useCallback(
+    async (portIds: readonly string[], favorite: boolean, before?: () => Promise<boolean>) => {
       const owner = lifetime.current;
       if (!ids || owner.closed || owner.generation !== generation || owner.busy) return false;
       owner.busy = true;
       const request = ++owner.request;
-      const favorite = !ids.has(portId);
+      const next = new Set(ids);
       setSnapshot((current) => ({ ...current, busy: true }));
       try {
-        await desktopApi.setPortFavorite(portId, favorite, generation);
+        if (before && !(await before())) {
+          if (!owner.closed) setSnapshot((current) => ({ ...current, busy: false }));
+          return false;
+        }
+        for (const portId of portIds) {
+          if (owner.closed) return false;
+          await desktopApi.setPortFavorite(portId, favorite, generation);
+          if (favorite) next.add(portId);
+          else next.delete(portId);
+        }
         if (!owner.closed && owner.request === request) {
-          setSnapshot((current) => {
-            const next = new Set(current.ids);
-            if (favorite) next.add(portId);
-            else next.delete(portId);
-            return {
-              generation,
-              ids: next,
-              busy: false,
-              ...(current.failure === undefined ? {} : { failure: current.failure }),
-            };
-          });
+          setSnapshot((current) => ({ ...current, ids: next, busy: false }));
           return true;
         }
       } catch {
         if (!owner.closed && owner.request === request)
-          setSnapshot((current) => ({ ...current, failure: "write", busy: false }));
+          setSnapshot((current) => ({ ...current, ids: next, failure: "write", busy: false }));
       } finally {
         owner.busy = false;
       }
@@ -89,12 +88,16 @@ export function useFavorites(generation: number) {
     },
     [generation, ids],
   );
+  const toggle = useCallback(
+    (portId: string) => setPorts([portId], !ids?.has(portId)),
+    [ids, setPorts],
+  );
   const visibleOnly = snapshot.generation === generation && only;
   const busy = snapshot.generation !== generation || snapshot.busy;
   const failure = snapshot.generation === generation ? snapshot.failure : undefined;
   // A stable value lets memoized collection cards skip unrelated workspace renders.
   return useMemo(
-    () => ({ ids, only: visibleOnly, setOnly, toggle, refresh, busy, failure }),
-    [ids, visibleOnly, toggle, refresh, busy, failure],
+    () => ({ ids, only: visibleOnly, setOnly, toggle, setPorts, refresh, busy, failure }),
+    [ids, visibleOnly, toggle, setPorts, refresh, busy, failure],
   );
 }

@@ -91,6 +91,7 @@ describe("organization controls localization", () => {
       only: false,
       busy: false,
       toggle: async () => true,
+      setPorts: async () => true,
       setOnly: () => {},
       refresh: async () => true,
       failure: undefined,

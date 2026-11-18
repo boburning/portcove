@@ -1,8 +1,8 @@
 //! Immutable version-owned catalog semantics, bound by the install manifest digest.
 //!
-//! The legacy catalog projection is deliberately self-contained: retaining the
-//! complete source graph avoids reconstructing referenced identity/validator or
-//! evidence records from a later catalog. This records semantics, not new trust.
+//! The legacy catalog projection retains the source graph referenced by the
+//! installed contract. A later catalog cannot supply missing identity, validator
+//! or evidence records. This records semantics without granting new trust.
 
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -35,6 +35,54 @@ pub(crate) struct InstalledContract {
     admission: Option<DefinitionSelectionIdentity>,
 }
 
+/// Keep newer native relative-source contracts out of unrelated legacy
+/// captures. Older readers enforce their file-set bounds on the entire retained
+/// catalog, even when the selected port does not use those originals.
+fn retained_catalog_document(catalog: &Catalog, selected: &str) -> crate::CatalogDocument {
+    let mut document = catalog.authoritative_document();
+    let excluded_ports = document
+        .ports
+        .iter()
+        .filter(|port| port.id != selected && crate::preparation::source::native_relative(port))
+        .map(|port| port.id.clone())
+        .collect::<std::collections::BTreeSet<_>>();
+    if excluded_ports.is_empty() {
+        return document;
+    }
+    let excluded_profiles = document
+        .ports
+        .iter()
+        .filter(|port| excluded_ports.contains(&port.id))
+        .filter_map(|port| port.source_profile.clone())
+        .collect::<std::collections::BTreeSet<_>>();
+    document
+        .ports
+        .retain(|port| !excluded_ports.contains(&port.id));
+    if let Some(sources) = document.source_catalog.as_mut() {
+        sources
+            .contracts
+            .retain(|contract| !excluded_ports.contains(&contract.port_id));
+        sources
+            .qualification
+            .retain(|record| !excluded_ports.contains(&record.scope.port_id));
+        let still_used = document
+            .ports
+            .iter()
+            .flat_map(|port| port.source_profile.iter().chain(&port.bios_source_profile))
+            .chain(
+                sources
+                    .contracts
+                    .iter()
+                    .map(|contract| &contract.profile_id),
+            )
+            .collect::<std::collections::BTreeSet<_>>();
+        sources.identities.retain(|profile| {
+            !excluded_profiles.contains(&profile.id) || still_used.contains(&profile.id)
+        });
+    }
+    document
+}
+
 impl InstalledContract {
     pub(crate) fn port_id(&self) -> &str {
         &self.port_id
@@ -59,7 +107,7 @@ impl InstalledContract {
             catalog_json: if definition.is_some() {
                 String::new()
             } else {
-                serde_json::to_string(&catalog.authoritative_document())?
+                serde_json::to_string(&retained_catalog_document(catalog, port_id))?
             },
             definition,
             admission,
@@ -810,6 +858,53 @@ mod tests {
         );
     }
 
+    #[test]
+    fn unrelated_retention_excludes_new_native_relative_source_contracts() {
+        let catalog = Catalog::embedded().unwrap();
+        let stable = "zelda64-recomp";
+        let newer = "doom-3-classic-dhewm3";
+        let newer_profile = catalog
+            .port(newer)
+            .unwrap()
+            .source_profile
+            .as_deref()
+            .unwrap();
+        let captured = InstalledContract::capture(&catalog, stable).unwrap();
+        let retained = captured.catalog(stable).unwrap();
+        assert_eq!(
+            InstalledContract::capture(&retained, stable)
+                .unwrap()
+                .catalog_json,
+            captured.catalog_json,
+        );
+
+        assert!(retained.port(newer).is_err());
+        assert!(retained.source_profile(newer_profile).is_err());
+        assert_eq!(
+            serde_json::to_value(retained.port(stable).unwrap()).unwrap(),
+            serde_json::to_value(catalog.port(stable).unwrap()).unwrap(),
+        );
+        let stable_profile = catalog
+            .port(stable)
+            .unwrap()
+            .source_profile
+            .as_deref()
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(retained.source_profile(stable_profile).unwrap()).unwrap(),
+            serde_json::to_value(catalog.source_profile(stable_profile).unwrap()).unwrap(),
+        );
+
+        let own = InstalledContract::capture(&catalog, newer)
+            .unwrap()
+            .catalog(newer)
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(own.source_profile(newer_profile).unwrap()).unwrap(),
+            serde_json::to_value(catalog.source_profile(newer_profile).unwrap()).unwrap(),
+        );
+    }
+
     // Core-serialized catalog bytes that a node script cannot reproduce: the
     // compact catalog projection, the retained format-1 contract and the
     // manifest-embedded (JSON-escaped) copy that browsing reads under
@@ -852,8 +947,27 @@ mod tests {
     }
 
     #[test]
-    fn retention_keeps_complete_catalog_and_source_graph_before_later_edits() {
-        let original = Catalog::embedded().unwrap();
+    fn retention_keeps_complete_legacy_catalog_and_source_graph_before_later_edits() {
+        let mut legacy = Catalog::embedded().unwrap().authoritative_document();
+        let newer_ports = [
+            "doom-3-classic-dhewm3",
+            "doom-3-resurrection-of-evil-classic-dhewm3",
+        ];
+        legacy
+            .ports
+            .retain(|port| !newer_ports.contains(&port.id.as_str()));
+        let sources = legacy.source_catalog.as_mut().unwrap();
+        sources.identities.retain(|identity| {
+            !["doom-3-classic-pc-131-pk4", "doom-3-roe-classic-pc-131-pk4"]
+                .contains(&identity.id.as_str())
+        });
+        sources
+            .contracts
+            .retain(|contract| !newer_ports.contains(&contract.port_id.as_str()));
+        sources
+            .qualification
+            .retain(|record| !newer_ports.contains(&record.scope.port_id.as_str()));
+        let original = Catalog::from_json(&serde_json::to_string(&legacy).unwrap()).unwrap();
         let contract = InstalledContract::capture(&original, "zelda64-recomp").unwrap();
         let mut changed = original.authoritative_document();
         let port = changed
