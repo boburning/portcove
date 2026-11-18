@@ -5,15 +5,16 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-const source = "ea0a65e61a025776c9d58d549696175b12a69659",
-  run = 44366940975,
+assert.fail("Naev producer is not bound; preparation only, no input or game execution");
+const source = "889ad59f3f2607f8d39b355c85a6edab730b4f9f",
+  run = 44383634182,
   attempt = 1,
-  artifact = 14459907574;
-const expectedZip = "2d00df4d3e68fac1e0dc0dbd9dc94faf89c15dc35cf116021defe091e6fcd979";
+  artifact = 0;
+const expectedZip = "0000000000000000000000000000000000000000000000000000000000000000";
 const root = path.join("C:\\pcv", process.env.GITHUB_RUN_ID + "-" + process.env.GITHUB_RUN_ATTEMPT);
-const evidence = path.join(root, "evidence", "desktop-verify", "teeworlds", "native");
+const evidence = path.join(root, "evidence", "desktop-verify", "naev", "native");
 await mkdir(evidence, { recursive: true });
-await writeFile("teeworlds-native-root.txt", root);
+await writeFile("naev-native-root.txt", root);
 const api = "https://api.github.com/repos/boburning/portcove";
 const headers = {
   Authorization: "Bearer " + process.env.GH_TOKEN,
@@ -29,7 +30,7 @@ const meta = await json(api + "/actions/artifacts/" + artifact);
 assert(
   meta.id === artifact &&
     !meta.expired &&
-    meta.size_in_bytes === 185696495 &&
+    meta.size_in_bytes === 0 &&
     meta.digest === "sha256:" + expectedZip &&
     meta.workflow_run.id === run &&
     meta.workflow_run.head_sha === source &&
@@ -69,7 +70,7 @@ await download(
   true,
 );
 async function python(mode) {
-  const p = spawn("python", ["scripts/teeworlds-hosted-input.py", mode, root], {
+  const p = spawn("python", ["scripts/naev-hosted-input.py", mode, root], {
     stdio: "inherit",
   });
   const [c] = await once(p, "close");
@@ -85,7 +86,7 @@ const decoder = spawn(
   ["x", "-so", "-bso0", "-bsp0", path.join(root, "tests.tar.zst")],
   { stdio: ["ignore", "pipe", "inherit"] },
 );
-const parser = spawn("python", ["scripts/teeworlds-hosted-input.py", "tar", root], {
+const parser = spawn("python", ["scripts/naev-hosted-input.py", "tar", root], {
   stdio: ["pipe", "inherit", "inherit"],
 });
 let decoded = 0,
@@ -118,12 +119,12 @@ assert(
 const executables = JSON.parse(await readFile(path.join(root, "executables.json"), "utf8"));
 const packets = [
   [
-    "teeworlds-0.7.5-win64.zip",
-    "https://github.com/teeworlds/teeworlds/releases/download/0.7.5/teeworlds-0.7.5-win64.zip",
-    "83cd75884a0e8339b4910da1bfe4d737af794d35600cd065e7c2222750b37585",
+    "naev-0.13.5-win64.exe",
+    "https://codeberg.org/naev/naev/releases/download/v0.13.5/naev-0.13.5-win64.exe",
+    "68fd20aad081a90109fad0ad79707cee96c819843c2bbfcfe8e55342ab1c1bd5",
   ],
 ];
-for (const [name, url, digest] of packets) await download(url, name, 12000000, digest);
+for (const [name, url, digest] of packets) await download(url, name, 250000000, digest);
 await python("player");
 // Isolated test-only software OpenGL; never install a system driver or run deployment scripts.
 const mesaArchive = "mesa3d-26.2.7-release-mingw.7z";
@@ -184,7 +185,7 @@ await writeFile(
       archive_sha256: "19c74aad7b09e682473b8de4c35b47e6498de97b71cae5511a231b8eb02f2b22",
       files: mesaFiles,
       scope:
-        "isolated test-only llvmpipe; stock Windows driver failed glTexImage3D; no system changes or GPU qualification",
+        "isolated test-only llvmpipe; no Naev stock-driver rendering, system changes or GPU qualification",
     },
     null,
     2,
@@ -199,14 +200,15 @@ const config = {
   cli_sha256: executables.cli.sha256,
   library: path.join(root, "library"),
   evidence_dir: evidence,
-  player: path.join(root, "player", "teeworlds.exe"),
+  player: path.join(root, "player", "naev.exe"),
   player_root: path.join(root, "player"),
-  player_sha256: "5ab62aefe62b75eebc4f849c0773caecb4a051ea930fa95c8384885c248dda04",
-  roaming: process.env.TEEWORLDS_KNOWN_ROAMING,
-  ui_helper: path.resolve("scripts/teeworlds-hosted-ui.ps1"),
-  scenarios: ["teeworlds-native-client-registration-play-normal-exit-external-preservation"],
+  player_sha256: "9f13f7775bc521c99eec136bd3f4f7c9b24a50e1bc7eeb13c2ffa3facc6e85b9",
+  roaming: process.env.NAEV_KNOWN_ROAMING,
+  profile: path.join(root, "player", "naev-data"),
+  ui_helper: path.resolve("scripts/naev-hosted-ui.ps1"),
+  scenarios: ["naev-native-client-registration-play-normal-exit-external-preservation"],
 };
-assert(config.roaming?.endsWith("Teeworlds"));
+assert(config.roaming?.endsWith("Naev"));
 await writeFile(path.join(root, "native-config.json"), JSON.stringify(config, null, 2));
 await writeFile(
   path.join(evidence, "producer.json"),
@@ -226,7 +228,7 @@ await writeFile(
         digest_authority: "observed identity only; user-selected external native client",
       })),
       scope:
-        "complete official native client package; dedicated server retained inertly, never selected or executed",
+        "complete official native Naev engine/data portable payload; installer, uninstaller and plugins never executed; no Registry changes",
     },
     null,
     2,

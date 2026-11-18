@@ -75,18 +75,19 @@ if (config.ui_helper)
     "Windows executable resolution environment is required for the owned UI observer",
   );
 assert.equal(
-  path.resolve(path.join(environment.APPDATA, "Teeworlds")).toLowerCase(),
+  path.resolve(path.join(environment.APPDATA, "Naev")).toLowerCase(),
   path.resolve(config.roaming).toLowerCase(),
   "Observed profile and engine APPDATA differ",
 );
 // Existing hosted native precedent: this VM has no physical audio endpoint.
-environment.SDL_AUDIODRIVER = "dummy";
+environment.SDL_AUDIO_DRIVER = "dummy";
+environment.ALSOFT_DRIVERS = "null";
 environment.SDL_RENDER_DRIVER = "software";
 environment.GALLIUM_DRIVER = "llvmpipe";
 environment.LIBGL_ALWAYS_SOFTWARE = "1";
 environment.SDL_OPENGL_LIBRARY = path.join(config.player_root, "opengl32.dll");
 await record("hosted-drivers", {
-  audio: "SDL dummy",
+  audio: "OpenAL Soft null and SDL3 dummy requested; no physical audio acceptance",
   renderer: "Mesa26.2.7 x64 llvmpipe requested through isolated app-local SDL_OPENGL_LIBRARY",
   scope: "visual/state lifecycle only; physical audio and hardware rendering not established",
 });
@@ -275,7 +276,7 @@ async function inventory(directory) {
         assert(info.isFile() && info.nlink === 1, "unexpected nonregular or hardlinked owned data");
         total += info.size;
         assert(
-          total <= 128 * 1024 * 1024 && files.length < 4096,
+          total <= 2 * 1024 ** 3 && files.length < 10000,
           "owned data inventory bound exceeded",
         );
         files.push({
@@ -289,15 +290,20 @@ async function inventory(directory) {
   await visit();
   return files.sort((a, b) => a.path.localeCompare(b.path));
 }
-config.port = "teeworlds";
+config.port = "naev";
 players.set(config.port, config.player);
 const prior = await lstat(config.roaming).catch((e) => {
   if (e.code === "ENOENT") return null;
   throw e;
 });
-assert(
-  prior === null,
-  "Fresh VM already has Teeworlds data; preserve it and refuse native execution",
+assert(prior === null, "Fresh VM already has Naev data; preserve it and refuse native execution");
+assert.equal(
+  await lstat(config.profile).catch((e) => {
+    if (e.code === "ENOENT") return null;
+    throw e;
+  }),
+  null,
+  "Fresh portable profile already exists; preserve it and refuse",
 );
 let completed = false;
 try {
@@ -315,12 +321,12 @@ try {
   const selected = await command(["status", config.port]);
   assert(selected.readiness.launchable && selected.successful_launches === 0);
   await command(["exec", config.port], { raw: true });
-  const settings = await lstat(path.join(config.roaming, "settings07.cfg"));
+  const settings = await lstat(path.join(config.profile, "conf.lua"));
   assert(settings.isFile() && settings.size > 32, "Actual client did not write its settings");
-  await record("profile-after-first-play", await inventory(config.roaming));
+  await record("profile-after-first-play", await inventory(config.profile));
   await command(["exec", config.port], { raw: true });
   const packageBefore = await inventory(config.player_root),
-    profileBefore = await inventory(config.roaming);
+    profileBefore = await inventory(config.profile);
   assert.equal(
     sha(await readFile(config.player)),
     config.player_sha256,
@@ -338,7 +344,7 @@ try {
   const removed = await command(["status", config.port]);
   assert(!removed.external_runtime);
   assert.deepEqual(await inventory(config.player_root), packageBefore);
-  assert.deepEqual(await inventory(config.roaming), profileBefore);
+  assert.deepEqual(await inventory(config.profile), profileBefore);
   await record("external-removal-preservation", {
     runtime: packageBefore,
     profile: profileBefore,
@@ -348,7 +354,7 @@ try {
   await record("result", {
     completed: true,
     scope:
-      "Windows x64 Teeworlds0.7.5 native client; ordinary external registration, explicit Play twice, normal owned window close, real settings and complete external byte preservation through registration-only removal. Client UI requires image inspection. No local/public match, earned demo, server process, installed Desktop, physical hardware or sibling-native claim.",
+      "Windows x64 Naev0.13.5 native client; ordinary external registration, explicit Play twice, normal owned window close, real settings and complete external byte preservation through registration-only removal. Client UI requires image inspection. No earned progress, populated save, optional plugin-manager/restart, installed Desktop, physical hardware or sibling-native claim.",
   });
 } finally {
   await record("cleanup", {

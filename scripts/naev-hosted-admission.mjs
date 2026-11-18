@@ -5,11 +5,11 @@ const config = JSON.parse(await readFile(file, "utf8"));
 const { acquireNativeSessionLock } = await import(config.sdk + "scripts/native-session-lock.mts");
 const lease = await acquireNativeSessionLock({
   workspace: process.cwd(),
-  profile: "teeworlds-native-client-hosted",
+  profile: "naev-native-client-hosted",
   scenarios: config.scenarios,
 });
 try {
-  await import("./teeworlds-hosted-owner.mjs");
+  await import("./naev-hosted-owner.mjs");
 } finally {
   const dir = config.evidence_dir;
   const cleanup = JSON.parse(

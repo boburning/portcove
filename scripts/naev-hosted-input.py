@@ -1,6 +1,6 @@
 import sys,io,os,json,hashlib,struct,zipfile,tarfile,shutil
 from pathlib import Path
-mode=sys.argv[1];root=Path(sys.argv[2]);evidence=root/'evidence'/'desktop-verify'/'teeworlds'/'native'
+mode=sys.argv[1];root=Path(sys.argv[2]);evidence=root/'evidence'/'desktop-verify'/'naev'/'native'
 (evidence/('parser-runtime-'+mode+'.json')).write_text(json.dumps({'python':sys.version,'zipfile_sha256':hashlib.file_digest(Path(zipfile.__file__).open('rb'),'sha256').hexdigest(),'tarfile_sha256':hashlib.file_digest(Path(tarfile.__file__).open('rb'),'sha256').hexdigest(),'supported_tar':'regular, directory, one bounded GNU long-name prefix; PAX/sparse/links rejected before preprocessing','supported_zip':'bounded legacy EOCD; ZIP64 directory override rejected'},indent=2))
 def digest(p,kind='sha256'):
  with p.open('rb') as f:return hashlib.file_digest(f,kind).hexdigest()
@@ -21,7 +21,7 @@ if mode=='outer':
    assert not i.is_dir() and ((i.external_attr>>16)&0o170000)!=0o120000
    assert i.file_size <= (4*1024**2 if i.filename=='manifest.json' else 200*1024**2)
    with z.open(i) as src,(root/i.filename).open('xb') as dest:shutil.copyfileobj(src,dest)
- m=json.loads((root/'manifest.json').read_text());assert m['identity']['run']=='44366940975' and m['identity']['attempt']=='1'
+ m=json.loads((root/'manifest.json').read_text());assert m['identity']['run']=='44383634182' and m['identity']['attempt']=='1'
  assert digest(root/'tests.tar.zst')==m['archive_sha256']
  b=(root/'tests.tar.zst').open('rb').read(18);assert b[:4]==bytes.fromhex('28b52ffd') and not(b[4]&32)
  window=(1<<((b[5]>>3)+10));window+=window//8*(b[5]&7);assert window<=256*1024**2
@@ -57,26 +57,56 @@ elif mode=='tar':
  assert set(found)=={'cli','core'}
  (root/'executables.json').write_text(json.dumps(found,indent=2))
 elif mode=='player':
- archive=root/'teeworlds-0.7.5-win64.zip';assert digest(archive)=='83cd75884a0e8339b4910da1bfe4d737af794d35600cd065e7c2222750b37585'
- target=root/'player';target.mkdir();rows=[];seen=set();decoded=0
- with bounded_zip(archive.read_bytes()) as z:
-  assert len(z.infolist())==665 and sum(i.file_size for i in z.infolist())<=64*1024**2
-  for i in z.infolist():
-   assert i.filename.startswith('teeworlds-0.7.5-win64/') and '\\' not in i.filename and i.file_size<=8*1024**2
-   name=i.filename[len('teeworlds-0.7.5-win64/'):].rstrip('/')
-   if not name:assert i.is_dir();continue
-   parts=name.split('/');assert all(x and x not in ('.','..') and x.rstrip(' .')==x and not any(c in x for c in ':*?"<>|') for x in parts)
-   assert all(x.split('.')[0].upper() not in ['CON','PRN','AUX','NUL',*[f'COM{n}' for n in range(1,10)],*[f'LPT{n}' for n in range(1,10)]] for x in parts)
-   assert name.casefold() not in seen;seen.add(name.casefold());assert ((i.external_attr>>16)&0o170000) in (0,0o100000,0o040000)
-   out=target.joinpath(*parts)
-   if i.is_dir():out.mkdir(parents=True,exist_ok=True);continue
-   out.parent.mkdir(parents=True,exist_ok=True)
-   with z.open(i) as src,out.open('xb') as dest:
-    while b:=src.read(65536):decoded+=len(b);assert decoded<=64*1024**2;dest.write(b)
-   rows.append({'path':name,'bytes':out.stat().st_size,'sha256':digest(out)})
- assert digest(target/'teeworlds.exe')=='5ab62aefe62b75eebc4f849c0773caecb4a051ea930fa95c8384885c248dda04'
- assert (target/'teeworlds_srv.exe').is_file() and (target/'data'/'maps'/'dm1.map').is_file()
- with (target/'teeworlds.exe').open('rb') as f:b=f.read(4096)
+ import subprocess,time,stat
+ archive=root/'naev-0.13.5-win64.exe'
+ # Exact reviewed NSIS bytes bind fixed 8MiB LZMA dictionary/632800-byte headers;
+ # this is a finite fixture, not a generic installer or archive admission policy.
+ assert archive.stat().st_size==238212694 and digest(archive)=='68fd20aad081a90109fad0ad79707cee96c819843c2bbfcfe8e55342ab1c1bd5'
+ manifest_path=Path('scripts/naev-hosted-package.json');assert manifest_path.stat().st_size<3*1024**2
+ expected=json.loads(manifest_path.read_text());assert expected['archive_sha256']==digest(archive)
+ files={r['path']:r for r in expected['files']};assert len(files)==7687 and sum(r['bytes']for r in files.values())==450419040
+ directories=set()
+ for name,row in files.items():
+  parts=name.split('/');assert all(x and x not in ('.','..') and x.rstrip(' .')==x and not any(c in x for c in ':*?"<>|\\') for x in parts)
+  assert row['bytes']<=256*1024**2
+  for i in range(1,len(parts)):directories.add('/'.join(parts[:i]))
+ assert len({n.casefold()for n in files})==len(files)
+ decoder=Path(r'C:\Program Files\7-Zip\7z.exe')
+ version=subprocess.run([str(decoder),'i'],capture_output=True,timeout=10,check=True)
+ assert len(version.stdout)<=128*1024 and len(version.stderr)<=64*1024
+ (evidence/'decoder-runtime-player.json').write_text(json.dumps({'path':str(decoder),'sha256':digest(decoder),'version_output':version.stdout.decode('utf-8',errors='replace')[:4096],'scope':'actual hosted decoder identity and version; fixed reviewed NSIS package, not generic archive qualification'},indent=2))
+ target=root/'player';target.mkdir()
+ def observe(final=False):
+  total=0;seen=set();rows=[]
+  for p in target.rglob('*'):
+   info=p.lstat();assert not(info.st_file_attributes&stat.FILE_ATTRIBUTE_REPARSE_POINT)
+   name=p.relative_to(target).as_posix()
+   if p.is_dir():assert name in directories;continue
+   assert p.is_file() and name in files and name not in seen;seen.add(name)
+   assert info.st_size<=files[name]['bytes'];total+=info.st_size;assert total<=450419040
+   if final:
+    assert info.st_size==files[name]['bytes'] and digest(p)==files[name]['sha256']
+    rows.append(files[name])
+  if final:assert seen==set(files) and total==450419040
+  return rows
+ # Decode into only this new owned directory. Bound disk writes during extraction,
+ # process duration and positive child exit; never run the embedded installer.
+ log=evidence/'package-decode.log'
+ with log.open('xb') as output:
+  process=subprocess.Popen([r'C:\Program Files\7-Zip\7z.exe','x','-y','-mmt=2','-bso0','-bsp0','-o'+str(target),str(archive),'-xr!$PLUGINSDIR','-x!uninstall.exe'],stdout=output,stderr=subprocess.STDOUT)
+  deadline=time.monotonic()+120
+  try:
+   while process.poll() is None:
+    assert time.monotonic()<deadline and log.stat().st_size<1024**2
+    observe();time.sleep(.25)
+   assert process.returncode==0
+  finally:
+   if process.poll() is None:process.kill()
+   process.wait(timeout=10)
+  (evidence/'package-decode-exit.json').write_text(json.dumps({'positive_exit':process.returncode==0,'exit_code':process.returncode,'installer_executed':False}))
+ rows=observe(True)
+ assert (target/'datapath.lua').read_text().strip().endswith('datapath = "naev-data/"')
+ with (target/'naev.exe').open('rb') as f:b=f.read(4096)
  off=struct.unpack_from('<I',b,0x3c)[0];assert b[:2]==b'MZ' and off+26<=len(b) and b[off:off+4]==b'PE\0\0' and struct.unpack_from('<H',b,off+4)[0]==0x8664
- (evidence/'external-package-identities.json').write_text(json.dumps({'files':rows,'expanded_bytes':decoded,'server_executed':False},indent=2))
+ (evidence/'external-package-identities.json').write_text(json.dumps({'files':rows,'expanded_bytes':450419040,'scope':'exact private inert extraction of official portable payload; installer/uninstaller/plugin scripts never executed'}))
 else:raise RuntimeError('Unknown fixed input operation')
