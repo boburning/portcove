@@ -10,7 +10,16 @@ import type { CollectionLayout } from "./use-collection-layout";
 import type { useFavorites } from "../favorites/use-favorites";
 import { SaveGameButton, type Organization } from "../organization/OrganizationControls";
 import type { TFunction } from "i18next";
-import { memo, useCallback, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  memo,
+  useCallback,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Trans } from "react-i18next";
 import { useAppTranslation } from "../../localization";
 import { ArrowRight, GitCompareArrows, Heart, Star } from "lucide-react";
@@ -141,6 +150,8 @@ export function GroupedDiscover({
         originKey: string | undefined;
         controlKey: string | undefined;
         controlIndex: number;
+        generation: number | undefined;
+        queryKey: string;
       }
     | undefined
   >(undefined);
@@ -151,20 +162,51 @@ export function GroupedDiscover({
   const leaving = useRef(false);
   // Cards are memoized, so these handlers keep their identity until something a
   // card shows changes; otherwise every search or filter change re-renders every card.
-  const compare = useCallback((group: GameGroup, trigger: HTMLButtonElement) => {
-    const card = trigger.closest<HTMLElement>("[data-detail-return-group]");
-    origin.current = {
-      collection: trigger.closest<HTMLElement>("[data-virtual-collection]"),
-      groupKey: group.id,
-      originKey: trigger.dataset.detailOrigin,
-      controlKey: trigger.dataset.collectionControl,
-      controlIndex: card ? focusableControls(card).indexOf(trigger) : -1,
+  const compare = useCallback(
+    (group: GameGroup, trigger: HTMLButtonElement) => {
+      const card = trigger.closest<HTMLElement>("[data-detail-return-group]");
+      origin.current = {
+        collection: trigger.closest<HTMLElement>("[data-virtual-collection]"),
+        groupKey: group.id,
+        originKey: trigger.dataset.detailOrigin,
+        controlKey: trigger.dataset.collectionControl,
+        controlIndex: card ? focusableControls(card).indexOf(trigger) : -1,
+        generation: owner?.generation,
+        queryKey,
+      };
+      comparisonIntent.current = { active: true };
+      leaving.current = false;
+      setComparisonPin(group.id);
+      setComparison(group);
+    },
+    [owner?.generation, queryKey],
+  );
+  useLayoutEffect(() => {
+    const saved = origin.current;
+    if (!saved || (saved.generation === owner?.generation && saved.queryKey === queryKey)) return;
+    comparisonIntent.current.active = false;
+    leaving.current = true;
+    origin.current = undefined;
+    setComparison(undefined);
+    setComparisonPin(undefined);
+  }, [owner?.generation, queryKey]);
+  useLayoutEffect(() => {
+    if (!comparisonPin) return;
+    const release = (event: FocusEvent) => {
+      if (
+        comparisonIntent.current.active ||
+        (event.target instanceof Node && dialogRoot.current?.contains(event.target))
+      )
+        return;
+      document.removeEventListener("focusin", release, true);
+      setComparisonPin(undefined);
     };
-    comparisonIntent.current = { active: true };
-    leaving.current = false;
-    setComparisonPin(group.id);
-    setComparison(group);
-  }, []);
+    // Base UI 1.9 resolves finalFocus in cleanup and focuses in a microtask.
+    // Keep the virtual row until that real focus event transfers its pin to the
+    // collection; releasing on transition completion can detach the return node.
+    document.addEventListener("focusin", release, true);
+    return () => document.removeEventListener("focusin", release, true);
+  }, [comparisonPin]);
   const open = useCallback(
     (port: CatalogEntry, originKey: string) => {
       comparisonIntent.current.active = false;
@@ -232,7 +274,7 @@ export function GroupedDiscover({
       <Dialog
         open={Boolean(comparison)}
         onOpenChangeComplete={(open) => {
-          if (!open) setComparisonPin(undefined);
+          if (!open && leaving.current) setComparisonPin(undefined);
         }}
         onOpenChange={(open) => {
           if (!open) {
@@ -247,8 +289,13 @@ export function GroupedDiscover({
           className="port-comparison-dialog"
           initialFocus={heading}
           finalFocus={() => {
-            if (leaving.current) return false;
             const saved = origin.current;
+            if (
+              leaving.current ||
+              saved?.generation !== owner?.generation ||
+              saved?.queryKey !== queryKey
+            )
+              return false;
             const card = saved?.collection?.isConnected
               ? saved.collection.querySelector<HTMLElement>(
                   `[data-detail-return-group="${CSS.escape(saved.groupKey)}"]`,
@@ -279,6 +326,7 @@ export function GroupedDiscover({
             // Responsive regrouping keeps the return card mounted, but it can
             // move outside the viewport while focus belongs to the dialog.
             target?.scrollIntoView({ block: "nearest", inline: "nearest" });
+            if (!target) setComparisonPin(undefined);
             return target;
           }}
         >

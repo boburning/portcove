@@ -255,3 +255,49 @@ it.each(["control", "origin"] as const)(
       .toBe(true);
   },
 );
+
+it.each(["query", "generation"] as const)(
+  "cancels a comparison return when its %s owner changes",
+  async (change) => {
+    vi.spyOn(desktopApi, "compareGamePorts").mockRejectedValue(new Error("Unavailable fixture"));
+    const ports = [portDefinition()];
+    const statuses = new Map<string, PortStatus>();
+    const onSelect = vi.fn();
+    const favorite = vi.fn();
+    const render = async (generation: number, queryKey: string) => {
+      await act(async () =>
+        root.render(
+          <OperationPresentationProvider generation={generation} pending={new Map()}>
+            <main data-focus-region="workspace">
+              <GroupedDiscover
+                all={ports}
+                matching={ports}
+                statuses={statuses}
+                queryKey={queryKey}
+                onSelect={onSelect}
+                onFavoriteToggle={favorite}
+              />
+            </main>
+          </OperationPresentationProvider>,
+        ),
+      );
+    };
+    await render(7, "original");
+    const trigger = host.querySelector<HTMLButtonElement>(
+      '[data-collection-control="compare-evidence"]',
+    )!;
+    expect(trigger).not.toBeNull();
+    await act(async () => {
+      trigger.focus();
+      trigger.click();
+    });
+    await expect.poll(() => document.activeElement?.closest('[role="dialog"]')).not.toBeNull();
+    await render(change === "generation" ? 8 : 7, change === "query" ? "replacement" : "original");
+    await expect.poll(() => document.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).not.toBe(trigger);
+    // Returning to an old query must not resurrect its dismissed comparison.
+    await render(7, "original");
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(onSelect).not.toHaveBeenCalled();
+  },
+);

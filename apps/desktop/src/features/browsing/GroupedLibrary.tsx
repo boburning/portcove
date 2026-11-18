@@ -1,5 +1,6 @@
 import {
   createContext,
+  memo,
   useCallback,
   useContext,
   useLayoutEffect,
@@ -42,6 +43,7 @@ const LibraryMenuContext = createContext<
       highlightedAction: string | undefined;
       highlight: (portId: string, action: string | undefined) => void;
       getHighlighted: (portId: string) => string | undefined;
+      canReturn: (portId: string) => boolean;
       change: (portId: string, open: boolean) => void;
       complete: (portId: string, open: boolean) => void;
     }
@@ -122,6 +124,9 @@ export function GroupedLibrary({
     () => ({
       openPortId: currentMenu.openPortId,
       highlightedAction: currentMenu.highlightedAction,
+      canReturn(portId: string) {
+        return currentKey.current === key && currentMenu.retainedPortId === portId;
+      },
       getHighlighted(portId: string) {
         return currentKey.current === key && currentMenu.openPortId === portId
           ? currentMenu.highlightedAction
@@ -154,7 +159,7 @@ export function GroupedLibrary({
         );
       },
     }),
-    [key, currentMenu.openPortId, currentMenu.highlightedAction],
+    [key, currentMenu.openPortId, currentMenu.retainedPortId, currentMenu.highlightedAction],
   );
   const menuPin = groups.find((group) =>
     group.ports.some((port) => port.id === currentMenu.retainedPortId),
@@ -180,7 +185,7 @@ export function GroupedLibrary({
             {...{ group, statuses, organization, renderPort, onSelect, layout, t }}
             item={items[index]!}
             expanded={expanded.has(group.id)}
-            onExpanded={(open) => expand(group.id, open)}
+            onExpanded={expand}
           />
         )}
       </VirtualCollectionRows>
@@ -188,7 +193,7 @@ export function GroupedLibrary({
   );
 }
 
-function LibraryGame({
+const LibraryGame = memo(function LibraryGame({
   group,
   item,
   expanded,
@@ -203,7 +208,7 @@ function LibraryGame({
   group: GameGroup;
   item: LibraryItem;
   expanded: boolean;
-  onExpanded: (open: boolean) => void;
+  onExpanded: (groupId: string, open: boolean) => void;
   t: TFunction<"browsing">;
   statuses: ReadonlyMap<string, PortStatus>;
   organization: Organization | undefined;
@@ -247,7 +252,7 @@ function LibraryGame({
       {grouped && (
         <details
           open={expanded}
-          onToggle={(event) => onExpanded(event.currentTarget.open)}
+          onToggle={(event) => onExpanded(group.id, event.currentTarget.open)}
           className="mt-2 rounded-pc-md border border-pc-border px-3 py-2 text-sm"
         >
           <summary data-focusable data-collection-control="alternatives" className="cursor-pointer">
@@ -293,7 +298,7 @@ function LibraryGame({
       )}
     </div>
   );
-}
+});
 
 function LibraryChoicePrompt({
   group,

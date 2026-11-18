@@ -158,7 +158,10 @@ export function VirtualCollectionRows({
       focusedCard && visible(focusedCard)
         ? focusedCard
         : [...element.querySelectorAll<HTMLElement>("[data-detail-return-group]")].find(visible);
-    if (!card) return;
+    if (!card) {
+      reading.current = undefined;
+      return;
+    }
     reading.current = {
       groupKey: card.dataset.detailReturnGroup!,
       top: card.getBoundingClientRect().top,
@@ -224,6 +227,16 @@ export function VirtualCollectionRows({
     };
     const focus = () => {
       const active = document.activeElement;
+      // A new owner can focus a search field or a dialog programmatically.
+      // Yield restoration just as for pointer/keyboard intent, while allowing
+      // focus lost to body during structural unmount to retain its anchor.
+      if (
+        active instanceof HTMLElement &&
+        active !== document.body &&
+        active !== document.documentElement &&
+        !element.contains(active)
+      )
+        userIntent();
       const card =
         active instanceof HTMLElement && element.contains(active)
           ? active.closest<HTMLElement>("[data-detail-return-group]")
@@ -282,6 +295,8 @@ export function VirtualCollectionRows({
   }, [generation, queryKey, capture]);
 
   // Geometry cache invalidation is separate from React structural row identity.
+  // Reordering stable keys preserves their measured heights. Clearing those
+  // measurements would reintroduce estimates and move an acknowledged anchor.
   useLayoutEffect(() => {
     virtualizer.cancelScroll();
     virtualizer.measure();
@@ -295,7 +310,6 @@ export function VirtualCollectionRows({
     layout,
     i18n.language,
     generation,
-    structure,
   ]);
 
   const mount = useCallback(async (target: CollectionDestination, current: () => boolean) => {

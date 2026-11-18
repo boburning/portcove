@@ -2319,6 +2319,14 @@ function PortCardActionMenu({
         <Menu.Positioner side="bottom" align="end" sideOffset={4} className="z-(--layer-floating)">
           <Menu.Popup
             ref={popup}
+            finalFocus={
+              menu
+                ? () =>
+                    menu.canReturn(port.id) && trigger.current?.isConnected
+                      ? trigger.current
+                      : false
+                : undefined
+            }
             onFocus={restoreHighlighted}
             data-portcove-focus-scope
             aria-label={`More actions for ${gameIdentityLabel(port)}`}

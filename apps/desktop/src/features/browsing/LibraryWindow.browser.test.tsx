@@ -63,6 +63,7 @@ function Fixture({
   ready = true,
   matching = ports,
   organizationState = "ready",
+  trailing = false,
 }: {
   layout?: CollectionLayout;
   generation?: number;
@@ -70,6 +71,7 @@ function Fixture({
   ready?: boolean;
   matching?: typeof ports;
   organizationState?: "ready" | "busy" | "unavailable";
+  trailing?: boolean;
 } = {}) {
   return (
     <OperationPresentationProvider generation={generation} pending={pending}>
@@ -96,6 +98,11 @@ function Fixture({
           query={query}
           resultsReady={ready}
         />
+        {trailing && (
+          <div style={{ height: 1600 }}>
+            <button id="after-library">After collection</button>
+          </div>
+        )}
       </main>
     </OperationPresentationProvider>
   );
@@ -261,23 +268,52 @@ it.each(["covers", "rows"] as const)(
   },
 );
 
-it("yields pending structural restoration to a new explicit focus and scroll intent", async () => {
-  await draw();
-  const card = await mountLibraryPort("library-180");
-  await act(async () => card.querySelector<HTMLButtonElement>(".collection-identity")!.focus());
-  await frames();
-  await act(async () => root.render(<Fixture matching={[...ports].reverse()} />));
-  const outside = document.querySelector<HTMLButtonElement>("#outside-library")!;
+it.each(["focus", "pointer"] as const)(
+  "yields pending structural restoration to a new %s owner and scroll intent",
+  async (intent) => {
+    await draw();
+    const card = await mountLibraryPort("library-180");
+    await act(async () => card.querySelector<HTMLButtonElement>(".collection-identity")!.focus());
+    await frames();
+    await act(async () => root.render(<Fixture matching={[...ports].reverse()} />));
+    const outside = document.querySelector<HTMLButtonElement>("#outside-library")!;
+    const workspace = document.querySelector<HTMLElement>("main")!;
+    await act(async () => {
+      if (intent === "pointer")
+        outside.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      outside.focus({ preventScroll: true });
+      workspace.scrollTop = 0;
+    });
+    await frames();
+    await frames();
+    expect(document.activeElement).toBe(outside);
+    expect(workspace.scrollTop).toBe(0);
+  },
+);
+
+it("does not restore an offscreen collection over the current reading owner on resize", async () => {
+  await draw({ layout: "rows", trailing: true });
+  await mountLibraryPort("library-2");
+  const after = document.querySelector<HTMLButtonElement>("#after-library")!;
   const workspace = document.querySelector<HTMLElement>("main")!;
+  const collection = document.querySelector<HTMLElement>('[data-virtual-collection="library"]')!;
   await act(async () => {
-    outside.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-    outside.focus({ preventScroll: true });
-    workspace.scrollTop = 0;
+    after.scrollIntoView({ block: "start" });
+    after.focus({ preventScroll: true });
   });
   await frames();
   await frames();
-  expect(document.activeElement).toBe(outside);
-  expect(workspace.scrollTop).toBe(0);
+  const outsideViewport = () =>
+    collection.getBoundingClientRect().bottom <= workspace.getBoundingClientRect().top + 1;
+  expect(outsideViewport()).toBe(true);
+  await act(async () => {
+    workspace.style.width = "760px";
+    window.dispatchEvent(new Event("resize"));
+  });
+  await frames();
+  await frames();
+  expect(document.activeElement).toBe(after);
+  expect(outsideViewport()).toBe(true);
 });
 
 it("distinguishes a narrowed Library match from all alternatives in its logical game", async () => {
