@@ -1158,18 +1158,31 @@ function ModSetupPackages({
   const [choice, setChoice] = useState<{ nativeId: string; revision: number }>();
   const [editOrder, setEditOrder] = useState(false);
   const [query, setQuery] = useState("");
-  const ordered = inOverrideOrder(selected, draft.order ?? undefined);
+  const [filter, setFilter] = useState<"all" | "on" | "off" | "pending">("all");
+  const applied = inOverrideOrder(selected);
+  const ordered = draft.order ? inOverrideOrder(selected, draft.order) : applied;
+  const rank = new Map(applied.map((item, index) => [item.native_id, index]));
   const term = query.trim().toLocaleLowerCase();
   const visible = editOrder
     ? ordered
-    : ordered.filter((item) => item.native_id.toLocaleLowerCase().includes(term));
+    : ordered.filter((item, index) => {
+        if (term && !item.native_id.toLocaleLowerCase().includes(term)) return false;
+        if (filter === "on") return item.enabled;
+        if (filter === "off") return !item.enabled;
+        if (filter === "pending") {
+          return (
+            index !== rank.get(item.native_id) ||
+            draft.packages.some((change) => change.native_id === item.native_id)
+          );
+        }
+        return true;
+      });
   const move = (index: number, step: number) => {
     const ids = ordered.map((item) => item.native_id);
     const target = index + step;
     if (target < 0 || target >= ids.length) return;
     [ids[index], ids[target]] = [ids[target]!, ids[index]!];
-    const applied = inOverrideOrder(selected).map((item) => item.native_id);
-    setOrder(ids.every((id, position) => id === applied[position]) ? null : ids);
+    setOrder(ids.every((id, position) => id === applied[position]?.native_id) ? null : ids);
   };
   const revision = selected.profile.current_revision;
   const packageArea = useRef<HTMLDivElement>(null);
@@ -1184,6 +1197,20 @@ function ModSetupPackages({
             placeholder={t("mods.workspace.searchInstalled")}
             value={query}
             onChange={(event) => setQuery(event.currentTarget.value)}
+          />
+        )}
+        {!editOrder && ordered.length > 0 && (
+          <ChoiceSelect
+            inline
+            label={t("mods.workspace.installation")}
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: "all", label: t("mods.workspace.status.all") },
+              { value: "on", label: t("mods.workspace.enabledFilter") },
+              { value: "off", label: t("mods.workspace.disabledFilter") },
+              { value: "pending", label: t("mods.workspace.pendingFilter") },
+            ]}
           />
         )}
         {orderSupported && ordered.length > 1 && (
@@ -1208,10 +1235,15 @@ function ModSetupPackages({
       )}
       {(selected.revision.packages ?? []).length === 0 ? (
         <p className="text-sm">{t("mods.empty")}</p>
+      ) : visible.length === 0 ? (
+        <p role="status" className="text-sm">
+          {t("mods.browse.noMatches")}
+        </p>
       ) : (
         <ul className="m-0 grid list-none gap-1 p-0">
           {visible.map((item, index) => {
             const pending = draft.packages.find((edit) => edit.native_id === item.native_id);
+            const moved = ordered.indexOf(item) !== rank.get(item.native_id);
             return (
               <li key={item.native_id} className="grid gap-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1249,6 +1281,7 @@ function ModSetupPackages({
                       )}
                     </span>
                   )}
+                  {moved && <span>{t("mods.workspace.pendingMove")}</span>}
                   {editOrder ? (
                     <ActionRow>
                       <Button

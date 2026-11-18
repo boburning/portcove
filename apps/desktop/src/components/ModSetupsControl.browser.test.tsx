@@ -1140,7 +1140,9 @@ it("offers verified relinking for the recorded original of an already prepared i
 
   await act(async () => button(host, "Review original game files").click());
   expect(host.textContent).toContain("This installation uses game data it already prepared.");
-  expect(host.querySelector('[role="combobox"]:not(.mod-setup-select *)')).toBeNull();
+  await expect
+    .element(page.getByRole("combobox", { name: /Other registered originals/ }))
+    .not.toBeInTheDocument();
   await act(async () => find.click());
   await expect
     .element(page.getByRole("alert"))
@@ -1993,4 +1995,23 @@ it("fences an old inventory result when the workspace generation is replaced", a
   await act(async () => finishOld(view({ inventory: null, live: null })));
   expect(host.textContent).toContain("Default");
   expect(host.textContent).not.toContain("Create first setup");
+});
+
+it("restores the Installed search and status after showing the full load order", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
+  const host = await render();
+  const search = page.getByRole("searchbox", { name: "Search installed mods" });
+  const status = page.getByRole("combobox", { name: /Installation status/ });
+  await act(async () => (status.element() as HTMLButtonElement).click());
+  await act(async () =>
+    (page.getByRole("option", { name: "Enabled", exact: true }).element() as HTMLElement).click(),
+  );
+  await search.fill("hd");
+  await expect.element(page.getByRole("checkbox", { name: "sfx.otr" })).not.toBeInTheDocument();
+  await act(async () => button(host, "Edit order").click());
+  await expect.element(page.getByRole("checkbox", { name: "sfx.otr" })).toBeVisible();
+  await act(async () => button(host, "Done").click());
+  await expect.element(search).toHaveValue("hd");
+  await expect.element(status).toHaveAccessibleName("Installation status Enabled");
+  await expect.element(page.getByRole("checkbox", { name: "sfx.otr" })).not.toBeInTheDocument();
 });
