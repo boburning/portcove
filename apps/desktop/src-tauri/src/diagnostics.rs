@@ -1,5 +1,5 @@
 use std::{
-    path::{Path, PathBuf},
+    path::Path,
     sync::atomic::{AtomicU64, Ordering},
     time::Duration,
 };
@@ -48,18 +48,18 @@ impl GithubAuthObservation {
 /// carries no library state and never grants recovery or sharing authority.
 #[derive(Clone)]
 pub(crate) struct HostDiagnostics {
-    pub(crate) directory: crate::DesktopResult<PathBuf>,
     shared: portcove_diagnostics::HostDiagnostics,
 }
 
 impl HostDiagnostics {
     fn from_shared(shared: portcove_diagnostics::HostDiagnostics) -> Self {
-        Self {
-            directory: shared.directory().map(Path::to_path_buf).ok_or_else(|| {
-                PortcoveError::state("host diagnostics location is unavailable").report()
-            }),
-            shared,
-        }
+        Self { shared }
+    }
+
+    pub(crate) fn directory(&self) -> crate::DesktopResult<&Path> {
+        self.shared.support_directory().ok_or_else(|| {
+            PortcoveError::state("host diagnostics location is unavailable").report()
+        })
     }
 
     pub(crate) fn start() -> (Self, Option<Guard>) {
@@ -219,7 +219,7 @@ mod tests {
         let subscriber =
             tracing_subscriber::registry().with(shared.layer().with_filter(shared.filter()));
         let host = HostDiagnostics::from_shared(shared);
-        let directory = host.directory.as_ref().unwrap();
+        let directory = host.directory().unwrap();
         assert_eq!(directory, &root.join("diagnostics"));
         tracing::subscriber::with_default(subscriber, || {
             tracing::info!(
@@ -345,7 +345,7 @@ mod tests {
         assert!(shared.session_directory().is_none());
         assert_eq!(shared.health().flush_state, FlushState::Unavailable);
         let host = HostDiagnostics::from_shared(shared);
-        assert!(host.directory.is_err());
+        assert!(host.directory().is_err());
         assert_eq!(fs::read(&foreign).unwrap(), b"preserve foreign data");
         assert_eq!(
             fs::read(directory.join(LOG_FILE_NAME)).unwrap(),
@@ -371,7 +371,7 @@ mod tests {
         assert!(shared.session_directory().is_none());
         assert_eq!(shared.health().flush_state, FlushState::Unavailable);
         let host = HostDiagnostics::from_shared(shared);
-        assert!(host.directory.is_err());
+        assert!(host.directory().is_err());
         assert_eq!(fs::read_link(alias).unwrap(), foreign);
         assert!(!foreign.join("diagnostics").exists());
     }
