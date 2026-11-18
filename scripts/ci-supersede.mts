@@ -145,6 +145,40 @@ export function readyForReviewAction(
     : "none";
 }
 
+export function supersedeTiming(action: string | undefined) {
+  const ready = action === "ready_for_review";
+  return {
+    clientMs: (ready ? 25 : 4) * 60_000,
+    // A cancelled run can wait for its always() gates to obtain runners. Keep
+    // the longer ready-transition wait within the unchanged 64-request budget.
+    pollMs: ready ? 60_000 : 10_000,
+  };
+}
+
+interface WaitClock {
+  now(): number;
+  sleep(milliseconds: number): Promise<void>;
+}
+
+export async function waitForCancelledRun(
+  observe: () => Promise<unknown>,
+  options: { run: number; deadline: number; pollMs: number },
+  clock: WaitClock = {
+    now: () => performance.now(),
+    sleep: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+  },
+) {
+  for (;;) {
+    const run = await observe();
+    if (isRecord(run) && run.status === "completed") return;
+    if (clock.now() + options.pollMs > options.deadline)
+      throw new Error(
+        `Run ${options.run} did not finish cancelling; re-run all jobs to run the partitions`,
+      );
+    await clock.sleep(options.pollMs);
+  }
+}
+
 async function main() {
   const token = process.env.GH_TOKEN ?? "";
   const pullRequest = Number(process.env.PR_NUMBER);
@@ -162,7 +196,8 @@ async function main() {
   )
     throw new Error("Missing or malformed pull request identity");
   let requests = 0;
-  const clientDeadline = performance.now() + 4 * 60_000;
+  const timing = supersedeTiming(process.env.EVENT_ACTION);
+  const clientDeadline = performance.now() + timing.clientMs;
   // Leave room for the cancel/re-run requests after any wait.
   const waitUntil = clientDeadline - 20_000;
   const sdk = await createGitHubClient({
@@ -216,9 +251,9 @@ async function main() {
         await get(`${root}/runs/${own}/jobs?filter=latest&per_page=100`),
       );
       if (action !== "wait") break;
-      if (performance.now() + 10_000 > waitUntil)
+      if (performance.now() + timing.pollMs > waitUntil)
         throw new Error(`Run ${own} did not classify in time; re-run all jobs if it deferred`);
-      await new Promise((resolve) => setTimeout(resolve, 10000));
+      await new Promise((resolve) => setTimeout(resolve, timing.pollMs));
     }
     if (action === "none") {
       console.log(`Run ${own} is not deferred (or ran its partitions); leaving it to finish`);
@@ -232,15 +267,11 @@ async function main() {
         request: { portcove: { replay: "once", attempts: 0 } },
       });
       // Cancelled runs still start their always() gate jobs, so allow the remaining budget.
-      for (;;) {
-        const run = await get(`${root}/runs/${own}`);
-        if (isRecord(run) && run.status === "completed") break;
-        if (performance.now() + 10_000 > waitUntil)
-          throw new Error(
-            `Run ${own} did not finish cancelling; re-run all jobs to run the partitions`,
-          );
-        await new Promise((resolve) => setTimeout(resolve, 10000));
-      }
+      await waitForCancelledRun(() => get(`${root}/runs/${own}`), {
+        run: own,
+        deadline: waitUntil,
+        pollMs: timing.pollMs,
+      });
     }
     console.log(`Re-running run ${own} to execute its deferred Windows partitions`);
     await sdk.request({

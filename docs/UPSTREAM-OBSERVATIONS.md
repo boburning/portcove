@@ -1157,3 +1157,138 @@ Findings from the latest scheduled `main` report reach the
 listing and evidence, together with every target it could not scan. A
 `complete` report opens one routine handoff per port, carrying its findings and
 any package the scan could not inspect.
+
+## Shared observations in preliminary package browsing
+
+Core can reuse a complete, unexpired GitHub observation from the existing
+signed descriptive directory when opening a non-managed project's package
+chooser. It preserves the repository/release/asset identities, original
+observation time, expiry and provider digest claim. The chooser dates the
+reused metadata and explains that preview checks the selected file upstream.
+This window never claims complete provider release history. Preview without
+an observed prerelease, an unknown explicit release, stale/future-dated,
+failed, incomplete, unavailable or malformed enrichment falls back to the
+existing provider read. The observation is never retimed by a local read.
+
+This projection does not enter managed release resolution or update checking.
+Preview and acquisition retain the existing exact upstream candidate,
+checksum/hold, destination, package and publication checks. Offline browsing
+can display fresh retained metadata; offline acquisition retains its normal
+failure. A report-only release can supply descriptive file facts without
+creating a playable runtime or managed support.
+
+The targeted HTTP-fixture measurement in
+`service::catalog_download::tests::shared_observation_browse_counts_requests_and_keeps_exact_preview_live`
+opens the package chooser for 1, 20 and 100 distinct game entries, including
+shared repositories. It distinguishes baseline provider metadata reads,
+repeated shared-observation reads and subsequent exact preview reads. This
+is a browse-workflow measurement, not a forecast of managed library updates,
+live production latency or payload-download savings. Existing signed listing
+delivery supplies the reusable projection; this change creates no additional
+feed, account, scheduler or publication grant.
+
+The current CI-green main catalog publisher derives the existing
+`policy/official/catalog.listings.json` target from the canonical directory plus
+completed policies in the existing observer checkpoint artifact. The maintained
+artifact reader binds the source workflow, run, commit, configuration and digest.
+Only `upstream_observation` may differ from the current canonical row. Changes to
+the repository, hints, restrictions, setup or operational route invalidate reuse.
+Core exports the exact supplied directory to format 11 before enrichment; this
+preserves its original guide and current strict-reader compatibility, while the
+authored directory and public browse projection retain format 12 metadata.
+Newer clients retain their existing implementation descriptions when a format-11
+row has the same project URL and exact original-game identity. The older delivery
+cannot express that field; a format-12 delivery can explicitly clear it. Changed
+projects or game/edition identities do not inherit descriptions.
+
+Prior observations are reused only after the existing compiled repository
+verifier succeeds, the exact logical target is referenced by its role, and its
+physical bytes match the verified hash and length. Unavailable or partial source
+reads preserve applicable prior facts and original clocks. Identical directories
+retain exact bytes and revision. The unchanged signer still verifies the entire
+prior repository and historical revision bounds before renewal. Publication uses
+the existing official-policy namespace and keys.
+
+The target remains a partial directory under the existing eight-MiB limit. It
+admits whole canonical rows, prioritizes prior rows before new observations, and
+never drops requirements to make a row fit. Omissions and source exceptions appear
+in `observation-projection.json` beside the publication evidence; omission does not
+mean withdrawal or complete provider coverage. Existing scheduled renewals refresh
+optional observations, while unrelated main commits do not become changed solely
+because the fixed source bundle omits this derived target.
+
+The maintained snapshot codec has a finite 180-second validation harness ceiling.
+The previous 60-second budget failed during a real retained-checkpoint decode and
+re-encode. Provider request deadlines, artifact/record byte bounds, Brotli window
+checks, original observation expiry and cancellation checks remain independent.
+Optional source failure does not prevent publication of the canonical bundle.
+The generated Core fixture is produced by `projectListingObservation` and the same
+target builder, then signed and reopened through the real cache in the Core test;
+its synthetic fixed clock is not a live provider or production acceptance claim.
+
+## Optional research-progress observations
+
+The existing maintenance collection accepts `--progress FILE`, a bounded
+format-1 source manifest. The reviewed initial scope is
+[`scripts/upstream-progress/sources-v1.json`](../scripts/upstream-progress/sources-v1.json).
+The existing daily maintenance job consumes it; no new scheduler or executor is
+introduced. Collection uses the maintained discovery HTTP transport, its byte,
+redirect, request and deadline limits, with a generic JSON/text Accept header for
+external providers. GitHub-specific media types remain scoped to the GitHub API.
+Each source failure is isolated and retains its last-good observation.
+Progress-provider `Retry-After` applies to its HTTPS origin. Independent origins
+can continue, while request, byte and time limits remain shared across the batch.
+
+Adapters read ByteMatch and decomp.dev version-specific structured JSON,
+frogress's exact reviewed project/version/category/measure, and project-owned
+JSON or column-mapped CSV reports. They never discover ownership from a copied
+badge, search title or shared name. Provider JSON must identify the configured
+repository and exact edition; project-report URLs and methodology require
+reviewed primary evidence. Source keys retain game, implementation, edition,
+provider and report/measure scope, allowing several games to use one repository.
+
+Records retain provider/evidence URLs, full source commit when available,
+observation/check times, source-content digest and methodology. Matching code,
+fuzzy similarity, linked code, matched functions and decompiled code remain
+separate metrics. JSON numeric source tokens and integer counts retain their
+original decimal precision; derived CSV/frogress percentages retain the raw
+numerator and denominator. For example, Fire Emblem's frogress `code` counts bytes
+in `src`, including potentially nonmatching code, and is described as decompiled
+code rather than matching code. Display rounds downward below 100; milestone
+comparisons use exact decimal/count arithmetic, so 99.999999999999999999 does not
+become a completion claim. Neither 100 nor a published GitHub release grants a
+playable package, admission, platform support or qualification.
+
+Each source has an independent changes-only observation history and freshness
+clock in the existing maintenance store. Polling timestamps do not rewrite
+unchanged content. Failed reads do not advance its successful clock. Optional
+`reconsider` names an existing recorded research condition, exact metric and
+threshold. Only a changed condition result or comparability scope records a
+transition; repeated reads stay quiet and A→B→A remains ordered history. The
+existing changes-only digest can carry those transitions; dispatch remains
+disabled. The initial source manifest deliberately sets no new reconsideration
+conditions and creates no unsolicited progress notices.
+
+A project opt-out on any configured source suppresses all its provider/fallback
+reads. Current opt-out observations also suppress older progress rows and pending
+historical notifications from newly generated reports/digests. Immutable private
+store evidence remains retained for recovery; no public history reader bypasses
+that current suppression. Re-enrichment requires an explicit reviewed source
+change. Malformed stored optional progress, including unsafe links, is excluded
+from the report and cannot affect player operations.
+
+Provider disposition and live evidence on November 17, 2026:
+
+| Source          | Disposition and exercised scope                                                                                                                                                                                                                                                                                                                           |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ByteMatch       | Implemented and exercised: OpenRAC/rac3-decomp, PAL SCES_524.56, version-specific JSON. The provider's [API contract](https://bytematch.dev/docs/api) documents this read shape.                                                                                                                                                                          |
+| decomp.dev      | Implemented and exercised: doldecomp/melee, GALE01 JSON. The global `projects.json` index returned HTTP 410; collection does not depend on that retired index.                                                                                                                                                                                            |
+| frogress        | Implemented and exercised: fireemblem8/us/default `code` and `code/total`, bound to the project's [upload template](https://github.com/FireEmblemUniverse/fireemblem8u/blob/3b89a0880e5b1b1d7c09ff3259608e8f1a233c46/scripts/progress-template.txt). Its [guide](https://github.com/decompals/frogress/blob/main/GUIDE.md) documents scoped latest reads. |
+| Project reports | Implemented and exercised: Paper Mario US matching-code CSV from papermar.io, linked by the project's [README](https://github.com/pmret/papermario/blob/222af07f2ce4250c1eb70f751fefe8a8476fae96/README.md). Project JSON parsing also has fixture coverage.                                                                                              |
+
+Direct generic HTTP probes initially received 403 from ByteMatch/frogress; that
+was host/transport evidence, not proof of retirement. The maintained transport
+exposed a GitHub-only Accept header causing frogress HTTP 406. After scoping that
+header correctly, all four configured sources returned usable HTTP 200 reports.
+The actual live observation packet is retained with the implementation evidence;
+fixtures and a local manual read do not establish unattended production operation.

@@ -2967,3 +2967,221 @@ async fn user_selected_registration_on_a_managed_host_keeps_the_download() {
     assert!(executable.exists());
     assert!(service.library.all_installs().unwrap().is_empty());
 }
+
+fn shared_browse_observation(listing: &mut PortListing, status: &str, age_hours: i64) {
+    let now = time::OffsetDateTime::now_utc();
+    let observed = now - time::Duration::hours(age_hours) - time::Duration::seconds(1);
+    let stamp = |value: time::OffsetDateTime| {
+        value
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap()
+    };
+    listing.upstream_observation = Some(serde_json::from_value(json!({
+        "provider":"github","repository":"owner/game","repository_id":42,"status":status,
+        "attempted_at":stamp(now),"observed_at":stamp(observed),"fresh_until":stamp(observed + time::Duration::hours(1)),
+        "facts_sha256":"a".repeat(64),"release_limit":4,"releases":[{
+            "id":7,"version":"v1.0","release_url":"https://github.com/owner/game/releases/tag/v1.0",
+            "published_at":"2026-01-01T00:00:00Z","provider_prerelease":false,"assets_complete":true,
+            "assets":[{"id":11,"name":"game.zip","url":"https://github.com/owner/game/releases/download/v1.0/game.zip",
+                "size":42,"sha256":null,"platform_hints":[]}]
+        }]
+    })).unwrap());
+}
+
+#[tokio::test]
+async fn shared_observation_browse_counts_requests_and_keeps_exact_preview_live() {
+    for size in [1, 20, 100] {
+        let (_temporary, mut service, request) = fixture();
+        let github = GithubFixture::new(archive(), None, None);
+        let listing = service.catalog.listing(&request.port_id).unwrap().clone();
+        // The measured workflow opens the upstream package chooser for each
+        // distinct game, including games sharing a repository. No payload reads.
+        let mut listings = (0..size)
+            .map(|index| {
+                let mut listing = listing.clone();
+                listing.id = format!("browse-measurement-{index}");
+                listing
+            })
+            .collect::<Vec<_>>();
+        service.catalog = service
+            .catalog
+            .clone()
+            .with_listing_document(crate::CatalogListingDocument {
+                format_version: 4,
+                listings: listings.clone(),
+            })
+            .unwrap();
+        for listing in &listings {
+            service
+                .catalog_download_options_with_provider(
+                    &listing.id,
+                    None,
+                    None,
+                    Some(&github.provider),
+                )
+                .await
+                .unwrap();
+        }
+        assert_eq!(github.requests.load(Ordering::SeqCst), size * 2);
+        for listing in &mut listings {
+            shared_browse_observation(listing, "complete", 0);
+        }
+        service.catalog = service
+            .catalog
+            .clone()
+            .with_listing_document(crate::CatalogListingDocument {
+                format_version: 4,
+                listings,
+            })
+            .unwrap();
+        let before = github.requests.load(Ordering::SeqCst);
+        for _ in 0..2 {
+            for index in 0..size {
+                let result = service
+                    .catalog_download_options_with_provider(
+                        &format!("browse-measurement-{index}"),
+                        None,
+                        None,
+                        Some(&github.provider),
+                    )
+                    .await
+                    .unwrap();
+                assert!(result.allowed);
+                assert_eq!(result.selected_release_id, Some(7.into()));
+                assert_eq!(result.candidates.len(), 1);
+                assert!(
+                    result
+                        .reason
+                        .unwrap()
+                        .contains("Upstream metadata observed at")
+                );
+                assert!(!result.coverage.unwrap().release_history_complete);
+                assert!(service.catalog.port(&result.port_id).is_err());
+            }
+        }
+        assert_eq!(github.requests.load(Ordering::SeqCst), before);
+        let mut exact = request.clone();
+        exact.port_id = "browse-measurement-0".into();
+        let preview = service
+            .catalog_download_preview_with_provider(&exact, &github.provider)
+            .await
+            .unwrap();
+        assert_ne!(
+            preview.artifact.download_url,
+            "https://github.com/owner/game/releases/download/v1.0/game.zip"
+        );
+        assert!(
+            github.requests.load(Ordering::SeqCst) > before,
+            "exact preview must contact the selected upstream artifact"
+        );
+    }
+}
+
+#[tokio::test]
+async fn stale_failed_and_incomplete_browse_observations_fall_back_without_retiming() {
+    for (status, age) in [
+        ("complete", 2),
+        ("failed", 0),
+        ("incomplete", 0),
+        ("unavailable", 0),
+    ] {
+        let (_temporary, mut service, request) = fixture();
+        let github = GithubFixture::new(archive(), None, None);
+        let mut listing = service.catalog.listing(&request.port_id).unwrap().clone();
+        shared_browse_observation(&mut listing, status, age);
+        let original = listing.upstream_observation.clone();
+        service.catalog = service
+            .catalog
+            .clone()
+            .with_listing_document(crate::CatalogListingDocument {
+                format_version: 4,
+                listings: vec![listing],
+            })
+            .unwrap();
+        let result = service
+            .catalog_download_options_with_provider(
+                &request.port_id,
+                None,
+                None,
+                Some(&github.provider),
+            )
+            .await
+            .unwrap();
+        assert!(result.allowed);
+        assert_eq!(github.requests.load(Ordering::SeqCst), 2);
+        assert_eq!(
+            service
+                .catalog
+                .listing(&request.port_id)
+                .unwrap()
+                .upstream_observation,
+            original
+        );
+    }
+}
+
+#[tokio::test]
+async fn fresh_browse_observation_works_offline_but_unknown_release_and_preview_use_provider() {
+    let (_temporary, mut service, request) = fixture();
+    let github = GithubFixture::new(archive(), None, None);
+    let provider = github.provider.clone();
+    drop(github);
+    let mut listing = service.catalog.listing(&request.port_id).unwrap().clone();
+    shared_browse_observation(&mut listing, "complete", 0);
+    service.catalog = service
+        .catalog
+        .clone()
+        .with_listing_document(crate::CatalogListingDocument {
+            format_version: 4,
+            listings: vec![listing.clone()],
+        })
+        .unwrap();
+    assert!(
+        service
+            .catalog_download_options_with_provider(&request.port_id, None, None, Some(&provider))
+            .await
+            .unwrap()
+            .allowed
+    );
+    assert!(
+        service
+            .catalog_download_preview_with_provider(&request, &provider)
+            .await
+            .is_err()
+    );
+    assert!(
+        provider
+            .observed_catalog_download_options(
+                &listing,
+                Some(&999.into()),
+                ReleaseChannel::Stable,
+                None,
+                time::OffsetDateTime::now_utc()
+            )
+            .is_none()
+    );
+    assert!(
+        provider
+            .observed_catalog_download_options(
+                &listing,
+                None,
+                ReleaseChannel::Beta,
+                None,
+                time::OffsetDateTime::now_utc()
+            )
+            .is_none()
+    );
+    listing.upstream_observation.as_mut().unwrap().releases[0].assets[0].url =
+        "https://foreign.invalid/game.zip".into();
+    assert!(
+        provider
+            .observed_catalog_download_options(
+                &listing,
+                None,
+                ReleaseChannel::Stable,
+                None,
+                time::OffsetDateTime::now_utc()
+            )
+            .is_none()
+    );
+}

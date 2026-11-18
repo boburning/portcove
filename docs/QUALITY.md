@@ -411,6 +411,12 @@ defer is left to finish. The re-run is best effort; if it does not happen, use "
 all jobs" on the head's CI run; re-running only failed jobs keeps the draft
 classification. Push, qualification, release and reused plans never defer.
 
+The ready transition has a finite 25-minute API budget inside a 30-minute job,
+polling once per minute while classification or cancelled-run gate jobs wait
+for runners. The 64-request cap and terminal-state check remain enforced;
+ordinary supersede events retain their four-minute API and five-minute job
+budgets. Expiry preserves the run and the same all-jobs recovery instruction.
+
 A superseded pull request run stops taking runners before its cancellation arrives.
 The supersede workflow needs a runner of its own to cancel older runs, and under
 queue pressure that can take as long as any other job. The classifier and the fast
@@ -475,6 +481,21 @@ that selection now receives finite 660/690-second wrapper waits. Ordinary
 Selection validation, scenario assertions, namespace joins, failure evidence and
 native/resource lock retention remain unchanged. Contract checks establish budget
 coordination, not a completed native selected-setup observation.
+
+The November 18 private-X11 input calibration separates input custody from those
+operation waits. An ordinary `98f988ed` application with `6c2d3ab4` tooling failed
+before namespace launch: the shared 60-second capture limit expired after copying
+the 150,319,296-byte pinned Node executable, during its remaining verification or
+publication. The eight inputs totalled 152,779,458 bytes; capture copies, hashes
+and durably verifies them repeatedly. Prelaunch capture and verification now have
+300 seconds; the independent postjoin live-input scan has 120 seconds. The Linux
+command guard includes both phases, the unchanged namespace outer wait and a
+60-second command margin: 750 seconds for ordinary/GTK selections and 1,170 for
+the standalone 600-second selected-setup journeys. Callers supplying an outer
+execution guard must use that derived command budget. Content and identity checks,
+partial failure evidence, namespace joins and native/resource lock retention remain
+unchanged. Controlled-clock tests exercise completion beyond the former minute
+and finite capture/postjoin failure; they are not a native application observation.
 
 The strict default nextest profile, used by local runs and qualification,
 allows zero automatic test retries. By explicit owner decision (November 2026),

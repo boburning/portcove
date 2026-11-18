@@ -767,6 +767,14 @@ logo legibility on resize and advance the same fallback chain when necessary. Us
 deliberate contrasting logo stage when necessary without recoloring brand pixels. Expose image
 provenance and rights through the shared credits disclosure.
 
+Paired original covers retain both complete images and their natural proportions
+inside the foreground stage, including the stagger, in portrait cards and short
+wide detail stages. Center shrinkable portrait halves, cap the stagger by the
+available stage height, and constrain each intrinsic image by both width and the
+height left after the stagger. Verify decoded image bounds against the actual
+frame in Library, Discover and details; object-fit alone does not prove that a
+foreground image is contained.
+
 Provide **Change artwork**, **Choose local image**, **Browse SteamGridDB** when
 configured, **Reset to default**, and source/author information. Reset affects
 only the selected slot's explicit choice; unavailable preferred art retains its
@@ -867,6 +875,12 @@ recovery links select the owning category before focusing its relevant control.
 About links to the support report heading in Advanced. Updates explains
 application/game updates and the bundled game catalog; optional custom catalog trust controls
 belong under Advanced. Category selection is ephemeral presentation state.
+SteamGridDB setup distinguishes an active device-status read from a settled
+failure. A failed read offers Check setup again without claiming a saved or
+missing key. Key controls become available only after the read succeeds; retry
+retains its focus, and failed key writes retain the masked input. Device key
+status survives library changes, while image checks remain bound to the current
+library generation. A retired Settings mount cannot publish a delayed read.
 Recovery items expose read-only navigation beside their collapsed recorded
 locations: setup opens the game, missing installations and backup problems open
 Saves and storage, and unfinished operations reveal their exact loaded activity

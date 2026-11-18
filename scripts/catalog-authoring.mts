@@ -1,3 +1,5 @@
+import { checkImplementationMetadata } from "./implementation-metadata.mts";
+import type { ImplementationMetadata } from "./implementation-metadata.mts";
 import {
   checkPackagePlayerObservation,
   projectPackagePlayerFacts,
@@ -47,6 +49,7 @@ export interface AuthoredListing extends NamedRecord {
   download_block_reason?: string;
   download_asset_hints?: Record<string, string[]>;
   recommended_download_channel?: "stable" | "beta";
+  implementation?: ImplementationMetadata;
   original_game_title?: string;
   original_game?: {
     format_version: 1;
@@ -96,6 +99,7 @@ export const catalogSourceNames = {
   listings: "listings.json",
 } as const;
 const listingPresentationFields = [
+  "implementation",
   "original_game_title",
   "original_game",
   "variant_label",
@@ -472,6 +476,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       );
     for (const url of urls) publicUrl(url, "funding_urls");
   }
+  if (listing.implementation !== undefined) checkImplementationMetadata(listing.implementation);
   if (listing.original_game !== undefined) {
     const game = listing.original_game;
     const identity = (value: unknown) =>
@@ -724,36 +729,38 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
   const listedDates = listings.some((listing) => listing.listed_at !== undefined);
   const fundingLinks = listings.some((listing) => listing.funding_urls !== undefined);
   const coverCollections = listings.some((listing) => listing.collection_covers !== undefined);
-  const format_version = coverCollections
-    ? 11
-    : fundingLinks
-      ? 10
-      : listedDates
-        ? 9
-        : gitlabObservations
-          ? 8
-          : listings.some((listing) => listing.compatibility !== undefined)
-            ? 7
-            : guideReferences
-              ? 6
-              : extendedMedia
-                ? 5
-                : listings.some(
-                      (listing) =>
-                        listing.upstream_observation !== undefined ||
-                        listing.availability_override_reason !== undefined ||
-                        "release_maintenance" in listing,
-                    )
-                  ? 4
+  const format_version = listings.some((listing) => listing.implementation !== undefined)
+    ? 12
+    : coverCollections
+      ? 11
+      : fundingLinks
+        ? 10
+        : listedDates
+          ? 9
+          : gitlabObservations
+            ? 8
+            : listings.some((listing) => listing.compatibility !== undefined)
+              ? 7
+              : guideReferences
+                ? 6
+                : extendedMedia
+                  ? 5
                   : listings.some(
                         (listing) =>
-                          listing.original_game !== undefined ||
-                          (Array.isArray(listing.media) && listing.media.length > 0),
+                          listing.upstream_observation !== undefined ||
+                          listing.availability_override_reason !== undefined ||
+                          "release_maintenance" in listing,
                       )
-                    ? 3
-                    : listings.some((listing) => listing.download_block_reason !== undefined)
-                      ? 2
-                      : 1;
+                    ? 4
+                    : listings.some(
+                          (listing) =>
+                            listing.original_game !== undefined ||
+                            (Array.isArray(listing.media) && listing.media.length > 0),
+                        )
+                      ? 3
+                      : listings.some((listing) => listing.download_block_reason !== undefined)
+                        ? 2
+                        : 1;
   return { records, catalog, directory: { format_version, listings } };
 }
 
