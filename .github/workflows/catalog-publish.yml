@@ -253,13 +253,27 @@ jobs:
           sample_expected=empty
           if [ -n "$sample" ]; then sample_expected=$(sha256sum "$RUNNER_TEMP/catalog-work/repository/browse/$sample" | cut -d' ' -f1); fi
           url="https://boburning.github.io/portcove/catalog/metadata/timestamp.json"
-          for attempt in $(seq 1 30); do
-            actual=$(curl -fsSL "$url?run=$GITHUB_RUN_ID-$attempt" | sha256sum | cut -d' ' -f1 || true)
-            browse_actual=$(curl -fsSL "https://boburning.github.io/portcove/catalog/browse/index.html?run=$GITHUB_RUN_ID-$attempt" | sha256sum | cut -d' ' -f1 || true)
-            inputs_actual=$(curl -fsSL "https://boburning.github.io/portcove/catalog/browse/inputs.json?run=$GITHUB_RUN_ID-$attempt" | sha256sum | cut -d' ' -f1 || true)
+          deadline=$((SECONDS + 900))
+          fetch_digest() {
+            local remaining=$((deadline - SECONDS))
+            if [ "$remaining" -le 0 ]; then echo unavailable; return; fi
+            local request_seconds=30; if [ "$remaining" -lt 30 ]; then request_seconds=$remaining; fi
+            local connect_seconds=10; if [ "$request_seconds" -lt 10 ]; then connect_seconds=$request_seconds; fi
+            curl -fsSL --connect-timeout "$connect_seconds" --max-time "$request_seconds" \
+              --max-filesize "$2" "$1" | sha256sum | cut -d' ' -f1 || true
+          }
+          attempt=0
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            attempt=$((attempt + 1))
+            actual=$(fetch_digest "$url?run=$GITHUB_RUN_ID-$attempt" 1048576)
+            browse_actual=$(fetch_digest "https://boburning.github.io/portcove/catalog/browse/index.html?run=$GITHUB_RUN_ID-$attempt" 67108864)
+            inputs_actual=$(fetch_digest "https://boburning.github.io/portcove/catalog/browse/inputs.json?run=$GITHUB_RUN_ID-$attempt" 8192)
             sample_actual=empty
-            if [ -n "$sample" ]; then sample_actual=$(curl -fsSL "https://boburning.github.io/portcove/catalog/browse/$sample?run=$GITHUB_RUN_ID-$attempt" | sha256sum | cut -d' ' -f1 || true); fi
+            if [ -n "$sample" ]; then sample_actual=$(fetch_digest "https://boburning.github.io/portcove/catalog/browse/$sample?run=$GITHUB_RUN_ID-$attempt" 67108864); fi
             if [ "$actual" = "$expected" ] && [ "$browse_actual" = "$browse_expected" ] && [ "$inputs_actual" = "$inputs_expected" ] && [ "$sample_actual" = "$sample_expected" ]; then echo "Pages serves the published timestamp and generated catalog pages."; exit 0; fi
-            sleep 30
+            remaining=$((deadline - SECONDS))
+            if [ "$remaining" -le 0 ]; then break; fi
+            if [ "$remaining" -gt 30 ]; then remaining=30; fi
+            sleep "$remaining"
           done
           echo "::warning::Pages did not serve the complete new timestamp and browse output within 15 minutes; check the Pages build."

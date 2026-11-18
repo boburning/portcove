@@ -335,6 +335,13 @@ void test("catalog keys reach only one signing step per role, from main", async 
   assert.match(currentSource, /repository\/browse"/u);
   assert.match(currentSource, /browse_expected=.*repository\/browse\/index.html/u);
   assert.match(currentSource, /inputs_actual=.*catalog\/browse\/inputs.json/u);
+  assert.match(currentSource, /deadline=\$\(\(SECONDS \+ 900\)\)/u);
+  assert.match(
+    currentSource,
+    /--connect-timeout "\$connect_seconds" --max-time "\$request_seconds"/u,
+  );
+  assert.match(currentSource, /--max-filesize "\$2"/u);
+  assert.doesNotMatch(currentSource, /curl -fsSL "/u);
 
   assert.deepEqual(Object.keys(sign.on), ["workflow_call"]);
   const job = sign.jobs.sign!;
