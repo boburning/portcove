@@ -655,19 +655,19 @@ impl PortcoveService {
             .iter()
             .find(|package| package.native_id == native_id)
             .ok_or_else(|| PortcoveError::not_found("the recipe has no such package"))?;
-        let catalog = self.catalog();
+        let (catalog, _) = self.library.load_catalog()?;
         let (reference, (_, project, file)) = package
             .provider
             .as_ref()
             .and_then(|provider| {
-                plannable_provider_file(catalog, &recipe.port_id, provider)
+                plannable_provider_file(&catalog, &recipe.port_id, provider)
                     .map(|identity| (provider, identity))
             })
             .ok_or_else(|| {
                 PortcoveError::unsupported("this recipe package needs its exact local file")
             })?;
         let layout = self.deploy_layout(&recipe.port_id)?;
-        let (_, used_bytes) = verified_acquisitions(catalog, recipe, &layout, prior)?;
+        let (_, used_bytes) = verified_acquisitions(&catalog, recipe, &layout, prior)?;
         if prior.len() >= MAX_ACQUISITIONS
             || prior
                 .iter()
@@ -705,12 +705,12 @@ impl PortcoveService {
                 native_id: native_id.to_owned(),
                 provider_plan: acquisition.provider_plan.clone(),
             };
-            verified_acquisitions(catalog, recipe, &layout, std::slice::from_ref(&reused))?;
+            verified_acquisitions(&catalog, recipe, &layout, std::slice::from_ref(&reused))?;
             return Ok(reused);
         }
         let client = crate::provider_client::ProviderClient::for_definition(
             &self.library,
-            self.catalog().port(&recipe.port_id)?,
+            catalog.port(&recipe.port_id)?,
             Some(&reference.provider),
         )?;
         let mode = ProviderInstallMode::Recipe {
@@ -737,7 +737,7 @@ impl PortcoveService {
             .cloned()
             .chain(std::iter::once(acquisition.clone()))
             .collect::<Vec<_>>();
-        if let Err(error) = verified_acquisitions(catalog, recipe, &layout, &acquisitions) {
+        if let Err(error) = verified_acquisitions(&catalog, recipe, &layout, &acquisitions) {
             let _ = self.discard_recipe_acquisition(&acquisition);
             return Err(error);
         }

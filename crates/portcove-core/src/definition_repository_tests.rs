@@ -493,7 +493,7 @@ async fn provider_scope_floor_survives_expiry_revocation_and_reopen() {
         .find(|port| port.id == port_id)
         .unwrap();
     let scope = crate::ModProviderBinding::Gamebanana { game_id: 32001 };
-    assert_ne!(default_binding(port).as_ref(), Some(&scope));
+    assert_ne!(default_binding(port).unwrap(), scope);
     port.mod_provider_bindings = Some(vec![scope.clone()]);
     let catalog = Catalog::from_document(document).unwrap();
     let fixture = RepositoryFixture::new();
@@ -533,7 +533,8 @@ async fn provider_scope_floor_survives_expiry_revocation_and_reopen() {
     assert!(default_binding(library.load_catalog().unwrap().0.port(port_id).unwrap()).is_none());
     connection
         .execute(
-            "UPDATE definition_selection_state SET active_json=NULL WHERE singleton=1",
+            "UPDATE definition_selection_state
+             SET active_json=NULL,replay_floor_json=NULL WHERE singleton=1",
             [],
         )
         .unwrap();
