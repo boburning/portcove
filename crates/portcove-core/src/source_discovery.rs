@@ -1654,7 +1654,7 @@ fn validate_request(request: &SourceDiscoveryRequest, saved: bool) -> Result<()>
     if request.roots.is_empty()
         || (!saved && request.roots.len() > ROOTS_PER_DISCOVERY_BATCH)
         || request.profile_ids.is_empty()
-        || request.profile_ids.len() > 256
+        || (!saved && request.profile_ids.len() > 256)
     {
         return Err(PortcoveError::usage(
             "source discovery needs 1-8 explicit roots and 1-256 profiles",
@@ -2010,7 +2010,10 @@ fn scan_with_continuation<'a>(
     for (path, message) in omitted_owned_paths {
         discovery.owned_path_issue(path, message)?;
     }
+    // Build one set of relevant profile indexes for the file walk. A saved scan
+    // derives its selection from the catalog; explicit requests remain bounded.
     for id in request.profile_ids.iter().collect::<BTreeSet<_>>() {
+        operation.checkpoint()?;
         let profile = catalog.source_profile(id)?;
         if profile.kind == crate::SourceKind::FileSet && catalog.source_catalog().is_some() {
             discovery.directory_profiles.push(profile);

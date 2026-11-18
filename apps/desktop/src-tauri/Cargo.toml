@@ -48,6 +48,9 @@ url.workspace = true
 zip.workspace = true
 
 [dev-dependencies]
+portcove-diagnostics = { path = "../../../crates/portcove-diagnostics", features = [
+  "qualification-fixtures",
+] }
 aws-lc-rs = "1.19.0"
 flate2.workspace = true
 rusqlite.workspace = true

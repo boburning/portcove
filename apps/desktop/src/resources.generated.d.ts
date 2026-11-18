@@ -345,6 +345,7 @@ export default interface Resources {
       "chosen": "<name/> · Your choice",
       "chosenOutside": "<name/> · Your choice · Outside current filters",
       "independence": "Choosing a project does not select a release, transfer saves or replace another installation.",
+      "label": "Library entries",
       "outside": "<name/> · Outside current filters",
       "portCount_one": "{{count, number}} port",
       "portCount_other": "{{count, number}} ports",
@@ -747,6 +748,14 @@ export default interface Resources {
       "heading": "What works and known issues",
       "intro": "Availability and testing are separate. Each action checks its own current requirements.",
       "label": "What works and known issues",
+      "launch": {
+        "asks-for-game-files": "Asks for game files",
+        "first": "First launch",
+        "opens-project-launcher": "Opens the project launcher",
+        "repeat": "Repeat Play",
+        "starts-game-directly": "Starts the game directly",
+        "unknown": "Unknown"
+      },
       "mode": {
         "automatic": "Available in Portcove",
         "manual": "Manual",
@@ -765,7 +774,7 @@ export default interface Resources {
         "separator": " · ",
         "source": "Source",
         "sourceLine": "<link /> · {{date}}",
-        "versionSpecific": "Version-specific evidence: check this exact scope before applying it to your copy. Later releases do not inherit a failure or a fix."
+        "versionSpecific": "These details apply to the scope shown above."
       },
       "noticesUnavailable": "Optional known-issue notices are unavailable. Setup and launch retain their current assessments.",
       "observations": {

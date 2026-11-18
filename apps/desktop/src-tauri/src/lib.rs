@@ -2754,14 +2754,10 @@ async fn create_support_bundle(
     diagnostics: tauri::State<'_, diagnostics::HostDiagnostics>,
 ) -> DesktopResult<portcove_core::SupportBundleExport> {
     let state = state.inner().clone();
-    let directory = diagnostics.directory.clone();
+    let diagnostics = diagnostics.inner().clone();
     // Export is available even when service construction fails. Use the same
     // worker/restart guard as other blocking host work, without requiring ready().
-    blocking_worker(move || {
-        let directory = directory?;
-        support_bundle_for_state(&state, &directory)
-    })
-    .await
+    blocking_worker(move || support_bundle_for_state(&state, diagnostics.directory()?)).await
 }
 
 /// Opens the host-chosen diagnostics directory that support reports are written
@@ -2772,8 +2768,8 @@ async fn create_support_bundle(
 async fn open_support_report_folder(
     diagnostics: tauri::State<'_, diagnostics::HostDiagnostics>,
 ) -> DesktopResult<()> {
-    let directory = diagnostics.directory.clone();
-    blocking_worker(move || open_support_report_directory(&directory?)).await
+    let diagnostics = diagnostics.inner().clone();
+    blocking_worker(move || open_support_report_directory(diagnostics.directory()?)).await
 }
 
 fn open_support_report_directory(directory: &Path) -> DesktopResult<()> {

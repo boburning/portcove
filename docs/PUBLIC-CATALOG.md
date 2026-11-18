@@ -32,7 +32,8 @@ unknown optional method metadata leaves the rest of the page useful.
 
 The projection copies only an explicit public field allowlist: descriptions,
 reviewed game identities and editions, upstream links, target platforms, optional
-method/dependency evidence, setup instructions, limitations and declared scoped
+method/dependency evidence, setup steps, optional reference titles and instructions
+under **Setup notes**, limitations and declared scoped
 check platforms. It excludes private maintenance data, user library records,
 local paths, credentials, arbitrary extra fields and artwork. External text is
 escaped and only HTTPS links without credentials are rendered. Input reads,

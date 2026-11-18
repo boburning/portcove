@@ -41,8 +41,10 @@ Both intake paths preserve existing parent relationships and leave unparented
 issues unparented. Project membership defines the complete port inventory.
 Durable Port records stay in Port Pipeline; native children contribute to a
 finite parent completion rather than grouping all consumers of an adapter.
-Use Port Pipeline for the full inventory and Active Port Work for unfinished,
-non-deferred work. Neither intake path grants catalog support.
+Use **Port Pipeline** for the full inventory. To pick up a ready Now or Next
+item, open **Next Queue** and look for **Ready**. **Active Port Work** shows
+non-Watchlist Now or Next ports that are In progress, Validating or Blocked.
+Intake records the project and its evidence independently of catalog support.
 
 Keep the same canonical port issue across upstream releases. Close completed
 work and retain its Project item; Status and Port stage describe independent

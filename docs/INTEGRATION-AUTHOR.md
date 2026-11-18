@@ -40,13 +40,11 @@ interpret.
    Published Alpha 2 exposes API 34. It cannot run this guide's schema-42 identity
    and launch-request path or later reviewed management. Do not silently substitute
    that preview for a compatible artifact.
-3. For current development, reuse an exactly identified compatible candidate
-   through the [maintained packaging route](RELEASING.md#standalone-cli-integration-artifact).
-   Retain source commit, package and extracted-executable SHA-256, host prerequisites
-   and the capabilities actually read. A local release-profile build can retain an
-   Alpha 2 product-version string while exposing newer APIs; it is still a local
-   candidate, not the historical published package. The final published-client
-   claim must identify an available compatible released artifact.
+3. When a published CLI meets your requirements, record its version, host,
+   checksum and reported capabilities. Otherwise use an identified source build
+   and record its revision and executable checksum. The
+   [published package inventory](DOWNLOADS.md#published-previews) lists which
+   platforms have standalone downloads for each named release.
 4. Select a disposable fixture directory or a library explicitly chosen by the
    player. Pass `--library` on every invocation, including readback and recovery.
    `library show` inspects selection without opening the library; `library identity`
@@ -74,7 +72,7 @@ trust values, required capabilities and future API versions remain refused.
 See [the CLI flow](CLI.md#using-the-cli) and
 [retained consumer commitments](reference/upstream-first-compatibility.md).
 
-Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+Use the [CLI game-channel contract](CLI.md#release-channels) to interpret stored values and choose arguments compatible with the client's CLI.
 
 Choose each engine-template requirement from the actual declared route and
 policy in [the owning definition contract](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation),
@@ -110,9 +108,10 @@ claim an unattended service. Record artifact, environment, scenario, observation
 limits and a bounded continuation state through the existing evidence workflow.
 
 Use the runtime's argument-array API with shell execution disabled. These are
-program/argument objects, not shell command strings:
+program/argument objects. Parse one JSON value per line and pass each argument
+array directly to the process API.
 
-```json
+```jsonl
 {"program":"H:/candidate/portcove.exe","args":["--library","H:/fixtures/library","--non-interactive","--json","capabilities"]}
 {"program":"H:/candidate/portcove.exe","args":["--library","H:/fixtures/library","--non-interactive","--json","library","identity"]}
 {"program":"H:/candidate/portcove.exe","args":["--library","H:/fixtures/library","--non-interactive","--json","catalog","list"]}
@@ -122,8 +121,8 @@ program/argument objects, not shell command strings:
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 only the required command names and formats: launch-only needs JSON plus raw
 `exec`, read-only library integration needs JSON, and lifecycle operations add
-JSONL. The reference supports API 42–57, 60–63 or 65–99/events 2–3; schema 50 advertises
-the event authority as `operation_event_schema_version`, while the historical
+JSONL. Check the [reference client's supported API and event schemas](../integrations/playnite/README.md#compatibility-and-use).
+Schema 50 advertises the event authority as `operation_event_schema_version`, while the historical
 42–49 window retains its documented event-2 contract. Schema 51 replaces the
 activity array with a feed whose protected ID sets and completeness fields must
 be consumed by lifecycle clients; absence from bounded terminal history is not
@@ -236,9 +235,9 @@ game updates, catalog/definition updates and plugin updates retain their
 ## Launch and reconnect
 
 Generate a new UUID for an explicit launch decision and retain it before starting
-the process. Invoke the same program with these argument arrays:
+the process. Each line below is a separate JSON argument array for the same executable.
 
-```json
+```jsonl
 ["--library","H:/fixtures/library","--non-interactive","exec","shipwright","--request-id","19c66cf0-656f-4a02-9c0b-dba89767ab4e"]
 ["--library","H:/fixtures/library","--non-interactive","--json","launch","show","19c66cf0-656f-4a02-9c0b-dba89767ab4e"]
 ["--library","H:/fixtures/library","--non-interactive","--json","launch","recover","19c66cf0-656f-4a02-9c0b-dba89767ab4e"]
@@ -279,9 +278,9 @@ builds or require clients to acquire compilers. See
 Clients display Core's complete current plan, acquisitions and capacity when
 offered, obtain its required consent and consume its action/readiness decisions.
 They must not execute catalog build instructions or derive eligibility from a
-historical recipe name. The maintained reference supports API 42–57, 60–63 or
-65–100 and event schemas 2–3. Unknown future APIs,
-unsupported required capabilities and unknown execution/ownership semantics
+historical recipe name. The [reference client](../integrations/playnite/README.md#compatibility-and-use)
+lists the schema bands it accepts. Unknown future APIs, unsupported required
+capabilities and unknown execution/ownership semantics
 remain refused. API or template negotiation alone grants no admission or operation
 authority.
 
@@ -447,7 +446,7 @@ see [the managed contract and recovery path](reference/managed-regaiden.md).
 
 Current event records have **event schema 3 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's supported 42–57, 60–63 or 65–99 membership. Some
+schema from the [client's supported set](../integrations/playnite/README.md#compatibility-and-use). Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core
@@ -696,7 +695,7 @@ and the existing owning issue. Link the exact public response and reproduction,
 state expected versus observed behavior, preserve failures, and identify the next
 capable action. [Architecture ownership](ARCHITECTURE.md#find-the-owning-boundary),
 [CLI schema history](reference/cli-schema-history.md) and
-[platform/package limits](RELEASING.md#standalone-cli-integration-artifact) provide
+[platform and package availability](DOWNLOADS.md#published-previews) provide
 the subsystem and migration routes. No private source bytes, credentials or
 unredacted personal library paths belong in a public report.
 
@@ -734,6 +733,15 @@ for later Play. The game retains its settings
 interface, and the descriptor also exposes reviewed JSON settings in Portcove.
 The descriptor declares the persistent `saves` directory and other data to carry
 through a managed update. Portcove owns package replacement for this route.
+
+For a released package, a format-2 compatibility record can describe
+`launch_behavior.first_launch` and `launch_behavior.repeat_launch`. Bind each
+record to the platform, route, release and SHA-256 of the package you checked.
+Use `upstream-reported` for published setup instructions and `observed` for a
+recorded native result. The [Lost Odyssey listing](../crates/portcove-core/catalog/ports/lost-odyssey-recomp.json)
+shows a Windows ZIP that opens an importer on first launch and can reuse
+imported data on later launches. These facts describe the selected package.
+Portcove continues to check access to each operation when the player uses it.
 
 Start with the [minimal example](../examples/integrations/shipwright/basic.portcove.json)
 and run the [descriptor validator](#game-author-descriptors). With a reviewed
@@ -965,10 +973,10 @@ For fitting ordinary work, prefer authoring-only `route_facts_v1`: a Windows
 prepared player basename, executable-parent working directory, literal arguments
 and actual external data locations. Source-free here means no Core source binding,
 not that the game requires no originals. Preserve upstream original-file setup,
-bespoke actions and immediate warnings. Managed facts currently cover only the
-existing NativePortable GitHub shape without a Core source binding. Other shapes
-keep their working route and specific limitation; do not infer operational facts
-from prose or expand the schema to fit them.
+bespoke actions and immediate warnings. See the [managed-native authoring
+requirements](CATALOG.md#choose-a-reusable-authoring-route) for integrations with
+verified originals or with no Core source binding. Preserve the existing route
+for shapes that do not meet those conditions.
 
 Use the existing `prepare-port.mts` feedback and reviewed per-ID record, followed
 by `generate-catalog.mts`; shared explanations and distinct lifecycle entrypoints

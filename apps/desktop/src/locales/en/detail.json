@@ -29,6 +29,14 @@
     "heading": "What works and known issues",
     "intro": "Availability and testing are separate. Each action checks its own current requirements.",
     "label": "What works and known issues",
+    "launch": {
+      "asks-for-game-files": "Asks for game files",
+      "first": "First launch",
+      "opens-project-launcher": "Opens the project launcher",
+      "repeat": "Repeat Play",
+      "starts-game-directly": "Starts the game directly",
+      "unknown": "Unknown"
+    },
     "mode": {
       "automatic": "Available in Portcove",
       "manual": "Manual",
@@ -47,7 +55,7 @@
       "separator": " · ",
       "source": "Source",
       "sourceLine": "<link /> · {{date}}",
-      "versionSpecific": "Version-specific evidence: check this exact scope before applying it to your copy. Later releases do not inherit a failure or a fix."
+      "versionSpecific": "These details apply to the scope shown above."
     },
     "noticesUnavailable": "Optional known-issue notices are unavailable. Setup and launch retain their current assessments.",
     "observations": {

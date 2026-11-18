@@ -400,6 +400,7 @@ export function FavoriteGameButton({
     <Button
       size={card ? "icon-sm" : "sm"}
       className={card ? "collection-art-action collection-favorite" : undefined}
+      data-collection-control="favorite"
       title={favorite ? t("favorite.removeTitle") : t("favorite.title")}
       variant={favorite ? "selected" : "ghost"}
       data-focusable
@@ -503,6 +504,7 @@ export function OrganizationMenuItems({
   return (
     <>
       <Menu.Item
+        data-collection-control="visibility"
         className={itemClass}
         disabled={!snapshot || organization.busy}
         onClick={() =>
@@ -520,6 +522,7 @@ export function OrganizationMenuItems({
           return (
             <Menu.CheckboxItem
               key={id}
+              data-collection-control={`collection:${id}`}
               className={itemClass}
               checked={member}
               disabled={organization.busy}

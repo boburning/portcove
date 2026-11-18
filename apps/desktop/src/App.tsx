@@ -144,6 +144,7 @@ import {
   indexStatuses,
   mostRecentPort,
   preparationRecoveryPort,
+  searchCatalogPorts,
   requiredSourceNeeds,
   summarizeLibrary,
   type DetailDestination,
@@ -592,6 +593,12 @@ function useWorkspace(props: WorkspaceProps) {
         detailReturn && {
           scrollTop: detailReturn.scrollTop,
           focusOrigin: detailReturn.originKey,
+          collection: {
+            originKey: detailReturn.originKey,
+            portId: detailReturn.returnPortId,
+            groupKey: detailReturn.groupKey,
+            viewportTop: detailReturn.viewportTop,
+          },
         },
       );
     },
@@ -1277,7 +1284,7 @@ function useAppModel(
         : {},
     [catalog, libraryRoot, statusMap, gameFileQuery?.context, browsing, entries],
   );
-  const visible = useMemo(
+  const filteredPorts = useMemo(
     () =>
       filterPorts(
         ui.view === "library"
@@ -1294,7 +1301,7 @@ function useAppModel(
         statusMap,
         ui.view,
         ui.filter,
-        query,
+        "",
         ui.view === "library" ? ui.librarySort : ui.catalogSort,
         queryContext,
       ),
@@ -1304,12 +1311,12 @@ function useAppModel(
       ui.view,
       ui.filter,
       ui.libraryReadiness,
-      query,
       ui.catalogSort,
       ui.librarySort,
       queryContext,
     ],
   );
+  const visible = useMemo(() => searchCatalogPorts(filteredPorts, query), [filteredPorts, query]);
   const catalogFilterCandidates = useMemo(
     () => (ui.view === "catalog" && data.catalog ? entries : undefined),
     [data.catalog, entries, ui.view],
@@ -1363,6 +1370,7 @@ function useAppModel(
     setBiosPath(selection.bios?.path ?? "");
   }, [selectedId, selection.bios?.path, setBiosPath]);
   return {
+    queryPending: query !== ui.query,
     entries,
     statusMap,
     queryContext,
@@ -1475,6 +1483,16 @@ function CurrentView({
   setupSource?: SourceRecord | undefined;
   setSetupSource: (source?: SourceRecord) => void;
 }) {
+  const { setReviewedActivityId, setView, setActivitySection } = ui;
+  const openTask = useCallback(
+    (activityId?: string) => {
+      setReviewedActivityId(activityId);
+      setView("updates");
+      setActivitySection("tasks");
+      window.requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
+    },
+    [setReviewedActivityId, setView, setActivitySection],
+  );
   if (ui.view === "updates")
     return (
       <UpdateCenter
@@ -1546,6 +1564,7 @@ function CurrentView({
   if (!data.catalog && data.refreshFailure) return null;
   return (
     <PortBrowser
+      resultsReady={!model.queryPending}
       collectionLayout={collection.value}
       setCollectionLayout={collection.set}
       collectionLayoutFailure={collection.failure}
@@ -1579,12 +1598,7 @@ function CurrentView({
           bootstrap.generation,
         )
       }
-      onTask={(activityId) => {
-        ui.setReviewedActivityId(activityId);
-        ui.setView("updates");
-        ui.setActivitySection("tasks");
-        window.requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
-      }}
+      onTask={openTask}
       onBrowseCatalog={onAddGames}
       onDiscover={() => {
         ui.setView("catalog");

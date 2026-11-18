@@ -31,17 +31,16 @@ CLI, discover capabilities and schemas, inspect isolated data, review a plan,
 execute an authorized operation, diagnose the result and read authoritative
 state back. The [CLI guide](CLI.md) owns current commands; the
 [schema-history reference](reference/cli-schema-history.md) explains version
-boundaries. Published Alpha 2 has an older API than current source examples.
+boundaries. Check the chosen CLI's published API and advertised capabilities.
 
 ## Published technical previews
 
-- [Portcove 0.1.0-alpha.2](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2)
-  is the current immutable prerelease. Read its
-  [reviewed notes](releases/0.1.0-alpha.2-release-notes.md) and the
-  [Alpha 1 to Alpha 2 upgrade procedure](UPGRADING.md).
-- [Portcove 0.1.0-alpha.1](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.1)
-  remains available with its [reviewed notes](releases/0.1.0-alpha.1-release-notes.md)
-  and frozen evidence.
+Use [Download and verify Portcove](DOWNLOADS.md#published-previews) for the
+versioned preview, nightly builds and platform-specific CLI availability. Each
+[GitHub release](https://github.com/boburning/portcove/releases) lists its actual
+packages and checksums. The [Alpha release records](releases/README.md) and
+[Alpha migration instructions](UPGRADING.md#historical-alpha-1-to-alpha-2-migration)
+remain available for older libraries.
 
 | Authority                                                                                                                           | Owns                                                                                                                                                        | Does not own                                             |
 | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
@@ -121,11 +120,11 @@ measured Node, frontend unit, or Chromium branches with retained source mappings
 
 ## Historical evidence
 
-Dated audits, completed migrations, and qualification or release evidence that
-remain useful live under [`docs/archive/`](archive/). Obsolete planning sources
-remain available through Git history and must not be treated as current
-authority. Release-readiness snapshots are immutable outputs under
-[`docs/releases/`](releases/) and do not replace the live Project.
+Look in [qualification](qualification/) for dated port and platform observations,
+[evidence](evidence/) for captured application journeys, and [reviews](reviews/)
+for copy and product reviews. Each record identifies the build, host or inputs it
+covered. Use [archive](archive/) for older audits and migrations, [release
+records](releases/) for frozen release evidence and the live Project for current work.
 
 The [September 1 GUI competitive review](GUI-COMPETITIVE-REVIEW.md) and
 [former UI implementation contract](UI-UX-IMPLEMENTATION.md) preserve historical

@@ -9,6 +9,9 @@ primitive. They remain selectable, exact and left to right. Break long values
 across available lines without leaving an extended Windows prefix alone above
 the drive or UNC location. Preserve each consumer's existing typography and
 surface; this presentation rule never normalizes or changes a stored path.
+Loading and unavailable messages are ordinary UI copy, not path values. They
+use normal word wrapping; only an actual path uses code styling and forced
+left-to-right direction.
 
 ## Required-file discovery
 
@@ -34,6 +37,15 @@ Current and reviewed output destinations summarize all existing eligibility chec
 Raw filesystem availability cannot announce passed checks when ownership or
 validation refuses the folder. Full, unavailable and unknown results remain
 explicit; the host retains apply authorization and preimage checks.
+
+Install-folder reads belong to the exact port and library generation. A new
+scope starts a fresh loading session; ordinary rerenders in the same scope keep
+the player's draft. An unavailable initial read offers a read-only retry through
+the existing metadata APIs, including while unrelated work is busy. Path changes
+retain their existing review, busy and readiness guards. Loading, unavailable and
+loaded information stay distinct. Retry completion transfers focus only while
+it still owns the current navigation scope; a player who moved to another control
+or dialog keeps that focus.
 
 ## Library and Discover covers and compact rows
 
@@ -192,6 +204,11 @@ checks, candidate decisions, staged activation, rollback, future preferences and
 private notice choices. Manage owns installation/location/artwork/Steam/CLI,
 verification/removal and the existing reviewed managed-route transition. Unsupported routes state their actual limits and keep upstream links.
 
+Manual disclosure summaries reserve a trailing icon column. Their title and
+secondary information wrap within the remaining text column, keeping the icon
+beside the first title line in compact, wide and right-to-left layouts. Native
+summary semantics, keyboard behavior and focus indicators remain intact.
+
 A concise attention strip exposes relevant exceptions and running work; its action
 opens the owning section. An available update does not change the current playable
 installation into a readiness failure. Header and overflow shortcuts reveal the
@@ -345,7 +362,7 @@ uses the same 60px rail. Keep task controls
 in the workspace flow. [Theme ownership](THEME.md#whole-interface-enlargement-and-reflow) owns
 the controller, persistence and native/browser evidence boundaries.
 
-Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+Display game release streams as **Stable**, **Preview** and **Rolling**. Use the [CLI channel contract](CLI.md#release-channels) when translating stored values into labels.
 
 - Import only controls demonstrated by current product needs. Checked-in controls should stay close to official composition, refs, events, and accessibility behavior; do not put a near-identical Portcove wrapper around every shadcn control.
 - A specific Base UI control may be replaced when a reproducible Tauri, controller, accessibility, or supported-platform failure remains after bounded repair. Preserve the shared API, semantics, and theme where practical, record the evidence, and review the replacement independently; one incompatible control does not reopen the selected system.
@@ -498,16 +515,15 @@ saved update policy. A successful launch activity says **Process exited**, with
 an explicit explanation that successful process termination does not establish
 tested gameplay. Keep update and activity statuses in readable sentence case.
 
-Details first offers Review game update without a disposition selector for an
-unidentified candidate. Its first review retains the saved policy's current
-default (automatic installs; other policies keep for later). Once Core supplies
-the release, show its consequences and offer the alternate action through a new
-reviewed plan. Switching action never reuses the previous plan's fingerprint.
+For an available game update, **Update now** and **Download for later** select
+the immediate action. A saved policy governs future updates. Review the release
+and its consequences for the selected action. If the player switches actions,
+get a new plan before applying it.
 Details labels matching saved checks as earlier observations, shows their update
 version when available, and makes Check for updates primary when no available or
 saved candidate is known. Manual review remains available as a secondary action.
 The optional application-update choice notice uses a secondary review action;
-ordinary first-use Add games remains the primary task.
+the empty Library keeps **Browse games** as its primary action.
 
 Use **Check method** for a configured way to inspect game files; say whether a check
 actually ran and what it found separately. Show the planned output folder with
@@ -621,6 +637,18 @@ sits within the larger Catalog card's bounds, and return to the card normally.
 Long words wrap, filters can wrap, and the collection scrolls rather than shrinking
 covers to fit a row count. The grid chooses columns from available width; a
 reference composition's fixed frame width or column count is not a window rule.
+
+Library and Discover mount visible complete visual rows with a small overscan,
+plus independently retained focus, destination and open-overlay rows. The full
+logical group count and order remain available to navigation and return-focus
+restoration. Library alternatives retain their expanded state when their row
+leaves the viewport; returning to an alternative mounts and expands that exact
+group before focus restoration. Accepted background reordering retains the logical
+reading anchor and exact focused control within the same query and generation;
+a newer player intent cancels restoration. Pending actions can retain focus while
+refusing activation. Saved membership never implies installation.
+Singleton styling follows the logical result count, including a final partial
+virtual row, and both layouts keep their existing responsive sizing rules.
 
 The scrolling workspace fills the available window width. Library and Catalog
 grids use that width to add columns as the window grows; the 1600x1000 reference
@@ -1039,13 +1067,13 @@ for work the application did not perform.
 
 The genuine first-use Library omits collection layout, sorting and filter tools
 until there is content or a browsing constraint to operate on. Keep its mascot
-compact (4rem) and Add games visible at the supported minimum window, including
-the initial application-update choice notice. Filtered no-results retains its
+compact (4rem) and keep Browse games visible at the supported minimum window,
+including with the initial application-update choice notice.
 reset and filtering controls; hiding first-use tools must not clear preferences.
 
-Library's heading Add games action and empty-state primary action open the
-same in-flow workspace. Keep source choice, current port identity and the next
-review action together. Start with three routes: Browse games (opens Discover,
+In an empty Library, **Browse games** takes the player directly to Discover.
+**Add games** opens the in-flow setup workspace. Keep the source choice, current
+port and next review action together. Its three routes are Browse games (Discover,
 where choosing a game always happens), Scan a folder, or use an existing
 installation. Show only the selected route's actual inputs and requirements. In
 Add games, "Choose folder to scan" saves the chosen folder and scans the saved

@@ -70,7 +70,7 @@ release observation: the observer declaration hash excludes it.
 
 ## Descriptive compatibility advisories
 
-The optional `listing.compatibility` format-1 envelope belongs to the existing
+The optional `listing.compatibility` envelope belongs to the existing
 single per-port authored record. Use existing generated setup warnings and exact
 recommendation observations first; no bulk backfill is required. This envelope
 contains only remaining descriptive facts, never acquisition restrictions,
@@ -85,6 +85,13 @@ An artifact digest requires its actual release. The envelope is bounded to
 observations uses format 8. Authoring rejects malformed, future, unknown
 and command-bearing content. Runtime interpretation makes invalid or future
 optional content unavailable without changing operation eligibility.
+
+Format 1 carries general advisories. Format 2 requires at least one launch
+record with `launch_behavior.first_launch` and `launch_behavior.repeat_launch`.
+Each stage uses `starts-game-directly`, `opens-project-launcher`,
+`asks-for-game-files`, or `unknown`. Both stages describe the same platform,
+route, release and package SHA-256. Use `upstream-setup` for a documented setup
+route outside Portcove. Record any repeat-launch preconditions in the explanation.
 
 Route-wide management facts need no invented artifact identity. Version-specific
 failures retain their exact release/artifact/edition scope; a date or a missing
@@ -845,6 +852,11 @@ or platform fragments do not override its exclusion. Symbols, source,
 checksum files, foreign platforms and processor mismatches remain excluded from
 recommendations. Explain the actual upstream setup and its update/data owner in
 the authored guide; downloading an installer never runs it.
+
+An extensionless native Linux executable can be recommended as a direct file
+when the reviewed hint names the entire asset and its filename identifies Linux.
+The existing processor checks still apply. Keep the author's setup instructions
+for making the file executable and preparing original game files.
 
 A ready native archive with reviewed disposable runtime writes may instead fit
 the existing `staged-source-portable` adapter; it does not require a source
@@ -1977,8 +1989,8 @@ the player or selected upstream launcher. Only launch and registration removal
 are offered; external installation, save and settings files remain untouched by
 removal. The launched program can make its normal writes; this is no sandbox. The
 [ECWolf reference](reference/ecwolf.md) records an official-package example with
-separate non-owning Windows/Linux registration, upstream Mac/Android setup and
-external data locations.
+non-owning Windows/Linux/Intel Mac/Apple Silicon registration, separate Android
+setup and external data locations.
 
 Supervision and launch results describe the selected native program; only a
 definition with the reviewed Windows tracked handoff also waits for in-folder
@@ -2686,7 +2698,7 @@ blocker.
 
 ## Channels, support, and qualification
 
-Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+Keep upstream tag names in catalog evidence. Use the [game channel vocabulary and serialized values](CLI.md#release-channels) when authoring a record.
 
 Stable, Preview, and Rolling are user-selected release channels, not qualification
 claims. Preview is the human label for the unchanged `beta` machine value. An entry may offer Preview or Rolling, be platform-limited, lack qualification
@@ -2995,6 +3007,11 @@ publication are unclaimed. Exact identities and boundaries are recorded in the
 
 ## Adding or changing a port
 
+Start with [the authoring steps](#author-a-port-record), choose a
+[reusable route](#choose-a-reusable-authoring-route), then
+[regenerate and check the projections](#regenerate-catalog-projections).
+The [Doom 3 Classic record](../crates/portcove-core/catalog/ports/doom-3-classic-dhewm3.json)
+shows a managed integration with verified original files.
 On an integrated record, `integration.platforms` owns managed platform
 eligibility. Use `listing.platforms` only for additional platforms where
 independent upstream package evidence applies. Declare each platform once.
@@ -3297,6 +3314,8 @@ definition and can still fail pre-launch integrity after these files appear;
 the new catalog does not silently rewrite its admitted manifest. Preserve that
 install and its data until a reviewed recovery or clean reinstall is completed.
 
+### Author a port record
+
 The procedure below describes the current repository workflow. The completed
 [#245](https://github.com/boburning/portcove/issues/245) design is a foundation;
 future protected publication remains owned by
@@ -3370,13 +3389,17 @@ retained and pending listing projections. Comparison is exact: extra queries,
 fragments, download paths and foreign repositories need their own reviewed URL.
 This navigation rule grants no package acquisition, registration or launch action.
 
+### Choose a reusable authoring route
+
 Optional authoring-only `route_facts_v1` supplies a bounded Windows prepared
 player basename, executable-parent working folder, literal argument vector and
-actual external data locations. An existing NativePortable GitHub integration
-without a Core source binding may additionally supply one managed preparation action and exceptional
-warnings; its executable must agree with the operational declaration. An absent
-Core source profile is not evidence that no original files are required: keep
-upstream preparation and original-file ownership explicit. Common
+actual external data locations. For a NativePortable GitHub integration, managed
+facts can supply one preparation action and exceptional warnings. The executable
+must match the operational declaration. Specify either no Core source binding,
+or a source profile with a nonempty `runtime_source_set` and explicit
+`integration.presentation.manual_setup`. [Doom 3 Classic](../crates/portcove-core/catalog/ports/doom-3-classic-dhewm3.json)
+shows the verified-originals form. Describe the upstream originals and how the
+player supplies them in either form. Common
 registration/ownership/removal, declared managed preservation and rollback
 explanations come from `scripts/catalog-route-facts.mts`. Bespoke guide actions,
 source/edition requirements and immediate warnings remain explicit. A staged-source
@@ -3631,6 +3654,8 @@ hash and scope; a genuinely different repository or selected-player contract
 still needs newly applicable evidence. Changes to either shared authoring module
 select the existing generator's actual output-integrity check in local/hosted CI.
 
+### Describe the game and its artwork
+
 Optional listing `original_game` is a version-1 descriptive identity: an explicitly
 reviewed stable `id`, one to eight public HTTPS `evidence_urls`, and up to sixteen
 `source_editions`. Each edition has its own stable `id`, descriptive `title`,
@@ -3709,6 +3734,8 @@ requests do not establish absence or withdrawal. Preparation proposes remote URL
 provenance, hashes and provider terms; it grants no admission, signing, publication
 or permission to bundle/export image payloads. `LicenseRef-IGDB-Terms` identifies
 provider access terms, not a permissive copyright license.
+
+### Regenerate catalog projections
 
 `node scripts/generate-catalog.mts` deterministically assembles these sources into
 the embedded `catalog.json` and `listings.json`, plus the generated route-enrollment

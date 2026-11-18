@@ -3,7 +3,7 @@
   "listing": {
     "id": "yo-kai-watch-4-yw4recomp",
     "name": "Yo-kai Watch 4++ (YW4Recomp)",
-    "summary": "An early Yo-kai Watch 4++ project translating ARM main/sdk code to C with Clang and native Vulkan services. It claims no linked emulator code; Eden is a visual reference only. The project reports startup, a new game, house/town/menus and autosaving at 30 FPS, with missing effects and crashes beyond tested areas. There is no release: local preparation needs Python, Git, Clang, GCC and the Vulkan SDK for input, translation, shaders and building. Windows x64 Vulkan 1.3 is built/tested; Linux x64 is planned and untested despite its badge, with no Mac route. Supply your own exact hash-checked 4++ update 2.2.0 ExeFS/RomFS, rather than generic original Yo-kai Watch 4. Exact hashes/title/region and separate keys/firmware needs are unspecified in the root guide. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "This Windows port targets Yo-kai Watch 4++ update 2.2.0. Build it from your own extracted files. The project reports starting a game, visiting the house and town, and autosaving. Effects are missing and later areas can crash.",
     "original_game_title": "Yo-kai Watch 4++",
     "project_url": "https://github.com/ILFforever/YW4Recomp",
     "listed_at": "2026-10-25",
@@ -19,7 +19,27 @@
       "game_slug": "yo-kai-watch-4-plus-plus",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2952
+    "issue_number": 2952,
+    "manual_setup": {
+      "help_url": "https://github.com/ILFforever/YW4Recomp",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Use hash-checked ExeFS and RomFS for the 4++ 2.2.0 update. The original Yo-kai Watch 4 requires a different profile. The root guide has no separate instructions for keys or firmware."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Follow the project’s Windows x64 source build with Python, Git, Clang, GCC and the Vulkan SDK. The player needs Vulkan 1.3. There is no release package."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The project reports 30 FPS in early areas. The Linux badge describes a planned route and has no Linux test behind it. No Mac route is documented."
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
