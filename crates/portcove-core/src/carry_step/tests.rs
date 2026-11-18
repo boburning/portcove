@@ -756,3 +756,137 @@ fn cancellation_during_second_copy_discards_completed_and_partial_staging() {
     );
     assert_eq!(fs::read(fixture.source.join("b.txt")).unwrap(), large);
 }
+
+#[cfg(windows)]
+#[test]
+fn a_read_only_destination_holds_publication_and_preserves_both_copies() {
+    let fixture = fixture();
+    let old = b"read-only previous player file";
+    let new = b"new player file";
+    write(&fixture.source, "notes.txt", new);
+    write(&fixture.target, "notes.txt", old);
+    let path = fixture.target.join("notes.txt");
+    struct RestorePermissions(PathBuf, fs::Permissions);
+    impl Drop for RestorePermissions {
+        fn drop(&mut self) {
+            fs::set_permissions(&self.0, self.1.clone()).unwrap();
+        }
+    }
+    let original = fs::metadata(&path).unwrap().permissions();
+    let _restore = RestorePermissions(path.clone(), original.clone());
+    let mut readonly = original;
+    readonly.set_readonly(true);
+    fs::set_permissions(&path, readonly).unwrap();
+    let (plan, staged) = run_with(
+        &fixture,
+        &["notes.txt"],
+        &|_| descended(old, Some(new)),
+        PLENTY,
+    );
+    assert_eq!(plan[0].action, CarryAction::Replace);
+    assert!(staged.unwrap().publish().is_err());
+    assert_eq!(fs::read(fixture.source.join("notes.txt")).unwrap(), new);
+    assert_eq!(fs::read(&path).unwrap(), old);
+    assert!(fs::metadata(&path).unwrap().permissions().readonly());
+    assert_eq!(fs::read_dir(&fixture.target).unwrap().count(), 1);
+}
+
+#[cfg(windows)]
+fn observed_short_name(path: &Path) -> Option<String> {
+    use std::os::windows::ffi::{OsStrExt, OsStringExt};
+    let input = path
+        .as_os_str()
+        .encode_wide()
+        .chain(Some(0))
+        .collect::<Vec<_>>();
+    let required = unsafe {
+        windows_sys::Win32::Storage::FileSystem::GetShortPathNameW(
+            input.as_ptr(),
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    assert!(
+        required > 0 && required <= 32768,
+        "short-name observation failed: {}",
+        std::io::Error::last_os_error()
+    );
+    let mut output = vec![0u16; required as usize];
+    let count = unsafe {
+        windows_sys::Win32::Storage::FileSystem::GetShortPathNameW(
+            input.as_ptr(),
+            output.as_mut_ptr(),
+            required,
+        )
+    };
+    assert!(
+        count > 0 && count < required,
+        "short-name observation changed: {}",
+        std::io::Error::last_os_error()
+    );
+    output.truncate(count as usize);
+    let short = PathBuf::from(std::ffi::OsString::from_wide(&output));
+    let name = short.file_name().unwrap().to_str().unwrap();
+    if short.file_name() == path.file_name() {
+        eprintln!(
+            "PORTCOVE_CARRY_83_NOT_RUN: the fixture volume provides no short alias for this owned path"
+        );
+        return None;
+    }
+    assert!(name.is_ascii() && name.contains('~'));
+    assert!(short.exists());
+    eprintln!("PORTCOVE_CARRY_83_OBSERVED: {name}");
+    Some(name.to_owned())
+}
+
+#[cfg(windows)]
+#[test]
+fn a_windows_short_file_alias_keeps_the_target_separate() {
+    let fixture = fixture();
+    let long = "PlayerConfigurationFile.ini";
+    write(&fixture.target, long, b"existing target data");
+    let Some(alias) = observed_short_name(&fixture.target.join(long)) else {
+        return;
+    };
+    write(&fixture.source, &alias, b"different source data");
+    let (_, staged) = run(&fixture, &[&alias], PLENTY);
+    let staged = staged.unwrap();
+    assert_eq!(staged.changed_targets, [alias.clone()]);
+    assert!(staged.written().is_empty());
+    assert!(staged.publish().unwrap().is_empty());
+    assert_eq!(
+        fs::read(fixture.target.join(long)).unwrap(),
+        b"existing target data"
+    );
+    assert_eq!(
+        fs::read(fixture.source.join(&alias)).unwrap(),
+        b"different source data"
+    );
+    assert_eq!(fs::read_dir(&fixture.target).unwrap().count(), 1);
+    eprintln!("PORTCOVE_CARRY_83_FILE_PRESERVED");
+}
+
+#[cfg(windows)]
+#[test]
+fn a_windows_short_directory_alias_is_not_a_publication_parent() {
+    let fixture = fixture();
+    let long = "PlayerConfigurationDirectory";
+    fs::create_dir(fixture.target.join(long)).unwrap();
+    let Some(alias) = observed_short_name(&fixture.target.join(long)) else {
+        return;
+    };
+    let relative = format!("{alias}/new.txt");
+    write(&fixture.source, &relative, b"source data");
+    let (_, staged) = run(&fixture, &[&relative], PLENTY);
+    let staged = staged.unwrap();
+    assert_eq!(staged.written(), [&relative]);
+    assert_eq!(staged.publish().unwrap(), [relative.clone()]);
+    assert!(!fixture.target.join(long).join("new.txt").exists());
+    assert_eq!(
+        fs::read(fixture.source.join(relative)).unwrap(),
+        b"source data"
+    );
+    assert_eq!(fs::read_dir(fixture.target.join(long)).unwrap().count(), 0);
+    assert_eq!(fs::read_dir(&fixture.target).unwrap().count(), 1);
+    eprintln!("PORTCOVE_CARRY_83_DIRECTORY_PRESERVED");
+}
