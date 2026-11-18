@@ -119,14 +119,34 @@ impl PortcoveService {
         let active_qualification = self.installed_mutability_qualification(active)?;
         let target_qualification = self.installed_mutability_qualification(target)?;
         let (source_root, source_exclusions) = active_qualification.carry_exclusions(active)?;
-        let (target_root, mut exclusions) = target_qualification.carry_exclusions(target)?;
-        // Rule 9: what either version declares is never carried.
+        let (target_root, mut exclusions) = target_qualification
+            .carry_exclusions_with_current(target, self.catalog.port(&active.port_id).ok())?;
+        // Rule 9 includes declarations from every retained installation, even
+        // one that is neither the active copy nor this switch's target.
         exclusions
             .declared_paths
             .extend(source_exclusions.declared_paths);
         exclusions
             .declared_patterns
             .extend(source_exclusions.declared_patterns);
+        exclusions
+            .generated_metadata
+            .extend(source_exclusions.generated_metadata);
+        for retained in self.library.installs_for_port(&active.port_id)? {
+            if retained.id == active.id || retained.id == target.id {
+                continue;
+            }
+            let (_, retained_exclusions) = self
+                .installed_mutability_qualification(&retained)
+                .and_then(|qualification| qualification.carry_exclusions(&retained))
+                .map_err(|error| error.detail("carry_retained_install", &retained.id))?;
+            exclusions
+                .declared_paths
+                .extend(retained_exclusions.declared_paths);
+            exclusions
+                .declared_patterns
+                .extend(retained_exclusions.declared_patterns);
+        }
 
         let mut connection = self.library.connection()?;
         let source_rows = carry_ledger::load(&connection, &active.id)?;

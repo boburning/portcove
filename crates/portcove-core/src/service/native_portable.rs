@@ -638,6 +638,7 @@ mod tests {
     };
 
     include!("native_portable_transition_tests.rs");
+    include!("carry_retained_tests.rs");
 
     struct Provider(Mutex<ResolvedRelease>);
     #[async_trait::async_trait]
