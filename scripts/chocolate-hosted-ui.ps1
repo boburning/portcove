@@ -55,8 +55,10 @@ $rootHandle=$ownedRoot.SafeHandle
 $rootCreated=[OmnispeakWindow]::Created($rootHandle)
 $ownedGame=$null;$gameHandle=$null;$window=[IntPtr]::Zero;$bound=$false;$positive=$false;$steps=[Collections.Generic.List[object]]::new()
 function Read-Launch {
- $text=(& $Cli --library $Library launch show $RequestId --json) -join "`n"
- if($LASTEXITCODE -ne 0){throw 'Launch observation failed'}
+ $text=(& $Cli --library $Library launch show $RequestId --json 2> (Join-Path $Evidence "$Prefix-live-launch.stderr.log")) -join "`n"
+ $observedCode=$LASTEXITCODE
+ $text|Set-Content (Join-Path $Evidence "$Prefix-live-launch.json") -Encoding utf8
+ if($observedCode -ne 0){throw "Launch observation failed with exit $observedCode; retained JSON/stderr"}
  $value=$text|ConvertFrom-Json
  if(-not $value.ok){throw 'Launch observation envelope failed'}
  return $value.data

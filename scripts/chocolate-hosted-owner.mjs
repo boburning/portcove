@@ -73,6 +73,14 @@ for (const key of [
   "PORTCOVE_RESOURCE_RESERVATION",
 ])
   if (process.env[key]) environment[key] = process.env[key];
+// Existing hosted native precedent: this VM has no physical audio endpoint.
+environment.SDL_AUDIODRIVER = "dummy";
+environment.SDL_RENDER_DRIVER = "software";
+await record("hosted-drivers", {
+  audio: "SDL dummy",
+  renderer: "SDL software requested",
+  scope: "visual/state lifecycle only; physical audio and hardware rendering not established",
+});
 environment.PORTCOVE_PREFERENCES = path.join(root, "preferences.json");
 environment.PORTCOVE_APPLICATION_RUNTIME_LOCK = path.join(root, "application-runtime.lock");
 let serial = 0,
