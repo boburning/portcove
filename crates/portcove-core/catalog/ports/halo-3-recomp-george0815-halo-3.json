@@ -4,23 +4,6 @@
     "id": "halo-3-recomp-george0815-halo-3",
     "name": "Halo 3 — halo-3-recomp (george0815)",
     "original_game_title": "Halo 3",
-    "original_game": {
-      "format_version": 1,
-      "id": "halo-3",
-      "evidence_urls": [
-        "https://github.com/george0815/halo-3-recomp/blob/333df5d4bf5468cb524fb946d0abfb15834ce761/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "halo-3-xbox-360",
-          "title": "Halo 3 (Xbox 360, region not specified)",
-          "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/george0815/halo-3-recomp/blob/333df5d4bf5468cb524fb946d0abfb15834ce761/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Upstream reports the main menu, campaign and multiplayer loading, and HUD output. Washed-out in-game frames and a debug movie shortcut remain. Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/george0815/halo-3-recomp",
     "platforms": [],
@@ -52,6 +35,21 @@
       "image_sha256": "026e609d82d4877a549ff5c1f3de5600e77561d47de3be86e047e1fa26363cbc",
       "game_slug": "halo-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "halo-3",
+      "evidence_urls": ["https://github.com/george0815/halo-3-recomp"],
+      "source_editions": [
+        {
+          "id": "halo-3-xbox-360",
+          "title": "Halo 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/george0815/halo-3-recomp/blob/333df5d4bf5468cb524fb946d0abfb15834ce761/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

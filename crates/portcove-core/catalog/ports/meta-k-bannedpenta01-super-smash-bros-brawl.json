@@ -4,23 +4,6 @@
     "id": "meta-k-bannedpenta01-super-smash-bros-brawl",
     "name": "Super Smash Bros. Brawl — META-K (BannedPenta01)",
     "original_game_title": "Super Smash Bros. Brawl",
-    "original_game": {
-      "format_version": 1,
-      "id": "super-smash-bros-brawl",
-      "evidence_urls": [
-        "https://github.com/BannedPenta01/META-K/blob/5d42568de72c46c55865ce3ab6f2aa2a39aeb97e/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "super-smash-bros-brawl-wii",
-          "title": "Super Smash Bros. Brawl (Wii, region not specified)",
-          "system": "wii",
-          "evidence_urls": [
-            "https://github.com/BannedPenta01/META-K/blob/5d42568de72c46c55865ce3ab6f2aa2a39aeb97e/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Experimental project. The project reports menus and character selection at approximately 25 FPS. Native fat-module matches hang or crash; hybrid slim-module matches are reported as stable. The README calls this a research artifact, not a playable Brawl port. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/BannedPenta01/META-K",
     "platforms": ["windows-x86-64"],
@@ -52,6 +35,12 @@
       "image_sha256": "8d4568cea0ba75745c55ed26b6dd99dd3d1fd60e5213c6b39cad02e55a7241a6",
       "game_slug": "super-smash-bros-brawl",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros-brawl",
+      "evidence_urls": ["https://github.com/BannedPenta01/META-K"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

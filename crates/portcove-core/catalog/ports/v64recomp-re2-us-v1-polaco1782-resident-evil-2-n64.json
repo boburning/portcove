@@ -2,25 +2,16 @@
   "format_version": 1,
   "listing": {
     "id": "v64recomp-re2-us-v1-polaco1782-resident-evil-2-n64",
+    "artwork": {
+      "game_id": 287844,
+      "cover_id": 364561,
+      "image_id": "co7tap",
+      "image_sha256": "49fd765cc726e81a2b42aa5e426fd384f78263cd0aaa3471421601cc4c2d2e65",
+      "game_slug": "resident-evil-2--5",
+      "match_kind": "underlying-game"
+    },
     "name": "Resident Evil 2 (N64) — v64recomp / re2-us-v1 (polaco1782)",
     "original_game_title": "Resident Evil 2 (N64)",
-    "original_game": {
-      "format_version": 1,
-      "id": "resident-evil-2-n64",
-      "evidence_urls": [
-        "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "resident-evil-2-n64-nintendo-64",
-          "title": "Resident Evil 2 (N64) (Nintendo 64, region not specified)",
-          "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Experimental project. This game-specific profile is experimental. Its setup, stability and completion have not been confirmed; results from another game do not establish that this one works. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/polaco1782/v64recomp",
     "listed_at": "2026-10-25",
@@ -54,7 +45,13 @@
         }
       ]
     },
-    "issue_number": 3612
+    "issue_number": 3612,
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-2-n64",
+      "evidence_urls": ["https://github.com/polaco1782/v64recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

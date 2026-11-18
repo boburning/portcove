@@ -1445,3 +1445,79 @@ fn an_export_without_saved_library_entries_keeps_its_older_schema() {
     assert!(metadata.library_memberships.is_empty());
     assert!(metadata.schema_version < 7);
 }
+
+#[test]
+fn library_import_keeps_customized_original_instances_and_rebases_the_inbox() {
+    assert_library_import_keeps_inbox_original(true);
+}
+
+#[test]
+fn library_import_rebases_the_sole_registered_inbox_original() {
+    assert_library_import_keeps_inbox_original(false);
+}
+
+fn assert_library_import_keeps_inbox_original(register_external_default: bool) {
+    let temporary = tempfile::tempdir().unwrap();
+    let source_root = temporary.path().join("source");
+    let target_root = temporary.path().join("target");
+    let export = temporary.path().join("library.json");
+    let external = temporary.path().join("external.z64");
+    let service =
+        PortcoveService::new(fixture_library(&source_root, &[("active", false)])).unwrap();
+    let inbox_original = service.library().source_inbox_dir().join("saved.z64");
+    fs::create_dir_all(inbox_original.parent().unwrap()).unwrap();
+    fs::write(&inbox_original, [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4]).unwrap();
+    fs::write(&external, [0x80, 0x37, 0x12, 0x40, 5, 6, 7, 8]).unwrap();
+    let requirement = "star-fox-64";
+    let original = service
+        .register_source(requirement, &inbox_original)
+        .unwrap();
+    let default = service.ensure_default_profile("starship").unwrap();
+    let setup = service
+        .copy_profile("starship", &default.id, "Inbox original")
+        .unwrap();
+    let current_default = if register_external_default {
+        service.register_source(requirement, &external).unwrap()
+    } else {
+        original.clone()
+    };
+    let metadata = service.export_library_metadata().unwrap();
+    assert_eq!(metadata.schema_version, 12);
+    assert_eq!(
+        metadata.source_instances.len(),
+        usize::from(register_external_default)
+    );
+    service.write_library_metadata(&export).unwrap();
+    drop(service);
+
+    let plan = PortcoveService::plan_library_import(&export, &source_root, &target_root).unwrap();
+    let imported =
+        PortcoveService::import_library(&export, &source_root, &target_root, &plan.plan_sha256)
+            .unwrap();
+    assert!(imported.completed);
+    let restored = PortcoveService::new(Library::open(&target_root).unwrap()).unwrap();
+    let registry_default = restored.library().source(requirement).unwrap().unwrap();
+    let restored_inbox_path = restored.library().source_inbox_dir().join("saved.z64");
+    let restored_inbox_path = std::fs::canonicalize(restored_inbox_path).unwrap();
+    if register_external_default {
+        assert_eq!(registry_default.path, current_default.path);
+    } else {
+        assert_eq!(
+            std::fs::canonicalize(&registry_default.path).unwrap(),
+            restored_inbox_path
+        );
+    }
+    assert_eq!(registry_default.sha256, current_default.sha256);
+    let binding =
+        restored.profile_revisions("starship", &setup.id).unwrap()[0].originals[0].clone();
+    assert_eq!(
+        binding,
+        crate::profile::bind_original(requirement, &original)
+    );
+    let retained = restored.registered_profile_original(&binding).unwrap();
+    assert_eq!(
+        std::fs::canonicalize(&retained.path).unwrap(),
+        restored_inbox_path
+    );
+    crate::source_inspection::verify_registered(restored.catalog(), &retained).unwrap();
+}

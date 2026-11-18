@@ -53,21 +53,16 @@
       "format_version": 1,
       "id": "dragon-ball-z-the-legacy-of-goku-ii",
       "evidence_urls": [
-        "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/88f234fa299199282cef09c0b1957ecb4e60922b/README.md"
+        "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/README.md",
+        "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp"
       ],
-      "source_editions": [
-        {
-          "id": "dragon-ball-z-the-legacy-of-goku-ii-game-boy-advance",
-          "title": "Dragon Ball Z: The Legacy of Goku II (Game Boy Advance, region not specified)",
-          "system": "game-boy-advance",
-          "evidence_urls": [
-            "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/88f234fa299199282cef09c0b1957ecb4e60922b/README.md"
-          ]
-        }
-      ]
+      "source_editions": []
     }
   },
-  "gba_staged_archive_v1": { "game_code": "ALFE", "versioned_mods": true },
+  "gba_staged_archive_v1": {
+    "game_code": "ALFE",
+    "versioned_mods": true
+  },
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

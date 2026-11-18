@@ -9,6 +9,9 @@ import {
   ArtworkBatchExhausted,
   readArtworkJson,
   validArtworkMapping,
+  withdrawCompanionCover,
+  collectionCovers,
+  withdrawCollectionCovers,
 } from "./inspect-igdb-artwork.mts";
 import type {
   ArtworkCatalog,
@@ -125,20 +128,27 @@ function itemState(root: string, id: string, now: number, refresh: boolean): Ite
       )
   )
     throw new Error("Artwork continuation mapping differs from its checked record");
+  if (
+    JSON.stringify(value.result.record.collection ?? []) !==
+    JSON.stringify(collectionCovers(value.result.port as unknown as ArtworkPort))
+  )
+    throw new Error("Artwork continuation collection differs from its checked record");
   return value as unknown as ItemState;
 }
-const mappingImage = (port: ArtworkPort) =>
-  isRecord(port.presentation?.artwork) && typeof port.presentation.artwork.image_id === "string"
-    ? port.presentation.artwork.image_id
-    : null;
+const mappingImages = (port: ArtworkPort) => [
+  ...(validArtworkMapping(port.presentation?.artwork) ? [port.presentation.artwork.image_id] : []),
+  ...collectionCovers(port).map((cover) => cover.image_id),
+];
+const mappingImage = (port: ArtworkPort) => mappingImages(port)[0] ?? null;
 const budgetDeferred = (record: ArtworkRecord) =>
   record.exceptions.some((exception) =>
     /^batch-(?:query|image|provider)-budget-exhausted$/u.test(exception.reason),
   );
 const finished = (record: ArtworkRecord, gone: ReadonlySet<string>) =>
-  record.mapping !== null &&
-  !gone.has(record.mapping.image_id) &&
-  record.reason !== "accepted-mapping-retained-after-unavailable-refresh";
+  (record.mapping !== null || Boolean(record.collection?.length)) &&
+  (!record.mapping || !gone.has(record.mapping.image_id)) &&
+  !(record.collection ?? []).some((cover) => gone.has(cover.image_id)) &&
+  !record.reason.includes("retained-after-unavailable-refresh");
 
 /** Bounded serialized metadata cache; completed per-ID results remain the durable authority. */
 function memoInspector(inspector: Inspector, now: () => number) {
@@ -194,6 +204,20 @@ function memoInspector(inspector: Inspector, now: () => number) {
   return {
     metrics,
     observationClock(record: ArtworkRecord) {
+      if (
+        record.checks &&
+        "scope" in record.checks &&
+        record.checks.scope === "reviewed-cover-collection" &&
+        record.checks.live_refresh_passed
+      ) {
+        const observations = (record.collection ?? []).map(
+          (cover) => entries.get(`image:${cover.image_id}`)?.observedAt,
+        );
+        return observations.length &&
+          observations.every((value): value is number => value !== undefined)
+          ? new Date(Math.min(...observations)).toISOString()
+          : null;
+      }
       if (
         !record.checks ||
         !("identity" in record.checks) ||
@@ -293,6 +317,7 @@ export async function prepareArtworkWorkset(
   const tool = createHash("sha256");
   for (const file of [
     "./artwork-preparation-progress.mts",
+    "./catalog-cover-mapping.mts",
     "./inspect-igdb-artwork.mts",
     "./maintainer-config.mts",
     "./runtime-values.mts",
@@ -326,7 +351,7 @@ export async function prepareArtworkWorkset(
   const refresh = (id: string) =>
     options.maintenance === true ||
     explicitRefresh.has(id) ||
-    gone.has(mappingImage(ports.get(id)!) ?? "");
+    mappingImages(ports.get(id)!).some((image) => gone.has(image));
   const states = new Map(
     inspectedIds.map((id) => [id, itemState(options.root, id, now(), refresh(id))]),
   );
@@ -335,9 +360,12 @@ export async function prepareArtworkWorkset(
     const image = mappingImage(
       state?.input_sha256 === baseKey(id, true) ? state.result.port : ports.get(id)!,
     );
+    const referenced = mappingImages(
+      state?.input_sha256 === baseKey(id, true) ? state.result.port : ports.get(id)!,
+    );
     return (
       !image ||
-      gone.has(image) ||
+      referenced.some((value) => gone.has(value)) ||
       !state ||
       state.input_sha256 !== baseKey(id, true) ||
       !state.last_live_observation_at ||
@@ -453,7 +481,13 @@ export async function prepareArtworkWorkset(
           });
         const value = { port, record };
         const complete = finished(record, gone);
-        const live = complete && isRecord(record.checks) && Object.hasOwn(record.checks, "content");
+        const live =
+          complete &&
+          isRecord(record.checks) &&
+          (Object.hasOwn(record.checks, "content") ||
+            ("scope" in record.checks &&
+              record.checks.scope === "reviewed-cover-collection" &&
+              record.checks.live_refresh_passed === true));
         const refreshed = refreshing.has(record.port_id);
         const state: ItemState = {
           format: 1,
@@ -497,8 +531,27 @@ export async function prepareArtworkWorkset(
   }
   const invalidated: string[] = [];
   for (const port of outputPorts.values()) {
+    const companion = ports.get(port.id)?.presentation?.companion_cover;
+    const companionWithdrawn = validArtworkMapping(companion) && gone.has(companion.image_id);
+    withdrawCompanionCover(port, gone);
+    if (withdrawCollectionCovers(port, gone)) {
+      invalidated.push(port.id);
+      const record = records.get(port.id);
+      if (record?.collection) {
+        const remaining = collectionCovers(port);
+        if (remaining.length) record.collection = remaining;
+        else {
+          delete record.collection;
+          record.reason = "generated-fallback";
+          record.checks = null;
+        }
+      }
+    }
     const image = mappingImage(port);
-    if (!image || !gone.has(image)) continue;
+    if (!image || !gone.has(image)) {
+      if (companionWithdrawn) invalidated.push(port.id);
+      continue;
+    }
     if (port.presentation) delete port.presentation.artwork;
     invalidated.push(port.id);
     const record = records.get(port.id);
@@ -524,9 +577,12 @@ export async function prepareArtworkWorkset(
     original_reused: values.filter((record) => record.reason === "accepted-original-game-reused")
       .length,
     selected: values.filter(
-      (record) => record.mapping !== null && !record.reason.startsWith("accepted-mapping"),
+      (record) =>
+        (record.mapping !== null || Boolean(record.collection?.length)) &&
+        !record.reason.startsWith("accepted-mapping"),
     ).length,
-    fallback: values.filter((record) => record.mapping === null).length,
+    fallback: values.filter((record) => record.mapping === null && !record.collection?.length)
+      .length,
     ...memo.metrics,
   };
   return {

@@ -2,26 +2,17 @@
   "format_version": 1,
   "listing": {
     "id": "medal-of-honor-allied-assault-breakthrough-openmohaa",
+    "artwork": {
+      "game_id": 9229,
+      "cover_id": 117326,
+      "image_id": "co2ij2",
+      "image_sha256": "fdab78afeca54812c27d6b67ce16169392589401c01f1a0514a95ab0e155e24d",
+      "game_slug": "medal-of-honor-allied-assault-breakthrough",
+      "match_kind": "underlying-game"
+    },
     "name": "Medal of Honor: Allied Assault Breakthrough (OpenMoHAA)",
     "summary": "Use the official OpenMoHAA player on Windows, Linux or Mac for Breakthrough with your own matching PC data. Keep original files and the external save profile backed up.",
     "original_game_title": "Medal of Honor: Allied Assault Breakthrough",
-    "original_game": {
-      "format_version": 1,
-      "id": "medal-of-honor-allied-assault-breakthrough",
-      "evidence_urls": [
-        "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "medal-of-honor-allied-assault-breakthrough-pc",
-          "title": "Medal of Honor: Allied Assault Breakthrough (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/openmoh/openmohaa",
     "availability": "packages",
     "setup_url": "https://github.com/openmoh/openmohaa#readme",
@@ -65,6 +56,16 @@
           "instruction": "On Windows ARM64, choose the official ARM64 ZIP. After preparing the same original files, use launch_openmohaa_breakthrough.exe in the extracted folder. You and upstream own that copy and its profile."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "medal-of-honor-allied-assault-breakthrough",
+      "evidence_urls": [
+        "https://github.com/openmoh/openmohaa#readme",
+        "https://github.com/openmoh/openmohaa/blob/main/docs/markdown/01-intro/01-installation.md",
+        "https://github.com/openmoh/openmohaa"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

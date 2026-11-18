@@ -2,26 +2,17 @@
   "format_version": 1,
   "listing": {
     "id": "pokemon-blue-gen1recomp",
+    "artwork": {
+      "game_id": 1511,
+      "cover_id": 266335,
+      "image_id": "co5pi7",
+      "image_sha256": "da39e547225cadcd7350c01316cfcd15215e5209e848fe6c044dc2a386f4ed59",
+      "game_slug": "pokemon-blue-version",
+      "match_kind": "underlying-game"
+    },
     "name": "Pokémon Blue (Gen1Recomp / G1R Deluxe)",
     "summary": "Import your own exact blue original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
     "original_game_title": "Pokémon Blue",
-    "original_game": {
-      "format_version": 1,
-      "id": "pokemon-blue",
-      "evidence_urls": [
-        "https://github.com/bryanthaboi/gen1recomp/blob/fae8eba6554a470cb7773808e14a4dea3aa5fd41/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "pokemon-blue-game-boy",
-          "title": "Pokémon Blue (Game Boy, region not specified)",
-          "system": "game-boy",
-          "evidence_urls": [
-            "https://github.com/bryanthaboi/gen1recomp/blob/fae8eba6554a470cb7773808e14a4dea3aa5fd41/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/bryanthaboi/gen1recomp",
     "availability": "packages",
     "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
@@ -65,7 +56,16 @@
         }
       ]
     },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-blue",
+      "evidence_urls": [
+        "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
+        "https://github.com/bryanthaboi/gen1recomp"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

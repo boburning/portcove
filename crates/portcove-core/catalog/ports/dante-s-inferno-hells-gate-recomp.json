@@ -20,23 +20,6 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "Dante's Inferno",
-    "original_game": {
-      "format_version": 1,
-      "id": "dante-s-inferno",
-      "evidence_urls": [
-        "https://github.com/florinp93/hells-gate-recomp/blob/3ce28ec04511756795402a363da8d9779889733f/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "dante-s-inferno-xbox-360",
-          "title": "Dante's Inferno (Xbox 360, region not specified)",
-          "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/florinp93/hells-gate-recomp/blob/3ce28ec04511756795402a363da8d9779889733f/README.md"
-          ]
-        }
-      ]
-    },
     "release_url": "https://github.com/florinp93/hells-gate-recomp/releases",
     "manual_setup": {
       "steps": [
@@ -66,6 +49,15 @@
     "recommended_download_channel": "beta",
     "download_asset_hints": {
       "windows-x86-64": ["DantesInferno-", "-portable.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dante-s-inferno",
+      "evidence_urls": [
+        "https://github.com/florinp93/hells-gate-recomp/blob/1c455387570b9d1daad87688707c8d6ba118f750/README.md",
+        "https://github.com/florinp93/hells-gate-recomp"
+      ],
+      "source_editions": []
     }
   }
 }

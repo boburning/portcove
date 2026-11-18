@@ -4,23 +4,6 @@
     "id": "phantasy-star-universe-recompiled-experimental-danielcoffey1-phantasy-star-universe-xbox-360",
     "name": "Phantasy Star Universe (Xbox 360) — Phantasy Star Universe Recompiled (experimental) (DanielCoffey1)",
     "original_game_title": "Phantasy Star Universe (Xbox 360)",
-    "original_game": {
-      "format_version": 1,
-      "id": "phantasy-star-universe-xbox-360",
-      "evidence_urls": [
-        "https://github.com/DanielCoffey1/psu-decomp/blob/f39eca80e72e0a92f14977151f9dca39d64866a4/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "phantasy-star-universe-xbox-360-xbox-360",
-          "title": "Phantasy Star Universe (Xbox 360) (Xbox 360, region not specified)",
-          "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/DanielCoffey1/psu-decomp/blob/f39eca80e72e0a92f14977151f9dca39d64866a4/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "The project reports chapter 1’s initial combat, NPC interactions and save reload. Later progression is untested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/DanielCoffey1/psu-decomp",
     "platforms": ["windows-x86-64"],
@@ -52,6 +35,21 @@
       "image_sha256": "20a5721d6ee8dfba9eb470b1c476f64cbf6da4253ccd7977b74ee728fe7c242d",
       "game_slug": "phantasy-star-universe",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "phantasy-star-universe-xbox-360",
+      "evidence_urls": ["https://github.com/DanielCoffey1/psu-decomp"],
+      "source_editions": [
+        {
+          "id": "phantasy-star-universe-xbox-360-xbox-360",
+          "title": "Phantasy Star Universe (Xbox 360) (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/DanielCoffey1/psu-decomp/blob/f39eca80e72e0a92f14977151f9dca39d64866a4/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

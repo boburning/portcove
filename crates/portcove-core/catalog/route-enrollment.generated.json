@@ -39,6 +39,23 @@
       "managed_native": true
     },
     {
+      "port_id": "ecwolf-wolfenstein3d",
+      "prepared_player": {
+        "executable": "ecwolf.exe",
+        "working_directory": "executable-parent",
+        "arguments": [
+          "--data",
+          "WL1"
+        ],
+        "data_locations": [
+          "Windows Roaming AppData/ECWolf settings and Windows Saved Games/ECWolf progress, including upstream fallback locations",
+          "Linux XDG configuration/ecwolf and data/ecwolf/savegames folders",
+          "original game files, mods and any explicit --config or --savedir locations"
+        ]
+      },
+      "managed_native": false
+    },
+    {
       "port_id": "elasota-aerofoil",
       "prepared_player": {
         "working_directory": "executable-parent",

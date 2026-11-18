@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "mstan-supermarioadvance4recomp",
+    "artwork": {
+      "game_id": 16748,
+      "cover_id": 96257,
+      "image_id": "co229t",
+      "image_sha256": "549d52069f2100f79c03ab5744e93ac495baa48caca51f95f22b71442b4fbc69",
+      "game_slug": "super-mario-advance-4-super-mario-bros-3",
+      "match_kind": "underlying-game"
+    },
     "name": "Super Mario Advance 4: Super Mario Bros. 3 / Super Mario Advance 4 Recomp (mstan)",
     "summary": "Native Windows player using your own matching original GBA game and retail GBA BIOS.",
     "project_url": "https://github.com/mstan/SuperMarioAdvance4Recomp",
@@ -39,26 +47,21 @@
         }
       ]
     },
-    "original_game_title": "Super Mario Advance 4: Super Mario Bros. 3",
+    "original_game_title": "Super Mario Bros. 3",
     "original_game": {
       "format_version": 1,
-      "id": "super-mario-advance-4-super-mario-bros-3",
+      "id": "super-mario-bros-3",
       "evidence_urls": [
-        "https://github.com/mstan/SuperMarioAdvance4Recomp/blob/d32a8973df368f6b23f923edb025f58a25452e32/README.md"
+        "https://github.com/mstan/SuperMarioAdvance4Recomp#readme",
+        "https://github.com/mstan/SuperMarioAdvance4Recomp"
       ],
-      "source_editions": [
-        {
-          "id": "super-mario-advance-4-super-mario-bros-3-game-boy-advance",
-          "title": "Super Mario Advance 4: Super Mario Bros. 3 (Game Boy Advance, region not specified)",
-          "system": "game-boy-advance",
-          "evidence_urls": [
-            "https://github.com/mstan/SuperMarioAdvance4Recomp/blob/d32a8973df368f6b23f923edb025f58a25452e32/README.md"
-          ]
-        }
-      ]
+      "source_editions": []
     }
   },
-  "gba_staged_archive_v1": { "game_code": "AX4E", "versioned_mods": false },
+  "gba_staged_archive_v1": {
+    "game_code": "AX4E",
+    "versioned_mods": false
+  },
   "integration": {
     "support_tier": "beta",
     "channels": ["beta"],

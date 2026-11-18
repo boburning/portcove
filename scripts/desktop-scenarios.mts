@@ -85,6 +85,36 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-large-discovery-setup-review",
+    "Native retained pages select twenty eligible games, preserve version choices and cancel without mutation.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-setup-batch-test.mts",
+      qualification_only: true,
+      platforms: ["win32", "linux"],
+    },
+  ),
+  scenario(
+    "native-reviewed-discovery-setup-batch",
+    "A reviewed native two-game setup batch preserves consent, originals and completed installs across restart.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-setup-batch-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
+    "native-standing-setup-source-return",
+    "Native standing consent waits for its original, then normal startup installs once without launching.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-standing-setup-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-selected-setup-completion",
     "Discovered synthetic inputs continue through ordinary installation, cancellation, retry and isolated preparation.",
     {
@@ -252,6 +282,15 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-collection-artwork-presentation",
+    "Actual listing-only two/four-member collections preserve public thumbnail identity, contained Discover/detail artwork, credits and Back focus.",
+    {
+      source: "desktop-collection-artwork-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-application-update-preferences",
     "Application update setup consent, focus and corrupt-state recovery remain isolated and explicit.",
   ),
@@ -345,6 +384,18 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-secondary-panel-presentation",
+    "Secondary reviews render supplied states in the native WebView with owned DAT and metadata actions.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
+      dependencies: ["native-preparation-review-and-play"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-secondary-panels-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-ready-detail-composition",
     "Ready game details keep Play and the information hierarchy visible in both themes at supported window sizes.",
     {
@@ -432,7 +483,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   ),
   scenario(
     "native-host-interrupted-preparation",
-    "Forced Windows host termination during live preparation preserves originals and requires recovery.",
+    "Forced Windows host termination preserves originals and a reviewed fresh preparation can finish.",
     {
       prerequisites: ["desktop", "owned-fixture"],
       source: "desktop-preparation-recovery-test.mts",
@@ -784,6 +835,19 @@ export function resolveDesktopSelection({
   if (unknown.length)
     throw new Error(`Unknown desktop scenario: ${[...new Set(unknown)].join(", ")}`);
   const uniqueRequested = ordered(requested);
+  // Supplied projections remain cached until this Windows chooser session closes.
+  if (
+    uniqueRequested.includes("native-secondary-panel-presentation") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("Native secondary-panel presentation requires one standalone Windows scenario");
+  if (
+    uniqueRequested.includes("native-collection-artwork-presentation") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error(
+      "native-collection-artwork-presentation requires one standalone Windows scenario",
+    );
   if (
     uniqueRequested.includes("native-interface-size") &&
     (uniqueRequested.length !== 1 || platform !== "win32")
@@ -814,6 +878,25 @@ export function resolveDesktopSelection({
       throw new Error("native-preliminary-source-review requires one exact standalone scenario");
     if (platform !== "win32") throw new Error("native-preliminary-source-review requires Windows");
   }
+  if (
+    uniqueRequested.includes("native-large-discovery-setup-review") &&
+    (uniqueRequested.length !== 1 || !["win32", "linux"].includes(platform))
+  )
+    throw new Error(
+      "native-large-discovery-setup-review requires one standalone Windows/Linux scenario",
+    );
+  if (
+    uniqueRequested.includes("native-reviewed-discovery-setup-batch") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error(
+      "native-reviewed-discovery-setup-batch requires one standalone Windows scenario",
+    );
+  if (
+    uniqueRequested.includes("native-standing-setup-source-return") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-standing-setup-source-return requires one standalone Windows scenario");
   if (uniqueRequested.includes("native-selected-setup-completion")) {
     if (uniqueRequested.length !== 1)
       throw new Error("native-selected-setup-completion requires one exact standalone scenario");
@@ -968,6 +1051,11 @@ export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
 export function desktopHarnessDeadlineMs(
   selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
 ) {
+  // Preparation, two-theme secondary reviews, native file dialogs and owned exit joins.
+  if (selection.selected_scenarios.includes("native-secondary-panel-presentation")) return 600_000;
+  // Six public collection previews, two themes, compact capture and owned native exit.
+  if (selection.selected_scenarios.includes("native-collection-artwork-presentation"))
+    return 600_000;
   // Real saved-folder checks plus three bounded input pickers, two library
   // handoffs and positive custody. Product/cancellation deadlines are unchanged.
   if (selection.selected_scenarios.includes("native-saved-folder-selected-setup")) return 600_000;
@@ -975,6 +1063,11 @@ export function desktopHarnessDeadlineMs(
   // hosted selected-setup (job 132439346311) was still progressing at 161 s and the
   // 180 s watchdog left no room for failure capture and cleanup. Harness only.
   if (selection.selected_scenarios.includes("native-selected-setup-completion")) return 600_000;
+  // Saved-source scan, two bounded installs, one fresh-session read and cleanup.
+  if (selection.selected_scenarios.includes("native-large-discovery-setup-review")) return 600_000;
+  if (selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch"))
+    return 600_000;
+  if (selection.selected_scenarios.includes("native-standing-setup-source-return")) return 600_000;
   // Two ordinary downloads/setups, real launches, file repair and positive exit joins.
   if (selection.selected_scenarios.includes("native-registered-source-reuse")) return 1_200_000;
   if (selection.selected_scenarios.includes("native-game-first-installed-mm"))
@@ -1052,12 +1145,17 @@ export function desktopHarnessDeadlineMs(
     // Moving the update review to its own group (#4879) left owned-ready at eight
     // executed scenarios, and run 43781898959 stopped it at the 180 s default. Its
     // release-channel restart journey keeps the allowance from eight executed.
+    // Native run 17 combined 17 executed ordinary workflows and reached backup
+    // restore at 20 minutes before the watchdog stopped its live driver. Larger owned
+    // combinations get 40 minutes; the established eight-case and standalone budgets stay.
     (executed > 8 ||
       (executed === 8 &&
         selection.selected_scenarios.includes("native-release-channel-selection-and-restart"))) &&
       (selection.selected_scenarios.includes("native-preparation-review-and-play") ||
         selection.setup_scenarios.includes("native-preparation-review-and-play"))
-      ? 1_200_000
+      ? executed > 8
+        ? 2_400_000
+        : 1_200_000
       : 0,
   );
   const cacheConditions = selection.selected_scenarios.includes(

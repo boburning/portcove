@@ -8,23 +8,6 @@
     "project_url": "https://github.com/theboy181/drmario64_recomp_plus",
     "listed_at": "2026-10-23",
     "original_game_title": "Dr. Mario 64",
-    "original_game": {
-      "format_version": 1,
-      "id": "dr-mario-64",
-      "evidence_urls": [
-        "https://github.com/theboy181/drmario64_recomp_plus/blob/af91e3bf56b1ffc329ff4327fdc2380515463de7/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "dr-mario-64-nintendo-64",
-          "title": "Dr. Mario 64 (Nintendo 64, region not specified)",
-          "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/theboy181/drmario64_recomp_plus/blob/af91e3bf56b1ffc329ff4327fdc2380515463de7/README.md"
-          ]
-        }
-      ]
-    },
     "artwork": {
       "game_id": 3475,
       "cover_id": 95584,
@@ -33,7 +16,13 @@
       "game_slug": "dr-mario-64",
       "match_kind": "underlying-game"
     },
-    "issue_number": 97
+    "issue_number": 97,
+    "original_game": {
+      "format_version": 1,
+      "id": "dr-mario-64",
+      "evidence_urls": ["https://github.com/theboy181/drmario64_recomp_plus"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

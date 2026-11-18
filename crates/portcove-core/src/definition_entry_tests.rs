@@ -1192,6 +1192,9 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
         assert!(inspect(&entry).unwrap().capabilities().compatible);
         entry["required_capabilities"][0]["minimum_version"] = json!(37);
         entry["required_capabilities"][0]["maximum_version"] = json!(37);
+        assert!(inspect(&entry).unwrap().capabilities().compatible);
+        entry["required_capabilities"][0]["minimum_version"] = json!(39);
+        entry["required_capabilities"][0]["maximum_version"] = json!(39);
         assert!(!inspect(&entry).unwrap().capabilities().compatible);
         let old = packet["rows"]
             .as_array()
@@ -1518,6 +1521,9 @@ fn psx_package_preserving_activation_requires_new_admission_floor_but_retains_v1
     assert!(inspect(&entry).unwrap().capabilities().compatible);
     entry["required_capabilities"][0]["minimum_version"] = json!(5);
     entry["required_capabilities"][0]["maximum_version"] = json!(5);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    entry["required_capabilities"][0]["minimum_version"] = json!(6);
+    entry["required_capabilities"][0]["maximum_version"] = json!(6);
     assert!(!inspect(&entry).unwrap().capabilities().compatible);
 
     // A texture-pack folder needs the retained-scope reader.
@@ -1828,6 +1834,8 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             version
         } else if port.mod_package_policy.is_some() {
             24
+        } else if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::CAPABILITY
         } else if crate::persistence::ready_staged_archive(port) {
             23
         } else if crate::managed_runtime_policy::requires_provider_resolution(port) {
@@ -2514,4 +2522,33 @@ fn native_originals_require_native6_in_fresh_and_retained_readers() {
             .capabilities()
             .compatible
     );
+}
+
+#[test]
+fn native_relative_originals_require_capability_37_in_fresh_and_retained_readers() {
+    let mut port = crate::native_temp::tests::port();
+    port.source_profile = Some("exact-relative-originals".into());
+    port.runtime_source_set.push(crate::RuntimeSourceTarget {
+        source_filenames: vec!["base/pak000.pk4".into()],
+        destination: "base/pak000.pk4".into(),
+        materialization: crate::RuntimeSourceMaterialization::Copy,
+    });
+    port.runtime_source_hashes
+        .insert("base/pak000.pk4".into(), "a".repeat(64));
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["maximum_version"] = json!(37);
+    for minimum in [36, 37] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if minimum == 36 {
+                assert!(result.unwrap_err().message.contains("version 37"));
+            } else {
+                assert!(result.unwrap().capabilities().compatible);
+            }
+        }
+    }
 }

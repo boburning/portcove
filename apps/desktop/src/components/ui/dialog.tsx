@@ -12,13 +12,13 @@ import { useAppTranslation } from "../../localization";
 const overlayClassName =
   "fixed inset-0 z-(--layer-floating) bg-pc-scrim transition-opacity duration-(--duration-slow) ease-(--ease-standard) data-starting-style:opacity-0 data-ending-style:opacity-0 motion-reduce:transition-none";
 const popupClassName = cn(
-  "fixed top-1/2 left-1/2 z-(--layer-floating) grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overscroll-contain rounded-pc-lg border border-pc-border bg-pc-surface p-6 text-sm text-pc-foreground shadow-(--shadow-floating) outline-none sm:max-w-[32.5rem] forced-colors:outline-1 forced-colors:outline-solid",
+  "fixed top-1/2 left-1/2 z-(--layer-floating) grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 grid-cols-[minmax(0,1fr)] gap-4 overflow-y-auto overscroll-contain rounded-pc-lg border border-pc-border bg-pc-surface p-6 text-sm wrap-anywhere text-pc-foreground shadow-(--shadow-floating) outline-none sm:max-w-[32.5rem] forced-colors:outline-1 forced-colors:outline-solid",
   floatingMotion,
 );
 
 // Review surfaces share their scrolling and spacing; unusual compositions stay local.
 const reviewLayoutClassName =
-  "max-h-[calc(100dvh-var(--space-8))] max-w-none [scroll-padding-block:var(--space-4)] [overflow-wrap:anywhere] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none";
+  "max-h-[calc(100dvh-var(--space-8))] max-w-none [scroll-padding-block:var(--space-4)] gap-0 p-8 sm:max-w-none";
 const reviewWidths = {
   compact: "w-[min(500px,90vw)]",
   standard: "w-[min(680px,90vw)]",

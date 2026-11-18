@@ -4,23 +4,6 @@
     "id": "bugsbunnylostintimerecomp-periblugaming-bugs-bunny-lost-in-time",
     "name": "Bugs Bunny: Lost in Time — BugsBunnyLostinTimeRecomp (PeriBluGaming)",
     "original_game_title": "Bugs Bunny: Lost in Time",
-    "original_game": {
-      "format_version": 1,
-      "id": "bugs-bunny-lost-in-time",
-      "evidence_urls": [
-        "https://github.com/PeriBluGaming/BugsBunnyLostinTimeRecomp/blob/fca728da98dc350e84083d9939f663311fa99214/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "bugs-bunny-lost-in-time-playstation",
-          "title": "Bugs Bunny: Lost in Time (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/PeriBluGaming/BugsBunnyLostinTimeRecomp/blob/fca728da98dc350e84083d9939f663311fa99214/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "The project describes a native PSXRecomp player. Release descriptions do not establish full-game coverage, and Portcove has not confirmed gameplay. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/PeriBluGaming/BugsBunnyLostinTimeRecomp",
     "platforms": [],
@@ -52,6 +35,12 @@
       "image_sha256": "869334deced87a6694a7c185dc3c4b87985b57798f9104f9b2d867348ad34d48",
       "game_slug": "bugs-bunny-lost-in-time",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "bugs-bunny-lost-in-time",
+      "evidence_urls": ["https://github.com/PeriBluGaming/BugsBunnyLostinTimeRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

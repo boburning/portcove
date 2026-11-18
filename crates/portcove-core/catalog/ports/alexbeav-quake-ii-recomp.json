@@ -5,23 +5,6 @@
     "name": "Quake II / Alexbeav PSXRecomp",
     "summary": "Build and play Quake II on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Quake II",
-    "original_game": {
-      "format_version": 1,
-      "id": "quake-ii-playstation",
-      "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/blob/7191b38661ccbef2b5ca88609c46a2efa8775232/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "quake-ii-playstation",
-          "title": "Quake II (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/blob/7191b38661ccbef2b5ca88609c46a2efa8775232/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp",
     "issue_number": 474,
     "listed_at": "2026-10-23",
@@ -67,7 +50,16 @@
       "macos-x86-64": ["quake-ii-recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["quake-ii-recomp-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "quake-ii",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "integration": {
@@ -107,7 +99,20 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching two-track USA CHD (SLUS-00757) and retail SCPH-1001 BIOS. Portcove verifies the data track and track count and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows and Linux package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved."
+      "manual_preparation": "Provide your own matching two-track USA CHD (SLUS-00757) and retail SCPH-1001 BIOS. Portcove verifies the data track and track count and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows and Linux package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "Native build, gameplay and save compatibility remain unobserved."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
   }

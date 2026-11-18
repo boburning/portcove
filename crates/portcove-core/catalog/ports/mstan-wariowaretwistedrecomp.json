@@ -57,21 +57,16 @@
       "format_version": 1,
       "id": "warioware-twisted",
       "evidence_urls": [
-        "https://github.com/mstan/WarioWareTwistedRecomp/blob/3897e4a3b0bacd3ed230efe30b2fe8742519ad50/README.md"
+        "https://github.com/mstan/WarioWareTwistedRecomp#readme",
+        "https://github.com/mstan/WarioWareTwistedRecomp"
       ],
-      "source_editions": [
-        {
-          "id": "warioware-twisted-game-boy-advance",
-          "title": "WarioWare: Twisted! (Game Boy Advance, region not specified)",
-          "system": "game-boy-advance",
-          "evidence_urls": [
-            "https://github.com/mstan/WarioWareTwistedRecomp/blob/3897e4a3b0bacd3ed230efe30b2fe8742519ad50/README.md"
-          ]
-        }
-      ]
+      "source_editions": []
     }
   },
-  "gba_staged_archive_v1": { "game_code": "RZWE", "versioned_mods": false },
+  "gba_staged_archive_v1": {
+    "game_code": "RZWE",
+    "versioned_mods": false
+  },
   "integration": {
     "support_tier": "beta",
     "channels": ["beta"],

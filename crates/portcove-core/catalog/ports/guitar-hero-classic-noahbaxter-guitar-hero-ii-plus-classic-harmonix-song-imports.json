@@ -3,28 +3,32 @@
   "listing": {
     "id": "guitar-hero-classic-noahbaxter-guitar-hero-ii-plus-classic-harmonix-song-imports",
     "name": "Guitar Hero II (plus classic Harmonix song imports) — Guitar Hero Classic (noahbaxter)",
-    "original_game_title": "Guitar Hero II (plus classic Harmonix song imports)",
-    "summary": "This release uses a disc-folder setup and remains in development. GHClassic is not confirmed to be the same project as Recomp-Hero-2; use the instructions for this implementation. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
+    "original_game_title": "Guitar Hero II",
+    "summary": "Upstream publishes preview packages for Windows x86-64, Linux x86-64 and Apple Silicon. Use your own USA Guitar Hero II disc image for setup. Additional original Guitar Hero discs are optional imports.",
     "project_url": "https://github.com/noahbaxter/GHClassic",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/noahbaxter/GHClassic",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/noahbaxter/GHClassic/blob/v0.9/README.md#install",
     "manual_setup": {
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Use your own USA PlayStation 2 Guitar Hero II SLUS-21447 ISO. Other original Guitar Hero discs are optional imports."
+          "instruction": "Use your own USA PlayStation 2 Guitar Hero II disc (SLUS-21447) as an ISO, CHD or BIN. Other original Guitar Hero discs are optional imports."
         },
         {
-          "title": "Follow upstream setup",
-          "instruction": "Use the portable Windows or Linux runtime folder, or the macOS disk image. Place your own USA SLUS21447 disc in PUT_DISC_HERE. Follow GHClassic’s instructions; the archived ghpc prototype points to this replacement project."
+          "title": "Set up the Windows or Linux package",
+          "instruction": "Extract the ZIP and put the disc image in PUT_DISC_HERE beside the game."
+        },
+        {
+          "title": "Set up the Apple Silicon package",
+          "instruction": "Open the disk image and drag GHClassic to Applications. Run it once to open the PUT_DISC_HERE folder in ~/Library/Application Support/GHClassic. Put your disc image there."
         }
       ],
       "warnings": [
         "This release uses a disc-folder setup and remains in development. GHClassic is not confirmed to be the same project as Recomp-Hero-2; use the instructions for this implementation.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/noahbaxter/GHClassic"
+      "help_url": "https://github.com/noahbaxter/GHClassic/blob/v0.9/README.md#install"
     },
     "issue_number": 3000,
     "listed_at": "2026-10-25",
@@ -35,6 +39,15 @@
       "image_sha256": "31cff9ee4bf15d460535fb3da9d11cbd7b15f9bdd104235b6150695003c1fa3c",
       "game_slug": "guitar-hero-ii",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/noahbaxter/GHClassic/releases/tag/v0.9",
+    "recommended_download_channel": "beta",
+    "download_block_reason": "Portcove has identified the upstream v0.9 game packages. Package acquisition remains on hold until their contents and permission to use them through Portcove are reviewed.",
+    "original_game": {
+      "format_version": 1,
+      "id": "guitar-hero-ii",
+      "evidence_urls": ["https://github.com/noahbaxter/GHClassic"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

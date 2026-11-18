@@ -47,6 +47,16 @@
           "instruction": "Upstream update notices do not replace the app: rebuild the compatible version, close the old app, preserve its profile and replace the app. You or upstream own updates and data backups; Portcove registration supplies no managed Update, Backup or Rollback, and removal leaves every external file untouched."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-kart-wii",
+      "evidence_urls": [
+        "https://github.com/chrissotraidis/kartpad/blob/5c9af806c02733f238520b405f886ae45b5aa37e/docs/INSTALL_MACOS.md",
+        "https://github.com/chrissotraidis/kartpad"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Mario Kart Wii"
   }
 }

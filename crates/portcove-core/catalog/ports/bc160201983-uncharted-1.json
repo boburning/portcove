@@ -5,6 +5,14 @@
     "name": "Uncharted: Drakes Fortune — PS4 remaster (bc160201983 Uncharted PC port)",
     "summary": "Attach an independently permitted, prepared Windows Nathan Drake Collection installation starting Uncharted: Drake’s Fortune. The BilalReloaded launcher keeps title-specific settings; upstream owns preparation, runtime replacement and external player data.",
     "original_game_title": "Uncharted: Drakes Fortune",
+    "artwork": {
+      "game_id": 41878,
+      "cover_id": 86366,
+      "image_id": "co1un2",
+      "image_sha256": "b525931c961c2d511b9d6fea7df37b2036accc81e3f4bb0dde97818782b8aaae",
+      "game_slug": "uncharted-drakes-fortune-remastered",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

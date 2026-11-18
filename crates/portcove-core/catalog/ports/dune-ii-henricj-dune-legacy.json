@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "dune-ii-henricj-dune-legacy",
+    "artwork": {
+      "game_id": 86,
+      "cover_id": 227952,
+      "image_id": "co4vw0",
+      "image_sha256": "cb25d42a8639c7aacaa27f3d6da453412e74f9dccda5df71123b5cb1b44c09f9",
+      "game_slug": "dune-ii-the-building-of-a-dynasty",
+      "match_kind": "underlying-game"
+    },
     "name": "Dune II / Dune Legacy (henricj)",
     "original_game_title": "Dune II",
     "summary": "Play Dune II with henricj’s Dune Legacy fork using the PAK files from your original copy.",
@@ -37,7 +45,13 @@
         }
       ]
     },
-    "download_block_reason": "The release lacks published package digests and bundles gameplay assets that need a redistribution record. Use the upstream project for an external copy."
+    "download_block_reason": "The release lacks published package digests and bundles gameplay assets that need a redistribution record. Use the upstream project for an external copy.",
+    "original_game": {
+      "format_version": 1,
+      "id": "dune-ii",
+      "evidence_urls": ["https://github.com/henricj/dunelegacy"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

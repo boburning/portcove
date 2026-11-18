@@ -5,22 +5,13 @@
     "name": "Saru Get You: Saru Saru Daisakusen (Ape Escape Mind Over Monkey)",
     "summary": "An experimental PSP Saru Get You: Saru Saru Daisakusen port. Its game profile reports early macOS startup/audio, Linux ARM64 startup and a Windows cross-build. Later root documentation and releases claim broader support and contradict the profile’s no-release/Android-unavailable statements; neither proves Android installation or gameplay. The SaruSaru launcher builds locally from your own Japanese UCJS10060 v1.00 compatible ISO; exact ISO hashes are unconfirmed. Source preparation needs CMake, Ninja, Python and a compiler, and PSPRecomp does not supply decryption. An optional interpreter handles code outside translated coverage. macOS ARM64, Linux x86-64/ARM64, Windows x86-64 and Android ARM64 launcher/build routes are documented, with their evidence differences unresolved. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Saru Get You: Saru Saru Daisakusen",
-    "original_game": {
-      "format_version": 1,
-      "id": "saru-get-you-saru-saru-daisakusen",
-      "evidence_urls": [
-        "https://github.com/jackgllghr/bigmission-recomp/blob/c4b91797660be06a75e43ba6e2c53688b3ef55f1/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "saru-get-you-saru-saru-daisakusen-playstation-portable",
-          "title": "Saru Get You: Saru Saru Daisakusen (PlayStation Portable, region not specified)",
-          "system": "playstation-portable",
-          "evidence_urls": [
-            "https://github.com/jackgllghr/bigmission-recomp/blob/c4b91797660be06a75e43ba6e2c53688b3ef55f1/README.md"
-          ]
-        }
-      ]
+    "artwork": {
+      "game_id": 79069,
+      "cover_id": 215930,
+      "image_id": "co4mm2",
+      "image_sha256": "c29d87bf21fb519a34d25f262952c80de501063e91be096033d057d9c4684dc1",
+      "game_slug": "saru-getchu-saru-saru-daisakusen",
+      "match_kind": "underlying-game"
     },
     "project_url": "https://github.com/jackgllghr/bigmission-recomp",
     "platforms": ["windows-x86-64"],
@@ -55,6 +46,15 @@
       "warnings": [
         "Select prepared sarusaru.exe with its matching local module and existing settings/memory-stick roots. Keep Japanese original content separate from optional translation/HD packs and quick-state compatibility claims."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "saru-get-you-saru-saru-daisakusen",
+      "evidence_urls": [
+        "https://github.com/jackgllghr/bigmission-recomp",
+        "https://github.com/jackgllghr/bigmission-recomp/blob/7630758036ecaf841f4bb6732bfe6cd080a27902/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

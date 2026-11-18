@@ -4,23 +4,6 @@
     "id": "gow-ascension-pc-otavix010-otavix010-god-of-war-ascension",
     "name": "God of War: Ascension — gow-ascension-pc (otavix010) (otavix010)",
     "original_game_title": "God of War: Ascension",
-    "original_game": {
-      "format_version": 1,
-      "id": "god-of-war-ascension",
-      "evidence_urls": [
-        "https://github.com/otavix010/gow-ascension-pc/blob/aa07f7582f1cc2001564aa8d3359fd7db242896f/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "god-of-war-ascension-playstation-3",
-          "title": "God of War: Ascension (PlayStation 3, region not specified)",
-          "system": "playstation-3",
-          "evidence_urls": [
-            "https://github.com/otavix010/gow-ascension-pc/blob/aa07f7582f1cc2001564aa8d3359fd7db242896f/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Upstream reports first-level and chapter 16 measurements, including a low-end example around 6–7 FPS. A complete playthrough is unconfirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/otavix010/gow-ascension-pc",
     "platforms": ["windows-x86-64"],
@@ -52,6 +35,12 @@
       "image_sha256": "34f5ea12174c809172ade265bf4ad1181002180eea97e8067604207be04e6548",
       "game_slug": "god-of-war-ascension",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war-ascension",
+      "evidence_urls": ["https://github.com/otavix010/gow-ascension-pc"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

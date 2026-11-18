@@ -16,6 +16,7 @@ mod authorization;
 mod browsing_context;
 mod bug_report;
 mod cancellation;
+mod carried_files;
 mod carry_ledger;
 mod carry_plan;
 mod carry_step;
@@ -69,6 +70,8 @@ mod library_import;
 mod library_membership;
 mod library_move;
 mod library_transfer;
+mod managed_chocolate;
+mod managed_initialization;
 mod managed_runtime_policy;
 mod managed_shared_preferences;
 mod managed_tfe;
@@ -103,6 +106,9 @@ mod mod_provider;
 mod native_mod_list;
 mod profile;
 mod profile_deploy;
+mod profile_file_preservation;
+mod profile_loader;
+mod profile_originals;
 mod provider_auto_update;
 mod provider_browse;
 mod provider_client;
@@ -115,6 +121,7 @@ mod qualification_checkpoint;
 mod recipe;
 mod recomp_mod;
 mod recomp_mod_list;
+mod recomp_mod_settings;
 mod recovery;
 mod relative_file_set;
 mod release;
@@ -137,6 +144,7 @@ mod source_file;
 mod source_import;
 mod source_inbox;
 mod source_inspection;
+mod source_instances;
 mod source_report;
 mod source_reuse;
 mod source_zip;
@@ -192,6 +200,7 @@ pub use bug_report::{
     bug_report_link, draft_bug_report, draft_report, redact_report_text, report_issue, report_link,
 };
 pub use cancellation::{CancellationPhase, CancellationState};
+pub use carried_files::{CarriedFileCounts, CarriedFileOutcome, CarriedFilesStatus};
 pub use cartridge_build::CartridgeBuildRecipe;
 pub use catalog::{Catalog, CatalogProposalInspection, CatalogProposalPortInspection};
 pub use catalog_media::{
@@ -263,7 +272,7 @@ pub use game_file_query::{
 pub use game_file_root::{
     GameFileRoot, GameFileRootAvailability, GameFileScanCoverage, GameFileScanFreshness,
     GameFileScanMatchKind, GameFileScanMatchPage, GameFileScanMatchQuery, GameFileScanMatchSummary,
-    GameFileScanSnapshot, MAX_GAME_FILE_SCAN_MATCH_PAGE,
+    GameFileScanRegisteredMatches, GameFileScanSnapshot, MAX_GAME_FILE_SCAN_MATCH_PAGE,
 };
 pub use game_recommendations::{
     ComparisonEdition, ComparisonFreshness, ComparisonPort, ComparisonRelease,
@@ -312,6 +321,7 @@ pub use mod_package::{
 };
 pub use mod_provider::{
     Observed, ProviderFileCandidate, ProviderFreshness, ProviderPage, ProviderProject,
+    ThunderstoreDependency,
 };
 pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
 pub use output_relocation::{
@@ -354,24 +364,35 @@ pub use preparation::{
 pub use process::{ChildProcessClass, ChildProcessPolicy, GameProcessSpec, LaunchKind, LaunchSpec};
 pub use profile::{
     LibraryProfile, LoaderContractRef, OriginalAvailability, OriginalBinding, OriginalStatus,
-    Profile, ProfileIntent, ProfileInventory, ProfileRevision, ProfileRevisionRequest,
-    ProfileUpdatePolicy, ProfileView, ProviderPackageRef, RequestedPackage, ResolvedPackage,
-    TypedOrdering,
+    Profile, ProfileIntent, ProfileInventory, ProfileProgressCopy, ProfileRevision,
+    ProfileRevisionRequest, ProfileUpdatePolicy, ProfileView, ProviderPackageRef,
+    ProviderRequirement, RequestedPackage, ResolvedPackage, TypedOrdering,
 };
-pub use profile_deploy::{LiveMods, ModCodeReview, ModSetupsView, NativeModListStatus};
-pub use provider_auto_update::{HeldModUpdate, ProviderAutoUpdate, ProviderAutoUpdateOutcome};
+pub use profile_deploy::{
+    LiveMods, LocalModPackagePlan, ModCodeReview, ModSetupsView, NativeModListStatus,
+    ProfileRecoveryPlan, ProfileRecoveryProgress,
+};
+pub use profile_file_preservation::{
+    ModFileIdentity, ModFilePreservationPlan, ModFilePreservationResult,
+};
+pub use profile_originals::{ProfileOriginalInstance, ProfileOriginalReview};
+pub use provider_auto_update::{
+    HeldModUpdate, ProviderAutoUpdate, ProviderAutoUpdateCheck, ProviderAutoUpdateOutcome,
+};
 pub use provider_browse::{ProviderBrowsePage, ProviderProjectView};
-pub use provider_install::{PlanMember, ProviderInstallPlan};
+pub use provider_install::{PlanMember, ProviderInstallPlan, ProviderWrapper};
 pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
 pub use recipe::{
-    ProfileRecipe, RECIPE_FORMAT, RecipeImportPlan, RecipeInputPlan, RecipeInputStatus,
-    RecipeOriginal, RecipePackage, RecipeRuntime,
+    ProfileRecipe, RECIPE_FORMAT, RecipeAcquisitionPlan, RecipeCodeApproval, RecipeImportPlan,
+    RecipeInputPlan, RecipeInputStatus, RecipeOriginal, RecipeOriginalStorage, RecipePackage,
+    RecipeRuntime,
 };
 pub use recomp_mod::{
     RecompDependency, RecompExecution, RecompModHold, RecompModInspection, inspect_recomp_mod,
 };
+pub use recomp_mod_settings::{RecipeModSetting, RecipeModSettingValue};
 pub use release::{
     GithubReleaseProvider, ObservationEvidence, ObservedReleaseIdentity, ObservedResolution,
     ReleaseProvider, UpstreamChannelObservation, UpstreamObservationReport,
@@ -494,7 +515,14 @@ pub use windows_runtime::{
 // library schema versions are independent and unchanged.
 // Public87 adds explicit compiled official-catalog setup for normal clients.
 // Its source-bound confirmation is separate from the unchanged CLI authority plan.
-pub const API_SCHEMA_VERSION: u32 = 93;
+// Public 94 adds exact local mod package review and apply.
+// Public 95 adds exact reviewed Thunderstore dependencies and wrapper evidence.
+// Public 96 adds saved original-instance selection and byte-verified relinking.
+// Public 97 exposes exact setup recovery and isolated progress copying.
+// Public 98 adds reviewed mod-file inspection and preservation receipts.
+// Public 99 reports partial results when the game setup queue is unavailable.
+// Public 100 adds exact original, settings and acquisition data to recipe reviews.
+pub const API_SCHEMA_VERSION: u32 = 100;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

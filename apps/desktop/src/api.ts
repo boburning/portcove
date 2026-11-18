@@ -106,6 +106,7 @@ import type {
   GameFileQueryRefreshRequest,
   GameFileQuerySnapshot,
   GameFileScanMatchPage,
+  GameFileScanRegisteredMatches,
   StoreGameInstalls,
   GameFileScanMatchQuery,
   GameFileScanSnapshot,
@@ -232,6 +233,32 @@ export const desktopApi = {
       expectedRevision,
       generation,
     }),
+  collectionCoverThumbnail: (
+    portId: string,
+    expectedSha256: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<DesktopArtworkThumbnail>("get_collection_cover_thumbnail", {
+      portId,
+      expectedSha256,
+      expectedRevision,
+      generation,
+    }),
+  companionCoverThumbnail: (
+    portId: string,
+    expectedPrimaryCacheId: string,
+    expectedSha256: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<DesktopArtworkThumbnail>("get_companion_cover_thumbnail", {
+      portId,
+      expectedPrimaryCacheId,
+      expectedSha256,
+      expectedRevision,
+      generation,
+    }),
   catalogMediaThumbnail: (
     portId: string,
     mediaId: string,
@@ -288,6 +315,25 @@ export const desktopApi = {
     }),
   modSetups: (portId: string, generation: number) =>
     invoke<import("./types").ModSetupsView>("get_mod_setups", { portId, generation }),
+  reviewModSetupOriginal: (target: import("./types").ModSetupOriginalTarget) =>
+    invoke<import("./types").ModSetupOriginalReview>("review_mod_setup_original", target),
+  selectModSetupOriginal: (target: import("./types").ModSetupOriginalTarget, instanceId: string) =>
+    invoke<void>("select_mod_setup_original", { ...target, instanceId }),
+  relinkModSetupOriginal: (target: import("./types").ModSetupOriginalTarget, path: string) =>
+    invoke<void>("relink_mod_setup_original", { ...target, path }),
+  inspectModFile: (portId: string, fileName: string, generation: number) =>
+    invoke<import("./types").ModFilePreservationPlan>("inspect_mod_file", {
+      portId,
+      fileName,
+      generation,
+    }),
+  preserveModFile: (portId: string, fileName: string, expectedPlan: string, generation: number) =>
+    invoke<import("./types").ModFilePreservationResult>("preserve_mod_file", {
+      portId,
+      fileName,
+      expectedPlan,
+      generation,
+    }),
   createDefaultModSetup: (portId: string, generation: number) =>
     invoke<import("./types").ModSetup>("create_default_mod_setup", { portId, generation }),
   copyModSetup: (
@@ -296,6 +342,11 @@ export const desktopApi = {
     displayName: string,
     generation: number,
     currentBuild = false,
+    progress?: {
+      source_revision_sha256: string;
+      target_install_id: string;
+      target_revision_sha256: string;
+    },
   ) =>
     invoke<import("./types").ModSetup>("copy_mod_setup", {
       portId,
@@ -303,11 +354,128 @@ export const desktopApi = {
       displayName,
       generation,
       currentBuild,
+      ...(progress && { progress }),
     }),
+  createCleanModSetup: (
+    portId: string,
+    profileId: string,
+    displayName: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetup>("create_clean_mod_setup", {
+      portId,
+      profileId,
+      displayName,
+      expectedRevision,
+      generation,
+    }),
+  modSetupRevisions: (portId: string, profileId: string, generation: number) =>
+    invoke<import("./types").ModSetupRevision[]>("list_mod_setup_revisions", {
+      portId,
+      profileId,
+      generation,
+    }),
+  planProfileRecovery: (portId: string, profileId: string, revision: number, generation: number) =>
+    invoke<import("./types").ModSetupRecoveryPlan>("plan_profile_recovery", {
+      portId,
+      profileId,
+      revision,
+      generation,
+    }),
+  applyProfileRecovery: (
+    portId: string,
+    profileId: string,
+    revision: number,
+    expectedPlanSha256: string,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("apply_profile_recovery", {
+      portId,
+      profileId,
+      revision,
+      expectedPlanSha256,
+      generation,
+    }),
+  modSetupRecoveryBuilds: (portId: string, profileId: string, generation: number) =>
+    invoke<import("./types").ModSetupRecoveryBuild[]>("list_mod_setup_recovery_builds", {
+      portId,
+      profileId,
+      generation,
+    }),
+  previewModSetupRetirement: (
+    portId: string,
+    profileId: string,
+    revision: number,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupRetirementPreview>("preview_mod_setup_retirement", {
+      portId,
+      profileId,
+      revision,
+      generation,
+    }),
+  retireModSetupRecoveryBuild: (
+    portId: string,
+    profileId: string,
+    revision: number,
+    expectedPreviewSha256: string,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupRetirementPreview["revision"]>(
+      "retire_mod_setup_recovery_build",
+      { portId, profileId, revision, expectedPreviewSha256, generation },
+    ),
   useModSetup: (portId: string, profileId: string, generation: number) =>
     invoke<import("./types").ModSetupRevision>("use_mod_setup", {
       portId,
       profileId,
+      generation,
+    }),
+  exportModRecipe: (portId: string, profileId: string, path: string, generation: number) =>
+    invoke<void>("export_mod_recipe", { portId, profileId, path, generation }),
+  inspectModRecipe: (portId: string, path: string, generation: number) =>
+    invoke<import("./transport-types.generated").OutputDesktopRecipeImportReview>(
+      "inspect_mod_recipe",
+      {
+        portId,
+        path,
+        generation,
+      },
+    ),
+  acquireModRecipePackage: (
+    portId: string,
+    profileId: string,
+    nativeId: string,
+    review: import("./transport-types.generated").OutputDesktopRecipeImportReview,
+    generation: number,
+  ) =>
+    invoke<import("./transport-types.generated").OutputDesktopRecipeImportReview>(
+      "acquire_mod_recipe_package",
+      { portId, profileId, nativeId, serializedPlan: review.serialized_plan, generation },
+    ),
+  discardModRecipeReview: (
+    portId: string,
+    review: import("./transport-types.generated").OutputDesktopRecipeImportReview,
+    generation: number,
+  ) =>
+    invoke<void>("discard_mod_recipe_review", {
+      portId,
+      serializedPlan: review.serialized_plan,
+      generation,
+    }),
+  applyModRecipe: (
+    portId: string,
+    displayName: string,
+    review: import("./transport-types.generated").OutputDesktopRecipeImportReview,
+    generation: number,
+    allowCode: boolean,
+  ) =>
+    invoke<import("./types").ModSetup>("apply_mod_recipe", {
+      portId,
+      allowCode,
+      displayName,
+      serializedPlan: review.serialized_plan,
       generation,
     }),
   setModPackageEnabled: (
@@ -326,6 +494,40 @@ export const desktopApi = {
       expectedRevision,
       generation,
     }),
+  removeModPackage: (
+    portId: string,
+    profileId: string,
+    nativeId: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("remove_mod_package", {
+      portId,
+      profileId,
+      nativeId,
+      expectedRevision,
+      generation,
+    }),
+  setModUpdatePolicy: (
+    portId: string,
+    profileId: string,
+    policy: import("./types").ModUpdatePolicy,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetup>("set_mod_update_policy", {
+      portId,
+      profileId,
+      policy,
+      generation,
+    }),
+  checkProviderModUpdates: (portId: string, profileId: string, generation: number) =>
+    invoke<import("./types").ProviderUpdateObservation[]>("check_provider_mod_updates", {
+      portId,
+      profileId,
+      generation,
+    }),
+  openProviderModProject: (portId: string, projectId: string, generation: number) =>
+    invoke<void>("open_provider_mod_project", { portId, projectId, generation }),
   browseProviderMods: (portId: string, page: number, generation: number) =>
     invoke<import("./types").ProviderBrowsePage>("browse_provider_mods", {
       portId,
@@ -388,6 +590,33 @@ export const desktopApi = {
       expectedRevision,
       generation,
       allowCodeSha256,
+    }),
+  planLocalModPackage: (
+    portId: string,
+    profileId: string,
+    path: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<import("./transport-types.generated").OutputLocalModPackagePlan>(
+      "plan_local_mod_package",
+      { portId, profileId, path, expectedRevision, generation },
+    ),
+  applyLocalModPackage: (
+    portId: string,
+    profileId: string,
+    path: string,
+    expectedPlanSha256: string,
+    generation: number,
+    allowCode: boolean,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("apply_local_mod_package", {
+      portId,
+      profileId,
+      path,
+      expectedPlanSha256,
+      generation,
+      allowCode,
     }),
   reviewModPackageCode: (portId: string, path: string, generation: number) =>
     invoke<import("./types").ModCodeReview | null>("review_mod_package_code", {
@@ -906,10 +1135,21 @@ export const desktopApi = {
     invoke<GameFileScanSnapshot | null>("get_game_file_scan_snapshot", { generation }),
   gameFileScanMatches: (query: GameFileScanMatchQuery, generation: number) =>
     invoke<GameFileScanMatchPage>("get_game_file_scan_matches", { query, generation }),
+  gameFileScanRegisteredMatches: (
+    expected: NonNullable<GameFileScanSnapshot["matches"]>,
+    generation: number,
+  ) =>
+    invoke<GameFileScanRegisteredMatches>("get_game_file_scan_registered_matches", {
+      expected,
+      generation,
+    }),
   gameFileRootMatchProfiles: (rootId: string, generation: number) =>
     invoke<string[]>("get_game_file_root_match_profiles", { rootId, generation }),
-  storeGameInstalls: (generation: number) =>
-    invoke<StoreGameInstalls>("get_store_game_installs", { generation }),
+  storeGameInstalls: (generation: number, profileId?: string) =>
+    invoke<StoreGameInstalls>("get_store_game_installs", {
+      generation,
+      ...(profileId !== undefined ? { profileId } : {}),
+    }),
   refreshGameFileQuery: (
     request: GameFileQueryRefreshRequest,
     generation: number,

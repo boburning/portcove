@@ -4,23 +4,6 @@
     "id": "fatal-fury-wild-ambition-recomp-omegakatana92-fatal-fury-wild-ambition",
     "name": "Fatal Fury: Wild Ambition — Fatal-Fury-Wild-Ambition-Recomp (omegakatana92)",
     "original_game_title": "Fatal Fury: Wild Ambition",
-    "original_game": {
-      "format_version": 1,
-      "id": "fatal-fury-wild-ambition",
-      "evidence_urls": [
-        "https://github.com/omegakatana92/Fatal-Fury-Wild-Ambition-Recomp/blob/5b8d3d40a8bd35d4a6c4d9addad7468d1c8e9a0a/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "fatal-fury-wild-ambition-playstation",
-          "title": "Fatal Fury: Wild Ambition (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/omegakatana92/Fatal-Fury-Wild-Ambition-Recomp/blob/5b8d3d40a8bd35d4a6c4d9addad7468d1c8e9a0a/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Experimental Fatal Fury: Wild Ambition source project. Upstream reports Windows startup and disc setup, with gameplay still being tested. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/omegakatana92/Fatal-Fury-Wild-Ambition-Recomp",
     "platforms": [],
@@ -52,6 +35,12 @@
       "image_sha256": "87e56e2b52c85b0020821e90d749407be7f91543d9c19b7f4570d01a618493c3",
       "game_slug": "fatal-fury-wild-ambition",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "fatal-fury-wild-ambition",
+      "evidence_urls": ["https://github.com/omegakatana92/Fatal-Fury-Wild-Ambition-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

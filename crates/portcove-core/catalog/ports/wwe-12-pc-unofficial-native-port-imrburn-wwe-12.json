@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "wwe-12-pc-unofficial-native-port-imrburn-wwe-12",
+    "artwork": {
+      "game_id": 5294,
+      "cover_id": 365563,
+      "image_id": "co7u2j",
+      "image_sha256": "e113f222cf771a314608d0796bd6970c1ffaef0cab81b10f86ed5efbd4caa4ea",
+      "game_slug": "wwe-12",
+      "match_kind": "underlying-game"
+    },
     "name": "WWE '12 — WWE '12 PC — unofficial native port (iMrBurn)",
     "original_game_title": "WWE '12",
     "summary": "The 0.9.0-beta has coloured-block defects on some Intel and AMD GPUs. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",

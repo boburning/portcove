@@ -5,23 +5,6 @@
     "name": "Atomic Bomberman (Atomic Bomberman — Modern)",
     "summary": "A native Atomic Bomberman recreation with its own generated graphics and sound.",
     "original_game_title": "Atomic Bomberman",
-    "original_game": {
-      "format_version": 1,
-      "id": "atomic-bomberman",
-      "evidence_urls": [
-        "https://github.com/elraro/atomic-bomberman/blob/459260c2d452b8bc250d79b3d5539c88bb978eae/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "atomic-bomberman-pc",
-          "title": "Atomic Bomberman (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/elraro/atomic-bomberman/blob/459260c2d452b8bc250d79b3d5539c88bb978eae/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/elraro/atomic-bomberman",
     "setup_url": "https://github.com/elraro/atomic-bomberman",
     "artwork": {
@@ -55,6 +38,15 @@
         }
       ],
       "help_url": "https://github.com/elraro/atomic-bomberman/blob/47b4c806778c9e476e44da2d2ebf5d38184e2104/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "atomic-bomberman",
+      "evidence_urls": [
+        "https://github.com/elraro/atomic-bomberman",
+        "https://github.com/elraro/atomic-bomberman/blob/47b4c806778c9e476e44da2d2ebf5d38184e2104/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

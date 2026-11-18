@@ -4,23 +4,6 @@
     "id": "jersey-devil-recompiled-mstan-jersey-devil",
     "name": "Jersey Devil — Jersey Devil Recompiled (mstan)",
     "original_game_title": "Jersey Devil",
-    "original_game": {
-      "format_version": 1,
-      "id": "jersey-devil",
-      "evidence_urls": [
-        "https://github.com/mstan/JerseyDevilRecomp/blob/946d0c7c1b945dae4c577d2daccb8ad74f4e029a/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "jersey-devil-playstation",
-          "title": "Jersey Devil (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/mstan/JerseyDevilRecomp/blob/946d0c7c1b945dae4c577d2daccb8ad74f4e029a/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Upstream reports startup, intros, levels and gameplay. This is a new project; Portcove has not confirmed those results. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/mstan/JerseyDevilRecomp",
     "platforms": [],
@@ -52,6 +35,12 @@
       "image_sha256": "8ac290eb748a3fbe81782db53f5ef91467b64f55842801c8591b6a703e7d6850",
       "game_slug": "jersey-devil",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "jersey-devil",
+      "evidence_urls": ["https://github.com/mstan/JerseyDevilRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -4,23 +4,6 @@
     "id": "n3-recompiled-wk2d-n3-ninety-nine-nights",
     "name": "N3: Ninety-Nine Nights — N3 Recompiled (WK2D)",
     "original_game_title": "N3: Ninety-Nine Nights",
-    "original_game": {
-      "format_version": 1,
-      "id": "n3-ninety-nine-nights",
-      "evidence_urls": [
-        "https://github.com/WK2D/N3-Ninety-Nine-Nights-Recomp/blob/d1416e56cf3066e4b07d0bd50fa8dbd1bd1e590d/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "n3-ninety-nine-nights-xbox-360",
-          "title": "N3: Ninety-Nine Nights (Xbox 360, region not specified)",
-          "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/WK2D/N3-Ninety-Nine-Nights-Recomp/blob/d1416e56cf3066e4b07d0bd50fa8dbd1bd1e590d/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "The project reports the opening mission, following cutscene and save/load. Full-game compatibility has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/WK2D/N3-Ninety-Nine-Nights-Recomp",
     "platforms": ["windows-x86-64"],
@@ -53,6 +36,12 @@
       "image_sha256": "17ed19cb7a1460efe1610188859596304216a2f8b85d1fda7a77f06945445891",
       "game_slug": "n3-ninety-nine-nights",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "n3-ninety-nine-nights",
+      "evidence_urls": ["https://github.com/WK2D/N3-Ninety-Nine-Nights-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

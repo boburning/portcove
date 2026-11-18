@@ -5,24 +5,15 @@
     "name": "Pharaoh (Akhenaten)",
     "summary": "Use a prepared Akhenaten Windows player with your own original Pharaoh 1.3 installation and Cleopatra expansion. Pharaoh: A New Era and the demo are different or unsupported inputs. Keep the complete writable original folder backed up because it contains saves. This is a work in progress; campaign and save compatibility have not been confirmed.",
     "original_game_title": "Pharaoh",
-    "original_game": {
-      "format_version": 1,
-      "id": "pharaoh",
-      "evidence_urls": [
-        "https://github.com/dalerank/Akhenaten/blob/f8cb205d79dc220d7c0f763f053dd13c014ad926/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "pharaoh-pc",
-          "title": "Pharaoh (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/dalerank/Akhenaten/blob/f8cb205d79dc220d7c0f763f053dd13c014ad926/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/dalerank/Akhenaten",
+    "artwork": {
+      "game_id": 30276,
+      "cover_id": 77347,
+      "image_id": "co1noj",
+      "image_sha256": "0c543334af185f3b478d21b215a3e0fb3ed3c75e9a9527e56c100207ae1f80cc",
+      "game_slug": "pharaoh-plus-cleopatra",
+      "match_kind": "underlying-game"
+    },
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/dalerank/Akhenaten",
@@ -57,6 +48,15 @@
         "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
         "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pharaoh",
+      "evidence_urls": [
+        "https://github.com/dalerank/Akhenaten/tree/3598ab90856b216a11aae35aa5ad6a519b97bd97",
+        "https://github.com/dalerank/Akhenaten"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

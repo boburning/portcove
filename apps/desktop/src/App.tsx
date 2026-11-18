@@ -269,7 +269,6 @@ export function BootstrapRecovery({
   return (
     <main className="bootstrap-state bootstrap-error startup-recovery">
       <header className="startup-recovery-heading">
-        <p className="eyebrow">Startup recovery</p>
         <h1>Portcove couldn’t start</h1>
         <p className="text-pc-muted-foreground" role="alert">
           {errorText(error)}
@@ -303,7 +302,7 @@ export function BootstrapRecovery({
           )}
         </section>
       )}
-      <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]">
+      <p className="text-pc-muted-foreground">
         {recoveryRoot || importRoot
           ? "Review the recovery above first. Retry startup after resolving the unfinished transfer, or choose a different library."
           : "Review the error details, then retry startup. If the current library is the cause, choose another library or return to the platform default."}
@@ -341,11 +340,7 @@ export function BootstrapRecovery({
           Use platform default
         </Button>
       </ActionRow>
-      {actionError && (
-        <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]" role="alert">
-          {actionError}
-        </p>
-      )}
+      {actionError && <p role="alert">{actionError}</p>}
       <section
         aria-label="Support report"
         className="grid min-w-0 gap-3 border-t border-pc-border pt-4"
@@ -457,7 +452,7 @@ function useWorkspace(props: WorkspaceProps) {
     saveBrowsingPreferences,
   } = useWorkspaceLibrary(props);
   const applicationUpdate = useApplicationUpdate();
-  const storeSetupRequests = useRef(new LatestRequestGeneration());
+  const setupOriginalRequests = useRef(new LatestRequestGeneration());
   const {
     request: sourceIntake,
     open: openIntake,
@@ -465,7 +460,7 @@ function useWorkspace(props: WorkspaceProps) {
   } = useSourceIntakeState(data.catalog, bootstrap.generation);
   const openSourceIntake = useCallback(
     (...args: Parameters<typeof openIntake>) => {
-      storeSetupRequests.current.begin();
+      setupOriginalRequests.current.begin();
       openIntake(...args);
     },
     [openIntake],
@@ -710,7 +705,7 @@ function useWorkspace(props: WorkspaceProps) {
     (addGamesOpen && ui.view === "library" ? (
       <div className="add-games-heading grid justify-items-start gap-2">
         <Button variant="ghost" size="sm" className="add-games-back" onClick={closeAddGames}>
-          <ArrowLeft aria-hidden="true" className="size-3.5" />
+          <ArrowLeft aria-hidden="true" className="size-3.5 rtl:-scale-x-100" />
           Back to Library
         </Button>
         <h1 tabIndex={-1}>Add games</h1>
@@ -871,7 +866,7 @@ function useWorkspace(props: WorkspaceProps) {
           }}
           checkAgain={data.refresh}
           openSourceIntake={openSourceIntake}
-          storeSetupRequests={storeSetupRequests}
+          setupOriginalRequests={setupOriginalRequests}
           openHostTool={openHostTool}
           openLibraryStorage={() => {
             ui.setSettingsCategory("library-storage");
@@ -1715,6 +1710,7 @@ function CurrentSettingsView({
           {
             refresh: "none",
             invalidateDiagnostics: false,
+            propagateFailure: true,
             cancelledResult: (result) => result === undefined,
           },
         )
@@ -1817,6 +1813,25 @@ function renderSelectedPortFavoriteControl({
   );
 }
 
+async function savedSetupOriginals(profileId: string, generation: number) {
+  const snapshot = await desktopApi.gameFileScanSnapshot(generation);
+  if (!snapshot || snapshot.freshness !== "inputs_match") return undefined;
+  const limit = 32;
+  const scanId = snapshot.matches?.scan_id;
+  if (!scanId) {
+    const paths = snapshot.report.candidates
+      .filter((candidate) => candidate.profile_id === profileId)
+      .map((candidate) => candidate.path);
+    return { paths: paths.slice(0, limit), limited: paths.length > limit };
+  }
+  const matches = await desktopApi.gameFileScanMatches(
+    { scan_id: scanId, kind: "exact", offset: 0, limit, profile_id: profileId },
+    generation,
+  );
+  const paths = matches.candidates.map((candidate) => candidate.path);
+  return { paths, limited: matches.next_offset !== null };
+}
+
 function SelectedPortPanel({
   implementationControl,
   managementSupplement,
@@ -1838,7 +1853,7 @@ function SelectedPortPanel({
   refreshAfterMutation,
   checkAgain,
   openSourceIntake,
-  storeSetupRequests,
+  setupOriginalRequests,
   openHostTool,
   openLibraryStorage,
   close,
@@ -1863,15 +1878,16 @@ function SelectedPortPanel({
   refreshAfterMutation: () => void;
   checkAgain: () => Promise<unknown>;
   openSourceIntake: ReturnType<typeof useSourceIntakeState>["open"];
-  storeSetupRequests: { current: LatestRequestGeneration };
+  setupOriginalRequests: { current: LatestRequestGeneration };
   openHostTool: (toolId: string) => void;
   openLibraryStorage: () => void;
   close: () => void;
 }) {
   const selectedRoute = model.port?.id;
   const selectedChannel = model.status?.channel;
+  const installAction = model.status?.port_actions?.find((action) => action.action === "install");
   useLayoutEffect(() => {
-    const requests = storeSetupRequests.current;
+    const requests = setupOriginalRequests.current;
     return () => {
       requests.begin();
     };
@@ -1879,9 +1895,13 @@ function SelectedPortPanel({
     libraryGeneration,
     selectedRoute,
     selectedChannel,
+    model.sourceProfile?.id,
+    model.biosProfile?.id,
+    installAction?.availability,
+    installAction?.reason,
     model.status?.active?.id,
     model.status?.external_runtime?.id,
-    storeSetupRequests,
+    setupOriginalRequests,
     ui.sourcePath,
     ui.biosPath,
   ]);
@@ -1893,7 +1913,7 @@ function SelectedPortPanel({
   };
   const pickSource = model.sourceProfile
     ? () => {
-        storeSetupRequests.current.begin();
+        setupOriginalRequests.current.begin();
         return applyPathChoice(
           pickSourcePath(model.sourceProfile!, ui.sourcePath),
           setSourcePath,
@@ -1907,14 +1927,13 @@ function SelectedPortPanel({
     status &&
     !status.active &&
     !status.external_runtime &&
-    status.port_actions?.some(
-      (action) =>
-        action.action === "install" &&
-        (action.availability === "allowed" || action.availability === "waiting"),
-    );
+    (installAction?.availability === "allowed" || installAction?.availability === "waiting");
   const inspectSource = (
     profile: NonNullable<typeof model.sourceProfile>,
-    storeOriginals?: NonNullable<Parameters<typeof openSourceIntake>[3]>["storeOriginals"],
+    suggestions?: Pick<
+      NonNullable<Parameters<typeof openSourceIntake>[3]>,
+      "storeOriginals" | "savedOriginals"
+    >,
   ) => {
     const isBios = profile.id === port.bios_source_profile;
     const path = isBios ? ui.biosPath : ui.sourcePath;
@@ -1923,29 +1942,44 @@ function SelectedPortPanel({
       profile.id,
       path.trim() ? [path] : [],
       managedSetup
-        ? { channel: status.channel, other: isBios ? model.source : model.bios, storeOriginals }
+        ? { channel: status.channel, other: isBios ? model.source : model.bios, ...suggestions }
         : undefined,
     );
   };
   const originalProfile = model.sourceProfile;
   const chooseSetupSource =
-    managedSetup && originalProfile?.kind === "file-set" && !ui.sourcePath.trim()
+    managedSetup && originalProfile && !ui.sourcePath.trim()
       ? async () => {
-          const requests = storeSetupRequests.current;
+          const requests = setupOriginalRequests.current;
           const request = requests.begin();
-          const report = await desktopApi.storeGameInstalls(libraryGeneration).catch(() => null);
+          const savedOriginals = await savedSetupOriginals(
+            originalProfile.id,
+            libraryGeneration,
+          ).catch(() => undefined);
+          if (!requests.isCurrent(request)) return;
+          if (savedOriginals?.paths.length) {
+            inspectSource(originalProfile, { savedOriginals });
+            return;
+          }
+          if (originalProfile.kind !== "file-set" && originalProfile.kind !== "relative-file-set") {
+            await pickSource?.();
+            return;
+          }
+          const report = await desktopApi
+            .storeGameInstalls(libraryGeneration, originalProfile.id)
+            .catch(() => null);
           if (!requests.isCurrent(request)) return;
           const matches = report?.installs.filter(
             (install) => install.original_folder?.profile_id === originalProfile.id,
           );
-          if (matches?.length) inspectSource(originalProfile, matches);
+          if (matches?.length) inspectSource(originalProfile, { storeOriginals: matches });
           else await pickSource?.();
         }
       : undefined;
   const pickArchive =
     model.sourceProfile?.kind === "file-set" || model.sourceProfile?.kind === "relative-file-set"
       ? () => {
-          storeSetupRequests.current.begin();
+          setupOriginalRequests.current.begin();
           void applyPathChoice(
             pickSourceArchivePath(ui.sourcePath),
             setSourcePath,
@@ -1955,7 +1989,7 @@ function SelectedPortPanel({
       : undefined;
   const pickBios = model.biosProfile
     ? () => {
-        storeSetupRequests.current.begin();
+        setupOriginalRequests.current.begin();
         return applyPathChoice(
           pickSourcePath(model.biosProfile!, ui.biosPath, "bios"),
           ui.setBiosPath,

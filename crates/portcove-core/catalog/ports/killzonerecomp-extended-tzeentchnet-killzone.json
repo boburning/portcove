@@ -4,23 +4,6 @@
     "id": "killzonerecomp-extended-tzeentchnet-killzone",
     "name": "Killzone — KillzoneRecomp-Extended (Tzeentchnet)",
     "original_game_title": "Killzone",
-    "original_game": {
-      "format_version": 1,
-      "id": "killzone",
-      "evidence_urls": [
-        "https://github.com/Tzeentchnet/KillzoneRecomp-Extended/blob/ac422c13036eee8929e158287a960068bda223dd/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "killzone-playstation-2",
-          "title": "Killzone (PlayStation 2, region not specified)",
-          "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/Tzeentchnet/KillzoneRecomp-Extended/blob/ac422c13036eee8929e158287a960068bda223dd/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Upstream reports startup, movies, profile selection, first-mission gameplay, Quit/Continue/load, and timing/input checks. Later 14/14 checks without an ISO test the harness rather than campaign completion. Intermittently cut-off combat effects and dialogue remain tracked as AUDIO-01. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Tzeentchnet/KillzoneRecomp-Extended",
     "platforms": ["windows-x86-64"],
@@ -52,6 +35,12 @@
       "image_sha256": "7945841b0e901352c1a25d182678232d43ad07971ed5786864cae82f6b7ce9a3",
       "game_slug": "killzone",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "killzone",
+      "evidence_urls": ["https://github.com/Tzeentchnet/KillzoneRecomp-Extended"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

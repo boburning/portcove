@@ -2,6 +2,7 @@
   "failure": {
     "copied": "Copied",
     "copyExitCode": "Copy exit code",
+    "copyFailed": "The exit code could not be copied. Select and copy the code above, or try again.",
     "exitCode": "Exit code <code/>",
     "label": "Last launch",
     "openActivity": "Open Activity",
@@ -19,7 +20,7 @@
     "label": "Microsoft runtimes",
     "missing": "Windows is most likely missing something this game needs to start:",
     "nextAction": "Install the listed runtimes from Microsoft, then recheck here.",
-    "present": "The checked runtimes are installed. Select Play to try the game again.",
+    "present": "The checked runtimes are installed.",
     "recheck": "Recheck runtimes",
     "unconfirmed": "Portcove could not confirm that all required runtimes are installed. You can recheck again.",
     "visualCpp2010": "Microsoft Visual C++ 2010 Redistributable",

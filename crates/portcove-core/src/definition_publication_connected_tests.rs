@@ -116,7 +116,11 @@ async fn actual_cli_four_role_publication_and_core_policy_correction() {
     );
     let top = fs::read(root.join("offline-targets.json")).unwrap();
     let (catalog, id) = post_client_catalog();
+    let mut document = catalog.authoritative_document();
+    crate::test_fixture::grow_catalog_evidence(&mut document, 2 * 1024 * 1024);
+    let catalog = Catalog::from_document(document).unwrap();
     let targets = repository_targets_for(&catalog, &id);
+    assert!(targets.iter().any(|(_, raw)| raw.len() > 4 * 1024 * 1024));
     let mut policy_document = publisher_policy_tests::availability_for(&targets, &id, 1);
     let bundle = root.join("bundle");
     for (name, bytes) in &targets {

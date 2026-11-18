@@ -4,23 +4,6 @@
     "id": "kirby-amazing-mirror-recomp-felipe-gomes-amorim-kirby-the-amazing-mirror",
     "name": "Kirby & The Amazing Mirror — kirby-amazing-mirror-recomp (Felipe-Gomes-Amorim)",
     "original_game_title": "Kirby & The Amazing Mirror",
-    "original_game": {
-      "format_version": 1,
-      "id": "kirby-the-amazing-mirror",
-      "evidence_urls": [
-        "https://github.com/Felipe-Gomes-Amorim/kirby-amazing-mirror-recomp/blob/2bb49d0631cb54d928d70f97e6aacf79a4b15fb6/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "kirby-the-amazing-mirror-game-boy-advance",
-          "title": "Kirby & The Amazing Mirror (Game Boy Advance, region not specified)",
-          "system": "game-boy-advance",
-          "evidence_urls": [
-            "https://github.com/Felipe-Gomes-Amorim/kirby-amazing-mirror-recomp/blob/2bb49d0631cb54d928d70f97e6aacf79a4b15fb6/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Upstream’s reported test covers only the first area and 8,000 frames. Deeper levels, bosses and abilities remain untested, and timing is approximate. Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Felipe-Gomes-Amorim/kirby-amazing-mirror-recomp",
     "platforms": [],
@@ -52,6 +35,12 @@
       "image_sha256": "16aa7ad6eb9ef201aa1afe61572186965ec8e5a4a9097e84d07afcbfa652e321",
       "game_slug": "kirby-and-the-amazing-mirror",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kirby-the-amazing-mirror",
+      "evidence_urls": ["https://github.com/Felipe-Gomes-Amorim/kirby-amazing-mirror-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

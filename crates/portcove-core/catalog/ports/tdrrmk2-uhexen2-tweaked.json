@@ -2,25 +2,16 @@
   "format_version": 1,
   "listing": {
     "id": "tdrrmk2-uhexen2-tweaked",
+    "artwork": {
+      "game_id": 6637,
+      "cover_id": 123981,
+      "image_id": "co2nnx",
+      "image_sha256": "8cebb6f64cbae0c0fc025f79b1c752fbe67bbf0b225162563779a15060a2ec58",
+      "game_slug": "hexen-ii",
+      "match_kind": "underlying-game"
+    },
     "name": "Hexen II / uHexen2 Tweaked",
     "original_game_title": "Hexen II",
-    "original_game": {
-      "format_version": 1,
-      "id": "hexen-ii",
-      "evidence_urls": [
-        "https://github.com/TDRRmk2/uhexen2-tweaked/blob/b64cd812d3e69ccf9d0fb4472c7833cddf6a0f41/README.txt"
-      ],
-      "source_editions": [
-        {
-          "id": "hexen-ii-pc",
-          "title": "Hexen II (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/TDRRmk2/uhexen2-tweaked/blob/b64cd812d3e69ccf9d0fb4472c7833cddf6a0f41/README.txt"
-          ]
-        }
-      ]
-    },
     "summary": "Play Hexen II with the upstream Tweaked OpenGL player and your prepared original game files.",
     "project_url": "https://github.com/TDRRmk2/uhexen2-tweaked",
     "issue_number": 2747,
@@ -62,7 +53,16 @@
     "download_asset_hints": {
       "windows-x86-64": ["H2HoT-Tweaked-", "-win32.zip"]
     },
-    "recommended_download_channel": "beta"
+    "recommended_download_channel": "beta",
+    "original_game": {
+      "format_version": 1,
+      "id": "hexen-ii",
+      "evidence_urls": [
+        "https://github.com/TDRRmk2/uhexen2-tweaked#readme",
+        "https://github.com/TDRRmk2/uhexen2-tweaked"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

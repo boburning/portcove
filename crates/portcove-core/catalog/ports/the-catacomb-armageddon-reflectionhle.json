@@ -2,26 +2,17 @@
   "format_version": 1,
   "listing": {
     "id": "the-catacomb-armageddon-reflectionhle",
+    "artwork": {
+      "game_id": 71138,
+      "cover_id": 161955,
+      "image_id": "co3gyr",
+      "image_sha256": "fb864a37f3dca169965256da093dbb8373cd09279693444c07e83314e1c3b542",
+      "game_slug": "curse-of-the-catacombs",
+      "match_kind": "underlying-game"
+    },
     "name": "The Catacomb Armageddon (ReflectionHLE)",
     "summary": "Play The Catacomb Armageddon through ReflectionHLE with the matching original DOS game files.",
     "original_game_title": "The Catacomb Armageddon",
-    "original_game": {
-      "format_version": 1,
-      "id": "the-catacomb-armageddon",
-      "evidence_urls": [
-        "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "the-catacomb-armageddon-pc",
-          "title": "The Catacomb Armageddon (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
     "availability": "packages",
     "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
@@ -63,6 +54,15 @@
     },
     "download_asset_hints": {
       "windows-x86-64": ["reflectionhle-win64-", ".zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-catacomb-armageddon",
+      "evidence_urls": [
+        "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
+        "https://github.com/ReflectionHLE/ReflectionHLE"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

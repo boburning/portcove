@@ -5,23 +5,6 @@
     "name": "Kirby and the Forgotten Land (nxport)",
     "summary": "An experimental nxport Switch builder for Kirby and the Forgotten Land, using an Apple Silicon NVN compatibility layer with game-specific support. The project reports iOS/macOS testing, with invisible exhale effects and rounded shadows. The exact tested version is unconfirmed. There is no release package: clone and build nxport-builder, choose this game’s profile and the Mac or iOS target, then build a local app or IPA. You and the project manage preparation and rebuilding. Use your own extracted ExeFS/RomFS/Logo. Exact accepted version, region and title ID are unconfirmed. Windows and Linux players are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Kirby and the Forgotten Land",
-    "original_game": {
-      "format_version": 1,
-      "id": "kirby-and-the-forgotten-land",
-      "evidence_urls": [
-        "https://github.com/nxporting/nxport/blob/1971c651510106e7a22dce30ea6a3ea1d60c34f5/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "kirby-and-the-forgotten-land-nintendo-switch",
-          "title": "Kirby and the Forgotten Land (Nintendo Switch, region not specified)",
-          "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/nxporting/nxport/blob/1971c651510106e7a22dce30ea6a3ea1d60c34f5/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/nxporting/nxport",
     "platforms": [],
     "availability": "unknown",
@@ -35,6 +18,12 @@
       "image_sha256": "b8e49e86f247d86702968589428cbdb7544dac07c7ab55ccca56ee13539e61ef",
       "game_slug": "kirby-and-the-forgotten-land",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kirby-and-the-forgotten-land",
+      "evidence_urls": ["https://github.com/nxporting/nxport"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

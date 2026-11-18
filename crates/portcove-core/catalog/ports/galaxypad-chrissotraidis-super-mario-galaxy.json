@@ -4,22 +4,13 @@
     "id": "galaxypad-chrissotraidis-super-mario-galaxy",
     "name": "Super Mario Galaxy — GalaxyPad (chrissotraidis)",
     "original_game_title": "Super Mario Galaxy",
-    "original_game": {
-      "format_version": 1,
-      "id": "super-mario-galaxy",
-      "evidence_urls": [
-        "https://github.com/chrissotraidis/galaxypad/blob/0e50202541bd13a1b4a44c2abc1e9008bd62383a/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "super-mario-galaxy-wii",
-          "title": "Super Mario Galaxy (Wii, region not specified)",
-          "system": "wii",
-          "evidence_urls": [
-            "https://github.com/chrissotraidis/galaxypad/blob/0e50202541bd13a1b4a44c2abc1e9008bd62383a/README.md"
-          ]
-        }
-      ]
+    "artwork": {
+      "game_id": 1077,
+      "cover_id": 95604,
+      "image_id": "co21ro",
+      "image_sha256": "5b90832f5b3a7d5f419f7ab22dfca5557c780e5ee7f9d081c62fe6758dae6074",
+      "game_slug": "super-mario-galaxy",
+      "match_kind": "underlying-game"
     },
     "summary": "Upstream reports an experimental iPhone 14 build running at about 60 FPS. A complete playthrough has not been confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/chrissotraidis/galaxypad",
@@ -44,7 +35,13 @@
       ],
       "help_url": "https://github.com/chrissotraidis/galaxypad"
     },
-    "issue_number": 3405
+    "issue_number": 3405,
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-galaxy",
+      "evidence_urls": ["https://github.com/chrissotraidis/galaxypad"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

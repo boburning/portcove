@@ -4,23 +4,6 @@
     "id": "manx-burnout3-retrorecompilations-burnout-3-takedown",
     "name": "Burnout 3: Takedown — MANX Burnout3 (RetroRecompilations)",
     "original_game_title": "Burnout 3: Takedown",
-    "original_game": {
-      "format_version": 1,
-      "id": "burnout-3-takedown",
-      "evidence_urls": [
-        "https://github.com/RetroRecompilations/MANXBurnout3/blob/1b052a329a4921ed3f018b74778fd376d14f24c0/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "burnout-3-takedown-xbox",
-          "title": "Burnout 3: Takedown (Xbox, region not specified)",
-          "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/RetroRecompilations/MANXBurnout3/blob/1b052a329a4921ed3f018b74778fd376d14f24c0/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Experimental project. The current project header describes a MANXFramework game app with a game-specific kernel bridge, transformed functions, RenderWare loaders and D3D8-to-Vulkan rendering. The Windows screenshots and status notes below describe a historical predecessor; they do not establish that the current Linux version works. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/RetroRecompilations/MANXBurnout3",
     "platforms": [],
@@ -52,6 +35,21 @@
       "image_sha256": "96f35b0fd243c28e8b6f6863cbf4477cd465a296e089fa53bf971f39af98f4ca",
       "game_slug": "burnout-3-takedown",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "burnout-3-takedown",
+      "evidence_urls": ["https://github.com/RetroRecompilations/MANXBurnout3"],
+      "source_editions": [
+        {
+          "id": "burnout-3-takedown-xbox",
+          "title": "Burnout 3: Takedown (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/RetroRecompilations/MANXBurnout3/blob/1b052a329a4921ed3f018b74778fd376d14f24c0/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

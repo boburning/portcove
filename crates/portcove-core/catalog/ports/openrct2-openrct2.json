@@ -10,23 +10,6 @@
     "availability": "packages",
     "setup_url": "https://docs.openrct2.io/en/latest/",
     "original_game_title": "RollerCoaster Tycoon 2",
-    "original_game": {
-      "format_version": 1,
-      "id": "rollercoaster-tycoon-2",
-      "evidence_urls": [
-        "https://github.com/OpenRCT2/OpenRCT2/blob/64c3fef27b1f11f77cdf37d93c7f20203d50e713/readme.md"
-      ],
-      "source_editions": [
-        {
-          "id": "rollercoaster-tycoon-2-pc",
-          "title": "RollerCoaster Tycoon 2 (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/OpenRCT2/OpenRCT2/blob/64c3fef27b1f11f77cdf37d93c7f20203d50e713/readme.md"
-          ]
-        }
-      ]
-    },
     "release_url": "https://github.com/OpenRCT2/OpenRCT2/releases",
     "manual_setup": {
       "steps": [
@@ -63,6 +46,15 @@
     "download_asset_hints": {
       "macos-x86-64": ["-macos-universal.zip"],
       "macos-aarch64": ["-macos-universal.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "rollercoaster-tycoon-2",
+      "evidence_urls": [
+        "https://docs.openrct2.io/en/latest/",
+        "https://github.com/OpenRCT2/OpenRCT2"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

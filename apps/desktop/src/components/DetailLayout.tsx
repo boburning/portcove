@@ -20,9 +20,9 @@ import { GameHero } from "./GameHero";
 import { CatalogMediaGallery } from "./CatalogMedia";
 import { IdentityIcon } from "../features/identity/IdentityIcon";
 import { identityLabel, identityStyle } from "../features/identity/identity-style";
-import { releaseChannelPresentation } from "../view-model";
+import { platformLabel, releaseChannelPresentation } from "../view-model";
 import type { PortDefinition, ReleaseChannel } from "../types";
-import { availablePlatforms, type CatalogEntry } from "../features/browsing/catalog-entry";
+import type { CatalogEntry } from "../features/browsing/catalog-entry";
 import { Chip } from "./ui/chip";
 import { ExternalLink } from "./ExternalLink";
 import { FundingLinks } from "./FundingLinks";
@@ -56,6 +56,20 @@ export type RevealDetailSection = (
   control?: string,
 ) => void;
 
+function platformIdentities(
+  platforms: readonly PortDefinition["platforms"][number][],
+  otherPlatforms: readonly PortDefinition["platforms"][number][],
+) {
+  const systemOf = (platform: string) => platform.split("-")[0]!;
+  const otherSystems = new Set(otherPlatforms.map(systemOf));
+  return new Map(
+    platforms.map((platform) => {
+      const system = systemOf(platform);
+      return [otherSystems.has(system) ? platformLabel(platform) : identityLabel(system), system];
+    }),
+  );
+}
+
 /** Presentation only: all eligibility and stateful workflow owners stay with the caller. */
 export function DetailLayout({
   backLabel,
@@ -63,6 +77,8 @@ export function DetailLayout({
   managementSupplement,
   supplementSection,
   port,
+  platforms = port.platforms ?? [],
+  upstreamPlatforms = [],
   projectUrl,
   openSupport,
   overviewRequirements,
@@ -86,6 +102,9 @@ export function DetailLayout({
   /** Where the supplement opens; defaults to the management section. */
   supplementSection?: DetailSection | undefined;
   port: Identity;
+  /** Targets of the setup or retained installation shown in this detail. */
+  platforms?: readonly PortDefinition["platforms"][number][];
+  upstreamPlatforms?: readonly PortDefinition["platforms"][number][];
   projectUrl?: string | undefined;
   openSupport?: (() => void) | undefined;
   overviewRequirements?: ReactNode;
@@ -103,6 +122,8 @@ export function DetailLayout({
   children: (reveal: RevealDetailSection) => Partial<Record<DetailSection, ReactNode>>;
 }) {
   const { t } = useAppTranslation("detail");
+  const setupIdentities = platformIdentities(platforms, upstreamPlatforms);
+  const upstreamIdentities = platformIdentities(upstreamPlatforms, platforms);
   const identity = `${port.id}:${opening?.token ?? "standalone"}`;
   const [selection, setSelection] = useState({ identity, section: initialSection });
   // Generation/refresh changes must not reset a manual selection within an opening.
@@ -184,14 +205,14 @@ export function DetailLayout({
     >
       <Button
         data-focusable
-        className="detail-back mb-5"
+        className="detail-back mb-3"
         variant="ghost"
         size="sm"
         data-detail-back
         aria-label={backLabel ?? "Back to previous workspace"}
         onClick={close}
       >
-        <Icon glyph={ArrowLeft} /> {backLabel ?? "Back"}
+        <Icon glyph={ArrowLeft} className="rtl:-scale-x-100" /> {backLabel ?? "Back"}
       </Button>
       <GameHero port={port} variant="detail" className="detail-hero">
         <div className="detail-identity min-w-0 [overflow-wrap:anywhere]">
@@ -227,25 +248,22 @@ export function DetailLayout({
                   : identityLabel(system)}
               </Chip>
             ))}
-            {[
-              ...new Set(
-                (port.platforms
-                  ? availablePlatforms({ platforms: port.platforms, listing: port.listing })
-                  : []
-                ).map((platform) => platform.split("-")[0]!),
-              ),
-            ].map((system) => {
-              return (
-                <Chip
-                  key={`platform:${system}`}
-                  style={identityStyle(system)}
-                  title={t("identity.runsOn")}
-                >
-                  <IdentityIcon name={system} />
-                  {identityLabel(system)}
-                </Chip>
-              );
-            })}
+            {[...setupIdentities].map(([label, system]) => (
+              <Chip
+                key={`platform:${label}`}
+                style={identityStyle(system)}
+                title={t("identity.runsOn")}
+              >
+                <IdentityIcon name={system} />
+                {label}
+              </Chip>
+            ))}
+            {[...upstreamIdentities].map(([label, system]) => (
+              <Chip key={`upstream-platform:${label}`} style={identityStyle(system)}>
+                <IdentityIcon name={system} />
+                {t("identity.upstreamPlatform", { platform: label })}
+              </Chip>
+            ))}
             {(selectedChannel ? [selectedChannel] : port.channels)?.map((channel) => (
               <Chip
                 key={`channel:${channel}`}
@@ -258,11 +276,6 @@ export function DetailLayout({
                 {releaseChannelPresentation(channel).label}
               </Chip>
             ))}
-            {!selectedChannel && !port.channels?.length && (
-              <Chip style={identityStyle("not-specified")} title={t("identity.noChannelReason")}>
-                {t("identity.noChannel")}
-              </Chip>
-            )}
           </div>
           <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             <div data-detail-readiness className="detail-readiness">
@@ -272,7 +285,7 @@ export function DetailLayout({
               {installation}
             </span>
           </div>
-          <div className="detail-header-actions mt-6 flex flex-wrap items-center gap-2">
+          <div className="detail-header-actions mt-4 flex flex-wrap items-center gap-2">
             {action(reveal)}
             {favoriteControl}
             <Menu.Root>
@@ -346,14 +359,14 @@ export function DetailLayout({
         <Tabs.List
           activateOnFocus={false}
           aria-label={t("section.label")}
-          className="detail-tab-list flex flex-wrap gap-x-7 gap-y-1 border-b border-pc-border"
+          className="detail-tab-list flex flex-wrap gap-x-3 gap-y-1 border-b border-pc-border"
         >
           {sections.map((section) => (
             <Tabs.Tab
               key={section}
               value={section}
               data-focusable
-              className={`${controlFocus} detail-tab cursor-pointer rounded-t-pc-sm border-b-2 border-transparent bg-transparent px-3 py-3 text-sm font-semibold text-pc-muted-foreground data-active:border-current data-active:bg-pc-selection data-active:text-pc-selection-foreground`}
+              className={`${controlFocus} detail-tab cursor-pointer border-b-2 border-transparent bg-transparent px-3 py-2 text-sm font-semibold text-pc-muted-foreground hover:bg-pc-surface data-active:border-current data-active:text-pc-selection-foreground`}
             >
               {sectionLabel(t, section)}
             </Tabs.Tab>

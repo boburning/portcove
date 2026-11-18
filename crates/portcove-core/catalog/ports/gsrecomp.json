@@ -46,24 +46,15 @@
       "linux-x86-64": ["GoldenSunRecompiled-", "-linux.zip"]
     },
     "original_game_title": "Golden Sun",
-    "original_game": {
-      "format_version": 1,
-      "id": "golden-sun",
-      "evidence_urls": [
-        "https://github.com/Shmargus/GSRecomp/blob/542ccb0ff7bb43c17ce37f9f98a225cc9df344c7/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "golden-sun-game-boy-advance",
-          "title": "Golden Sun (Game Boy Advance, region not specified)",
-          "system": "game-boy-advance",
-          "evidence_urls": [
-            "https://github.com/Shmargus/GSRecomp/blob/542ccb0ff7bb43c17ce37f9f98a225cc9df344c7/README.md"
-          ]
-        }
-      ]
-    },
     "release_url": "https://github.com/Shmargus/GSRecomp/releases",
     "recommended_download_channel": "beta"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The retained guide explicitly calls this one collection launcher for Golden Sun: The Broken Seal AND Golden Sun: The Lost Age. A first-game original_game_title would misrepresent its unscoped shared launch route.",
+    "evidence_urls": [
+      "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/README.md",
+      "https://github.com/Shmargus/GSRecomp"
+    ]
   }
 }

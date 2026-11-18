@@ -270,6 +270,48 @@ pub(crate) async fn get_artwork_thumbnail(
 }
 
 #[tauri::command]
+pub(crate) async fn get_collection_cover_thumbnail(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    expected_sha256: String,
+    expected_revision: u64,
+    generation: u64,
+) -> DesktopResult<DesktopArtworkThumbnail> {
+    let state = state.inner().clone();
+    thumbnail_worker(remote_thumbnail_workers(), true, move || {
+        service_at_generation(&state, generation)?
+            .collection_cover_thumbnail(&port_id, &expected_sha256, expected_revision)
+            .map(display_thumbnail)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn get_companion_cover_thumbnail(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    expected_primary_cache_id: String,
+    expected_sha256: String,
+    expected_revision: u64,
+    generation: u64,
+) -> DesktopResult<DesktopArtworkThumbnail> {
+    let state = state.inner().clone();
+    thumbnail_worker(remote_thumbnail_workers(), true, move || {
+        service_at_generation(&state, generation)?
+            .companion_cover_thumbnail(
+                &port_id,
+                &expected_primary_cache_id,
+                &expected_sha256,
+                expected_revision,
+            )
+            .map(display_thumbnail)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn get_catalog_media_thumbnail(
     state: tauri::State<'_, DesktopState>,
     port_id: String,

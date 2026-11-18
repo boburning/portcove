@@ -5,23 +5,6 @@
     "name": "Vagrant Story (Vagrant Story Recompiled)",
     "summary": "A hybrid Vagrant Story port: its ROM-free Windows player reads your own USA SLUS-01040 PlayStation disc, then compiles battle, menu and title code in the background with bundled GCC. An interpreter/TinyCC handles remaining code, so full-game native coverage is unconfirmed. The separate MSVC source build is a development route. The project manages generated code and caches. Other player platforms, exact accepted revision/hashes and BIOS/firmware requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Vagrant Story",
-    "original_game": {
-      "format_version": 1,
-      "id": "vagrant-story",
-      "evidence_urls": [
-        "https://github.com/riotashley81-jpg/vagrantstory_recomp/blob/d2d82f58125268183ecd3de5f369119438541ba8/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "vagrant-story-playstation",
-          "title": "Vagrant Story (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/riotashley81-jpg/vagrantstory_recomp/blob/d2d82f58125268183ecd3de5f369119438541ba8/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/riotashley81-jpg/vagrantstory_recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -63,6 +46,15 @@
       "warnings": [
         "Keep the complete player, local compiler/cache and existing card roots. Preserve the hybrid execution and exact noncommercial/component terms; another Vagrant Story port is a separate qualification."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "vagrant-story",
+      "evidence_urls": [
+        "https://github.com/riotashley81-jpg/vagrantstory_recomp/blob/898a34db9913d0b9835ed26af6e769ea3389cc80/README.md",
+        "https://github.com/riotashley81-jpg/vagrantstory_recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

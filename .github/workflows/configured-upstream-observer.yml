@@ -27,6 +27,8 @@ jobs:
       actions: read
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    outputs:
+      catalog_handoff_available: ${{ steps.observe.outputs.catalog_handoff_directory != '' }}
     steps:
       - name: Bound the existing hosted observation opportunity
         run: |
@@ -131,6 +133,83 @@ jobs:
         env:
           HANDOFF: ${{ steps.observe.outputs.catalog_handoff_directory }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  inspect-package-drift:
+    needs: observe
+    if: ${{ !cancelled() && github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main' && needs.observe.outputs.catalog_handoff_available == 'true' }}
+    permissions:
+      contents: read
+      actions: read
+    concurrency:
+      group: configured-upstream-package-drift
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: false
+          shared-key: upstream-observer-cli
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: catalog-upstream-observations-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/package-drift/handoff
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: work/package-drift/checkpoint.json
+          key: package-drift-${{ hashFiles('scripts/scheduled-package-drift.mts', 'crates/portcove-core/src/package_shape.rs') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: package-drift-${{ hashFiles('scripts/scheduled-package-drift.mts', 'crates/portcove-core/src/package_shape.rs') }}-
+      - name: Compare exact eligible packages in Core
+        run: |
+          cargo build --locked -p portcove-cli
+          node scripts/scheduled-package-drift.mts scan target/debug/portcove \
+            work/package-drift/handoff work/package-drift/report.json work/package-drift/checkpoint.json
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: work/package-drift/checkpoint.json
+          key: package-drift-${{ hashFiles('scripts/scheduled-package-drift.mts', 'crates/portcove-core/src/package_shape.rs') }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: managed-package-drift-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/package-drift/report.json
+          if-no-files-found: error
+          retention-days: 7
+
+  report-package-drift:
+    needs: inspect-package-drift
+    # A failed observation can retain a usable handoff for a successful inspection.
+    # Require that inspection explicitly so ancestor failure does not suppress its notice.
+    if: ${{ !cancelled() && needs.inspect-package-drift.result == 'success' && github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: read
+      issues: write
+    concurrency:
+      group: configured-upstream-package-drift-notice
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: managed-package-drift-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/package-drift
+      - name: Record one managed package shape notice per canonical issue
+        run: node scripts/scheduled-package-drift.mts notice work/package-drift/report.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   admit:
     if: github.ref == 'refs/heads/main'

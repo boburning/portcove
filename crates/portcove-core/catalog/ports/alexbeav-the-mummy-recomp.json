@@ -58,18 +58,10 @@
       "format_version": 1,
       "id": "the-mummy",
       "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp/blob/133b701ad123f2b22f29a3a51e73d997c2bd44e6/README.md"
+        "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp"
       ],
-      "source_editions": [
-        {
-          "id": "the-mummy-playstation",
-          "title": "The Mummy (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp/blob/133b701ad123f2b22f29a3a51e73d997c2bd44e6/README.md"
-          ]
-        }
-      ]
+      "source_editions": []
     }
   },
   "psx_managed_windows_v1": "split-mods",
@@ -110,7 +102,20 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own USA The Mummy CHD (SLUS-01187) containing its single data track, plus your own retail SCPH-1001 BIOS. Portcove runs the local kit build with that BIOS and launches the completed player. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Keep your original disc and BIOS files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters."
+      "manual_preparation": "Provide your own USA The Mummy CHD (SLUS-01187) containing its single data track, plus your own retail SCPH-1001 BIOS. Portcove runs the local kit build with that BIOS and launches the completed player. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Keep your original disc and BIOS files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Supply the exact original disc",
+            "instruction": "Use your own USA The Mummy disc, SLUS-01187, with its single data track intact. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "The source check uses first data-track identity and track count. Keep the full original disc intact."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
   }

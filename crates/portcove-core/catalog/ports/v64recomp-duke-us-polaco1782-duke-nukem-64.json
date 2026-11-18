@@ -4,23 +4,6 @@
     "id": "v64recomp-duke-us-polaco1782-duke-nukem-64",
     "name": "Duke Nukem 64 — v64recomp / duke-us (polaco1782)",
     "original_game_title": "Duke Nukem 64",
-    "original_game": {
-      "format_version": 1,
-      "id": "duke-nukem-64",
-      "evidence_urls": [
-        "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "duke-nukem-64-nintendo-64",
-          "title": "Duke Nukem 64 (Nintendo 64, region not specified)",
-          "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Experimental project. The shared README does not confirm gameplay for this game; check the linked game notes. Progress on other games does not establish that this one works. A full playthrough has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/polaco1782/v64recomp",
     "platforms": [],
@@ -62,6 +45,12 @@
       "image_sha256": "7de30c51f8cf056993d7e51980b03535dd99a7e1964d7d8ca3e06077121db9d0",
       "game_slug": "duke-nukem-64",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "duke-nukem-64",
+      "evidence_urls": ["https://github.com/polaco1782/v64recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

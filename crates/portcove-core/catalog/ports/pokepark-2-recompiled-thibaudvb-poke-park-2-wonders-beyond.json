@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "pokepark-2-recompiled-thibaudvb-poke-park-2-wonders-beyond",
+    "artwork": {
+      "game_id": 4559,
+      "cover_id": 156876,
+      "image_id": "co3d1o",
+      "image_sha256": "6693ab5f16958b468fcacf9305eb619dcfe787c753c34435e253bcc031c4f18c",
+      "game_slug": "pokepark-2-wonders-beyond",
+      "match_kind": "underlying-game"
+    },
     "name": "PokéPark 2: Wonders Beyond — Pokepark-2-Recompiled (ThibaudVB)",
     "original_game_title": "PokéPark 2: Wonders Beyond",
     "summary": "Upstream reaches title, save flow, opening cinematic and first playable area; cave route is approximately 30 presented FPS. Black surfaces, wall blur and slow transitions remain. Full game, gestures and Wiimote speaker support are unverified. Interpreter fallback remains for copied exception code. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",

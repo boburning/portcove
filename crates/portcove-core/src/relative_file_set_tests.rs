@@ -21,11 +21,15 @@ fn members() -> Vec<RelativeSourceMemberIdentity> {
 }
 
 fn catalog() -> Catalog {
+    catalog_with_members(members())
+}
+
+fn catalog_with_members(members: Vec<RelativeSourceMemberIdentity>) -> Catalog {
     Catalog::from_json(&serde_json::json!({
         "schema_version":2,"ports":[],"source_catalog":{"evidence":[],"contracts":[],"validators":[],
             "identities":[{"id":"relative-fixture","label":"Exact relative fixture","kind":"file-set","evidence_gap":null,
                 "variants":[{"id":"fixture-edition","title":"Inert fixture","region":null,"revision":null,"product_codes":[],
-                    "representations":[{"id":"relative-files","extensions":[],"kind":"relative-file-set","members":members()}]}]}]}
+                    "representations":[{"id":"relative-files","extensions":[],"kind":"relative-file-set","members":members}]}]}]}
     }).to_string()).unwrap()
 }
 
@@ -70,6 +74,73 @@ fn zip(path: &Path, files: &[(&str, &[u8])]) {
         archive.write_all(bytes).unwrap();
     }
     archive.finish().unwrap();
+}
+
+#[test]
+fn large_exact_relative_sources_admit_only_directories_and_respect_discovery_budget() -> Result<()>
+{
+    let temporary = tempfile::tempdir()?;
+    let root = temporary.path().join("installed");
+    fs::create_dir(&root)?;
+    let mut declared = members();
+    declared.truncate(1);
+    declared[0].size = MAX_MEMBER_BYTES + 1;
+    // SHA-256 of 128 MiB plus one byte of zeroes.
+    declared[0].sha256 = "7ea6ce492b9f2e83db0190808df466a16da53a11f25ba786f46c26821243c687".into();
+    fs::File::create(root.join(&declared[0].path))?.set_len(declared[0].size)?;
+    let catalog = catalog_with_members(declared);
+
+    let mut budget = crate::source_file::HashBudget {
+        checkpoint: None,
+        operation: None,
+        limit: MAX_MEMBER_BYTES,
+        hashed: 0,
+        max_zip_entries: 4096,
+    };
+    let error = inspect_with_limits(
+        &catalog,
+        "relative-fixture",
+        &root,
+        &mut budget,
+        &mut ReadLimits::default(),
+    )
+    .unwrap_err();
+    assert_eq!(
+        error.details.get("scan_limit").map(String::as_str),
+        Some("hash_bytes")
+    );
+    assert_eq!(budget.hashed, 0);
+    let admitted = inspect(&catalog, "relative-fixture", &root)?.require_admitted_record()?;
+    assert_eq!(admitted.size, MAX_MEMBER_BYTES + 1);
+
+    let archive = temporary.path().join("unexpected.zip");
+    fs::write(&archive, b"must not open this archive")?;
+    let error = inspect(&catalog, "relative-fixture", &archive).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::SourceInvalid);
+    assert!(error.message.contains("installed original data folder"));
+    Ok(())
+}
+
+#[test]
+fn relative_identity_cannot_mix_zip_and_large_directory_representations() {
+    let mut document = serde_json::to_value(catalog().authoritative_document()).unwrap();
+    let mut declared = members();
+    declared[0].size = MAX_MEMBER_BYTES + 1;
+    document["source_catalog"]["identities"][0]["variants"][0]["representations"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({
+            "id": "large",
+            "extensions": [],
+            "kind": "relative-file-set",
+            "members": declared,
+        }));
+    let error = Catalog::from_json(&document.to_string()).unwrap_err();
+    assert!(
+        error
+            .message
+            .contains("mixes ZIP-compatible and directory-only")
+    );
 }
 
 #[test]

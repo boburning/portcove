@@ -11,23 +11,6 @@
     "availability": "unknown",
     "setup_url": "https://github.com/SilverwireGames/ReChan",
     "original_game_title": "Jackie Chan Stuntmaster",
-    "original_game": {
-      "format_version": 1,
-      "id": "jackie-chan-stuntmaster",
-      "evidence_urls": [
-        "https://github.com/SilverwireGames/ReChan/blob/ecd39935559d024992b2049576ea0ecc3b204b8c/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "jackie-chan-stuntmaster-playstation",
-          "title": "Jackie Chan Stuntmaster (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/SilverwireGames/ReChan/blob/ecd39935559d024992b2049576ea0ecc3b204b8c/README.md"
-          ]
-        }
-      ]
-    },
     "manual_setup": {
       "help_url": "https://github.com/SilverwireGames/ReChan/blob/ecd39935559d024992b2049576ea0ecc3b204b8c/README.md",
       "steps": [
@@ -65,6 +48,15 @@
       "image_sha256": "3ccb32aac7e3b1b15561c58359847af01fdd9f164f331682e994adfe0f94b604",
       "game_slug": "jackie-chan-stuntmaster",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "jackie-chan-stuntmaster",
+      "evidence_urls": [
+        "https://github.com/SilverwireGames/ReChan/blob/ecd39935559d024992b2049576ea0ecc3b204b8c/README.md",
+        "https://github.com/SilverwireGames/ReChan"
+      ],
+      "source_editions": []
     }
   }
 }

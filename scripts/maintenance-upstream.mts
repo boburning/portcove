@@ -13,6 +13,7 @@
  */
 import { createHash } from "node:crypto";
 import { MaintenanceStoreError } from "./maintenance-store.mts";
+import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 import {
   catalogObservationSources,
   validateCatalogObserverCheckpoint,
@@ -24,6 +25,10 @@ const workflowPath = ".github/workflows/configured-upstream-observer.yml";
 const checkpointMember = "catalog/checkpoint.json";
 // Most push runs are gated and never observe, so a day can hold many candidates.
 const candidateLimit = 24;
+// Bounded eight-MiB artifact decoding/validation can exceed sixty seconds on a
+// contended host. This finite CPU/harness budget does not extend provider reads.
+import { observerRecordBudgetMs } from "./observer-snapshot-records.mts";
+const upstreamCheckpointReadBudgetMs = observerRecordBudgetMs;
 
 /** A validated catalog checkpoint and the catalog its producer observed. */
 export interface UpstreamInput {
@@ -355,13 +360,16 @@ export async function readUpstreamObservations(
         "The observer checkpoint artifact does not match its recorded digest",
       );
     let snapshot;
+    let checkpoint;
+    const deadline = Date.now() + upstreamCheckpointReadBudgetMs;
     try {
       snapshot = await readRecoverableObserverSnapshotArchive(
         archive,
         config,
         Date.now(),
-        Date.now() + 60_000,
+        deadline,
       );
+      checkpoint = decodeStoredObserverCheckpoint(snapshot.files[checkpointMember], deadline);
     } catch (error) {
       throw new MaintenanceStoreError(
         error instanceof Error ? error.message : "Observer snapshot validation failed",
@@ -389,7 +397,7 @@ export async function readUpstreamObservations(
     return {
       revision: `upstream-observer-run:${run.id}-${run.run_attempt}@${run.head_sha}#sha256:${digest}`,
       config_sha256: config,
-      checkpoint: snapshot.files[checkpointMember],
+      checkpoint,
       catalog: { ...operational, listings: listings.listings },
     };
   }

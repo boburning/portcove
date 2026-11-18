@@ -18,6 +18,9 @@
 //! Consequences Portcove relies on: a disabled package must be absent from the
 //! mods folder (the menu cannot keep it disabled across a restart), and the
 //! revision's order is effective only once it is written into this list.
+//! Shipwright 9.3.1's per-package toggle widget remains disabled in source.
+//! Its Clear List action requests a rebuild on restart, so an empty list never
+//! disables the packages in a Portcove revision.
 use std::{fs, path::Path};
 
 use serde_json::Value;
@@ -167,10 +170,9 @@ fn parse(bytes: &[u8], contract: &NativeListContract) -> Result<Value> {
 }
 
 pub(crate) fn read(user: &Path, contract: &NativeListContract) -> NativeList {
-    let path = user.join(contract.config);
-    let bytes = match fs::read(&path) {
-        Ok(bytes) => bytes,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return NativeList::Absent,
+    let bytes = match read_native_file(&user.join(contract.config), MAX_CONFIG_BYTES) {
+        Ok(Some(bytes)) => bytes,
+        Ok(None) => return NativeList::Absent,
         Err(error) => return NativeList::Unreadable(error.to_string()),
     };
     let parsed = match parse(&bytes, contract) {
@@ -190,6 +192,15 @@ pub(crate) fn read(user: &Path, contract: &NativeListContract) -> NativeList {
     match value.as_str() {
         Some(text) => NativeList::Listed(split(text)),
         None => NativeList::Unreadable("the mod list entry is not text".into()),
+    }
+}
+
+pub(crate) fn read_native_file(path: &Path, maximum: u64) -> Result<Option<Vec<u8>>> {
+    crate::path::refuse_symlink_ancestors(path)?;
+    match fs::symlink_metadata(path) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(error.into()),
+        Ok(_) => crate::external_runtime::read_stable_metadata(path, maximum).map(Some),
     }
 }
 

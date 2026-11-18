@@ -8,23 +8,6 @@
     "project_url": "https://github.com/mstan/SonicTheHedgehogRecomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Sonic the Hedgehog",
-    "original_game": {
-      "format_version": 1,
-      "id": "sonic-the-hedgehog",
-      "evidence_urls": [
-        "https://github.com/mstan/SonicTheHedgehogRecomp/blob/e82c95baa1ea8c53750fa9864f48dd45dc668b51/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "sonic-the-hedgehog-mega-drive-genesis",
-          "title": "Sonic the Hedgehog (Mega Drive/Genesis, region not specified)",
-          "system": "mega-drive-genesis",
-          "evidence_urls": [
-            "https://github.com/mstan/SonicTheHedgehogRecomp/blob/e82c95baa1ea8c53750fa9864f48dd45dc668b51/README.md"
-          ]
-        }
-      ]
-    },
     "artwork": {
       "game_id": 3192,
       "cover_id": 497143,
@@ -33,7 +16,22 @@
       "game_slug": "sonic-the-hedgehog",
       "match_kind": "underlying-game"
     },
-    "issue_number": 152
+    "issue_number": 152,
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-the-hedgehog",
+      "evidence_urls": ["https://github.com/mstan/SonicTheHedgehogRecomp"],
+      "source_editions": [
+        {
+          "id": "sonic-the-hedgehog-mega-drive-genesis",
+          "title": "Sonic the Hedgehog (Sega Genesis / Mega Drive)",
+          "system": "mega-drive-genesis",
+          "evidence_urls": [
+            "https://github.com/mstan/SonicTheHedgehogRecomp/blob/e82c95baa1ea8c53750fa9864f48dd45dc668b51/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

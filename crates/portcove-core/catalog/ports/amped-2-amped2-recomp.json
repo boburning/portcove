@@ -5,23 +5,6 @@
     "name": "Amped 2 (Amped2-Recomp)",
     "summary": "An experimental Linux x86-64 Amped 2 port. The Windows preview is explicitly unplayable and very slow, with only Wine/Proton testing. Use your own PAL/Europe original-Xbox disc: title 4D530041, XDK 5558, default.xbe SHA-1 38e63cd016bf084d999e0a911933a52191bfc378. The project supports a full Redump ISO, game-partition XISO or extracted folder. Keep every disc file in game_files/, with default.xbe directly at its root; other versions are untested. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Amped 2",
-    "original_game": {
-      "format_version": 1,
-      "id": "amped-2",
-      "evidence_urls": [
-        "https://github.com/bertibertig/Amped2-Recomp/blob/24a222b3b6962eccab9238a9cf1912e73fc25ea5/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "amped-2-xbox",
-          "title": "Amped 2 (Xbox, region not specified)",
-          "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/bertibertig/Amped2-Recomp/blob/24a222b3b6962eccab9238a9cf1912e73fc25ea5/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/bertibertig/Amped2-Recomp",
     "listed_at": "2026-10-25",
     "platforms": [],
@@ -35,7 +18,22 @@
       "game_slug": "amped-2",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2626
+    "issue_number": 2626,
+    "original_game": {
+      "format_version": 1,
+      "id": "amped-2",
+      "evidence_urls": ["https://github.com/bertibertig/Amped2-Recomp"],
+      "source_editions": [
+        {
+          "id": "amped-2-xbox",
+          "title": "Amped 2 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/bertibertig/Amped2-Recomp/blob/24a222b3b6962eccab9238a9cf1912e73fc25ea5/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

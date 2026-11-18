@@ -5,23 +5,6 @@
     "name": "Fallout (Fallout Community Edition)",
     "summary": "Use Fallout Community Edition 1.1.0 in your own complete supported Windows game installation. Keep fallout.cfg, original game files, music and every save location. You and upstream manage setup, updates and saved data; Portcove can register and launch the prepared player. Original-game rights and mod or save compatibility are separate requirements.",
     "original_game_title": "Fallout",
-    "original_game": {
-      "format_version": 1,
-      "id": "fallout",
-      "evidence_urls": [
-        "https://github.com/alexbatalov/fallout1-ce/blob/0609bcfd0ec40ff0571d0f57fab2821eb461dc8b/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "fallout-pc",
-          "title": "Fallout (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/alexbatalov/fallout1-ce/blob/0609bcfd0ec40ff0571d0f57fab2821eb461dc8b/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/alexbatalov/fallout1-ce",
     "platforms": [],
     "availability": "unknown",
@@ -72,6 +55,15 @@
           "instruction": "Preserve the complete external runtime/original data, fallout.cfg, actual master_patches/data root including SAVEGAME and slot contents, music, mods, screenshots/logs and unknown files. Retain every configured external root and old creating copy; another executable directory alone does not prove save or instance isolation. No arbitrary Fallout mod or cross-version save compatibility is established."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "fallout",
+      "evidence_urls": [
+        "https://github.com/alexbatalov/fallout1-ce",
+        "https://github.com/alexbatalov/fallout1-ce/tree/a8c37ea47f3dd1c60bd1fa56b82e688ab4643856"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

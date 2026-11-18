@@ -4,22 +4,13 @@
     "id": "timesplitters-gtteancum-timesplitters",
     "name": "TimeSplitters — Timesplitters (GTTeancum)",
     "original_game_title": "TimeSplitters",
-    "original_game": {
-      "format_version": 1,
-      "id": "timesplitters",
-      "evidence_urls": [
-        "https://github.com/GTTeancum/Timesplitters/blob/5c89e1e536565c18c730a764f093953b220d8ab9/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "timesplitters-playstation-2",
-          "title": "TimeSplitters (PlayStation 2, region not specified)",
-          "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/GTTeancum/Timesplitters/blob/5c89e1e536565c18c730a764f093953b220d8ab9/README.md"
-          ]
-        }
-      ]
+    "artwork": {
+      "game_id": 2142,
+      "cover_id": 79170,
+      "image_id": "co1p36",
+      "image_sha256": "76d6ff03e97146851fd043da73dd6d7e471a0d27b64ca416d052a74ba13ca120",
+      "game_slug": "timesplitters",
+      "match_kind": "underlying-game"
     },
     "summary": "The project describes native recompilation with four-player multiplayer screenshots and controller/save claims. Linux was tested under WSL. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/GTTeancum/Timesplitters",
@@ -44,7 +35,22 @@
       ],
       "help_url": "https://github.com/GTTeancum/Timesplitters"
     },
-    "issue_number": 3047
+    "issue_number": 3047,
+    "original_game": {
+      "format_version": 1,
+      "id": "timesplitters",
+      "evidence_urls": ["https://github.com/GTTeancum/Timesplitters"],
+      "source_editions": [
+        {
+          "id": "timesplitters-playstation-2",
+          "title": "TimeSplitters (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/GTTeancum/Timesplitters/blob/5c89e1e536565c18c730a764f093953b220d8ab9/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

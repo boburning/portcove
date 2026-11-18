@@ -4,23 +4,6 @@
     "id": "bustagroove2-recomp-betinn-bust-a-groove-2",
     "name": "Bust A Groove 2 — BustAGroove2-Recomp (betinn)",
     "original_game_title": "Bust A Groove 2",
-    "original_game": {
-      "format_version": 1,
-      "id": "bust-a-groove-2",
-      "evidence_urls": [
-        "https://github.com/betinn/BustAGroove2-Recomp/blob/090a4e4213965140e3f8f46df27bfbaa1d939228/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "bust-a-groove-2-playstation",
-          "title": "Bust A Groove 2 (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/betinn/BustAGroove2-Recomp/blob/090a4e4213965140e3f8f46df27bfbaa1d939228/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "The project describes a native desktop v1.3 build with HD textures. Portcove has not confirmed complete tracks or audio. Android Polygonia is a separate emulator-based version. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/betinn/BustAGroove2-Recomp",
     "platforms": [],
@@ -52,6 +35,12 @@
       "image_sha256": "b0a71b0ee7339829c1f6bbc7c64b5ec9a1728a0b6d832f4b2af3a1b33cfe58cd",
       "game_slug": "bust-a-groove-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "bust-a-groove-2",
+      "evidence_urls": ["https://github.com/betinn/BustAGroove2-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

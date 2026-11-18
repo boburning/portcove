@@ -4,25 +4,16 @@
     "id": "doom-woof",
     "name": "Doom / Woof!",
     "original_game_title": "Doom",
-    "original_game": {
-      "format_version": 1,
-      "id": "doom",
-      "evidence_urls": [
-        "https://github.com/fabiangreffrath/woof/blob/d2a3049788dc5f0ef69256e8587f70b475c822eb/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "doom-pc",
-          "title": "Doom (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/fabiangreffrath/woof/blob/d2a3049788dc5f0ef69256e8587f70b475c822eb/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Play Doom and Freedoom with the Woof! source port and keep each game's settings and saves with its player.",
     "project_url": "https://github.com/fabiangreffrath/woof",
+    "artwork": {
+      "game_id": 673,
+      "cover_id": 268663,
+      "image_id": "co5rav",
+      "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+      "game_slug": "doom",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 5718,
     "listed_at": "2026-11-15",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
@@ -78,5 +69,13 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The authored source/setup scope explicitly permits Doom or Freedoom originals, with per-IWAD game/save choices. This broad engine record is not scoped to one original game.",
+    "evidence_urls": [
+      "https://github.com/fabiangreffrath/woof/blob/woof_16.0.0/README.md#legalese",
+      "https://github.com/fabiangreffrath/woof"
+    ]
   }
 }

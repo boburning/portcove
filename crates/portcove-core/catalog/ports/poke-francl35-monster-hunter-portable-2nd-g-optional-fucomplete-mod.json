@@ -1,11 +1,29 @@
 {
   "format_version": 1,
+  "igdb_regional_cover": {
+    "game_id": 20427,
+    "slug": "monster-hunter-freedom-unite",
+    "name": "Monster Hunter Freedom Unite",
+    "platform_id": 38,
+    "localization_id": 5741,
+    "region_id": 3,
+    "cover_id": 592889,
+    "image_id": "cocph5"
+  },
   "listing": {
     "id": "poke-francl35-monster-hunter-portable-2nd-g-optional-fucomplete-mod",
     "name": "Monster Hunter Portable 2nd G (optional FUComplete mod) — Poke (francl35)",
-    "original_game_title": "Monster Hunter Portable 2nd G (optional FUComplete mod)",
+    "original_game_title": "Monster Hunter Freedom Unite",
     "summary": "This is a work in progress rather than a general release. The project reports village, quest, combat and zone tests, with remaining edge cases and interpreter fallback for some code. Standalone overlay generation is not yet a confirmed documented procedure, and macOS hydration is incomplete. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/francl35/Poke",
+    "artwork": {
+      "game_id": 20427,
+      "cover_id": 592889,
+      "image_id": "cocph5",
+      "image_sha256": "e6ea4af776e418086e925c3efacb1984fe141efd44113413a7005991b5addccc",
+      "game_slug": "monster-hunter-freedom-unite",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": ["macos-aarch64"],
     "availability": "unknown",
@@ -27,7 +45,13 @@
       ],
       "help_url": "https://github.com/francl35/Poke"
     },
-    "issue_number": 3113
+    "issue_number": 3113,
+    "original_game": {
+      "format_version": 1,
+      "id": "monster-hunter-freedom-unite",
+      "evidence_urls": ["https://github.com/francl35/Poke"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

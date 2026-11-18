@@ -5,22 +5,13 @@
     "project_url": "https://github.com/kingzmanh/star-trek-generations-pc-native",
     "name": "Star Trek Generations / Windows native",
     "original_game_title": "Star Trek Generations",
-    "original_game": {
-      "format_version": 1,
-      "id": "star-trek-generations",
-      "evidence_urls": [
-        "https://github.com/kingzmanh/star-trek-generations-pc-native/blob/6c37472dbae7a62c53c8daf3dabea8fbe6802a87/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "star-trek-generations-pc",
-          "title": "Star Trek Generations (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/kingzmanh/star-trek-generations-pc-native/blob/6c37472dbae7a62c53c8daf3dabea8fbe6802a87/README.md"
-          ]
-        }
-      ]
+    "artwork": {
+      "game_id": 70216,
+      "cover_id": 52060,
+      "image_id": "xodmnrk1m6hlqj1qw8iy",
+      "image_sha256": "3554d635b0f82ad00641f6b83ad0c3be8a0dc555b35c2959634f1fa501e678d3",
+      "game_slug": "star-trek-generations",
+      "match_kind": "underlying-game"
     },
     "summary": "Prepare the publisher’s Windows preview with both original PC discs.",
     "issue_number": 6086,
@@ -48,6 +39,15 @@
       "warnings": [
         "The Windows preview uses your original disc contents and its own installer and uninstaller. Preserve both discs for future setup."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-trek-generations",
+      "evidence_urls": [
+        "https://github.com/kingzmanh/star-trek-generations-pc-native/blob/v0.1.1/README.md",
+        "https://github.com/kingzmanh/star-trek-generations-pc-native"
+      ],
+      "source_editions": []
     }
   }
 }

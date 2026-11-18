@@ -4,23 +4,6 @@
     "id": "wcw-mayhem-recomp-dotgrx-wcw-mayhem",
     "name": "WCW Mayhem — WCW-Mayhem-RECOMP (dotGrx)",
     "original_game_title": "WCW Mayhem",
-    "original_game": {
-      "format_version": 1,
-      "id": "wcw-mayhem",
-      "evidence_urls": [
-        "https://github.com/dotGrx/WCW-Mayhem-RECOMP/blob/7d75604c6a3fb432bc47da30eef47838ba65e9f9/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "wcw-mayhem-playstation",
-          "title": "WCW Mayhem (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/dotGrx/WCW-Mayhem-RECOMP/blob/7d75604c6a3fb432bc47da30eef47838ba65e9f9/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Experimental project. The project describes native x64 wrestling with widescreen, controller and mod features. 21:9 and fit-to-window are untested. Portcove has not confirmed full roster, match or completion coverage. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/dotGrx/WCW-Mayhem-RECOMP",
     "platforms": ["windows-x86-64"],
@@ -52,6 +35,21 @@
       "image_sha256": "e9e94310c520c9467599ac0e3d80b4de7735aa1491513614403d77bc2e28c4cb",
       "game_slug": "wcw-mayhem",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wcw-mayhem",
+      "evidence_urls": ["https://github.com/dotGrx/WCW-Mayhem-RECOMP"],
+      "source_editions": [
+        {
+          "id": "wcw-mayhem-playstation",
+          "title": "WCW Mayhem (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/dotGrx/WCW-Mayhem-RECOMP/blob/7d75604c6a3fb432bc47da30eef47838ba65e9f9/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

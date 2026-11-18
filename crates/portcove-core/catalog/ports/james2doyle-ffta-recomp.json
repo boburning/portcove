@@ -5,23 +5,6 @@
     "name": "Final Fantasy Tactics Advance (FFTA Recomp)",
     "summary": "Final Fantasy Tactics Advance recompiled for Windows and Linux, using your own USA GBA ROM.",
     "original_game_title": "Final Fantasy Tactics Advance",
-    "original_game": {
-      "format_version": 1,
-      "id": "final-fantasy-tactics-advance",
-      "evidence_urls": [
-        "https://github.com/james2doyle/ffta-recomp/blob/c2d618208098d14a4afa1a87f888cd6310bbd476/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "final-fantasy-tactics-advance-game-boy-advance",
-          "title": "Final Fantasy Tactics Advance (Game Boy Advance, region not specified)",
-          "system": "game-boy-advance",
-          "evidence_urls": [
-            "https://github.com/james2doyle/ffta-recomp/blob/c2d618208098d14a4afa1a87f888cd6310bbd476/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/james2doyle/ffta-recomp",
     "platforms": ["linux-x86-64"],
     "availability": "packages",
@@ -64,7 +47,13 @@
         }
       ]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-tactics-advance",
+      "evidence_urls": ["https://github.com/james2doyle/ffta-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

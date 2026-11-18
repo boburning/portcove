@@ -115,7 +115,7 @@ fn source_removal_consent(
         )
     };
     format!(
-        "Remove the saved location for {label}?\n\nExact location: {}\n\n{impact}\n\nOnly this library's saved location is removed. Original files, installations, game saves, backups and other saved locations are preserved.",
+        "Remove the saved location for {label}?\n\nExact location: {}\n\n{impact}\n\nOnly this library's saved location is removed. Setups that need these original files will ask you to find them again. Original files, installations, game saves, backups and other saved locations are preserved.",
         path.display()
     )
 }

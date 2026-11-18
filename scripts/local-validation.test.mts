@@ -3461,6 +3461,7 @@ void test("catalog generator families retain shared inputs and narrow authoring 
     "scripts/generate-catalog.mts",
     ...authoringModules,
     "scripts/catalog-authoring-inspector.mts",
+    "scripts/catalog-cover-mapping.mts",
     "scripts/inspect-igdb-artwork.mts",
     "scripts/upstream-lineage.mts",
     "scripts/maintainer-config.mts",

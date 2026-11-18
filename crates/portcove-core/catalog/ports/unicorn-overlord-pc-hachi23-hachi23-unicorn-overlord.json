@@ -4,23 +4,6 @@
     "id": "unicorn-overlord-pc-hachi23-hachi23-unicorn-overlord",
     "name": "Unicorn Overlord — Unicorn Overlord PC (hachi23) (hachi23)",
     "original_game_title": "Unicorn Overlord",
-    "original_game": {
-      "format_version": 1,
-      "id": "unicorn-overlord",
-      "evidence_urls": [
-        "https://github.com/hachi23/unicorn_overlord_pc/blob/6af04124c1e00ef9184dc5ee0cf20d2d408db3bc/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "unicorn-overlord-nintendo-switch",
-          "title": "Unicorn Overlord (Nintendo Switch, region not specified)",
-          "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/hachi23/unicorn_overlord_pc/blob/6af04124c1e00ef9184dc5ee0cf20d2d408db3bc/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "The project claims the prologue, chapter 1, first battle and save/load. The full game has not been verified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/hachi23/unicorn_overlord_pc",
     "platforms": ["windows-x86-64", "linux-x86-64"],
@@ -52,6 +35,12 @@
       "image_sha256": "82d5a9db373079330736b880d24d2d4d751bfdf418499684a46bd333e1a9ec85",
       "game_slug": "unicorn-overlord--1",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "unicorn-overlord",
+      "evidence_urls": ["https://github.com/hachi23/unicorn_overlord_pc"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

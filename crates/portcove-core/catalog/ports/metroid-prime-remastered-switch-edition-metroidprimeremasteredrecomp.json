@@ -4,24 +4,7 @@
     "id": "metroid-prime-remastered-switch-edition-metroidprimeremasteredrecomp",
     "name": "Metroid Prime Remastered — Switch edition (MetroidPrimeRemasteredRecomp)",
     "summary": "An early v0.1 Metroid Prime Remastered Switch-edition port. The project reports manual play from the opening Frigate to early Tallon/Chozo Ruins; loading all 275 areas is a separate test, rather than a playthrough. Vertical controller aim is broken, rare loading crashes remain, and physical controllers, HDR and real fullscreen are untested. The Windows x64 ZIP needs Windows 10 v1903+/11 and Vulkan 1.3; only RTX 3080 is tested, with AMD/Intel untested. The official launcher imports your own version 1.0.0 base NSP/XCI/NSZ/XCZ with prod.keys and title.keys where required; updates are not accepted. Those container formats were tested only with synthetic inputs. build_mpr.cmd separately translates source game code; player instructions do not establish whether translated code is already in the release. Exact title/region/hashes are unspecified, with no other desktop route established. Portcove offers no setup or launch integration and has not tested gameplay.",
-    "original_game_title": "Metroid Prime Remastered — Switch edition",
-    "original_game": {
-      "format_version": 1,
-      "id": "metroid-prime-remastered-switch-edition",
-      "evidence_urls": [
-        "https://github.com/drakolordx7/MetroidPrimeRemasteredRecomp/blob/cb3371ebb5bdfd17d80a0c4edceb7b8952c242bc/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "metroid-prime-remastered-switch-edition-nintendo-switch",
-          "title": "Metroid Prime Remastered — Switch edition (Nintendo Switch, region not specified)",
-          "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/drakolordx7/MetroidPrimeRemasteredRecomp/blob/cb3371ebb5bdfd17d80a0c4edceb7b8952c242bc/README.md"
-          ]
-        }
-      ]
-    },
+    "original_game_title": "Metroid Prime",
     "project_url": "https://github.com/drakolordx7/MetroidPrimeRemasteredRecomp",
     "listed_at": "2026-10-25",
     "platforms": [],
@@ -35,7 +18,16 @@
       "game_slug": "metroid-prime-remastered",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2951
+    "issue_number": 2951,
+    "original_game": {
+      "format_version": 1,
+      "id": "metroid-prime",
+      "evidence_urls": [
+        "https://github.com/drakolordx7/MetroidPrimeRemasteredRecomp",
+        "https://www.nintendo.com/us/whatsnew/metroid-prime-remastered-rolled-out-in-latest-nintendo-direct-available-now-for-nintendo-switch/"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

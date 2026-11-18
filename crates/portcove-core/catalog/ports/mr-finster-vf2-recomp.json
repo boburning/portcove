@@ -5,6 +5,14 @@
     "name": "Virtua Fighter 2 (Virtua Fighter 2 Recomp)",
     "summary": "Attach a prepared Virtua Fighter 2 Windows installation using your own exact arcade ROM set. Its Intel i960 program recompiled from your ROM at each startup; the Model2A board, TGP/renderer and sound devices still use separate MAME-derived implementation. Upstream owns ROM preparation, player data and runtime replacement.",
     "original_game_title": "Virtua Fighter 2",
+    "artwork": {
+      "game_id": 1547,
+      "cover_id": 507960,
+      "image_id": "coavy0",
+      "image_sha256": "07292f451894dff05e235c12f487cb144b413e2ac614ef3d261a5ea2f1f94a06",
+      "game_slug": "virtua-fighter-2",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/mr-finster/vf2-recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -43,6 +51,15 @@
       "warnings": [
         "Use the exact own-ROM Virtua Fighter 2 set and preserve every active data/ROM root; another arcade title or edition does not establish permission or save compatibility."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "virtua-fighter-2",
+      "evidence_urls": [
+        "https://github.com/mr-finster/vf2-recomp/blob/5e8bb67fa5235e2c0df843c8651049e6a785a89e/README.md",
+        "https://github.com/mr-finster/vf2-recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

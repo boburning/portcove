@@ -5,23 +5,6 @@
     "name": "South Park: Tenorman's Revenge (South Park TR Recompiled)",
     "summary": "Attach an independently permitted, prepared South Park: Tenorman’s Revenge Windows player with its exact owned XBLA data and upstream startup settings already saved. Normal direct play stays in process; preserve separate game, settings and Documents save roots, and finish update/restart changes upstream.",
     "original_game_title": "South Park: Tenorman's Revenge",
-    "original_game": {
-      "format_version": 1,
-      "id": "south-park-tenorman-s-revenge",
-      "evidence_urls": [
-        "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled/blob/1de5a89f6db722f922f4ead1a3ca5925da389ebd/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "south-park-tenorman-s-revenge-xbox-360",
-          "title": "South Park: Tenorman's Revenge (Xbox 360, region not specified)",
-          "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled/blob/1de5a89f6db722f922f4ead1a3ca5925da389ebd/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -67,6 +50,15 @@
       "warnings": [
         "Use this title’s exact purchased package and saved startup settings. Keep game/configuration and actual Documents save roots; settings restarts and upstream updates can replace the selected process."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "south-park-tenormans-revenge",
+      "evidence_urls": [
+        "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled/blob/1de5a89f6db722f922f4ead1a3ca5925da389ebd/README.md",
+        "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

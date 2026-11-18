@@ -1,9 +1,12 @@
+import { requireCompleteCaptureTarget } from "../../test/capture-target";
+import "../styles/index.css";
 import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../test-fixtures";
 import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import {
   GameFileScanProvider,
@@ -239,6 +242,26 @@ it("connects a registered preliminary selection to truthful port guidance and bo
   expect(document.body.textContent).toContain("Catalog ports using this profile: Preliminary port");
   expect(document.body.textContent).toContain("Preliminary port: Ready for setup review");
   expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(1);
+  await captureParityState("game-files-registered-preliminary-selection-fixture");
+  const candidate = document.querySelector<HTMLElement>("[data-preliminary-selection]")!;
+  const reviewAction = candidate.querySelector<HTMLButtonElement>("[data-candidate-review]")!;
+  expect(reviewAction.textContent).toBe("Check these files");
+  expect(reviewAction.disabled).toBe(false);
+  candidate.scrollIntoView({ block: "center", behavior: "instant" });
+  for (const target of [candidate, reviewAction]) {
+    const bounds = target.getBoundingClientRect();
+    requireCompleteCaptureTarget(
+      {
+        target: "registered preliminary " + target.tagName,
+        target_count: 1,
+        visible: target.checkVisibility(),
+        rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+        viewport: { width: innerWidth, height: innerHeight },
+      },
+      "registered preliminary " + target.tagName,
+    );
+  }
+  await captureParityState("game-files-registered-preliminary-candidate-actions-fixture");
   await act(async () =>
     document.querySelector<HTMLInputElement>("[data-setup-review-port]")!.click(),
   );
@@ -523,6 +546,73 @@ it("presents a required restart separately from another resumable batch", async 
   await captureParityState("game-files-scan-restart-required-fixture");
   await click("Start new scan");
   expect(desktopApi.scanGameFileRoots).toHaveBeenCalledTimes(1);
+});
+
+it("keeps the reported large ISO actionable after finishing a saved scan", async () => {
+  const path = "D:/Games/original.iso";
+  const first = {
+    ...portDefinition(),
+    id: "jak1",
+    name: "Jak and Daxter",
+    source_profile: "opengoal-jak1-disc",
+  };
+  const second = {
+    ...portDefinition(),
+    id: "jak2",
+    name: "Jak II",
+    source_profile: "opengoal-jak2-disc",
+  };
+  const review = vi
+    .spyOn(desktopApi, "planSourceImport")
+    .mockRejectedValue(new Error("Fixture check finished"));
+  const resumed = resumableSnapshot();
+  const retained = {
+    ...resumed,
+    matches: storedMatchesSnapshot().matches!,
+    report: {
+      ...snapshot.report,
+      limits_reached: ["file_size"],
+      issues: [
+        {
+          path,
+          profile_id: null,
+          message: "File exceeds the scan size limit.",
+          direct_check_profiles: [first.source_profile, second.source_profile],
+        },
+      ],
+    },
+  } satisfies GameFileScanSnapshot;
+  const finished = {
+    ...retained,
+    coverage: { ...resumed.coverage!, can_resume: false, frontier_exhausted: true },
+  };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(retained);
+  const scan = vi.mocked(desktopApi.scanGameFileRoots).mockImplementation(async () => {
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(finished);
+    return finished;
+  });
+  await root.rerender(<GameFileLibraries generation={1} ports={[first, second]} profiles={[]} />);
+  await click("Refresh folders");
+  await click("Finish scanning these folders");
+  expect(scan).toHaveBeenCalledExactlyOnceWith(
+    resumed.limits,
+    1,
+    expect.any(Function),
+    retained.matches.scan_id,
+  );
+  expect(button("Scan saved folders")).toBeDefined();
+  const summary = [...document.querySelectorAll("summary")].find(
+    (item) => item.textContent === "Check this file",
+  );
+  await act(async () => summary?.click());
+  await click("Check for Jak II");
+  expect(review).toHaveBeenCalledExactlyOnceWith(
+    second.source_profile,
+    path,
+    "use_current_location",
+  );
+  expect(picker.pickGameFileFolder).not.toHaveBeenCalled();
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
 it("keeps exhausted coverage distinct from skipped files and gameplay support", async () => {
@@ -2237,7 +2327,66 @@ it("counts every stored match and shows more of them a page at a time", async ()
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
-it("reviews and adds games whose matches were shown beyond the scan preview", async () => {
+it("uses Core's registered path spelling even when the complete scan fits its preview", async () => {
+  const stored: GameFileScanSnapshot = {
+    ...storedMatchesSnapshot(),
+    report: {
+      ...snapshot.report,
+      candidates: [{ ...savedCandidate, path: "\\\\?\\D:\\Games\\game.z64" }],
+    },
+    matches: { ...storedMatchesSnapshot().matches!, exact_matches: 1, preview_complete: true },
+  };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);
+  const projection = vi.spyOn(desktopApi, "gameFileScanRegisteredMatches").mockResolvedValue({
+    candidates: [savedCandidate],
+    preliminary_selections: [],
+  });
+  const port = {
+    ...portDefinition(),
+    id: "registered-port",
+    source_profile: savedCandidate.profile_id,
+  };
+  const status = {
+    ...portStatus(),
+    port_id: port.id,
+    port_actions: [
+      {
+        action: "install" as const,
+        availability: "allowed" as const,
+        reason: "available" as const,
+      },
+    ],
+  };
+  const review = vi.spyOn(desktopApi, "planInstallBatch").mockResolvedValue({
+    items: [{ port_id: port.id, hold: "Waiting for setup input" }],
+    capacity: { download_bytes: 0, volumes: [] },
+  });
+  const start = vi.spyOn(desktopApi, "startInstallBatch");
+  await root.rerender(
+    <SetupReviewSelectionProvider>
+      <GameFileLibraries
+        generation={1}
+        ports={[port]}
+        profiles={[{ ...sourceProfile(), id: savedCandidate.profile_id }]}
+        registeredSources={[savedCandidate]}
+        statuses={new Map([[port.id, status]])}
+        onOpenPort={vi.fn()}
+      />
+    </SetupReviewSelectionProvider>,
+  );
+  await click("Refresh folders");
+  await vi.waitFor(() =>
+    expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(1),
+  );
+  expect(projection).toHaveBeenLastCalledWith(stored.matches, 1);
+  await act(async () => document.querySelector<HTMLElement>("[data-setup-review-port]")!.click());
+  await click("Review installing 1 selected");
+  expect(review).toHaveBeenCalledExactlyOnceWith([port.id], 1);
+  expect(start).not.toHaveBeenCalled();
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it("adds a game whose registered match is outside the scan preview", async () => {
   const stored = storedMatchesSnapshot();
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);
   const paged: SourceRecord = {
@@ -2246,14 +2395,9 @@ it("reviews and adds games whose matches were shown beyond the scan preview", as
     path: "D:/Games/paged.z64",
     sha256: "c".repeat(64),
   };
-  vi.spyOn(desktopApi, "gameFileScanMatches").mockResolvedValue({
-    scan_id: stored.matches!.scan_id,
-    kind: "exact",
-    offset: 1,
-    total: 2,
+  const projection = vi.spyOn(desktopApi, "gameFileScanRegisteredMatches").mockResolvedValue({
     candidates: [paged],
     preliminary_selections: [],
-    next_offset: null,
   });
   vi.spyOn(desktopApi, "addGamesToLibrary").mockResolvedValue([]);
   const port = {
@@ -2286,8 +2430,7 @@ it("reviews and adds games whose matches were shown beyond the scan preview", as
     </SetupReviewSelectionProvider>,
   );
   await click("Refresh folders");
-  expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(0);
-  await click("Show more matches");
+  expect(projection).toHaveBeenLastCalledWith(stored.matches, 1);
   expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(1);
   await act(async () =>
     document.querySelector<HTMLInputElement>("[data-setup-review-port]")!.click(),
@@ -2303,6 +2446,114 @@ it("reviews and adds games whose matches were shown beyond the scan preview", as
     ],
     1,
   );
+});
+
+it("reviews more than sixteen eligible games without opening their match pages", async () => {
+  const sources = Array.from({ length: 21 }, (_, index): SourceRecord => ({
+    ...savedCandidate,
+    profile_id: `profile-${index}`,
+    path: `D:/Games/game-${index}.z64`,
+    sha256: index.toString(16).padStart(64, "0"),
+  }));
+  const [ambiguous, ...eligible] = sources;
+  const ports = [
+    ...sources.map((source) => ({
+      ...portDefinition(),
+      id: `port-${source.profile_id}`,
+      name: `Game ${source.profile_id}`,
+      source_profile: source.profile_id,
+    })),
+    {
+      ...portDefinition(),
+      id: "alternative",
+      name: "Alternative version",
+      source_profile: ambiguous!.profile_id,
+    },
+  ];
+  const stored = storedMatchesSnapshot();
+  stored.report.candidates = sources.slice(0, 9);
+  stored.matches!.exact_matches = 79;
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);
+  const pages = vi.spyOn(desktopApi, "gameFileScanMatches");
+  const projection = vi.spyOn(desktopApi, "gameFileScanRegisteredMatches").mockResolvedValue({
+    candidates: sources,
+    preliminary_selections: [],
+  });
+  const selectedIds = eligible.map((source) => `port-${source.profile_id}`);
+  const plan = vi.spyOn(desktopApi, "planInstallBatch").mockResolvedValue({
+    items: selectedIds.map((port_id) => ({ port_id, hold: "Waiting for setup input" })),
+    capacity: { download_bytes: 0, volumes: [] },
+  });
+  const start = vi.spyOn(desktopApi, "startInstallBatch");
+  const run = vi.spyOn(desktopApi, "runInstallBatch");
+  const add = vi.spyOn(desktopApi, "addGamesToLibrary");
+  const statuses = new Map(
+    ports.map((port) => [
+      port.id,
+      {
+        ...portStatus(),
+        port_id: port.id,
+        port_actions: [
+          {
+            action: "install" as const,
+            availability: "allowed" as const,
+            reason: "available" as const,
+          },
+        ],
+      },
+    ]),
+  );
+  await root.rerender(
+    <SetupReviewSelectionProvider>
+      <GameFileLibraries
+        generation={1}
+        ports={ports}
+        profiles={sources.map((source) => ({ ...sourceProfile(), id: source.profile_id }))}
+        registeredSources={sources}
+        statuses={statuses}
+        onOpenPort={vi.fn()}
+      />
+    </SetupReviewSelectionProvider>,
+  );
+  await click("Refresh folders");
+  expect(document.body.textContent).toContain("Showing 9 of 79 matches.");
+  expect(document.body.textContent).toContain(
+    "0 selected · 20 eligible · 1 game needs a version choice",
+  );
+  expect(projection).toHaveBeenLastCalledWith(stored.matches, 1);
+  expect(pages).not.toHaveBeenCalled();
+  await click("Select all 20 eligible");
+  const trigger = button("Review installing 20 selected");
+  trigger.focus();
+  await act(async () => userEvent.keyboard(" "));
+  await vi.waitFor(() =>
+    expect(document.querySelector('[aria-label="Install selected games"]')?.textContent).toContain(
+      "0 ready to install, 20 waiting",
+    ),
+  );
+  const panel = document.querySelector<HTMLElement>('[aria-label="Install selected games"]')!;
+  await vi.waitFor(() => expect(panel.contains(document.activeElement)).toBe(true));
+  const focused = document.activeElement!.getBoundingClientRect();
+  expect(focused.top).toBeGreaterThanOrEqual(0);
+  expect(focused.top).toBeLessThan(innerHeight);
+  for (let step = 0; document.activeElement?.textContent !== "Cancel" && step < 4; step++)
+    await act(async () => userEvent.tab());
+  expect(document.activeElement?.textContent).toBe("Cancel");
+  await act(async () => userEvent.keyboard(" "));
+  await vi.waitFor(() =>
+    expect(document.querySelector('[aria-label="Install selected games"]')).toBeNull(),
+  );
+  const choices = document.querySelector<HTMLElement>('[aria-label="Selected setup reviews"]')!;
+  await vi.waitFor(() => expect(choices.contains(document.activeElement)).toBe(true));
+  const returned = document.activeElement!.getBoundingClientRect();
+  expect(returned.width).toBeGreaterThan(0);
+  expect(returned.height).toBeGreaterThan(0);
+  expect(returned.top).toBeGreaterThanOrEqual(0);
+  expect(returned.top).toBeLessThan(innerHeight);
+  expect(plan).toHaveBeenCalledExactlyOnceWith(selectedIds, 1);
+  expect(start).not.toHaveBeenCalled();
+  expect(run).not.toHaveBeenCalled();
+  expect(add).not.toHaveBeenCalled();
 });
 
 it("reloads the saved scan instead of mixing pages when a newer scan replaced it", async () => {

@@ -39,27 +39,19 @@
       "help_url": "https://github.com/bvschaik/julius#readme"
     },
     "original_game_title": "Caesar III",
-    "original_game": {
-      "format_version": 1,
-      "id": "caesar-iii",
-      "evidence_urls": [
-        "https://github.com/bvschaik/julius/blob/af235a7e86f6c34111194799330e436f4bfd5614/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "caesar-iii-pc",
-          "title": "Caesar III (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/bvschaik/julius/blob/af235a7e86f6c34111194799330e436f4bfd5614/README.md"
-          ]
-        }
-      ]
-    },
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "download_asset_hints": {
       "macos-x86-64": ["-mac.dmg"],
       "macos-aarch64": ["-mac.dmg"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "caesar-iii",
+      "evidence_urls": [
+        "https://github.com/bvschaik/julius#readme",
+        "https://github.com/bvschaik/julius"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

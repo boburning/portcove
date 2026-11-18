@@ -5,23 +5,6 @@
     "name": "Skies of Arcadia Legends (Skies of Arcadia Legends: Recompiled)",
     "summary": "Attach an independently permitted, prepared Skies of Arcadia Legends Windows beta with the matching regional GameCube disc and complete runner/modules. Preserve the active data folder, regional cards, states and imported original; the performance-test build is not selected.",
     "original_game_title": "Skies of Arcadia Legends",
-    "original_game": {
-      "format_version": 1,
-      "id": "skies-of-arcadia-legends",
-      "evidence_urls": [
-        "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp/blob/88f81eaa11034a36b88683e0ab54b33a00cf2a91/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "skies-of-arcadia-legends-gamecube",
-          "title": "Skies of Arcadia Legends (GameCube, region not specified)",
-          "system": "gamecube",
-          "evidence_urls": [
-            "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp/blob/88f81eaa11034a36b88683e0ab54b33a00cf2a91/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -62,6 +45,24 @@
       ],
       "warnings": [
         "Use the complete user beta and matching regional import. Keep the selected data root, original discs, regional cards and separate state sets; optional Dreamcast content remains separately supplied."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "skies-of-arcadia-legends",
+      "evidence_urls": [
+        "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp/blob/88f81eaa11034a36b88683e0ab54b33a00cf2a91/README.md",
+        "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "skies-of-arcadia-legends-nintendo-gamecube",
+          "title": "Skies of Arcadia Legends (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp/blob/88f81eaa11034a36b88683e0ab54b33a00cf2a91/README.md"
+          ]
+        }
       ]
     }
   },

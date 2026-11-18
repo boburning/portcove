@@ -7,23 +7,6 @@
     "summary": "Native Mega Man X2 recompilation.",
     "project_url": "https://github.com/mstan/MegaManX2Recomp",
     "original_game_title": "Mega Man X2",
-    "original_game": {
-      "format_version": 1,
-      "id": "mega-man-x2",
-      "evidence_urls": [
-        "https://github.com/mstan/MegaManX2Recomp/blob/622aa882881a07c8238ce17a14381c7d75a979d7/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "mega-man-x2-super-nintendo",
-          "title": "Mega Man X2 (Super Nintendo, region not specified)",
-          "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/mstan/MegaManX2Recomp/blob/622aa882881a07c8238ce17a14381c7d75a979d7/README.md"
-          ]
-        }
-      ]
-    },
     "issue_number": 165,
     "listed_at": "2026-10-23",
     "artwork": {
@@ -33,6 +16,12 @@
       "image_sha256": "33ebabec123f267f664f2918c86165be04df00b7c20dacdf8171b515c19ee2d1",
       "game_slug": "mega-man-x2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-x2",
+      "evidence_urls": ["https://github.com/mstan/MegaManX2Recomp"],
+      "source_editions": []
     }
   },
   "integration": {

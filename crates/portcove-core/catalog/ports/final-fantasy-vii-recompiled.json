@@ -1,5 +1,15 @@
 {
   "format_version": 1,
+  "managed_setup_platform_warnings": {
+    "macos-aarch64": [
+      "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+      "Portcove has not verified native Mac setup or gameplay."
+    ],
+    "macos-x86-64": [
+      "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+      "Portcove has not verified native Mac setup or gameplay."
+    ]
+  },
   "order": 21,
   "listing": {
     "id": "final-fantasy-vii-recompiled",
@@ -8,23 +18,6 @@
     "project_url": "https://github.com/TechnicallyComputers/Final-Fantasy-VII",
     "listed_at": "2026-10-23",
     "original_game_title": "Final Fantasy VII",
-    "original_game": {
-      "format_version": 1,
-      "id": "final-fantasy-vii",
-      "evidence_urls": [
-        "https://github.com/TechnicallyComputers/Final-Fantasy-VII/blob/a3df6877861b3a21ecbeef8ab488f09218e460ad/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "final-fantasy-vii-playstation",
-          "title": "Final Fantasy VII (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/TechnicallyComputers/Final-Fantasy-VII/blob/a3df6877861b3a21ecbeef8ab488f09218e460ad/README.md"
-          ]
-        }
-      ]
-    },
     "variant_label": "PlayStation",
     "artwork": {
       "game_id": 427,
@@ -34,7 +27,13 @@
       "game_slug": "final-fantasy-vii",
       "match_kind": "underlying-game"
     },
-    "issue_number": 76
+    "issue_number": 76,
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-vii",
+      "evidence_urls": ["https://github.com/TechnicallyComputers/Final-Fantasy-VII"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -89,7 +88,16 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": []
+      }
     }
   }
 }

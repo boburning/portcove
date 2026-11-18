@@ -1,0 +1,212 @@
+{
+  "format": "portcove-dated-research-evidence",
+  "format_version": 1,
+  "local_date": "2026-11-17 America/New_York",
+  "reference_revision": "e981757f31fdb58b85e546069cf303daac56cc61",
+  "reference_games_content_sha256": "800ae141cc908cc4cb5bed48dc711f7ccbcc8beee928df9982d7c9cc1bf70364",
+  "reference_license_observation": "No LICENSE, LICENCE or COPYING file found in the complete reference revision tree; code and descriptions independently authored.",
+  "reference_game_entries": 1626,
+  "linked_repositories": 1624,
+  "unlinked_entries": 2,
+  "progress_collection": {
+    "revision": "e3e516b49e9f75ac6ddc11afc7b8f73d0b8cc6d8ed101e68f4081f83f51a7fde",
+    "checked_at": "2026-11-18T02:12:42.737Z",
+    "results": [
+      {
+        "key": "progress:super-smash-bros-melee:53ce613af25a61771771776911fe402c",
+        "source": {
+          "repository": "doldecomp/melee",
+          "game_key": "super-smash-bros-melee",
+          "version": "GALE01",
+          "provider": "decompdev",
+          "evidence_url": "https://decomp.dev/doldecomp/melee.json",
+          "methodology": "objdiff report measures for the exact GALE01 edition; matching, fuzzy similarity and linked code are distinct"
+        },
+        "checked_at": "2026-11-18T02:12:42.737Z",
+        "status": "observed",
+        "record": {
+          "repository": "doldecomp/melee",
+          "game_key": "super-smash-bros-melee",
+          "version": "GALE01",
+          "provider": "decompdev",
+          "source_url": "https://decomp.dev/doldecomp/melee/GALE01.json",
+          "evidence_url": "https://decomp.dev/doldecomp/melee.json",
+          "methodology": "objdiff report measures for the exact GALE01 edition; matching, fuzzy similarity and linked code are distinct",
+          "commit": "2f8eab8ebd7a2d25541e125abfa246defe1bacec",
+          "observed_at": "2026-11-05T01:16:09.000Z",
+          "metrics": [
+            {
+              "kind": "matching-code",
+              "value": "100.0",
+              "numerator": "3882032",
+              "denominator": "3882032"
+            },
+            {
+              "kind": "fuzzy-similarity",
+              "value": "99.99997",
+              "numerator": null,
+              "denominator": null
+            },
+            {
+              "kind": "linked-code",
+              "value": "100.0",
+              "numerator": "3882032",
+              "denominator": "3882032"
+            },
+            {
+              "kind": "matched-functions",
+              "value": "100.0",
+              "numerator": "19828",
+              "denominator": "19828"
+            }
+          ],
+          "content_sha256": "9f261a30025923ad04fbdf4f1ec0d6274ab2b002d865fe8fb684b427f39576c3",
+          "authority": "research-only"
+        }
+      },
+      {
+        "key": "progress:ratchet-and-clank-up-your-arsenal:48bf9ff96870de3e8b49c71e1027cfe0",
+        "source": {
+          "repository": "OpenRAC/rac3-decomp",
+          "game_key": "ratchet-and-clank-up-your-arsenal",
+          "version": "SCES_524.56",
+          "provider": "bytematch",
+          "evidence_url": "https://github.com/OpenRAC/rac3-decomp/blob/a35a9155401bdff05275cb64566a8802629f288e/README.md",
+          "methodology": "Project-owned ByteMatch report for PAL SCES_524.56; matching, fuzzy similarity, linked code and function counts remain distinct"
+        },
+        "checked_at": "2026-11-18T02:12:42.737Z",
+        "status": "observed",
+        "record": {
+          "repository": "OpenRAC/rac3-decomp",
+          "game_key": "ratchet-and-clank-up-your-arsenal",
+          "version": "SCES_524.56",
+          "provider": "bytematch",
+          "source_url": "https://bytematch.dev/OpenRAC/rac3-decomp/SCES_524.56.json",
+          "evidence_url": "https://github.com/OpenRAC/rac3-decomp/blob/a35a9155401bdff05275cb64566a8802629f288e/README.md",
+          "methodology": "Project-owned ByteMatch report for PAL SCES_524.56; matching, fuzzy similarity, linked code and function counts remain distinct",
+          "commit": "a35a9155401bdff05275cb64566a8802629f288e",
+          "observed_at": "2026-11-18T02:04:38.000Z",
+          "metrics": [
+            {
+              "kind": "matching-code",
+              "value": "59.439014",
+              "numerator": "4472824",
+              "denominator": "7525064"
+            },
+            {
+              "kind": "fuzzy-similarity",
+              "value": "59.439014",
+              "numerator": null,
+              "denominator": null
+            },
+            {
+              "kind": "linked-code",
+              "value": "3.887489",
+              "numerator": "292536",
+              "denominator": "7525064"
+            },
+            {
+              "kind": "matched-functions",
+              "value": "82.5561",
+              "numerator": "13649",
+              "denominator": "16533"
+            }
+          ],
+          "content_sha256": "ef173b319d3194e2df61e209062019922bfa8e1dc5bd3062b67884372a0274ee",
+          "authority": "research-only"
+        }
+      },
+      {
+        "key": "progress:fire-emblem-the-sacred-stones:3bd81f3693ac6f384fd662b04f89ca30",
+        "source": {
+          "repository": "FireEmblemUniverse/fireemblem8u",
+          "game_key": "fire-emblem-the-sacred-stones",
+          "version": "us",
+          "provider": "frogress",
+          "project": "fireemblem8",
+          "category": "default",
+          "measure": "code",
+          "metric_kind": "decompiled-code",
+          "evidence_url": "https://github.com/FireEmblemUniverse/fireemblem8u/blob/3b89a0880e5b1b1d7c09ff3259608e8f1a233c46/scripts/progress-template.txt",
+          "methodology": "Project-owned frogress upload: bytes of code in src divided by total code; this does not assert byte matching"
+        },
+        "checked_at": "2026-11-18T02:12:42.737Z",
+        "status": "observed",
+        "record": {
+          "repository": "FireEmblemUniverse/fireemblem8u",
+          "game_key": "fire-emblem-the-sacred-stones",
+          "version": "us",
+          "provider": "frogress",
+          "source_url": "https://progress.deco.mp/data/fireemblem8/us/default/?mode=latest",
+          "evidence_url": "https://github.com/FireEmblemUniverse/fireemblem8u/blob/3b89a0880e5b1b1d7c09ff3259608e8f1a233c46/scripts/progress-template.txt",
+          "methodology": "Project-owned frogress upload: bytes of code in src divided by total code; this does not assert byte matching",
+          "commit": "3b89a0880e5b1b1d7c09ff3259608e8f1a233c46",
+          "observed_at": "2026-11-17T05:43:24.000Z",
+          "metrics": [
+            {
+              "kind": "decompiled-code",
+              "value": "99.75672841663754",
+              "numerator": "856212",
+              "denominator": "858300"
+            }
+          ],
+          "content_sha256": "a0efc3a0ab174fb73f6ea8e86505acdfc5f7917131d94fce293a395b928dc38e",
+          "authority": "research-only"
+        }
+      },
+      {
+        "key": "progress:paper-mario:c982be25ffb77b8b865865498b234c83",
+        "source": {
+          "repository": "pmret/papermario",
+          "game_key": "paper-mario",
+          "version": "us",
+          "provider": "project-csv",
+          "report_url": "https://papermar.io/reports/progress_us.csv",
+          "csv": {
+            "numerator": 8,
+            "denominator": 6,
+            "timestamp": 1,
+            "commit": 2
+          },
+          "evidence_url": "https://github.com/pmret/papermario/blob/222af07f2ce4250c1eb70f751fefe8a8476fae96/README.md",
+          "methodology": "Project US report: matching code bytes in column 8 divided by total code bytes in column 6, timestamp and full commit retained"
+        },
+        "checked_at": "2026-11-18T02:12:42.737Z",
+        "status": "observed",
+        "record": {
+          "repository": "pmret/papermario",
+          "game_key": "paper-mario",
+          "version": "us",
+          "provider": "project-csv",
+          "source_url": "https://papermar.io/reports/progress_us.csv",
+          "evidence_url": "https://github.com/pmret/papermario/blob/222af07f2ce4250c1eb70f751fefe8a8476fae96/README.md",
+          "methodology": "Project US report: matching code bytes in column 8 divided by total code bytes in column 6, timestamp and full commit retained",
+          "commit": "222af07f2ce4250c1eb70f751fefe8a8476fae96",
+          "observed_at": "2026-10-23T21:38:00.000Z",
+          "metrics": [
+            {
+              "kind": "matching-code",
+              "value": "100",
+              "numerator": "3718612",
+              "denominator": "3718612"
+            }
+          ],
+          "content_sha256": "44d4d2f4b430b5323d3803fef34ad4546b6651ed5b2d505fcbfae624e0d37c41",
+          "authority": "research-only"
+        }
+      }
+    ]
+  },
+  "local_report_exercise": {
+    "rows": 4,
+    "providers": ["frogress", "project-csv", "bytematch", "decompdev"],
+    "unattended": false,
+    "scope": "declared-sample",
+    "generated_at": "2026-11-18T02:17:36.844Z"
+  },
+  "limits": [
+    "Manual bounded public reads and isolated local PostgreSQL exercise only.",
+    "No native application, upstream gameplay, supported installation or unattended production execution demonstrated.",
+    "Progress collection and display grant no operational authority."
+  ]
+}

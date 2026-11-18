@@ -306,9 +306,7 @@ it.each([
     expect(document.body.textContent?.includes("They will be kept exactly")).toBe(
       keepsExactArguments,
     );
-    expect(document.querySelector('textarea[aria-label="Launch arguments"]') === null).toBe(
-      keepsExactArguments,
-    );
+    expect(document.querySelector("textarea") === null).toBe(keepsExactArguments);
     await click("Review launch details");
     expect(preview).toHaveBeenCalledExactlyOnceWith(
       port.id,
@@ -393,7 +391,12 @@ it("reviews explicit user launch details without accepted-package or file-manage
   expect(document.body.textContent).not.toContain("Archive SHA-256");
   await click("Choose game executable…");
   await page.getByText("Advanced launch options", { exact: true }).click();
-  await page.getByRole("textbox", { name: "Launch arguments" }).fill("--data\nC:\\Original files");
+  await page
+    .getByRole("textbox", {
+      name: "Launch options (advanced) (one per line, optional)",
+      exact: true,
+    })
+    .fill("--data\nC:\\Original files");
   await click("Review launch details");
   expect(preview).toHaveBeenCalledExactlyOnceWith(
     port.id,

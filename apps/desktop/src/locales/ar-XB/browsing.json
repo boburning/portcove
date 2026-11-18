@@ -64,7 +64,7 @@
     "groupLabel_other": "{{title}}. {{count}} مشروع منفصل؛ {{matching}} مطابقة.",
     "identity": {
       "matching": "{{title}} {{project}}. المنفذ المطابق: {{port}}. {{state}}. {{action}}",
-      "single": "{{title}} {{project}}. {{state}}. {{action}}"
+      "single": "{{identity}}. {{state}}. {{action}}"
     },
     "label": "اكتشاف الألعاب",
     "matchingPort": "المنفذ المطابق: <port />",

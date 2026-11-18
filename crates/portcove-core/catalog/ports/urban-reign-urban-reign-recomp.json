@@ -5,23 +5,6 @@
     "name": "Urban Reign (Urban Reign Recomp)",
     "summary": "Attach an independently permitted, prepared Urban Reign Windows native game with its exact USA disc executable and explicit ISO path. Preserve executable-side settings, memory cards and states; the browser launcher, optional HD packs and multiplayer claims retain separate scope.",
     "original_game_title": "Urban Reign",
-    "original_game": {
-      "format_version": 1,
-      "id": "urban-reign",
-      "evidence_urls": [
-        "https://github.com/thiagordsfx/urban-reign-recomp/blob/80901198b6a25b99ff755031c2d04ddb9ab33469/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "urban-reign-playstation-2",
-          "title": "Urban Reign (PlayStation 2, region not specified)",
-          "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/thiagordsfx/urban-reign-recomp/blob/80901198b6a25b99ff755031c2d04ddb9ab33469/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/thiagordsfx/urban-reign-recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -62,6 +45,24 @@
       ],
       "warnings": [
         "Select the native game/urban.exe with the real supported ISO path and preserve its actual card/state roots. Browser-launcher tracking and optional packs/multiplayer remain separate."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "urban-reign",
+      "evidence_urls": [
+        "https://github.com/thiagordsfx/urban-reign-recomp/blob/74f22452a7c2afd1df082e5a8c41ed6943db5a3d/README.md",
+        "https://github.com/thiagordsfx/urban-reign-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "urban-reign-playstation-2",
+          "title": "Urban Reign (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/thiagordsfx/urban-reign-recomp/blob/80901198b6a25b99ff755031c2d04ddb9ab33469/README.md"
+          ]
+        }
       ]
     }
   },

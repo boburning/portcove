@@ -2,25 +2,16 @@
   "format_version": 1,
   "listing": {
     "id": "viva-pin-ata-recomp-crabinacrabic-viva-pinata",
+    "artwork": {
+      "game_id": 7236,
+      "cover_id": 115414,
+      "image_id": "co2h1y",
+      "image_sha256": "4b5baa83ba39c483f79a36a87137de9e8fa3f909abf34644d8fd90afe881343e",
+      "game_slug": "viva-pinata",
+      "match_kind": "underlying-game"
+    },
     "name": "Viva Pinata — Viva Piñata Recomp (crabinacrabic)",
     "original_game_title": "Viva Pinata",
-    "original_game": {
-      "format_version": 1,
-      "id": "viva-pinata",
-      "evidence_urls": [
-        "https://github.com/crabinacrabic/VivaPinataRecomp/blob/a0ecaa1c155480c0c25667467dbb95327684b204/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "viva-pinata-xbox-360",
-          "title": "Viva Pinata (Xbox 360, region not specified)",
-          "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/crabinacrabic/VivaPinataRecomp/blob/a0ecaa1c155480c0c25667467dbb95327684b204/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "The project reports garden play and save/load. A rare crash while idle at the title remains, and a full playthrough has not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/crabinacrabic/VivaPinataRecomp",
     "listed_at": "2026-10-25",
@@ -44,7 +35,13 @@
       ],
       "help_url": "https://github.com/crabinacrabic/VivaPinataRecomp"
     },
-    "issue_number": 3276
+    "issue_number": 3276,
+    "original_game": {
+      "format_version": 1,
+      "id": "viva-pinata",
+      "evidence_urls": ["https://github.com/crabinacrabic/VivaPinataRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -5,23 +5,6 @@
     "name": "Shadow Warrior (Raze)",
     "summary": "Play Shadow Warrior in Raze using your own original PC game files.",
     "original_game_title": "Shadow Warrior",
-    "original_game": {
-      "format_version": 1,
-      "id": "shadow-warrior",
-      "evidence_urls": [
-        "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "shadow-warrior-pc",
-          "title": "Shadow Warrior (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/ZDoom/Raze",
     "platforms": ["macos-x86-64", "macos-aarch64", "linux-x86-64"],
     "availability": "packages",
@@ -71,6 +54,15 @@
       "image_sha256": "cdcb7c96f99239b1a1583900de4a63200ea89a0718acf746798d6ac35cd66529",
       "game_slug": "shadow-warrior",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "shadow-warrior",
+      "evidence_urls": [
+        "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt",
+        "https://github.com/ZDoom/Raze"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

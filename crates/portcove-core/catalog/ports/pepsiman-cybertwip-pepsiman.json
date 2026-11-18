@@ -4,23 +4,6 @@
     "id": "pepsiman-cybertwip-pepsiman",
     "name": "Pepsiman — PepsiMan (Cybertwip)",
     "original_game_title": "Pepsiman",
-    "original_game": {
-      "format_version": 1,
-      "id": "pepsiman",
-      "evidence_urls": [
-        "https://github.com/Cybertwip/PepsiMan/blob/f1a1a0502241e96db34d5e8171911693b77e93cc/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "pepsiman-playstation",
-          "title": "Pepsiman (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/Cybertwip/PepsiMan/blob/f1a1a0502241e96db34d5e8171911693b77e93cc/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Experimental project. LLE BIOS/CD validation/main handoff only; overlays/progression pending; early native runtime not playable claim. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Cybertwip/PepsiMan",
     "platforms": [],
@@ -52,6 +35,12 @@
       "image_sha256": "41267d417cd5715d277ac3fdd305f61268972727edb1d403b0a72e8f1258d75f",
       "game_slug": "pepsiman--1",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pepsiman",
+      "evidence_urls": ["https://github.com/Cybertwip/PepsiMan"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

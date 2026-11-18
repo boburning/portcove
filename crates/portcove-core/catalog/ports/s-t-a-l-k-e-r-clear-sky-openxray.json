@@ -5,23 +5,6 @@
     "name": "S.T.A.L.K.E.R.: Clear Sky (OpenXRay)",
     "summary": "Prepare S.T.A.L.K.E.R.: Clear Sky through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "S.T.A.L.K.E.R.: Clear Sky",
-    "original_game": {
-      "format_version": 1,
-      "id": "s-t-a-l-k-e-r-clear-sky",
-      "evidence_urls": [
-        "https://github.com/OpenXRay/xray-16/blob/2586e997f0af18c50d53f3d4948449fa9dbbf8f8/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "s-t-a-l-k-e-r-clear-sky-pc",
-          "title": "S.T.A.L.K.E.R.: Clear Sky (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/OpenXRay/xray-16/blob/2586e997f0af18c50d53f3d4948449fa9dbbf8f8/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/OpenXRay/xray-16",
     "availability": "packages",
     "setup_url": "https://github.com/OpenXRay/xray-16/blob/c62d9d343981d50f6ed176412b85d94c61b578b5/README.md",
@@ -86,6 +69,15 @@
           "instruction": "Keep the complete engine and original files and the actual app_data_root defined by the selected fsgame.ltx. The CI packages and source instructions describe player-managed setup. Confirm a normal start and quit before attaching any prepared native player."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "s-t-a-l-k-e-r-clear-sky",
+      "evidence_urls": [
+        "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play",
+        "https://github.com/OpenXRay/xray-16"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

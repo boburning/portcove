@@ -4,23 +4,6 @@
     "id": "chibi-recomp-xxjsonderuloxx-xxjsonderuloxx-chibi-robo-plug-into-adventure",
     "name": "Chibi-Robo! Plug Into Adventure! — Chibi Recomp (xXJSONDeruloXx) (xXJSONDeruloXx)",
     "original_game_title": "Chibi-Robo! Plug Into Adventure!",
-    "original_game": {
-      "format_version": 1,
-      "id": "chibi-robo-plug-into-adventure",
-      "evidence_urls": [
-        "https://github.com/xXJSONDeruloXx/chibi-recompo/blob/7fceb58775822e9dffa72a0dcae1af4514a1f19e/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "chibi-robo-plug-into-adventure-gamecube",
-          "title": "Chibi-Robo! Plug Into Adventure! (GameCube, region not specified)",
-          "system": "gamecube",
-          "evidence_urls": [
-            "https://github.com/xXJSONDeruloXx/chibi-recompo/blob/7fceb58775822e9dffa72a0dcae1af4514a1f19e/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "The project reports health screens, logos and gameplay at 59.94 VPS. A recurring 3D graphics defect remains. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/xXJSONDeruloXx/chibi-recompo",
     "platforms": [],
@@ -52,6 +35,12 @@
       "image_sha256": "efd3aca5b2f4a79f3e06cdb702b969a4032c4b27478a1fbd48854c17061014dc",
       "game_slug": "chibi-robo",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "chibi-robo-plug-into-adventure",
+      "evidence_urls": ["https://github.com/xXJSONDeruloXx/chibi-recompo"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

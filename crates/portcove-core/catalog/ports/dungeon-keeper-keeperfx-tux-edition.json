@@ -5,22 +5,13 @@
     "project_url": "https://github.com/ForkedInTime/keeperfx-tux-edition",
     "name": "Dungeon Keeper / KeeperFX Tux Edition",
     "original_game_title": "Dungeon Keeper",
-    "original_game": {
-      "format_version": 1,
-      "id": "dungeon-keeper",
-      "evidence_urls": [
-        "https://github.com/ForkedInTime/keeperfx-tux-edition/blob/6254118f05c6eead57b90e7d72046930ada568b8/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "dungeon-keeper-pc",
-          "title": "Dungeon Keeper (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/ForkedInTime/keeperfx-tux-edition/blob/6254118f05c6eead57b90e7d72046930ada568b8/README.md"
-          ]
-        }
-      ]
+    "artwork": {
+      "game_id": 35,
+      "cover_id": 182022,
+      "image_id": "co3wg6",
+      "image_sha256": "9a3409c8b4937b0a9bc70951a1e808112122847099411625581b845a97d4745a",
+      "game_slug": "dungeon-keeper",
+      "match_kind": "underlying-game"
     },
     "summary": "Set up the community Linux build of KeeperFX using your own Dungeon Keeper files.",
     "issue_number": 6110,
@@ -55,6 +46,15 @@
           "instruction": "See https://github.com/ForkedInTime/keeperfx-tux-edition/blob/v1.4.0.6103/docs/faq.md for edition-specific setup and save compatibility."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dungeon-keeper",
+      "evidence_urls": [
+        "https://github.com/ForkedInTime/keeperfx-tux-edition/blob/v1.4.0.6103/docs/install.md",
+        "https://github.com/ForkedInTime/keeperfx-tux-edition"
+      ],
+      "source_editions": []
     }
   }
 }

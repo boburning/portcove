@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readCatalogSource, type AuthoredPort } from "./catalog-authoring.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /**
@@ -18,7 +19,7 @@ export type OriginalSystemGap =
   | "game-without-editions"
   | "edition-without-system";
 export type PlatformGap = "no-platforms";
-export type ChannelGap = "integrated-without-channel" | "listing-only-not-applicable";
+export type ChannelGap = "integrated-without-channel";
 
 export interface ChipGap {
   id: string;
@@ -26,14 +27,16 @@ export interface ChipGap {
   platforms?: PlatformGap;
   channel?: ChannelGap;
   availability: string;
-  /** Systems already reviewed for another port with the same original title. */
-  candidateSystems?: string[];
+  /** Same-title research leads require separate evidence of the actual edition. */
+  titleMatchResearchLeads?: string[];
+  disposition?: NonNullable<AuthoredPort["original_game_review"]>["disposition"];
 }
 
 export interface ChipGapReport {
   total: number;
   integrated: number;
   gaps: ChipGap[];
+  coverage: { sourceSystems: number; supportedOs: number; upstreamManaged: number };
   counts: Record<string, number>;
 }
 
@@ -57,7 +60,11 @@ function editionSystems(originalGame: unknown): string[] {
 }
 
 /** Pure analysis over the generated listings and catalog documents. */
-export function auditChipGaps(listingsDocument: unknown, catalogDocument: unknown): ChipGapReport {
+export function auditChipGaps(
+  listingsDocument: unknown,
+  catalogDocument: unknown,
+  authored: readonly AuthoredPort[] = [],
+): ChipGapReport {
   const listings = isRecord(listingsDocument) ? records(listingsDocument.listings) : [];
   const ports = new Map(
     (isRecord(catalogDocument) ? records(catalogDocument.ports) : []).map((port) => [
@@ -66,12 +73,18 @@ export function auditChipGaps(listingsDocument: unknown, catalogDocument: unknow
     ]),
   );
 
+  const reviews = new Map(
+    authored.map(({ listing, original_game_review }) => [
+      listing.id,
+      original_game_review?.disposition,
+    ]),
+  );
   const reviewed = new Map<string, Set<string>>();
   for (const listing of listings) {
     const title = text(listing.original_game_title);
     const port = ports.get(String(listing.id));
     const presentation = isRecord(port?.presentation) ? port.presentation : undefined;
-    const systems = editionSystems(listing.original_game ?? presentation?.original_game);
+    const systems = editionSystems(presentation?.original_game ?? listing.original_game);
     if (!title || !systems.length) continue;
     const key = normalizedTitle(title);
     reviewed.set(key, new Set([...(reviewed.get(key) ?? []), ...systems]));
@@ -79,17 +92,24 @@ export function auditChipGaps(listingsDocument: unknown, catalogDocument: unknow
 
   const gaps: ChipGap[] = [];
   const counts: Record<string, number> = {};
+  const coverage = { sourceSystems: 0, supportedOs: 0, upstreamManaged: 0 };
   const count = (key: string) => (counts[key] = (counts[key] ?? 0) + 1);
 
   for (const listing of listings) {
     const id = String(listing.id);
     const port = ports.get(id);
     const presentation = isRecord(port?.presentation) ? port.presentation : undefined;
-    const originalGame = listing.original_game ?? presentation?.original_game;
+    const originalGame = presentation?.original_game ?? listing.original_game;
     const title = text(listing.original_game_title) ?? text(presentation?.original_game_title);
     const gap: ChipGap = { id, availability: text(listing.availability) ?? "unspecified" };
 
-    if (!isRecord(originalGame)) {
+    const disposition = reviews.get(id);
+    const deliberateScope = disposition && disposition !== "separate";
+    if (editionSystems(originalGame).length) coverage.sourceSystems++;
+    if (deliberateScope) {
+      gap.disposition = disposition;
+      count(`disposition:${disposition}`);
+    } else if (!isRecord(originalGame)) {
       gap.originalSystem = title ? "no-game-identity-with-title" : "no-game-identity-no-title";
     } else if (!records(originalGame.source_editions).length) {
       gap.originalSystem = "game-without-editions";
@@ -99,25 +119,27 @@ export function auditChipGaps(listingsDocument: unknown, catalogDocument: unknow
     if (gap.originalSystem && title) {
       const candidates = reviewed.get(normalizedTitle(title));
       if (candidates?.size)
-        gap.candidateSystems = [...candidates].sort((left, right) => left.localeCompare(right));
+        gap.titleMatchResearchLeads = [...candidates].sort((left, right) =>
+          left.localeCompare(right),
+        );
     }
 
     const platforms = new Set([...strings(listing.platforms), ...strings(port?.platforms)]);
-    if (!platforms.size) gap.platforms = "no-platforms";
+    if (platforms.size) coverage.supportedOs++;
+    else gap.platforms = "no-platforms";
 
     if (port) {
       if (!strings(port.channels).length) gap.channel = "integrated-without-channel";
     } else {
-      gap.channel = "listing-only-not-applicable";
+      coverage.upstreamManaged++;
     }
 
     if (gap.originalSystem) count(`originalSystem:${gap.originalSystem}`);
     if (gap.platforms) count(`platforms:${gap.platforms}:${gap.availability}`);
     if (gap.channel) count(`channel:${gap.channel}`);
-    if (gap.originalSystem || gap.platforms || gap.channel === "integrated-without-channel")
-      gaps.push(gap);
+    if (gap.originalSystem || gap.platforms || gap.channel || gap.disposition) gaps.push(gap);
   }
-  return { total: listings.length, integrated: ports.size, gaps, counts };
+  return { total: listings.length, integrated: ports.size, coverage, gaps, counts };
 }
 
 export function renderChipGapSummary(report: ChipGapReport): string {
@@ -126,9 +148,13 @@ export function renderChipGapSummary(report: ChipGapReport): string {
     left.localeCompare(right),
   ))
     lines.push(`  ${key.padEnd(58)} ${String(value).padStart(5)}`);
-  const candidates = report.gaps.filter((gap) => gap.candidateSystems).length;
-  lines.push(`  candidate systems from reviewed siblings: ${candidates}`);
-  lines.push("Unknown is not wrong: resolve each gap with pinned upstream evidence.");
+  const leads = report.gaps.filter((gap) => gap.titleMatchResearchLeads).length;
+  lines.push(`Source system recorded: ${report.coverage.sourceSystems}/${report.total}`);
+  lines.push(`Supported OS recorded: ${report.coverage.supportedOs}/${report.total}`);
+  lines.push(`Upstream manages updates: ${report.coverage.upstreamManaged}`);
+  lines.push(
+    `Same-title research leads: ${leads}. Confirm the edition against pinned upstream evidence.`,
+  );
   return lines.join("\n");
 }
 
@@ -137,7 +163,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const read = (name: string): unknown =>
     JSON.parse(readFileSync(join(root, "crates/portcove-core/catalog", name), "utf8"));
-  const report = auditChipGaps(read("listings.json"), read("catalog.json"));
+  const { records: authored } = readCatalogSource(join(root, "crates/portcove-core/catalog"));
+  const report = auditChipGaps(read("listings.json"), read("catalog.json"), authored);
   if (process.argv.includes("--json")) console.log(JSON.stringify(report, null, 2));
   else console.log(renderChipGapSummary(report));
 }

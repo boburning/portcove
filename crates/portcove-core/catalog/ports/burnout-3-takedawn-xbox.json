@@ -49,6 +49,13 @@
           "instruction": "Preserve the project MIT notice and separate LGPL, GPL and other component notices and corresponding-source information shipped by upstream. These grants cover their own code, not Electronic Arts game content; your original-disc and other component rights remain separate. Public release metadata and upstream BUILDINFO are publisher assertions, not a reproduced build or independently inspected installed package. This guide offers local completed-copy launch only; it grants no network/account setup, gameplay, installed-client, Supported or protected-publication acceptance."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "burnout-3-takedown",
+      "evidence_urls": ["https://github.com/xenophobentx/takedawn"],
+      "source_editions": []
+    },
+    "original_game_title": "Burnout 3: Takedown"
   }
 }

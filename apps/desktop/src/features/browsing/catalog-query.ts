@@ -1,3 +1,4 @@
+import { implementationMethodKinds, implementationMethodLabels } from "./implementation-metadata";
 import { platforms, channels, installationMethods } from "../../catalog-values.generated";
 import { canonicalIdentityId } from "../identity/identity-style";
 import type {
@@ -19,6 +20,7 @@ const catalogQueryOptions = {
   originalSystems: [] as readonly string[],
   portOptions: ["single", "multiple"],
   installationMethods,
+  implementationMethods: Object.keys(implementationMethodLabels),
   membership: ["in-library", "not-in-library"],
   attention: ["missing-source", "missing-bios", "missing-runtime", "repair-needed", "finish-setup"],
   updates: ["available", "staged"],
@@ -207,6 +209,8 @@ function matches(
       return value === "multiple"
         ? (context.groupPortCounts?.get(gameGroupId(port)) ?? 1) > 1
         : (context.groupPortCounts?.get(gameGroupId(port)) ?? 1) === 1;
+    case "implementationMethods":
+      return implementationMethodKinds(port).includes(value);
     case "originalSystems":
       return originalSystems(port).includes(canonicalIdentityId(value));
     case "gameFiles":
@@ -300,6 +304,8 @@ function contextMatches(
       return value === "multiple"
         ? (context.groupPortCounts?.get(gameGroupId(port)) ?? 1) > 1
         : (context.groupPortCounts?.get(gameGroupId(port)) ?? 1) === 1;
+    case "implementationMethods":
+      return implementationMethodKinds(port).includes(value);
     case "originalSystems":
       return originalSystems(port).includes(canonicalIdentityId(value));
     case "platforms":
@@ -363,6 +369,8 @@ function listingMatch(
       return value === "multiple"
         ? (context.groupPortCounts?.get(gameGroupId(port)) ?? 1) > 1
         : (context.groupPortCounts?.get(gameGroupId(port)) ?? 1) === 1;
+    case "implementationMethods":
+      return implementationMethodKinds(port).includes(value);
     case "originalSystems":
       return originalSystems(port).includes(canonicalIdentityId(value));
     case "platforms": {
@@ -595,6 +603,8 @@ function listingOnlyMatch(
         (platform) =>
           platform === (value === "this-device" ? context.browsing?.host_platform : value),
       );
+    case "implementationMethods":
+      return implementationMethodKinds(port).includes(value);
     case "portOptions":
     case "originalSystems":
       return listingMatch(port, group, value, context) === true;

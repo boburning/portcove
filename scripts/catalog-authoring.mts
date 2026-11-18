@@ -1,4 +1,11 @@
 import {
+  checkOriginalGameReview,
+  checkOriginalGameConsistency,
+  type OriginalGameReview,
+} from "./catalog-game-review.mts";
+import { checkImplementationMetadata } from "./implementation-metadata.mts";
+import type { ImplementationMetadata } from "./implementation-metadata.mts";
+import {
   checkPackagePlayerObservation,
   projectPackagePlayerFacts,
 } from "./package-player-observation.mts";
@@ -16,6 +23,12 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { isRecord } from "./runtime-values.mts";
+import {
+  matchesIgdbRegionalCover,
+  validArtworkCollection,
+  validIgdbRegionalCover,
+  type IgdbRegionalCover,
+} from "./catalog-cover-mapping.mts";
 import { checkCatalogAdvisories } from "./catalog-advisories.mts";
 import { assessUpstreamLineage, checkLineageIdentities } from "./upstream-lineage.mts";
 import type { UpstreamLineage } from "./upstream-lineage.mts";
@@ -41,6 +54,7 @@ export interface AuthoredListing extends NamedRecord {
   download_block_reason?: string;
   download_asset_hints?: Record<string, string[]>;
   recommended_download_channel?: "stable" | "beta";
+  implementation?: ImplementationMetadata;
   original_game_title?: string;
   original_game?: {
     format_version: 1;
@@ -58,12 +72,15 @@ export interface AuthoredListing extends NamedRecord {
   setup_url?: string;
   manual_setup?: unknown;
   artwork?: unknown;
+  collection_covers?: unknown;
   media?: unknown;
 }
 export interface AuthoredPort extends Record<string, unknown> {
   format_version: 1;
   listing: AuthoredListing;
+  original_game_review?: OriginalGameReview;
   route_facts_v1?: RouteFactsV1;
+  igdb_regional_cover?: IgdbRegionalCover;
   /** Desktop review copy, outside signed and retained definition schemas. */
   managed_setup_platform_warnings?: Record<string, string[]>;
   /** Reviewed common staged archive layout; expanded before Core validation. */
@@ -88,11 +105,13 @@ export const catalogSourceNames = {
   listings: "listings.json",
 } as const;
 const listingPresentationFields = [
+  "implementation",
   "original_game_title",
   "original_game",
   "variant_label",
   "manual_setup",
   "artwork",
+  "collection_covers",
   "media",
 ] as const;
 const sharedPortFields = ["id", "name", "summary", "project_url"] as const;
@@ -321,7 +340,30 @@ function projectGbaArchive(record: AuthoredPort): AuthoredPort {
 export function checkedAuthoredPort(value: unknown, expectedId?: string): AuthoredPort {
   if (!isRecord(value) || value.format_version !== 1 || !isRecord(value.listing))
     throw new Error("An authored port requires format_version 1 and a listing.");
+  if (value.original_game_review !== undefined) checkOriginalGameReview(value.original_game_review);
   const listing = value.listing;
+  if (
+    value.original_game_review &&
+    value.original_game_review.disposition !== "separate" &&
+    listing.original_game !== undefined
+  )
+    throw new Error(
+      "A non-single-game or unresolved original-game review cannot also assign a single original_game.",
+    );
+  if (
+    listing.collection_covers !== undefined &&
+    (!validArtworkCollection(listing.collection_covers) || listing.artwork != null)
+  )
+    throw new Error("Invalid authored cover collection.");
+  const regional = value.igdb_regional_cover;
+  if (regional !== undefined) {
+    if (listing.collection_covers !== undefined)
+      throw new Error("A regional cover selection cannot be combined with a cover collection.");
+    if (!validIgdbRegionalCover(regional))
+      throw new Error("Invalid authored IGDB regional cover selection.");
+    if (listing.artwork != null && !matchesIgdbRegionalCover(listing.artwork, regional))
+      throw new Error("Authored artwork does not match its IGDB regional cover selection.");
+  }
   if (listing.compatibility !== undefined) checkCatalogAdvisories(listing.compatibility, platforms);
   if (Object.keys(listing).some((field) => !listingFields.has(field)))
     throw new Error(
@@ -449,6 +491,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       );
     for (const url of urls) publicUrl(url, "funding_urls");
   }
+  if (listing.implementation !== undefined) checkImplementationMetadata(listing.implementation);
   if (listing.original_game !== undefined) {
     const game = listing.original_game;
     const identity = (value: unknown) =>
@@ -623,6 +666,7 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
   if (new Set(records.map((record) => record.listing.id)).size !== records.length)
     throw new Error("Catalog source has duplicate stable listing IDs.");
   checkLineageIdentities(records);
+  checkOriginalGameConsistency(records);
   records.sort(
     (a, b) =>
       (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER) ||
@@ -700,34 +744,39 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
   );
   const listedDates = listings.some((listing) => listing.listed_at !== undefined);
   const fundingLinks = listings.some((listing) => listing.funding_urls !== undefined);
-  const format_version = fundingLinks
-    ? 10
-    : listedDates
-      ? 9
-      : gitlabObservations
-        ? 8
-        : listings.some((listing) => listing.compatibility !== undefined)
-          ? 7
-          : guideReferences
-            ? 6
-            : extendedMedia
-              ? 5
-              : listings.some(
-                    (listing) =>
-                      listing.upstream_observation !== undefined ||
-                      listing.availability_override_reason !== undefined ||
-                      "release_maintenance" in listing,
-                  )
-                ? 4
-                : listings.some(
-                      (listing) =>
-                        listing.original_game !== undefined ||
-                        (Array.isArray(listing.media) && listing.media.length > 0),
-                    )
-                  ? 3
-                  : listings.some((listing) => listing.download_block_reason !== undefined)
-                    ? 2
-                    : 1;
+  const coverCollections = listings.some((listing) => listing.collection_covers !== undefined);
+  const format_version = listings.some((listing) => listing.implementation !== undefined)
+    ? 12
+    : coverCollections
+      ? 11
+      : fundingLinks
+        ? 10
+        : listedDates
+          ? 9
+          : gitlabObservations
+            ? 8
+            : listings.some((listing) => listing.compatibility !== undefined)
+              ? 7
+              : guideReferences
+                ? 6
+                : extendedMedia
+                  ? 5
+                  : listings.some(
+                        (listing) =>
+                          listing.upstream_observation !== undefined ||
+                          listing.availability_override_reason !== undefined ||
+                          "release_maintenance" in listing,
+                      )
+                    ? 4
+                    : listings.some(
+                          (listing) =>
+                            listing.original_game !== undefined ||
+                            (Array.isArray(listing.media) && listing.media.length > 0),
+                        )
+                      ? 3
+                      : listings.some((listing) => listing.download_block_reason !== undefined)
+                        ? 2
+                        : 1;
   return { records, catalog, directory: { format_version, listings } };
 }
 
@@ -907,6 +956,14 @@ export function validateCurrentCatalog(catalog: unknown): asserts catalog is Cur
       throw new Error("port presentation must be an object or null");
     if (isRecord(port.presentation))
       checkSetupGuide(String(port.id), "presentation.manual_setup", port.presentation.manual_setup);
+    if (
+      isRecord(port.presentation) &&
+      port.presentation.collection_covers !== undefined &&
+      (!validArtworkCollection(port.presentation.collection_covers) ||
+        port.presentation.artwork != null ||
+        port.presentation.companion_cover != null)
+    )
+      throw new Error("Invalid catalog cover collection.");
   }
   for (const name of ["identities", "contracts", "evidence"] as const)
     namedRecords(source[name], `source_catalog.${name}`);

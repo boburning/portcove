@@ -4,23 +4,6 @@
     "id": "ridge-racer-revolution-ps1-recomp-robgreenuk-ridge-racer-revolution",
     "name": "Ridge Racer Revolution — Ridge-Racer-Revolution-PS1-Recomp (RobGreenUK)",
     "original_game_title": "Ridge Racer Revolution",
-    "original_game": {
-      "format_version": 1,
-      "id": "ridge-racer-revolution",
-      "evidence_urls": [
-        "https://github.com/RobGreenUK/Ridge-Racer-Revolution-PS1-Recomp/blob/756059d81b9b80b90dfe5e7c5b7fd59f6befd5d5/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "ridge-racer-revolution-playstation",
-          "title": "Ridge Racer Revolution (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/RobGreenUK/Ridge-Racer-Revolution-PS1-Recomp/blob/756059d81b9b80b90dfe5e7c5b7fd59f6befd5d5/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Experimental project. Original renderer playtested; enhanced preview lighting/tunnels/mirror/HUD/transitions pending. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/RobGreenUK/Ridge-Racer-Revolution-PS1-Recomp",
     "platforms": ["macos-aarch64"],
@@ -52,6 +35,12 @@
       "image_sha256": "2864036d2db11746ebdbd5b767f88cfccb1d6abed4a7b120f068bd43c946b2ca",
       "game_slug": "ridge-racer-revolution",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ridge-racer-revolution",
+      "evidence_urls": ["https://github.com/RobGreenUK/Ridge-Racer-Revolution-PS1-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

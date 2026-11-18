@@ -5,23 +5,6 @@
     "name": "Monster Rancher 2 / Alexbeav PSXRecomp",
     "summary": "Build and play Monster Rancher 2 on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Monster Rancher 2",
-    "original_game": {
-      "format_version": 1,
-      "id": "monster-rancher-2",
-      "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp/blob/ef380b3a989b2d548adee52237b16d79e77d1089/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "monster-rancher-2-playstation",
-          "title": "Monster Rancher 2 (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp/blob/ef380b3a989b2d548adee52237b16d79e77d1089/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp",
     "issue_number": 465,
     "listed_at": "2026-10-23",
@@ -67,7 +50,16 @@
       "macos-x86-64": ["monster-rancher-2-recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["monster-rancher-2-recomp-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "monster-rancher-2",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "integration": {
@@ -107,7 +99,21 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching 1-track USA CHD (SLUS-00917) and retail SCPH-1001 BIOS. Portcove checks the first data-track SHA-1 and track count, then builds privately with the registered toolchain. Monster creation with other discs remains unobserved. Keep your disc and BIOS separately. Native build, gameplay and save compatibility remain unobserved."
+      "manual_preparation": "Provide your own matching 1-track USA CHD (SLUS-00917) and retail SCPH-1001 BIOS. Portcove checks the first data-track SHA-1 and track count, then builds privately with the registered toolchain. Monster creation with other discs remains unobserved. Keep your disc and BIOS separately. Native build, gameplay and save compatibility remain unobserved.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "Monster creation with other discs remains unobserved.",
+          "Native build, gameplay and save compatibility remain unobserved."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
   }

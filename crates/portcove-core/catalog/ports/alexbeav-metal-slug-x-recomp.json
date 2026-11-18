@@ -5,23 +5,6 @@
     "name": "Metal Slug X / Alexbeav PSXRecomp",
     "summary": "Portcove builds Metal Slug X on Windows or Linux from the upstream setup kit with your own USA PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
     "original_game_title": "Metal Slug X",
-    "original_game": {
-      "format_version": 1,
-      "id": "metal-slug-x",
-      "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp/blob/0f26cd047d1ad7be2efd672ae36a49a2df513422/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "metal-slug-x-playstation",
-          "title": "Metal Slug X (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp/blob/0f26cd047d1ad7be2efd672ae36a49a2df513422/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp",
     "issue_number": 469,
     "listed_at": "2026-10-23",
@@ -74,7 +57,16 @@
       "macos-x86-64": ["metal-slug-x-recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["metal-slug-x-recomp-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-slug-x",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "integration": {
@@ -114,7 +106,19 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own Metal Slug X (USA) complete CHD (SLUS-01212, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player from the upstream setup kit and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned."
+      "manual_preparation": "Select your own Metal Slug X (USA) complete CHD (SLUS-01212, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player from the upstream setup kit and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the exact original files",
+            "instruction": "Use your own Metal Slug X (USA) disc (SLUS-01212) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove checks the first data track and track count. Keep the complete disc intact."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
   }

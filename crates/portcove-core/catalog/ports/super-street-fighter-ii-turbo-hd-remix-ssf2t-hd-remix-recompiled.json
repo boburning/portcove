@@ -5,23 +5,6 @@
     "name": "Super Street Fighter II Turbo HD Remix (SSF2T HD Remix Recompiled)",
     "summary": "Attach an independently permitted, prepared Super Street Fighter II Turbo HD Remix Windows player, with its exact base game and optional official TU1 already configured upstream. Preserve actual portable/legacy data and migration recovery; updates or image/settings changes can request a successor.",
     "original_game_title": "Super Street Fighter II Turbo HD Remix",
-    "original_game": {
-      "format_version": 1,
-      "id": "super-street-fighter-ii-turbo-hd-remix",
-      "evidence_urls": [
-        "https://github.com/saulob/ssf2t-hd-remix-recompiled/blob/b6f5bf620a30f52e17fdf7cb28067c9d719a3216/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "super-street-fighter-ii-turbo-hd-remix-xbox-360",
-          "title": "Super Street Fighter II Turbo HD Remix (Xbox 360, region not specified)",
-          "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/saulob/ssf2t-hd-remix-recompiled/blob/b6f5bf620a30f52e17fdf7cb28067c9d719a3216/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/saulob/ssf2t-hd-remix-recompiled",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -68,6 +51,15 @@
       "warnings": [
         "Keep independent legacy and portable-data recovery copies before upstream migration. Complete base/TU selection and settings restarts upstream; the updater and online version matching have separate scope."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-street-fighter-ii-turbo-hd-remix",
+      "evidence_urls": [
+        "https://github.com/saulob/ssf2t-hd-remix-recompiled/blob/65de56121a8940ba98f0bc9e591d6abdaedeb5a3/README.md",
+        "https://github.com/saulob/ssf2t-hd-remix-recompiled"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

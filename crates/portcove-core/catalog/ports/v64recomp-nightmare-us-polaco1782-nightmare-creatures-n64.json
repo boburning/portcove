@@ -2,25 +2,16 @@
   "format_version": 1,
   "listing": {
     "id": "v64recomp-nightmare-us-polaco1782-nightmare-creatures-n64",
-    "name": "Nightmare Creatures (N64) — v64recomp / nightmare-us (polaco1782)",
-    "original_game_title": "Nightmare Creatures (N64)",
-    "original_game": {
-      "format_version": 1,
-      "id": "nightmare-creatures-n64",
-      "evidence_urls": [
-        "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "nightmare-creatures-n64-nintendo-64",
-          "title": "Nightmare Creatures (N64) (Nintendo 64, region not specified)",
-          "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
-          ]
-        }
-      ]
+    "artwork": {
+      "game_id": 3414,
+      "cover_id": 258182,
+      "image_id": "co5j7q",
+      "image_sha256": "09a5818258730eb15ac2a392fff1c0a2b640a0e3a25bb4efe3bdbdf749edb84b",
+      "game_slug": "nightmare-creatures",
+      "match_kind": "underlying-game"
     },
+    "name": "Nightmare Creatures (N64) — v64recomp / nightmare-us (polaco1782)",
+    "original_game_title": "Nightmare Creatures",
     "summary": "Experimental project. The shared README does not confirm gameplay for this game; check the linked game notes. Progress on other games does not establish that this one works. A full playthrough has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/polaco1782/v64recomp",
     "listed_at": "2026-10-25",
@@ -54,7 +45,16 @@
         }
       ]
     },
-    "issue_number": 3608
+    "issue_number": 3608,
+    "original_game": {
+      "format_version": 1,
+      "id": "nightmare-creatures",
+      "evidence_urls": [
+        "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md",
+        "https://github.com/polaco1782/v64recomp"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -1,5 +1,15 @@
 {
   "format_version": 1,
+  "managed_setup_platform_warnings": {
+    "macos-aarch64": [
+      "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+      "Portcove has not verified native Mac setup or gameplay."
+    ],
+    "macos-x86-64": [
+      "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+      "Portcove has not verified native Mac setup or gameplay."
+    ]
+  },
   "order": 28,
   "listing": {
     "id": "rampage-through-time-recompiled",
@@ -8,23 +18,6 @@
     "project_url": "https://github.com/TechnicallyComputers/Rampage---Through-Time-Recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Rampage Through Time",
-    "original_game": {
-      "format_version": 1,
-      "id": "rampage-through-time",
-      "evidence_urls": [
-        "https://github.com/TechnicallyComputers/Rampage---Through-Time-Recomp/blob/3a0e93658238d63ffe0fdf8b4cbc3605569dfff6/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "rampage-through-time-playstation",
-          "title": "Rampage Through Time (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/TechnicallyComputers/Rampage---Through-Time-Recomp/blob/3a0e93658238d63ffe0fdf8b4cbc3605569dfff6/README.md"
-          ]
-        }
-      ]
-    },
     "artwork": {
       "game_id": 45091,
       "cover_id": 371171,
@@ -33,7 +26,13 @@
       "game_slug": "rampage-through-time",
       "match_kind": "underlying-game"
     },
-    "issue_number": 83
+    "issue_number": 83,
+    "original_game": {
+      "format_version": 1,
+      "id": "rampage-through-time",
+      "evidence_urls": ["https://github.com/TechnicallyComputers/Rampage---Through-Time-Recomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -77,7 +76,16 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": []
+      }
     }
   }
 }

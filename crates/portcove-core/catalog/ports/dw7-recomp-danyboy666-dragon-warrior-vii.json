@@ -4,23 +4,6 @@
     "id": "dw7-recomp-danyboy666-dragon-warrior-vii",
     "name": "Dragon Warrior VII — DW7-recomp (danyboy666)",
     "original_game_title": "Dragon Warrior VII",
-    "original_game": {
-      "format_version": 1,
-      "id": "dragon-warrior-vii",
-      "evidence_urls": [
-        "https://github.com/danyboy666/DW7-recomp/blob/5ee2f831362e33c882bcefb8daba80885b494aea/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "dragon-warrior-vii-playstation",
-          "title": "Dragon Warrior VII (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/danyboy666/DW7-recomp/blob/5ee2f831362e33c882bcefb8daba80885b494aea/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Experimental Dragon Warrior VII source project. Upstream reports the intro, title, menus and name entry; field gameplay, battles and disc 2 remain unfinished or unconfirmed. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/danyboy666/DW7-recomp",
     "platforms": ["windows-x86-64", "linux-x86-64"],
@@ -52,6 +35,12 @@
       "image_sha256": "b1bd8472e154b0a9b852e4369edd7addb548b82571f0240115ed3086f0ec248c",
       "game_slug": "dragon-warrior-vii",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-warrior-vii",
+      "evidence_urls": ["https://github.com/danyboy666/DW7-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

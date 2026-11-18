@@ -4,23 +4,6 @@
     "id": "abuse-abuse-2025",
     "name": "Abuse 2025",
     "original_game_title": "Abuse",
-    "original_game": {
-      "format_version": 1,
-      "id": "abuse",
-      "evidence_urls": [
-        "https://github.com/apancik/Abuse_2025/blob/48bc0d079116c6429989bcf88595ef20c5c1b80f/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "abuse-pc",
-          "title": "Abuse (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/apancik/Abuse_2025/blob/48bc0d079116c6429989bcf88595ef20c5c1b80f/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Use a permitted existing Abuse player with its compatible game data.",
     "project_url": "https://github.com/apancik/Abuse_2025",
     "issue_number": 2913,
@@ -59,6 +42,15 @@
       "image_sha256": "e4ffa1a3537f7174634208e1084335e6cda41c597c80f08a4e23d92242a3c0e4",
       "game_slug": "abuse",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "abuse",
+      "evidence_urls": [
+        "https://github.com/apancik/Abuse_2025/blob/244543fcae4b140771ec6a7f4c5e619851d4711f/README.md",
+        "https://github.com/apancik/Abuse_2025"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

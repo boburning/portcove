@@ -4,23 +4,6 @@
     "id": "fm-recomp-techx1320-yu-gi-oh-forbidden-memories",
     "name": "Yu-Gi-Oh! Forbidden Memories — FM-Recomp (TechX1320)",
     "original_game_title": "Yu-Gi-Oh! Forbidden Memories",
-    "original_game": {
-      "format_version": 1,
-      "id": "yu-gi-oh-forbidden-memories",
-      "evidence_urls": [
-        "https://github.com/TechX1320/FM-Recomp/blob/9c98e5c6d966555f0aace75216449510ac124d1e/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "yu-gi-oh-forbidden-memories-playstation",
-          "title": "Yu-Gi-Oh! Forbidden Memories (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/TechX1320/FM-Recomp/blob/9c98e5c6d966555f0aace75216449510ac124d1e/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Upstream reports a complete NPC duel in v0.1.10. Startup uses its documented APv2 bypass, and missing dispatch entries stop execution. SPU unit tests do not establish working audio throughout gameplay. Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/TechX1320/FM-Recomp",
     "platforms": ["windows-x86-64"],
@@ -52,6 +35,12 @@
       "image_sha256": "4433b62aad4b6eb383b78541b23242c395a35fa426c5f50d217d605c19312291",
       "game_slug": "yu-gi-oh-forbidden-memories",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "yu-gi-oh-forbidden-memories",
+      "evidence_urls": ["https://github.com/TechX1320/FM-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

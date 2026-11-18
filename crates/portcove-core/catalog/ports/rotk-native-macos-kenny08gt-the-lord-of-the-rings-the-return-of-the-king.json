@@ -4,25 +4,16 @@
     "id": "rotk-native-macos-kenny08gt-the-lord-of-the-rings-the-return-of-the-king",
     "name": "The Lord of the Rings: The Return of the King — ROTK native macOS (kenny08gt)",
     "original_game_title": "The Lord of the Rings: The Return of the King",
-    "original_game": {
-      "format_version": 1,
-      "id": "the-lord-of-the-rings-the-return-of-the-king",
-      "evidence_urls": [
-        "https://github.com/kenny08gt/rotk-native/blob/7003605209c1a458e9cd10b1f7d0df352e5c5168/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "the-lord-of-the-rings-the-return-of-the-king-gamecube",
-          "title": "The Lord of the Rings: The Return of the King (GameCube, region not specified)",
-          "system": "gamecube",
-          "evidence_urls": [
-            "https://github.com/kenny08gt/rotk-native/blob/7003605209c1a458e9cd10b1f7d0df352e5c5168/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "The project reports boot, menus, movies and Helm’s Deep audio/gameplay near 60 FPS on an M1 Max. Frame rates drop during the largest fights. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/kenny08gt/rotk-native",
+    "artwork": {
+      "game_id": 2973,
+      "cover_id": 94191,
+      "image_id": "co20of",
+      "image_sha256": "6f9fb86207583d1e105e843e62b5230634e3746752c9532cceb7d83abcae18a6",
+      "game_slug": "the-lord-of-the-rings-the-return-of-the-king",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": ["macos-aarch64"],
     "availability": "unknown",
@@ -44,7 +35,13 @@
       ],
       "help_url": "https://github.com/kenny08gt/rotk-native"
     },
-    "issue_number": 3411
+    "issue_number": 3411,
+    "original_game": {
+      "format_version": 1,
+      "id": "the-lord-of-the-rings-the-return-of-the-king",
+      "evidence_urls": ["https://github.com/kenny08gt/rotk-native"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -513,8 +513,8 @@ void test("original game identity projects exact authored groups and multiple so
   };
   const record = checkedAuthoredPort(base);
   const projected = assembleCatalogRecords(shared, [...source.records, record]);
-  // The real source carries funding links (format 10); the date-free record alone stays 3.
-  assert.equal(projected.directory.format_version, 10);
+  // The real source carries implementation descriptions (format 12); the date-free record alone stays 3.
+  assert.equal(projected.directory.format_version, 12);
   assert.equal(assembleCatalogRecords(shared, [record]).directory.format_version, 3);
   assert.deepEqual(projected.catalog, source.catalog);
   assert.deepEqual(
@@ -644,7 +644,7 @@ void test("optional recommendation observations round-trip as inert presentation
 void test("reference guides select strict new formats and retain actions and warnings", () => {
   const source = readCatalogSource(catalogRoot);
   assert.equal(source.catalog.schema_version, 3);
-  assert.equal(source.directory.format_version, 10);
+  assert.equal(source.directory.format_version, 12);
   const syphon = source.directory.listings.find(
     (listing) => listing.id === "syphon-filter-sf-pc-port",
   );
@@ -746,8 +746,8 @@ void test("GitLab descriptive observations derive listing format8 without changi
   };
   const { ports: _ports, ...shared } = accepted.catalog;
   const assembled = assembleCatalogRecords(shared, records);
-  // GitLab observations need 8; the real source's funding links lift the directory to 10.
-  assert.equal(assembled.directory.format_version, 10);
+  // GitLab observations need 8; implementation descriptions lift the real directory to 12.
+  assert.equal(assembled.directory.format_version, 12);
   assert.deepEqual(assembled.catalog, accepted.catalog);
   const compatibility = {
     format_version: 1,
@@ -766,7 +766,7 @@ void test("GitLab descriptive observations derive listing format8 without changi
   };
   record.listing.compatibility = compatibility;
   const combined = assembleCatalogRecords(shared, records);
-  assert.equal(combined.directory.format_version, 10);
+  assert.equal(combined.directory.format_version, 12);
   assert.deepEqual(
     combined.directory.listings.find((listing) => listing.id === record.listing.id)?.compatibility,
     compatibility,
@@ -1105,4 +1105,59 @@ void test("the reviewed legacy additions fixture must stay in ascending order", 
     () => reviewCompatibilityFixture(catalog, legacy, fixture(["beta-port", "alpha-port"])),
     /port_ids: keep IDs in ascending order/,
   );
+});
+
+void test("implementation descriptions project without changing source, route or release authority", () => {
+  const source = readCatalogSource(catalogRoot);
+  const record = structuredClone(
+    source.records.find((record) => record.listing.id === "zelda64-recomp")!,
+  );
+  assert.equal(record.listing.implementation?.methods[0]?.kind, "static-recompilation");
+  const declarationWithoutExplanation = { ...record.listing };
+  delete declarationWithoutExplanation.implementation;
+  assert.equal(
+    listingDeclarationHash(record.listing),
+    listingDeclarationHash(declarationWithoutExplanation),
+  );
+  const projected = projectAuthoredPort(record)!;
+  const without = structuredClone(record);
+  delete without.listing.implementation;
+  const before = projectAuthoredPort(without)!;
+  assert.deepEqual(projected.release, before.release);
+  assert.deepEqual(projected.source_profile, before.source_profile);
+  assert.deepEqual(projected.adapter, before.adapter);
+  assert.deepEqual(projected.platforms, before.platforms);
+  assert.deepEqual(record.listing.original_game, without.listing.original_game);
+  assert.equal(source.directory.format_version, 12);
+  const dependency = record.listing.implementation.dependencies[0]!;
+  for (const invalid of [
+    { ...record.listing.implementation, format_version: 999 },
+    {
+      ...record.listing.implementation,
+      methods: [{ kind: "future-method", evidence_urls: ["https://example.com"] }],
+    },
+    { ...record.listing.implementation, dependencies: [{ ...dependency, confidence: "certain" }] },
+    { ...record.listing.implementation, dependencies: [{ ...dependency, evidence_urls: [] }] },
+    {
+      ...record.listing.implementation,
+      dependencies: [{ ...dependency, project_url: "javascript:alert(1)" }],
+    },
+  ])
+    assert.throws(() =>
+      checkedAuthoredPort({ ...record, listing: { ...record.listing, implementation: invalid } }),
+    );
+  for (const confidence of ["confirmed", "inferred", "contradicted"] as const) {
+    const varied = checkedAuthoredPort({
+      ...record,
+      listing: {
+        ...record.listing,
+        implementation: {
+          ...record.listing.implementation,
+          dependencies: [{ ...dependency, confidence }],
+        },
+      },
+    });
+    assert.deepEqual(projectAuthoredPort(varied)!.release, before.release);
+    assert.deepEqual(projectAuthoredPort(varied)!.source_profile, before.source_profile);
+  }
 });

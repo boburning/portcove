@@ -2,26 +2,17 @@
   "format_version": 1,
   "listing": {
     "id": "final-doom-crispy-doom-family",
+    "artwork": {
+      "game_id": 8191,
+      "cover_id": 89960,
+      "image_id": "co1xew",
+      "image_sha256": "818dc625d986f4b81dd623712e2f07dfd4e0960f87cdbd09d6c0a1f58368b1f7",
+      "game_slug": "final-doom",
+      "match_kind": "underlying-game"
+    },
     "name": "Final Doom (Crispy Doom family)",
     "summary": "Install the official Crispy Doom Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
     "original_game_title": "Final Doom",
-    "original_game": {
-      "format_version": 1,
-      "id": "final-doom",
-      "evidence_urls": [
-        "https://github.com/fabiangreffrath/crispy-doom/blob/35b49519fb4f0360ee1527e8cf0bdf0b6bbfeff2/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "final-doom-pc",
-          "title": "Final Doom (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/fabiangreffrath/crispy-doom/blob/35b49519fb4f0360ee1527e8cf0bdf0b6bbfeff2/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/fabiangreffrath/crispy-doom",
     "availability": "packages",
     "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
@@ -193,5 +184,13 @@
       "DOOMWADDIR": "originals"
     },
     "windows_temp_directory": "temp"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The retained guide accepts either TNT.WAD (TNT: Evilution) or PLUTONIA.WAD (The Plutonia Experiment) and explicitly requires the campaigns to remain distinct. This is a collection-scoped player, not Doom II or one uniquely scoped campaign.",
+    "evidence_urls": [
+      "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
+      "https://github.com/fabiangreffrath/crispy-doom"
+    ]
   }
 }

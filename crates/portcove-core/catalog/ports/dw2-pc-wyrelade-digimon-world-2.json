@@ -4,23 +4,6 @@
     "id": "dw2-pc-wyrelade-digimon-world-2",
     "name": "Digimon World 2 — DW2-PC (Wyrelade)",
     "original_game_title": "Digimon World 2",
-    "original_game": {
-      "format_version": 1,
-      "id": "digimon-world-2",
-      "evidence_urls": [
-        "https://github.com/Wyrelade/DW2-PC/blob/1dbb32a0332a78d5e9afbe4d26c62d86cc5e3f76/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "digimon-world-2-playstation",
-          "title": "Digimon World 2 (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/Wyrelade/DW2-PC/blob/1dbb32a0332a78d5e9afbe4d26c62d86cc5e3f76/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Beta Digimon World 2 port prepared from your USA disc. Upstream’s broader gameplay claims have not been confirmed by Portcove; follow the extraction and build instructions below.",
     "project_url": "https://github.com/Wyrelade/DW2-PC",
     "platforms": ["windows-x86-64", "linux-x86-64"],
@@ -52,6 +35,12 @@
       "image_sha256": "26270ce540b53c94de9dde72607de9d641c36a2f9c55df661b53102d8b1fca75",
       "game_slug": "digimon-world-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "digimon-world-2",
+      "evidence_urls": ["https://github.com/Wyrelade/DW2-PC"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

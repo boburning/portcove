@@ -8,23 +8,6 @@
     "project_url": "https://github.com/Cellenseres/SSSV_Recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Space Station Silicon Valley",
-    "original_game": {
-      "format_version": 1,
-      "id": "space-station-silicon-valley",
-      "evidence_urls": [
-        "https://github.com/Cellenseres/SSSV_Recomp/blob/a4dbfe40e205bd804c76db62227e94f6d5858a9b/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "space-station-silicon-valley-nintendo-64",
-          "title": "Space Station Silicon Valley (Nintendo 64, region not specified)",
-          "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/Cellenseres/SSSV_Recomp/blob/a4dbfe40e205bd804c76db62227e94f6d5858a9b/README.md"
-          ]
-        }
-      ]
-    },
     "artwork": {
       "game_id": 3602,
       "cover_id": 182330,
@@ -33,7 +16,22 @@
       "game_slug": "space-station-silicon-valley",
       "match_kind": "underlying-game"
     },
-    "issue_number": 107
+    "issue_number": 107,
+    "original_game": {
+      "format_version": 1,
+      "id": "space-station-silicon-valley",
+      "evidence_urls": ["https://github.com/Cellenseres/SSSV_Recomp"],
+      "source_editions": [
+        {
+          "id": "space-station-silicon-valley-nintendo-64",
+          "title": "Space Station Silicon Valley (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/Cellenseres/SSSV_Recomp/blob/a4dbfe40e205bd804c76db62227e94f6d5858a9b/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "stable",

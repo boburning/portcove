@@ -2,26 +2,17 @@
   "format_version": 1,
   "listing": {
     "id": "baldur-s-gate-ii-original-gemrb",
+    "artwork": {
+      "game_id": 6,
+      "cover_id": 329139,
+      "image_id": "co71yr",
+      "image_sha256": "43f883b7fc3d81c7edde48abc6be26739f0e4102e5192088d41efd1f25b4780a",
+      "game_slug": "baldurs-gate-ii-shadows-of-amn",
+      "match_kind": "underlying-game"
+    },
     "name": "Baldur's Gate II (original) (GemRB)",
     "summary": "Set up Baldur's Gate II (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
-    "original_game_title": "Baldur's Gate II (original)",
-    "original_game": {
-      "format_version": 1,
-      "id": "baldur-s-gate-ii-original",
-      "evidence_urls": [
-        "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "baldur-s-gate-ii-original-pc",
-          "title": "Baldur's Gate II (original) (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
-          ]
-        }
-      ]
-    },
+    "original_game_title": "Baldur’s Gate II: Shadows of Amn",
     "project_url": "https://github.com/gemrb/gemrb",
     "availability": "packages",
     "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
@@ -67,7 +58,18 @@
         }
       ]
     },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "baldur-s-gate-ii",
+      "evidence_urls": [
+        "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+        "https://gemrb.org/Install.html",
+        "https://github.com/gemrb/gemrb",
+        "https://www.beamdog.com/games/baldurs-gate-2-enhanced/"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

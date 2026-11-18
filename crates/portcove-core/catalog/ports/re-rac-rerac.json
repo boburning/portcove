@@ -18,23 +18,6 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "Ratchet & Clank",
-    "original_game": {
-      "format_version": 1,
-      "id": "ratchet-clank",
-      "evidence_urls": [
-        "https://github.com/re-rac/rerac/blob/ae1e3432a0d5e21bd08d3872d3b04afef98be666/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "ratchet-clank-playstation-2",
-          "title": "Ratchet & Clank (PlayStation 2, region not specified)",
-          "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/re-rac/rerac/blob/ae1e3432a0d5e21bd08d3872d3b04afef98be666/README.md"
-          ]
-        }
-      ]
-    },
     "recommended_download_channel": "beta",
     "release_url": "https://github.com/re-rac/rerac/releases/tag/v0.3.6-alpha",
     "manual_setup": {
@@ -58,6 +41,15 @@
           "instruction": "Normal memory-card saves, settings and the crash log are outside the runtime: %APPDATA%/rerac on Windows, $XDG_CONFIG_HOME/rerac or ~/.config/rerac on Linux, and ~/Library/Application Support/rerac on macOS. Back up the profile you actually use separately. A custom RC_SAVE_DIR or RC_SETTINGS_FILE changes it. The launcher’s movable data/version/log folder can be different from the engine’s save/settings folder; preserve both when using it. Older versions may not read newer saves. Keep your original ISO and current working copy before re-extraction or changing versions."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ratchet-and-clank",
+      "evidence_urls": [
+        "https://github.com/re-rac/rerac-launcher/releases/tag/v0.3.1-alpha",
+        "https://github.com/re-rac/rerac"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

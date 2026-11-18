@@ -4,23 +4,6 @@
     "id": "melee-macos-recompilation-mcdandle-mcdandle-super-smash-bros-melee",
     "name": "Super Smash Bros. Melee — Melee macOS Recompilation (McDandle) (McDandle)",
     "original_game_title": "Super Smash Bros. Melee",
-    "original_game": {
-      "format_version": 1,
-      "id": "super-smash-bros-melee",
-      "evidence_urls": [
-        "https://github.com/McDandle/melee-macos-recomp/blob/39e30dec9fa7d90fba960ca9189b573a7938e3df/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "super-smash-bros-melee-gamecube",
-          "title": "Super Smash Bros. Melee (GameCube, region not specified)",
-          "system": "gamecube",
-          "evidence_urls": [
-            "https://github.com/McDandle/melee-macos-recomp/blob/39e30dec9fa7d90fba960ca9189b573a7938e3df/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "The project reports native gameplay at about 60 FPS in strict mode. Build this source-only port using your own matching disc. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/McDandle/melee-macos-recomp",
     "platforms": ["macos-aarch64"],
@@ -52,6 +35,12 @@
       "image_sha256": "b27bb8db7367c3b4413717e6ca1cac199ffa1cea9191abe1a427360e5ad1e63f",
       "game_slug": "super-smash-bros-melee",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros-melee",
+      "evidence_urls": ["https://github.com/McDandle/melee-macos-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

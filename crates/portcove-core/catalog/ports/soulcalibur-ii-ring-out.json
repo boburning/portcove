@@ -18,23 +18,6 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "Soulcalibur II",
-    "original_game": {
-      "format_version": 1,
-      "id": "soulcalibur-ii",
-      "evidence_urls": [
-        "https://github.com/jackpoison-prog/RingOut/blob/31c1bab7ecdd1f7a45b1a8a85930e4faf9638374/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "soulcalibur-ii-gamecube",
-          "title": "Soulcalibur II (GameCube, region not specified)",
-          "system": "gamecube",
-          "evidence_urls": [
-            "https://github.com/jackpoison-prog/RingOut/blob/31c1bab7ecdd1f7a45b1a8a85930e4faf9638374/README.md"
-          ]
-        }
-      ]
-    },
     "manual_setup": {
       "steps": [
         {
@@ -68,6 +51,15 @@
           "instruction": "Keep game, bin including the generated module, art, module-src, work, userdata and every actual custom location together. Preserve settings, memory cards, states, screenshots, logs, replays, shaders, textures, mods and unknown files. Upstream and the player own preparation, repair and replacement."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "soulcalibur-ii",
+      "evidence_urls": [
+        "https://github.com/jackpoison-prog/RingOut#installing",
+        "https://github.com/jackpoison-prog/RingOut"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

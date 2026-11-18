@@ -2,26 +2,17 @@
   "format_version": 1,
   "listing": {
     "id": "baldur-s-gate-original-gemrb",
+    "artwork": {
+      "game_id": 5,
+      "cover_id": 93899,
+      "image_id": "co20gb",
+      "image_sha256": "fb4d7aecfe6b9aa0159cc286af5be599be7bebd2ccf3a1884d7089b41b16c1d9",
+      "game_slug": "baldur-s-gate",
+      "match_kind": "underlying-game"
+    },
     "name": "Baldur's Gate (original) (GemRB)",
     "summary": "Set up Baldur's Gate (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
-    "original_game_title": "Baldur's Gate (original)",
-    "original_game": {
-      "format_version": 1,
-      "id": "baldur-s-gate-original",
-      "evidence_urls": [
-        "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "baldur-s-gate-original-pc",
-          "title": "Baldur's Gate (original) (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
-          ]
-        }
-      ]
-    },
+    "original_game_title": "Baldur's Gate",
     "project_url": "https://github.com/gemrb/gemrb",
     "availability": "packages",
     "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
@@ -67,7 +58,17 @@
         }
       ]
     },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "baldur-s-gate",
+      "evidence_urls": [
+        "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+        "https://gemrb.org/Install.html",
+        "https://github.com/gemrb/gemrb"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

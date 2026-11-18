@@ -5,23 +5,6 @@
     "name": "Quake III Arena (ioquake3)",
     "summary": "Prepare Quake III Arena through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Quake III Arena",
-    "original_game": {
-      "format_version": 1,
-      "id": "quake-iii-arena",
-      "evidence_urls": [
-        "https://github.com/ioquake/ioq3/blob/52088b9eae247d8e321c8dc1fb49a879652854f9/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "quake-iii-arena-pc",
-          "title": "Quake III Arena (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/ioquake/ioq3/blob/52088b9eae247d8e321c8dc1fb49a879652854f9/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/ioquake/ioq3",
     "availability": "unknown",
     "setup_url": "https://github.com/ioquake/ioq3/blob/87a99d18206e878a20289f05ac3c16005dcae5c3/README.md",
@@ -81,7 +64,16 @@
         }
       ]
     },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "quake-iii-arena",
+      "evidence_urls": [
+        "https://ioquake3.org/help/players-guide/",
+        "https://github.com/ioquake/ioq3"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

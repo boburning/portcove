@@ -16,7 +16,7 @@ use std::{
 const INDEX: &str = "definitions/index.json";
 const MAX_FILES: usize = 16385;
 const MAX_TOTAL: usize = 32 * 1024 * 1024;
-const MAX_LEAF: usize = 4 * 1024 * 1024;
+const MAX_LEAF: usize = crate::definition_index::MAX_CONTENT_BYTES as usize;
 const MAX_POLICY: usize = 64 * 1024;
 fn hash(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
@@ -92,6 +92,8 @@ pub fn inspect_definition_publication_bytes(
         let bound =
             if name == crate::definition_repository::publisher_policy::listing_delivery::TARGET {
                 crate::definition_repository::publisher_policy::listing_delivery::MAX_BYTES
+            } else if name == INDEX {
+                crate::definition_index::MAX_INDEX_BYTES
             } else if name.starts_with("policy/") {
                 MAX_POLICY
             } else {
@@ -309,6 +311,8 @@ fn read_bundle(root: &Path) -> Result<BTreeMap<String, Vec<u8>>> {
                     == crate::definition_repository::publisher_policy::listing_delivery::TARGET
                 {
                     crate::definition_repository::publisher_policy::listing_delivery::MAX_BYTES
+                } else if target == INDEX {
+                    crate::definition_index::MAX_INDEX_BYTES
                 } else if target.starts_with("policy/") {
                     MAX_POLICY
                 } else {

@@ -2,26 +2,17 @@
   "format_version": 1,
   "listing": {
     "id": "gunstar-heroes-gunstars",
+    "artwork": {
+      "game_id": 6405,
+      "cover_id": 181813,
+      "image_id": "co3wad",
+      "image_sha256": "f7e5092e239205de58efbd3bfeddd433cd49ae5ce454dcc10dbfaae97864573d",
+      "game_slug": "gunstar-heroes",
+      "match_kind": "underlying-game"
+    },
     "name": "Gunstar Heroes (gunstars)",
     "summary": "A native engine for Gunstar Heroes using your own original cartridge data.",
     "original_game_title": "Gunstar Heroes",
-    "original_game": {
-      "format_version": 1,
-      "id": "gunstar-heroes",
-      "evidence_urls": [
-        "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "gunstar-heroes-mega-drive-genesis",
-          "title": "Gunstar Heroes (Mega Drive/Genesis, region not specified)",
-          "system": "mega-drive-genesis",
-          "evidence_urls": [
-            "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/1nputs/gunstars",
     "setup_url": "https://github.com/1nputs/gunstars",
     "issue_number": 2580,
@@ -48,6 +39,15 @@
         }
       ],
       "help_url": "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "gunstar-heroes",
+      "evidence_urls": [
+        "https://github.com/1nputs/gunstars",
+        "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

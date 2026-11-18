@@ -65,26 +65,18 @@
       "macos-aarch64": ["macos-debug.tar.gz"]
     },
     "original_game_title": "Star Wars Jedi Knight: Dark Forces II",
+    "release_url": "https://github.com/shinyquagsire23/OpenJKDF2/releases/tag/v0.9.9",
+    "recommended_download_channel": "beta",
+    "platforms": ["macos-aarch64"],
     "original_game": {
       "format_version": 1,
       "id": "star-wars-jedi-knight-dark-forces-ii",
       "evidence_urls": [
-        "https://github.com/shinyquagsire23/OpenJKDF2/blob/ae6ed8a81b316421f08a46719b12a4fa9e2fbed9/README.md"
+        "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/README.md",
+        "https://github.com/shinyquagsire23/OpenJKDF2"
       ],
-      "source_editions": [
-        {
-          "id": "star-wars-jedi-knight-dark-forces-ii-pc",
-          "title": "Star Wars Jedi Knight: Dark Forces II (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/shinyquagsire23/OpenJKDF2/blob/ae6ed8a81b316421f08a46719b12a4fa9e2fbed9/README.md"
-          ]
-        }
-      ]
-    },
-    "release_url": "https://github.com/shinyquagsire23/OpenJKDF2/releases/tag/v0.9.9",
-    "recommended_download_channel": "beta",
-    "platforms": ["macos-aarch64"]
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

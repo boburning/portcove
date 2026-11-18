@@ -7,23 +7,6 @@
     "summary": "Dark Forces with automatic Windows engine setup and checked original PC data. Portcove has not confirmed gameplay.",
     "project_url": "https://github.com/TheForceEngine/TheForceEngine",
     "original_game_title": "Star Wars: Dark Forces",
-    "original_game": {
-      "format_version": 1,
-      "id": "star-wars-dark-forces",
-      "evidence_urls": [
-        "https://github.com/TheForceEngine/TheForceEngine/blob/585aa9c135a60246a9723d4abb5e0226c4164396/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "star-wars-dark-forces-pc",
-          "title": "Star Wars: Dark Forces (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/TheForceEngine/TheForceEngine/blob/585aa9c135a60246a9723d4abb5e0226c4164396/README.md"
-          ]
-        }
-      ]
-    },
     "variant_label": "PC",
     "issue_number": 726,
     "listed_at": "2026-10-23",
@@ -51,6 +34,15 @@
           "instruction": "Flatpak settings, pilots and saves are under ~/.var/app/io.github.theforceengine.tfe/config/. Keep its data/ folder too if it contains your original files. A native Linux build normally uses ~/.local/share/TheForceEngine or the configured TFE_DATA_HOME. Keep your actual pilot, saves, settings, mods and original PC data before replacing the engine. Use Flathub or upstream for replacement. This Linux guide is separate from Portcove’s managed Windows route."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-dark-forces",
+      "evidence_urls": [
+        "https://github.com/TheForceEngine/TheForceEngine#linux",
+        "https://github.com/TheForceEngine/TheForceEngine"
+      ],
+      "source_editions": []
     }
   },
   "integration": {
@@ -81,7 +73,16 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Set up the managed copy",
+            "instruction": "Select your complete installed PC Dark Forces folder or add a ZIP of it. Portcove checks the game files and installs the managed Windows player."
+          }
+        ]
+      }
     },
     "managed_initialization": "tfe-dark-forces-portable-v1",
     "launch_from_install_root": true,

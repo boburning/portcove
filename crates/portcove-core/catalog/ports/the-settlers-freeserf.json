@@ -2,26 +2,17 @@
   "format_version": 1,
   "listing": {
     "id": "the-settlers-freeserf",
+    "artwork": {
+      "game_id": 124693,
+      "cover_id": 227126,
+      "image_id": "co4v92",
+      "image_sha256": "2a9ba0a6c3e5becfa3315f164e4ac001cde02c41604e4d576cbe3624aa5a010f",
+      "game_slug": "serf-city-life-is-feudal",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/freeserf/freeserf",
     "name": "The Settlers / FreeSerf",
     "original_game_title": "The Settlers",
-    "original_game": {
-      "format_version": 1,
-      "id": "the-settlers",
-      "evidence_urls": [
-        "https://github.com/freeserf/freeserf/blob/f53731046f9929d044d6652770f87c6edf97b120/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "the-settlers-pc",
-          "title": "The Settlers (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/freeserf/freeserf/blob/f53731046f9929d044d6652770f87c6edf97b120/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Build a settlement in FreeSerf using your own DOS or Amiga game data.",
     "issue_number": 6122,
     "listed_at": "2026-11-14",
@@ -53,6 +44,15 @@
       "warnings": [
         "The v0.5 Mac DMG requires Apple Silicon. The publisher does not provide an Intel Mac or Android package in this release."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-settlers",
+      "evidence_urls": [
+        "https://github.com/freeserf/freeserf/blob/v0.5/README.md",
+        "https://github.com/freeserf/freeserf"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

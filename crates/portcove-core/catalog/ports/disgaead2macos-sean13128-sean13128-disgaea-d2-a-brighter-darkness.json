@@ -4,23 +4,6 @@
     "id": "disgaead2macos-sean13128-sean13128-disgaea-d2-a-brighter-darkness",
     "name": "Disgaea D2: A Brighter Darkness — DisgaeaD2macOS (Sean13128) (Sean13128)",
     "original_game_title": "Disgaea D2: A Brighter Darkness",
-    "original_game": {
-      "format_version": 1,
-      "id": "disgaea-d2-a-brighter-darkness",
-      "evidence_urls": [
-        "https://github.com/Sean13128/disgaea-d2-recomp/blob/d74f8effc6022276851afae95257036307cf4501/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "disgaea-d2-a-brighter-darkness-playstation-3",
-          "title": "Disgaea D2: A Brighter Darkness (PlayStation 3, region not specified)",
-          "system": "playstation-3",
-          "evidence_urls": [
-            "https://github.com/Sean13128/disgaea-d2-recomp/blob/d74f8effc6022276851afae95257036307cf4501/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "The author reports an installed native copy. This project has been unmaintained since October 2026; LUUKASR1’s Windows continuation is a separate platform version. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Sean13128/disgaea-d2-recomp",
     "platforms": ["macos-aarch64"],
@@ -52,6 +35,12 @@
       "image_sha256": "2b634bf5a1b84bcdd3bb4d10e9063a3187291781f36f49dc763b81266a9158fc",
       "game_slug": "disgaea-d2-a-brighter-darkness",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "disgaea-d2-a-brighter-darkness",
+      "evidence_urls": ["https://github.com/Sean13128/disgaea-d2-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

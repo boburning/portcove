@@ -4,23 +4,6 @@
     "id": "tornado-sp00nznet-tornado-outbreak",
     "name": "Tornado Outbreak — tornado (sp00nznet)",
     "original_game_title": "Tornado Outbreak",
-    "original_game": {
-      "format_version": 1,
-      "id": "tornado-outbreak",
-      "evidence_urls": [
-        "https://github.com/sp00nznet/tornado/blob/2cc6c0fb660b62aab235e06ac8e0fa64106ec265/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "tornado-outbreak-playstation-3",
-          "title": "Tornado Outbreak (PlayStation 3, region not specified)",
-          "system": "playstation-3",
-          "evidence_urls": [
-            "https://github.com/sp00nznet/tornado/blob/2cc6c0fb660b62aab235e06ac8e0fa64106ec265/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Experimental project. The project reaches New Game, saving, story, dialogue and controlled tornado gameplay in the first level at 10–16 FPS. A white transition then fails to clear. The campaign is not established as playable. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/tornado",
     "platforms": [],
@@ -52,6 +35,12 @@
       "image_sha256": "62a4db6c7f54878ed79284b983c37e2d66d0ca8ce2749045cbaa55bf09073b8f",
       "game_slug": "tornado-outbreak",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tornado-outbreak",
+      "evidence_urls": ["https://github.com/sp00nznet/tornado"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -5,23 +5,6 @@
     "name": "Metroid Prime Hunters (Second Hunt)",
     "summary": "Second Hunt is a Windows port of Metroid Prime Hunters that uses your own USA Nintendo DS ROM. Set it up with the project’s tools, then add the prepared program to Portcove.",
     "original_game_title": "Metroid Prime Hunters",
-    "original_game": {
-      "format_version": 1,
-      "id": "metroid-prime-hunters",
-      "evidence_urls": [
-        "https://github.com/BountyHunterKanden/SecondHunt/blob/9075c4ab834786128decd9db58628c16b69ade41/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "metroid-prime-hunters-nintendo-ds",
-          "title": "Metroid Prime Hunters (Nintendo DS, region not specified)",
-          "system": "nintendo-ds",
-          "evidence_urls": [
-            "https://github.com/BountyHunterKanden/SecondHunt/blob/9075c4ab834786128decd9db58628c16b69ade41/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/BountyHunterKanden/SecondHunt",
     "platforms": [],
     "availability": "unknown",
@@ -70,6 +53,15 @@
           "instruction": "The base Hunters route does not require Prime1/2/3/Trilogy discs, Prime4Beyond files/keys or optional imported characters/music/arenas. Each additional source has its own ownership/permission requirements. Online/LAN/voice/chat/profile sharing and replay-preparation workers are upstream features, not qualifications or operations offered through this guide. Replay preparation can use background helper invocations; close all actual players/helpers/successors before replacement or another attachment. Second Hunt original post-October20 code/art/documents uses PolyForm Strict with additional personal/noncommercial private modification permission and a redistribution prohibition; MphRead-derived and earlier MIT parts and third-party components retain their own terms. Official licensor-published builds are distinguished in that license; do not mirror or redistribute a copy through this guide. These terms grant no Nintendo/game rights."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "metroid-prime-hunters",
+      "evidence_urls": [
+        "https://github.com/BountyHunterKanden/SecondHunt/blob/6a41f47fa6ed580c0b3ff8f90b2f841acd1d738c/src/SecondHunt.Desktop/dist/README.txt",
+        "https://github.com/BountyHunterKanden/SecondHunt"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

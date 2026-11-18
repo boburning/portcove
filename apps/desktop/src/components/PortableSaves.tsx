@@ -58,6 +58,9 @@ const PLATFORM_NAME: Record<string, string> = {
   "macos-aarch64": "macOS",
 };
 
+const launcherDisabled =
+  "aria-disabled:border-pc-border aria-disabled:bg-pc-surface-muted aria-disabled:text-pc-muted-foreground aria-disabled:opacity-70 aria-disabled:shadow-none";
+
 export interface PortableSavesApi {
   previewExport: (portId: string, generation: number) => Promise<PortableSaveExportPreview>;
   exportSaves: (
@@ -96,7 +99,7 @@ function StaysLocal({ entries }: { entries: PortableSaveExportPreview["stays_loc
   if (!entries.length) return null;
   return (
     <details className="text-sm">
-      <summary className="cursor-pointer py-1">
+      <summary className="disclosure-pad-1 cursor-pointer">
         Stays on this device ({entries.length} {entries.length === 1 ? "item" : "items"})
       </summary>
       <ul className="m-0 grid gap-1 pl-5">
@@ -145,6 +148,9 @@ export function PortableSaves({
   const [problem, setProblem] = useState<string>();
   const [attempt, setAttempt] = useState(0);
   const request = useRef(0);
+  const pickerAction = useRef(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const importButton = useRef<HTMLButtonElement>(null);
   const headingId = useId();
   const replaceId = useId();
   const removeId = useId();
@@ -171,29 +177,42 @@ export function PortableSaves({
   const disabled = Boolean(busy) || working;
   const exportBlocker = exportPreview.blockers[0];
 
-  const runExport = async () => {
+  const runPickerAction = async (action: () => Promise<void>) => {
+    if (disabled || pickerAction.current) return;
+    pickerAction.current = true;
+    setWorking(true);
     setMessage(undefined);
     setProblem(undefined);
-    const content = exportPreview.content_sha256;
-    if (!content) return;
-    const path = await api.pickExportPath(`${gameName} saves.json`);
-    if (!path) return;
-    setWorking(true);
     try {
-      const result = await api.exportSaves(portId, path, content, generation);
-      setMessage(
-        `Exported ${result.files.length} save ${result.files.length === 1 ? "file" : "files"} to ${result.path}. Keep this file private; it contains your progress.`,
-      );
-    } catch (value) {
-      fail(value, "The saves could not be exported.");
-      setAttempt((count) => count + 1);
+      await action();
     } finally {
+      pickerAction.current = false;
       setWorking(false);
     }
   };
 
+  const runExport = async () => {
+    const content = exportPreview.content_sha256;
+    if (!content) return;
+    await runPickerAction(async () => {
+      const path = await api.pickExportPath(`${gameName} saves.json`).catch((value: unknown) => {
+        fail(value, "The export file picker could not open. Try Export saves again.");
+        return null;
+      });
+      if (!path) return;
+      try {
+        const result = await api.exportSaves(portId, path, content, generation);
+        setMessage(
+          `Exported ${result.files.length} save ${result.files.length === 1 ? "file" : "files"} to ${result.path}. Keep this file private; it contains your progress.`,
+        );
+      } catch (value) {
+        fail(value, "The saves could not be exported.");
+        setAttempt((count) => count + 1);
+      }
+    });
+  };
+
   const reviewImport = async (path: string, next: PortableSaveChoices) => {
-    setWorking(true);
     setProblem(undefined);
     try {
       const preview = await api.previewImport(portId, path, next, generation);
@@ -201,28 +220,31 @@ export function PortableSaves({
     } catch (value) {
       setReview(undefined);
       fail(value, "The saves file could not be reviewed.");
-    } finally {
-      setWorking(false);
     }
   };
 
-  const chooseImport = async () => {
-    setMessage(undefined);
-    const selected = await api.pickImportPath();
-    const path = Array.isArray(selected) ? selected[0] : selected;
-    if (!path) return;
-    const initial = { removeLocalOnlySaves: false, replaceDivergedProgress: false };
-    setChoices(initial);
-    await reviewImport(path, initial);
-  };
+  const chooseImport = () =>
+    runPickerAction(async () => {
+      const selected = await api.pickImportPath().catch((value: unknown) => {
+        fail(value, "The import file picker could not open. Try Import saves again.");
+        return null;
+      });
+      const path = Array.isArray(selected) ? selected[0] : selected;
+      if (!path) return;
+      const initial = { removeLocalOnlySaves: false, replaceDivergedProgress: false };
+      setChoices(initial);
+      await reviewImport(path, initial);
+    });
 
   const changeChoice = async (next: PortableSaveChoices) => {
+    if (!review || disabled || pickerAction.current) return;
     setChoices(next);
-    if (review) await reviewImport(review.path, next);
+    setWorking(true);
+    await reviewImport(review.path, next).finally(() => setWorking(false));
   };
 
   const applyImport = async () => {
-    if (!review) return;
+    if (!review || disabled || pickerAction.current) return;
     setWorking(true);
     setProblem(undefined);
     try {
@@ -272,7 +294,7 @@ export function PortableSaves({
 
   return (
     <section aria-labelledby={headingId} className="grid gap-2 text-sm" data-focus-group>
-      <h3 id={headingId} className="m-0 text-base font-semibold">
+      <h3 ref={heading} tabIndex={-1} id={headingId} className="m-0 text-base font-semibold">
         Move saves to another device
       </h3>
       <p className="m-0 text-pc-muted-foreground">
@@ -284,15 +306,20 @@ export function PortableSaves({
           data-focusable
           variant="outline"
           disabled={disabled || Boolean(exportBlocker)}
+          focusableWhenDisabled={working && !exportBlocker}
+          className={launcherDisabled}
           onClick={() => void runExport()}
         >
           <Icon glyph={Upload} />
           Export saves…
         </Button>
         <Button
+          ref={importButton}
           data-focusable
           variant="outline"
           disabled={disabled}
+          focusableWhenDisabled={working}
+          className={launcherDisabled}
           onClick={() => void chooseImport()}
         >
           <Icon glyph={Download} />
@@ -378,7 +405,11 @@ export function PortableSaves({
               data-focusable
               variant="ghost"
               disabled={working}
-              onClick={() => setReview(undefined)}
+              onClick={() => {
+                setReview(undefined);
+                const opener = importButton.current;
+                (opener && !opener.disabled ? opener : heading.current)?.focus();
+              }}
             >
               Cancel
             </Button>

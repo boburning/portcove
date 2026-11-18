@@ -87,7 +87,6 @@ fn native_pin_does_not_grant_source_preparation_or_mutable_runtime_authority() {
         ),
         ("setup_arguments", serde_json::json!(["--prepare"])),
         ("source_environment", serde_json::json!("GAME_ORIGINAL")),
-        ("user_data_environment", serde_json::json!("GAME_DATA")),
     ] {
         let mut document = document();
         port(&mut document)[field] = value;

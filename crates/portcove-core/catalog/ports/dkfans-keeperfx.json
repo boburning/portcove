@@ -49,24 +49,16 @@
       "windows-x86-64": ["keeperfx_", "_complete.7z"]
     },
     "original_game_title": "Dungeon Keeper",
+    "release_url": "https://github.com/dkfans/keeperfx/releases",
+    "recommended_download_channel": "stable",
     "original_game": {
       "format_version": 1,
       "id": "dungeon-keeper",
       "evidence_urls": [
-        "https://github.com/dkfans/keeperfx/blob/441959684744462575176f37302225e583687aaa/README.md"
+        "https://github.com/dkfans/keeperfx/wiki#installation-of-keeperfx",
+        "https://github.com/dkfans/keeperfx"
       ],
-      "source_editions": [
-        {
-          "id": "dungeon-keeper-pc",
-          "title": "Dungeon Keeper (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/dkfans/keeperfx/blob/441959684744462575176f37302225e583687aaa/README.md"
-          ]
-        }
-      ]
-    },
-    "release_url": "https://github.com/dkfans/keeperfx/releases",
-    "recommended_download_channel": "stable"
+      "source_editions": []
+    }
   }
 }

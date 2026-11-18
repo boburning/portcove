@@ -5,23 +5,6 @@
     "name": "Pokémon Sword (swsh-recomp)",
     "summary": "An experimental Pokémon Sword port translating AArch64 code to C with LetsGo/LAS-derived Vulkan services. The project reports Sword 1.3.2 with DLC on one PC, with memory growth, title flicker and experimental 60 FPS. Online play, trades and raids are unavailable; a full playthrough is unconfirmed. The Windows ZIP imports, copies and recompiles locally, estimated at 40 minutes on 20 threads; DLC setup is not automated. Windows 10/11 x64 needs AVX2/FMA/BMI2 and Vulkan 1.3; only RTX 3080 is tested, with AMD/Intel/integrated graphics untested. Supply your own already-extracted updated 1.3.2 exefs/romfs and optional matching owned DLC. Extract XCI/NSP externally first; the launcher describes no keys input. No other desktop route is offered. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Pokémon Sword",
-    "original_game": {
-      "format_version": 1,
-      "id": "pokemon-sword",
-      "evidence_urls": [
-        "https://github.com/raulzrrs/swsh-recomp/blob/784eaa5762edd0ccb77ffb20e80809c73783c8f3/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "pokemon-sword-nintendo-switch",
-          "title": "Pokémon Sword (Nintendo Switch, region not specified)",
-          "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/raulzrrs/swsh-recomp/blob/784eaa5762edd0ccb77ffb20e80809c73783c8f3/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/raulzrrs/swsh-recomp",
     "listed_at": "2026-10-25",
     "platforms": [],
@@ -35,7 +18,22 @@
       "game_slug": "pokemon-sword",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2954
+    "issue_number": 2954,
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-sword",
+      "evidence_urls": ["https://github.com/raulzrrs/swsh-recomp"],
+      "source_editions": [
+        {
+          "id": "pokemon-sword-nintendo-switch",
+          "title": "Pokémon Sword (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/raulzrrs/swsh-recomp/blob/784eaa5762edd0ccb77ffb20e80809c73783c8f3/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

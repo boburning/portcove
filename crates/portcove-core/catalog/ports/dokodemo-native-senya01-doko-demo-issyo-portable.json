@@ -4,23 +4,6 @@
     "id": "dokodemo-native-senya01-doko-demo-issyo-portable",
     "name": "Doko Demo Issyo Portable — dokodemo-native (Senya01)",
     "original_game_title": "Doko Demo Issyo Portable",
-    "original_game": {
-      "format_version": 1,
-      "id": "doko-demo-issyo-portable",
-      "evidence_urls": [
-        "https://github.com/Senya01/dokodemo-native/blob/8e5d86c2c6d6cd7a32ea36565e84aa5386caf5b9/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "doko-demo-issyo-portable-playstation-portable",
-          "title": "Doko Demo Issyo Portable (PlayStation Portable, region not specified)",
-          "system": "playstation-portable",
-          "evidence_urls": [
-            "https://github.com/Senya01/dokodemo-native/blob/8e5d86c2c6d6cd7a32ea36565e84aa5386caf5b9/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Build this incomplete Doko Demo Issyo port from source. Room, conversation and interface support is limited; starting a player session and continuing between rooms have not been confirmed. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Senya01/dokodemo-native",
     "platforms": ["windows-x86-64"],
@@ -52,6 +35,12 @@
       "image_sha256": "a517748d177d9437d5ab058718de020291d052b4849c1cbf17be655c20fa5d12",
       "game_slug": "doko-demo-issho-portable",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "doko-demo-issyo-portable",
+      "evidence_urls": ["https://github.com/Senya01/dokodemo-native"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

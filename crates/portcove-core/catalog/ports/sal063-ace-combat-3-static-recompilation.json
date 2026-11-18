@@ -1,14 +1,42 @@
 {
   "format_version": 1,
+  "igdb_regional_cover": {
+    "game_id": 14751,
+    "slug": "ace-combat-3-electrosphere",
+    "name": "Ace Combat 3: Electrosphere",
+    "platform_id": 7,
+    "localization_id": 1416,
+    "region_id": 3,
+    "cover_id": 243133,
+    "image_id": "co57lp"
+  },
   "listing": {
     "id": "sal063-ace-combat-3-static-recompilation",
     "name": "Ace Combat 3: Electrosphere Recompiled (sal063)",
     "summary": "Explore Ace Combat 3: Electrosphere Recompiled (sal063) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/sal063/Ace-Combat-3-static-recompilation",
+    "artwork": {
+      "game_id": 14751,
+      "cover_id": 243133,
+      "image_id": "co57lp",
+      "image_sha256": "83ee46d9cc823edc47e620bfa455a37f6147cd2b8f0dc8823580000b250d476a",
+      "game_slug": "ace-combat-3-electrosphere",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 1788,
     "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/sal063/Ace-Combat-3-static-recompilation"
+    "setup_url": "https://github.com/sal063/Ace-Combat-3-static-recompilation",
+    "original_game": {
+      "format_version": 1,
+      "id": "ace-combat-3-electrosphere",
+      "evidence_urls": [
+        "https://github.com/sal063/Ace-Combat-3-static-recompilation/blob/0dfb14971b6a5f0f001f02dcc810e6ec6c0065a5/README.md",
+        "https://github.com/sal063/Ace-Combat-3-static-recompilation"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Ace Combat 3: Electrosphere"
   }
 }

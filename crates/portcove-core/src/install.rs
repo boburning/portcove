@@ -66,13 +66,28 @@ fn curated_record(
 /// Inputs for one asset's acquisition and extraction within the owned operation.
 struct AssetPreparation<'a> {
     asset: &'a ReleaseAsset,
-    download_path: &'a Path,
+    download: DownloadTarget<'a>,
     payload_root: &'a Path,
     acquisition: Option<AssetAcquisition<'a>>,
     acquired: Option<&'a Path>,
     requires_tar_xz: bool,
     tar_xz_allow_file_links: bool,
     unwrap_inner_archive: bool,
+}
+
+#[derive(Clone, Copy)]
+struct DownloadTarget<'a> {
+    path: &'a Path,
+    install_owner: Option<(&'a str, &'a str)>,
+}
+
+impl<'a> DownloadTarget<'a> {
+    fn private(path: &'a Path) -> Self {
+        Self {
+            path,
+            install_owner: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -317,6 +332,18 @@ impl InstallQualification {
         &self,
         install: &InstallRecord,
     ) -> Result<(PathBuf, crate::carry_plan::CarryExclusions)> {
+        self.carry_exclusions_with_current(install, None)
+    }
+
+    /// Current declarations only exclude carry paths. Interpret them in this
+    /// retained installation's coordinates without qualifying a new executable
+    /// or granting current mutability, migration or replacement authority.
+    pub(crate) fn carry_exclusions_with_current(
+        &self,
+        install: &InstallRecord,
+        current: Option<&PortDefinition>,
+    ) -> Result<(PathBuf, crate::carry_plan::CarryExclusions)> {
+        let current = current.filter(|port| port.platforms.contains(&self.platform));
         let selected = install.path.join(&install.selected_executable);
         let persistent = self.persistence_root(&install.path, &selected);
         let working = self.runtime_root(&install.path, &selected);
@@ -332,10 +359,20 @@ impl InstallQualification {
         let declared_paths = self
             .persistent_paths
             .iter()
+            .chain(
+                current
+                    .into_iter()
+                    .flat_map(|port| crate::persistence::declared_paths(port, self.platform)),
+            )
             .filter_map(|relative| reroot(&persistent.join(relative)))
             .chain(
                 self.runtime_mutable_paths
                     .iter()
+                    .chain(
+                        current
+                            .into_iter()
+                            .flat_map(|port| &port.runtime_mutable_paths),
+                    )
                     .filter_map(|relative| reroot(&working.join(relative))),
             )
             .filter(|path| !path.is_empty())
@@ -343,14 +380,28 @@ impl InstallQualification {
         let declared_patterns = self
             .persistent_file_patterns
             .iter()
+            .chain(
+                current
+                    .into_iter()
+                    .flat_map(|port| &port.persistent_file_patterns),
+            )
             .map(|pattern| (None, pattern.clone()))
             .chain(
                 self.runtime_mutable_file_patterns
                     .iter()
+                    .chain(
+                        current
+                            .into_iter()
+                            .flat_map(|port| &port.runtime_mutable_file_patterns),
+                    )
                     .map(|pattern| (working_directory.clone(), pattern.clone())),
             )
             .collect();
-        let target_members = verified_manifest(install)?
+        let manifest = verified_manifest(install)?;
+        let electron_resources = electron_resources(&manifest)
+            .and_then(|relative| reroot(&install.path.join(relative)))
+            .filter(|path| !path.is_empty());
+        let target_members = manifest
             .files
             .iter()
             .filter_map(|file| reroot(&install.path.join(&file.path)))
@@ -368,7 +419,7 @@ impl InstallQualification {
                 declared_patterns,
                 target_members,
                 generated_metadata,
-                electron_resources: None,
+                electron_resources,
             },
         ))
     }
@@ -1028,15 +1079,19 @@ impl Installer {
             Some(contract) => contract.catalog(&request.port_id)?,
             None => self.library.load_catalog()?.0,
         };
-        if catalog.port(&request.port_id)?.managed_initialization
-            == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
-        {
+        if matches!(
+            catalog.port(&request.port_id)?.managed_initialization,
+            Some(
+                crate::ManagedInitialization::TfeDarkForcesPortableV1
+                    | crate::ManagedInitialization::ChocolateFamilyPortableV1
+            )
+        ) {
             if request.qualification.retained_contract.is_none() {
                 return Err(PortcoveError::verification(
                     "managed initialization requires its retained catalog before acquisition",
                 ));
             }
-            crate::managed_tfe::require_artifact(
+            crate::managed_initialization::require_artifact(
                 catalog.port(&request.port_id)?,
                 &request.release.version,
                 &ArtifactIdentity {
@@ -1281,7 +1336,7 @@ impl Installer {
         };
         self.acquire_asset_bytes(
             &request.release.asset,
-            &private.join("0.archive"),
+            DownloadTarget::private(&private.join("0.archive")),
             operation,
             emit,
             scope.as_ref().map(|scope| AssetAcquisition {
@@ -1295,7 +1350,7 @@ impl Installer {
         if let Some(runtime) = &request.qualification.runtime {
             self.acquire_asset_bytes(
                 &runtime.asset,
-                &private.join("1.archive"),
+                DownloadTarget::private(&private.join("1.archive")),
                 operation,
                 emit,
                 None,
@@ -1351,7 +1406,10 @@ impl Installer {
             .prepare_asset(
                 AssetPreparation {
                     asset: &request.release.asset,
-                    download_path: &lifecycle.operation_root.join("artifact.download"),
+                    download: self.install_download(
+                        lifecycle,
+                        &lifecycle.operation_root.join("artifact.download"),
+                    )?,
                     payload_root: &payload_root,
                     acquisition,
                     acquired: acquired
@@ -1445,14 +1503,34 @@ impl Installer {
             if port.release.grant_declared_executable && !grant_before_layout {
                 grant_declared_executable(&payload_root, &request.qualification)?;
             }
-            // Shadow drift comparison (#5359 phase 1): derived after every
-            // grant and before any adapter adds content. It refuses nothing.
-            package_shape = Some(self.package_shape_record(
+            // Compare the upstream package before an adapter adds content.
+            let shape = self.package_shape_record(
                 port,
                 &request.qualification,
                 &payload_root,
                 &artifact.sha256,
-            ));
+            );
+            if crate::package_shape::withholds_release(&shape.verdict)
+                && let Some(capability) =
+                    crate::package_shape::selected_enforcement_capability(&catalog, port)?
+            {
+                if let Err(error) = crate::package_shape::withheld::record(
+                    &self.library,
+                    port,
+                    platform,
+                    &request.release,
+                    capability,
+                    &shape,
+                ) {
+                    tracing::warn!(%error, port_id = %port.id, "could not retain package shape refusal");
+                }
+                return Err(crate::package_shape::withheld::refusal(
+                    port,
+                    &request.release,
+                    &shape.verdict,
+                ));
+            }
+            package_shape = Some(shape);
             if port.external_profile_policy == Some(crate::ExternalProfilePolicy::RecompDirectV1) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
                 let working_directory =
@@ -1537,6 +1615,27 @@ impl Installer {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
                 crate::native_external_profile::quake_linux::require_payload(&selected, policy)?;
             }
+            if port.external_profile_policy
+                == Some(crate::ExternalProfilePolicy::EndlessSkyDesktopV1)
+            {
+                let platform = request.qualification.platform;
+                if !crate::native_external_profile::endless_sky::matches_asset(
+                    port,
+                    platform,
+                    &artifact.asset_name,
+                ) {
+                    return Err(PortcoveError::verification(
+                        "Endless Sky package differs from its reviewed portable release selector",
+                    ));
+                }
+                if platform == Platform::LinuxX86_64 {
+                    let selected =
+                        resolve_declared_executable(&payload_root, &request.qualification)?;
+                    crate::native_external_profile::profile_siblings::require_payload(
+                        &selected, platform,
+                    )?;
+                }
+            }
             crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
             if crate::preparation::source::native(port) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
@@ -1586,7 +1685,10 @@ impl Installer {
             self.prepare_asset(
                 AssetPreparation {
                     asset: &runtime.asset,
-                    download_path: &lifecycle.operation_root.join("runtime.download"),
+                    download: self.install_download(
+                        lifecycle,
+                        &lifecycle.operation_root.join("runtime.download"),
+                    )?,
                     payload_root: &unpacked,
                     acquisition: None,
                     acquired: acquired
@@ -1713,6 +1815,13 @@ impl Installer {
             },
             &install.path,
         )?;
+        if request.activate {
+            crate::profile::require_default_recovery_capacity(
+                &self.library.connection()?,
+                &install.port_id,
+                &install.id,
+            )?;
+        }
         self.faults
             .check(LifecycleFaultPoint::InstallReadyToPublish)?;
         operation.begin_publication()?;
@@ -1807,7 +1916,7 @@ impl Installer {
     async fn acquire_asset_bytes<F>(
         &self,
         asset: &ReleaseAsset,
-        download_path: &Path,
+        download: DownloadTarget<'_>,
         operation: &OperationCoordinator,
         emit: &mut F,
         acquisition: Option<AssetAcquisition<'_>>,
@@ -1816,6 +1925,7 @@ impl Installer {
     where
         F: FnMut(OperationEvent),
     {
+        let download_path = download.path;
         let scope = acquisition.as_ref().map(|acquisition| acquisition.scope);
         let curated = acquisition
             .as_ref()
@@ -1855,7 +1965,7 @@ impl Installer {
             match scope {
                 Some(scope) => {
                     let upstream = self
-                        .download_scoped(asset, download_path, operation, emit, Some(scope))
+                        .download_scoped(asset, download, operation, emit, Some(scope))
                         .await;
                     let record = acquisition
                         .as_ref()
@@ -1868,20 +1978,17 @@ impl Installer {
                                 == crate::failure::UpstreamFailure::Unavailable =>
                         {
                             self.download_preserved(
-                                asset,
-                                record,
-                                download_path,
-                                operation,
-                                emit,
-                                scope,
-                                error,
+                                asset, record, download, operation, emit, scope, error,
                             )
                             .await?;
                         }
                         (Err(error), _) => return Err(error),
                     }
                 }
-                None => self.download(asset, download_path, operation, emit).await?,
+                None => {
+                    self.download_scoped(asset, download, operation, emit, None)
+                        .await?
+                }
             }
         }
         let (actual_hash, actual_size) = if curated.is_some() {
@@ -1923,7 +2030,7 @@ impl Installer {
         &self,
         asset: &ReleaseAsset,
         record: &crate::curated_acquisition::CuratedAcquisitionRecord,
-        download_path: &Path,
+        download: DownloadTarget<'_>,
         operation: &OperationCoordinator,
         emit: &mut F,
         scope: &crate::DefinitionAcquisitionScope,
@@ -1935,7 +2042,7 @@ impl Installer {
         let mut attempts = 0_usize;
         for location in &record.preserved_locations {
             operation.checkpoint()?;
-            match std::fs::remove_file(download_path) {
+            match std::fs::remove_file(download.path) {
                 Ok(()) => {}
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
                 Err(error) => return Err(error.into()),
@@ -1960,7 +2067,7 @@ impl Installer {
                 ),
             ));
             match self
-                .download_scoped(&alternate, download_path, operation, emit, Some(scope))
+                .download_scoped(&alternate, download, operation, emit, Some(scope))
                 .await
             {
                 Ok(()) => return Ok(()),
@@ -1984,7 +2091,7 @@ impl Installer {
     {
         let AssetPreparation {
             asset,
-            download_path,
+            download,
             payload_root,
             acquisition,
             acquired,
@@ -1992,8 +2099,9 @@ impl Installer {
             tar_xz_allow_file_links,
             unwrap_inner_archive,
         } = input;
+        let download_path = download.path;
         let (artifact, cache_worker) = self
-            .acquire_asset_bytes(asset, download_path, operation, emit, acquisition, acquired)
+            .acquire_asset_bytes(asset, download, operation, emit, acquisition, acquired)
             .await?;
         let asset_name = asset.name.clone();
         let extraction_path = download_path.to_path_buf();
@@ -2078,14 +2186,44 @@ impl Installer {
     where
         F: FnMut(OperationEvent),
     {
-        self.download_scoped(asset, destination, operation, emit, None)
-            .await
+        self.download_scoped(
+            asset,
+            DownloadTarget::private(destination),
+            operation,
+            emit,
+            None,
+        )
+        .await
+    }
+
+    fn install_download<'a>(
+        &self,
+        lifecycle: &'a InstallLifecycle,
+        path: &'a Path,
+    ) -> Result<DownloadTarget<'a>> {
+        if path.parent() != Some(lifecycle.operation_root.as_path()) {
+            return Err(PortcoveError::state(
+                "release download is outside its private install staging",
+            ));
+        }
+        // The install already checked destination capacity. Revalidate the
+        // owned staging before allowing the library store to publish into it.
+        crate::output_root::validate_staging_path(
+            &self.library,
+            &lifecycle.record.port_id,
+            &lifecycle.record.id,
+            &lifecycle.operation_root,
+        )?;
+        Ok(DownloadTarget {
+            path,
+            install_owner: Some((&lifecycle.record.port_id, &lifecycle.record.id)),
+        })
     }
 
     async fn download_scoped<F>(
         &self,
         asset: &ReleaseAsset,
-        destination: &Path,
+        download: DownloadTarget<'_>,
         operation: &OperationCoordinator,
         emit: &mut F,
         scope: Option<&crate::DefinitionAcquisitionScope>,
@@ -2113,21 +2251,42 @@ impl Installer {
                 }
             },
         };
-        // Release assets with an expected digest may continue after a restart;
-        // the caller verifies the complete file either way. Kept bytes live in
-        // the library, so only a download staged inside the library uses them:
-        // a game output folder on another volume keeps its own capacity check.
+        // The library store checks its own capacity. The caller still verifies
+        // the complete archive after it reaches private install staging.
         let partials = partial_download::PartialDownloads::new(
             self.library.downloads_dir().join("partial-v1"),
         );
+        let retained = if let Some((port_id, operation_id)) = download.install_owner {
+            let library = self.library.clone();
+            let (port_id, operation_id) = (port_id.to_owned(), operation_id.to_owned());
+            let staging = download
+                .path
+                .parent()
+                .ok_or_else(|| PortcoveError::state("install download is missing its staging"))?
+                .to_path_buf();
+            Some(transfer::RetainedDownload {
+                store: &partials,
+                validate_publication: Some(Box::new(move || {
+                    crate::output_root::validate_staging_path(
+                        &library,
+                        &port_id,
+                        &operation_id,
+                        &staging,
+                    )
+                })),
+            })
+        } else {
+            self.is_library_staged(download.path)
+                .then_some(transfer::RetainedDownload::private(&partials))
+        };
         transfer::download_resuming(
             &client,
             asset,
-            destination,
+            download.path,
             operation,
             emit,
             transfer::RESUME_POLICY,
-            self.is_library_staged(destination).then_some(&partials),
+            retained,
         )
         .await
     }
@@ -2165,7 +2324,8 @@ impl Installer {
             operation,
             emit,
             transfer::RESUME_POLICY,
-            self.is_library_staged(destination).then_some(&partials),
+            self.is_library_staged(destination)
+                .then_some(transfer::RetainedDownload::private(&partials)),
         )
         .await
     }
@@ -2501,10 +2661,12 @@ impl Installer {
             if !expected.contains(relative.as_str()) {
                 // Both inventories list only regular files: the strict walk
                 // refuses links and other objects, the legacy walk skips them.
-                if electron
-                    .as_deref()
-                    .is_some_and(|resources| relative_is_within(&relative, resources))
-                    || crate::package_layout::is_unknown_file_hazard(&candidate)?
+                if electron.as_deref().is_some_and(|resources| {
+                    relative_is_within(
+                        &relative.to_ascii_lowercase(),
+                        &resources.to_ascii_lowercase(),
+                    )
+                }) || crate::package_layout::is_unknown_file_hazard(&candidate)?
                 {
                     failures.push(format!("unexpected: {relative}"));
                 } else {
@@ -3705,17 +3867,16 @@ pub(crate) fn retained_query_context(
     retained_query_context_with_budget(install, None)
 }
 
+pub(crate) const RETAINED_MANIFEST_BROWSING_BYTES: u64 = 32 * 1024 * 1024;
+
 /// The workspace owns a single request-wide metadata allowance. Failed bounded
 /// reads spend their ceiling; successfully returned bytes spend their actual size.
 pub(crate) fn retained_query_context_with_budget(
     install: &InstallRecord,
     budget: Option<&mut u64>,
 ) -> Result<(Option<crate::Catalog>, Option<Platform>)> {
-    let manifest = verified_manifest_with_budget(
-        install,
-        Some(crate::signed_catalog::MAX_CATALOG_BYTES as u64),
-        budget,
-    )?;
+    let manifest =
+        verified_manifest_with_budget(install, Some(RETAINED_MANIFEST_BROWSING_BYTES), budget)?;
     let catalog = catalog_for_verified_manifest(install, &manifest)?;
     let platform = manifest
         .platform
@@ -3764,9 +3925,8 @@ pub(crate) fn portability_catalog_for_install(
 }
 
 impl Installer {
-    /// Derive the shape of a new install's extracted package and its shadow
-    /// verdict. Baseline and observation failures become `unknown`; this
-    /// never refuses the installation.
+    /// Derive the shape and comparison verdict of a new install's extracted package.
+    /// Baseline and observation failures become `unknown`.
     fn package_shape_record(
         &self,
         port: &PortDefinition,
@@ -3775,7 +3935,7 @@ impl Installer {
         sha256: &str,
     ) -> crate::package_shape::PackageShapeRecord {
         let local = self
-            .local_shape_baseline(&port.id, qualification.platform)
+            .local_shape_baseline(port, qualification.platform)
             .ok()
             .flatten();
         crate::package_shape::record_for_install(
@@ -3788,14 +3948,14 @@ impl Installer {
         )
     }
 
-    /// The active installation's recorded shape on the same platform.
-    fn local_shape_baseline(
+    /// The active installation's shape on the same platform and under the same derivation inputs.
+    pub(crate) fn local_shape_baseline(
         &self,
-        port_id: &str,
+        port: &PortDefinition,
         platform: Platform,
     ) -> Result<Option<crate::package_shape::LocalBaseline>> {
         let connection = self.library.connection()?;
-        let active = crate::profile::active_install_id(&connection, port_id)?;
+        let active = crate::profile::active_install_id(&connection, &port.id)?;
         let Some(install) = Library::install_by_id(&connection, active.as_deref())? else {
             return Ok(None);
         };
@@ -3803,19 +3963,30 @@ impl Installer {
         if manifest.platform != Some(platform) {
             return Ok(None);
         }
-        Ok(manifest
+        let Some(record) = manifest
             .package_shape
             .as_ref()
             .and_then(crate::package_shape::stored_record)
-            .map(|record| crate::package_shape::LocalBaseline {
-                install_id: install.id.clone(),
-                version: install.version.clone(),
-                sha256: install.artifact.sha256.clone(),
-                record,
-            }))
+        else {
+            return Ok(None);
+        };
+        let Some(catalog) = catalog_for_verified_manifest(&install, &manifest)? else {
+            return Ok(None);
+        };
+        if crate::package_shape::same_derivation_inputs(catalog.port(&port.id)?, port, platform)
+            != Some(true)
+        {
+            return Ok(None);
+        }
+        Ok(Some(crate::package_shape::LocalBaseline {
+            install_id: install.id,
+            version: install.version,
+            sha256: install.artifact.sha256,
+            record,
+        }))
     }
 
-    /// Recorded package shapes and shadow verdicts of a port's installations,
+    /// Recorded package shapes and comparison verdicts of a port's installations,
     /// for read-only diagnostics.
     pub fn installed_package_shapes(
         &self,
@@ -4215,8 +4386,12 @@ pub(crate) fn check_retained_runtime_paths(install: &InstallRecord, target: &Pat
     };
     let catalog = contract.catalog(&install.port_id)?;
     let port = catalog.port(&install.port_id)?;
+    let checks_immutable_originals = port.windows_runtime_path_policy
+        == Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
+        && crate::preparation::source::native(port);
     if port.windows_runtime_path_policy
         != Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath)
+        && !checks_immutable_originals
     {
         return Ok(());
     }
@@ -4436,7 +4611,7 @@ fn verified_manifest_with_budget(
             &install.artifact,
             manifest.platform,
         )?;
-        crate::managed_tfe::require_artifact(
+        crate::managed_initialization::require_artifact(
             catalog.port(&install.port_id)?,
             &install.version,
             &install.artifact,
@@ -5208,6 +5383,9 @@ const LOADER_CONFIG_NAMES: &[&str] = &[
 /// - `*.exe.config`: .NET application configuration, which can redirect
 ///   assembly binding and probing (learn.microsoft.com, "Configuring apps by
 ///   using configuration files").
+/// - `*.dll.config`: Mono per-assembly configuration can redirect P/Invoke
+///   library loading (mono-project.com, "Interop with Native Libraries",
+///   "Library Names").
 /// - `*.exe.manifest`: an external side-by-side application manifest the
 ///   Windows loader reads for DLL activation contexts (learn.microsoft.com,
 ///   "Application manifests").
@@ -5227,6 +5405,7 @@ pub(crate) fn is_loader_sensitive_name(name: &std::ffi::OsStr) -> bool {
         || PORTABLE_MARKER_NAMES.contains(&name.as_str())
         || [
             ".exe.config",
+            ".dll.config",
             ".exe.manifest",
             ".exe.local",
             ".runtimeconfig.dev.json",
@@ -5274,21 +5453,17 @@ fn electron_resources(manifest: &InstallManifest) -> Option<String> {
     } else {
         format!("{parent}/resources")
     };
-    manifest
-        .files
-        .iter()
-        .any(|file| {
-            file.path
-                .strip_prefix(&resources)
-                .and_then(|rest| rest.strip_prefix('/'))
-                .is_some_and(|rest| {
-                    matches!(
-                        rest.to_ascii_lowercase().as_str(),
-                        "app.asar" | "default_app.asar" | "electron.asar"
-                    )
-                })
-        })
-        .then_some(resources)
+    manifest.files.iter().find_map(|file| {
+        let (directory, name) = file.path.rsplit_once('/')?;
+        (directory.eq_ignore_ascii_case(&resources)
+            && matches!(
+                name.to_ascii_lowercase().as_str(),
+                "app.asar" | "default_app.asar" | "electron.asar"
+            ))
+        // Keep the manifest's spelling so persistence-root re-rooting also
+        // works on case-sensitive hosts. Eligibility compares ASCII aliases.
+        .then(|| directory.to_owned())
+    })
 }
 
 fn is_critical_companion_name(path: &Path, platform: Platform) -> bool {
@@ -7281,6 +7456,7 @@ mod tests {
             "enblocal.ini",
             "debug.ini",
             "game.exe.config",
+            "Engine.DLL.CONFIG",
             "Game.exe.manifest",
             "game.exe.local",
         ] {
@@ -7324,6 +7500,8 @@ mod tests {
             "DXVK.conf",
             "enblocal.ini",
             "Game.exe.config",
+            "Engine.dll.config",
+            "ENGINE.DLL.CONFIG",
             "game.EXE.manifest",
             "game.exe.local",
             "override.cfg",
@@ -7351,6 +7529,9 @@ mod tests {
             "reshadepreset.ini",
             "dxvk.conf.txt",
             ".exe.config",
+            ".dll.config",
+            "engine.dll.config.bak",
+            "engine.dll.config.json",
             "app.config",
             "enbseries.ini",
             "xaudio2_.ini",
@@ -7456,6 +7637,107 @@ mod tests {
         fs::write(root.join("resources/notes.txt"), b"notes").unwrap();
         let report = installer.verify_managed(&install, &qualification).unwrap();
         assert!(!report.has_hazards(), "{report:?}");
+    }
+
+    #[test]
+    fn electron_resource_case_aliases_are_hazards() {
+        for archive in ["Resources/APP.ASAR", "resources/app.asar"] {
+            let (_temporary, installer, install, qualification, root) =
+                full_integrity_fixture(&[archive]);
+            installer.verify_critical(&install, &qualification).unwrap();
+            let added = "rEsOuRcEs/app/main.json";
+            let path = root.join(added);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, b"{}").unwrap();
+            let report = installer.verify_managed(&install, &qualification).unwrap();
+            // Windows enumerates the existing directory's spelling even when
+            // the write used a case alias; Linux can retain the new spelling.
+            assert!(report.failures.iter().any(|failure| {
+                failure
+                    .strip_prefix("unexpected: ")
+                    .is_some_and(|path| path.eq_ignore_ascii_case(added))
+            }));
+            assert!(installer.verify_critical(&install, &qualification).is_err());
+            assert!(
+                installer
+                    .verify_critical_for_replacement(&install, &qualification)
+                    .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn electron_resource_carry_exclusions_come_from_the_target_manifest() {
+        use crate::carry_plan::{
+            CarryAction, CarryRow, Exclusion, PathInput, RowChange, SourceCopy, TargetCopy, plan,
+        };
+        for archive in ["Resources/APP.ASAR", "resources/app.asar"] {
+            let (_temporary, _installer, install, qualification, _root) =
+                full_integrity_fixture(&[archive]);
+            let (persistent, exclusions) = qualification.carry_exclusions(&install).unwrap();
+            assert_eq!(persistent, install.path);
+            assert_eq!(
+                exclusions.electron_resources.as_deref(),
+                archive.rsplit_once('/').map(|(root, _)| root)
+            );
+            // A nested path avoids the independent package-member/folder rule.
+            // Test a new copy and a ledger-proven removal: neither may act.
+            for removal in [false, true] {
+                let row = CarryRow::present("old", vec!["old".into()]);
+                let input = PathInput {
+                    source: if removal {
+                        SourceCopy::Absent
+                    } else {
+                        SourceCopy::File {
+                            sha256: "new".into(),
+                        }
+                    },
+                    source_row: removal.then(|| row.clone()),
+                    target: if removal {
+                        TargetCopy::File {
+                            sha256: "old".into(),
+                        }
+                    } else {
+                        TargetCopy::Absent
+                    },
+                    target_row: removal.then_some(row),
+                    target_replaces: None,
+                };
+                let paths = std::collections::BTreeMap::from([
+                    ("rEsOuRcEs/app/notes.txt".into(), input.clone()),
+                    ("resources-extra/app/notes.txt".into(), input),
+                ]);
+                let planned = plan("source", &paths, &exclusions, &|_| false);
+                let resources = planned
+                    .iter()
+                    .find(|p| p.path.starts_with("rEsOuRcEs/"))
+                    .unwrap();
+                assert_eq!(
+                    resources.action,
+                    CarryAction::Excluded(Exclusion::ElectronResources)
+                );
+                assert_eq!(resources.source_row, RowChange::Untouched);
+                assert_eq!(resources.target_row, RowChange::Untouched);
+                assert!(!matches!(
+                    planned
+                        .iter()
+                        .find(|p| p.path.starts_with("resources-extra/"))
+                        .unwrap()
+                        .action,
+                    CarryAction::Excluded(_)
+                ));
+            }
+        }
+        let (_temporary, _installer, install, qualification, _root) =
+            full_integrity_fixture(&["resources/data.pak"]);
+        assert!(
+            qualification
+                .carry_exclusions(&install)
+                .unwrap()
+                .1
+                .electron_resources
+                .is_none()
+        );
     }
 
     /// brawmario-infinite-mario-64-ever class (Godot): a new `override.cfg`
@@ -7906,6 +8188,55 @@ mod tests {
         installer
             .verify_import_contract(&install, &qualification)
             .unwrap_err();
+    }
+
+    #[test]
+    fn retained_manifest_browsing_reads_a_complete_catalog_above_eight_mib() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        fs::write(root.join("game.exe"), b"verified fixture").unwrap();
+        let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+        crate::test_fixture::grow_catalog_evidence(&mut document, 6 * 1024 * 1024);
+        let catalog = crate::Catalog::from_document(document).unwrap();
+        let port_id = "zelda64-recomp";
+        let mut qualification = InstallQualification::test("game.exe");
+        qualification.retained_contract =
+            Some(crate::installed_contract::InstalledContract::capture(&catalog, port_id).unwrap());
+        let artifact = ArtifactIdentity {
+            asset_name: "capacity.zip".into(),
+            sha256: "b".repeat(64),
+            size: 16,
+        };
+        let (manifest_sha256, selected_executable, runtime) = write_manifest(
+            "capacity-install",
+            port_id,
+            "v1",
+            &artifact,
+            &qualification,
+            root,
+        )
+        .unwrap();
+        let install = InstallRecord {
+            id: "capacity-install".into(),
+            port_id: port_id.into(),
+            version: "v1".into(),
+            path: root.to_path_buf(),
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: false,
+            artifact,
+            runtime,
+            manifest_sha256,
+            selected_executable,
+        };
+        let mut eight_mib = 8 * 1024 * 1024;
+        assert!(retained_query_context_with_budget(&install, Some(&mut eight_mib)).is_err());
+        let (restored, _) = retained_query_context(&install).unwrap();
+        let restored = restored.unwrap();
+        assert!(restored.port(port_id).is_ok());
+        assert!(restored.port("ghostship").is_ok());
+        assert!(restored.source_profile("ghostship-source").is_ok());
     }
 
     #[test]

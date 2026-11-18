@@ -4,23 +4,6 @@
     "id": "f-e-a-r-360-recompiled-juansolo457-f-e-a-r-files-xbox-360",
     "name": "F.E.A.R. Files (Xbox 360) — F.E.A.R. 360 Recompiled (Juansolo457)",
     "original_game_title": "F.E.A.R. Files (Xbox 360)",
-    "original_game": {
-      "format_version": 1,
-      "id": "f-e-a-r-files-xbox-360",
-      "evidence_urls": [
-        "https://github.com/Juansolo457/fear360-recomp/blob/55854d6fbc099c19789afabd7ecca30639ef45b4/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "f-e-a-r-files-xbox-360-xbox-360",
-          "title": "F.E.A.R. Files (Xbox 360) (Xbox 360, region not specified)",
-          "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/Juansolo457/fear360-recomp/blob/55854d6fbc099c19789afabd7ecca30639ef45b4/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Build F.E.A.R. Files locally from your Xbox 360 files. Upstream reports gameplay, but complete playthroughs of both expansions remain unconfirmed and effects/performance issues remain. Native Linux is untested. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Juansolo457/fear360-recomp",
     "platforms": ["windows-x86-64"],
@@ -65,5 +48,10 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The retained F.E.A.R. Files summary/warnings explicitly scope two expansion campaigns, distinct from base F.E.A.R. title 565507D9; Files has title 565507E8 and its own preparation. A shared repository does not collapse either campaign or base-game identity.",
+    "evidence_urls": ["https://github.com/Juansolo457/fear360-recomp"]
   }
 }

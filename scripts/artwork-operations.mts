@@ -71,9 +71,12 @@ export async function prepareCoverArtworkInOperations(
       original_reused: records.filter((record) => record.reason === "accepted-original-game-reused")
         .length,
       selected: records.filter(
-        (record) => record.mapping !== null && !record.reason.startsWith("accepted-mapping"),
+        (record) =>
+          (record.mapping !== null || Boolean(record.collection?.length)) &&
+          !record.reason.startsWith("accepted-mapping"),
       ).length,
-      fallback: records.filter((record) => record.mapping === null).length,
+      fallback: records.filter((record) => record.mapping === null && !record.collection?.length)
+        .length,
       ...metrics,
     },
     gone_image_ids: gone,

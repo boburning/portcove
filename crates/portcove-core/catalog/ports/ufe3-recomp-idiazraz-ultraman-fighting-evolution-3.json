@@ -4,23 +4,6 @@
     "id": "ufe3-recomp-idiazraz-ultraman-fighting-evolution-3",
     "name": "Ultraman Fighting Evolution 3 — ufe3-recomp (idiazraz)",
     "original_game_title": "Ultraman Fighting Evolution 3",
-    "original_game": {
-      "format_version": 1,
-      "id": "ultraman-fighting-evolution-3",
-      "evidence_urls": [
-        "https://github.com/idiazraz/ufe3-recomp/blob/88d0e29cf0272bffe5d0e849a9c6937e44d40c68/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "ultraman-fighting-evolution-3-playstation-2",
-          "title": "Ultraman Fighting Evolution 3 (PlayStation 2, region not specified)",
-          "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/idiazraz/ufe3-recomp/blob/88d0e29cf0272bffe5d0e849a9c6937e44d40c68/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Experimental project. Not playable; boot reaches memory-card service boundary; setup and recompile scripts require local source. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/idiazraz/ufe3-recomp",
     "platforms": ["linux-x86-64"],
@@ -52,6 +35,21 @@
       "image_sha256": "d88747f33cec4674b9737f929cd8f8c827e74de83dd6c4777f75aeae2df80cb2",
       "game_slug": "ultraman-fighting-evolution-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ultraman-fighting-evolution-3",
+      "evidence_urls": ["https://github.com/idiazraz/ufe3-recomp"],
+      "source_editions": [
+        {
+          "id": "ultraman-fighting-evolution-3-playstation-2",
+          "title": "Ultraman Fighting Evolution 3 (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/idiazraz/ufe3-recomp/blob/88d0e29cf0272bffe5d0e849a9c6937e44d40c68/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

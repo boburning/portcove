@@ -2,26 +2,17 @@
   "format_version": 1,
   "listing": {
     "id": "elf-bowling-recomp",
+    "artwork": {
+      "game_id": 51319,
+      "cover_id": 187084,
+      "image_id": "co40cs",
+      "image_sha256": "c2e32fabc42dfecbd3df1c16b759095bb0a448dde224c1586f388aa559f53728",
+      "game_slug": "elf-bowling",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/AdamLovattDevOps/elfbowling-recomp",
     "name": "Elf Bowling / Elf Bowling Recomp",
     "original_game_title": "Elf Bowling",
-    "original_game": {
-      "format_version": 1,
-      "id": "elf-bowling",
-      "evidence_urls": [
-        "https://github.com/AdamLovattDevOps/elfbowling-recomp/blob/623af07f7f62aa6f16a8846ed116f78b1a622aa2/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "elf-bowling-pc",
-          "title": "Elf Bowling (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/AdamLovattDevOps/elfbowling-recomp/blob/623af07f7f62aa6f16a8846ed116f78b1a622aa2/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Bowl with your own copy of the original 1999 Elf Bowling executable.",
     "issue_number": 6105,
     "listed_at": "2026-11-14",
@@ -56,6 +47,16 @@
       "warnings": [
         "The project has not published a license for its engine source. The original game is supplied separately."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "elf-bowling",
+      "evidence_urls": [
+        "https://github.com/AdamLovattDevOps/elfbowling-recomp/blob/v1.1/README.md#quick-start",
+        "https://github.com/AdamLovattDevOps/elfbowling-recomp/blob/v1.1/port/pkg/README.md",
+        "https://github.com/AdamLovattDevOps/elfbowling-recomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

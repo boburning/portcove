@@ -4,23 +4,6 @@
     "id": "lodilorenzo-cybermage-darklight-re-awakening",
     "name": "CyberMage: Darklight Re-Awakening",
     "original_game_title": "CyberMage: Darklight Awakening",
-    "original_game": {
-      "format_version": 1,
-      "id": "cybermage-darklight-awakening",
-      "evidence_urls": [
-        "https://github.com/lodilorenzo/cybermage-darklight-re-awakening/blob/6c99942342913bb18cf53df7240bc5725d4719a4/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "cybermage-darklight-awakening-pc",
-          "title": "CyberMage: Darklight Awakening (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/lodilorenzo/cybermage-darklight-re-awakening/blob/6c99942342913bb18cf53df7240bc5725d4719a4/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Use a permitted existing CyberMage player with your own DOS game files.",
     "project_url": "https://github.com/lodilorenzo/cybermage-darklight-re-awakening",
     "issue_number": 2836,
@@ -58,6 +41,15 @@
       "image_sha256": "3bc779f0ac8a658c115ce6723605ae5d5a30172c2d61c495e42ae1cb2ea18dd4",
       "game_slug": "cybermage-darklight-awakening",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "cybermage-darklight-awakening",
+      "evidence_urls": [
+        "https://github.com/lodilorenzo/cybermage-darklight-re-awakening/blob/6c99942342913bb18cf53df7240bc5725d4719a4/README.md",
+        "https://github.com/lodilorenzo/cybermage-darklight-re-awakening"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

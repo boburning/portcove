@@ -5,23 +5,6 @@
     "name": "Kingdom Hearts 358/2 Days (khdays-port)",
     "summary": "A Kingdom Hearts 358/2 Days port with a Windows installer requiring your own European Nintendo DS ROM. Setup prepares and compiles decompilation C locally; it does not claim an ARM interpreter. Source generation/build instructions are separate, and broader host support follows the BUILD guide. The included updater fetches and checks a new installer and restarts; the installer manages runtime replacement. Project features and wireless multiplayer are unconfirmed here, and wireless play between two PCs has not been tried. This game implementation is separate from KH Studio tools. Exact accepted ROM revision/hash and firmware needs remain unspecified. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Kingdom Hearts 358/2 Days",
-    "original_game": {
-      "format_version": 1,
-      "id": "kingdom-hearts-358-2-days",
-      "evidence_urls": [
-        "https://github.com/Yokimitsuro/khdays-port/blob/2037f79a171524eafcf40a1d641b16da14667a64/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "kingdom-hearts-358-2-days-nintendo-ds",
-          "title": "Kingdom Hearts 358/2 Days (Nintendo DS, region not specified)",
-          "system": "nintendo-ds",
-          "evidence_urls": [
-            "https://github.com/Yokimitsuro/khdays-port/blob/2037f79a171524eafcf40a1d641b16da14667a64/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/Yokimitsuro/khdays-port",
     "platforms": [],
     "availability": "unknown",
@@ -63,6 +46,15 @@
       "warnings": [
         "Select installed khdays-native.exe with its full writable install as CWD. Preserve raw DS backups, settings and optional locally generated HD content; editor, server and installer are separate routes."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kingdom-hearts-358-2-days",
+      "evidence_urls": [
+        "https://github.com/Yokimitsuro/khdays-port/blob/065a94b2a4c55b5217ffd023d8736af21e2d6851/README.md",
+        "https://github.com/Yokimitsuro/khdays-port"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

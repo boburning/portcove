@@ -7,23 +7,6 @@
     "summary": "Native Automobili Lamborghini recompilation.",
     "project_url": "https://github.com/alondero/automobililamborghini-recomp",
     "original_game_title": "Automobili Lamborghini",
-    "original_game": {
-      "format_version": 1,
-      "id": "automobili-lamborghini",
-      "evidence_urls": [
-        "https://github.com/alondero/automobililamborghini-recomp/blob/b6f92ebe4b2e0ac24bb0f583742758316800024b/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "automobili-lamborghini-nintendo-64",
-          "title": "Automobili Lamborghini (Nintendo 64, region not specified)",
-          "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/alondero/automobililamborghini-recomp/blob/b6f92ebe4b2e0ac24bb0f583742758316800024b/README.md"
-          ]
-        }
-      ]
-    },
     "artwork": {
       "game_id": 3442,
       "cover_id": 195699,
@@ -58,6 +41,15 @@
           "instruction": "Use in-place updates signed by the same upstream signer to keep the app-private saves, Controller Pak data and settings. Clearing app data or uninstalling erases that profile. Use the diagnostics ZIP for troubleshooting."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "automobili-lamborghini",
+      "evidence_urls": [
+        "https://github.com/alondero/automobililamborghini-recomp/blob/main/docs/ANDROID.md",
+        "https://github.com/alondero/automobililamborghini-recomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {
@@ -102,7 +94,16 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Set up the managed copy",
+            "instruction": "Select your own US Automobili Lamborghini cartridge dump. Portcove checks the original and installs the managed package for this computer."
+          }
+        ]
+      }
     }
   }
 }

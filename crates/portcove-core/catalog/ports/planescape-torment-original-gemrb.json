@@ -4,24 +4,7 @@
     "id": "planescape-torment-original-gemrb",
     "name": "Planescape: Torment (original) (GemRB)",
     "summary": "Set up Planescape: Torment (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
-    "original_game_title": "Planescape: Torment (original)",
-    "original_game": {
-      "format_version": 1,
-      "id": "planescape-torment-original",
-      "evidence_urls": [
-        "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "planescape-torment-original-pc",
-          "title": "Planescape: Torment (original) (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
-          ]
-        }
-      ]
-    },
+    "original_game_title": "Planescape: Torment",
     "project_url": "https://github.com/gemrb/gemrb",
     "availability": "packages",
     "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
@@ -75,7 +58,13 @@
         }
       ]
     },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "planescape-torment",
+      "evidence_urls": ["https://gemrb.org/Install.html", "https://github.com/gemrb/gemrb"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

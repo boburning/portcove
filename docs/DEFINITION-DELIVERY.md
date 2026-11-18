@@ -829,7 +829,7 @@ but occur once in the inventory. Empty snapshots are structurally valid; parsing
 one cannot remove catalog availability. Unknown or duplicate fields at every
 index boundary fail closed. Index bytes are retained exactly, not reserialized.
 
-The parser enforces the 4 MiB index, 4,096 definitions, 4 MiB per content target
+The parser enforces the 4 MiB index, 4,096 definitions, 16 MiB per content target
 and 32 MiB aggregate bounds below before exposing an immutable inventory. This
 first representation conservatively bounds all listed content, including records
 not referenced by a definition. A transport can obtain each target's validated
@@ -900,7 +900,7 @@ persistence contracts and referenced artifact/evidence identities. Bound entry
 count, individual and total bytes, depth, path lengths and fetched references;
 reject cycles and missing references. No reference can become an executable URL.
 The initial content contract uses a 4 MiB index, at most 4,096 entries, 4 MiB per
-entry, 32 MiB total fetched definition/contract content, depth 32, at most 1,024
+entry, 16 MiB per projection target, 32 MiB total fetched definition/contract content, depth 32, at most 1,024
 references per entry, and 255 UTF-8 bytes per relative path component. Existing
 stricter core path/archive limits still apply. TUF metadata retains the maintained
 client's own separate limits. An unsupported larger document cannot evict the
@@ -969,8 +969,8 @@ role leaves or record types require a separately implemented versioned contract;
 they are rejected rather than silently ignored or traversed. Thus this supported
 target graph is exactly one edge deep with one distinct leaf, within the index's
 existing byte and reference bounds. As one content target, the projected catalog
-keeps the 4 MiB content bound, inside the 16 MiB signed-catalog bound its decoded
-catalog shares ([size bounds](SIGNED-CATALOG.md#size-bounds-and-older-clients)). Source-graph references are checked by the current catalog validators.
+has a 16 MiB content bound. Its decoded catalog independently shares the
+16 MiB signed-catalog bound ([size bounds](SIGNED-CATALOG.md#size-bounds-and-older-clients)). Source-graph references are checked by the current catalog validators.
 
 All catalog semantics must validate, the selected port must exactly match the
 entry, and its installed template requirements must be supported. A failure
@@ -1614,8 +1614,8 @@ contains `definitions/index.json`, exactly its `sha256/*.json` content, and the
 corresponding `policy/official/<stable_id>.json` plus required `.launch.json`
 records. Core reuses the definition, capability, publisher and launch parsers;
 missing, extra, changed, linked or unsupported content refuses. The bounds are
-16,385 files and 32 MiB in total, with 4 MiB indexed leaves and 64 KiB policy
-records. Its exact file/definition manifest grants no semantic or publisher
+16,385 files and 32 MiB in total, with 16 MiB indexed projection leaves, 4 MiB indexes and individual
+definition entries, and 64 KiB policy records. Its exact file/definition manifest grants no semantic or publisher
 acceptance. An empty index is bootstrap preparation, not a delivered definition.
 
 The maintained release inspector and its real-CLI build fixtures accept API84
@@ -1817,6 +1817,11 @@ observations. Exact native tag identities use the existing project/tag reference
 IDs retain their shape, and older incapable readers refuse the directory while
 retaining their last-good selection. This is data compatibility, not a publisher
 grant or permission to acquire or execute a package.
+
+Listing format 12 adds optional implementation methods and shared dependencies.
+Earlier-format exports omit that inert envelope while preserving setup facts and
+acquisition restrictions. A format-12 publication needs compatible reader coverage;
+this implementation does not authorize a protected publication or change its keys.
 
 Listing formats 9 (first-listed dates) and 10 (funding links) follow the same rule.
 A delivered directory declares one format for the whole snapshot, so publishing at

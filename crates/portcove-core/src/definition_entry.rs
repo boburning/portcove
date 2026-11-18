@@ -136,6 +136,11 @@ impl DefinitionContentIndex {
         bytes: &[u8],
         retained: bool,
     ) -> Result<DefinitionEntryInspection> {
+        if bytes.len() > crate::definition_index::MAX_ENTRY_BYTES {
+            return Err(PortcoveError::verification(
+                "definition entry exceeds its byte bound",
+            ));
+        }
         let indexed = self
             .definitions()
             .iter()
@@ -405,14 +410,19 @@ impl DefinitionContentIndex {
                 "versioned mod packages require staged-source capability version 24",
             ));
         }
-        if crate::preparation::source::native(&port)
-            && !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "native-portable" && requirement.minimum_version >= 6
-            })
-        {
-            return Err(PortcoveError::verification(
-                "verified native runtime originals require capability version 6",
-            ));
+        if crate::preparation::source::native(&port) {
+            let minimum = if crate::preparation::source::native_relative(&port) {
+                crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY
+            } else {
+                6
+            };
+            if !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= minimum
+            }) {
+                return Err(PortcoveError::verification(format!(
+                    "verified native runtime originals require capability version {minimum}"
+                )));
+            }
         }
         if port.windows_temp_directory.is_some()
             && !document.required_capabilities.iter().any(|requirement| {
@@ -542,6 +552,16 @@ impl DefinitionContentIndex {
         {
             return Err(PortcoveError::verification(
                 "version-local credentials require staged-source capability version 15",
+            ));
+        }
+        if crate::managed_chocolate::applies(&port)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= crate::managed_chocolate::CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(
+                "Chocolate profile preparation requires staged-source capability version 38",
             ));
         }
         if port.managed_initialization.is_some()

@@ -1,6 +1,8 @@
+import { ImplementationFacts } from "../features/browsing/ImplementationFacts";
 import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";
 import { SetupIntentChoice } from "./SetupIntentChoice";
 import { PortCapabilities } from "./PortCapabilities";
+import { CarriedFilesSummary } from "./CarriedFilesSummary";
 import { setupRoutePresentation } from "../features/port-actions/setup-route-presentation";
 import { Chip } from "./ui/chip";
 import { IdentityIcon } from "../features/identity/IdentityIcon";
@@ -115,7 +117,7 @@ import { RuntimePrerequisiteNotice } from "./RuntimePrerequisiteNotice";
 import { ReportProblem } from "./ReportProblem";
 import { DetailQualificationSummary } from "./DetailQualificationSummary";
 import { installPlanActionLabel } from "../install-plan-presentation";
-import managedSetupReview from "../managed-setup-review.generated.json";
+import { authoredManagedSetupReview } from "../features/browsing/managed-setup-review";
 import {
   hasPendingSetupAction,
   portActionPresentation,
@@ -528,6 +530,7 @@ function DetailBody(model: {
     external,
     setupRoutes.promoteAlternative,
   );
+  const requirements = detailRequirementContext(model, external);
   return (
     <DetailLayout
       backLabel={model.backLabel}
@@ -536,9 +539,13 @@ function DetailBody(model: {
       // Before installation, checking setup availability belongs with setup in Game files.
       supplementSection={model.installed || external ? undefined : "files"}
       port={model.displayPort ?? model.port}
+      platforms={requirements.platforms}
+      upstreamPlatforms={requirements.upstreamPlatforms}
       projectUrl={model.port.project_url}
       openSupport={model.openSupport}
-      overviewRequirements={<DetailRequirementsFacts model={model} external={external} />}
+      overviewRequirements={
+        <DetailRequirementsFacts model={model} external={external} requirements={requirements} />
+      }
       overviewActions={(reveal) => <DetailOverviewActions model={model} reveal={reveal} />}
       overviewDetails={<DetailOverviewEvidence model={model} />}
       selectedChannel={model.selectedChannel}
@@ -626,7 +633,7 @@ function DetailBody(model: {
       {(reveal) => ({
         overview: <DetailOverviewSection model={model} />,
         files: <DetailFilesSection {...{ model, managedPreparation }} />,
-        saves: <DetailSavesSection {...{ model, external }} />,
+        saves: <DetailSavesSection {...{ model, external, reveal }} />,
         versions: <DetailVersionsSection {...{ model, external }} />,
         manage: <DetailManageSection {...{ model, external, reveal }} />,
       })}
@@ -1104,7 +1111,7 @@ function UpdatesGroup({
         </>
       )}
       <details className="mt-4">
-        <summary data-focusable className="cursor-pointer py-2 text-sm font-medium">
+        <summary data-focusable className="disclosure-pad-2 cursor-pointer text-sm font-medium">
           Future update preferences
         </summary>
         <p className="text-xs text-pc-muted-foreground">
@@ -1242,7 +1249,9 @@ function SavesStorageGroup({
         onChanged={() => void retryBackupRead?.()}
       />
       <details className="text-sm">
-        <summary className="cursor-pointer py-2 font-medium">Coverage and recorded rules</summary>
+        <summary className="disclosure-pad-2 cursor-pointer font-medium">
+          Coverage and recorded rules
+        </summary>
         <SavesAndSettingsSummary port={port} status={status} />
         <TrustStrip status={status} />
       </details>
@@ -1411,7 +1420,7 @@ function StorageSummary({ status }: { status?: PortStatus | undefined }) {
         {status?.user_data_root ? (
           <p className="mt-1 text-pc-muted-foreground select-text">{status.user_data_root}</p>
         ) : (
-          <p className="mt-1 text-pc-muted-foreground">Folder not available</p>
+          <p className="mt-1 text-pc-muted-foreground">Opening creates the folder if needed.</p>
         )}
       </div>
     </div>
@@ -1422,7 +1431,9 @@ function CompatibilitySummary({ port }: { port: PortDefinition }) {
   return (
     <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
       <span className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-        <small className="mb-[5px] block text-[var(--color-text-muted)]">Platforms</small>
+        <small className="mb-[5px] block text-[var(--color-text-muted)]">
+          Portcove setup platforms
+        </small>
         {port.platforms.map((value) => platformLabel(value)).join(" · ")}
       </span>
       {port.platforms.includes("linux-x86-64") && (
@@ -2049,7 +2060,7 @@ function SourceFileDetails({ source }: { source?: SourceRecord | undefined }) {
     <details className="source-technical border-t border-pc-border">
       <summary
         data-focusable
-        className="cursor-pointer py-3 font-medium text-pc-interactive-foreground"
+        className="disclosure-pad-3 cursor-pointer font-medium text-pc-interactive-foreground"
       >
         File details
       </summary>
@@ -3564,32 +3575,19 @@ function UninstalledPrimaryActions(
 ) {
   const port = model.sources.port;
   const presentation = port.presentation;
-  const authoredReviews: Readonly<
-    Record<
-      string,
-      {
-        note: string;
-        warnings: readonly string[];
-        platform_warnings: Partial<Record<InstallPlan["platform"], readonly string[]>>;
-      }
-    >
-  > = managedSetupReview;
-  const review = model.plan?.port_id === port.id ? authoredReviews[port.id] : undefined;
-  const platformWarnings = model.plan ? review?.platform_warnings[model.plan.platform] : undefined;
+  const review = authoredManagedSetupReview(port.id, model.plan, presentation?.manual_setup);
   return (
     <InstallAction
       gameName={gameIdentityLabel(model.sources.port)}
       setupNote={
         review?.note ??
-        presentation?.manual_setup?.steps[0]?.instruction ??
-        (!model.sources.port.source_profile && !model.sources.port.bios_source_profile
+        (!presentation?.manual_setup?.steps.length &&
+        !port.source_profile &&
+        !port.bios_source_profile
           ? (presentation?.manual_preparation ?? undefined)
           : undefined)
       }
-      setupWarnings={[
-        ...(review?.warnings ?? presentation?.manual_setup?.warnings ?? []),
-        ...(platformWarnings ?? []),
-      ]}
+      setupWarnings={review?.warnings ?? presentation?.manual_setup?.warnings ?? []}
       externalData={model.sources.port.presentation?.saves_and_settings === "external-user-owned"}
       cancellations={model.installCancellations}
       ready={model.launchReady}
@@ -3673,7 +3671,7 @@ function requirementInstallationLabel({
     : "Recorded setup method unavailable";
 }
 
-function detailRequirementContext(model: Parameters<typeof DetailBody>[0]) {
+function detailRequirementContext(model: Parameters<typeof DetailBody>[0], external: boolean) {
   const retained = Boolean(model.status?.active || model.status?.external_runtime);
   const setup = model.status?.readiness?.setup_contract;
   const context = retained ? setup : model.port.presentation;
@@ -3681,17 +3679,35 @@ function detailRequirementContext(model: Parameters<typeof DetailBody>[0]) {
   const source = requirements?.filter((requirement) => requirement.role !== "bios");
   const bios = requirements?.find((requirement) => requirement.role === "bios");
   const manual = context?.manual_setup || context?.manual_preparation;
-  return { retained, setup, source, bios, manual };
+  const registered = external ? model.status?.external_runtime : undefined;
+  const platforms = registered
+    ? [registered.platform]
+    : retained
+      ? (setup?.platforms ?? [])
+      : model.port.platforms;
+  const upstreamPlatforms =
+    model.displayPort?.listing?.platforms.filter(
+      (platform) => !model.port.platforms.includes(platform) && !platforms.includes(platform),
+    ) ?? [];
+  return { retained, setup, source, bios, manual, platforms, upstreamPlatforms };
 }
 
 function DetailRequirementsFacts({
   model,
   external,
+  requirements,
 }: {
   model: Parameters<typeof DetailBody>[0];
   external: boolean;
+  requirements: ReturnType<typeof detailRequirementContext>;
 }) {
-  const { retained, setup, source, bios, manual } = detailRequirementContext(model);
+  const { retained, setup, source, bios, manual, platforms, upstreamPlatforms } = requirements;
+  const upstream = upstreamPlatforms.length > 0 && (
+    <div>
+      <dt>Upstream project platforms</dt>
+      <dd>{upstreamPlatforms.map(platformLabel).join(" · ")}</dd>
+    </div>
+  );
   if (retained && !setup && !external)
     return (
       <dl className="detail-facts">
@@ -3708,6 +3724,7 @@ function DetailRequirementsFacts({
             <dd>Required BIOS not specified</dd>
           </div>
         )}
+        {upstream}
         <div>
           <dt>Selected update channel</dt>
           <dd>{releaseChannelPresentation(model.selectedChannel).label}</dd>
@@ -3738,12 +3755,12 @@ function DetailRequirementsFacts({
         </div>
       )}
       <div>
-        <dt>Runs on</dt>
+        <dt>{retained ? "Recorded installation platforms" : "Portcove setup platforms"}</dt>
         <dd>
-          {(retained ? setup?.platforms : model.port.platforms)?.map(platformLabel).join(" · ") ||
-            "Recorded package targets unavailable"}
+          {platforms.map(platformLabel).join(" · ") || "Recorded package targets unavailable"}
         </dd>
       </div>
+      {upstream}
       <div>
         <dt>Installation</dt>
         <dd>{requirementInstallationLabel({ external, retained, setup, port: model.port })}</dd>
@@ -3849,6 +3866,7 @@ function DetailOverviewEvidence({ model }: { model: Parameters<typeof DetailBody
         busy={Boolean(model.busy)}
         detailsContext={[model.backups, model.backupProtection, model.backupReadState]}
       />
+      <ImplementationFacts port={model.displayPort ?? model.port} />
       <details className="mt-6">
         <summary data-focusable>Project status and release information</summary>
         <ProjectReleaseSummary port={model.port} />
@@ -4069,12 +4087,14 @@ function DetailManageSection({
 function DetailSavesSection({
   model,
   external,
+  reveal,
 }: {
   model: Parameters<typeof DetailBody>[0];
   external: boolean;
+  reveal: import("./DetailLayout").RevealDetailSection;
 }) {
   return (
-    <>
+    <div className="grid gap-5">
       <ProtectionSummary
         portId={model.port.id}
         status={model.status}
@@ -4106,23 +4126,6 @@ function DetailSavesSection({
           </section>
         </CurrentStateSummary>
       )}
-      {!external && model.status?.active && (
-        <GameSettingsControl
-          key={`${model.libraryGeneration}:${model.port.id}:${model.status.active.id}:${Boolean(model.busy)}`}
-          portId={model.port.id}
-          installId={model.status.active.id}
-          generation={model.libraryGeneration}
-          busy={Boolean(model.busy)}
-        />
-      )}
-      {!external && model.status?.active && (
-        <ModSetupsControl
-          key={`${model.libraryGeneration}:${model.port.id}:${Boolean(model.busy)}`}
-          portId={model.port.id}
-          generation={model.libraryGeneration}
-          busy={Boolean(model.busy)}
-        />
-      )}
       <SavesStorageGroup
         port={model.port}
         status={model.status}
@@ -4142,7 +4145,25 @@ function DetailSavesSection({
         outputApplying={model.outputApplying}
         actions={model.actions}
       />
-    </>
+      {!external && model.status?.active && (
+        <GameSettingsControl
+          key={`${model.libraryGeneration}:${model.port.id}:${model.status.active.id}:${Boolean(model.busy)}`}
+          portId={model.port.id}
+          installId={model.status.active.id}
+          generation={model.libraryGeneration}
+          busy={Boolean(model.busy)}
+        />
+      )}
+      {!external && model.status?.active && (
+        <ModSetupsControl
+          key={`${model.libraryGeneration}:${model.port.id}:${Boolean(model.busy)}`}
+          portId={model.port.id}
+          generation={model.libraryGeneration}
+          busy={Boolean(model.busy)}
+          openGameFiles={() => reveal("files")}
+        />
+      )}
+    </div>
   );
 }
 
@@ -4190,6 +4211,7 @@ function DetailVersionsSection({
             }
           />
         )}
+        {!external && <CarriedFilesSummary record={model.status?.carried_files} />}
         {!external && model.port.release.provider !== "user-prepared" && (
           <UpdatesGroup
             perform={model.perform}

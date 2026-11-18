@@ -423,8 +423,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
     let original = library.listing_delivery_status().unwrap().target_sha256;
     let (catalog, _) = library.load_catalog().unwrap();
-    // The embedded base now carries funding links, so the combined directory is format 10.
-    assert_eq!(catalog.listing_document().format_version, 10);
+    // Embedded implementation descriptions require format 12 in the combined directory.
+    assert_eq!(catalog.listing_document().format_version, 12);
     assert_eq!(
         catalog
             .listing("new-unmanaged-port")
@@ -445,8 +445,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     );
     assert!(catalog.port("new-unmanaged-port").is_err());
     candidate["revision"] = json!(2);
-    // The next unknown format; 10 is now the funding-link format this reader accepts.
-    candidate["directory"]["format_version"] = json!(11);
+    // The next unknown format follows the accepted implementation format 12.
+    candidate["directory"]["format_version"] = json!(13);
     let next_root = publish(&fixture, &key, 2, &candidate).await;
     assert!(refresh(&library, &fixture, &next_root).await.is_err());
     assert_eq!(
@@ -460,7 +460,7 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
             .0
             .listing_document()
             .format_version,
-        10
+        catalog.listing_document().format_version
     );
 }
 
@@ -496,7 +496,7 @@ async fn a_delivered_format_nine_directory_replaces_its_own_records_over_funded_
     let replaced = catalog.listing("severed-chains").unwrap();
     assert_eq!(replaced.summary, "Corrected descriptive summary.");
     assert!(replaced.funding_urls.is_none());
-    // Bundled records the snapshot omits keep their links, so the combined directory is 10.
+    // Omitted bundled records keep their metadata, including format-11 collections.
     assert!(
         catalog
             .listing("ambermoon-ambermoon-net")
@@ -504,7 +504,7 @@ async fn a_delivered_format_nine_directory_replaces_its_own_records_over_funded_
             .funding_urls
             .is_some()
     );
-    assert_eq!(catalog.listing_document().format_version, 10);
+    assert_eq!(catalog.listing_document().format_version, 12);
 
     // A delivered format-10 snapshot carries links for this reader.
     candidate["revision"] = json!(2);
@@ -712,4 +712,151 @@ async fn automatic_official_refresh_defaults_on_stays_quiet_and_preserves_state(
     assert_eq!(library.listing_delivery_status().unwrap().revision, Some(1));
     assert!(selected(&library));
     assert_eq!(library.activities(10).unwrap().len(), activities);
+}
+
+#[tokio::test]
+async fn signed_shared_observation_reopens_into_offline_preliminary_download_browsing() {
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let now = time::OffsetDateTime::now_utc();
+    let stamp = |value: time::OffsetDateTime| {
+        value
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap()
+    };
+    let mut candidate = feed(1);
+    candidate["directory"]["format_version"] = json!(4);
+    let listing = &mut candidate["directory"]["listings"][0];
+    listing["project_url"] = json!("https://github.com/example/game");
+    listing["availability"] = json!("unknown");
+    listing["upstream_observation"] = json!({
+        "provider":"github","repository":"example/game","repository_id":7,"status":"complete",
+        "attempted_at":stamp(now),"observed_at":stamp(now-time::Duration::seconds(1)),
+        "fresh_until":stamp(now+time::Duration::hours(1)),"facts_sha256":"a".repeat(64),
+        "release_limit":4,"releases":[{"id":11,"version":"v1","release_url":"https://github.com/example/game/releases/tag/v1",
+        "published_at":"2026-01-01T00:00:00Z","provider_prerelease":false,"assets_complete":true,
+        "assets":[{"id":21,"name":"game.zip","url":"https://github.com/example/game/releases/download/v1/game.zip",
+        "size":42,"sha256":null,"platform_hints":[]}]}]
+    });
+    let root = publish(&fixture, &key, 1, &candidate).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    // The unchanged consumer reopens retained signed state. This route has no
+    // provider transport when its fresh observation satisfies preliminary browse.
+    let service = PortcoveService::new(Library::open(library.root()).unwrap()).unwrap();
+    let result = service
+        .catalog_download_options("new-unmanaged-port", None, crate::ReleaseChannel::Stable)
+        .await
+        .unwrap();
+    assert!(result.allowed);
+    assert_eq!(result.selected_release_id, Some(11.into()));
+    assert_eq!(
+        result.candidates[0].asset_id,
+        crate::CatalogDownloadAssetId::from(21_u64)
+    );
+    assert!(
+        result
+            .reason
+            .unwrap()
+            .contains("Upstream metadata observed at")
+    );
+    assert!(service.catalog().port("new-unmanaged-port").is_err());
+}
+
+#[tokio::test]
+async fn signed_legacy_observation_directory_preserves_authored_comparison_descriptions_on_reopen()
+{
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let embedded = Catalog::embedded().unwrap();
+    let ids = ["2ship2harkinian", "zelda64-recomp"];
+    let mut legacy = embedded.listing_document().export_format(11).unwrap();
+    legacy
+        .listings
+        .retain(|listing| ids.contains(&listing.id.as_str()));
+    assert_eq!(legacy.listings.len(), ids.len());
+    assert!(
+        legacy
+            .listings
+            .iter()
+            .all(|listing| listing.implementation.is_none())
+    );
+    let candidate = json!({
+        "listing_delivery_schema":1,"revision":1,"withdrawn_ids":[],"directory":legacy
+    });
+    let root = publish(&fixture, &key, 1, &candidate).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let service = PortcoveService::new(Library::open(library.root()).unwrap()).unwrap();
+    for id in ids {
+        let original = embedded.listing(id).unwrap();
+        assert!(original.implementation.is_some());
+        assert_eq!(
+            service.catalog().listing(id).unwrap().implementation,
+            original.implementation
+        );
+    }
+    assert_eq!(
+        serde_json::to_value(service.catalog().authoritative_document()).unwrap(),
+        serde_json::to_value(embedded.authoritative_document()).unwrap()
+    );
+}
+
+#[tokio::test]
+async fn observer_produced_target_reaches_signed_cache_and_preliminary_browse_without_a_route_grant()
+ {
+    // Node's maintained contract recreates these exact bytes through the real
+    // projectListingObservation and publication builder, from synthetic provider
+    // facts. The fixed source clock is explicit; no fresh/live upstream claim.
+    let produced: Value = serde_json::from_str(include_str!(
+        "testdata/listing-observation-delivery.generated.json"
+    ))
+    .unwrap();
+    assert_eq!(produced["directory"]["format_version"], 11);
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let root = publish(&fixture, &key, 1, &produced).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let service = PortcoveService::new(Library::open(library.root()).unwrap()).unwrap();
+    let listing = service.catalog().listing("new-unmanaged-port").unwrap();
+    assert!(
+        listing.implementation.is_none(),
+        "format-11 readers never meet the new inert key"
+    );
+    assert!(service.catalog().port("new-unmanaged-port").is_err());
+    let provider = crate::GithubReleaseProvider::with_api_root("https://api.github.com").unwrap();
+    let at = |value| {
+        time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339).unwrap()
+    };
+    let (candidates, coverage, _, selected) = provider
+        .observed_catalog_download_options(
+            listing,
+            None,
+            crate::ReleaseChannel::Stable,
+            None,
+            at("2026-11-10T01:00:00Z"),
+        )
+        .unwrap();
+    assert_eq!(selected, Some(7));
+    assert_eq!(
+        candidates[0].asset_id,
+        crate::CatalogDownloadAssetId::Github(11)
+    );
+    assert!(!coverage.release_history_complete);
+    assert!(
+        provider
+            .observed_catalog_download_options(
+                listing,
+                None,
+                crate::ReleaseChannel::Stable,
+                None,
+                at("2026-11-11T01:00:00Z")
+            )
+            .is_none(),
+        "expiry cannot be advanced by signed delivery or cache reads"
+    );
 }

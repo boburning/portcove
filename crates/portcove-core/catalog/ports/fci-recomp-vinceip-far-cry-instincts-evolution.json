@@ -4,23 +4,6 @@
     "id": "fci-recomp-vinceip-far-cry-instincts-evolution",
     "name": "Far Cry Instincts: Evolution — fci-recomp (VinceIP)",
     "original_game_title": "Far Cry Instincts: Evolution",
-    "original_game": {
-      "format_version": 1,
-      "id": "far-cry-instincts-evolution",
-      "evidence_urls": [
-        "https://github.com/VinceIP/fci-recomp/blob/8fc4b7374fd2e72be96c0f45cb9dc0db7dc7ae88/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "far-cry-instincts-evolution-xbox",
-          "title": "Far Cry Instincts: Evolution (Xbox, region not specified)",
-          "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/VinceIP/fci-recomp/blob/8fc4b7374fd2e72be96c0f45cb9dc0db7dc7ae88/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Version 0.2.1 describes story and map-editor support, but a complete playthrough is unconfirmed. The project’s known defects remain. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/VinceIP/fci-recomp",
     "platforms": [],
@@ -52,6 +35,21 @@
       "image_sha256": "a772f7dff041ac2e2e90dd0c594228569c93ea34ba00393ae7ca488616627d1f",
       "game_slug": "far-cry-instincts-evolution",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "far-cry-instincts-evolution",
+      "evidence_urls": ["https://github.com/VinceIP/fci-recomp"],
+      "source_editions": [
+        {
+          "id": "far-cry-instincts-evolution-xbox",
+          "title": "Far Cry Instincts: Evolution (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/VinceIP/fci-recomp/blob/8fc4b7374fd2e72be96c0f45cb9dc0db7dc7ae88/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

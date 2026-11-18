@@ -6,6 +6,14 @@
     "original_game_title": "Doom",
     "summary": "Play Doom or Freedoom in the Eternity Engine with its own game data, settings and saves.",
     "project_url": "https://github.com/team-eternity/eternity",
+    "artwork": {
+      "game_id": 673,
+      "cover_id": 268663,
+      "image_id": "co5rav",
+      "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+      "game_slug": "doom",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 5689,
     "listed_at": "2026-11-15",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
@@ -58,5 +66,10 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The authored source/setup scope explicitly permits Doom or Freedoom originals, with per-IWAD game/save choices. This broad engine record is not scoped to one original game.",
+    "evidence_urls": ["https://github.com/team-eternity/eternity"]
   }
 }

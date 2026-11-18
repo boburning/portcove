@@ -198,6 +198,20 @@ describe("host-tool feedback identity", () => {
 });
 
 describe("host-tool row reflow", () => {
+  it("shows the full expanded tool path inside a narrow column", async () => {
+    container.style.width = "164px";
+    const path = `C:/Tools/${"private-tool-folder".repeat(7)}/chdman.exe`;
+    await render({ ...initial, path });
+    container.querySelector<HTMLElement>(".host-tool-details > summary")!.click();
+    const code = container.querySelector<HTMLElement>(".host-tool-details > code")!;
+    expect(code.textContent).toBe(path);
+    expect(code.getAttribute("dir")).toBe("ltr");
+    expect(code.scrollWidth).toBeLessThanOrEqual(code.clientWidth);
+    expect(code.getBoundingClientRect().height).toBeGreaterThan(
+      Number.parseFloat(getComputedStyle(code).lineHeight),
+    );
+  });
+
   it("keeps a missing tool's status inside a 400% interface-size column", async () => {
     container.style.width = "164px";
     await render({

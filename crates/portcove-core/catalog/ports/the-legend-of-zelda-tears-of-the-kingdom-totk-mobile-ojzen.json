@@ -5,23 +5,6 @@
     "name": "The Legend of Zelda: Tears of the Kingdom (Zelda-Mobile (OJZen/totk-mobile))",
     "summary": "An experimental Tears of the Kingdom compatibility adaptation running rewritten original ARM64 code on Apple Silicon, with shared Mac/iOS Horizon services and NVN-to-Metal graphics. It is title-specific, rather than a Windows recompilation or standalone original game. The project reports Mac save loading, scene play, audio, cutscenes and keyboard/Xbox controls; a full playthrough is unconfirmed, with first-visit shader stutter and variable frame rates. Build from source on an Apple Silicon M1+ Mac with full Xcode/Command Line Tools and Homebrew; there is no official release package and exact macOS/Metal minimums are unconfirmed. Intel is unsupported. iPad M1+ has limited play/import evidence; iPhone 15 Pro reaches the title without measured gameplay. Use your own base game, v1.4.3 .nsz update and matching prod.keys, with exactly one base/update in local/games/. Module fingerprints refuse other versions, and code/resources/shaders are generated locally. Accepted base format, region/title ID, exact hashes and firmware/font/ticket requirements are unspecified in the retained README. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "The Legend of Zelda: Tears of the Kingdom",
-    "original_game": {
-      "format_version": 1,
-      "id": "the-legend-of-zelda-tears-of-the-kingdom",
-      "evidence_urls": [
-        "https://github.com/OJZen/totk-mobile/blob/6d4c1d36c67c71fa303404c475c4c7ba4a7f2823/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "the-legend-of-zelda-tears-of-the-kingdom-nintendo-switch",
-          "title": "The Legend of Zelda: Tears of the Kingdom (Nintendo Switch, region not specified)",
-          "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/OJZen/totk-mobile/blob/6d4c1d36c67c71fa303404c475c4c7ba4a7f2823/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/OJZen/totk-mobile",
     "listed_at": "2026-10-25",
     "platforms": [],
@@ -35,7 +18,13 @@
       "game_slug": "the-legend-of-zelda-tears-of-the-kingdom",
       "match_kind": "underlying-game"
     },
-    "issue_number": 3028
+    "issue_number": 3028,
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-tears-of-the-kingdom",
+      "evidence_urls": ["https://github.com/OJZen/totk-mobile"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

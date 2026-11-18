@@ -2,26 +2,17 @@
   "format_version": 1,
   "listing": {
     "id": "quake-ironwail",
+    "artwork": {
+      "game_id": 333,
+      "cover_id": 434745,
+      "image_id": "co9bg9",
+      "image_sha256": "c91124efedaa065907226a47b1d1454f3af1440170c83cf9a7200cb6190156b2",
+      "game_slug": "quake",
+      "match_kind": "underlying-game"
+    },
     "name": "Quake (Ironwail)",
     "summary": "A native Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
     "original_game_title": "Quake",
-    "original_game": {
-      "format_version": 1,
-      "id": "quake",
-      "evidence_urls": [
-        "https://github.com/andrei-drexler/ironwail/blob/08d578136ff43d7d1ef38e636dfbfd3e844be7cd/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "quake-pc",
-          "title": "Quake (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/andrei-drexler/ironwail/blob/08d578136ff43d7d1ef38e636dfbfd3e844be7cd/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/andrei-drexler/ironwail",
     "availability": "unknown",
     "setup_url": "https://github.com/andrei-drexler/ironwail",
@@ -52,6 +43,15 @@
     "release_url": "https://github.com/andrei-drexler/ironwail/releases",
     "download_asset_hints": {
       "linux-x86-64": ["ironwail-", "-linux-x64.tar.gz"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "quake",
+      "evidence_urls": [
+        "https://github.com/andrei-drexler/ironwail/tree/1eabd0df21130e55d94496c7af177e2dcbed75df",
+        "https://github.com/andrei-drexler/ironwail"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

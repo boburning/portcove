@@ -32,6 +32,16 @@
       "warnings": [],
       "help_url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED/blob/1.7/README.md"
     },
-    "release_url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED/releases"
+    "release_url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED/releases",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-the-wind-waker",
+      "evidence_urls": [
+        "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED/blob/1.7/README.md",
+        "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "The Legend of Zelda: The Wind Waker"
   }
 }

@@ -1,5 +1,15 @@
 {
   "format_version": 1,
+  "managed_setup_platform_warnings": {
+    "macos-aarch64": [
+      "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+      "Portcove has not verified native Mac setup or gameplay."
+    ],
+    "macos-x86-64": [
+      "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+      "Portcove has not verified native Mac setup or gameplay."
+    ]
+  },
   "order": 29,
   "listing": {
     "id": "jedi-power-battles-recompiled",
@@ -8,23 +18,6 @@
     "project_url": "https://github.com/TechnicallyComputers/Star-wars---Episode-I---Jedi-Power-Battles-Recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Star Wars: Episode I – Jedi Power Battles",
-    "original_game": {
-      "format_version": 1,
-      "id": "star-wars-episode-i-jedi-power-battles",
-      "evidence_urls": [
-        "https://github.com/TechnicallyComputers/Star-wars---Episode-I---Jedi-Power-Battles-Recomp/blob/444ca25f9ed4e6f2d2380f58a446528f921eb3e6/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "star-wars-episode-i-jedi-power-battles-playstation",
-          "title": "Star Wars: Episode I – Jedi Power Battles (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/TechnicallyComputers/Star-wars---Episode-I---Jedi-Power-Battles-Recomp/blob/444ca25f9ed4e6f2d2380f58a446528f921eb3e6/README.md"
-          ]
-        }
-      ]
-    },
     "variant_label": "PlayStation",
     "artwork": {
       "game_id": 6606,
@@ -34,7 +27,15 @@
       "game_slug": "star-wars-episode-i-jedi-power-battles",
       "match_kind": "underlying-game"
     },
-    "issue_number": 84
+    "issue_number": 84,
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-episode-i-jedi-power-battles",
+      "evidence_urls": [
+        "https://github.com/TechnicallyComputers/Star-wars---Episode-I---Jedi-Power-Battles-Recomp"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -78,7 +79,16 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": []
+      }
     }
   }
 }

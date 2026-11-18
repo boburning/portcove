@@ -2,8 +2,8 @@
   "format_version": 1,
   "listing": {
     "id": "andreyvelsk-com-mobilerpgpack-phone",
-    "name": "Doom-engine games (exact offered game scope unresolved) / Mobile RPG Pack (andreyvelsk)",
-    "summary": "Explore Doom-engine games (exact offered game scope unresolved) / Mobile RPG Pack (andreyvelsk) and follow the upstream project for requirements, downloads and setup.",
+    "name": "Doom / Doom II — UZDoom (andreyvelsk)",
+    "summary": "Follow the AYN Thor UZDoom setup for your own Doom or Doom II game data.",
     "project_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone",
     "issue_number": 1848,
     "listed_at": "2026-10-23",
@@ -14,7 +14,7 @@
       "steps": [
         {
           "title": "Finish setup in the upstream Android app",
-          "instruction": "This fork’s published APK is for Android, specifically the AYN Thor dual-screen UZDoom route. Install this fork’s APK on the Android device, open its launcher deliberately, and select your own compatible Doom-family IWAD/content through the UZDoom setup. Other engines named in the inherited parent README have been excluded from this fork; do not prepare Doom RPG, Wolfenstein RPG or another parent engine for this APK."
+          "instruction": "This fork’s published APK is for Android, specifically the AYN Thor dual-screen UZDoom route. Install this fork’s APK on the Android device, open its launcher deliberately, and select your own Doom or Doom II IWAD through the UZDoom setup. Other engines named in the inherited parent README have been excluded from this fork; do not prepare Doom RPG, Wolfenstein RPG or another parent engine for this APK."
         },
         {
           "title": "Keep your data when changing versions",
@@ -24,6 +24,32 @@
       "warnings": [],
       "help_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/blob/2.9.1-ds.1.0.2/README.md"
     },
-    "release_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/releases"
+    "release_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/releases",
+    "collection_covers": [
+      {
+        "game_id": 673,
+        "cover_id": 268663,
+        "image_id": "co5rav",
+        "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+        "game_slug": "doom",
+        "match_kind": "underlying-game"
+      },
+      {
+        "game_id": 312,
+        "cover_id": 303937,
+        "image_id": "co6iip",
+        "image_sha256": "9aaabe14844aa0f4152bc03a571c5e8f327dfa173469a2fd9e8cfc302e6fe6db",
+        "game_slug": "doom-ii-hell-on-earth",
+        "match_kind": "underlying-game"
+      }
+    ]
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The authored runtime/launcher accepts multiple Doom-family games and their distinct game data/mod choices. Preserve the broad engine scope rather than labeling it as one original.",
+    "evidence_urls": [
+      "https://github.com/andreyvelsk/com.mobilerpgpack.phone/blob/2.9.1-ds.1.0.2/README.md",
+      "https://github.com/andreyvelsk/com.mobilerpgpack.phone"
+    ]
   }
 }

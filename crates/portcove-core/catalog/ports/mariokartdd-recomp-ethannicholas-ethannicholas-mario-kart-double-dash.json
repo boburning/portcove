@@ -4,23 +4,6 @@
     "id": "mariokartdd-recomp-ethannicholas-ethannicholas-mario-kart-double-dash",
     "name": "Mario Kart: Double Dash!! — MarioKartDD Recomp (ethannicholas) (ethannicholas)",
     "original_game_title": "Mario Kart: Double Dash!!",
-    "original_game": {
-      "format_version": 1,
-      "id": "mario-kart-double-dash",
-      "evidence_urls": [
-        "https://github.com/ethannicholas/mariokartdd-recomp/blob/bd36eb982ea58c6651584cc48264876d1aba9546/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "mario-kart-double-dash-gamecube",
-          "title": "Mario Kart: Double Dash!! (GameCube, region not specified)",
-          "system": "gamecube",
-          "evidence_urls": [
-            "https://github.com/ethannicholas/mariokartdd-recomp/blob/bd36eb982ea58c6651584cc48264876d1aba9546/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "The project reports reaching menus and a Grand Prix race with sound. Completion of the full game has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ethannicholas/mariokartdd-recomp",
     "platforms": ["windows-x86-64", "macos-aarch64"],
@@ -52,6 +35,21 @@
       "image_sha256": "5fd4283973677bbd9f95a76b63dd21418cbf292a48b490a93206a6ffacbaf7d8",
       "game_slug": "mario-kart-double-dash",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-kart-double-dash",
+      "evidence_urls": ["https://github.com/ethannicholas/mariokartdd-recomp"],
+      "source_editions": [
+        {
+          "id": "mario-kart-double-dash-nintendo-gamecube",
+          "title": "Mario Kart: Double Dash!! (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/ethannicholas/mariokartdd-recomp/blob/bd36eb982ea58c6651584cc48264876d1aba9546/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

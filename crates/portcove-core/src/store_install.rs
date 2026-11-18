@@ -141,6 +141,7 @@ struct Detection {
     report: StoreGameInstalls,
     protected: Vec<(GameStore, PathBuf)>,
     seen: BTreeMap<String, Option<usize>>,
+    requested_profile: Option<String>,
 }
 
 impl Detection {
@@ -149,7 +150,12 @@ impl Detection {
     }
 
     fn add(&mut self, store: GameStore, title: &str, path: &Path, product_id: Option<String>) {
-        let candidate = original_folder(store, product_id.as_deref(), path);
+        let candidate = original_folder(
+            store,
+            product_id.as_deref(),
+            path,
+            self.requested_profile.as_deref(),
+        );
         let Some(path) = existing_folder(path) else {
             self.skip();
             return;
@@ -195,7 +201,14 @@ impl Detection {
 }
 
 fn detect(host: &dyn StoreInstallHost) -> Detection {
-    let mut detection = Detection::default();
+    detect_for_profile(host, None)
+}
+
+fn detect_for_profile(host: &dyn StoreInstallHost, profile_id: Option<&str>) -> Detection {
+    let mut detection = Detection {
+        requested_profile: profile_id.map(str::to_owned),
+        ..Detection::default()
+    };
     detection.report.checked_stores = host.checked_stores();
     detect_steam(host, &mut detection);
     for install in host.gog_registered_installs() {
@@ -565,21 +578,66 @@ fn original_folder(
     store: GameStore,
     product_id: Option<&str>,
     install_path: &Path,
+    requested_profile: Option<&str>,
 ) -> Option<StoreOriginalFolder> {
-    // The Force Engine's reviewed upstream lookup distinguishes the 1995
-    // Steam original (32400 / Game) from the remaster (2292260).
-    if store != GameStore::Steam || product_id != Some("32400") {
+    // Use the folder coordinates documented by The Force Engine and
+    // dhewm3 and BStone. Product and layout are hints; source intake verifies identity.
+    let (profile_id, subdirectory, required_directories): (&str, &str, &[&str]) =
+        match (store, product_id) {
+            (GameStore::Steam, Some("32400")) => {
+                ("dark-forces-pc-complete-installed-data", "Game", &[])
+            }
+            (GameStore::Gog, Some("1421404433")) => {
+                ("dark-forces-pc-complete-installed-data", "", &[])
+            }
+            (GameStore::Steam, Some("9050")) => ("doom-3-classic-pc-131-pk4", "", &["base"]),
+            (GameStore::Steam, Some("9070")) => {
+                ("doom-3-roe-classic-pc-131-pk4", "", &["base", "d3xp"])
+            }
+            (GameStore::Steam, Some("358190")) => (
+                "bstone-aliens-of-gold-originals",
+                "Blake Stone - Aliens of Gold",
+                &[],
+            ),
+            (GameStore::Steam, Some("358310")) => (
+                "bstone-planet-strike-originals",
+                "Blake Stone - Planet Strike",
+                &[],
+            ),
+            (GameStore::Gog, Some("1207658728")) => ("bstone-aliens-of-gold-originals", "", &[]),
+            (GameStore::Gog, Some("1207658729")) => ("bstone-planet-strike-originals", "", &[]),
+            // One anthology install contains both games. The selected source
+            // profile supplies context, never a guessed default implementation.
+            (GameStore::Steam, Some("238050")) => match requested_profile {
+                Some("bstone-aliens-of-gold-originals") => {
+                    ("bstone-aliens-of-gold-originals", "Blake Stone", &[])
+                }
+                Some("bstone-planet-strike-originals") => {
+                    ("bstone-planet-strike-originals", "Planet Strike", &[])
+                }
+                _ => return None,
+            },
+            _ => return None,
+        };
+    if requested_profile.is_some_and(|requested| requested != profile_id) {
         return None;
     }
-    let directory = install_path.join("Game");
+    let directory = install_path.join(subdirectory);
     crate::path::refuse_symlink_ancestors(&directory).ok()?;
     let install = existing_folder(install_path)?;
     let path = existing_folder(&directory)?;
     if !inside(&path, &install) {
         return None;
     }
+    for name in required_directories {
+        let required = path.join(name);
+        crate::path::refuse_symlink_ancestors(&required).ok()?;
+        if !required.is_dir() {
+            return None;
+        }
+    }
     Some(StoreOriginalFolder {
-        profile_id: "dark-forces-pc-complete-installed-data".into(),
+        profile_id: profile_id.into(),
         path,
     })
 }
@@ -619,7 +677,21 @@ impl PortcoveService {
     /// Game folders Steam, GOG and Epic installed on this computer, read from
     /// the stores' own metadata. Reads only; failures leave a shorter list.
     pub fn store_game_installs(&self) -> Result<StoreGameInstalls> {
-        let mut report = detect(self.store_install_host()).report;
+        self.store_game_installs_with_profile(None)
+    }
+
+    /// Query a selected game's original profile, including store bundles that
+    /// contain more than one game's data. A hint still does not admit the files.
+    pub fn store_game_installs_for_profile(&self, profile_id: &str) -> Result<StoreGameInstalls> {
+        self.catalog().source_profile(profile_id)?;
+        self.store_game_installs_with_profile(Some(profile_id))
+    }
+
+    fn store_game_installs_with_profile(
+        &self,
+        profile_id: Option<&str>,
+    ) -> Result<StoreGameInstalls> {
+        let mut report = detect_for_profile(self.store_install_host(), profile_id).report;
         let library = std::fs::canonicalize(self.library().root())
             .unwrap_or_else(|_| self.library().root().to_path_buf());
         let home = directories::BaseDirs::new()

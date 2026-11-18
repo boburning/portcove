@@ -4,23 +4,6 @@
     "id": "magiciansquest-recomp-waifoof-magician-s-quest-mysterious-times",
     "name": "Magician's Quest: Mysterious Times — MagiciansQuest-Recomp (waifoof)",
     "original_game_title": "Magician's Quest: Mysterious Times",
-    "original_game": {
-      "format_version": 1,
-      "id": "magician-s-quest-mysterious-times",
-      "evidence_urls": [
-        "https://github.com/waifoof/MagiciansQuest-Recomp/blob/c31b0e8002d58d9d34c6b105a2f83c4f8e512032/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "magician-s-quest-mysterious-times-nintendo-ds",
-          "title": "Magician's Quest: Mysterious Times (Nintendo DS, region not specified)",
-          "system": "nintendo-ds",
-          "evidence_urls": [
-            "https://github.com/waifoof/MagiciansQuest-Recomp/blob/c31b0e8002d58d9d34c6b105a2f83c4f8e512032/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "This early alpha reaches character creation, the dormitory and the first school day with controls, sound and touch input. Broader campaign and multiplayer claims have not been confirmed by Portcove. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/waifoof/MagiciansQuest-Recomp",
     "platforms": ["windows-x86-64"],
@@ -52,6 +35,21 @@
       "image_sha256": "4086e7d4c13b213be53816eef7624b0b66a2db7658e4255165b8008d893c635f",
       "game_slug": "magicians-quest-mysterious-times",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "magician-s-quest-mysterious-times",
+      "evidence_urls": ["https://github.com/waifoof/MagiciansQuest-Recomp"],
+      "source_editions": [
+        {
+          "id": "magician-s-quest-mysterious-times-nintendo-ds",
+          "title": "Magician's Quest: Mysterious Times (Nintendo DS)",
+          "system": "nintendo-ds",
+          "evidence_urls": [
+            "https://github.com/waifoof/MagiciansQuest-Recomp/blob/c31b0e8002d58d9d34c6b105a2f83c4f8e512032/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

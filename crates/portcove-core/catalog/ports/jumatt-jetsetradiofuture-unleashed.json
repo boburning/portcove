@@ -5,23 +5,6 @@
     "name": "Jet Set Radio Future (Jet Set Radio Future Unleashed)",
     "summary": "Attach an independently permitted, prepared JSRF Unleashed Windows installation for the standalone US Xbox disc. Its waiting native launcher owns setup and remembers the selected game; saves remain in that game folder’s UDATA.",
     "original_game_title": "Jet Set Radio Future",
-    "original_game": {
-      "format_version": 1,
-      "id": "jet-set-radio-future",
-      "evidence_urls": [
-        "https://github.com/JuMatt/JetSetRadioFuture-Unleashed/blob/0f3426954c76b243a9aa5b1b97b39062950dec78/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "jet-set-radio-future-xbox",
-          "title": "Jet Set Radio Future (Xbox, region not specified)",
-          "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/JuMatt/JetSetRadioFuture-Unleashed/blob/0f3426954c76b243a9aa5b1b97b39062950dec78/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/JuMatt/JetSetRadioFuture-Unleashed",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -67,6 +50,15 @@
       "warnings": [
         "Use the standalone US disc data; preserve game-folder UDATA separately from the actual per-user or portable launcher storage."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "jet-set-radio-future",
+      "evidence_urls": [
+        "https://github.com/JuMatt/JetSetRadioFuture-Unleashed/blob/9ddb226f66d92c8c6bfed56ea9797bcaa2da48a5/README.md",
+        "https://github.com/JuMatt/JetSetRadioFuture-Unleashed"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -1,0 +1,61 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ur-quan-masters",
+    "artwork": {
+      "game_id": 1046,
+      "cover_id": 110505,
+      "image_id": "co2d9l",
+      "image_sha256": "b4012c48e5e5f6e84b9c5352454dc81ec01052175df789a17421e977334682db",
+      "game_slug": "star-control-ii",
+      "match_kind": "underlying-game"
+    },
+    "name": "The Ur-Quan Masters",
+    "original_game_title": "Star Control II",
+    "summary": "Explore the original Star Control II campaign in The Ur-Quan Masters with the project's base game data.",
+    "project_url": "https://sourceforge.net/projects/sc2/",
+    "issue_number": 6376,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
+    "availability": "packages",
+    "release_url": "https://sc2.sourceforge.net/downloads.php",
+    "download_block_reason": "Use the publisher's setup or your Linux package manager. The release bundles game content under separate terms and installation stays with the upstream installer or package manager.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install the Windows release",
+          "instruction": "Download uqm-0.8-win32.exe from the publisher and run the installer. Keep the base game content selected and use the installed shortcut to play. The installer and player are 32-bit and require Windows support for 32-bit applications."
+        },
+        {
+          "title": "Install from your Linux distribution",
+          "instruction": "On Debian or Ubuntu, install uqm with your package manager and let it install the required uqm-content package. Start The Ur-Quan Masters from the app menu or run uqm. Ubuntu 26.04 publishes x86-64 and ARM64 packages. Other distribution packages are linked on the project's download page."
+        },
+        {
+          "title": "Install the Intel Mac app",
+          "instruction": "Open uqm-0.8-macos.dmg and copy The Ur-Quan Masters.app to Applications. The Intel app includes the base game content. The publisher documents where to add the optional voice and 3DO music packages inside the app bundle."
+        },
+        {
+          "title": "Back up your profile",
+          "instruction": "Close the game and copy %APPDATA%/uqm on Windows or ~/.uqm on Linux and macOS. Keep the save and teams subdirectories and the settings files. Copy any add-ons you placed in the installation separately before replacing the package."
+        }
+      ],
+      "warnings": [
+        "Keep the stock profile separate from MegaMod profiles and use the matching base data and add-ons."
+      ],
+      "references": [
+        {
+          "title": "Check platform availability",
+          "instruction": "The 0.8.0 Mac download contains an Intel executable. The publisher offers no native Apple Silicon app or Android APK in this release. The project links separately maintained ports."
+        }
+      ]
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ur-quan-masters",
+    "origin": {
+      "project_url": "https://sourceforge.net/projects/sc2/"
+    },
+    "decisions": []
+  }
+}

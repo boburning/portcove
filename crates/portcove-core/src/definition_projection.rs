@@ -42,7 +42,7 @@ impl DefinitionSnapshot {
         if self.namespace.len() > 255
             || self.stable_id.len() > 255
             || self.index_json.len() > crate::definition_index::MAX_INDEX_BYTES
-            || self.entry_json.len() as u64 > crate::definition_index::MAX_CONTENT_BYTES
+            || self.entry_json.len() > crate::definition_index::MAX_ENTRY_BYTES
             || self.contract_json.len() as u64 > crate::definition_index::MAX_CONTENT_BYTES
         {
             return Err(PortcoveError::verification(

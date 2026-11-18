@@ -5,23 +5,6 @@
     "name": "Quake 4 (openQ4)",
     "summary": "A beta openQ4 player using your own legitimate installed PC Quake 4 and matching data. Windows/Linux x64 and ARM64 packages are documented, with Linux ARM64 in preview and macOS experimental. Windows ARM64 has been built but not confirmed on physical hardware. Engine GPL and game SDK terms apply separately; keep all notices and do not treat package availability as permission for every component. Exact accepted original revision/hashes and BIOS/firmware needs are unconfirmed. You and the project manage setup and replacement; Portcove has not qualified a release package or confirmed gameplay.",
     "original_game_title": "Quake 4",
-    "original_game": {
-      "format_version": 1,
-      "id": "quake-4",
-      "evidence_urls": [
-        "https://github.com/themuffinator/openQ4/blob/cba4233679755546a41d0d072a3e6b47dbc1148e/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "quake-4-pc",
-          "title": "Quake 4 (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/themuffinator/openQ4/blob/cba4233679755546a41d0d072a3e6b47dbc1148e/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/themuffinator/openQ4",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -64,6 +47,15 @@
       "warnings": [
         "Select the native x64 client and point fs_basepath at the PC Quake 4 root. Keep q4base and baseoq4 separate; preserve the actual save root and do not infer stock, legacy or cross-platform save compatibility."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "quake-4",
+      "evidence_urls": [
+        "https://github.com/themuffinator/openQ4/blob/fcdd56967135fbbdfb1688e2d25533f8f123b1c6/README.md",
+        "https://github.com/themuffinator/openQ4"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

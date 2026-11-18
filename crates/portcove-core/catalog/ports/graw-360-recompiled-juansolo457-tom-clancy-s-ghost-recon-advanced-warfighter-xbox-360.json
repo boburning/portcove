@@ -4,23 +4,6 @@
     "id": "graw-360-recompiled-juansolo457-tom-clancy-s-ghost-recon-advanced-warfighter-xbox-360",
     "name": "Tom Clancy's Ghost Recon Advanced Warfighter (Xbox 360) — GRAW 360 Recompiled (Juansolo457)",
     "original_game_title": "Tom Clancy's Ghost Recon Advanced Warfighter (Xbox 360)",
-    "original_game": {
-      "format_version": 1,
-      "id": "tom-clancy-s-ghost-recon-advanced-warfighter-xbox-360",
-      "evidence_urls": [
-        "https://github.com/Juansolo457/graw360-recomp/blob/9005160cf844ed105b40f93fe7ea21b1d9aa0011/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "tom-clancy-s-ghost-recon-advanced-warfighter-xbox-360-xbox-360",
-          "title": "Tom Clancy's Ghost Recon Advanced Warfighter (Xbox 360) (Xbox 360, region not specified)",
-          "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/Juansolo457/graw360-recomp/blob/9005160cf844ed105b40f93fe7ea21b1d9aa0011/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Upstream reports menus and Instant Action/co-op loading, but 3D output is black. The campaign menu starts; mission startup remains unfinished. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Juansolo457/graw360-recomp",
     "platforms": [],
@@ -52,6 +35,12 @@
       "image_sha256": "ee96e971a3f788e94b1a18ac0b125ce15707ba43c3a728c4456f4c1d4b3d3ec6",
       "game_slug": "tom-clancy-s-ghost-recon-advanced-warfighter",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tom-clancys-ghost-recon-advanced-warfighter-xbox-360",
+      "evidence_urls": ["https://github.com/Juansolo457/graw360-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -5,23 +5,6 @@
     "name": "Poseidon: Master of Atlantis (eZeus)",
     "summary": "Prepare Poseidon: Master of Atlantis through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Poseidon: Master of Atlantis",
-    "original_game": {
-      "format_version": 1,
-      "id": "poseidon-master-of-atlantis",
-      "evidence_urls": [
-        "https://github.com/MaurycyLiebner/eZeus/blob/ec765199f9719d1724fe07ebd776a2240c099dcd/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "poseidon-master-of-atlantis-pc",
-          "title": "Poseidon: Master of Atlantis (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/MaurycyLiebner/eZeus/blob/ec765199f9719d1724fe07ebd776a2240c099dcd/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/MaurycyLiebner/eZeus",
     "availability": "packages",
     "setup_url": "https://github.com/MaurycyLiebner/eZeus/blob/474a96206278293dbd9cde6d506b5570934f8acf/README.md",
@@ -76,7 +59,16 @@
         }
       ]
     },
-    "platforms": ["macos-x86-64", "macos-aarch64"]
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "poseidon-master-of-atlantis",
+      "evidence_urls": [
+        "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta",
+        "https://github.com/MaurycyLiebner/eZeus"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

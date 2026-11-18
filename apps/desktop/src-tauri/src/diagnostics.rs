@@ -1,5 +1,5 @@
 use std::{
-    path::{Path, PathBuf},
+    path::Path,
     sync::atomic::{AtomicU64, Ordering},
     time::Duration,
 };
@@ -48,18 +48,18 @@ impl GithubAuthObservation {
 /// carries no library state and never grants recovery or sharing authority.
 #[derive(Clone)]
 pub(crate) struct HostDiagnostics {
-    pub(crate) directory: crate::DesktopResult<PathBuf>,
     shared: portcove_diagnostics::HostDiagnostics,
 }
 
 impl HostDiagnostics {
     fn from_shared(shared: portcove_diagnostics::HostDiagnostics) -> Self {
-        Self {
-            directory: shared.directory().map(Path::to_path_buf).ok_or_else(|| {
-                PortcoveError::state("host diagnostics location is unavailable").report()
-            }),
-            shared,
-        }
+        Self { shared }
+    }
+
+    pub(crate) fn directory(&self) -> crate::DesktopResult<&Path> {
+        self.shared.support_directory().ok_or_else(|| {
+            PortcoveError::state("host diagnostics location is unavailable").report()
+        })
     }
 
     pub(crate) fn start() -> (Self, Option<Guard>) {
@@ -219,7 +219,7 @@ mod tests {
         let subscriber =
             tracing_subscriber::registry().with(shared.layer().with_filter(shared.filter()));
         let host = HostDiagnostics::from_shared(shared);
-        let directory = host.directory.as_ref().unwrap();
+        let directory = host.directory().unwrap();
         assert_eq!(directory, &root.join("diagnostics"));
         tracing::subscriber::with_default(subscriber, || {
             tracing::info!(
@@ -244,6 +244,54 @@ mod tests {
             .unwrap();
         assert!(log.contains("startup host log remains available"));
         assert!(!root.join("preferences.json").exists());
+    }
+
+    #[test]
+    fn late_host_root_recovers_explicit_export_and_folder_location_without_a_writer() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = fs::canonicalize(temporary.path()).unwrap();
+        let expected = root.join("diagnostics");
+        let (release, wait) = std::sync::mpsc::sync_channel(1);
+        let (shared, guard, worker) =
+            portcove_diagnostics::HostDiagnostics::start_in_with_delayed_preparation(
+                &expected,
+                portcove_diagnostics::Surface::Desktop,
+                wait,
+            );
+        assert!(guard.is_none());
+        assert!(shared.bootstrap_timed_out());
+        let host = HostDiagnostics::from_shared(shared);
+        assert!(host.directory().is_err());
+        release.send(()).unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        while host.directory().is_err() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "late host root was not published"
+            );
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        let failure = PortcoveError::state("library unavailable").report();
+        let exported =
+            create_support_bundle(None, Some(&failure), host.directory().unwrap()).unwrap();
+        assert!(exported.path.is_file());
+        assert_eq!(exported.path.parent(), Some(expected.as_path()));
+        assert!(!exported.manifest.library_available);
+        // The visible folder action consumes this same live getter after export.
+        assert_eq!(host.directory().unwrap(), expected);
+        assert!(host.shared.session_directory().is_none());
+        assert!(host.shared.bootstrap_timed_out());
+        assert_eq!(host.shared.health().flush_state, FlushState::Unavailable);
+        let worker = worker.expect("bootstrap worker was not started");
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        while !worker.is_finished() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "bootstrap worker did not finish"
+            );
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        worker.join().unwrap();
     }
 
     #[test]
@@ -345,7 +393,7 @@ mod tests {
         assert!(shared.session_directory().is_none());
         assert_eq!(shared.health().flush_state, FlushState::Unavailable);
         let host = HostDiagnostics::from_shared(shared);
-        assert!(host.directory.is_err());
+        assert!(host.directory().is_err());
         assert_eq!(fs::read(&foreign).unwrap(), b"preserve foreign data");
         assert_eq!(
             fs::read(directory.join(LOG_FILE_NAME)).unwrap(),
@@ -371,7 +419,7 @@ mod tests {
         assert!(shared.session_directory().is_none());
         assert_eq!(shared.health().flush_state, FlushState::Unavailable);
         let host = HostDiagnostics::from_shared(shared);
-        assert!(host.directory.is_err());
+        assert!(host.directory().is_err());
         assert_eq!(fs::read_link(alias).unwrap(), foreign);
         assert!(!foreign.join("diagnostics").exists());
     }

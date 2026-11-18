@@ -5,23 +5,6 @@
     "name": "The Legend of Zelda: Echoes of Wisdom (EoWRecomp)",
     "summary": "An experimental Echoes of Wisdom port translating AArch64 code to C with LAS-derived Vulkan/MoltenVK services. It is not fully playable: Linux reaches the opening and first controllable scene, with full progress, saves and PC features unfinished. The reviewed alpha_1 release has a Mac ARM64 ZIP, Android APK and checksums; Linux/Windows use source. Packages build your game locally. Apple Silicon macOS 15+ and Android ARM64 package tests covered setup without the game. Windows x64 was cross-built, with setup/game untested and no Windows release file. Use your own version 1.0.0 title 01008CF01BAAC000 without updates and prod.keys, as NSP/XCI/NCA. Generated code still reads original package data. Separate firmware, region and hashes are unspecified. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "The Legend of Zelda: Echoes of Wisdom",
-    "original_game": {
-      "format_version": 1,
-      "id": "the-legend-of-zelda-echoes-of-wisdom",
-      "evidence_urls": [
-        "https://github.com/Nycolazs/EoWRecomp/blob/dd9c79d6c01d9eaddafc1fc5a07b6658bfc56505/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "the-legend-of-zelda-echoes-of-wisdom-nintendo-switch",
-          "title": "The Legend of Zelda: Echoes of Wisdom (Nintendo Switch, region not specified)",
-          "system": "nintendo-switch",
-          "evidence_urls": [
-            "https://github.com/Nycolazs/EoWRecomp/blob/dd9c79d6c01d9eaddafc1fc5a07b6658bfc56505/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/Nycolazs/EoWRecomp",
     "listed_at": "2026-10-25",
     "platforms": [],
@@ -35,7 +18,22 @@
       "game_slug": "the-legend-of-zelda-echoes-of-wisdom",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2947
+    "issue_number": 2947,
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-echoes-of-wisdom",
+      "evidence_urls": ["https://github.com/Nycolazs/EoWRecomp"],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-echoes-of-wisdom-nintendo-switch",
+          "title": "The Legend of Zelda: Echoes of Wisdom (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/Nycolazs/EoWRecomp/blob/dd9c79d6c01d9eaddafc1fc5a07b6658bfc56505/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -4,23 +4,6 @@
     "id": "folklore-native-port-dawoodtogoo2020-code-dawoodtogoo2020-code-folklore",
     "name": "Folklore — Folklore native port (dawoodtogoo2020-code) (dawoodtogoo2020-code)",
     "original_game_title": "Folklore",
-    "original_game": {
-      "format_version": 1,
-      "id": "folklore",
-      "evidence_urls": [
-        "https://github.com/dawoodtogoo2020-code/folklore-native-port/blob/1fc59432f3c1a069d70e265a399e527428961676/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "folklore-playstation-3",
-          "title": "Folklore (PlayStation 3, region not specified)",
-          "system": "playstation-3",
-          "evidence_urls": [
-            "https://github.com/dawoodtogoo2020-code/folklore-native-port/blob/1fc59432f3c1a069d70e265a399e527428961676/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "The public Owner Build Kit has been installed locally on the developer’s PC. Results from private builds do not establish gameplay in the public kit. Setup on a clean machine and physical motion controls remain unconfirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/dawoodtogoo2020-code/folklore-native-port",
     "platforms": [],
@@ -52,6 +35,21 @@
       "image_sha256": "d1ffd856cea68a9685dd75760cfd6aa02ba1119539511efa1d713558b809c956",
       "game_slug": "folklore",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "folklore",
+      "evidence_urls": ["https://github.com/dawoodtogoo2020-code/folklore-native-port"],
+      "source_editions": [
+        {
+          "id": "folklore-playstation-3",
+          "title": "Folklore (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/dawoodtogoo2020-code/folklore-native-port/blob/1fc59432f3c1a069d70e265a399e527428961676/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

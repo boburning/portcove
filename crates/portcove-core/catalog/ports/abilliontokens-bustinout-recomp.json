@@ -2,32 +2,38 @@
   "format_version": 1,
   "listing": {
     "id": "abilliontokens-bustinout-recomp",
+    "artwork": {
+      "game_id": 4151,
+      "cover_id": 93688,
+      "image_id": "co20ag",
+      "image_sha256": "19cf1088d6277178b2efd8c1880ad19619394fca0d0f22661034d5af20ec884a",
+      "game_slug": "the-sims-bustin-out",
+      "match_kind": "underlying-game"
+    },
     "name": "The Sims: Bustin' Out — Original Xbox (The Sims: Bustin' Out - Static Recompilation)",
     "summary": "The project reports a playable Linux household in The Sims: Bustin’ Out, with experimental Hor+ widescreen. Physical gamepad use and visible save/reload are unconfirmed. Linux uses Vulkan/SDL3; Windows is intended to use Direct3D 12/XAudio2, but the README says it has never been compiled while a win64 ZIP is published. Windows play remains unconfirmed. Setup needs your own North American original-Xbox disc: default.xbe, 3211264 bytes, SHA-1 6feea04a12fb134253abe2b5662da634d0048232. Other regions and revisions need separate review. Generated game code stays local; no separate console BIOS requirement is stated. You and the project manage installation and version changes. Release files are not qualified packages in Portcove, and Portcove has not confirmed setup or gameplay.",
-    "original_game_title": "The Sims: Bustin' Out",
+    "original_game_title": "The Sims: Bustin’ Out (console)",
+    "project_url": "https://github.com/abilliontokens/bustinout-recomp",
+    "listed_at": "2026-10-25",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/abilliontokens/bustinout-recomp",
+    "issue_number": 2745,
     "original_game": {
       "format_version": 1,
-      "id": "the-sims-bustin-out",
-      "evidence_urls": [
-        "https://github.com/abilliontokens/bustinout-recomp/blob/e37436806c5107ee0ed4cb4d5c7a62b4c72eb613/README.md"
-      ],
+      "id": "the-sims-bustin-out-console",
+      "evidence_urls": ["https://github.com/abilliontokens/bustinout-recomp"],
       "source_editions": [
         {
-          "id": "the-sims-bustin-out-xbox",
-          "title": "The Sims: Bustin' Out (Xbox, region not specified)",
+          "id": "the-sims-bustin-out-console-xbox",
+          "title": "The Sims: Bustin’ Out (console) (Xbox)",
           "system": "xbox",
           "evidence_urls": [
             "https://github.com/abilliontokens/bustinout-recomp/blob/e37436806c5107ee0ed4cb4d5c7a62b4c72eb613/README.md"
           ]
         }
       ]
-    },
-    "project_url": "https://github.com/abilliontokens/bustinout-recomp",
-    "listed_at": "2026-10-25",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/abilliontokens/bustinout-recomp",
-    "issue_number": 2745
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -45,6 +45,8 @@ async function openExport() {
   await page.getByText("Prepare a recovery copy", { exact: true }).click();
 }
 
+const receipt = () => document.querySelector(".library-recovery [role=status]");
+
 it("announces a declined metadata picker as cancelled without exporting or showing a receipt", async () => {
   vi.mocked(pickMetadataExportPath).mockResolvedValue(null);
   const exported = vi.spyOn(desktopApi, "exportLibraryMetadata");
@@ -54,7 +56,7 @@ it("announces a declined metadata picker as cancelled without exporting or showi
     .poll(() => document.querySelector("[data-invocation-announcements]")?.textContent)
     .toContain("export library metadata · fixture/library: cancelled.");
   expect(exported).not.toHaveBeenCalled();
-  expect(document.body.textContent).not.toContain("Library information exported to");
+  expect(receipt()).toBeNull();
   expect(document.querySelector("[data-invocation-announcements]")?.textContent).not.toContain(
     "finished",
   );
@@ -74,8 +76,8 @@ it("exports the selected path and retains its successful metadata receipt", asyn
     .toContain("export library metadata · fixture/library: finished.");
   expect(exported).toHaveBeenCalledExactlyOnceWith("C:\\owned\\metadata.json");
   await expect
-    .poll(() => document.body.textContent)
-    .toContain("Library information exported to C:\\owned\\metadata.json");
+    .poll(() => receipt()?.textContent)
+    .toContain("Library information was last exported to C:\\owned\\metadata.json");
 });
 
 for (const failure of ["picker", "export"] as const) {
@@ -86,14 +88,20 @@ for (const failure of ["picker", "export"] as const) {
       vi.mocked(pickMetadataExportPath).mockRejectedValue(new Error("Picker unavailable"));
     else exported.mockRejectedValue(new Error("Export unavailable"));
     await openExport();
-    await page.getByRole("button", { name: "Export library information", exact: true }).click();
-    await expect
-      .poll(() => page.getByRole("alert").element().textContent)
-      .toContain(failure === "picker" ? "Picker unavailable" : "Export unavailable");
+    const action = page.getByRole("button", { name: "Export library information", exact: true });
+    const detail = failure === "picker" ? "Picker unavailable" : "Export unavailable";
+    await action.click();
+    await expect.element(page.getByRole("alert")).toMatchTextContent(detail);
+    const inline = page.getByText(`Library information export did not finish: ${detail}`, {
+      exact: true,
+    });
+    await expect.element(inline).toBeVisible();
+    expect(action.element().getAttribute("aria-describedby")).toBe(inline.element().id);
+    await expect.element(action).toHaveFocus();
     expect(document.querySelector("[data-invocation-announcements]")?.textContent).not.toContain(
       "cancelled",
     );
-    expect(document.body.textContent).not.toContain("Library information exported to");
+    expect(receipt()).toBeNull();
     expect(exported).toHaveBeenCalledTimes(failure === "picker" ? 0 : 1);
   });
 }
@@ -124,11 +132,17 @@ it("explains a refused existing destination and allows a new filename", async ()
     .element(page.getByText(/Choose a new filename\. Portcove keeps existing files/))
     .toBeVisible();
   await action.click();
-  await expect.poll(() => document.body.textContent).toContain(summary);
+  await expect.element(page.getByRole("alert")).toMatchTextContent(summary);
+  const inline = page.getByText(`Library information export did not finish: ${summary}`, {
+    exact: true,
+  });
+  await expect.element(inline).toBeVisible();
+  expect(receipt()).toBeNull();
   expect(exported).toHaveBeenCalledExactlyOnceWith(existing);
   await action.click();
   await expect
-    .poll(() => document.body.textContent)
-    .toContain(`Library information exported to ${fresh}`);
+    .poll(() => receipt()?.textContent)
+    .toContain(`Library information was last exported to ${fresh}`);
+  await expect.element(inline).not.toBeInTheDocument();
   expect(exported.mock.calls).toEqual([[existing], [fresh]]);
 });

@@ -5,23 +5,6 @@
     "name": "Nightmare Creatures / Alexbeav PSXRecomp",
     "summary": "Build and play Nightmare Creatures on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Nightmare Creatures",
-    "original_game": {
-      "format_version": 1,
-      "id": "nightmare-creatures",
-      "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp/blob/44262aa160932e1aa94ec8335af6b09dc0f8170b/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "nightmare-creatures-playstation",
-          "title": "Nightmare Creatures (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp/blob/44262aa160932e1aa94ec8335af6b09dc0f8170b/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp",
     "issue_number": 472,
     "listed_at": "2026-10-23",
@@ -67,7 +50,16 @@
       "macos-x86-64": ["nightmare-creatures-recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["nightmare-creatures-recomp-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "nightmare-creatures",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "integration": {
@@ -107,7 +99,20 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching 26-track USA CHD (SLUS-00582) and retail SCPH-1001 BIOS. Portcove checks the first data-track SHA-1 and track count, then builds privately with the registered toolchain. Provide all tracks. The remaining tracks are carried into preparation without authenticating their audio content. Keep your disc and BIOS separately. Native build, gameplay and save compatibility remain unobserved."
+      "manual_preparation": "Provide your own matching 26-track USA CHD (SLUS-00582) and retail SCPH-1001 BIOS. Portcove checks the first data-track SHA-1 and track count, then builds privately with the registered toolchain. Provide all tracks. The remaining tracks are carried into preparation without authenticating their audio content. Keep your disc and BIOS separately. Native build, gameplay and save compatibility remain unobserved.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "Native build, gameplay and save compatibility remain unobserved."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
   }

@@ -7,23 +7,6 @@
     "summary": "Native Diablo PlayStation recompilation from Alexbeav’s PSXRecomp project.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp",
     "original_game_title": "Diablo",
-    "original_game": {
-      "format_version": 1,
-      "id": "diablo",
-      "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/diablo-recomp/blob/1f2d152946e3c0f1dbb19e67013a6a731c84aa41/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "diablo-playstation",
-          "title": "Diablo (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/alexbeavs-ps1-ports/diablo-recomp/blob/1f2d152946e3c0f1dbb19e67013a6a731c84aa41/README.md"
-          ]
-        }
-      ]
-    },
     "variant_label": "PlayStation",
     "artwork": {
       "game_id": 125,
@@ -72,6 +55,15 @@
           "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "diablo",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/diablo-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/diablo-recomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

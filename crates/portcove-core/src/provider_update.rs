@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 #[cfg(test)]
 use crate::GameBananaClient;
 use crate::{
-    PortcoveService, ProviderFileCandidate, ProviderFreshness, ProviderPackageRef, Result, profile,
-    provider_client::ProviderClient,
+    PortcoveService, ProfileRevision, ProviderFileCandidate, ProviderFreshness, ProviderPackageRef,
+    Result, profile, provider_client::ProviderClient,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -77,6 +77,15 @@ impl PortcoveService {
         profile_id: &str,
     ) -> Result<Vec<ProviderUpdateObservation>> {
         let revision = profile::current_revision(&self.library.connection()?, port_id, profile_id)?;
+        self.check_provider_updates_for_revision(client, &revision)
+            .await
+    }
+
+    pub(crate) async fn check_provider_updates_for_revision(
+        &self,
+        client: &ProviderClient,
+        revision: &ProfileRevision,
+    ) -> Result<Vec<ProviderUpdateObservation>> {
         // One observation per project, however many of its files are installed.
         let mut projects = BTreeMap::new();
         let mut observations = Vec::new();

@@ -4,23 +4,6 @@
     "id": "digimonworld3-recomp-mikeravenelle-digimon-world-3",
     "name": "Digimon World 3 — DigimonWorld3-Recomp (MikeRavenelle)",
     "original_game_title": "Digimon World 3",
-    "original_game": {
-      "format_version": 1,
-      "id": "digimon-world-3",
-      "evidence_urls": [
-        "https://github.com/ArmDucks/DigimonWorld3-Recomp/blob/95a7149635a225c23f0ae21fcae4670b893274d9/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "digimon-world-3-playstation",
-          "title": "Digimon World 3 (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/ArmDucks/DigimonWorld3-Recomp/blob/95a7149635a225c23f0ae21fcae4670b893274d9/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "The project describes a beta that starts and plays, with known rough edges. A complete campaign is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/ArmDucks/DigimonWorld3-Recomp",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
@@ -52,6 +35,12 @@
       "image_sha256": "749fda15ec94cf39a3fd9b294100b690d6701c5c15cde76a3997657e56fe1662",
       "game_slug": "digimon-world-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "digimon-world-2003",
+      "evidence_urls": ["https://github.com/ArmDucks/DigimonWorld3-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

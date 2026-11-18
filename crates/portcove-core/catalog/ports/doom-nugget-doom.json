@@ -6,6 +6,14 @@
     "original_game_title": "Doom",
     "summary": "Play Doom or Freedoom in Nugget Doom, with additional gameplay, control and display options.",
     "project_url": "https://github.com/MrAlaux/Nugget-Doom",
+    "artwork": {
+      "game_id": 673,
+      "cover_id": 268663,
+      "image_id": "co5rav",
+      "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+      "game_slug": "doom",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 5729,
     "listed_at": "2026-11-15",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
@@ -33,7 +41,7 @@
       ],
       "warnings": [
         "The publisher player can register a Discord link handler on startup. Installation, updates and user data stay with the upstream package or your own copy.",
-        "The packaged notices omit credits for some bundled engine assets. See the publisher\u2019s Legalese section for those credits."
+        "The packaged notices omit credits for some bundled engine assets. See the publisher’s Legalese section for those credits."
       ],
       "help_url": "https://github.com/MrAlaux/Nugget-Doom/blob/nugget-doom-6.1.0/README.md#legalese",
       "references": [
@@ -61,5 +69,13 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The authored source/setup scope explicitly permits Doom or Freedoom originals, with per-IWAD game/save choices. This broad engine record is not scoped to one original game.",
+    "evidence_urls": [
+      "https://github.com/MrAlaux/Nugget-Doom/blob/nugget-doom-6.1.0/README.md#legalese",
+      "https://github.com/MrAlaux/Nugget-Doom"
+    ]
   }
 }

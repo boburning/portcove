@@ -4,23 +4,6 @@
     "id": "animaniacs-gc-recomp-ant0-blase-animaniacs-the-great-edgar-hunt",
     "name": "Animaniacs: The Great Edgar Hunt — Animaniacs GC Recomp (ant0-blase)",
     "original_game_title": "Animaniacs: The Great Edgar Hunt",
-    "original_game": {
-      "format_version": 1,
-      "id": "animaniacs-the-great-edgar-hunt",
-      "evidence_urls": [
-        "https://github.com/ant0-blase/ANIMANIACS-GC-RECOMP/blob/9332544c32b60e99e67afb99e6efffda1289119d/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "animaniacs-the-great-edgar-hunt-gamecube",
-          "title": "Animaniacs: The Great Edgar Hunt (GameCube, region not specified)",
-          "system": "gamecube",
-          "evidence_urls": [
-            "https://github.com/ant0-blase/ANIMANIACS-GC-RECOMP/blob/9332544c32b60e99e67afb99e6efffda1289119d/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "The project reports startup and gameplay working. Development continues, and a full playthrough is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/ant0-blase/ANIMANIACS-GC-RECOMP",
     "platforms": [],
@@ -52,6 +35,12 @@
       "image_sha256": "e007d2c0a609c457c5b0f5f5dc38cdf627621614669f5347db2dc0fe858b5e6a",
       "game_slug": "animaniacs-the-great-edgar-hunt",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "animaniacs-the-great-edgar-hunt",
+      "evidence_urls": ["https://github.com/ant0-blase/ANIMANIACS-GC-RECOMP"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

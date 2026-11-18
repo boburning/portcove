@@ -4,23 +4,6 @@
     "id": "t5dr-online-thewishin-tekken-5-dark-resurrection-online",
     "name": "Tekken 5: Dark Resurrection Online — T5DR Online (TheWishin)",
     "original_game_title": "Tekken 5: Dark Resurrection Online",
-    "original_game": {
-      "format_version": 1,
-      "id": "tekken-5-dark-resurrection-online",
-      "evidence_urls": [
-        "https://github.com/TheWishin/T5DROnline/blob/b6285ea423d01625323b52406dea81f92918e94e/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "tekken-5-dark-resurrection-online-playstation-3",
-          "title": "Tekken 5: Dark Resurrection Online (PlayStation 3, region not specified)",
-          "system": "playstation-3",
-          "evidence_urls": [
-            "https://github.com/TheWishin/T5DROnline/blob/b6285ea423d01625323b52406dea81f92918e94e/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "The project claims all offline modes at 60 FPS and online tests between two PCs. Broader hardware compatibility has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/TheWishin/T5DROnline",
     "platforms": ["windows-x86-64"],
@@ -52,6 +35,12 @@
       "image_sha256": "960531b11ba3dbb93643eb7818a7db983b02d801a5c185527b22a72bdb134971",
       "game_slug": "tekken-5-dark-resurrection-online",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tekken-5-dark-resurrection-online",
+      "evidence_urls": ["https://github.com/TheWishin/T5DROnline"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

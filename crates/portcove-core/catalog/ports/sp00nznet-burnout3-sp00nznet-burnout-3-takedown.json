@@ -4,23 +4,6 @@
     "id": "sp00nznet-burnout3-sp00nznet-burnout-3-takedown",
     "name": "Burnout 3: Takedown — sp00nznet Burnout3 (sp00nznet)",
     "original_game_title": "Burnout 3: Takedown",
-    "original_game": {
-      "format_version": 1,
-      "id": "burnout-3-takedown",
-      "evidence_urls": [
-        "https://github.com/sp00nznet/burnout3/blob/3c85ed7777886f4a8f805cb243b123b1b82cf375/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "burnout-3-takedown-xbox",
-          "title": "Burnout 3: Takedown (Xbox, region not specified)",
-          "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/sp00nznet/burnout3/blob/3c85ed7777886f4a8f805cb243b123b1b82cf375/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Experimental project. The project reports original-Xbox menus, races and modes including split-screen in this alpha. Software NV2A runs menus near 14 FPS and races at 2–4 FPS. Profile saving is unavailable, with texture and movie defects remaining. Portcove has not tested these results. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/burnout3",
     "platforms": ["windows-x86-64"],
@@ -52,6 +35,21 @@
       "image_sha256": "96f35b0fd243c28e8b6f6863cbf4477cd465a296e089fa53bf971f39af98f4ca",
       "game_slug": "burnout-3-takedown",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "burnout-3-takedown",
+      "evidence_urls": ["https://github.com/sp00nznet/burnout3"],
+      "source_editions": [
+        {
+          "id": "burnout-3-takedown-xbox",
+          "title": "Burnout 3: Takedown (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/burnout3/blob/3c85ed7777886f4a8f805cb243b123b1b82cf375/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

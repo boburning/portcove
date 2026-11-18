@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "cps2recomp-vampire-savior-2",
+    "artwork": {
+      "game_id": 39696,
+      "cover_id": 277040,
+      "image_id": "co5xrk",
+      "image_sha256": "7a11bbfecdeb76bca796bf34c075df70c8f7c865a690686960adb3a33b732e5f",
+      "game_slug": "vampire-savior-2-the-lord-of-vampire",
+      "match_kind": "underlying-game"
+    },
     "name": "Vampire Savior2: The Lord of Vampire (CPS-2 Recomp)",
     "summary": "Play Vampire Savior2: The Lord of Vampire using your own matching arcade originals.",
     "original_game_title": "Vampire Savior2: The Lord of Vampire",

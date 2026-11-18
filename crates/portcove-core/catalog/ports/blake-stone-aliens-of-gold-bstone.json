@@ -5,23 +5,6 @@
     "name": "Blake Stone: Aliens of Gold (Bstone)",
     "summary": "Play Blake Stone: Aliens of Gold through BStone with your matching original game files.",
     "original_game_title": "Blake Stone: Aliens of Gold",
-    "original_game": {
-      "format_version": 1,
-      "id": "blake-stone-aliens-of-gold",
-      "evidence_urls": [
-        "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "blake-stone-aliens-of-gold-pc",
-          "title": "Blake Stone: Aliens of Gold (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/bibendovsky/bstone",
     "issue_number": 2555,
     "listed_at": "2026-10-25",
@@ -74,6 +57,15 @@
           "instruction": "If the external player’s menus or game view are clipped with Vulkan, add --vid_renderer and software as two separate arguments in its launch details. Keep your existing data and profile paths."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "blake-stone-aliens-of-gold",
+      "evidence_urls": [
+        "https://github.com/bibendovsky/bstone#readme",
+        "https://github.com/bibendovsky/bstone"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

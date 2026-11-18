@@ -4,23 +4,6 @@
     "id": "rages4calm-earthbound-companion",
     "name": "EarthBound Companion",
     "original_game_title": "EarthBound",
-    "original_game": {
-      "format_version": 1,
-      "id": "earthbound",
-      "evidence_urls": [
-        "https://github.com/rages4calm/earthbound-companion/blob/0bf84bb2b80f1f7f3bc23101775a33140b7b7809/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "earthbound-super-nintendo",
-          "title": "EarthBound (Super Nintendo, region not specified)",
-          "system": "super-nintendo",
-          "evidence_urls": [
-            "https://github.com/rages4calm/earthbound-companion/blob/0bf84bb2b80f1f7f3bc23101775a33140b7b7809/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Use a permitted existing Companion launcher with your own clean USA EarthBound ROM.",
     "project_url": "https://github.com/rages4calm/earthbound-companion",
     "issue_number": 2861,
@@ -60,6 +43,15 @@
       "image_sha256": "0b09d1c1987b4353b9a00a4ab2ab99083745d22f78036996bab7c2d99b380c01",
       "game_slug": "earthbound",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "earthbound",
+      "evidence_urls": [
+        "https://github.com/rages4calm/earthbound-companion/blob/5b147f42bfd17bc0aa97226beea70e5811b7c373/README.md",
+        "https://github.com/rages4calm/earthbound-companion"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

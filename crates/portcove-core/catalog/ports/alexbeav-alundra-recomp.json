@@ -7,23 +7,6 @@
     "summary": "Build and play Alundra on Windows or Linux with your own matching single-track Europe PlayStation disc and retail SCPH-5552 BIOS. The Mac setup kit uses upstream preparation.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp",
     "original_game_title": "Alundra",
-    "original_game": {
-      "format_version": 1,
-      "id": "alundra",
-      "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/alundra-recomp/blob/1ad741fc5d45be0dc4070ca16a1c6f36f646f6be/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "alundra-playstation",
-          "title": "Alundra (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/alexbeavs-ps1-ports/alundra-recomp/blob/1ad741fc5d45be0dc4070ca16a1c6f36f646f6be/README.md"
-          ]
-        }
-      ]
-    },
     "artwork": {
       "game_id": 1175,
       "cover_id": 178335,
@@ -70,6 +53,15 @@
           "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "alundra",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/alundra-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/alundra-recomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {
@@ -145,7 +137,17 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching single-disc CHD and retail SCPH-5552 BIOS. The managed Windows and Linux routes build with that BIOS and skip the setup launcher when playing. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-5552 BIOS. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content."
+      "manual_preparation": "Provide your own matching single-disc CHD and retail SCPH-5552 BIOS. The managed Windows and Linux routes build with that BIOS and skip the setup launcher when playing. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-5552 BIOS. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": ["Generation, runtime, lifecycle and gameplay are untested."],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-5552-bios"
   }

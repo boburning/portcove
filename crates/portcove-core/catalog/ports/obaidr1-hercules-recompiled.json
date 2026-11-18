@@ -1,28 +1,29 @@
 {
   "format_version": 1,
+  "igdb_regional_cover": {
+    "game_id": 9814,
+    "slug": "disneys-hercules-action-game",
+    "name": "Disney's Hercules Action Game",
+    "platform_id": 7,
+    "localization_id": 2674,
+    "region_id": 4,
+    "cover_id": 306451,
+    "image_id": "co6kgj"
+  },
   "listing": {
     "id": "obaidr1-hercules-recompiled",
     "name": "Disney's Hercules (Hercules Recompiled)",
     "summary": "Attach an independently permitted, prepared Hercules Recompiled Windows folder using your own exact PAL PlayStation disc and language. Its native UI waits for the selected language’s game child; preserve separate language data, cards, settings and optional texture-pack boundaries.",
     "original_game_title": "Disney's Hercules",
-    "original_game": {
-      "format_version": 1,
-      "id": "disney-s-hercules",
-      "evidence_urls": [
-        "https://github.com/obaidr1/hercules-recompiled/blob/9df37864f6e5d50e30ff7381117e34a06a1a04c0/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "disney-s-hercules-playstation",
-          "title": "Disney's Hercules (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/obaidr1/hercules-recompiled/blob/9df37864f6e5d50e30ff7381117e34a06a1a04c0/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/obaidr1/hercules-recompiled",
+    "artwork": {
+      "game_id": 9814,
+      "cover_id": 306451,
+      "image_id": "co6kgj",
+      "image_sha256": "528c7512baa531fd26a51b34080a1a4a747795a384a6ed2003bbdb65543a5bed",
+      "game_slug": "disneys-hercules-action-game",
+      "match_kind": "underlying-game"
+    },
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/obaidr1/hercules-recompiled",
@@ -59,6 +60,15 @@
       "warnings": [
         "Preserve the exact PAL language/disc and its data tree. Optional HD packs, overlays, upstream updates and other editions have separate boundaries."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "disneys-hercules",
+      "evidence_urls": [
+        "https://github.com/obaidr1/hercules-recompiled/blob/9df37864f6e5d50e30ff7381117e34a06a1a04c0/README.md",
+        "https://github.com/obaidr1/hercules-recompiled"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

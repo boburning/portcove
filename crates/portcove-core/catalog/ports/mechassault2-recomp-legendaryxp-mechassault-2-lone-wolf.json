@@ -4,23 +4,6 @@
     "id": "mechassault2-recomp-legendaryxp-mechassault-2-lone-wolf",
     "name": "MechAssault 2: Lone Wolf — MechAssault2 Recomp (LegendaryXP)",
     "original_game_title": "MechAssault 2: Lone Wolf",
-    "original_game": {
-      "format_version": 1,
-      "id": "mechassault-2-lone-wolf",
-      "evidence_urls": [
-        "https://github.com/LegendaryXP/Mechassault2-recomp/blob/5f26860c46ab1a88e2c7d65ec1134bad7eca7cea/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "mechassault-2-lone-wolf-xbox",
-          "title": "MechAssault 2: Lone Wolf (Xbox, region not specified)",
-          "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/LegendaryXP/Mechassault2-recomp/blob/5f26860c46ab1a88e2c7d65ec1134bad7eca7cea/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "The project describes native input and widescreen features and maintainer gameplay tests. It does not claim a completed campaign. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/LegendaryXP/Mechassault2-recomp",
     "platforms": [],
@@ -52,6 +35,12 @@
       "image_sha256": "9b34a54ffe2bc96d33ca4a8ba35b66400454e514516efd3600da9994d74e6b22",
       "game_slug": "mechassault-2-lone-wolf",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mechassault-2-lone-wolf",
+      "evidence_urls": ["https://github.com/LegendaryXP/Mechassault2-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

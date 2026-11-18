@@ -4,23 +4,6 @@
     "id": "bt3-recomp-z3xox-dragon-ball-z-budokai-tenkaichi-3",
     "name": "Dragon Ball Z: Budokai Tenkaichi 3 — BT3-Recomp (z3xox)",
     "original_game_title": "Dragon Ball Z: Budokai Tenkaichi 3",
-    "original_game": {
-      "format_version": 1,
-      "id": "dragon-ball-z-budokai-tenkaichi-3",
-      "evidence_urls": [
-        "https://github.com/z3xox/BT3-Recomp/blob/e22a34beb564e2d0f32bd60b02f0a95d9645ddcc/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "dragon-ball-z-budokai-tenkaichi-3-playstation-2",
-          "title": "Dragon Ball Z: Budokai Tenkaichi 3 (PlayStation 2, region not specified)",
-          "system": "playstation-2",
-          "evidence_urls": [
-            "https://github.com/z3xox/BT3-Recomp/blob/e22a34beb564e2d0f32bd60b02f0a95d9645ddcc/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "The project describes a player with a frontend and local builds from your own disc. It is separate from the Tenkaichi3Decomp project; that project’s matching source does not confirm this player. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/z3xox/BT3-Recomp",
     "platforms": ["windows-x86-64", "linux-x86-64"],
@@ -52,6 +35,12 @@
       "image_sha256": "de2b6d3f72f73f60dc65f4fa1e99ddb7d2d6c8b2834842a40af4f97024dac973",
       "game_slug": "dragon-ball-z-budokai-tenkaichi-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-ball-z-budokai-tenkaichi-3",
+      "evidence_urls": ["https://github.com/z3xox/BT3-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

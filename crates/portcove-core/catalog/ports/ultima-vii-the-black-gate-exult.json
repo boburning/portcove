@@ -5,23 +5,6 @@
     "name": "Ultima VII: The Black Gate (Exult)",
     "summary": "Set up Ultima VII: The Black Gate through its upstream exult player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Ultima VII: The Black Gate",
-    "original_game": {
-      "format_version": 1,
-      "id": "ultima-vii-the-black-gate",
-      "evidence_urls": [
-        "https://github.com/exult/exult/blob/83332efc805bee5a5374dcd81255eac7a6ca25da/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "ultima-vii-the-black-gate-pc",
-          "title": "Ultima VII: The Black Gate (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/exult/exult/blob/83332efc805bee5a5374dcd81255eac7a6ca25da/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/exult/exult",
     "availability": "packages",
     "setup_url": "https://github.com/exult/exult/blob/cacb4f584901dab59ff288c750d3622d3378435b/README.md",
@@ -80,7 +63,13 @@
       ]
     },
     "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
-    "release_url": "https://exult.info/download.html"
+    "release_url": "https://exult.info/download.html",
+    "original_game": {
+      "format_version": 1,
+      "id": "ultima-vii-the-black-gate",
+      "evidence_urls": ["https://exult.info/docs.html", "https://github.com/exult/exult"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

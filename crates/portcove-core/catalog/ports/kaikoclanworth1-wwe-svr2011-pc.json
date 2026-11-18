@@ -5,23 +5,6 @@
     "name": "WWE SmackDown vs. Raw 2011 (WWE SmackDown vs. Raw 2011 - PC Port)",
     "summary": "A WWE SmackDown vs. Raw 2011 port with project-reported gameplay, settings and updates. The Windows ZIP includes the player and launcher; its installer imports your own Xbox 360 ISO and configures optional music and movies. The launcher manages updates. Steam Deck uses the Windows player through Proton, while the Android ARM64/Vulkan APK imports your own image. The README’s Galaxy Z Fold 7 test claim conflicts with an older untested-phone statement, so physical-device coverage remains uncertain. Developer ARM build notes are separate. Exact original revision/hashes and BIOS/firmware requirements are unconfirmed. Portcove has not qualified the release packages or confirmed setup, gameplay or a full playthrough.",
     "original_game_title": "WWE SmackDown vs. Raw 2011",
-    "original_game": {
-      "format_version": 1,
-      "id": "wwe-smackdown-vs-raw-2011",
-      "evidence_urls": [
-        "https://github.com/KaikoClanworth1/wwe-svr2011-pc/blob/bfc3e7a17d2bde3211b564901cc0eb0e832f8693/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "wwe-smackdown-vs-raw-2011-xbox-360",
-          "title": "WWE SmackDown vs. Raw 2011 (Xbox 360, region not specified)",
-          "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/KaikoClanworth1/wwe-svr2011-pc/blob/bfc3e7a17d2bde3211b564901cc0eb0e832f8693/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/KaikoClanworth1/wwe-svr2011-pc",
     "listed_at": "2026-10-25",
     "platforms": [],
@@ -35,7 +18,22 @@
       "game_slug": "wwe-smackdown-vs-raw-2011",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2856
+    "issue_number": 2856,
+    "original_game": {
+      "format_version": 1,
+      "id": "wwe-smackdown-vs-raw-2011",
+      "evidence_urls": ["https://github.com/KaikoClanworth1/wwe-svr2011-pc"],
+      "source_editions": [
+        {
+          "id": "wwe-smackdown-vs-raw-2011-xbox-360",
+          "title": "WWE SmackDown vs. Raw 2011 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/KaikoClanworth1/wwe-svr2011-pc/blob/bfc3e7a17d2bde3211b564901cc0eb0e832f8693/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

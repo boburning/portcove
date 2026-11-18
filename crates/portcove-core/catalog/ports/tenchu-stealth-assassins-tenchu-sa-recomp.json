@@ -56,6 +56,16 @@
     "download_asset_hints": {
       "linux-x86-64": ["TenchuSARecomp-", "-linux-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "tenchu-stealth-assassins",
+      "evidence_urls": [
+        "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0",
+        "https://github.com/Heromachine/Tenchu-SA-Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Tenchu: Stealth Assassins"
   }
 }

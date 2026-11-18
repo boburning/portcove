@@ -3,14 +3,14 @@
   "listing": {
     "id": "lost-odyssey-recomp",
     "name": "Lost Odyssey Recomp",
-    "summary": "Explore Lost Odyssey Recomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Upstream v1.1.0 publishes Windows x86-64, Linux x86-64, Apple Silicon and Android ARM64 packages. The upstream importer opens when game data is missing. Import Disc 1 to start, then use Settings → System → Import discs & DLC to add more discs later.",
     "project_url": "https://github.com/freefrank/LostOdysseyRecomp",
     "issue_number": 744,
     "listed_at": "2026-10-23",
     "funding_urls": ["https://ko-fi.com/dotslash", "https://buymeacoffee.com/dotslash"],
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/freefrank/LostOdysseyRecomp",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/freefrank/LostOdysseyRecomp/blob/v1.1.0/docs/INSTALLING.md",
     "artwork": {
       "game_id": 7057,
       "cover_id": 178444,
@@ -18,6 +18,8 @@
       "image_sha256": "c066384a5aeb7b43d45f30b695b19ab3ff3507c62a3f0ca1dcc577a57c96b65d",
       "game_slug": "lost-odyssey",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/freefrank/LostOdysseyRecomp/releases/tag/v1.1.0",
+    "download_block_reason": "Portcove downloads are on hold while the prepared runtime, save behavior and update ownership are verified."
   }
 }

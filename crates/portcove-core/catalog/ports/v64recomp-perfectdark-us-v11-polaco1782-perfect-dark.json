@@ -4,23 +4,6 @@
     "id": "v64recomp-perfectdark-us-v11-polaco1782-perfect-dark",
     "name": "Perfect Dark — v64recomp / perfectdark-us-v11 (polaco1782)",
     "original_game_title": "Perfect Dark",
-    "original_game": {
-      "format_version": 1,
-      "id": "perfect-dark",
-      "evidence_urls": [
-        "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "perfect-dark-nintendo-64",
-          "title": "Perfect Dark (Nintendo 64, region not specified)",
-          "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Experimental project. CarringtonInstitute screenshot; A complete playthrough has not been confirmed; results from another game do not establish that this one works. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/polaco1782/v64recomp",
     "platforms": [],
@@ -62,6 +45,15 @@
       "image_sha256": "b4527efe3caaec5486b90fecdad0978574ce819f4024e5dd29f4565443871afc",
       "game_slug": "perfect-dark",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "perfect-dark",
+      "evidence_urls": [
+        "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md",
+        "https://github.com/polaco1782/v64recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

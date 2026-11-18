@@ -5,6 +5,14 @@
     "name": "Daytona USA (Sega Model 2 arcade) (Daytona USA static recompilation)",
     "summary": "Documented Windows Daytona USA arcade source-build route for your own daytona93 or daytona ROM set. Choose the completed matching native build; upstream/player owns rebuilding and separate per-set profiles.",
     "original_game_title": "Daytona USA (Sega Model 2 arcade)",
+    "artwork": {
+      "game_id": 17245,
+      "cover_id": 88401,
+      "image_id": "co1w7l",
+      "image_sha256": "83c63786cb9593fa69edddb970f522d5232ad325ccd51930507bca94dfcb5bb5",
+      "game_slug": "daytona-usa",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/alphanu1/daytona-arcade-recomp",
     "platforms": [],
     "availability": "unknown",

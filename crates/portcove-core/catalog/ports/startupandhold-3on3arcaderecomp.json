@@ -5,23 +5,6 @@
     "name": "3 on 3 NHL Arcade (3on3 Arcade Recomp)",
     "summary": "Attach an independently permitted, prepared NHL 3-on-3 Arcade native Windows player directly after upstream game-package setup. Preserve its game folder, settings and actual runtime save root; roster and online compatibility remain separate.",
     "original_game_title": "3 on 3 NHL Arcade",
-    "original_game": {
-      "format_version": 1,
-      "id": "3-on-3-nhl-arcade",
-      "evidence_urls": [
-        "https://github.com/startupandhold/3on3ArcadeRecomp/blob/efcd9e5a0c46e0177b76b93d336ab701667e8539/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "3-on-3-nhl-arcade-xbox-360",
-          "title": "3 on 3 NHL Arcade (Xbox 360, region not specified)",
-          "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/startupandhold/3on3ArcadeRecomp/blob/efcd9e5a0c46e0177b76b93d336ab701667e8539/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/startupandhold/3on3ArcadeRecomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -67,6 +50,15 @@
       "warnings": [
         "Keep the original package and actual runtime save root. Portable settings do not prove save isolation, roster compatibility or online acceptance."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "3-on-3-nhl-arcade",
+      "evidence_urls": [
+        "https://github.com/startupandhold/3on3ArcadeRecomp/blob/efcd9e5a0c46e0177b76b93d336ab701667e8539/README.md",
+        "https://github.com/startupandhold/3on3ArcadeRecomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

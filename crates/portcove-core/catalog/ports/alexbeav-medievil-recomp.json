@@ -62,18 +62,10 @@
       "format_version": 1,
       "id": "medievil",
       "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/medievil-recomp/blob/6207be4097b7f8cd8e6b06ca494e8e1b687a80de/README.md"
+        "https://github.com/alexbeavs-ps1-ports/medievil-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/medievil-recomp"
       ],
-      "source_editions": [
-        {
-          "id": "medievil-playstation",
-          "title": "MediEvil (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/alexbeavs-ps1-ports/medievil-recomp/blob/6207be4097b7f8cd8e6b06ca494e8e1b687a80de/README.md"
-          ]
-        }
-      ]
+      "source_editions": []
     }
   },
   "integration": {

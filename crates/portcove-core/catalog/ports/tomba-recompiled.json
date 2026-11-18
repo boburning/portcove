@@ -8,23 +8,6 @@
     "project_url": "https://github.com/mstan/TombaRecomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Tomba!",
-    "original_game": {
-      "format_version": 1,
-      "id": "tomba",
-      "evidence_urls": [
-        "https://github.com/mstan/TombaRecomp/blob/6bec80199c56ffd6806007e98e109bbf5e19f8ea/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "tomba-playstation",
-          "title": "Tomba! (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/mstan/TombaRecomp/blob/6bec80199c56ffd6806007e98e109bbf5e19f8ea/README.md"
-          ]
-        }
-      ]
-    },
     "artwork": {
       "game_id": 4097,
       "cover_id": 240797,
@@ -33,7 +16,13 @@
       "game_slug": "tomba",
       "match_kind": "underlying-game"
     },
-    "issue_number": 86
+    "issue_number": 86,
+    "original_game": {
+      "format_version": 1,
+      "id": "tomba",
+      "evidence_urls": ["https://github.com/mstan/TombaRecomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

@@ -5,23 +5,6 @@
     "name": "The Elder Scrolls III: Morrowind (OpenMW)",
     "summary": "Set up The Elder Scrolls III: Morrowind through its upstream openmw player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "The Elder Scrolls III: Morrowind",
-    "original_game": {
-      "format_version": 1,
-      "id": "the-elder-scrolls-iii-morrowind",
-      "evidence_urls": [
-        "https://github.com/OpenMW/openmw/blob/77eec0471802676324fb014d4d465ea652a8ec27/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "the-elder-scrolls-iii-morrowind-pc",
-          "title": "The Elder Scrolls III: Morrowind (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/OpenMW/openmw/blob/77eec0471802676324fb014d4d465ea652a8ec27/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/OpenMW/openmw",
     "availability": "packages",
     "setup_url": "https://github.com/OpenMW/openmw/blob/f4bec41444214a7903bebd178389ca22ca13f646/README.md",
@@ -77,7 +60,16 @@
         }
       ]
     },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "the-elder-scrolls-iii-morrowind",
+      "evidence_urls": [
+        "https://openmw.readthedocs.io/en/latest/manuals/installation/index.html",
+        "https://github.com/OpenMW/openmw"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

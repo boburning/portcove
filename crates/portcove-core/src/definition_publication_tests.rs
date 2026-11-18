@@ -2,6 +2,10 @@ use super::*;
 use serde_json::{Value, json};
 
 fn fixture(schema: u32) -> BTreeMap<String, Vec<u8>> {
+    fixture_with_catalog_growth(schema, 0)
+}
+
+fn fixture_with_catalog_growth(schema: u32, additional_bytes: usize) -> BTreeMap<String, Vec<u8>> {
     let mut document =
         crate::test_fixture::indexed_fixture_document(&crate::Catalog::embedded().unwrap());
     document
@@ -10,6 +14,9 @@ fn fixture(schema: u32) -> BTreeMap<String, Vec<u8>> {
         .find(|port| port.id == "shipwright")
         .unwrap()
         .windows_shipwright_persistence = false;
+    if additional_bytes > 0 {
+        crate::test_fixture::grow_catalog_evidence(&mut document, additional_bytes);
+    }
     let catalog = crate::Catalog::from_document(document).unwrap();
     let port = catalog.port("shipwright").unwrap();
     let leaf = serde_json::to_vec(&json!({"contract_schema":1,"representation":"catalog_projection","catalog":catalog.authoritative_document()})).unwrap();
@@ -227,4 +234,18 @@ fn descriptive_directory_publication_is_exact_and_separate_from_managed_grants()
     assert_eq!(report.listings.unwrap().sha256, hash(&bytes));
     files.insert("policy/official/other.listings.json".into(), bytes);
     assert!(inspect_definition_publication_bytes(&files).is_err());
+}
+
+#[test]
+fn full_catalog_projection_above_four_mib_uses_the_indexed_publication_path() {
+    let files = fixture_with_catalog_growth(1, 2 * 1024 * 1024);
+    assert!(files.values().any(|bytes| bytes.len() > 4 * 1024 * 1024));
+    let report = inspect_definition_publication_bytes(&files).unwrap();
+    assert_eq!(report.definitions.len(), 1);
+    assert!(
+        report
+            .files
+            .iter()
+            .any(|target| target.bytes > 4 * 1024 * 1024)
+    );
 }

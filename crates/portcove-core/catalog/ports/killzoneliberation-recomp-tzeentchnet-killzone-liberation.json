@@ -4,23 +4,6 @@
     "id": "killzoneliberation-recomp-tzeentchnet-killzone-liberation",
     "name": "Killzone: Liberation — KillzoneLiberation-Recomp (Tzeentchnet)",
     "original_game_title": "Killzone: Liberation",
-    "original_game": {
-      "format_version": 1,
-      "id": "killzone-liberation",
-      "evidence_urls": [
-        "https://github.com/Tzeentchnet/KillzoneLiberation-Recomp/blob/ba5e49af8939c3aa1678fa990397269fe008bd02/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "killzone-liberation-playstation-portable",
-          "title": "Killzone: Liberation (PlayStation Portable, region not specified)",
-          "system": "playstation-portable",
-          "evidence_urls": [
-            "https://github.com/Tzeentchnet/KillzoneLiberation-Recomp/blob/ba5e49af8939c3aa1678fa990397269fe008bd02/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Upstream reports completing Chapter 1, the tutorial and Mission 1. Saving and full-game testing continue; ad hoc networking is absent. Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Tzeentchnet/KillzoneLiberation-Recomp",
     "platforms": ["windows-x86-64"],
@@ -52,6 +35,12 @@
       "image_sha256": "195b5b23821523ff6569d4e5e6d6276ba1c2017ca325406316607d6ff1bd3909",
       "game_slug": "killzone-liberation",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "killzone-liberation",
+      "evidence_urls": ["https://github.com/Tzeentchnet/KillzoneLiberation-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -4,23 +4,6 @@
     "id": "colosseum-recomp-grant-might-poke-mon-colosseum",
     "name": "Pokémon Colosseum — Colosseum_Recomp (grant-might)",
     "original_game_title": "Pokémon Colosseum",
-    "original_game": {
-      "format_version": 1,
-      "id": "pokemon-colosseum",
-      "evidence_urls": [
-        "https://github.com/grant-might/Colosseum_Recomp/blob/923bf02bd1cf613de0c11c6b1e96f01565c6d1b7/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "pokemon-colosseum-gamecube",
-          "title": "Pokémon Colosseum (GameCube, region not specified)",
-          "system": "gamecube",
-          "evidence_urls": [
-            "https://github.com/grant-might/Colosseum_Recomp/blob/923bf02bd1cf613de0c11c6b1e96f01565c6d1b7/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Upstream documents a build-and-play route, naming-screen text and widescreen fixes and intro-overlay behavior. It does not claim a complete playthrough. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/grant-might/Colosseum_Recomp",
     "platforms": ["windows-x86-64"],
@@ -52,6 +35,12 @@
       "image_sha256": "15e97bcf0eac5b4a2de6b923244a116e9f4be25288be2692e54d31a635a4b76b",
       "game_slug": "pokemon-colosseum",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-colosseum",
+      "evidence_urls": ["https://github.com/grant-might/Colosseum_Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

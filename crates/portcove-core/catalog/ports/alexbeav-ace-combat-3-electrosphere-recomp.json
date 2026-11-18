@@ -7,23 +7,6 @@
     "summary": "Native recompilation of the Japan two-disc edition of Ace Combat 3: Electrosphere.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp",
     "original_game_title": "Ace Combat 3: Electrosphere",
-    "original_game": {
-      "format_version": 1,
-      "id": "ace-combat-3-electrosphere",
-      "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp/blob/990a1a247cbfcf0780648e0f922167e83a10b9bc/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "ace-combat-3-electrosphere-playstation",
-          "title": "Ace Combat 3: Electrosphere (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp/blob/990a1a247cbfcf0780648e0f922167e83a10b9bc/README.md"
-          ]
-        }
-      ]
-    },
     "variant_label": "Japan · two discs",
     "issue_number": 427,
     "listed_at": "2026-10-23",
@@ -71,6 +54,15 @@
           "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ace-combat-3-electrosphere",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

@@ -4,23 +4,6 @@
     "id": "alexbeav-destruction-derby-2-recomp",
     "name": "Destruction Derby 2 / Alexbeav PSXRecomp",
     "original_game_title": "Destruction Derby 2",
-    "original_game": {
-      "format_version": 1,
-      "id": "destruction-derby-2",
-      "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp/blob/f6cd6b2daf4cdc3cf72978d4dbccb4fc50679b81/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "destruction-derby-2-playstation",
-          "title": "Destruction Derby 2 (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp/blob/f6cd6b2daf4cdc3cf72978d4dbccb4fc50679b81/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Build and play Destruction Derby 2 on Windows or Linux with your own matching USA disc and retail SCPH-1001 BIOS. The upstream setup kit remains a separate route.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp",
     "issue_number": 438,
@@ -67,7 +50,16 @@
       "macos-x86-64": ["Destruction-Derby-2-Recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["Destruction-Derby-2-Recomp-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "destruction-derby-2",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -149,7 +141,20 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own complete matching 19-track USA CHD (SCUS-94350) and retail SCPH-1001 BIOS. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Portcove checks track count and the first data-track SHA-1. Keep the complete disc, including its audio tracks. The other tracks and the complete TOC are not independently authenticated. Use the 19-track CHD from the correct complete USA disc. The merged-BIN digest is a separate upstream setup input. Portcove builds privately with the registered toolchain and launches the generated player. Native generation, gameplay and save compatibility remain unobserved."
+      "manual_preparation": "Provide your own complete matching 19-track USA CHD (SCUS-94350) and retail SCPH-1001 BIOS. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Portcove checks track count and the first data-track SHA-1. Keep the complete disc, including its audio tracks. The other tracks and the complete TOC are not independently authenticated. Use the 19-track CHD from the correct complete USA disc. The merged-BIN digest is a separate upstream setup input. Portcove builds privately with the registered toolchain and launches the generated player. Native generation, gameplay and save compatibility remain unobserved.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "Native generation, gameplay and save compatibility remain unobserved."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
   }

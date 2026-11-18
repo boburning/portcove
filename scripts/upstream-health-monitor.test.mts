@@ -950,8 +950,18 @@ void test("physical byte envelopes replace catalog and historical cardinality ce
   assert.equal(recollected.report.collection.collection_status, "complete");
   assert.equal(recollected.report.collection.consumed.requests, 1);
   assert.equal(recollected.checkpoint!.observations.length, 1);
+  const enlarged = await advanceHealthMonitor(
+    { ...catalog(), extra: "x".repeat(5 * 1024 * 1024) },
+    initial.checkpoint,
+    options(),
+  );
+  assert.equal(enlarged.report.collection.collection_status, "complete");
   await assert.rejects(
-    advanceHealthMonitor({ ...catalog(), extra: "x".repeat(4 * 1024 * 1024) }, null, options()),
+    advanceHealthMonitor(
+      { ...catalog(), extra: "x".repeat(16 * 1024 * 1024) },
+      initial.checkpoint,
+      options(),
+    ),
     /bounded catalog/,
   );
   await assert.rejects(

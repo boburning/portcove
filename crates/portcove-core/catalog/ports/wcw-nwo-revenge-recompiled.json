@@ -8,23 +8,6 @@
     "project_url": "https://github.com/jessetbh/WCWnWoRevengeRecomp",
     "listed_at": "2026-10-23",
     "original_game_title": "WCW/nWo Revenge",
-    "original_game": {
-      "format_version": 1,
-      "id": "wcw-nwo-revenge",
-      "evidence_urls": [
-        "https://github.com/jessetbh/WCWnWoRevengeRecomp/blob/aa767349008aacb694d03c302d210b4716ecc087/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "wcw-nwo-revenge-nintendo-64",
-          "title": "WCW/nWo Revenge (Nintendo 64, region not specified)",
-          "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/jessetbh/WCWnWoRevengeRecomp/blob/aa767349008aacb694d03c302d210b4716ecc087/README.md"
-          ]
-        }
-      ]
-    },
     "artwork": {
       "game_id": 3636,
       "cover_id": 154513,
@@ -33,7 +16,13 @@
       "game_slug": "wcw-nwo-revenge",
       "match_kind": "underlying-game"
     },
-    "issue_number": 92
+    "issue_number": 92,
+    "original_game": {
+      "format_version": 1,
+      "id": "wcw-nwo-revenge",
+      "evidence_urls": ["https://github.com/jessetbh/WCWnWoRevengeRecomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

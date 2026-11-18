@@ -7,23 +7,6 @@
     "summary": "Build and play Duke Nukem: Time to Kill on Windows or Linux with your own matching single-track USA PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp",
     "original_game_title": "Duke Nukem: Time to Kill",
-    "original_game": {
-      "format_version": 1,
-      "id": "duke-nukem-time-to-kill",
-      "evidence_urls": [
-        "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/blob/06d0b4750415d8d9c4086f67b6a2f631ece7aae8/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "duke-nukem-time-to-kill-playstation",
-          "title": "Duke Nukem: Time to Kill (PlayStation, region not specified)",
-          "system": "playstation",
-          "evidence_urls": [
-            "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/blob/06d0b4750415d8d9c4086f67b6a2f631ece7aae8/README.md"
-          ]
-        }
-      ]
-    },
     "artwork": {
       "game_id": 4130,
       "cover_id": 153570,
@@ -70,6 +53,15 @@
           "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "duke-nukem-time-to-kill",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {
@@ -145,7 +137,17 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching single-track CHD for SLUS-00583 and retail SCPH-1001 BIOS. The managed Windows and Linux routes build with that BIOS and skip the setup launcher when playing. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
+      "manual_preparation": "Provide your own matching single-track CHD for SLUS-00583 and retail SCPH-1001 BIOS. The managed Windows and Linux routes build with that BIOS and skip the setup launcher when playing. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": ["Generation, runtime, lifecycle and gameplay are untested."],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
   }

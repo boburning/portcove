@@ -8,23 +8,6 @@
     "project_url": "https://github.com/perfect-dark-pc-port/perfect_dark",
     "listed_at": "2026-10-23",
     "original_game_title": "Perfect Dark",
-    "original_game": {
-      "format_version": 1,
-      "id": "perfect-dark",
-      "evidence_urls": [
-        "https://github.com/perfect-dark-pc-port/perfect_dark/blob/a4b58e6dd14d5842d588e9841efa8bceb8b86fc3/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "perfect-dark-nintendo-64",
-          "title": "Perfect Dark (Nintendo 64, region not specified)",
-          "system": "nintendo-64",
-          "evidence_urls": [
-            "https://github.com/perfect-dark-pc-port/perfect_dark/blob/a4b58e6dd14d5842d588e9841efa8bceb8b86fc3/README.md"
-          ]
-        }
-      ]
-    },
     "manual_setup": {
       "help_url": "https://github.com/perfect-dark-pc-port/perfect_dark#macos",
       "warnings": [],
@@ -43,7 +26,16 @@
       "game_slug": "perfect-dark-pc-port",
       "match_kind": "port"
     },
-    "issue_number": 106
+    "issue_number": 106,
+    "original_game": {
+      "format_version": 1,
+      "id": "perfect-dark",
+      "evidence_urls": [
+        "https://github.com/perfect-dark-pc-port/perfect_dark#macos",
+        "https://github.com/perfect-dark-pc-port/perfect_dark"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "rolling",
@@ -92,7 +84,25 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Set up the managed copy",
+            "instruction": "Select your own US Rev 1 Perfect Dark game file. Portcove checks the original and installs the managed player for this computer."
+          }
+        ],
+        "help_url": "https://github.com/perfect-dark-pc-port/perfect_dark#macos"
+      }
     }
+  },
+  "managed_setup_platform_warnings": {
+    "macos-x86-64": [
+      "Before choosing Play on this Mac, use the upstream Mac instructions to install SDL2.framework in /Library/Frameworks. You manage the system framework separately."
+    ],
+    "macos-aarch64": [
+      "Before choosing Play on this Mac, use the upstream Mac instructions to install SDL2.framework in /Library/Frameworks. You manage the system framework separately."
+    ]
   }
 }

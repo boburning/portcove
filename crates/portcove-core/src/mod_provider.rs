@@ -29,6 +29,14 @@ pub struct Observed<T> {
     pub freshness: ProviderFreshness,
 }
 
+/// One exact Thunderstore dependency coordinate from a version listing.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
+pub struct ThunderstoreDependency {
+    pub namespace: String,
+    pub package: String,
+    pub version: String,
+}
+
 /// A provider's own claims about one downloadable file. The checksum is the
 /// provider's claim; an MD5 or any provider-supplied digest never authenticates
 /// a publisher.
@@ -45,6 +53,10 @@ pub struct ProviderFileCandidate {
     pub archived: bool,
     /// Provider scan outcomes, as claimed ("clean", "infected", ...). Not an assurance.
     pub claimed_scan: Option<String>,
+    /// Exact provider coordinates, independent of native loader requirements.
+    /// Absent for providers that do not supply this field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thunderstore_dependencies: Option<Vec<ThunderstoreDependency>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

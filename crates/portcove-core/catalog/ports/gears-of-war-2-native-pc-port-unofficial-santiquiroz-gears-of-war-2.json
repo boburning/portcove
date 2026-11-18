@@ -4,23 +4,6 @@
     "id": "gears-of-war-2-native-pc-port-unofficial-santiquiroz-gears-of-war-2",
     "name": "Gears of War 2 — Gears of War 2 — native PC port (unofficial) (santiquiroz)",
     "original_game_title": "Gears of War 2",
-    "original_game": {
-      "format_version": 1,
-      "id": "gears-of-war-2",
-      "evidence_urls": [
-        "https://github.com/santiquiroz/gears-of-war-2-pc-port/blob/3afa1439539686d254a8bedd6f9f07d04ad7eeed/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "gears-of-war-2-xbox-360",
-          "title": "Gears of War 2 (Xbox 360, region not specified)",
-          "system": "xbox-360",
-          "evidence_urls": [
-            "https://github.com/santiquiroz/gears-of-war-2-pc-port/blob/3afa1439539686d254a8bedd6f9f07d04ad7eeed/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Upstream reports Act 1 gameplay. Android slows heavily under sustained load, and internet co-op remains experimental. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/santiquiroz/gears-of-war-2-pc-port",
     "platforms": ["windows-x86-64"],
@@ -52,6 +35,21 @@
       "image_sha256": "dd7160c423dc5ceed153a3ceb9a77eca6ba2fa8b3bab0b93681af6fd9b21e5b4",
       "game_slug": "gears-of-war-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "gears-of-war-2",
+      "evidence_urls": ["https://github.com/santiquiroz/gears-of-war-2-pc-port"],
+      "source_editions": [
+        {
+          "id": "gears-of-war-2-xbox-360",
+          "title": "Gears of War 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/santiquiroz/gears-of-war-2-pc-port/blob/3afa1439539686d254a8bedd6f9f07d04ad7eeed/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -5,23 +5,6 @@
     "name": "Heroes of Might and Magic II (fheroes2)",
     "summary": "Play Heroes of Might and Magic II with the fheroes2 engine and your own game resources.",
     "original_game_title": "Heroes of Might and Magic II",
-    "original_game": {
-      "format_version": 1,
-      "id": "heroes-of-might-and-magic-ii",
-      "evidence_urls": [
-        "https://github.com/ihhub/fheroes2/blob/01c56a6da77e3691d5ec400762d01a134fe32bad/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "heroes-of-might-and-magic-ii-pc",
-          "title": "Heroes of Might and Magic II (PC, version not specified)",
-          "system": "pc",
-          "evidence_urls": [
-            "https://github.com/ihhub/fheroes2/blob/01c56a6da77e3691d5ec400762d01a134fe32bad/README.md"
-          ]
-        }
-      ]
-    },
     "project_url": "https://github.com/ihhub/fheroes2",
     "platforms": ["macos-aarch64"],
     "availability": "packages",
@@ -62,6 +45,15 @@
     "download_asset_hints": {
       "linux-x86-64": ["fheroes2_ubuntu_x86-64_SDL2.zip"],
       "macos-x86-64": ["fheroes2_macos_x86-64_SDL2.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "heroes-of-might-and-magic-ii",
+      "evidence_urls": [
+        "https://github.com/ihhub/fheroes2",
+        "https://github.com/ihhub/fheroes2/tree/2685c2188b541660f1ce261b554c3e92f79b1775"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

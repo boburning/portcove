@@ -4,23 +4,6 @@
     "id": "purun-teamgdb-locoroco-2",
     "name": "LocoRoco 2 — Purun (TeamGDB)",
     "original_game_title": "LocoRoco 2",
-    "original_game": {
-      "format_version": 1,
-      "id": "locoroco-2",
-      "evidence_urls": [
-        "https://github.com/TeamGDB/Purun/blob/5cd4b67de6de91a416cf416aa77fa56082a1df55/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "locoroco-2-playstation-portable",
-          "title": "LocoRoco 2 (PlayStation Portable, region not specified)",
-          "system": "playstation-portable",
-          "evidence_urls": [
-            "https://github.com/TeamGDB/Purun/blob/5cd4b67de6de91a416cf416aa77fa56082a1df55/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "Firstlevelplays/saves/continues, later levels have not been tested; missing sound effects/crashrisk. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/TeamGDB/Purun",
     "platforms": ["macos-aarch64"],
@@ -52,6 +35,21 @@
       "image_sha256": "43c4b82fa60d57ac9598a359df7b69b67bab3be3734d51f4d14607d5693b8860",
       "game_slug": "locoroco-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "locoroco-2",
+      "evidence_urls": ["https://github.com/TeamGDB/Purun"],
+      "source_editions": [
+        {
+          "id": "locoroco-2-playstation-portable",
+          "title": "LocoRoco 2 (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/TeamGDB/Purun/blob/5cd4b67de6de91a416cf416aa77fa56082a1df55/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

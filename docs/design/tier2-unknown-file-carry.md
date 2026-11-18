@@ -206,7 +206,7 @@ taking 60.
    check (section 7) against what is still needed. The copy then runs in two
    phases (N1), so T never ends up with only part of A's files:
    1. **Stage.** For each planned copy, write a `.portcove-carry-*` temporary
-      file beside the destination and hash it against the plan. Nothing at a
+      file in the nearest existing destination ancestor and hash it against the plan. Nothing at a
       destination path changes in this phase.
    2. **Verify.** Re-hash every source and every destination (M4) and compare
       with the plan (absent, or the digest the plan approved replacing).
@@ -218,7 +218,13 @@ taking 60.
    A failure in stage or verify deletes every temporary file and changes
    nothing in T:
    - out of space (the check is a snapshot; another writer can fill the disk):
-     record `insufficient_space`, carry nothing, and the switch goes ahead;
+     destination creation, write, timestamp, sync or private retention failures
+     with a storage-full error discard all private temporary copies before
+     recording `insufficient_space` and allowing the switch to continue. The
+     required-byte estimate is retained; an unknown current free-space reading
+     is omitted. A cleanup failure holds. Source IO and publication errors do
+     not use this nonblocking outcome, and an earlier partial publication still
+     holds until the carry can finish;
    - a source changed during the copy: `carried_file_changed`, which holds;
    - a source locked by another program (a Windows sharing violation):
      `carried_file_unreadable`, which holds and is retryable; it is the only
@@ -284,6 +290,13 @@ for a stage-only reuse and for recovery's `register_install(&install, false)`.
 Placing the step after it puts declared data and additive adoption
 (`service/psx_mod_data.rs:882-887`) before the undeclared files, and keeps the
 final `verify_critical` after the carry.
+
+Staging uses the nearest existing destination ancestor on the destination
+volume and creates no missing destination folders. Publication creates them
+only after all copies verify, then rechecks the destination before its atomic
+rename. Planning, staging and verification holds therefore leave no new empty
+destination folders. A partial publication or prior process crash may still
+leave folders; this does not authorize deleting them or player-created folders.
 
 **Time under the port lock (N4).** Planning hashes the eligible files in A and
 T, and staging hashes each copy again, so a large tree adds time to every

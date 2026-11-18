@@ -3,7 +3,15 @@
   "listing": {
     "id": "gow2-recomp-andrebrumdev-andrebrumdev-god-of-war-ii-hd",
     "name": "God of War II HD — GoW2 Recomp (andrebrumdev) (andrebrumdev)",
-    "original_game_title": "God of War II HD",
+    "original_game_title": "God of War II",
+    "artwork": {
+      "game_id": 117882,
+      "cover_id": 157486,
+      "image_id": "co3dim",
+      "image_sha256": "703dd9f748b45c7796c74bb44fc3301b5c2c41229ebe5806637fcf2f2cae3cd1",
+      "game_slug": "god-of-war-ii--1",
+      "match_kind": "underlying-game"
+    },
     "summary": "Upstream reports Rhodes and the Colossus fight at 45–60 FPS. A shoulder-bone bug remains, and later progression is not fully confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/andrebrumdev/gow2-recomp",
     "listed_at": "2026-10-25",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/andrebrumdev/gow2-recomp"
     },
-    "issue_number": 3367
+    "issue_number": 3367,
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war-ii",
+      "evidence_urls": ["https://github.com/andrebrumdev/gow2-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -4,23 +4,6 @@
     "id": "project-glintburn-ac4-port-sulphurs16-armored-core-4",
     "name": "Armored Core 4 — Project Glintburn AC4-Port (SulphurS16)",
     "original_game_title": "Armored Core 4",
-    "original_game": {
-      "format_version": 1,
-      "id": "armored-core-4",
-      "evidence_urls": [
-        "https://github.com/SulphurS16/AC4-Port/blob/aa468df72f7c091fb5efb2331d251b1ddb4dd773/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "armored-core-4-playstation-3",
-          "title": "Armored Core 4 (PlayStation 3, region not specified)",
-          "system": "playstation-3",
-          "evidence_urls": [
-            "https://github.com/SulphurS16/AC4-Port/blob/aa468df72f7c091fb5efb2331d251b1ddb4dd773/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "The project describes missions, settings and play, with an SPU interpreter fallback. Portcove has not tested gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/SulphurS16/AC4-Port",
     "platforms": ["windows-x86-64"],
@@ -52,6 +35,21 @@
       "image_sha256": "f9686dda1cef5648cb84e52aac5ef215d035d00ef5ce8616287bd4063f02f73b",
       "game_slug": "armored-core-4",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "armored-core-4",
+      "evidence_urls": ["https://github.com/SulphurS16/AC4-Port"],
+      "source_editions": [
+        {
+          "id": "armored-core-4-playstation-3",
+          "title": "Armored Core 4 (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/SulphurS16/AC4-Port/blob/aa468df72f7c091fb5efb2331d251b1ddb4dd773/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
