@@ -425,10 +425,18 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
         );
       };
       await libraryView();
-      const favorite = By.css(`button[aria-label="Favorite ${gameIdentityLabel(port)}"]`);
+      const authoredGame = port.presentation?.original_game?.id;
+      const favoriteId = authoredGame ? `game-${authoredGame}` : `port-${portId}`;
+      const favoriteName = authoredGame ? gameTitle(port) : gameIdentityLabel(port);
+      const favorite = By.css(`button[aria-label="Favorite ${favoriteName}"]`);
       assert.equal((await favorites()).includes(portId), false);
+      assert.equal((await organization()).saved_game_ids.includes(favoriteId), false);
       await click(favorite);
-      await browser.wait(async () => (await favorites()).includes(portId), 15_000);
+      await browser.wait(
+        async () => (await organization()).saved_game_ids.includes(favoriteId),
+        15_000,
+      );
+      assert.equal((await favorites()).includes(portId), false);
       await click(By.css(libraryCard));
       await browser.wait(until.elementLocated(By.css(`[data-detail-port-id="${portId}"]`)), 15_000);
       await click(By.css(".detail-back"));
