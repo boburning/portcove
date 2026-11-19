@@ -370,6 +370,18 @@ export async function bootstrapRecoveryScenario({
     canonicalPath(text(object(picker).selected_directory)),
     canonicalPath(fixture.selectedRoot),
   );
+  const review = await browser.wait(until.elementLocated(By.css('[role="dialog"]')), 5_000);
+  assert.match(await review.getText(), /future launches/);
+  assert.equal(
+    canonicalPath(await review.findElement(By.css("code")).getText()),
+    canonicalPath(fixture.selectedRoot),
+  );
+  assert.deepEqual(await bootstrap(), before);
+  assert.deepEqual(await readFile(fixture.preferences), preferencesBefore);
+  await captureScreenshot("startup-library-selection-review");
+  await review
+    .findElement(By.xpath('.//button[normalize-space(.)="Open reviewed library"]'))
+    .click();
   await browser.wait(async () => (await bootstrap()).ready, 15_000);
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
   const selected = await bootstrap();

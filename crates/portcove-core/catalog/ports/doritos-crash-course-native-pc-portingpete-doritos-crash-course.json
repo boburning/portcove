@@ -35,6 +35,12 @@
       "image_sha256": "64392f98e3f43a30e035ffb7a831dcfcf640c9b7c327e153061b67cb841fb20a",
       "game_slug": "doritos-crash-course",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "doritos-crash-course",
+      "evidence_urls": ["https://github.com/portingpete/DoritosCrashCourse"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

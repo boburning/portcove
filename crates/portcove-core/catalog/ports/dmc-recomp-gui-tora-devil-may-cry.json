@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/Gui-Tora/dmc-recomp"
     },
-    "issue_number": 2995
+    "issue_number": 2995,
+    "original_game": {
+      "format_version": 1,
+      "id": "devil-may-cry",
+      "evidence_urls": ["https://github.com/Gui-Tora/dmc-recomp"],
+      "source_editions": [
+        {
+          "id": "devil-may-cry-playstation-2",
+          "title": "Devil May Cry (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Gui-Tora/dmc-recomp/blob/529e9ed572241b15793ac47dd850a5b5c259b924/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

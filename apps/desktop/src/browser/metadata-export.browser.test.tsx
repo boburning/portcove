@@ -44,7 +44,9 @@ async function openExport() {
     .getByRole("navigation", { name: "Settings categories" })
     .getByRole("button", { name: "Library and storage", exact: true })
     .click();
-  await page.getByText("Prepare a recovery copy", { exact: true }).click();
+  expect(
+    page.getByText("Prepare a recovery copy", { exact: true }).element().closest("details")?.open,
+  ).toBe(false);
 }
 
 const receipt = () => document.querySelector(".library-recovery [role=status]");

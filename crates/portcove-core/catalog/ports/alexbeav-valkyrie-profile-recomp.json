@@ -55,6 +55,15 @@
       "image_sha256": "e9453314a3e19807fa7ee8b6d174bcc7373e0a878978b93797a50c51a6139491",
       "game_slug": "valkyrie-profile",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "valkyrie-profile",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp"
+      ],
+      "source_editions": []
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

@@ -35,6 +35,21 @@
       "image_sha256": "dbb9656ef1fd2e3eb89c90cb034aabb8524467b34721b0ec82fb4834ac760ef2",
       "game_slug": "sid-meiers-civilization-revolution",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "civilization-revolution",
+      "evidence_urls": ["https://github.com/ReRevvedRecomp/rerevved"],
+      "source_editions": [
+        {
+          "id": "civilization-revolution-xbox-360",
+          "title": "Civilization Revolution (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/ReRevvedRecomp/rerevved/blob/9451877451b99ba5f970d17e38c5c17addb6b309/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

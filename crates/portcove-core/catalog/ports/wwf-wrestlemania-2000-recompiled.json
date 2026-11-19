@@ -16,7 +16,13 @@
       "game_slug": "wwf-wrestlemania-2000",
       "match_kind": "underlying-game"
     },
-    "issue_number": 93
+    "issue_number": 93,
+    "original_game": {
+      "format_version": 1,
+      "id": "wwf-wrestlemania-2000",
+      "evidence_urls": ["https://github.com/jessetbh/WWFWrestleMania2000Recomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

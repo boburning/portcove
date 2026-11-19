@@ -55,7 +55,16 @@
       "macos-x86-64": ["threads-of-fate-", "-macos-x64.zip"],
       "macos-aarch64": ["threads-of-fate-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "threads-of-fate",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/threads-of-fate-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/threads-of-fate-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

@@ -29,6 +29,16 @@
       "warnings": [],
       "help_url": "https://github.com/GTTeancum/OpenGTPS1/blob/d9e6af5dccf704383f28faf8d1b50633e2539046/README.md"
     },
-    "availability_override_reason": "GitHub no longer shows this project's repository (checked November 15, 2026). Portcove keeps this listing for reference. If the project becomes available again, Portcove can review it again."
+    "availability_override_reason": "GitHub no longer shows this project's repository (checked November 15, 2026). Portcove keeps this listing for reference. If the project becomes available again, Portcove can review it again.",
+    "original_game": {
+      "format_version": 1,
+      "id": "gran-turismo-2",
+      "evidence_urls": [
+        "https://github.com/GTTeancum/OpenGTPS1/blob/d9e6af5dccf704383f28faf8d1b50633e2539046/README.md",
+        "https://github.com/GTTeancum/OpenGTPS1"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Gran Turismo 2"
   }
 }

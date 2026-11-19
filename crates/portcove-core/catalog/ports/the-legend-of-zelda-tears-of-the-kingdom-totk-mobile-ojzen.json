@@ -38,6 +38,12 @@
           "instruction": "The Mac build can stutter when shaders first load. The mobile observations cover limited play and import on M1 or later iPads and the title screen on iPhone 15 Pro. A complete playthrough and exact macOS and Metal minimums remain unconfirmed."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-tears-of-the-kingdom",
+      "evidence_urls": ["https://github.com/OJZen/totk-mobile"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -536,20 +536,20 @@ export const desktopApi = {
     portId: string,
     projectId: string,
     generation: number,
-    source?: string,
-  ) => invoke<void>("open_provider_mod_project", { portId, projectId, generation, source }),
+    provider?: string,
+  ) => invoke<void>("open_provider_mod_project", { portId, projectId, generation, provider }),
   modProviderCatalog: (portId: string, source: string, generation: number) =>
     invoke<import("./types").ProviderCatalog>("get_mod_provider_catalog", {
       portId,
       source,
       generation,
     }),
-  providerProject: (portId: string, projectId: string, generation: number, source?: string) =>
+  providerProject: (portId: string, projectId: string, generation: number, provider?: string) =>
     invoke<import("./types").ProviderProjectView>("get_provider_project", {
       portId,
       projectId,
       generation,
-      source,
+      provider,
     }),
   planProviderInstall: (
     portId: string,
@@ -557,7 +557,8 @@ export const desktopApi = {
     projectId: string,
     fileId: string,
     generation: number,
-    source?: string,
+    provider?: string,
+    workspace = false,
   ) =>
     invoke<import("./types").ProviderInstallPlan>("plan_provider_install", {
       portId,
@@ -565,7 +566,8 @@ export const desktopApi = {
       projectId,
       fileId,
       generation,
-      source,
+      provider,
+      workspace,
     }),
   previewModSetupDraft: (
     portId: string,
@@ -891,6 +893,22 @@ export const desktopApi = {
     invoke<void>("forget_pending_setup", { portId, pendingId, generation }),
   openPendingSetupFolder: (portId: string, pendingId: string, generation: number) =>
     invoke<void>("open_pending_setup_folder", { portId, pendingId, generation }),
+  openPendingSetupResource: (portId: string, pendingId: string, url: string, generation: number) =>
+    invoke<void>("open_pending_setup_resource", { portId, pendingId, url, generation }),
+  openCatalogDownloadReleaseNotes: (
+    portId: string,
+    releaseId: CatalogDownloadRequest["release_id"],
+    assetId: CatalogDownloadRequest["asset_id"],
+    url: string,
+    generation: number,
+  ) =>
+    invoke<void>("open_catalog_download_release_notes", {
+      portId,
+      releaseId,
+      assetId,
+      url,
+      generation,
+    }),
   discoverOrphanedOperations: (generation: number) =>
     invoke<void>("discover_orphaned_operations", { generation }),
   planPreparation: (portId: string, generation: number) =>

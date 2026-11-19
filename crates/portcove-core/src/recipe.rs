@@ -32,6 +32,7 @@ use crate::{
 mod original_inputs;
 
 pub const RECIPE_FORMAT: u32 = 3;
+const RECIPE_FORMAT_WITH_PROVIDER_BINDINGS: u32 = 4;
 const LEGACY_RECIPE_FORMAT: u32 = 1;
 const RECIPE_FORMAT_WITH_MOD_STATE: u32 = 2;
 const MAX_RECIPE_SETTINGS: usize = 64;
@@ -274,7 +275,8 @@ impl ProfileRecipe {
             Some(format)
                 if format == u64::from(LEGACY_RECIPE_FORMAT)
                     || format == u64::from(RECIPE_FORMAT_WITH_MOD_STATE)
-                    || format == u64::from(RECIPE_FORMAT) => {}
+                    || format == u64::from(RECIPE_FORMAT)
+                    || format == u64::from(RECIPE_FORMAT_WITH_PROVIDER_BINDINGS) => {}
             Some(_) => {
                 return Err(PortcoveError::unsupported(
                     "this recipe uses a format this Portcove does not understand",
@@ -297,7 +299,10 @@ impl ProfileRecipe {
     fn validate(&self) -> Result<()> {
         if !matches!(
             self.format,
-            LEGACY_RECIPE_FORMAT | RECIPE_FORMAT_WITH_MOD_STATE | RECIPE_FORMAT
+            LEGACY_RECIPE_FORMAT
+                | RECIPE_FORMAT_WITH_MOD_STATE
+                | RECIPE_FORMAT
+                | RECIPE_FORMAT_WITH_PROVIDER_BINDINGS
         ) {
             return Err(PortcoveError::unsupported(
                 "this recipe uses a format this Portcove does not understand",
@@ -310,6 +315,16 @@ impl ProfileRecipe {
                 .any(|package| !package.provider_requires.is_empty())
         {
             return Err(invalid("exact provider requirements need recipe format 2"));
+        }
+        if self.format < RECIPE_FORMAT_WITH_PROVIDER_BINDINGS
+            && self.packages.iter().any(|package| {
+                crate::provider_binding::has_explicit_scope(
+                    package.provider.as_ref(),
+                    &package.provider_requires,
+                )
+            })
+        {
+            return Err(invalid("reviewed provider bindings need recipe format 4"));
         }
         if self.settings.len() > MAX_RECIPE_SETTINGS
             || (self.format == LEGACY_RECIPE_FORMAT && !self.settings.is_empty())
@@ -395,7 +410,7 @@ impl ProfileRecipe {
             }
             match (self.format, &original.storage) {
                 (LEGACY_RECIPE_FORMAT | RECIPE_FORMAT_WITH_MOD_STATE, None) => {}
-                (RECIPE_FORMAT, Some(storage))
+                (RECIPE_FORMAT | RECIPE_FORMAT_WITH_PROVIDER_BINDINGS, Some(storage))
                     if hash_ok(&storage.sha256)
                         && storage
                             .observed_identity_sha256
@@ -433,6 +448,10 @@ impl ProfileRecipe {
             .map(|package| (package.native_id.as_str(), package))
             .collect::<BTreeMap<_, _>>();
         for package in &self.packages {
+            crate::provider_binding::validate_dependency_scope(
+                package.provider.as_ref(),
+                &package.provider_requires,
+            )?;
             crate::profile::validate_provider_requirements(
                 &package.native_id,
                 package.enabled,
@@ -558,7 +577,14 @@ impl PortcoveService {
             .packages
             .iter()
             .any(|package| !package.provider_requires.is_empty());
-        let format = if !originals.is_empty() {
+        let format = if revision.packages.iter().any(|package| {
+            crate::provider_binding::has_explicit_scope(
+                package.provider.as_ref(),
+                &package.provider_requires,
+            )
+        }) {
+            RECIPE_FORMAT_WITH_PROVIDER_BINDINGS
+        } else if !originals.is_empty() {
             RECIPE_FORMAT
         } else if !settings.is_empty() || needs_provider_closure {
             RECIPE_FORMAT_WITH_MOD_STATE
@@ -629,15 +655,19 @@ impl PortcoveService {
             .iter()
             .find(|package| package.native_id == native_id)
             .ok_or_else(|| PortcoveError::not_found("the recipe has no such package"))?;
-        let (_, project, file) = package
+        let (catalog, _) = self.library.load_catalog()?;
+        let (reference, (_, project, file)) = package
             .provider
             .as_ref()
-            .and_then(|provider| plannable_provider_file(&recipe.port_id, provider))
+            .and_then(|provider| {
+                plannable_provider_file(&catalog, &recipe.port_id, provider)
+                    .map(|identity| (provider, identity))
+            })
             .ok_or_else(|| {
                 PortcoveError::unsupported("this recipe package needs its exact local file")
             })?;
         let layout = self.deploy_layout(&recipe.port_id)?;
-        let (_, used_bytes) = verified_acquisitions(recipe, &layout, prior)?;
+        let (_, used_bytes) = verified_acquisitions(&catalog, recipe, &layout, prior)?;
         if prior.len() >= MAX_ACQUISITIONS
             || prior
                 .iter()
@@ -661,12 +691,7 @@ impl PortcoveService {
         }
         if let Some(acquisition) = prior.iter().find(|item| {
             reviewed_origin(&item.provider_plan, native_id).is_ok_and(|(origin, _)| {
-                Some(origin.provider.as_str())
-                    == package
-                        .provider
-                        .as_ref()
-                        .map(|reference| reference.provider.as_str())
-                    && origin.project == project
+                origin.project == project
                     && origin.file.as_deref() == Some(file.as_str())
                     && item
                         .provider_plan
@@ -680,18 +705,13 @@ impl PortcoveService {
                 native_id: native_id.to_owned(),
                 provider_plan: acquisition.provider_plan.clone(),
             };
-            verified_acquisitions(recipe, &layout, std::slice::from_ref(&reused))?;
+            verified_acquisitions(&catalog, recipe, &layout, std::slice::from_ref(&reused))?;
             return Ok(reused);
         }
-        let source = &package
-            .provider
-            .as_ref()
-            .expect("a reviewed provider file")
-            .provider;
-        let client = crate::provider_client::ProviderClient::for_source(
+        let client = crate::provider_client::ProviderClient::for_definition(
             &self.library,
-            &recipe.port_id,
-            source,
+            catalog.port(&recipe.port_id)?,
+            Some(&reference.provider),
         )?;
         let mode = ProviderInstallMode::Recipe {
             identity: &recipe.identity_sha256,
@@ -717,7 +737,7 @@ impl PortcoveService {
             .cloned()
             .chain(std::iter::once(acquisition.clone()))
             .collect::<Vec<_>>();
-        if let Err(error) = verified_acquisitions(recipe, &layout, &acquisitions) {
+        if let Err(error) = verified_acquisitions(&catalog, recipe, &layout, &acquisitions) {
             let _ = self.discard_recipe_acquisition(&acquisition);
             return Err(error);
         }
@@ -848,7 +868,8 @@ impl PortcoveService {
         )?;
         let user = self.library.user_dir(&recipe.port_id);
         let layout = crate::profile_deploy::Layout::for_user(&user);
-        let (acquisition_bytes, _) = verified_acquisitions(recipe, &layout, acquisitions)?;
+        let catalog = self.catalog();
+        let (acquisition_bytes, _) = verified_acquisitions(catalog, recipe, &layout, acquisitions)?;
         let recorded_code = crate::profile_deploy::consented_code(&layout).unwrap_or_default();
         let mut code_approval = Vec::new();
         let mut provider_checks = Vec::new();
@@ -927,7 +948,7 @@ impl PortcoveService {
                 let plannable = package
                     .provider
                     .as_ref()
-                    .and_then(|provider| plannable_provider_file(&recipe.port_id, provider));
+                    .and_then(|provider| plannable_provider_file(catalog, &recipe.port_id, provider));
                 let (status, detail) = if staged.is_some() {
                     (
                         RecipeInputStatus::Available,
@@ -1181,8 +1202,9 @@ impl PortcoveService {
         let build = self.verified_retained_build(&port_id, &install_id)?;
         let originals = current.verified_originals;
         let layout = crate::profile_deploy::Layout::for_user(&self.library.user_dir(&port_id));
+        let (catalog, _) = self.library.load_catalog()?;
         let (acquisition_bytes, _) =
-            verified_acquisitions(&current.recipe, &layout, &current.acquisitions)?;
+            verified_acquisitions(&catalog, &current.recipe, &layout, &current.acquisitions)?;
         for package in &current.recipe.packages {
             if let Some(acquired) = acquisition_bytes.get(&package.native_id) {
                 publish_acquired_package(&layout, package, &acquired.path)?;
@@ -1343,6 +1365,7 @@ fn reviewed_origin<'a>(
 }
 
 fn verified_acquisitions(
+    catalog: &crate::Catalog,
     recipe: &ProfileRecipe,
     layout: &crate::profile_deploy::Layout,
     acquisitions: &[RecipeAcquisitionPlan],
@@ -1364,12 +1387,23 @@ fn verified_acquisitions(
             .find(|item| item.native_id == acquisition.native_id);
         let (origin, exact_requirements) = reviewed_origin(plan, &acquisition.native_id)?;
         let reference = package.and_then(|package| package.provider.as_ref());
-        let identity =
-            reference.and_then(|provider| plannable_provider_file(&recipe.port_id, provider));
+        let identity = reference
+            .and_then(|provider| plannable_provider_file(catalog, &recipe.port_id, provider));
         let agrees = reference
             .zip(identity)
             .is_some_and(|(reference, (_, project, file))| {
                 origin.provider == reference.provider
+                    && catalog.port(&recipe.port_id).is_ok_and(|port| {
+                        crate::provider_binding::reference_matches(port, origin)
+                            && crate::provider_binding::reference_matches(port, &plan.provider)
+                            && plan.wrappers.iter().all(|wrapper| {
+                                wrapper.provider.provider == plan.provider.provider
+                                    && crate::provider_binding::reference_matches(
+                                        port,
+                                        &wrapper.provider,
+                                    )
+                            })
+                    })
                     && origin.project == project
                     && origin.file.as_deref() == Some(file.as_str())
                     && reference
@@ -1538,16 +1572,17 @@ fn publish_acquired_package(
 /// reviewed binding for that provider and the reference is complete enough for
 /// `provider-plan`.
 fn plannable_provider_file(
+    catalog: &crate::Catalog,
     port_id: &str,
     provider: &ProviderPackageRef,
 ) -> Option<(&'static str, String, String)> {
-    let bound = crate::provider_client::ProviderClient::sources(port_id)
-        .find(|source| *source == provider.provider)?;
-    let label = if bound == crate::gamebanana::PROVIDER {
-        "GameBanana"
-    } else {
-        "Thunderstore"
-    };
+    let port = catalog.port(port_id).ok()?;
+    if !crate::provider_binding::reference_matches(port, provider) {
+        return None;
+    }
+    let binding = crate::provider_binding::reviewed_binding(port, &provider.provider)?;
+    let bound = binding.provider();
+    let label = binding.label();
     let file = provider.file.as_deref()?;
     // GameBanana IDs are numbers, named in their canonical form.
     if bound == crate::gamebanana::PROVIDER {

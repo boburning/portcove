@@ -57,6 +57,15 @@
           "instruction": "If the external player’s menus or game view are clipped with Vulkan, add --vid_renderer and software as two separate arguments in its launch details. Keep your existing data and profile paths."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "blake-stone-aliens-of-gold",
+      "evidence_urls": [
+        "https://github.com/bibendovsky/bstone#readme",
+        "https://github.com/bibendovsky/bstone"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

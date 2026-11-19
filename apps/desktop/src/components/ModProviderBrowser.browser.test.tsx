@@ -252,6 +252,7 @@ it("queues exact identities, undoes one addition and applies the remainder as a 
     "10",
     7,
     "gamebanana",
+    true,
   );
   expect(applied).toHaveBeenCalledExactlyOnceWith(
     "shipwright",

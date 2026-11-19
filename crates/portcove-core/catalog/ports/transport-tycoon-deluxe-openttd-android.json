@@ -45,6 +45,15 @@
           "instruction": "Use the linked Google Play listing for Android installation. Historical GitHub APKs are older releases, not a current-build recommendation. The available APK and its signing identity can differ from the store version."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "transport-tycoon-deluxe",
+      "evidence_urls": [
+        "https://github.com/pelya/openttd-android/blob/a3163e003f86ff2b4e56e739456b44e2bd34f5b0/README.md",
+        "https://wiki.openttd.org/en/Community/Patches/Compiling%20and%20installing%20the%20unofficial%20Android%20port"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

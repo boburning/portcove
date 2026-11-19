@@ -38,6 +38,15 @@
           "instruction": "Keep the .raceintospace folder in your home directory when changing versions. If you set BARIS_SAVE, preserve that folder instead. The same location stores the game’s config file."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "buzz-aldrins-race-into-space",
+      "evidence_urls": [
+        "https://github.com/raceintospace/raceintospace/releases/tag/v2.0.0",
+        "https://github.com/raceintospace/raceintospace"
+      ],
+      "source_editions": []
     }
   }
 }

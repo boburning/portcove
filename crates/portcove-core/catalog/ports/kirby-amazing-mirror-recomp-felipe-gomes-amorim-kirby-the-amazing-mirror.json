@@ -35,6 +35,12 @@
       "image_sha256": "16aa7ad6eb9ef201aa1afe61572186965ec8e5a4a9097e84d07afcbfa652e321",
       "game_slug": "kirby-and-the-amazing-mirror",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kirby-the-amazing-mirror",
+      "evidence_urls": ["https://github.com/Felipe-Gomes-Amorim/kirby-amazing-mirror-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

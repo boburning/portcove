@@ -311,6 +311,7 @@ export function ModProviderBrowser({
           entry.file,
           generation,
           entry.provider,
+          true,
         );
         prepared.push(result);
         if (!alive.current) {

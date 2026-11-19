@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/ITSeniy/pvz-console-edition"
     },
-    "issue_number": 3214
+    "issue_number": 3214,
+    "original_game": {
+      "format_version": 1,
+      "id": "plants-vs-zombies-xbox-live-arcade",
+      "evidence_urls": ["https://github.com/ITSeniy/pvz-console-edition"],
+      "source_editions": [
+        {
+          "id": "plants-vs-zombies-xbox-live-arcade-xbox-360",
+          "title": "Plants vs. Zombies (Xbox Live Arcade) (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/ITSeniy/pvz-console-edition/blob/b16fb496406a06f5799ce852144469ba426d05c4/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

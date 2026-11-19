@@ -11,7 +11,7 @@
       "match_kind": "underlying-game"
     },
     "name": "Monster Hunter Portable 2nd G — Tutikumo (Aoyagi01)",
-    "original_game_title": "Monster Hunter Portable 2nd G",
+    "original_game_title": "Monster Hunter Freedom Unite",
     "summary": "The project reports ahead-of-time compilation of all overlays with interpreter fallback for untranslated code. The extent of playthrough testing is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Aoyagi01/Tutikumo",
     "listed_at": "2026-10-25",
@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/Aoyagi01/Tutikumo"
     },
-    "issue_number": 3106
+    "issue_number": 3106,
+    "original_game": {
+      "format_version": 1,
+      "id": "monster-hunter-freedom-unite",
+      "evidence_urls": ["https://github.com/Aoyagi01/Tutikumo"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -49,6 +49,15 @@
         "Core does not authenticate the disc set, generated code, component rights or build provenance. Managed acquisition, Install, Update, Backup, Rollback, migration and external deletion are unoffered. Gameplay/save-load, new native game runs, other platforms and installed/protected-client delivery remain unqualified by this route."
       ],
       "help_url": "https://github.com/novapowers0/BloodyRoar2Recomp#readme"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "bloody-roar-ii",
+      "evidence_urls": [
+        "https://github.com/novapowers0/BloodyRoar2Recomp#readme",
+        "https://github.com/novapowers0/BloodyRoar2Recomp"
+      ],
+      "source_editions": []
     }
   }
 }

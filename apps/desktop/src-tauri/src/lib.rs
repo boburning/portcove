@@ -2970,8 +2970,16 @@ pub fn run() -> std::process::ExitCode {
             return std::process::ExitCode::FAILURE;
         }
     };
+    let context = tauri::generate_context!();
     #[cfg(any(windows, target_os = "linux"))]
-    if let Err(message) = runtime_support::check() {
+    if let Err(message) = runtime_support::check(
+        context
+            .config()
+            .bundle
+            .windows
+            .minimum_webview2_version
+            .as_deref(),
+    ) {
         tracing::error!(
             component = "startup",
             phase = "runtime_support",
@@ -3256,6 +3264,8 @@ pub fn run() -> std::process::ExitCode {
             catalog_download::download_catalog_package,
             catalog_download::forget_pending_setup,
             catalog_download::open_pending_setup_folder,
+            catalog_download::open_pending_setup_resource,
+            catalog_download::open_catalog_download_release_notes,
             external_runtime_commands::preview_external_runtime_relink,
             external_runtime_commands::preview_managed_route_change,
             external_runtime_commands::change_to_managed_runtime,
@@ -3325,7 +3335,7 @@ pub fn run() -> std::process::ExitCode {
                 })?;
             Ok(())
         })
-        .build(tauri::generate_context!());
+        .build(context);
     match application {
         Ok(application) => application.run(move |_, event| {
             // Tauri exits the process directly, without dropping local guards.

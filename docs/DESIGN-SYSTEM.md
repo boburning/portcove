@@ -10,7 +10,8 @@ Display file and folder paths with `path-value` or the existing
 `saved-file-path` component. Keep the value exact, selectable, and left to
 right. If it is too long, wrap it across lines. Keep an extended Windows prefix
 with its drive or UNC location. Keep the typography and surface for each use.
-These display rules leave the stored path intact.
+These display rules leave the stored path intact. Editable path fields also use
+left-to-right direction; their labels retain the interface direction.
 
 Loading and unavailable messages are ordinary UI copy, not path values. They
 use normal word wrapping; only an actual path uses code styling and forced
@@ -724,7 +725,9 @@ wrapped footer rhythm uses an 8px gap while action controls retain 32px height.
 Library quick views retain their full meaning, lighter400-weight labels and44px
 minimum control height. Compact count badges are visually omitted, with counts
 retained in accessible names/descriptions. Very narrow/enlarged content reflows
-rather than clipping. Needs attention still includes repair/readiness needs.
+rather than clipping. Wrapped collection tabs keep an 8px row gap and 24px
+column gap; Library’s compact two-column layout keeps its own spacing.
+Needs attention still includes repair/readiness needs.
 An unfavorited heart stays visible; More is subordinate until hover/focus on a
 fine pointer and remains visible on touch. Every action retains keyboard access.
 
@@ -970,6 +973,10 @@ credential provenance and request accounting in Connection details. Token entry
 has a persistent visible label, while environment-controlled credentials keep
 their outside-Portcove recovery instructions. An unavailable connection-status
 read must not appear as an anonymous sign-in result.
+Returning from GitHub settings keeps the pending installed-port check bound to
+its installation selection. After sign-in, it shows the current account and
+allowance and focuses the explicit check action. Returning without signing in
+resumes the anonymous decision. Navigation and dismissal leave the check idle.
 Disc-tool recovery leads with the tool name, missing or invalid state, and a
 working Locate or retry action. Keep executable paths, configuration variables,
 and discovery provenance in Tool details; an environment override cannot be
@@ -1071,7 +1078,7 @@ for work the application did not perform.
 The genuine first-use Library omits collection layout, sorting and filter tools
 until there is content or a browsing constraint to operate on. Keep its mascot
 compact (4rem) and keep Browse games visible at the supported minimum window,
-including with the initial application-update choice notice.
+including with the initial application-update choice notice. Filtered no-results retains its
 reset and filtering controls; hiding first-use tools must not clear preferences.
 
 In an empty Library, **Browse games** takes the player directly to Discover.
@@ -1273,6 +1280,11 @@ Compatibility and project-implementation disclosures shrink within their actual
 detail or comparison column. Long release, edition, artifact and dependency
 identifiers wrap without truncation; complete evidence remains selectable and
 keyboard disclosure controls remain reachable in compact windows.
+
+Launch advisories pair each first-launch or repeat-Play label with its value,
+using quieter labels, stronger values and a clear gap between phases. Historical
+observation spacing belongs to the surrounding `detail-evidence` consumer;
+verify the complete explanation, exact scope and source in that context.
 
 ## Prototype presentation alignment
 

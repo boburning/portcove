@@ -16,6 +16,12 @@
       "image_sha256": "33ebabec123f267f664f2918c86165be04df00b7c20dacdf8171b515c19ee2d1",
       "game_slug": "mega-man-x2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-x2",
+      "evidence_urls": ["https://github.com/mstan/MegaManX2Recomp"],
+      "source_editions": []
     }
   },
   "integration": {

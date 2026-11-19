@@ -316,6 +316,9 @@ pub(crate) enum ProfileCommand {
         /// Page number, from 1.
         #[arg(long, default_value_t = 1)]
         page: u32,
+        /// Reviewed provider when the port offers more than one.
+        #[arg(long)]
+        provider: Option<String>,
     },
     /// Show one mod's files or versions and the IDs `provider-plan` takes; reads only.
     ProviderProject {
@@ -323,6 +326,9 @@ pub(crate) enum ProfileCommand {
         port_id: String,
         /// Mod ID from `provider-browse`: a GameBanana number or a Thunderstore NAMESPACE-NAME.
         project_id: String,
+        /// Reviewed provider when the port offers more than one.
+        #[arg(long)]
+        provider: Option<String>,
     },
     /// Check installed provider packages for newer files, same-version changes or removals.
     ProviderUpdates {
@@ -341,6 +347,9 @@ pub(crate) enum ProfileCommand {
         project_id: String,
         /// A GameBanana file ID or a Thunderstore version, from `provider-project`.
         file_id: String,
+        /// Reviewed provider when the port offers more than one.
+        #[arg(long)]
+        provider: Option<String>,
     },
     /// Install exactly the reviewed plan; changed bytes or a newer revision refuse.
     ProviderApply {
@@ -858,15 +867,24 @@ pub(crate) async fn execute(
 ) -> Result<()> {
     let name = command.name();
     match command {
-        ProfileCommand::ProviderBrowse { port_id, page } => {
-            let result = service.browse_provider_mods(&port_id, page).await?;
+        ProfileCommand::ProviderBrowse {
+            port_id,
+            page,
+            provider,
+        } => {
+            let result = service
+                .browse_provider_mods_for_provider(&port_id, page, provider.as_deref())
+                .await?;
             render_read_success(mode, name, result, provider_browse_text)
         }
         ProfileCommand::ProviderProject {
             port_id,
             project_id,
+            provider,
         } => {
-            let view = service.provider_project(&port_id, &project_id).await?;
+            let view = service
+                .provider_project_for_provider(&port_id, &project_id, provider.as_deref())
+                .await?;
             render_read_success(mode, name, view, provider_project_text)
         }
         ProfileCommand::ProviderUpdates {
@@ -914,9 +932,16 @@ pub(crate) async fn execute(
             profile_id,
             project_id,
             file_id,
+            provider,
         } => {
             let plan = service
-                .plan_provider_install(&port_id, &profile_id, &project_id, &file_id)
+                .plan_provider_install_for_provider(
+                    &port_id,
+                    &profile_id,
+                    &project_id,
+                    &file_id,
+                    provider.as_deref(),
+                )
                 .await?;
             render_read_success(mode, name, plan, plan_text)
         }

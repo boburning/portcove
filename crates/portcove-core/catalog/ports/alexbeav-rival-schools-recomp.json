@@ -55,7 +55,16 @@
       "macos-aarch64": ["rivalschools-", "-macos-arm64.zip"],
       "macos-x86-64": ["rivalschools-", "-macos-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "rival-schools-united-by-fate",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

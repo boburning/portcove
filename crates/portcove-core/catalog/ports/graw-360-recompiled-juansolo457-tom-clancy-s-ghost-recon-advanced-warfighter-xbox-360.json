@@ -36,6 +36,12 @@
       "game_slug": "tom-clancy-s-ghost-recon-advanced-warfighter",
       "match_kind": "underlying-game"
     },
+    "original_game": {
+      "format_version": 1,
+      "id": "tom-clancys-ghost-recon-advanced-warfighter-xbox-360",
+      "evidence_urls": ["https://github.com/Juansolo457/graw360-recomp"],
+      "source_editions": []
+    },
     "release_url": "https://github.com/Juansolo457/graw360-recomp/releases",
     "download_asset_hints": {
       "linux-x86-64": ["GRAW360-Recompiled-", "-Linux.zip"]

@@ -185,12 +185,13 @@ it.each(
         </div>,
       );
       await document.fonts.ready;
-      for (const [tab, title] of [
-        ["Game files", "Game-file requirements and setup"],
-        ["Manage", "Folder for a future install"],
-        ["Manage", "Technical details"],
-      ] as const) {
-        await page.getByRole("tab", { name: tab, exact: true }).click();
+      await page.getByRole("tab", { name: "Game files", exact: true }).click();
+      const requirements = page.getByText("Current game-file requirements", { exact: true });
+      await expect.element(requirements).toBeVisible();
+      expect(requirements.element().closest("details")).toBeNull();
+      if (direction === "ltr") await captureParityState("detail-current-game-file-requirements");
+      await page.getByRole("tab", { name: "Manage", exact: true }).click();
+      for (const title of ["Folder for a future install", "Technical details"]) {
         const control = page.getByText(title, { exact: true });
         await expect.element(control).toBeVisible();
         const label = control.element();
@@ -207,8 +208,6 @@ it.each(
         expect(details.open).toBe(originalOpen);
         expect(document.activeElement).toBe(summary);
         expectManualSummaryGeometry(label, direction);
-        if (direction === "ltr" && tab === "Game files")
-          await captureParityState("detail-manual-requirements-trailing-chevron");
       }
       await page.getByText("Folder for a future install", { exact: true }).click();
       await expect.element(page.getByText(folderError, { exact: false })).toBeVisible();
@@ -660,7 +659,15 @@ it("keeps an unknown external installation's folder and maintenance facts distin
     .element(facts.getByText(status.external_runtime.path, { exact: true }))
     .toBeVisible();
   await expect
-    .element(facts.getByText("You maintain this folder and its updates.", { exact: true }))
+    .element(facts.getByText(status.external_runtime.executable, { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      facts.getByText(
+        "You maintain this folder and its updates. Review Saves & backups for any data Portcove can protect.",
+        { exact: true },
+      ),
+    )
     .toBeVisible();
   expect(
     document.querySelector('[data-confirmed-play]:not(:disabled):not([aria-disabled="true"])'),
@@ -1043,6 +1050,6 @@ it("keeps a setup-needed game's file details inside a 400% interface-size column
   );
   await userEvent.click(page.getByRole("tab", { name: "Game files" }));
   const column = page.getByTestId("narrow-details-column").element();
-  await expect.poll(() => column.querySelector(".requirements-disclosure") !== null).toBe(true);
+  await expect.poll(() => column.querySelector(".requirements-body") !== null).toBe(true);
   expect(column.scrollWidth).toBeLessThanOrEqual(column.clientWidth);
 });

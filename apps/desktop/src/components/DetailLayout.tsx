@@ -42,6 +42,8 @@ function sectionLabel(t: TFunction<"detail">, section: DetailSection): string {
       return t("section.saves");
     case "versions":
       return t("section.versions");
+    case "configuration":
+      return t("section.configuration");
     case "manage":
       return t("section.manage");
   }
@@ -389,7 +391,11 @@ export function DetailLayout({
             <h2
               id={`detail-section-${section}`}
               tabIndex={-1}
-              className={section === "overview" || section === "mods" ? "sr-only" : "mb-5 text-xl"}
+              className={
+                section === "overview" || section === "mods" || section === "configuration"
+                  ? "sr-only"
+                  : "mb-5 text-xl"
+              }
             >
               {sectionLabel(t, section)}
             </h2>

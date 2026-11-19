@@ -51,7 +51,16 @@
       "macos-x86-64": ["Colin-McRae-Rally-2-0-Recomp-", "-macos-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "Colin McRae Rally 2.0"
+    "original_game_title": "Colin McRae Rally 2.0",
+    "original_game": {
+      "format_version": 1,
+      "id": "colin-mcrae-rally-2-0",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

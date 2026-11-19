@@ -4,7 +4,7 @@
     "id": "the-legend-of-zelda-breath-of-the-wild-switch-edition-savagewindrecomp",
     "name": "The Legend of Zelda: Breath of the Wild — Switch edition (SavageWindRecomp)",
     "summary": "SavageWindRecomp builds the Switch edition of Breath of the Wild on Windows or Linux from your own extracted 1.9.0 game. The project reports shrines and the Great Plateau. Later progress, controllers and gyro remain unconfirmed. DLC is unsupported.",
-    "original_game_title": "The Legend of Zelda: Breath of the Wild — Switch edition",
+    "original_game_title": "The Legend of Zelda: Breath of the Wild",
     "project_url": "https://github.com/Revivedx/SavageWindRecomp",
     "listed_at": "2026-10-25",
     "platforms": [],
@@ -36,6 +36,21 @@
         {
           "title": "Version and platform notes",
           "instruction": "The Linux aarch64 build has not been tested on ARM hardware. Distant-map rendering remains incomplete. The project does not support version 1.8.2."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-breath-of-the-wild",
+      "evidence_urls": ["https://github.com/Revivedx/SavageWindRecomp"],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-breath-of-the-wild-nintendo-switch",
+          "title": "The Legend of Zelda: Breath of the Wild (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/Revivedx/SavageWindRecomp/blob/3a98ae855e61ae5675aa24e3cc27be4f54b07e8b/README.md"
+          ]
         }
       ]
     }

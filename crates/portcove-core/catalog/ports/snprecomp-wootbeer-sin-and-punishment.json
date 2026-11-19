@@ -42,7 +42,13 @@
     "issue_number": 3564,
     "listed_at": "2026-10-25",
     "release_url": "https://github.com/wootbeer/snprecomp/releases",
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "sin-and-punishment",
+      "evidence_urls": ["https://github.com/wootbeer/snprecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -76,7 +82,6 @@
       ]
     }
   },
-  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -110,5 +115,6 @@
         "executables": ["snprecompiled", "snprecompiled.sh"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"]
 }

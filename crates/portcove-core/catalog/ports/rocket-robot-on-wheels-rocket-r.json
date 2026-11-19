@@ -50,7 +50,16 @@
         }
       ]
     },
-    "original_game_title": "Rocket: Robot on Wheels"
+    "original_game_title": "Rocket: Robot on Wheels",
+    "original_game": {
+      "format_version": 1,
+      "id": "rocket-robot-on-wheels",
+      "evidence_urls": [
+        "https://github.com/ThatGuyMcd/Rocket-R/blob/main/README.md",
+        "https://github.com/ThatGuyMcd/Rocket-R"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

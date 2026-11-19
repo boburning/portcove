@@ -346,7 +346,22 @@ async fn a_forged_plan_cannot_name_paths_or_foreign_providers_at_apply() {
         let mut forged = plan.clone();
         mutate(&mut forged);
         forged.plan_sha256 = digest(&forged).unwrap();
-        let token = w.service.authorize_provider_install(&forged).unwrap().token;
+        if forged.provider.provider != plan.provider.provider {
+            assert_eq!(
+                w.service
+                    .authorize_provider_install(&forged)
+                    .unwrap_err()
+                    .code,
+                ErrorCode::Verification
+            );
+        }
+        // A token from an earlier review or stale caller cannot bypass apply's validation.
+        let token = w
+            .service
+            .library()
+            .issue_authorization(ACTION, &target(&forged).unwrap(), &forged.plan_sha256)
+            .unwrap()
+            .token;
         assert_eq!(
             w.service
                 .apply_provider_install(&forged, &token)

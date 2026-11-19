@@ -132,6 +132,7 @@
     "website": "Sitio web del proyecto"
   },
   "section": {
+    "configuration": "Ajustes del juego",
     "files": "Archivos del juego",
     "label": "Secciones de detalles del juego",
     "manage": "Administrar",

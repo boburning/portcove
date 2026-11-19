@@ -53,6 +53,15 @@
           "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "diablo",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/diablo-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/diablo-recomp"
+      ],
+      "source_editions": []
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

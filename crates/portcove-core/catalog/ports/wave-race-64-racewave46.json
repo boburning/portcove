@@ -16,7 +16,13 @@
       "game_slug": "wave-race-64",
       "match_kind": "underlying-game"
     },
-    "issue_number": 1133
+    "issue_number": 1133,
+    "original_game": {
+      "format_version": 1,
+      "id": "wave-race-64",
+      "evidence_urls": ["https://github.com/DomazinUS/RaceWave46"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

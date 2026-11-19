@@ -1,7 +1,7 @@
 import { isRecord } from "./runtime-values.mts";
 import { execFileSync } from "node:child_process";
 import { constants } from "node:fs";
-import { appendFile, open, readFile } from "node:fs/promises";
+import { appendFile, open } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { observationHash } from "./upstream-observer.mts";
@@ -9,9 +9,11 @@ import { estimateHealthRequests } from "./check-catalog-repositories.mts";
 import { parseRawDiff } from "./select-ci-plan.mts";
 import { healthCatalogInputs, healthLineageInputs } from "./upstream-health-inputs.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
+import { readBoundedEvidenceFile } from "./development-evidence.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const catalogPath = "crates/portcove-core/catalog/catalog.json";
+const catalogInputBytes = 16 * 1024 * 1024;
 const sharedHealthInputs = new Set([
   "scripts/check-catalog-repositories.mts",
   "scripts/check-retcomm-upstreams.mts",
@@ -19,6 +21,7 @@ const sharedHealthInputs = new Set([
   "scripts/upstream-health-plan.mts",
   "scripts/upstream-health-inputs.mts",
   "scripts/upstream-health-monitor.mts",
+  "scripts/development-evidence.mts",
   "scripts/upstream-observer.mts",
   "scripts/upstream-lineage.mts",
   "scripts/release-path-safety.mts",
@@ -225,9 +228,17 @@ interface DiscoveryContext {
 export async function discoverUpstreamHealthScope(
   { event, baseSha, headSha, checkoutSha }: DiscoveryContext,
   git: (args: string[]) => string | Buffer = (args) =>
-    execFileSync("git", args, { cwd: root, maxBuffer: 8 * 1024 * 1024 }),
-  readCheckout: () => string | Promise<string> = () =>
-    readFile(path.join(root, catalogPath), "utf8"),
+    execFileSync("git", args, {
+      cwd: root,
+      maxBuffer:
+        args[0] === "show" && args[1]?.endsWith(`:${catalogPath}`)
+          ? catalogInputBytes
+          : 8 * 1024 * 1024,
+    }),
+  readCheckout: () => string | Promise<string> = async () =>
+    new TextDecoder("utf-8", { fatal: true }).decode(
+      (await readBoundedEvidenceFile(path.join(root, catalogPath), catalogInputBytes)).bytes,
+    ),
   readAuthoring: (relativePath: string) => string | Promise<string> = readWorkingAuthoring,
 ) {
   const current: unknown = JSON.parse(await readCheckout());

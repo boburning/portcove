@@ -2395,7 +2395,7 @@ pub struct ModSetupsView {
     /// `thunderstore`), if any.
     #[serde(default)]
     pub provider: Option<String>,
-    /// All reviewed sources for this port. The legacy provider stays the CLI default.
+    /// Reviewed provider choices when the game offers more than one.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub providers: Vec<String>,
     /// Count from the materialized revision, including disabled mods.
@@ -2427,7 +2427,7 @@ impl PortcoveService {
         port_id: &str,
         inventory: impl FnOnce(&str) -> Result<crate::ProfileInventory>,
     ) -> Result<ModSetupsView> {
-        self.catalog().port(port_id)?;
+        let port = self.catalog().port(port_id)?;
         let Ok(layout) = self.deploy_layout(port_id) else {
             return Ok(ModSetupsView {
                 port_id: port_id.into(),
@@ -2450,7 +2450,7 @@ impl PortcoveService {
         self.prune_staged(&layout.store().join("staged"));
         let inventory = inventory(port_id)?;
         let has_profiles = !inventory.profiles.is_empty();
-        let held_updates = crate::provider_auto_update::held_updates(&layout, &inventory);
+        let held_updates = crate::provider_auto_update::held_updates(&layout, &inventory, port);
         let current_install_id = profile::active_install_id(&self.library.connection()?, port_id)?;
         let live = has_profiles
             .then(|| self.observe_live_mods(port_id))
@@ -2466,11 +2466,17 @@ impl PortcoveService {
         Ok(ModSetupsView {
             held_updates,
             last_automatic_checks: crate::provider_auto_update::last_checks(&layout, &inventory),
-            provider: crate::provider_install::bound_provider(port_id)
-                .map(|(provider, _)| provider.to_owned()),
-            providers: crate::provider_client::ProviderClient::sources(port_id)
-                .map(str::to_owned)
-                .collect(),
+            provider: crate::provider_binding::default_binding(port)
+                .map(|binding| binding.provider().to_owned()),
+            providers: crate::provider_binding::configured_bindings(port)
+                .filter(|bindings| bindings.len() > 1)
+                .map(|bindings| {
+                    bindings
+                        .iter()
+                        .map(|binding| binding.provider().to_owned())
+                        .collect()
+                })
+                .unwrap_or_default(),
             current_install_id,
             progress_copy_supported: crate::portable_saves::contract_for(port_id).is_some(),
             port_id: port_id.into(),
@@ -2717,7 +2723,7 @@ pub(crate) fn proposed_mod_setup(
             };
             let project = |member: &&StagedPackage| {
                 member.provider.as_ref().is_some_and(|member| {
-                    member.provider == origin.provider && member.project == origin.project
+                    crate::provider_binding::same_project(port_id, member, origin)
                 })
             };
             let mut members = staged.iter().filter(project).peekable();

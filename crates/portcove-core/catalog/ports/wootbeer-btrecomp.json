@@ -50,6 +50,24 @@
       "warnings": [
         "Use the exact supported BattleTanx ROM and retain its actual data root; this guide does not qualify other titles, save compatibility or native gameplay."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "battletanx",
+      "evidence_urls": [
+        "https://github.com/wootbeer/btrecomp/blob/5b06c1bb496c021acd64d5dabd053d9ec5471d8c/README.md",
+        "https://github.com/wootbeer/btrecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "battletanx-nintendo-64",
+          "title": "BattleTanx (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/wootbeer/btrecomp/blob/d40f1e89b5079798d56ce89b24fbc4cedcc96034/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -48,7 +48,16 @@
         }
       ]
     },
-    "original_game_title": "Heretic II"
+    "original_game_title": "Heretic II",
+    "original_game": {
+      "format_version": 1,
+      "id": "heretic-ii",
+      "evidence_urls": [
+        "https://github.com/m-x-d/Heretic2R#installation",
+        "https://github.com/m-x-d/Heretic2R"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

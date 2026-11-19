@@ -55,25 +55,6 @@ pub(crate) fn gamebanana_game(port_id: &str) -> Option<u64> {
         .map(|(_, game)| *game)
 }
 
-/// Ports with a reviewed provider binding, for passes that visit each of them.
-pub(crate) fn provider_ports() -> impl Iterator<Item = &'static str> {
-    GAMEBANANA_BINDINGS.iter().map(|(port, _)| *port).chain(
-        crate::thunderstore::bound_ports()
-            .filter(|port| !GAMEBANANA_BINDINGS.iter().any(|(id, _)| id == port)),
-    )
-}
-
-/// The provider a port has a reviewed binding for, and its name in messages.
-pub(crate) fn bound_provider(port_id: &str) -> Option<(&'static str, &'static str)> {
-    if gamebanana_game(port_id).is_some() {
-        Some((crate::gamebanana::PROVIDER, "GameBanana"))
-    } else if crate::thunderstore::thunderstore_community(port_id).is_some() {
-        Some((crate::thunderstore::PROVIDER, "Thunderstore"))
-    } else {
-        None
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct PlanMember {
     pub file_name: String,
@@ -266,6 +247,7 @@ fn retained_dependencies(
     revision: &ProfileRevision,
     project: &str,
     file: &ProviderFileCandidate,
+    binding: Option<&crate::ModProviderBinding>,
     observed: Option<&[(ProviderProject, ProviderFileCandidate)]>,
 ) -> Result<Vec<ProviderRequirement>> {
     let changed = || {
@@ -275,7 +257,9 @@ fn retained_dependencies(
     };
     let mut roots = revision.packages.iter().filter(|package| {
         package.provider.as_ref().is_some_and(|provider| {
-            provider.provider == crate::thunderstore::PROVIDER && provider.project == project
+            provider.provider == crate::thunderstore::PROVIDER
+                && provider.project == project
+                && provider.binding.as_ref() == binding
         })
     });
     let root = roots.next().ok_or_else(changed)?;
@@ -295,6 +279,11 @@ fn retained_dependencies(
     let mut remaining_members = MAX_MEMBERS;
     let mut remaining_bytes = MAX_EXTRACTED_BYTES;
     while let Some(required) = pending.pop() {
+        if required.provider.provider != crate::thunderstore::PROVIDER
+            || required.provider.binding.as_ref() != binding
+        {
+            return Err(changed());
+        }
         let name = required.provider.project.as_str();
         if let Some(previous) = reviewed.get(name) {
             if *previous != required {
@@ -465,13 +454,25 @@ impl PortcoveService {
         project_id: &str,
         file_id: &str,
     ) -> Result<ProviderInstallPlan> {
-        self.catalog().port(port_id)?;
-        let client = ProviderClient::for_port(&self.library, port_id)?;
+        self.plan_provider_install_for_provider(port_id, profile_id, project_id, file_id, None)
+            .await
+    }
+
+    pub async fn plan_provider_install_for_provider(
+        &self,
+        port_id: &str,
+        profile_id: &str,
+        project_id: &str,
+        file_id: &str,
+        provider: Option<&str>,
+    ) -> Result<ProviderInstallPlan> {
+        let client =
+            ProviderClient::for_definition(&self.library, self.catalog().port(port_id)?, provider)?;
         self.plan_provider_install_via(&client, port_id, profile_id, project_id, file_id)
             .await
     }
 
-    pub async fn plan_provider_install_for_source(
+    pub async fn plan_workspace_provider_install(
         &self,
         port_id: &str,
         profile_id: &str,
@@ -479,8 +480,11 @@ impl PortcoveService {
         project_id: &str,
         file_id: &str,
     ) -> Result<ProviderInstallPlan> {
-        self.catalog().port(port_id)?;
-        let client = ProviderClient::for_source(&self.library, port_id, source)?;
+        let client = ProviderClient::for_definition(
+            &self.library,
+            self.catalog().port(port_id)?,
+            Some(source),
+        )?;
         self.plan_provider_install_in_mode(
             &client,
             port_id,
@@ -597,10 +601,22 @@ impl PortcoveService {
         let (project, file) = projects
             .last()
             .ok_or_else(|| PortcoveError::verification("the provider returned no exact package"))?;
+        let scope = client.binding();
+        let binding = (crate::provider_binding::legacy_binding(port_id, client.provider())
+            .as_ref()
+            != Some(&scope))
+        .then_some(scope);
         let reuse_dependencies = mode == ProviderInstallMode::Automatic
             && matches!(client, ProviderClient::Thunderstore { .. });
         let retained = if reuse_dependencies {
-            retained_dependencies(&layout, &current, project_id, file, Some(&projects))?
+            retained_dependencies(
+                &layout,
+                &current,
+                project_id,
+                file,
+                binding.as_ref(),
+                Some(&projects),
+            )?
         } else {
             Vec::new()
         };
@@ -696,6 +712,7 @@ impl PortcoveService {
             member_paths.extend(paths);
             wrappers.push(ProviderWrapper {
                 provider: ProviderPackageRef {
+                    binding: binding.clone(),
                     provider: client.provider().into(),
                     project: project.project_id.clone(),
                     file: Some(file.file_id.clone()),
@@ -900,8 +917,11 @@ impl PortcoveService {
                     .any(|member| same(member, &installed.native_id))
                     && installed.provider.as_ref().is_some_and(|provider| {
                         plan.wrappers.iter().any(|wrapper| {
-                            wrapper.provider.project == provider.project
-                                && wrapper.provider.provider == provider.provider
+                            crate::provider_binding::same_project(
+                                port_id,
+                                &wrapper.provider,
+                                provider,
+                            )
                         })
                     })
                 {
@@ -1061,10 +1081,27 @@ impl PortcoveService {
         }
     }
 
+    fn require_current_provider_scope(&self, plan: &ProviderInstallPlan) -> Result<()> {
+        let (catalog, _) = self.library.load_catalog()?;
+        let port = catalog.port(&plan.port_id)?;
+        if !crate::provider_binding::reference_matches(port, &plan.provider)
+            || plan.wrappers.iter().any(|wrapper| {
+                wrapper.provider.provider != plan.provider.provider
+                    || !crate::provider_binding::reference_matches(port, &wrapper.provider)
+            })
+        {
+            return Err(PortcoveError::verification(
+                "the plan names a provider scope this port does not accept",
+            ));
+        }
+        Ok(())
+    }
+
     pub fn authorize_provider_install(
         &self,
         plan: &ProviderInstallPlan,
     ) -> Result<crate::DestructiveAuthorization> {
+        self.require_current_provider_scope(plan)?;
         if digest(plan)? != plan.plan_sha256 {
             return Err(PortcoveError::verification(
                 "the plan does not match its recorded digest",
@@ -1093,6 +1130,7 @@ impl PortcoveService {
         &self,
         plan: &ProviderInstallPlan,
     ) -> Result<crate::DestructiveAuthorization> {
+        self.require_current_provider_scope(plan)?;
         if digest(plan)? != plan.plan_sha256 {
             return Err(PortcoveError::verification(
                 "the plan does not match its recorded digest",
@@ -1137,9 +1175,7 @@ impl PortcoveService {
     ) -> Result<ProfileRevision> {
         let layout = self.deploy_layout(&plan.port_id)?;
         // A plan is caller-supplied data: re-establish what planning established.
-        if !ProviderClient::sources(&plan.port_id)
-            .any(|provider| plan.provider.provider == provider)
-            || plan.members.is_empty()
+        if plan.members.is_empty()
             || plan.members.len() > MAX_MEMBERS
             || plan.wrappers.len() > MAX_MEMBERS
             || plan
@@ -1154,6 +1190,7 @@ impl PortcoveService {
         let _guard = self
             .library
             .try_lock_port(&plan.port_id, "apply-provider-install")?;
+        self.require_current_provider_scope(plan)?;
         self.recover_switch_locked(&plan.port_id, &layout)?;
         if mode == ProviderInstallMode::Automatic {
             let setup = profile::profile_from(
@@ -1199,7 +1236,14 @@ impl PortcoveService {
                 &plan.port_id,
                 &plan.profile_id,
             )?;
-            retained_dependencies(&layout, &current, &plan.provider.project, &plan.file, None)?
+            retained_dependencies(
+                &layout,
+                &current,
+                &plan.provider.project,
+                &plan.file,
+                plan.provider.binding.as_ref(),
+                None,
+            )?
         } else {
             Vec::new()
         };
@@ -1410,7 +1454,6 @@ impl PortcoveService {
             if &plan.port_id != port_id
                 || &plan.profile_id != profile_id
                 || plan.expected_revision != expected_revision
-                || !ProviderClient::sources(port_id).any(|source| source == plan.provider.provider)
                 || plan.members.is_empty()
                 || plan.members.len() > MAX_MEMBERS
                 || plan.wrappers.len() > MAX_MEMBERS
@@ -1424,6 +1467,7 @@ impl PortcoveService {
                     "a file review belongs to another setup revision or has changed",
                 ));
             }
+            self.require_current_provider_scope(plan)?;
             let runs_code = plan
                 .members
                 .iter()

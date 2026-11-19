@@ -38,6 +38,17 @@
       "warnings": [
         "The publisher requires compatible versions for online play. Linux and macOS availability and gameplay have not been verified by Portcove."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros-ultimate",
+      "evidence_urls": [
+        "https://github.com/SSBUArena/ssbu-arena",
+        "https://api.github.com/repositories/1428182133",
+        "https://api.github.com/repos/SSBUArena/ssbu-arena/contributors",
+        "https://api.github.com/repos/Acid236/ssbu-arena"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

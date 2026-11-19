@@ -54,6 +54,12 @@
           "instruction": "Preserve the installed tree and originals, %LOCALAPPDATA%/FFTARecomp data and shared-save-path.txt, %APPDATA%/FFTARecomp/input.cfg and av.cfg, and every effective custom root. Saves resolve FFTA_SAVE_PATH first, then a remembered existing save, then the ROM basename .sav; one neighboring .sav may be chosen and several open a picker. Normal gameplay writes the chosen save. Keep old saves and creating runtime: upstream cross-region compatibility claims and a shared path are not Portcove save qualification. Preserve caches/FFTARecomp translated libraries, mods, logs and backups; upstream may sweep superseded translation-revision caches. MIT project code, MIT/Apache foundation, CC0 gamedb, TinyCC LGPL and font/dependency notices apply separately; code grants do not grant ROM or third-party artwork rights."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-tactics-advance",
+      "evidence_urls": ["https://github.com/Jorge262007/FFTARecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

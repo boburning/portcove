@@ -417,6 +417,18 @@ export type ManagedInitialization =
  * This grants neither executable trust nor mod/save compatibility.
  */
 export type ModPackagePolicy = "versioned-packages-v1";
+/**
+ * Exact provider-side scope from a reviewed definition.
+ */
+export type ModProviderBinding =
+  | {
+      game_id: number;
+      provider: "gamebanana";
+    }
+  | {
+      community: string;
+      provider: "thunderstore";
+    };
 export type IgdbGameImageKind = "logo" | "artwork";
 export type CatalogMediaRole = "header" | "screenshot" | "logo" | "key_art";
 export type CatalogMediaSubject =
@@ -2421,6 +2433,10 @@ export interface PortDefinition {
   manually_validated_platforms: Platform[];
   mod_package_policy?: ModPackagePolicy | null;
   /**
+   * Provider coordinates reviewed alongside the existing mod loader contract.
+   */
+  mod_provider_bindings?: ModProviderBinding[] | null;
+  /**
    * Keep a reviewed N64 package's runtime and data beside its selected player,
    * including when upstream changes the outer archive wrapper name.
    */
@@ -2510,6 +2526,11 @@ export interface PortDefinition {
   source_profile: string | null;
   summary: string;
   support_tier: SupportTier;
+  /**
+   * An explicit review of an active project. Older serialized definitions
+   * defaulted to Active, so that value alone cannot prove a declaration.
+   */
+  upstream_active_reviewed?: boolean;
   upstream_status: "active" | "retired" | "superseded" | "abandoned";
   user_data_environment: string | null;
   windows_runtime_path_policy?: WindowsRuntimePathPolicy | null;
@@ -4774,6 +4795,10 @@ export interface RequestedPackage {
  * A provider's own coordinates. Provider IDs never double as native loader IDs.
  */
 export interface ProviderPackageRef {
+  /**
+   * Required for coordinates that differ from the historical compiled binding.
+   */
+  binding?: ModProviderBinding | null;
   file?: string | null;
   project: string;
   provider: string;
@@ -5251,7 +5276,7 @@ export interface OutputModSetupsView {
    */
   provider: string | null;
   /**
-   * All reviewed sources for this port. The legacy provider stays the CLI default.
+   * Reviewed provider choices when the game offers more than one.
    */
   providers?: string[];
   /**

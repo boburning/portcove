@@ -35,6 +35,14 @@
       "image_sha256": "dc0c2923288879f048d2879e9db172b4d8beef118604ff24ce3984bc49e68280",
       "game_slug": "shiritsu-justice-gakuen-nekketsu-seishun-nikki-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "shiritsu-justice-gakuen-nekketsu-seishun-nikki-2",
+      "evidence_urls": [
+        "https://github.com/tolotratlt/rival-schools-nekketsu-seishun-nikki-2-recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -52,10 +52,34 @@ in place. To return to Alpha 1, use its original pre-upgrade copy. The
 [recorded development-build update](media/application-update/README.md) used a
 separate test feed and its own staging and recovery procedure.
 
+### Upgrading before a larger public catalog
+
+The first public catalog above 4 MiB requires a compatible release for each
+affected Desktop and CLI channel. A release must include writer protocol 60
+and the reader for the published representation. The Nightly
+0.1.0-preview.3 release includes the writer-protocol-60 signed-envelope reader
+and publishes Desktop packages and a Windows CLI archive. Preview
+0.1.0-preview.2 predates that change. Desktop Preview 0.1.0-preview.6 also includes
+the 16 MiB signed-envelope reader. The installed Windows Desktop upgrade from
+Preview 2 to Nightly Preview 3 was verified in the
+[hosted installed update run](https://github.com/boburning/portcove/actions/runs/43704306226). An
+indexed definition projection above 4 MiB still requires compatible Desktop
+and CLI releases with the wider indexed content reader, and verification of
+their upgrade paths.
+
+Close Portcove and the CLI before copying the existing library. When the
+compatible release is available on your channel, use the Desktop application
+update or its standard installer or package. For the CLI, verify the release
+archive checksum and replace the executable. Open the same library with the new
+version, check the installed versions and saved game-file locations, then
+refresh the catalog. Keep the separate library backup if you may need to open it
+again with the old version.
+
 ### Required desktop runtime
 
 The first-beta Windows baseline is Windows 11 26H2 x86-64 with normal security
-updates and the WebView2 Evergreen production Runtime, initially 155.0.4283.62
+updates and the WebView2 Evergreen production Runtime. The Windows installer and
+startup check use the same [reviewed minimum](../apps/desktop/src-tauri/tauri.conf.json), initially 155.0.4283.62
 or later. Keep Evergreen automatic updates enabled. The normal NSIS installer
 uses Tauri's Evergreen bootstrapper and minimum-version update behavior; an
 offline or failed runtime installation does not establish a usable application.

@@ -880,6 +880,140 @@ describe("source intake dialog", () => {
     }
   });
 
+  it("relinks a moved original from the installed game and shows its remaining blocker", async () => {
+    const transport = installInteractiveTransport("library", (message) => {
+      throw new Error(message);
+    });
+    const replacement = "D:/Recovered originals/game.z64";
+    const old = record("D:/Removed originals/game.z64");
+    let registered = old;
+    const bios = { ...profile, id: "bios", label: "Fixture BIOS" };
+    const fixture = workspace("library");
+    const initialInstall = fixture.statuses.find((entry) => entry.port_id === "sample")?.active;
+    expect(initialInstall).toBeDefined();
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockImplementation(async () => {
+      const next = workspace("library");
+      const port = next.catalog.ports.find((entry) => entry.id === "sample")!;
+      port.source_profile = profile.id;
+      port.bios_source_profile = bios.id;
+      next.catalog.source_profiles = [profile, bios];
+      next.sources = [registered];
+      const status = next.statuses.find((entry) => entry.port_id === "sample")!;
+      status.readiness = {
+        launchable: false,
+        source: registered === old ? "missing" : "current",
+        bios: "unregistered",
+        pending_setup: false,
+        blockers: registered === old ? ["missing_source", "missing_bios"] : ["missing_bios"],
+      };
+      return next;
+    });
+    vi.spyOn(picker, "pickSourcePath").mockResolvedValue(replacement);
+    const inspect = vi
+      .spyOn(desktopApi, "inspectSourceIntake")
+      .mockImplementation(async (_id, [path]) =>
+        path === replacement
+          ? intake(replacement)
+          : {
+              schema_version: 1,
+              profile_id: profile.id,
+              input_count: 1,
+              state_code: "invalid_selection",
+              summary: "The file at the saved location is unavailable.",
+              next_action: "Choose the file at its new location.",
+              report: null,
+            },
+      );
+    const plan = "d".repeat(64);
+    vi.spyOn(desktopApi, "planSourceImport").mockResolvedValue({
+      schema_version: 1,
+      profile_id: profile.id,
+      mode: "use_current_location",
+      source: record(replacement),
+      admission_mode: "exact_identity",
+      destination: replacement,
+      destination_exists: true,
+      existing_registration: old,
+      reuse_existing: false,
+      required_bytes: 0,
+      source_guard_sha256: "b".repeat(64),
+      plan_sha256: plan,
+    });
+    const save = vi
+      .spyOn(desktopApi, "importSource")
+      .mockImplementation(async (_profile, path, mode) => {
+        registered = record(path);
+        return {
+          import_id: "fixture-relink",
+          profile_id: profile.id,
+          mode,
+          outcome: "registered_current_location",
+          registered,
+          copied: false,
+          original_deleted: false,
+          original_retained: true,
+          recovered: false,
+        };
+      });
+    const launch = vi.spyOn(desktopApi, "launch");
+    try {
+      localStorage.clear();
+      initializeLocalization(["en"]);
+      await root.rerender(
+        <LocalizationProvider api={desktopApi}>
+          <App />
+        </LocalizationProvider>,
+      );
+      await page
+        .getByRole("button", { name: "View details for Harbor Adventure", exact: true })
+        .click();
+      await page.getByRole("tab", { name: "Game files", exact: true }).click();
+      const workspaceSelector = '[data-detail-port-id="sample"]';
+      const detail = page.elementLocator(document.querySelector(workspaceSelector)!);
+      const check = detail.getByRole("button", { name: "Check game files", exact: true });
+      await expect.element(check).toBeVisible();
+      await captureParityState("moved-original-before-relink-fixture");
+      await check.click();
+      await page.getByRole("button", { name: "Choose game files to check", exact: true }).click();
+      await page.getByRole("button", { name: "Use current location", exact: true }).click();
+      expect(save).not.toHaveBeenCalled();
+      await page.getByRole("button", { name: "Use current location", exact: true }).click();
+      await page.getByRole("button", { name: "Return to game", exact: true }).click();
+      await expect
+        .element(detail.getByRole("tab", { name: "Game files", exact: true }))
+        .toHaveAttribute("aria-selected", "true");
+      await expect
+        .element(detail.getByRole("textbox", { name: /Game files · Owned game source/ }))
+        .toHaveValue(replacement);
+      await expect
+        .element(detail.getByRole("button", { name: "Check required BIOS", exact: true }))
+        .toBeVisible();
+      expect(inspect.mock.calls).toEqual([
+        [profile.id, [old.path]],
+        [profile.id, [replacement]],
+      ]);
+      expect(save).toHaveBeenCalledExactlyOnceWith(
+        profile.id,
+        replacement,
+        "use_current_location",
+        plan,
+        1,
+      );
+      expect(detail.element().querySelector("[data-installation-fact]")?.textContent).toContain(
+        initialInstall!.version,
+      );
+      expect(launch).not.toHaveBeenCalled();
+      expect(detail.element().querySelector(".detail-header-actions")?.textContent).toContain(
+        "Choose files",
+      );
+      await captureParityState("moved-original-remaining-bios-fixture");
+    } finally {
+      await root.rerender(null);
+      transport.dispose();
+      localStorage.clear();
+    }
+  });
+
   it("keeps an in-flight import bound to its original library and discards its completion after switching", async () => {
     const apply = prepareImport();
     const pending = deferred<SourceImportResult | null>();

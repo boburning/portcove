@@ -35,6 +35,21 @@
       "image_sha256": "e431cdb6322bec340473695a3d72c240f8097e2d6c1252858ac15878846f0aa6",
       "game_slug": "korokoro-post-nin",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "korokoro-post-nin",
+      "evidence_urls": ["https://github.com/elprogramadorloco-arch/korokoro-recomp"],
+      "source_editions": [
+        {
+          "id": "korokoro-post-nin-playstation",
+          "title": "KoroKoro Post nin (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/elprogramadorloco-arch/korokoro-recomp/blob/5dbb54a9df06d3a68a304e28b4e6ec5fed807fb6/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

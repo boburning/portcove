@@ -55,7 +55,16 @@
       "macos-aarch64": ["gpoliceweaponsofjustice-", "-macos-arm64.zip"],
       "macos-x86-64": ["gpoliceweaponsofjustice-", "-macos-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "g-police-weapons-of-justice",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

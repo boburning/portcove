@@ -13,12 +13,10 @@ import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import { transportValue, transportValues } from "./transport-values.mts";
 import {
   captureAccessibilityReport,
-  clickVisible,
   openCatalogPortAfterRefresh,
   revealDetailSection,
   reviewControls,
 } from "./desktop-review-controls.mts";
-import { executeBrowserScript } from "./browser-script.mts";
 
 export function staleSourceImportScript(
   request: Record<string, unknown>,
@@ -127,15 +125,6 @@ export async function sourceIntakeNativeBoundaries({
   try {
     await openCatalogPortAfterRefresh(browser, fixture.port);
     await revealDetailSection(browser, "Game files");
-    const disclosure = await browser.findElement(By.css(".requirements-disclosure"));
-    if (
-      !(await executeBrowserScript(
-        browser,
-        (element: Element) => (element as HTMLDetailsElement).open,
-        disclosure,
-      ))
-    )
-      await clickVisible(browser, await disclosure.findElement(By.css("summary")));
     await click(button("Check game files"));
     await browser.wait(until.elementLocated(dialog), 15000);
     const generation = (await bootstrap()).generation;
