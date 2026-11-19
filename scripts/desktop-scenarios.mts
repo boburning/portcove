@@ -1108,6 +1108,9 @@ export function desktopHarnessDeadlineMs(
           selection.setup_scenarios.includes("native-reviewed-backup-restore-and-delete")
         ? 10 * 60_000
         : 3 * 60_000,
+    // Linux keyboard fixture readiness has two finite 90s phases; retain room
+    // for real keyboard controls and owned cleanup without changing predicates.
+    selection.selected_scenarios.includes("keyboard-layout") ? 360_000 : 0,
     // Hosted presentation 43633220056 stopped at 180 s before native cleanup.
     // Allow the two-theme Settings captures and owned exit joins to finish.
     DESKTOP_PROFILES.presentation.every((id) => selection.selected_scenarios.includes(id))

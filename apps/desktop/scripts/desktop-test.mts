@@ -110,6 +110,7 @@ import {
 import {
   revealDetailSection,
   clickVisible,
+  replaceKeyboardText,
   assertCompactReview,
   captureAccessibilityReport,
   selectPrimaryNavigation,
@@ -1014,6 +1015,13 @@ function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; he
 
 async function verifyLongTitleCatalogDetail(theme: string) {
   const browser = driverBrowser();
+  // The full catalog is windowed: find the target through normal search before
+  // requiring its exact port action, rather than assuming every card is mounted.
+  await replaceKeyboardText(
+    browser,
+    await browser.findElement(By.id("port-search")),
+    "Castlevania",
+  );
   await selectCatalogPort(browser, "cvlod-recomp");
   await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
   await browser.wait(
@@ -1667,6 +1675,12 @@ async function connect() {
     : selection.prerequisites.includes("design-compatibility-fixture")
       ? ".design-compatibility-fixture"
       : 'nav[aria-label="Primary navigation"]';
+  // A retained Linux keyboard run exceeded 30s while catalog loading continued.
+  // Calibrate fixture readiness only; preserve both semantic predicates.
+  const readinessMs =
+    process.platform === "linux" && selection.selected_scenarios.includes("keyboard-layout")
+      ? 90_000
+      : 30_000;
   await browser.wait(
     () =>
       executeBrowserScript(
@@ -1674,11 +1688,13 @@ async function connect() {
         (selector) => document.querySelector(selector) !== null,
         readyRoot,
       ),
-    30_000,
+    readinessMs,
+    "The native shell did not expose its required root",
   );
   await browser.wait(
     () => executeBrowserScript(browser, () => document.querySelector(".loading-state") === null),
-    30_000,
+    readinessMs,
+    "Native loading state did not clear",
   );
   if (executionPlan.fixtures.acquisitionJourney || executionPlan.fixtures.registeredSourceReuse) {
     const snapshot = path.join(
@@ -3944,15 +3960,55 @@ try {
       "sidebar-full-labels-default",
       await browser.findElement(By.css(".sidebar nav")),
     );
-    await browser.manage().window().setRect({ width: 640, height: 640 });
-    await browser.findElement(By.css('button[aria-label="Open navigation"]')).click();
-    await browser.wait(
-      until.elementIsVisible(
-        await browser.wait(until.elementLocated(By.css(".navigation-sheet")), 5_000),
-      ),
-      5_000,
+    // Native window minimums may clamp this request. Select the navigation
+    // contract from the rendered viewport, never from the requested rectangle.
+    const requestedWindow = { width: 640, height: 640 };
+    await browser.manage().window().setRect(requestedWindow);
+    const actualWindow = await browser.manage().window().getRect();
+    const navigationLayout = await executeBrowserScript(browser, () => {
+      const trigger = document.querySelector('button[aria-label="Open navigation"]');
+      return {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        compact: window.matchMedia("(width < 42rem)").matches,
+        triggerVisible: Boolean(trigger?.getClientRects().length),
+      };
+    });
+    assert.ok(navigationLayout.width > 0 && navigationLayout.height > 0);
+    assert.equal(
+      navigationLayout.triggerVisible,
+      navigationLayout.compact,
+      "Navigation trigger must agree with the actual responsive breakpoint",
     );
-    await verifySidebarLabels(drawerNavigation);
+    const navigationEvidence = path.join(output, "keyboard-layout-navigation.json");
+    await writeFile(
+      navigationEvidence,
+      JSON.stringify(
+        {
+          requested_window: requestedWindow,
+          actual_window: actualWindow,
+          viewport: navigationLayout,
+          desktop_navigation: "required",
+          compact_navigation: navigationLayout.compact
+            ? "required"
+            : "not-exercised: actual viewport is outside the compact breakpoint",
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(navigationEvidence);
+    if (navigationLayout.compact) {
+      await browser.findElement(By.css('button[aria-label="Open navigation"]')).click();
+      await browser.wait(
+        until.elementIsVisible(
+          await browser.wait(until.elementLocated(By.css(".navigation-sheet")), 5_000),
+        ),
+        5_000,
+      );
+      await verifySidebarLabels(drawerNavigation);
+    }
     await verifySidebarLabels(desktopNavigation);
     await selectPrimaryNavigation(browser, "Settings");
     await browser.wait(until.elementLocated(By.css('[data-settings-group="appearance"]')), 15_000);
@@ -4041,8 +4097,8 @@ try {
     });
     assert.ok(focus);
     assert.notEqual(focus.tag, "BODY");
-    assert.ok(focus.left >= 0 && focus.right <= 640);
-    assert.ok(focus.top >= 0 && focus.bottom <= 640);
+    assert.ok(focus.left >= 0 && focus.right <= navigationLayout.width);
+    assert.ok(focus.top >= 0 && focus.bottom <= navigationLayout.height);
     await selectSettingsCategory("about");
     const about = await browser.findElement(By.css(".about-card"));
     await executeBrowserScript(
@@ -4186,10 +4242,9 @@ try {
     // WebDriver clear() can empty the DOM without committing React's query;
     // the next render then restores the previous scenario's search. Exercise
     // actual editing with a nonempty preimage, including on standalone runs.
-    const selectAll = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
-    await search.sendKeys(selectAll, "a", Key.NULL, "prior catalog query");
+    await replaceKeyboardText(browser, search, "prior catalog query");
     assert.equal(await search.getAttribute("value"), "prior catalog query");
-    await search.sendKeys(selectAll, "a", Key.NULL, Key.BACK_SPACE);
+    await replaceKeyboardText(browser, search, "");
     await browser.wait(async () => (await search.getAttribute("value")) === "", 5_000);
     await clearCatalogFilters(browser);
     await browser.findElement(By.id("port-search")).sendKeys("Ghostship");
@@ -4369,7 +4424,7 @@ try {
     );
     await captureOutputDestinationReview("game-details");
     const draftPath = "C:\\Portcove-fixture\\Future-install";
-    await outputDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, draftPath);
+    await replaceKeyboardText(browser, outputDraft, draftPath);
     await revealDetailSection(browser, "Game files");
     const sourceDraft = await browser.findElement(
       By.css('.requirements-body input[id^="source-"]'),
@@ -4388,7 +4443,7 @@ try {
     );
     assert.equal(await outputDraft.getAttribute("value"), draftPath);
     await revealDetailSection(browser, "Game files");
-    await sourceDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
+    await replaceKeyboardText(browser, sourceDraft, "");
     await revealDetailSection(browser, "Manage");
     await browser.wait(
       async () =>
@@ -4425,9 +4480,7 @@ try {
     assert.equal(restored.focus, origin.originKey);
     assert.ok(Math.abs(required(restored.scrollTop) - origin.scrollTop) <= 1);
     await captureScenarioScreenshot("game-details-workspace-return");
-    await browser
-      .findElement(By.id("port-search"))
-      .sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
+    await replaceKeyboardText(browser, await browser.findElement(By.id("port-search")), "");
     await browser.wait(
       async () => (await browser.findElements(By.css(".discover-game-identity"))).length > 2,
       15_000,
@@ -4489,6 +4542,7 @@ try {
         }
         await browser.manage().window().setRect({ width: 960, height: 640 });
         await selectPrimaryNavigation(browser, "Discover");
+        await replaceKeyboardText(browser, await browser.findElement(By.id("port-search")), "");
         await browser.wait(
           async () => (await browser.findElements(By.css(".discover-game-identity"))).length > 2,
           15_000,
@@ -4521,6 +4575,17 @@ try {
         );
         await captureScenarioScreenshot(`catalog-short-window-${theme}`);
 
+        await browser.findElement(By.id("port-search")).sendKeys("Ghostship");
+        await browser.wait(
+          () =>
+            executeBrowserScript(browser, () =>
+              [...document.querySelectorAll(".discover-game-identity")].some((card) =>
+                card.textContent?.includes("Ghostship"),
+              ),
+            ),
+          15_000,
+          "The searched Ghostship card did not enter the rendered catalog window",
+        );
         const themedOrigin = await executeBrowserScript(browser, () => {
           const card = [...document.querySelectorAll(".discover-game-identity")].find((item) =>
             item.textContent?.includes("Ghostship"),

@@ -2353,3 +2353,147 @@ void test("secondary panel presentation keeps isolated Windows custody and compl
     [id],
   );
 });
+
+void test("keyboard layout follows the actual native viewport after a minimum-width clamp", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("    // Native window minimums may clamp this request.");
+  const end = source.indexOf('    await selectPrimaryNavigation(browser, "Settings");', start);
+  assert.ok(start > 0 && end > start);
+  const journey = source.slice(start, end);
+  const run = async (width: number, triggerVisible: boolean) => {
+    const calls: string[] = [];
+    let receipt = "";
+    const browser = {
+      manage: () => ({
+        window: () => ({
+          setRect: async () => calls.push("resize"),
+          getRect: async () => ({ width, height: 640 }),
+        }),
+      }),
+      findElement: () => ({ click: async () => calls.push("open drawer") }),
+      wait: async (value: unknown) => value,
+    };
+    await runInNewContext(`(async () => {${journey}})()`, {
+      browser,
+      assert,
+      path,
+      output: "/owned-output",
+      artifacts: [],
+      desktopNavigation: "desktop",
+      drawerNavigation: "drawer",
+      verifySidebarLabels: async (scope: string) => calls.push(scope),
+      writeFile: async (_file: string, value: string) => {
+        receipt = value;
+      },
+      By: { css: (value: string) => value },
+      until: {
+        elementLocated: (value: unknown) => value,
+        elementIsVisible: (value: unknown) => value,
+      },
+      executeBrowserScript: async (_browser: unknown, observe: () => unknown) =>
+        runInNewContext(`(${observe.toString()})()`, {
+          window: {
+            innerWidth: width,
+            innerHeight: 640,
+            matchMedia: () => ({ matches: width < 672 }),
+          },
+          document: {
+            querySelector: () => ({ getClientRects: () => (triggerVisible ? [{}] : []) }),
+          },
+        }),
+    });
+    const parsed: unknown = JSON.parse(receipt);
+    assert.ok(isRecord(parsed));
+    assert.ok(isRecord(parsed.actual_window) && isRecord(parsed.requested_window));
+    assert.equal(typeof parsed.compact_navigation, "string");
+    return {
+      calls,
+      actualWidth: parsed.actual_window.width,
+      requestedWidth: parsed.requested_window.width,
+      compactNavigation: String(parsed.compact_navigation),
+    };
+  };
+  const clamped = await run(960, false);
+  assert.deepEqual(clamped.calls, ["resize", "desktop"]);
+  assert.equal(clamped.actualWidth, 960);
+  assert.equal(clamped.requestedWidth, 640);
+  assert.match(clamped.compactNavigation, /^not-exercised:/u);
+  const compact = await run(640, true);
+  assert.deepEqual(compact.calls, ["resize", "open drawer", "drawer", "desktop"]);
+  assert.equal(compact.compactNavigation, "required");
+  await assert.rejects(run(640, false), /actual responsive breakpoint/u);
+  await assert.rejects(run(960, true), /actual responsive breakpoint/u);
+});
+
+void test("native keyboard replacement releases modifiers before separate text delivery", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-review-controls.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("export async function replaceKeyboardText(");
+  const end = source.indexOf("/** Reveal the retained log", start);
+  assert.ok(start >= 0 && end > start);
+  const run = async (platform: string, text: string, failRelease = false) => {
+    const calls: unknown[] = [];
+    let modifierHeld = false;
+    const actions = {
+      keyDown: (key: string) => {
+        calls.push(["down", key]);
+        modifierHeld = true;
+        return actions;
+      },
+      sendKeys: (key: string) => {
+        calls.push(["action-key", key]);
+        return actions;
+      },
+      keyUp: (key: string) => {
+        calls.push(["up", key]);
+        return actions;
+      },
+      perform: async () => {
+        if (failRelease) throw new Error("modifier release failed");
+        modifierHeld = false;
+        calls.push("released");
+      },
+    };
+    await runInNewContext(
+      `${source.slice(start, end).replace("export ", "")}
+replaceKeyboardText(browser, element, text)`,
+      {
+        browser: { actions: () => actions },
+        element: {
+          sendKeys: async (...keys: string[]) => {
+            assert.equal(modifierHeld, false, "text must not be sent with a held modifier");
+            assert.equal(keys.length, 1, "Backspace and plain text require separate commands");
+            calls.push(["element-key", ...keys]);
+          },
+        },
+        text,
+        process: { platform },
+        Key: { COMMAND: "command", CONTROL: "control", BACK_SPACE: "backspace" },
+        clickVisible: async () => calls.push("visible-click"),
+      },
+    );
+    return calls;
+  };
+  for (const platform of ["linux", "win32", "darwin"]) {
+    const modifier = platform === "darwin" ? "command" : "control";
+    const prefix = [
+      "visible-click",
+      ["down", modifier],
+      ["action-key", "a"],
+      ["up", modifier],
+      "released",
+      ["element-key", "backspace"],
+    ];
+    assert.deepEqual(await run(platform, "prior catalog query"), [
+      ...prefix,
+      ["element-key", "prior catalog query"],
+    ]);
+    assert.deepEqual(await run(platform, ""), prefix);
+  }
+  await assert.rejects(run("linux", "must not be typed", true), /modifier release failed/u);
+});

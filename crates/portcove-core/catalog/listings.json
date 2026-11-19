@@ -16773,8 +16773,11 @@
       "summary": "Register the completed Burnout3 PC Windows player for your own NTSC-U PS2 disc and preserve its local card, settings and mods.",
       "original_game_title": "Burnout 3: Takedown (PS2)",
       "project_url": "https://github.com/danielgomesvieira2000/burnout3-pc",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/danielgomesvieira2000/burnout3-pc",
       "artwork": {
         "game_id": 5761,
@@ -16815,9 +16818,25 @@
           {
             "title": "Use permitted content and check this release’s limits",
             "instruction": "Retain the project and engine MIT notices plus each bundled component’s separate notices. Their grants cover their own code, not Electronic Arts game code or assets; original-game rights and any third-party texture or music permissions remain separate. This alpha’s upstream gameplay and device claims are not Portcove observations. This guide offers local existing-copy launch; it does not qualify LAN, VPN, online accounts, network setup, managed preparation or protected publication."
+          },
+          {
+            "title": "Set up the experimental Linux player",
+            "instruction": "Use glibc 2.35 or later, X11 or Wayland, and a Vulkan 1.1 driver. Keep burnout3-sse4 beside the main program for CPUs without AVX2. Start ./burnout3 from the writable extracted folder and select your own NTSC-U SLUS-21050 ISO. The program remembers the path. If the file picker is unavailable, use --disc with your ISO path. Preserve saves and settings beside the executable or in ~/.local/share/burnout3 when the package folder is read-only."
           }
         ]
-      }
+      },
+      "release_url": "https://github.com/danielgomesvieira2000/burnout3-pc/releases/tag/v0.9.0-alpha",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Burnout3-PC-",
+          "windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Burnout3-PC-",
+          "linux-x64.tar.gz"
+        ]
+      },
+      "recommended_download_channel": "beta"
     },
     {
       "id": "burnout-crash-pc-recompilation-kiesxoxo-burnout-crash",
@@ -36899,8 +36918,10 @@
       "project_url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
       "issue_number": 1792,
       "listed_at": "2026-10-23",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
       "artwork": {
         "game_id": 6471,
@@ -36942,7 +36963,20 @@
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/README.md"
+        "help_url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/README.md",
+        "references": [
+          {
+            "title": "Download the Windows launcher",
+            "instruction": "Extract the v1.0.0 Windows ZIP and open Launcher.exe. Dismiss Welcome on the first launch, then select your verified USA NES ROM. Use Run in Launcher to start play. Keep settings.ini and Snapshots beside the program when replacing the folder."
+          }
+        ]
+      },
+      "release_url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/releases/tag/v1.0.0",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Adventure-Island-II-NES-Static-Recomp",
+          "Windows.zip"
+        ]
       }
     },
     {
@@ -45166,8 +45200,11 @@
       "project_url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff",
       "issue_number": 160,
       "listed_at": "2026-10-23",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff",
       "artwork": {
         "game_id": 21785,
@@ -45199,6 +45236,25 @@
         ],
         "warnings": [
           "Use only an actual copy/components you are permitted to use. Preserve the complete creating runtime and every effective original, profile, mod, generated-code/cache and custom root before changes; another selected executable can share data."
+        ],
+        "references": [
+          {
+            "title": "Download the standalone Windows player",
+            "instruction": "Extract the v1.5.1 Windows ZIP and keep its DLLs and configuration beside restuff.exe. Prepare your owned Gold Edition disc files once in assets as described above. Run restuff.exe again from the same folder to reuse that copy. Keep the actual profile and cache roots described above when replacing it."
+          },
+          {
+            "title": "Download the standalone Linux player",
+            "instruction": "Extract the v1.5.1 Linux x64 tarball. Keep restuff, restuff.toml and its packaged libraries together. Place your owned Naughty Bear: Gold Edition disc files in the package’s assets folder and start ./restuff from the extracted folder. The Windows registration and profile instructions above apply to Windows."
+          }
+        ]
+      },
+      "release_url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/releases/tag/release_v1.5.1",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "restuff-win-x64.zip"
+        ],
+        "linux-x86-64": [
+          "ReStuff-linux-x64.tar.gz"
         ]
       }
     },
@@ -46657,11 +46713,11 @@
         "steps": [
           {
             "title": "Check the required game files",
-            "instruction": "Use your own RMHP08 .iso or .rvz. Select or extract the image using the runtime setup. Original assets are still needed; upstream says its downloads do not contain the game."
+            "instruction": "Use your own supported RMHP08 ISO or RVZ. Select or extract the image using the upstream setup from a copy you are permitted to use."
           },
           {
             "title": "Follow upstream setup",
-            "instruction": "README declares author-published compiled releases and v1.9.0; use the official runtime package and supply the owned image in its setup. Source alternative: CMake 3.22+, Ninja and C++20 Clang or Visual Studio 2022. Setup is not described as recompiling the game locally."
+            "instruction": "Upstream documents source preparation with CMake 3.22 or later, Ninja and a C++20 Clang or Visual Studio 2022 toolchain. Follow the project guide for the setup and files required by your copy."
           }
         ],
         "warnings": [
@@ -46679,7 +46735,8 @@
         "image_sha256": "abc8c2ce40aadbf898611d982cccfe3e2fcc6c4f531afb42fa6ef3d489190d92",
         "game_slug": "monster-hunter-tri",
         "match_kind": "underlying-game"
-      }
+      },
+      "download_block_reason": "The v1.9.5 Windows ZIP includes original Monster Hunter Tri Wii disc files, including the RMHP08 boot header and main.dol. Portcove downloads are paused until a clean upstream package is reviewed."
     },
     {
       "id": "ocho-kart-recomp-kymie131-el-chavo-kart",
@@ -62393,8 +62450,12 @@
       "project_url": "https://github.com/new-coke/strikers",
       "issue_number": 816,
       "listed_at": "2026-10-23",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/new-coke/strikers",
       "artwork": {
         "game_id": 2256,
@@ -62407,11 +62468,21 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Prepare your own game data with the selected upstream release",
+            "title": "Set up one of the v2.0.0 packages",
+            "instruction": "Extract the archive and use the packaged Settings program to select your own supported US, European or Japanese game data. The package contains a separate player and Settings program. Keep your working strikers.ini, effective profile folders and original data when replacing the upstream package. The separate upstream Linux ARM64 tarball is available from Releases."
+          }
+        ],
+        "warnings": [
+          "The selected upstream now explicitly publishes source and compiled releases. Its CC0 original porting contributions do not relicense reconstructed game code, original assets or third-party components; follow their applicable terms and keep your original data. Gameplay and other-platform qualification remain separate."
+        ],
+        "help_url": "https://github.com/new-coke/strikers#readme",
+        "references": [
+          {
+            "title": "Prepare a retained v1.3.0 Windows copy",
             "instruction": "Use the complete official v1.3.0 Windows x64 package for new-coke/strikers, keeping its dependencies and notices. Supply your own supported US, European or Japanese disc image or extracted game files following this version’s guide. Header/file presence checks are not complete region/revision identity verification. This implementation is distinct from StrikersRecomp and AuroraStrikers; do not mix their binaries, preparation or save assumptions."
           },
           {
-            "title": "Configure upstream, then add the direct player",
+            "title": "Register the v1.3.0 Windows player",
             "instruction": "Finish the upstream settings application and a normal working launch first. Select strikers.exe. Its installation is the normal working folder, but preserve the established working directory and literal paths if the actual working launch differs; relative INI/source/profile paths can otherwise change. A configured copy normally needs no extra arguments. The settings app starts the game detached, so select the game itself. Preserve your actual strikers.ini and source paths. Portcove saves launch details without starting setup; choosing Play is separate."
           },
           {
@@ -62422,11 +62493,19 @@
             "title": "Preserve the complete copy and actual external roots",
             "instruction": "Before upstream replacement keep the whole runtime, strikers.ini, original images or extracted files, actual user/card/save and cache folders, imgui settings, texture packs, mods, screenshots, logs, custom paths and unknown files. You or upstream manage versions; no matching release metadata proves save compatibility. Portcove registration provides no managed preparation, update, backup, rollback, migration or deletion. Removing registration preserves every external file."
           }
+        ]
+      },
+      "release_url": "https://github.com/new-coke/strikers/releases/tag/v2.0.0",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "strikers-windows-x86_64.zip"
         ],
-        "warnings": [
-          "The selected upstream now explicitly publishes source and compiled releases. Its CC0 original porting contributions do not relicense reconstructed game code, original assets or third-party components; follow their applicable terms and keep your original data. Gameplay and other-platform qualification remain separate."
+        "linux-x86-64": [
+          "strikers-linux-x86_64.tar.gz"
         ],
-        "help_url": "https://github.com/new-coke/strikers#readme"
+        "macos-aarch64": [
+          "strikers-macos-arm64.tar.gz"
+        ]
       }
     },
     {
@@ -66679,7 +66758,7 @@
         "windows-x86-64",
         "linux-x86-64"
       ],
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/GTTeancum/Timesplitters",
       "manual_setup": {
         "steps": [
@@ -66696,9 +66775,30 @@
           "The project describes native recompilation with four-player multiplayer screenshots and controller/save claims. Linux was tested under WSL.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/GTTeancum/Timesplitters"
+        "help_url": "https://github.com/GTTeancum/Timesplitters",
+        "references": [
+          {
+            "title": "Prepare your disc once and keep the memory cards",
+            "instruction": "Open timesplitters.exe on Windows or ./timesplitters on Linux from the extracted folder. Put your own USA SLUS-200.90 PS2 dump in that folder. Choose Launch game to extract it on the first run. Later launches reuse game-data. Keep all of game-data, including mc0 and mc1, and keep timesplitters.ini when you replace the upstream package. The Linux build needs glibc 2.43 or later, OpenGL 3.3 and X11."
+          },
+          {
+            "title": "Start directly using saved Linux settings",
+            "instruction": "After completing upstream setup, use ./timesplitters --no-launcher to resume with the saved settings. Open ./timesplitters without the switch to return to the settings launcher."
+          }
+        ]
       },
-      "issue_number": 3047
+      "issue_number": 3047,
+      "release_url": "https://github.com/GTTeancum/Timesplitters/releases/tag/v1.1",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "TimeSplitters-Recomp-",
+          "windows.zip"
+        ],
+        "linux-x86-64": [
+          "TimeSplitters-Recomp-",
+          "linux-x86_64.tar.gz"
+        ]
+      }
     },
     {
       "id": "tk22-26-jetforcegemini-recomp",

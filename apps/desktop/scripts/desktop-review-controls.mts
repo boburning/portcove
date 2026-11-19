@@ -9,6 +9,17 @@ import { writeFile } from "node:fs/promises";
 import axe from "axe-core";
 import { By, Key, until } from "selenium-webdriver";
 
+/** Edit through real keys, releasing the modifier before a separate text command.
+ * WebKitGTK can keep Control held through text after Element Send Keys' NULL.
+ */
+export async function replaceKeyboardText(browser: WebDriver, element: WebElement, text: string) {
+  await clickVisible(browser, element);
+  const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+  await browser.actions().keyDown(modifier).sendKeys("a").keyUp(modifier).perform();
+  await element.sendKeys(Key.BACK_SPACE);
+  if (text.length > 0) await element.sendKeys(text);
+}
+
 /** Find the direct preparation log disclosure in the Activity row. */
 export async function preparationLogControl(browser: WebDriver, row: WebElement) {
   const log = await row.findElement(
@@ -75,11 +86,7 @@ export async function openCatalogPortAfterRefresh(
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
   await selectPrimaryNavigation(browser, "Discover");
   const search = await browser.findElement(By.id("port-search"));
-  await search.sendKeys(
-    Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
-    Key.BACK_SPACE,
-    query,
-  );
+  await replaceKeyboardText(browser, search, query);
   await clearCatalogFilters(browser);
   await selectCatalogPort(browser, port.id);
 }
