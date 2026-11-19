@@ -38,20 +38,11 @@
     "release_url": "https://github.com/BioRhythmicStudios/warioland4/releases",
     "original_game_title": "Wario Land 4",
     "setup_url": "https://github.com/BioRhythmicStudios/warioland4/releases/tag/v0.3.2-beta",
-    "platforms": [
-      "windows-x86-64",
-      "linux-x86-64"
-    ],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "download_asset_hints": {
-      "windows-x86-64": [
-        "WarioLand4-Native-PC-Port-",
-        "Windows-x64.zip"
-      ],
-      "linux-x86-64": [
-        "Wario_Land_4-",
-        "x86_64.AppImage"
-      ]
+      "windows-x86-64": ["WarioLand4-Native-PC-Port-", "Windows-x64.zip"],
+      "linux-x86-64": ["Wario_Land_4-", "x86_64.AppImage"]
     },
     "manual_setup": {
       "help_url": "https://github.com/BioRhythmicStudios/warioland4/blob/linux-v0.1.0-beta/port/appimage/README_APPIMAGE.md",
