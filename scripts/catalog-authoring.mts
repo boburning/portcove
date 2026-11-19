@@ -85,7 +85,12 @@ export interface AuthoredPort extends Record<string, unknown> {
   managed_setup_platform_warnings?: Record<string, string[]>;
   /** Reviewed common staged archive layout; expanded before Core validation. */
   gba_staged_archive_v1?: { game_code: string; versioned_mods: boolean };
-  psx_managed_windows_v1?: true | "bundled-openbios" | "split-mods" | "split-mods-openbios";
+  psx_managed_windows_v1?:
+    | true
+    | "bundled-openbios"
+    | "split-mods"
+    | "split-mods-openbios"
+    | "split-mods-overlay-directory";
   /** Shared root-level persistence for reviewed N64Recomp packages. */
   n64_recomp_persistence_v1?: true;
   package_observation_v1?: PackagePlayerObservationV1;
