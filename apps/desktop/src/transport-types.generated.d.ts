@@ -2801,6 +2801,15 @@ export interface ReleaseSpec {
     "windows-x86-64"?: DirectReleaseSpec;
   };
   /**
+   * Reviewed prefixes belonging to other streams, scoped to a managed GitHub platform.
+   */
+  github_other_stream_tag_prefixes?: {
+    "linux-x86-64"?: string[];
+    "macos-aarch64"?: string[];
+    "macos-x86-64"?: string[];
+    "windows-x86-64"?: string[];
+  };
+  /**
    * Native22, Libultraship4 or GeneratedCache2 (by adapter): after extraction on a Unix platform, grant
    * execute permission to the declared executable only when it verifies as a binary for
    * that platform. The publisher's own executable bit, when present, is never changed.

@@ -213,6 +213,7 @@ mod tests {
                 provider: ReleaseSource::DirectManifest,
                 repository: String::new(),
                 rolling_tag: None,
+                github_other_stream_tag_prefixes: BTreeMap::new(),
                 asset_hints: BTreeMap::new(),
                 linux_tar_xz: false,
                 tar_xz_platforms: Vec::new(),

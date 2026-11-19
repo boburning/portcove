@@ -1133,7 +1133,7 @@ async fn channel_selection_reaches_beyond_recent_history_without_browsing_every_
             .collect();
         let (candidates, coverage, summaries, selected) = github
             .provider
-            .catalog_download_options("owner/game", None, channel, Some("nightly"))
+            .catalog_download_options("owner/game", None, channel, Some("nightly"), &[])
             .await
             .unwrap();
         assert_eq!(selected, Some(115), "{channel:?}");
@@ -1158,7 +1158,7 @@ async fn preview_falls_back_only_after_bounded_complete_channel_observation() {
         .collect();
     let (_, coverage, summaries, selected) = github
         .provider
-        .catalog_download_options("owner/game", None, ReleaseChannel::Beta, None)
+        .catalog_download_options("owner/game", None, ReleaseChannel::Beta, None, &[])
         .await
         .unwrap();
     assert_eq!(selected, Some(1));
@@ -1183,7 +1183,7 @@ async fn bounded_discovery_does_not_claim_no_assets_when_older_releases_are_unch
 
     let (candidates, coverage, _, _) = github
         .provider
-        .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None)
+        .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None, &[])
         .await
         .unwrap();
     assert!(candidates.is_empty());
@@ -1216,7 +1216,7 @@ async fn selection_inspects_one_release_instead_of_combining_packages_across_his
 
     let (candidates, coverage, _, _) = github
         .provider
-        .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None)
+        .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None, &[])
         .await
         .unwrap();
     assert_eq!(candidates.len(), 75);
@@ -1243,7 +1243,7 @@ async fn discovery_completeness_requires_the_end_of_each_selected_asset_inventor
             .collect();
         let result = github
             .provider
-            .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None)
+            .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None, &[])
             .await;
         if count > 200 {
             assert!(
