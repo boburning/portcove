@@ -167,7 +167,7 @@ function ExternalPreparationRequirements({ port }: { port: PortDefinition }) {
         {Object.entries(port.release.user_prepared).map(([platform, required]) => (
           <li key={platform}>
             {platformLabel(platform)}: Prepare {required.archive_name} version {required.version},
-            then choose the folder containing this file:
+            then choose the folder containing this file:{" "}
             <code dir="ltr" className="path-value block w-full whitespace-normal">
               {required.executable}
             </code>
@@ -620,7 +620,9 @@ function SelectedRuntimeDialog({
                 <div key={index}>
                   <span className="text-xs text-pc-muted-foreground">Argument {index + 1}</span>
                   {argument ? (
-                    <code className="block whitespace-pre-wrap">{argument}</code>
+                    <code dir="ltr" className="block whitespace-pre-wrap">
+                      {argument}
+                    </code>
                   ) : (
                     <span className="block">Empty argument</span>
                   )}
@@ -871,7 +873,7 @@ function RemoveExternalDialog({
         {pending === "review" && <p role="status">Checking saved location…</p>}
         {preview && (
           <p>
-            Files will stay in:
+            Files will stay in:{" "}
             <code dir="ltr" className="path-value block w-full whitespace-normal">
               {preview.path}
             </code>
@@ -943,7 +945,7 @@ function RuntimeArgumentEditor(
             you change the executable or working directory. This editor can replace the list with
             one argument per line.
           </p>
-          <pre className="min-w-0 [overflow-wrap:anywhere] whitespace-pre-wrap">
+          <pre dir="ltr" className="min-w-0 [overflow-wrap:anywhere] whitespace-pre-wrap">
             {JSON.stringify(model.savedArguments, null, 2)}
           </pre>
           <Button
@@ -963,6 +965,7 @@ function RuntimeArgumentEditor(
           <label className="grid gap-1">
             Launch options (advanced) (one per line, optional)
             <textarea
+              dir="ltr"
               className="rounded-pc-md border border-pc-input bg-pc-surface p-2"
               value={model.argumentLines}
               disabled={model.busy}
@@ -1027,6 +1030,12 @@ function RuntimeLaunchSuggestions({
                   disabled={model.busy || !model.canEdit}
                   options={[
                     { value: "", label: "Choose a native application…" },
+                    ...(model.executable &&
+                    !suggestions.candidates.some(
+                      (candidate) => candidate.executable === model.executable,
+                    )
+                      ? [{ value: model.executable, label: "Selected game program" }]
+                      : []),
                     ...suggestions.candidates.map((candidate) => ({
                       value: candidate.executable,
                       label: `${candidate.executable}${candidate.supporting_program ? " · Supporting program" : ""}`,
@@ -1048,7 +1057,7 @@ function RuntimeLaunchSuggestions({
               )}
             {model.executable === suggestions.recommended_executable && (
               <p className="[overflow-wrap:anywhere]">
-                Game or launcher:
+                Game or launcher:{" "}
                 <code dir="ltr" className="path-value block w-full whitespace-normal">
                   {model.executable}
                 </code>
@@ -1127,7 +1136,7 @@ function RuntimeRegistrationForm({
       {<RuntimeLaunchSuggestions {...model} />}
       {model.executable && model.executable !== model.suggestions?.recommended_executable && (
         <p className="[overflow-wrap:anywhere]">
-          Game or launcher:
+          Game or launcher:{" "}
           <code dir="ltr" className="path-value block w-full whitespace-normal">
             {model.executable}
           </code>
@@ -1208,7 +1217,7 @@ function RuntimeLaunchDetails(
         </Button>
         {model.executable && (
           <p className="[overflow-wrap:anywhere]">
-            Game program:
+            Game program:{" "}
             <code dir="ltr" className="path-value block w-full whitespace-normal">
               {model.executable}
             </code>

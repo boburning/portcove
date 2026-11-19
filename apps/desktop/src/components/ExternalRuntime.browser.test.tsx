@@ -70,8 +70,10 @@ const record: ExternalRuntimeRecord = {
 };
 let root: RenderResult;
 let host: HTMLDivElement;
+let originalDocumentDirection: string | null;
 
 beforeEach(async () => {
+  originalDocumentDirection = document.documentElement.getAttribute("dir");
   host = document.createElement("div");
   document.body.append(host);
   root = await renderComponent(null, { container: document.body.appendChild(host) });
@@ -79,6 +81,8 @@ beforeEach(async () => {
 afterEach(async () => {
   await cleanup();
   host.remove();
+  if (originalDocumentDirection === null) document.documentElement.removeAttribute("dir");
+  else document.documentElement.setAttribute("dir", originalDocumentDirection);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -248,11 +252,23 @@ it("registers a listing-only identity only when Core offers the action", async (
 });
 
 it.each([
-  { label: "ordinary arguments", arguments: ["--fullscreen"] },
-  { label: "empty and multiline arguments", arguments: ["--profile", "", "first\nsecond"] },
+  {
+    label: "ordinary arguments",
+    arguments: ["--fullscreen"],
+    editorSelector: "textarea",
+    editorValue: "--fullscreen",
+    editorCapture: "external-existing-launch-arguments-ordinary",
+  },
+  {
+    label: "empty and multiline arguments",
+    arguments: ["--profile", "", "first\nsecond"],
+    editorSelector: "pre",
+    editorValue: JSON.stringify(["--profile", "", "first\nsecond"], null, 2),
+    editorCapture: "external-existing-launch-arguments-structured",
+  },
 ])(
   "edits selected paths while preserving $label through relink",
-  async ({ arguments: savedArguments }) => {
+  async ({ arguments: savedArguments, editorSelector, editorValue, editorCapture }) => {
     const savedDirectory = String.raw`\\?\C:\Player\External runtime installations\نسخة محفوظة\Original game folder`;
     const selected = {
       ...record,
@@ -306,6 +322,7 @@ it.each([
         onChanged={changed}
       />,
     );
+    document.documentElement.dir = "rtl";
     host.dir = "rtl";
     for (const path of [selected.executable, selected.path]) {
       const target = externalPathWithin(host, path, "retained launch path");
@@ -326,7 +343,33 @@ it.each([
       keepsExactArguments,
     );
     expect(document.querySelector("textarea") === null).toBe(keepsExactArguments);
+    const argumentEditors = host.querySelectorAll<HTMLElement>(editorSelector);
+    expect(argumentEditors).toHaveLength(1);
+    const argumentEditor = fixtureValue(argumentEditors[0], "exact saved argument editor");
+    expectLtrArgumentValue(argumentEditor, editorValue);
+    argumentEditor.scrollIntoView({ block: "center" });
+    await expect.element(argumentEditor).toBeVisible();
+    const editorBounds = argumentEditor.getBoundingClientRect();
+    requireCompleteCaptureTarget(
+      {
+        target: editorCapture,
+        target_count: argumentEditors.length,
+        visible: argumentEditor.checkVisibility(),
+        rect: {
+          x: editorBounds.x,
+          y: editorBounds.y,
+          width: editorBounds.width,
+          height: editorBounds.height,
+        },
+        viewport: { width: innerWidth, height: innerHeight },
+      },
+      editorCapture,
+    );
+    await captureParityState(editorCapture);
     await click("Review launch details");
+    const argumentReview = page.getByRole("dialog").element();
+    expect(getComputedStyle(argumentReview).direction).toBe("rtl");
+    expectReviewedArguments(argumentReview, savedArguments);
     expect(preview).toHaveBeenCalledExactlyOnceWith(
       port.id,
       executable,
@@ -416,7 +459,13 @@ it("reviews explicit user launch details without accepted-package or file-manage
       exact: true,
     })
     .fill("--data\nC:\\Original files");
+  document.documentElement.dir = "rtl";
   host.dir = "rtl";
+  const argumentEditor = page.getByRole("textbox", {
+    name: "Launch options (advanced) (one per line, optional)",
+    exact: true,
+  });
+  expectLtrArgumentValue(argumentEditor.element(), "--data\nC:\\Original files");
   const selectedProgram = externalPathWithin(host, executable, "selected Game program");
   selectedProgram.scrollIntoView({ block: "center" });
   expectCompleteExternalPath(selectedProgram, "selected Game program", executable);
@@ -440,6 +489,8 @@ it("reviews explicit user launch details without accepted-package or file-manage
   );
   expect(document.body.textContent).not.toContain("Checked files");
   const review = page.getByRole("dialog").element();
+  expect(getComputedStyle(review).direction).toBe("rtl");
+  expectReviewedArguments(review, ["--data", "C:\\Original files"]);
   for (const path of [executable, directory]) {
     const target = externalPathWithin(review, path, "reviewed launch path");
     target.scrollIntoView({ block: "center" });
@@ -1059,6 +1110,26 @@ function expectExternalMetadataLayout(metadata: Element) {
   // Short facts must not stretch to match these deliberately long paths.
   expect(version.height).toBeLessThan(folder.height);
   expect(checked.height).toBeLessThan(program.height);
+}
+
+function expectLtrArgumentValue(target: Element, expected: string) {
+  const actual = target instanceof HTMLTextAreaElement ? target.value : target.textContent;
+  expect(actual).toBe(expected);
+  expect(target.getAttribute("dir")).toBe("ltr");
+  expect(getComputedStyle(target).direction).toBe("ltr");
+}
+
+function expectReviewedArguments(review: Element, arguments_: readonly string[]) {
+  const values = [...review.querySelectorAll<HTMLElement>("dd code")];
+  const nonempty = arguments_.filter((argument) => argument !== "");
+  expect(values.map((code) => code.textContent)).toEqual(nonempty);
+  for (const [index, value] of values.entries()) {
+    expectLtrArgumentValue(value, fixtureValue(nonempty[index], "exact reviewed argument"));
+  }
+  const emptyPlaceholders = [...review.querySelectorAll("dd span")].filter(
+    (span) => span.textContent === "Empty argument",
+  );
+  expect(emptyPlaceholders).toHaveLength(arguments_.filter((argument) => argument === "").length);
 }
 
 function externalPathWithin(container: Element, path: string, label: string) {

@@ -1,4 +1,5 @@
 import { openAdvancedFilters } from "../../test/filter-fields";
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { cleanup, render, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
@@ -507,6 +508,19 @@ it("suggests Core's native target and preserves a manual installation outside th
   ).toBe("C:/Games/Harbor");
   await click("Refresh launch suggestions");
   expect(document.body.textContent).toContain("Game program: C:/Games/Harbor/Harbor.exe");
+  const launchTarget = page.getByRole("combobox", {
+    name: "Launch target Selected game program",
+    exact: true,
+  });
+  await expect.element(launchTarget).toBeVisible();
+  await launchTarget.click();
+  await expect
+    .element(page.getByRole("option", { name: "Selected game program", exact: true }))
+    .toHaveAttribute("aria-selected", "true");
+  await expect.element(page.getByRole("option", { name: executable, exact: true })).toBeVisible();
+  await captureParityState("external-selected-manual-launch-target");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(launchTarget).toHaveFocus();
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
 });
 
