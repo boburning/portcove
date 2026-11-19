@@ -32,7 +32,11 @@ async fn observe_release(
         .unwrap()
         .resolve(port, channel, platform)
         .await;
-    server.join().unwrap();
+    let fixture_result = server.join();
+    assert!(
+        fixture_result.is_ok(),
+        "fixture {fixture_result:?} could not complete after resolver returned {result:?}",
+    );
     assert_eq!(requests.try_iter().count(), 2);
     result
 }
