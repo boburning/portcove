@@ -1608,7 +1608,7 @@ it("renders accepted GitLab listing observations through the shared descriptive 
         availability_override_reason:
           "Reviewed distribution restriction: use the upstream source instructions for this project.",
       },
-      label: "Source only (authored override)",
+      label: "Source only (catalog setting)",
       observedFirst: false,
     },
   ];

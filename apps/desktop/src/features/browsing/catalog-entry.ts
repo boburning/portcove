@@ -149,7 +149,7 @@ export function assessListingAvailability(
     unknown: "Package availability unknown",
   }[availability];
   if (listing.availability_override_reason)
-    return { availability, label: `${authoredLabel} (authored override)` };
+    return { availability, label: `${authoredLabel} (catalog setting)` };
   const observation = listing.upstream_observation;
   if (!observation) return { availability, label: authoredLabel };
   const assets = observation.releases.flatMap((release) => release.assets);
