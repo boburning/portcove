@@ -3588,6 +3588,7 @@ mod tests {
             platform: Platform::WindowsX86_64,
             rolling_tag: None,
             asset_hints: Vec::new(),
+            other_stream_tag_prefixes: Vec::new(),
             acquisition_policy: None,
             accepted_uploaders: Vec::new(),
         };
@@ -3618,6 +3619,7 @@ mod tests {
                         platform: Platform::WindowsX86_64,
                         rolling_tag: None,
                         asset_hints: Vec::new(),
+                        other_stream_tag_prefixes: Vec::new(),
                         acquisition_policy: None,
                         accepted_uploaders: Vec::new(),
                     },
