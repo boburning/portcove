@@ -28,6 +28,7 @@ import { PortBrowser } from "../../components/PortBrowser";
 import { install } from "../../dev-scenarios/interactive/scenarios";
 import { browserFixture } from "../../../test/browser-fixture";
 import { captureParityState } from "../../../test/parity-capture";
+import { observeVisibleTarget } from "../../../scripts/browser-readiness.mts";
 import "../../styles/index.css";
 
 let fixture: ReturnType<typeof browserFixture>;
@@ -71,13 +72,16 @@ const empty: LibraryOrganization = {
 };
 
 it("shows scoped launch stages beside the matching port in Discover", async () => {
+  await page.viewport(960, 640);
+  document.documentElement.dataset.theme = "dark";
+  const artifactSha = "a".repeat(64);
   const notice: PortCapabilityReport["advisories"][number]["notice"] = {
     id: "upstream-setup-fixture",
     feature: "launch",
     platform: "windows-x86-64",
     route: "upstream-setup",
     release: "v1",
-    artifact_sha256: "a".repeat(64),
+    artifact_sha256: artifactSha,
     edition: "Retail disc setup",
     explanation: "Import the disc once before using the prepared game.",
     provenance: "https://example.com/fixture",
@@ -134,12 +138,41 @@ it("shows scoped launch stages beside the matching port in Discover", async () =
   );
   await page.getByRole("button", { name: "Compare ports", exact: true }).click();
   const project = page.getByRole("article", { name: /First project/ });
-  await expect.element(project.getByText("Asks for game files")).toBeVisible();
+  const firstLaunch = project.getByText("Asks for game files", { exact: true });
+  const captureLaunchNotice = async (state: string) => {
+    const noticeBlock = fixtureValue(
+      firstLaunch.element().closest("dl")?.parentElement,
+      "comparison launch notice",
+    );
+    noticeBlock.scrollIntoView({ block: "center", behavior: "instant" });
+    const target = "data-launch-notice-capture";
+    noticeBlock.setAttribute(target, "");
+    try {
+      await expect
+        .poll(() => {
+          const { visible, rect } = observeVisibleTarget(`[${target}]`, "visual");
+          return Boolean(
+            visible &&
+            rect &&
+            rect.y >= 0 &&
+            rect.y + rect.height <= innerHeight &&
+            rect.x >= 0 &&
+            rect.x + rect.width <= innerWidth,
+          );
+        })
+        .toBe(true);
+      await captureParityState(`comparison-launch-notice-${state}`);
+    } finally {
+      noticeBlock.removeAttribute(target);
+    }
+  };
+  await expect.element(firstLaunch).toBeVisible();
   await expect.element(project.getByText("Starts the game directly")).toBeVisible();
   await expect.element(project.getByText("Reported by the project")).toBeVisible();
   await expect.element(project.getByText("Exact context required")).toBeVisible();
   await expect.element(project.getByText(/Scope:.*release v1/)).toBeVisible();
   expect(document.body.textContent).not.toContain("Different platform");
+  await captureLaunchNotice("current-platform");
 
   const dialog = page.getByRole("dialog", { name: "Original game", exact: true });
   await dialog.getByText("Comparison options and reports", { exact: true }).click();
@@ -158,6 +191,29 @@ it("shows scoped launch stages beside the matching port in Discover", async () =
   await expect.element(project.getByText(/Scope: linux-x86-64/)).toBeVisible();
   expect(document.body.textContent).not.toContain(notice.explanation);
   expect(read).not.toHaveBeenCalled();
+  await page.viewport(430, 780);
+  document.documentElement.dataset.theme = "light";
+  await captureLaunchNotice("explicit-platform");
+  const artifact = project.getByText(artifactSha, { exact: true });
+  const details = project.getByText("View technical details", { exact: true });
+  await expect.element(artifact).not.toBeVisible();
+  details.element().focus();
+  await userEvent.keyboard("{Enter}");
+  await expect.element(artifact).toBeVisible();
+  await expect.element(details).toHaveFocus();
+  const summary = details.element();
+  const hashBody = fixtureValue(artifact.element().closest("p"), "expanded checksum");
+  const outline = getComputedStyle(summary);
+  expect(outline.outlineStyle).not.toBe("none");
+  const outlineBottom =
+    summary.getBoundingClientRect().bottom +
+    Number.parseFloat(outline.outlineWidth) +
+    Number.parseFloat(outline.outlineOffset);
+  expect(hashBody.getBoundingClientRect().top).toBeGreaterThanOrEqual(outlineBottom);
+  await captureLaunchNotice("artifact-details");
+  await userEvent.keyboard("{Enter}");
+  await expect.element(artifact).not.toBeVisible();
+  await expect.element(details).toHaveFocus();
 });
 
 it("requires an acknowledged choice, retains alternatives and targets the chosen stable port", async () => {

@@ -2311,6 +2311,18 @@ gameplay campaign. Changed setup,
 executable/data coordinates, ownership or package handling can require a reviewed
 rule change; existing transition and recovery guards still apply.
 
+A reviewed download can retain a native GitHub package choice in its install
+manifest. This applies when two authored hints cover the full filename around
+the exact three-part numeric release tag, and GitHub supplied the stable
+repository, release and asset identities. Core remembers the channel, host
+architecture, native mode, package anchors and any declared original-source
+profile. The next release must offer one verified package with the same
+anchors around its own version. A missing or competing match holds the
+update. Ordinary package eligibility, uploader, digest and activation checks
+still apply. A legacy installation with no receipt uses ordinary selection.
+An explicitly selected different channel and exact curated, direct or rolling
+pins use their existing release contracts.
+
 When an upstream release still matches a managed route's selector but changes
 reviewed setup, replacement or data behavior, contain it with the integration's
 `managed_acquisition_hold` instead of port-specific Core code. A hold without
@@ -3913,11 +3925,19 @@ the original-game title when an earlier receipt covers only summaries.
 
 #### Prepare a new or updated record
 
-Shared upstream families retain complete independent per-ID records. The existing
-authoring tests compare Raze's shared package/platform/profile/update facts and
-Namco's common upstream/platform links. Original-file requirements, canonical
-issues, identities and independently reviewed acquisition restrictions stay local
-to each record. These checks add no runtime inheritance or shared policy registry.
+Shared upstream families retain independent per-ID records. The authoring tests
+compare Raze's platform, profile and update guide facts and Namco's common upstream
+and platform links. Original-file requirements, canonical issues, identities and
+independently reviewed acquisition restrictions stay local to each record.
+
+For the reviewed stable `ZDoom/Raze` Windows x64 native-portable route,
+`raze_windows_profile_v1: true` expands the shared release asset selector,
+executable, package layout, portable marker and persistent paths. Keep the
+repository, platforms, channels, support tier, qualification and guide explicit.
+A different repository, package or write scope requires an explicit integration.
+Preparation proposes the compact profile when it regenerates the existing
+integration byte for byte. Core receives each complete definition through the
+existing catalog validation.
 
 ```text
 node scripts/prepare-port.mts --issue 156 --output-dir /path/to/preparation

@@ -26,6 +26,17 @@ impl PortcoveService {
         activate: bool,
         review_data: bool,
     ) -> Result<GameUpdatePlan> {
+        self.plan_game_update_with_status(port_id, activate, review_data)
+            .await
+            .map(|(plan, _)| plan)
+    }
+
+    pub(super) async fn plan_game_update_with_status(
+        &self,
+        port_id: &str,
+        activate: bool,
+        review_data: bool,
+    ) -> Result<(GameUpdatePlan, crate::PortStatus)> {
         let status = self.status(port_id)?;
         if status.active.is_none() {
             return Err(PortcoveError::not_found(
@@ -70,7 +81,7 @@ impl PortcoveService {
                 review.required_bytes,
             ))?);
         }
-        Ok(GameUpdatePlan {
+        let reviewed = GameUpdatePlan {
             acquisition,
             data_transition,
             assessment: game_update_plan_assessment(&plan),
@@ -78,7 +89,8 @@ impl PortcoveService {
             activate,
             plan_sha256,
             release_notes,
-        })
+        };
+        Ok((reviewed, status))
     }
 
     /// The release list link is kept only when Desktop's reviewed-link check would

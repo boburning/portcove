@@ -587,7 +587,7 @@ function ComparisonPortFacts({
                     ? tDetail("capabilities.launch.evidenceObserved")
                     : tDetail("capabilities.launch.evidenceUpstream")}
                 </p>
-                <CapabilityNoticeScope notice={notice} />
+                <CapabilityNoticeScope notice={notice} discloseArtifact />
                 {applicability !== "current-route" && <p>{tDetail("capabilities.notice.exact")}</p>}
                 <ExternalLink href={notice.provenance}>
                   {tDetail("capabilities.notice.source")}

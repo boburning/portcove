@@ -1817,6 +1817,13 @@ the original cause.
 These observations do not change visibility, enabled-state or pointer checks,
 click dispatch, or the existing evidence limits.
 
+The Linux selected setup journey uses one WebDriver viewport pointer sequence to
+open the initial 400% folder-connection screen. WebKitGTK 2.52.6's Element Click
+command rejected that visible control in the isolated native run. The harness
+checks the same CSS pixel it sends to the driver. The existing settings heading,
+focus and native picker checks still establish the transition and its result.
+A rejected pointer sequence fails the run and retains its original error.
+
 Open `scenarios.html?mode=interactive&journey=collection` for a 12-entry mixed
 collection or `journey=collection-large` for 60 entries. This mounts the actual
 App with disposable in-memory transport; game/file actions are simulated and

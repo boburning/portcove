@@ -108,6 +108,7 @@ pub struct InstallQualification {
     /// Carried forward from an existing manifest when it is rewritten or derived,
     /// so a rewrite never adds facts the original did not record.
     retained_acquisition: Option<crate::release::RecordedAcquisition>,
+    retained_package_variant: Option<crate::ManagedPackageVariant>,
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
     requires_tar_xz: bool,
@@ -271,6 +272,7 @@ impl InstallQualification {
             native_build_recipe: port.release.managed_build.get(&platform).copied(),
             acquisition: None,
             retained_acquisition: None,
+            retained_package_variant: None,
             retained_contract: None,
             platform,
             requires_tar_xz: port.release.requires_tar_xz(platform),
@@ -627,6 +629,8 @@ struct InstallManifest {
     artifact: ArtifactIdentity,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     github_artifact_identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    saved_package_variant: Option<crate::ManagedPackageVariant>,
     /// The uploader-continuity decision of the GitHub resolution this build came
     /// from, applied again before it becomes active (#6209).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -3178,6 +3182,7 @@ impl Installer {
         }
         let mut adopted = qualification.clone();
         adopted.runtime_origin = RuntimeOrigin::AdoptedTree;
+        adopted.retained_package_variant = None;
         write_manifest(install_id, port_id, version, artifact, &adopted, root)
     }
 
@@ -3468,6 +3473,7 @@ impl Installer {
             adopted_tree: false,
             acquired_at: manifest.acquired_at.or(Some(install.installed_at)),
         });
+        qualification.retained_package_variant = manifest.saved_package_variant;
         Ok(qualification)
     }
 
@@ -3742,6 +3748,7 @@ mod legacy_dkr_tests {
             version: artifact.version.clone(),
             artifact: artifact_identity.clone(),
             github_artifact_identity: None,
+            saved_package_variant: None,
             uploader_continuity: None,
             acquisition_facts_recorded: false,
             acquired_at: None,
@@ -4249,6 +4256,11 @@ fn write_manifest_with_shape(
             .acquisition
             .as_ref()
             .and_then(|proof| proof.github_identity.clone()),
+        saved_package_variant: qualification
+            .acquisition
+            .as_ref()
+            .and_then(|proof| proof.saved_variant.clone())
+            .or_else(|| qualification.retained_package_variant.clone()),
         uploader_continuity: match &qualification.retained_acquisition {
             Some(retained) => retained.uploader_continuity.clone(),
             None => qualification
@@ -4523,6 +4535,21 @@ pub(crate) fn recorded_acquisition(
             .as_ref()
             .is_some_and(|runtime| runtime.origin == RuntimeOrigin::AdoptedTree),
     })
+}
+
+pub(crate) fn recorded_package_variant(
+    install: &InstallRecord,
+) -> Result<Option<crate::ManagedPackageVariant>> {
+    // Older registrations may lack all manifest identity. Their selection
+    // remains ordinary and does not gain a receipt retroactively.
+    if install.manifest_sha256.is_empty() {
+        return Ok(None);
+    }
+    let manifest = verified_manifest(install)?;
+    if let Some(variant) = &manifest.saved_package_variant {
+        variant.require_installed(install, manifest.platform)?;
+    }
+    Ok(manifest.saved_package_variant)
 }
 
 fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
@@ -8337,6 +8364,129 @@ mod tests {
         installer
             .verify_import_contract(&install, &qualification)
             .unwrap_err();
+    }
+
+    #[test]
+    fn saved_native_package_choice_survives_manifest_refresh() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library_root = temporary.path().join("library");
+        let library = Library::open(&library_root).unwrap();
+        let platform = Platform::WindowsX86_64;
+        let id = "fragglet-sdl-sopwith";
+        let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == id)
+            .unwrap();
+        port.release
+            .asset_hints
+            .insert(platform, vec!["sopwith-".into(), "-win64.zip".into()]);
+        let executable = port.executable_hints[&platform][0].clone();
+        let catalog = crate::Catalog::from_document(document).unwrap();
+        let port = catalog.port(id).unwrap();
+        let root = library.versions_dir().join(id).join("saved-variant");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join(&executable), b"inert manifest fixture").unwrap();
+        let release = crate::ResolvedRelease {
+            version: "v1.2.3".into(),
+            channel: crate::ReleaseChannel::Stable,
+            published_at: None,
+            asset: ReleaseAsset {
+                name: "sopwith-1.2.3-win64.zip".into(),
+                url: "https://github.com/fragglet/sdl-sopwith/releases/download/v1.2.3/sopwith-1.2.3-win64.zip".into(),
+                size: 42,
+                sha256: "a".repeat(64),
+            },
+            uploader_continuity: None,
+        };
+        let artifact = ArtifactIdentity {
+            asset_name: release.asset.name.clone(),
+            sha256: release.asset.sha256.clone(),
+            size: release.asset.size,
+        };
+        let mut resolution = crate::ScopedResolvedRelease::legacy(release.clone())
+            .for_selection(port, platform, release.channel)
+            .unwrap();
+        assert!(crate::ManagedPackageVariant::from_review(port, platform, &resolution).is_none());
+        resolution.github_identity = Some(crate::definition_acquisition::GithubArtifactIdentity {
+            repository: port.release.repository.clone(),
+            repository_id: 7,
+            release_id: 12,
+            asset_id: 42,
+            tag: release.version.clone(),
+        });
+        let variant =
+            crate::ManagedPackageVariant::from_review(port, platform, &resolution).unwrap();
+        resolution.saved_variant = Some(variant.clone());
+        let ordinary = InstallQualification::from_catalog(&catalog, id, platform).unwrap();
+        let qualification = ordinary
+            .clone()
+            .with_acquisition_resolution(resolution)
+            .unwrap();
+        let (manifest_sha256, selected_executable, runtime) = write_manifest(
+            "saved-variant",
+            id,
+            &release.version,
+            &artifact,
+            &ordinary,
+            &root,
+        )
+        .unwrap();
+        let mut install = InstallRecord {
+            id: "saved-variant".into(),
+            port_id: id.into(),
+            version: release.version,
+            path: root.clone(),
+            channel: release.channel,
+            installed_at: 1,
+            verified: true,
+            staged: false,
+            artifact,
+            runtime,
+            manifest_sha256,
+            selected_executable,
+        };
+        assert_eq!(recorded_package_variant(&install).unwrap(), None);
+        let (digest, _, _) = write_manifest(
+            &install.id,
+            id,
+            &install.version,
+            &install.artifact,
+            &qualification,
+            &root,
+        )
+        .unwrap();
+        install.manifest_sha256 = digest;
+        assert_eq!(
+            recorded_package_variant(&install).unwrap().as_ref(),
+            Some(&variant)
+        );
+        let installer = Installer::new(library.clone()).unwrap();
+        let refreshed = installer
+            .refresh_verified_manifest(&install, &ordinary)
+            .unwrap();
+        assert_eq!(
+            recorded_package_variant(&refreshed).unwrap().as_ref(),
+            Some(&variant)
+        );
+        library.register_install(&refreshed, true).unwrap();
+        drop(installer);
+        drop(library);
+
+        let reopened = Library::open(library_root).unwrap();
+        let retained = reopened
+            .status(id, crate::ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap();
+        assert_eq!(
+            recorded_package_variant(&retained).unwrap().as_ref(),
+            Some(&variant)
+        );
+        let mut changed_channel = retained;
+        changed_channel.channel = crate::ReleaseChannel::Beta;
+        assert!(recorded_package_variant(&changed_channel).is_err());
     }
 
     #[test]
