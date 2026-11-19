@@ -580,6 +580,12 @@ pub(crate) fn recover_restore(
         service.synchronize_restored_user_data(&operation.port_id)?;
     }
     if restore.phase == RestorePhase::Published {
+        service.finish_restore_settings_deletion(
+            operation,
+            &previous,
+            &user_root,
+            restore.input_manifest.as_deref(),
+        )?;
         restore.advance(RestorePhase::Committed, operation, store)?;
     }
     service.finish_restore_cleanup(store, operation)?;

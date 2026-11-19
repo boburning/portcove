@@ -46,6 +46,10 @@ struct Fixture {
 }
 
 fn fixture() -> Fixture {
+    settings_fixture(false)
+}
+
+fn settings_fixture(partitioned: bool) -> Fixture {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     let inputs = [
@@ -58,6 +62,14 @@ fn fixture() -> Fixture {
         .map(|(_, bytes)| hex::encode(Sha256::digest(bytes)));
     let mut port = Catalog::embedded().unwrap().port(PORT).unwrap().clone();
     port.persistent_paths = vec![FILE.into(), "progress.sav".into()];
+    if partitioned {
+        port.adapter = AdapterKind::StagedSourcePortable;
+        port.archive_data_compatibility_v1 = Some(crate::ArchiveDataCompatibilityV1 {
+            contract_id: "sopwith-settings-fixture".into(),
+            shared_paths: port.persistent_paths.clone(),
+            build_specific_progress_paths: Vec::new(),
+        });
+    }
     port.game_settings = Some(serde_json::from_value(serde_json::json!({
         "format_version": 1,
         "releases": inputs.iter().zip(&hashes).map(|((version, _), digest)| serde_json::json!({
@@ -233,4 +245,100 @@ fn staged_activation_holds_conflict_and_unobserved_deletion_before_projection() 
         assert_eq!(status.active.unwrap().id, fixture.old.id);
         assert_eq!(status.staged.unwrap().id, fixture.staged.id);
     }
+}
+
+struct InterruptPublishedBackupRestore;
+
+impl LifecycleFaultInjector for InterruptPublishedBackupRestore {
+    fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+        if point == LifecycleFaultPoint::RestorePublished {
+            Err(PortcoveError::state(
+                "interrupted reviewed settings restore",
+            ))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn reviewed_full_snapshot_records_settings_deletion_only_after_recovered_projection() {
+    let fixture = settings_fixture(true);
+    let canonical = fixture.library.user_dir(PORT);
+    let player = canonical.join(FILE);
+    let active = fixture.old.path.join(FILE);
+    let mut service = PortcoveService::with_faults(
+        fixture.library.clone(),
+        Arc::new(InterruptPublishedBackupRestore),
+    )
+    .unwrap();
+    service.replace_catalog_for_test(fixture.catalog.clone());
+    crate::archive_data::initialize(fixture.catalog.port(PORT).unwrap(), &canonical).unwrap();
+    fs::remove_file(&player).unwrap();
+    fs::remove_file(&active).unwrap();
+    let backup = service.create_backup(PORT).unwrap();
+    fs::write(&player, PLAYER).unwrap();
+    fs::write(&active, PLAYER).unwrap();
+    let preview = service
+        .preview_backup_action(PORT, &backup.id, BackupAction::Restore)
+        .unwrap();
+    let consent = service
+        .authorize_backup_action(
+            PORT,
+            &backup.id,
+            BackupAction::Restore,
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    let refusal = service
+        .restore_backup(PORT, &backup.id, &consent.token)
+        .unwrap_err();
+    assert!(
+        refusal
+            .message
+            .contains("interrupted reviewed settings restore"),
+        "{refusal}"
+    );
+    assert!(!player.exists());
+    assert_eq!(fs::read(&active).unwrap(), PLAYER);
+    let connection = fixture.library.connection().unwrap();
+    let pending: bool = connection
+        .query_row(
+            "SELECT pending_id IS NOT NULL FROM settings_restore_deletions",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert!(pending);
+
+    let mut reopened =
+        PortcoveService::with_faults(fixture.library.clone(), Arc::new(NoLifecycleFaults)).unwrap();
+    reopened.replace_catalog_for_test(fixture.catalog.clone());
+    reopened.recover_pending_operations().unwrap();
+    reopened.recover_pending_operations().unwrap();
+    assert!(!player.exists());
+    assert!(!active.exists());
+    let (pending, evidence): (bool, Vec<u8>) = connection
+        .query_row(
+            "SELECT pending_id IS NOT NULL, evidence FROM settings_restore_deletions",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap();
+    assert!(!pending);
+    let evidence: serde_json::Value = serde_json::from_slice(&evidence).unwrap();
+    assert_eq!(evidence["file_id"], "preferences");
+    assert_eq!(
+        evidence["install_manifest_sha256"],
+        fixture.old.manifest_sha256
+    );
+    assert_eq!(evidence["shipped_sha256"], hex::encode(Sha256::digest(OLD)));
+    assert_eq!(
+        evidence["player_sha256"],
+        hex::encode(Sha256::digest(PLAYER))
+    );
+    assert_eq!(
+        fs::read(canonical.join("progress.sav")).unwrap(),
+        b"owned saved progress"
+    );
 }

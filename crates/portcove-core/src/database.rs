@@ -455,12 +455,34 @@ const MIGRATIONS: &[Migration] = &[
 fn migration_71(transaction: &Transaction<'_>) -> Result<()> {
     // Older writers cannot enforce the per-install settings custody fence.
     // The library lease applies this protocol change before any new intent.
+    transaction.execute_batch(
+        "CREATE TABLE settings_restore_deletions (
+            restore_id TEXT PRIMARY KEY NOT NULL,
+            pending_id TEXT UNIQUE REFERENCES lifecycle_operations(id) ON DELETE CASCADE,
+            port_id TEXT NOT NULL,
+            install_id TEXT NOT NULL,
+            file_id TEXT NOT NULL,
+            evidence BLOB NOT NULL CHECK(length(evidence) BETWEEN 1 AND 4096)
+        );",
+    )?;
     verify_migration_71(transaction)
 }
 
 fn verify_migration_71(connection: &Connection) -> Result<()> {
     verify_migration_69(connection)?;
-    verify_migration_44(connection)
+    verify_migration_44(connection)?;
+    require_columns(
+        connection,
+        "settings_restore_deletions",
+        &[
+            "restore_id",
+            "pending_id",
+            "port_id",
+            "install_id",
+            "file_id",
+            "evidence",
+        ],
+    )
 }
 
 fn migration_70(transaction: &Transaction<'_>) -> Result<()> {

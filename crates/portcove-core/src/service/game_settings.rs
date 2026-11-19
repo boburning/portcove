@@ -11,6 +11,7 @@ use crate::{
 mod activation;
 #[cfg(windows)]
 mod activation_recovery;
+mod restore_deletion;
 #[cfg(all(test, windows))]
 mod tests;
 #[cfg(windows)]

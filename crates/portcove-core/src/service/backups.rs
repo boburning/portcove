@@ -241,7 +241,7 @@ pub(crate) struct RestoreOperation {
     pub(crate) staged_data: PathBuf,
     pub(crate) user_root: PathBuf,
     pub(crate) previous_data: PathBuf,
-    input_manifest: Option<PathBuf>,
+    pub(crate) input_manifest: Option<PathBuf>,
 }
 
 impl RestoreOperation {
@@ -1735,6 +1735,13 @@ impl PortcoveService {
                 Ok(())
             };
             require_reviewed_data(&lifecycle)?;
+            self.prepare_restore_settings_deletion(
+                &lifecycle,
+                &staged_data,
+                &user_root,
+                manifest.partitioned_data_v1.as_deref(),
+                &reviewed_manifest,
+            )?;
             restore.advance(RestorePhase::ReadyToPublish, &mut lifecycle, &store)?;
             self.faults.check(LifecycleFaultPoint::RestorePrepared)?;
             let final_review = self
@@ -1770,6 +1777,12 @@ impl PortcoveService {
                 self.require_restore_profile_projection(port_id, &previous_data)?;
             }
             self.synchronize_restored_user_data(port_id)?;
+            self.finish_restore_settings_deletion(
+                &lifecycle,
+                &previous_data,
+                &user_root,
+                restore.input_manifest.as_deref(),
+            )?;
             restore.advance(RestorePhase::Committed, &mut lifecycle, &store)?;
             self.finish_restore_cleanup(&store, &mut lifecycle)?;
             Ok(RestoreResult {

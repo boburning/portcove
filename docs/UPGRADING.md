@@ -101,6 +101,12 @@ matches the player's file. If Portcove cannot verify the file, or both sides
 changed it differently, the affected installation stays staged. The player's
 file remains in place and the staged installation retains its shipped default.
 
+A reviewed backup restore can record the removal of a declared settings file.
+The receipt requires a snapshot that binds the exact active persistence policy,
+a verified package default, and a matching file before the restore. Portcove
+records the outcome after it verifies that the canonical file and active copy
+are absent. Activation still holds when the player file is missing.
+
 ### Required desktop runtime
 
 The first-beta Windows baseline is Windows 11 26H2 x86-64 with normal security
