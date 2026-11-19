@@ -32,6 +32,10 @@ pub(crate) fn legacy_retained_document(
             stripped_linux = true;
             port.linux_packaged_library = None;
             port.platforms.retain(|platform| *platform != linux);
+            port.automated_tested_platforms
+                .retain(|platform| *platform != linux);
+            port.manually_validated_platforms
+                .retain(|platform| *platform != linux);
             port.release.linux_tar_xz = false;
             port.release.asset_hints.remove(&linux);
             port.executable_hints.remove(&linux);
@@ -527,6 +531,13 @@ mod tests {
     fn packaged_linux_library_projection_retains_only_qualified_platforms_present() {
         let mut document = Catalog::embedded().unwrap().authoritative_document();
         let id = "diablo-devilutionx";
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == id)
+            .unwrap();
+        port.automated_tested_platforms = vec![Platform::WindowsX86_64, Platform::LinuxX86_64];
+        port.manually_validated_platforms = port.automated_tested_platforms.clone();
         let sources = document.source_catalog.as_mut().unwrap();
         let contract = sources
             .contracts
@@ -580,6 +591,15 @@ mod tests {
                     .any(|record| record.scope.port_id == id),
                 keeps_linux_record,
             );
+            if port_id == id {
+                let port = retained.port(id).unwrap();
+                let mut expected_platforms = vec![Platform::WindowsX86_64];
+                if keeps_linux_record {
+                    expected_platforms.push(Platform::LinuxX86_64);
+                }
+                assert_eq!(port.automated_tested_platforms, expected_platforms);
+                assert_eq!(port.manually_validated_platforms, expected_platforms);
+            }
         }
     }
 
