@@ -17,6 +17,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
+import { projectRazeWindowsProfile } from "./catalog-raze-windows-profile.mts";
 import {
   collectPortFacts,
   githubRepository,
@@ -216,6 +217,49 @@ void test("portable preparation separates complete hint observations from lifecy
       { assets_complete: true, assets: [] },
     ),
     undefined,
+  );
+});
+
+void test("Raze preparation retains the explicit archive and persistence observations", () => {
+  const record: AuthoredPort = {
+    format_version: 1,
+    listing: {
+      id: "blood-raze",
+      name: "Blood (Raze)",
+      summary: "Fixture",
+      project_url: "https://github.com/ZDoom/Raze",
+    },
+    raze_windows_profile_v1: true,
+    integration: {
+      adapter: "native-portable",
+      platforms: ["windows-x86-64"],
+      channels: ["stable"],
+      release: { repository: "ZDoom/Raze" },
+    },
+  };
+  const explicit = structuredClone(record);
+  delete explicit.raze_windows_profile_v1;
+  explicit.integration!.release = {
+    repository: "ZDoom/Raze",
+    asset_hints: { "windows-x86-64": ["Raze-", "-windows.zip"] },
+  };
+  explicit.integration!.persistent_paths = [
+    "raze_portable.ini",
+    "Save",
+    "Screenshots",
+    "Demos",
+    "autoexec.cfg",
+  ];
+  const facts = {
+    assets_complete: true,
+    assets: [{ name: "Raze-1.9.0-windows.zip" }, { name: "Raze-1.9.0-linux.tar.gz" }],
+  };
+  const feedback = portablePreparationFeedback(record, facts)!;
+  assert.deepEqual(feedback, portablePreparationFeedback(explicit, facts));
+  assert.equal(feedback.platforms[0]?.hint_matches.length, 1);
+  assert.equal(
+    declarativePreparationFeedback(record).projections[0]?.field,
+    "raze_windows_profile_v1",
   );
 });
 
@@ -2246,6 +2290,7 @@ void test("preparation reports all declared route projections across the current
   assert.ok(gbaRecords.length > 0);
   assert.ok(records.some((record) => record.psx_managed_windows_v1));
   assert.ok(records.some((record) => record.n64_recomp_persistence_v1));
+  assert.ok(records.some((record) => record.raze_windows_profile_v1));
   for (const record of records) {
     const id = record.listing.id;
     const feedback = declarativePreparationFeedback(record);
@@ -2254,6 +2299,7 @@ void test("preparation reports all declared route projections across the current
     if (record.gba_staged_archive_v1) expected.push("gba_staged_archive_v1");
     if (record.psx_managed_windows_v1) expected.push("psx_managed_windows_v1");
     if (record.n64_recomp_persistence_v1) expected.push("n64_recomp_persistence_v1");
+    if (record.raze_windows_profile_v1) expected.push("raze_windows_profile_v1");
     assert.deepEqual(
       feedback.projections.map(({ field }) => field),
       expected,
@@ -2304,6 +2350,81 @@ void test("official URL preparation proposes the exact reviewed N64 persistence 
       accepted.catalog,
     );
     assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("Raze preparation compacts the reviewed Windows profile and preserves explicit writers", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const accepted = readCatalogSource(root);
+    const id = "blood-raze";
+    const selected = accepted.records.find((entry) => entry.listing.id === id)!;
+    const explicit = projectRazeWindowsProfile(selected);
+    delete explicit.raze_windows_profile_v1;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const common = {
+      catalogRoot: root,
+      id,
+      projectUrl: selected.listing.project_url,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({ ...metadata, id: 230432175, full_name: "ZDoom/Raze", archived: false }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    };
+    const reviewed = await preparePort({
+      ...common,
+      outputDirectory: join(f.root, "reviewed"),
+      originalGame: selected.listing.original_game,
+    });
+    const proposed = checkedAuthoredPort(
+      JSON.parse(readFileSync(reviewed.report.files.records[0]!.path, "utf8")),
+    );
+    assert.equal(reviewed.report.port_id, id);
+    assert.deepEqual(reviewed.report.changed_records, [id]);
+    assert.equal(reviewed.report.operational_changed, false);
+    assert.equal(proposed.raze_windows_profile_v1, true);
+    assert.deepEqual(proposed.listing.original_game, selected.listing.original_game);
+    assert.deepEqual(proposed.listing.issue_number, selected.listing.issue_number);
+    assert.deepEqual(
+      JSON.parse(readFileSync(reviewed.report.files.catalog, "utf8")),
+      accepted.catalog,
+    );
+    assert.equal(readFileSync(source, "utf8"), bytes);
+
+    const alternate = structuredClone(explicit);
+    const persistent = [...(alternate.integration!.persistent_paths as string[]), "custom.cfg"];
+    alternate.integration!.persistent_paths = persistent;
+    const alternateBytes = JSON.stringify(alternate);
+    writeFileSync(source, alternateBytes);
+    const custom = await preparePort({
+      ...common,
+      outputDirectory: join(f.root, "custom"),
+      record: alternate,
+    });
+    assert.deepEqual(custom.report.changed_records, []);
+    assert.equal(custom.report.operational_changed, false);
+    assert.deepEqual(custom.report.declarative_authoring.projections, []);
+    assert.deepEqual(custom.report.portable_preparation?.persistence, persistent);
+
+    const otherGame = accepted.records.find((entry) => entry.listing.id === "nam-raze")!;
+    await assert.rejects(
+      preparePort({
+        ...common,
+        outputDirectory: join(f.root, "wrong-game"),
+        originalGame: otherGame.listing.original_game,
+      }),
+      /change to an existing game or edition identity/u,
+    );
+    assert.equal(readFileSync(source, "utf8"), alternateBytes);
   } finally {
     f.clean();
   }
