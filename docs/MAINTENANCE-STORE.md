@@ -1,13 +1,13 @@
 # Maintenance inventory store
 
-This document owns the stable source, identity, coverage and storage contracts
-for the maintainer-facing maintenance application specified in
-[#4129](https://github.com/boburning/portcove/issues/4129). The issue owns the
-executable acceptance and checkpoint evidence; this page is not a backlog.
+This guide explains how the maintenance application identifies its sources,
+records coverage, and stores data. Use
+[#4129](https://github.com/boburning/portcove/issues/4129) for the implementation
+requirements and checkpoint results.
 
-The application is maintainer tooling. Player installation, update, backup and
-launch never depend on it, and it grants no admission, support, qualification,
-publication or credential authority.
+Maintainers use this application. Players can install, update, back up, and
+launch games without it. Use the separate approval paths for admission,
+support, qualification, publication, and credentials.
 
 ## Ownership boundary
 
@@ -339,7 +339,9 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
 - Each source records a collection run. Its coverage is relative to the
   declared sample.
   The catalog observation is bound to the commit. The Core observation is bound
-  to the CLI binary SHA-256, the host platform and the isolation scope. Each
+  to the CLI binary SHA-256, the host platform returned by that executable's
+  isolated `doctor` command and the isolation scope. Legacy keys derived from
+  the launcher's architecture are only reusable with matching producer evidence. Each
   Core run's revision records the binary digest and, with `--targets`, the
   build's recorded source and its `verified` or `unverified` binding ([Core
   target routes](#core-target-routes)). Without `--targets` no source is
@@ -406,8 +408,9 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
     Project, release-health or publication-bundle read records a `failed` run
     with its gap. Prior facts stay current, and every other source still lands.
     `collect` lists such sources in `failed_sources`.
-  - A truncated Project field page fails the issue collection rather than
-    dropping fields.
+  - Issue blockers, Project memberships and Project item fields follow their
+    own continuation cursors. An incomplete page or a changed revision fails
+    the issue collection and retains the prior facts.
 - `--issues` adds the `issues-project` source.
   - It reads the maintained, completeness-verified issue inventory with
     issue-side Project memberships (`RoadmapClient.repositoryIssues`), through a

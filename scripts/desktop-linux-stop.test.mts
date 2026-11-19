@@ -543,7 +543,7 @@ void test("history exit distinguishes exact terminal identities from reaping, li
   }
 });
 
-void test("connection readiness polls scalar DOM state through rerenders with unchanged roots and budgets", async () => {
+void test("connection readiness retains scalar roots through rerenders and scopes calibrated keyboard budgets", async () => {
   const connectSource = between(
     "async function connect() {",
     "async function requestApplicationShutdown(",
@@ -554,6 +554,8 @@ void test("connection readiness polls scalar DOM state through rerenders with un
     "preferences-first",
     "bootstrap-reconnected",
     "design-fixture",
+    "linux-keyboard",
+    "windows-keyboard",
   ]) {
     const expectedRoot = kind.endsWith("-first")
       ? ".bootstrap-error"
@@ -578,6 +580,7 @@ void test("connection readiness polls scalar DOM state through rerenders with un
       },
     };
     const context = {
+      process: { platform: kind === "windows-keyboard" ? "win32" : "linux" },
       connectObservedDriver: async () => {},
       linuxPackagedInspector: false,
       driverBrowser: () => browser,
@@ -586,6 +589,7 @@ void test("connection readiness polls scalar DOM state through rerenders with un
       connectedLaunches: kind === "bootstrap-reconnected" ? 1 : 0,
       selection: {
         prerequisites: kind === "design-fixture" ? ["design-compatibility-fixture"] : [],
+        selected_scenarios: kind.endsWith("-keyboard") ? ["keyboard-layout"] : [],
       },
       executionPlan: { fixtures: { acquisitionJourney: false } },
       document: {
@@ -608,7 +612,7 @@ void test("connection readiness polls scalar DOM state through rerenders with un
     runInNewContext(`${connectSource}\nglobalThis.connect = connect;`, context);
     await callable(Reflect.get(context, "connect"))();
     assert.deepEqual(queries, [expectedRoot, expectedRoot, ".loading-state", ".loading-state"]);
-    assert.deepEqual(budgets, [30000, 30000]);
+    assert.deepEqual(budgets, kind === "linux-keyboard" ? [90000, 90000] : [30000, 30000]);
     assert.equal(context.connectedLaunches, kind === "bootstrap-reconnected" ? 2 : 1);
   }
 });

@@ -59640,7 +59640,9 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
@@ -59668,6 +59670,26 @@
             "immutable_tree_sha256": "",
             "executable": "",
             "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
         }
       },
@@ -59675,7 +59697,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Prepare the official ECWolf package and the complete matching Wolfenstein 3D game data through upstream setup. Windows x64 uses ecwolf.exe and its containing folder; Linux x64 uses the installed /usr/games/ecwolf and its parent. Select --data and WL1 as separate arguments for the prepared shareware set. Review the executable and launch details, then choose Play separately. The player/upstream owns runtime updates and all external originals, mods, saves and settings. Registration removal preserves external files; managed installation, update, backup, rollback and deletion are not offered.",
+        "manual_preparation": "Prepare the official ECWolf package and the complete matching Wolfenstein 3D game data through upstream setup. Windows x64 uses ecwolf.exe and its containing folder; Linux x64 uses the installed /usr/games/ecwolf and its parent. Intel and Apple Silicon Mac use the native ecwolf inside the complete ECWolf.app/Contents/MacOS folder and its parent, with the matching original data in the upstream Mac app-support location. Select --data and WL1 as separate arguments for the prepared shareware set. Review the executable and launch details, then choose Play separately. The player/upstream owns runtime updates and all external originals, mods, saves and settings. Registration removal preserves external files; managed installation, update, backup, rollback and deletion are not offered.",
         "original_game_title": "Wolfenstein 3D",
         "manual_setup": {
           "help_url": "https://maniacsvault.net/ecwolf/download.php",
@@ -59689,8 +59711,8 @@
               "instruction": "Install the official matching Ubuntu amd64 package with your system package manager so its dependencies and system data are present. Put the complete matching .WL1 data set in ~/.config/ecwolf, or the ecwolf folder below your XDG_CONFIG_HOME. Preserve the filenames and their case. Select /usr/games/ecwolf and its containing folder in Portcove; enter --data and WL1 as two separate arguments. Review the details, add the game, then choose Play. Use the system package manager or upstream to update this installation."
             },
             {
-              "title": "Use the upstream Mac app",
-              "instruction": "Use the official universal Mac app from the DMG and put matching game data in ~/Library/Application Support/ECWolf. Open the upstream app directly. Keep ~/Library/Preferences/ecwolf.cfg and ~/Documents/ECWolf/Savegames backed up separately, together with any chosen custom paths. This Mac route uses upstream setup and updates."
+              "title": "Add the Intel or Apple Silicon Mac player",
+              "instruction": "Copy the complete official ECWolf.app from the DMG into Applications and open it normally once. Copy all eight matching .WL1 shareware data files into ~/Library/Application Support/ECWolf, preserving their names and case. In Portcove, select /Applications/ECWolf.app/Contents/MacOS/ecwolf and its containing folder; enter --data and WL1 as separate arguments, review the details, then add the game and choose Play. Keep ecwolf.pk3 and the complete app together. The later ecwolf.exe choice applies to Windows; Mac uses the native file inside ECWolf.app."
             },
             {
               "title": "Select the prepared player",
@@ -59711,7 +59733,7 @@
             },
             {
               "title": "Player-data ownership",
-              "instruction": "You and upstream own the external copy's data: Windows Roaming AppData/ECWolf settings and Windows Saved Games/ECWolf progress, including upstream fallback locations; Linux XDG configuration/ecwolf and data/ecwolf/savegames folders; original game files, mods and any explicit --config or --savedir locations. Back up these locations separately; registration does not migrate or certify their compatibility."
+              "instruction": "You and upstream own the external copy's data: Windows Roaming AppData/ECWolf settings and Windows Saved Games/ECWolf progress, including upstream fallback locations; Linux XDG configuration/ecwolf and data/ecwolf/savegames folders; Mac ~/Library/Preferences/ecwolf.cfg, ~/Documents/ECWolf/Savegames, ~/Library/Application Support/ECWolf and upstream fallback locations; original game files, mods and any explicit --config or --savedir locations. Back up these locations separately; registration does not migrate or certify their compatibility."
             }
           ]
         }
@@ -73057,6 +73079,117 @@
           "executables": [
             "glh2.exe"
           ]
+        }
+      }
+    },
+    {
+      "id": "teeworlds",
+      "name": "Teeworlds",
+      "summary": "Swing through 2D arenas, play local and online matches, and create your own maps.",
+      "project_url": "https://github.com/teeworlds/teeworlds",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "teeworlds/teeworlds",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Set up the official Teeworlds client and its complete data through upstream or your Linux package manager. Select teeworlds.exe on Windows x64 or the native teeworlds client on Linux x64, or the native client inside Teeworlds.app/Contents/MacOS on Intel Mac, with its containing folder and no required launch options. Review the program and start folder, add the game, then choose Play. Keep updates, settings07.cfg, demos, maps, skins and any storage.cfg paths with the installation you maintain. Removing its Portcove registration preserves external files. Managed installation, update, backup, rollback and data deletion are not offered.",
+        "original_game_title": "Teeworlds",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Add the Windows client to Portcove",
+              "instruction": "After extracting the complete official Windows x64 ZIP, select teeworlds.exe and its containing folder. Keep the data folder and the accompanying files together. Leave launch options empty, review the details, and add the game. Choose Play separately. teeworlds_srv.exe is the dedicated server, not the client."
+            },
+            {
+              "title": "Add the Linux client to Portcove",
+              "instruction": "Select the teeworlds client from your complete Linux x64 package and use its containing folder as the start folder. A distribution package normally installs it at /usr/games/teeworlds; install its data package and dependencies through the same package manager. Leave launch options empty. Update the installation through upstream or your package manager. The separate community Flathub client is available on Linux x64 and ARM64; install and update that copy through Flatpak rather than selecting a Flatpak launcher as a native executable."
+            },
+            {
+              "title": "Add the Intel Mac client to Portcove",
+              "instruction": "Copy the complete Teeworlds.app from the publisher disk image into Applications and open it normally once. In Portcove, select /Applications/Teeworlds.app/Contents/MacOS/teeworlds, use its containing folder as the start folder, and leave launch options empty. Keep the complete app bundle together. Teeworlds Server.app is a separate dedicated server. The later teeworlds.exe choice applies to Windows; Mac uses the native file inside Teeworlds.app. The bundled 0.7.5 Intel runtime requires macOS 10.13 or later; Portcove has its own system requirements."
+            },
+            {
+              "title": "Play and record a match",
+              "instruction": "The Teeworlds 0.7 client connects to Teeworlds 0.7 servers. In a match, press F1 and enter record followed by a demo name. Enter stoprecord to finish, then open the recording from Demos."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select teeworlds.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "Before moving your setup, close the game and copy the data folder with settings07.cfg, demos, custom maps, and any skins you want to keep."
+          ],
+          "references": [
+            {
+              "title": "Find your data folder",
+              "instruction": "The defaults are %APPDATA%/Teeworlds on Windows, ~/Library/Application Support/Teeworlds on Mac, and ~/.local/share/teeworlds on Linux. On Linux, the game prefers an existing ~/.teeworlds folder or uses $XDG_DATA_HOME/teeworlds if XDG_DATA_HOME is set. For the Flathub installation, check ~/.var/app/com.teeworlds.Teeworlds/.teeworlds. If you changed storage.cfg, use its save location."
+            },
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: Windows %APPDATA%/Teeworlds settings07.cfg, demos, maps and skins; Linux ~/.local/share/teeworlds, existing ~/.teeworlds or $XDG_DATA_HOME/teeworlds; Intel Mac ~/Library/Application Support/Teeworlds and any storage.cfg save path; the save location selected by storage.cfg, and any custom maps or skins kept with the installation. Back up these locations separately; registration does not migrate or certify their compatibility."
+            }
+          ],
+          "help_url": "https://www.teeworlds.com/?page=docs"
+        },
+        "artwork": {
+          "game_id": 35005,
+          "cover_id": 89927,
+          "image_id": "co1xdz",
+          "image_sha256": "9840d3ed36554a134ffe65d14ff3abda17fa38f8770a322fabf40f7e116d97e7",
+          "game_slug": "teeworlds",
+          "match_kind": "underlying-game"
         }
       }
     },

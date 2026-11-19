@@ -53,7 +53,14 @@ const formatted = existing.filter((file: string) => file.endsWith(".md"));
 if (process.argv[2] === "--prerequisites") {
   console.log(`frontend_dependencies=${formatted.length > 0}`);
 } else {
-  checkDocumentLinks(projectRoot, files);
+  // A renamed heading or removed target can break links in untouched documents.
+  const markdown = execFileSync("git", ["ls-files", "-z", "--", "*.md"], {
+    cwd: projectRoot,
+    encoding: "utf8",
+  })
+    .split("\0")
+    .filter(Boolean);
+  checkDocumentLinks(projectRoot, markdown);
   if (formatted.length > 0) {
     let cli;
     try {

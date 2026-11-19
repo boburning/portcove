@@ -1,10 +1,11 @@
 # Catalog policy
 
-Start with [Integration ownership](#integration-ownership) for the management
-boundary and [Adding or changing a port](#adding-or-changing-a-port) for per-ID
-authoring. The [definition contract](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation)
-owns engine negotiation; detailed port examples and dated receipts below retain
-their original scope and do not establish another port's admission or support.
+Read [Integration ownership](#integration-ownership) to find who manages a
+port. If you need to edit an individual port record, read
+[Adding or changing a port](#adding-or-changing-a-port). Use the
+[definition contract](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation)
+to learn how clients choose supported adapters. Apply each example and dated
+test result only to the port and scope it covers.
 
 ## Implementation methods and shared dependencies
 
@@ -830,6 +831,12 @@ release links, hints and artwork enrichment do not resolve either condition.
 
 For an upstream-owned route, optional listing `download_asset_hints` maps a host
 platform to one through eight bounded, case-insensitive literal filename fragments.
+An authored `listing_inherit_asset_hints` array can reuse the same record's reviewed
+GitHub selectors for named managed platforms, provided the public project and
+release scope and selected channel agree. Keep literal overrides for distinct
+upstream packages and additional descriptive platforms. An explicit empty
+`download_asset_hints` map suppresses inheritance. This projection only supplies
+descriptive selectors.
 Optional `recommended_download_channel` selects `stable` or `beta` for the initial
 download lookup, for example when the reviewed player is published as a preview.
 A player's explicit saved channel or release takes precedence. For a genuinely
@@ -852,6 +859,11 @@ or platform fragments do not override its exclusion. Symbols, source,
 checksum files, foreign platforms and processor mismatches remain excluded from
 recommendations. Explain the actual upstream setup and its update/data owner in
 the authored guide; downloading an installer never runs it.
+
+An extensionless native Linux executable can be recommended as a direct file
+when the reviewed hint names the entire asset and its filename identifies Linux.
+The existing processor checks still apply. Keep the author's setup instructions
+for making the file executable and preparing original game files.
 
 A ready native archive with reviewed disposable runtime writes may instead fit
 the existing `staged-source-portable` adapter; it does not require a source
@@ -1035,8 +1047,8 @@ host preference. Core compares the SHA-1 or SHA-256 and size it already
 observed for the selected files with the DAT entries and reports the matching
 entry name beside the catalog result, for example to say a rejected file is the
 Europe dump. A DAT file must list a size to match. An entry is complete only
-when every file that has a SHA-1 or SHA-256 and isn't a cue or gdi descriptor
-matches; CRC32- or MD5-only files can't be compared and don't count. A disc
+when every file that has a SHA-1 or SHA-256 and is not a cue or gdi descriptor
+matches; CRC32- or MD5-only files cannot be compared and do not count. A disc
 whose data track alone was checked stays partial, and the report says so. The match is informational: it never changes classification,
 admission, registration or a contract result, and a catalog identity does not
 depend on any DAT. Portcove saves a fingerprinted path, never a copy, makes no
@@ -1984,8 +1996,8 @@ the player or selected upstream launcher. Only launch and registration removal
 are offered; external installation, save and settings files remain untouched by
 removal. The launched program can make its normal writes; this is no sandbox. The
 [ECWolf reference](reference/ecwolf.md) records an official-package example with
-separate non-owning Windows/Linux registration, upstream Mac/Android setup and
-external data locations.
+non-owning Windows/Linux/Intel Mac/Apple Silicon registration, separate Android
+setup and external data locations.
 
 Supervision and launch results describe the selected native program; only a
 definition with the reviewed Windows tracked handoff also waits for in-folder
@@ -2693,7 +2705,7 @@ blocker.
 
 ## Channels, support, and qualification
 
-Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+Keep upstream tag names in catalog evidence. Use the [game channel vocabulary and serialized values](CLI.md#release-channels) when authoring a record.
 
 Stable, Preview, and Rolling are user-selected release channels, not qualification
 claims. Preview is the human label for the unchanged `beta` machine value. An entry may offer Preview or Rolling, be platform-limited, lack qualification
@@ -3002,6 +3014,11 @@ publication are unclaimed. Exact identities and boundaries are recorded in the
 
 ## Adding or changing a port
 
+Start with [the authoring steps](#author-a-port-record), choose a
+[reusable route](#choose-a-reusable-authoring-route), then
+[regenerate and check the projections](#regenerate-catalog-projections).
+The [Doom 3 Classic record](../crates/portcove-core/catalog/ports/doom-3-classic-dhewm3.json)
+shows a managed integration with verified original files.
 On an integrated record, `integration.platforms` owns managed platform
 eligibility. Use `listing.platforms` only for additional platforms where
 independent upstream package evidence applies. Declare each platform once.
@@ -3304,6 +3321,8 @@ definition and can still fail pre-launch integrity after these files appear;
 the new catalog does not silently rewrite its admitted manifest. Preserve that
 install and its data until a reviewed recovery or clean reinstall is completed.
 
+### Author a port record
+
 The procedure below describes the current repository workflow. The completed
 [#245](https://github.com/boburning/portcove/issues/245) design is a foundation;
 future protected publication remains owned by
@@ -3377,13 +3396,17 @@ retained and pending listing projections. Comparison is exact: extra queries,
 fragments, download paths and foreign repositories need their own reviewed URL.
 This navigation rule grants no package acquisition, registration or launch action.
 
+### Choose a reusable authoring route
+
 Optional authoring-only `route_facts_v1` supplies a bounded Windows prepared
 player basename, executable-parent working folder, literal argument vector and
-actual external data locations. An existing NativePortable GitHub integration
-without a Core source binding may additionally supply one managed preparation action and exceptional
-warnings; its executable must agree with the operational declaration. An absent
-Core source profile is not evidence that no original files are required: keep
-upstream preparation and original-file ownership explicit. Common
+actual external data locations. For a NativePortable GitHub integration, managed
+facts can supply one preparation action and exceptional warnings. The executable
+must match the operational declaration. Specify either no Core source binding,
+or a source profile with a nonempty `runtime_source_set` and explicit
+`integration.presentation.manual_setup`. [Doom 3 Classic](../crates/portcove-core/catalog/ports/doom-3-classic-dhewm3.json)
+shows the verified-originals form. Describe the upstream originals and how the
+player supplies them in either form. Common
 registration/ownership/removal, declared managed preservation and rollback
 explanations come from `scripts/catalog-route-facts.mts`. Bespoke guide actions,
 source/edition requirements and immediate warnings remain explicit. A staged-source
@@ -3638,6 +3661,8 @@ hash and scope; a genuinely different repository or selected-player contract
 still needs newly applicable evidence. Changes to either shared authoring module
 select the existing generator's actual output-integrity check in local/hosted CI.
 
+### Describe the game and its artwork
+
 Optional listing `original_game` is a version-1 descriptive identity: an explicitly
 reviewed stable `id`, one to eight public HTTPS `evidence_urls`, and up to sixteen
 `source_editions`. Each edition has its own stable `id`, descriptive `title`,
@@ -3716,6 +3741,8 @@ requests do not establish absence or withdrawal. Preparation proposes remote URL
 provenance, hashes and provider terms; it grants no admission, signing, publication
 or permission to bundle/export image payloads. `LicenseRef-IGDB-Terms` identifies
 provider access terms, not a permissive copyright license.
+
+### Regenerate catalog projections
 
 `node scripts/generate-catalog.mts` deterministically assembles these sources into
 the embedded `catalog.json` and `listings.json`, plus the generated route-enrollment
@@ -4307,7 +4334,10 @@ adds no managed GitLab authority and leaves unsupported package layouts incomple
 Authored availability remains attributable. An explicit availability override
 requires its reason and takes display precedence. Otherwise accepted observations
 show package candidates or release assets with their provenance, original fact
-clock, expiry and complete/incomplete/unavailable/failed attempt state. An empty
+clock, expiry and complete/incomplete/unavailable/failed attempt state. Discover
+uses the same assessment for rank and detail. Only a fresh complete observation
+with a recognized package platform can raise a listing's rank over its authored
+availability. An empty
 or incomplete bounded window never means source-only, unsupported or unavailable
 upstream. Provider digest claims remain unverified. The renderer does not query
 providers, update action permissions or rewrite acquisition links.

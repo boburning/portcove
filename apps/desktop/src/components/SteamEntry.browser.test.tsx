@@ -237,6 +237,54 @@ it("selects an explicit discovered profile and clears it when the installation c
   expect(document.body.textContent).not.toContain(review.shortcuts_path);
 });
 
+it.each(["single", "batch"] as const)(
+  "offers discovered installation paths in the %s shortcut flow before profile selection",
+  async (flow) => {
+    const custom = "D:\\Games\\Steam";
+    const flatpak = "/home/player/.var/app/com.valvesoftware.Steam/.local/share/Steam";
+    const discover = vi
+      .spyOn(desktopApi, "discoverSteamClientRoots")
+      .mockResolvedValue([custom, flatpak]);
+    const profiles = vi.spyOn(desktopApi, "listSteamProfiles").mockResolvedValue(["12345"]);
+    await root.rerender(
+      flow === "single" ? (
+        <SteamEntryDialog port={port} generation={7} installed close={vi.fn()} />
+      ) : (
+        <SteamBatchEntryDialog ports={[port]} generation={7} close={vi.fn()} />
+      ),
+    );
+    await click("Find Steam installations");
+    expect(discover).toHaveBeenCalledExactlyOnceWith(7);
+    const rootInput = page.getByLabelText("Steam installation folder");
+    const profileInput = page.getByLabelText("Steam profile ID");
+    await expect.element(rootInput).toHaveValue("");
+    await click(custom);
+    await expect.element(rootInput).toHaveValue(custom);
+    await expect.element(profileInput).toHaveValue("");
+    expect(profiles).not.toHaveBeenCalled();
+    await click("Find local profiles");
+    expect(profiles).toHaveBeenCalledExactlyOnceWith(custom, 7);
+    await click("12345");
+    await expect.element(profileInput).toHaveValue("12345");
+    await click(flatpak);
+    await expect.element(rootInput).toHaveValue(flatpak);
+    await expect.element(profileInput).toHaveValue("");
+  },
+);
+
+it("keeps manual Steam selection available when discovery has no results", async () => {
+  vi.spyOn(desktopApi, "discoverSteamClientRoots").mockResolvedValue([]);
+  await root.rerender(<SteamEntryDialog port={port} generation={7} installed close={vi.fn()} />);
+  await click("Find Steam installations");
+  await expect
+    .element(page.getByText(/No local Steam installations with profiles found/))
+    .toBeVisible();
+  await input("Steam installation folder", "/custom/Steam");
+  await expect
+    .element(page.getByLabelText("Steam installation folder"))
+    .toHaveValue("/custom/Steam");
+});
+
 it("does not show discovery results after the installation changes", async () => {
   let resolveProfiles: (profiles: string[]) => void = () => {};
   vi.spyOn(desktopApi, "listSteamProfiles").mockImplementation(

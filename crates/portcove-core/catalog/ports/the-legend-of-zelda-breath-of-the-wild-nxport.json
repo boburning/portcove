@@ -3,7 +3,7 @@
   "listing": {
     "id": "the-legend-of-zelda-breath-of-the-wild-nxport",
     "name": "The Legend of Zelda: Breath of the Wild (nxport)",
-    "summary": "An experimental nxport Switch builder for The Legend of Zelda: Breath of the Wild, using an Apple Silicon NVN compatibility layer with game-specific support. The project is still working toward playable progress. The exact version is unconfirmed. There is no release package: clone and build nxport-builder, choose this game’s profile and the Mac or iOS target, then build a local app or IPA. You and the project manage preparation and rebuilding. Use your own extracted ExeFS/RomFS/Logo. Exact accepted version, region and title ID are unconfirmed. Windows and Linux players are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "The nxport team is still working toward playable Breath of the Wild on Apple devices. The source builder can create a Mac or iOS app from your own extracted Switch game. There is no release package or confirmed playable game version.",
     "original_game_title": "The Legend of Zelda: Breath of the Wild",
     "project_url": "https://github.com/nxporting/nxport",
     "listed_at": "2026-10-25",
@@ -18,7 +18,27 @@
       "game_slug": "the-legend-of-zelda-breath-of-the-wild",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2972
+    "issue_number": 2972,
+    "manual_setup": {
+      "help_url": "https://github.com/nxporting/nxport",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Provide your own extracted ExeFS, RomFS and Logo. The project has not confirmed a supported game version, region or title ID."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Build nxport-builder from source, choose the Breath of the Wild profile and select Mac or iOS to produce a local app or IPA. You handle the resulting build and any updates."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The builder targets Apple silicon. There is no confirmed Windows or Linux player."
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -1,19 +1,18 @@
 # Contributing
 
-Keep shared acquisition, transactions, persistence and lifecycle behavior in
-core, the catalog declarative where possible, and the CLI stable for external
-frontends. A small title-specific core adapter is acceptable when catalog data
-or an existing shared adapter cannot express a useful bounded integration.
-Avoid game-specific policy in the CLI or React app.
+Keep shared download, transaction, storage, and lifecycle rules in Core. Describe
+port facts in the catalog when you can. Keep the CLI stable for external clients.
+If catalog data and existing adapters cannot describe the integration, use a
+small Core adapter for that game. Keep game-specific policy out of the CLI and
+React app.
 
-External clients integrate through the supported CLI rather than Portcove's
-database, private Rust APIs, or desktop state. Before proposing a frontend,
-exporter, or plugin, read [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md), identify
-the recurring problem that remains after the generic CLI route, and state its
-capability level, maintenance owner/category, supported environments, evidence,
-and limitations. A reference example is not automatically a supported
-production plugin, and frontend availability does not expand Portcove's platform
-support.
+External clients use the supported CLI. Keep the database, private Rust APIs,
+and desktop state private. Before you propose a frontend, exporter, or plugin,
+read [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md). Name the recurring problem the
+CLI leaves open. State the capability level, who maintains it, its maintenance
+category, supported environments, evidence, and limits. Check each
+integration's support status separately. A frontend follows the same
+Portcove platform limits.
 
 ## Start with the roadmap
 
@@ -41,8 +40,10 @@ Both intake paths preserve existing parent relationships and leave unparented
 issues unparented. Project membership defines the complete port inventory.
 Durable Port records stay in Port Pipeline; native children contribute to a
 finite parent completion rather than grouping all consumers of an adapter.
-Use Port Pipeline for the full inventory and Active Port Work for unfinished,
-non-deferred work. Neither intake path grants catalog support.
+Use **Port Pipeline** for the full inventory. To pick up a ready Now or Next
+item, open **Next Queue** and look for **Ready**. **Active Port Work** shows
+non-Watchlist Now or Next ports that are In progress, Validating or Blocked.
+Intake records the project and its evidence independently of catalog support.
 
 Keep the same canonical port issue across upstream releases. Close completed
 work and retain its Project item; Status and Port stage describe independent

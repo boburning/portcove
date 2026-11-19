@@ -7,8 +7,8 @@
     "original_game_title": "Amped 2",
     "project_url": "https://github.com/bertibertig/Amped2-Recomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["linux-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/bertibertig/Amped2-Recomp",
     "artwork": {
       "game_id": 5725,
@@ -18,7 +18,21 @@
       "game_slug": "amped-2",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2626
+    "issue_number": 2626,
+    "release_url": "https://github.com/bertibertig/Amped2-Recomp/releases/tag/v0.2.0",
+    "download_asset_hints": {
+      "linux-x86-64": ["Amped2-Recomp", "linux-x86_64.tar.gz"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/bertibertig/Amped2-Recomp/blob/v0.2.0/README.md",
+      "steps": [
+        {
+          "title": "Play the experimental Linux release",
+          "instruction": "Use glibc 2.39 or later, SDL2 and a Vulkan driver. Extract the Linux tarball. Put your complete supported PAL Xbox disc files under game_files/ with default.xbe directly in that folder. Run ./run.sh from the extracted package. Run ./run.sh --settings to open graphics settings. Linux saves and cache live under ~/.local/share/xboxrecomp, while settings live in ~/.config/amped2-recomp/settings.ini. Preserve those paths and your original files when replacing the upstream package."
+        }
+      ],
+      "warnings": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
