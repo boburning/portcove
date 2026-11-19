@@ -191,6 +191,15 @@ it("shows scoped launch stages beside the matching port in Discover", async () =
   await userEvent.keyboard("{Enter}");
   await expect.element(artifact).toBeVisible();
   await expect.element(details).toHaveFocus();
+  const summary = details.element();
+  const hashBody = fixtureValue(artifact.element().closest("p"), "expanded checksum");
+  const outline = getComputedStyle(summary);
+  expect(outline.outlineStyle).not.toBe("none");
+  const outlineBottom =
+    summary.getBoundingClientRect().bottom +
+    Number.parseFloat(outline.outlineWidth) +
+    Number.parseFloat(outline.outlineOffset);
+  expect(hashBody.getBoundingClientRect().top).toBeGreaterThanOrEqual(outlineBottom);
   await captureLaunchNotice("artifact-details");
   await userEvent.keyboard("{Enter}");
   await expect.element(artifact).not.toBeVisible();

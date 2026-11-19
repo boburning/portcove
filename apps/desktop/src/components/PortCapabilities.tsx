@@ -152,7 +152,7 @@ export function CapabilityNoticeScope({
           <summary className="cursor-pointer" data-focusable>
             {common("failure.viewDetails")}
           </summary>
-          <p className="mt-1 wrap-anywhere">{artifact}</p>
+          <p className="mt-2 wrap-anywhere">{artifact}</p>
         </details>
       )}
     </>
