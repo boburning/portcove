@@ -47,6 +47,25 @@
       "warnings": [
         "The publisher owns the packages and setup. PortMaster is a separate Linux handheld route."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "crusader-no-remorse",
+      "evidence_urls": [
+        "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/blob/v1.41.2/README.md#running-the-game",
+        "https://github.com/sebsebseb1982/crusader-no-remorse-decomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/crusader-no-remorse-sebsebseb1982-sdl-port.json"
+      ],
+      "source_editions": [
+        {
+          "id": "crusader-no-remorse-pc",
+          "title": "Crusader: No Remorse (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/crusader-no-remorse-sebsebseb1982-sdl-port.json"
+          ]
+        }
+      ]
     }
   }
 }

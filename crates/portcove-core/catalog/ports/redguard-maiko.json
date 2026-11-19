@@ -8,7 +8,7 @@
     "summary": "Build a native Redguard player locally from the supported Glide executable in your own GOG or CD copy.",
     "project_url": "https://github.com/michidk/maiko",
     "listed_at": "2026-11-18",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "source-only",
     "release_url": "https://github.com/michidk/maiko/releases/tag/v1.1.0",
     "setup_url": "https://github.com/michidk/maiko/blob/v1.1.0/README.md#setup",

@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/ghost-in-the-shell-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/ghost-in-the-shell-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "ghost-in-the-shell-playstation",
+          "title": "Ghost in the Shell (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/ghost-in-the-shell-recomp/blob/f87a10922b1eeb537833961e6d37ec20cc445434/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

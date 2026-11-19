@@ -109,7 +109,9 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
             &crate::installed_contract::InstalledContract::capture(catalog, port_id)?,
         )?);
     }
-    Ok(serde_json::to_string(&catalog.authoritative_document())?)
+    Ok(serde_json::to_string(
+        &crate::installed_contract::legacy_retained_document(catalog, port_id, None),
+    )?)
 }
 
 fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
@@ -2774,21 +2776,22 @@ impl Library {
         record: &ExternalRuntimeRecord,
         retained_catalog: &Catalog,
     ) -> Result<()> {
-        self.register_external_runtime_finishing_setup(record, retained_catalog, None)
+        self.register_external_runtime_finishing_setup(record.clone(), retained_catalog, None)
+            .map(|_| ())
     }
 
     pub(crate) fn register_external_runtime_finishing_setup(
         &self,
-        record: &ExternalRuntimeRecord,
+        mut record: ExternalRuntimeRecord,
         retained_catalog: &Catalog,
         pending: Option<(&str, &str)>,
-    ) -> Result<()> {
+    ) -> Result<ExternalRuntimeRecord> {
         if retained_catalog.listing(&record.port_id).is_err() {
             return Err(PortcoveError::state(
                 "external runtime and retained port identities differ",
             ));
         }
-        check_external_preferences_binding(record, retained_catalog)?;
+        check_external_preferences_binding(&record, retained_catalog)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let existing: bool = transaction.query_row(
@@ -2809,24 +2812,26 @@ impl Library {
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .optional()?;
-        match (pending, pending_row.as_ref()) {
-            (None, None) => {}
+        record.setup_download = match (pending, pending_row.as_ref()) {
+            (None, None) => None,
             (Some((expected_id, expected_json)), Some((id, json)))
-                if id == expected_id && json == expected_json && record.user_selected.is_some() => {
+                if id == expected_id && json == expected_json && record.user_selected.is_some() =>
+            {
+                Some(serde_json::from_str::<crate::PendingSetupRecord>(json)?.into_setup_download())
             }
             _ => {
                 return Err(PortcoveError::conflict(
                     "pending setup changed after the selected executable was reviewed",
                 ));
             }
-        }
+        };
         transaction.execute(
             "INSERT INTO external_runtime_registrations
              (port_id, record_json, retained_catalog_json, registered_at)
              VALUES (?1, ?2, ?3, ?4)",
             params![
                 record.port_id,
-                serde_json::to_string(record)?,
+                serde_json::to_string(&record)?,
                 encode_external_catalog(retained_catalog, &record.port_id)?,
                 record.registered_at,
             ],
@@ -2843,7 +2848,7 @@ impl Library {
             }
         }
         transaction.commit()?;
-        Ok(())
+        Ok(record)
     }
 
     /// Replace location and freshly acknowledged preferences only. Preserve the
@@ -2995,7 +3000,12 @@ impl Library {
         match (pending, pending_row.as_ref()) {
             (None, None) => {}
             (Some((expected_id, expected_json)), Some((id, json)))
-                if user_selected && id == expected_id && json == expected_json => {}
+                if user_selected && id == expected_id && json == expected_json =>
+            {
+                record.setup_download = Some(
+                    serde_json::from_str::<crate::PendingSetupRecord>(json)?.into_setup_download(),
+                );
+            }
             _ => {
                 return Err(PortcoveError::conflict(
                     "pending setup changed after the replacement was reviewed",

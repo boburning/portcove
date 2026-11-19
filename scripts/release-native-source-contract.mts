@@ -16,6 +16,16 @@ export function nativeSourceDeclarationByteLimit(
   return pathname === nativeCompatibilitySourcePaths[2] ? 4 * 1024 * 1024 : 1024 * 1024;
 }
 
+export function readCliApiDeclaration(source: string): number {
+  const matches = [
+    ...source.matchAll(/^pub const API_SCHEMA_VERSION: u32 = ([1-9][0-9]{0,8});\r?$/gmu),
+  ];
+  const value = matches[0]?.[1];
+  if (matches.length !== 1 || value === undefined)
+    throw new Error("native CLI API declaration is absent or ambiguous");
+  return Number(value);
+}
+
 export function inspectNativeCompatibilitySources(raw: unknown) {
   if (
     !isRecord(raw) ||
@@ -54,9 +64,7 @@ export function inspectNativeCompatibilitySources(raw: unknown) {
       throw new Error("native source protocol declaration is invalid");
     return result;
   };
-  const api = integer(
-    constant(lib, /^pub const API_SCHEMA_VERSION: u32 = ([1-9][0-9]{0,8});\r?$/gmu),
-  );
+  const api = readCliApiDeclaration(lib);
   const minimum = integer(
     constant(lib, /^pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = ([1-9][0-9]{0,8});\r?$/gmu),
   );

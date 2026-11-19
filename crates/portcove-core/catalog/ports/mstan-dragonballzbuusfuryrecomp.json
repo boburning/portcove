@@ -53,7 +53,16 @@
         "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/README.md",
         "https://github.com/mstan/DragonBallZBuusFuryRecomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dragon-ball-z-buu-s-fury-game-boy-advance",
+          "title": "Dragon Ball Z: Buu's Fury (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/2fb36ed6e1b8d9872ef2d83846a34ad2e7efaed1/README.md"
+          ]
+        }
+      ]
     }
   },
   "gba_staged_archive_v1": {

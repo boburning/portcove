@@ -249,6 +249,18 @@ repository, issue comments or logs.
 node scripts/maintenance-store.mts status
 ```
 
+For local Neon credentials, pass the file and the variable explicitly. The
+file supplies only the selected variable and takes precedence over a
+process variable of the same name. Use the direct URL for maintenance store
+commands, including migrations, backup and restore. Once the maintenance
+schema is initialized, inventory commands can use the pooled URL for routine
+queries with the same options.
+
+```bash
+node scripts/maintenance-store.mts status --database-env-file .env.local --database-env DATABASE_URL_UNPOOLED
+node scripts/maintenance-inventory.mts handoffs --database-env-file .env.local --database-env DATABASE_URL
+```
+
 ```bash
 node scripts/maintenance-store.mts migrate
 ```
@@ -677,9 +689,11 @@ publication has been verified.
   the last 24 hours, that still retains its unexpired
   `upstream-observer-checkpoint-<config_sha256>-<run>-<attempt>` artifact. Gated
   push runs and runs whose export did not retain a snapshot are passed over.
-  - It is read through the maintained GitHub client (GET-only, at most 24
-    candidate runs and 32 requests) and the in-memory artifact transfer, bounded
-    by the observer's sixteen-MiB streaming snapshot limit.
+  - The maintained GitHub client reads up to 24 completed runs per producer
+    event and checks candidates newest-first, with at most 56 metadata GETs.
+    Push runs that handled admission only cannot displace the scheduled window.
+    The in-memory artifact transfer uses the observer's sixteen-MiB streaming
+    snapshot limit.
   - The configuration digest in the artifact name must equal the SHA-256 of
     `release/upstream-observer.json` at the run's head commit, which is how the
     workflow names its snapshot. The archive length and SHA-256 must match
@@ -718,12 +732,17 @@ publication has been verified.
     separate receipts. The JSON report's `managed_release_eligibility` uses
     the last 30 days of retained complete and partial collection observations.
     It counts each candidate published in that window once, using its latest
-    recorded state. A missing publication time is reported separately. Pending
-    age uses publication time. Publication-to-recorded-eligibility lag uses
-    the first retained eligible observation. Evidence can start partway through
-    the window. The report's existing source freshness and gaps still describe
-    coverage. Released-client availability, interventions, repairs, and cost
-    stay unknown until their receipts are available.
+    recorded state. The same window also counts candidates observed pending and
+    how many later had an eligible observation at a strictly later recording time.
+    Repeated observations and multiple transitions count once for each target.
+    A missing publication time is reported separately. Pending
+    age uses publication time. The report counts pending candidates whose latest
+    observation has no recorded hold reason. Publication-to-recorded-eligibility
+    lag uses the first retained eligible observation. The first and last retained
+    recording times show the observed span within the reporting window. The
+    report's source freshness and gaps still describe coverage. Released-client
+    availability, interventions, repairs, and cost stay unknown until their
+    receipts are available.
 - **Gaps:** a port is a fact only when every source serving it has completed
   with a policy for it. Otherwise the run is `partial` and the port is a gap:
   `held` (no observation source serves the port), `unobserved`

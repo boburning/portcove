@@ -6,7 +6,7 @@
     "summary": "An experimental Urban Chaos: Riot Response Windows port. The inspected Burner Edition 0.08 route uses upstream setup for your own supported original-Xbox ISO/XISO, then Play Burner Edition.exe with the complete package and portable GameData. Upstream owns preparation and runtime replacement. Co-op, HD HUD and broader campaign limits remain; Linux uses the Windows runtime through Proton. Portcove registers an independently permitted existing copy without certifying setup or gameplay.",
     "original_game_title": "Urban Chaos: Riot Response",
     "project_url": "https://github.com/linkssy2/UrbanChaosRiotResponseBurnerEdition",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/linkssy2/UrbanChaosRiotResponseBurnerEdition",
     "artwork": {
@@ -43,6 +43,26 @@
         {
           "title": "Preserve portable data and its original layout",
           "instruction": "Keep all of GameData, especially xbe-runtime, settings.toml, hdd profiles, imported game files, translations, optional voices, mods and learned shader caches. The 0.08 Play route uses portable GameData and does not fall back to the older AppData installation. Upstream setup owns any first-import legacy copy; registration does not recreate it. For upstream replacement, keep the old copy and copy your GameData beside the new complete launchers as upstream documents. Relink changed selected executable bytes after review."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "urban-chaos-riot-response",
+      "evidence_urls": [
+        "https://github.com/linkssy2/UrbanChaosRiotResponseBurnerEdition",
+        "https://github.com/linkssy2/UrbanChaosRiotResponseBurnerEdition/blob/935131bc2c01b3f4a78686541890f5f1f07d51fc/launcher/burner-xbe/README-release.txt",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/linkssy2-urbanchaosriotresponseburneredition.json"
+      ],
+      "source_editions": [
+        {
+          "id": "urban-chaos-riot-response-xbox",
+          "title": "Urban Chaos: Riot Response (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/linkssy2/UrbanChaosRiotResponseBurnerEdition/blob/935131bc2c01b3f4a78686541890f5f1f07d51fc/launcher/burner-xbe/README-release.txt",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/linkssy2-urbanchaosriotresponseburneredition.json"
+          ]
         }
       ]
     }

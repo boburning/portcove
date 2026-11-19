@@ -50,6 +50,27 @@
         }
       ]
     },
-    "download_block_reason": "Fresh acquisition of the selected Windows DimensionsRecomp player is held while the applicable permission or authorized-source basis for its statically translated LEGO Dimensions game-code component remains unresolved. The project MIT grant expressly covers the author’s code, not LEGO Dimensions or its data. Resume after reviewing an attributable basis for that component or a supported route excluding it. Independently permitted existing-copy instructions remain separate."
+    "download_block_reason": "Fresh acquisition of the selected Windows DimensionsRecomp player is held while the applicable permission or authorized-source basis for its statically translated LEGO Dimensions game-code component remains unresolved. The project MIT grant expressly covers the author’s code, not LEGO Dimensions or its data. Resume after reviewing an attributable basis for that component or a supported route excluding it. Independently permitted existing-copy instructions remain separate.",
+    "original_game": {
+      "format_version": 1,
+      "id": "lego-dimensions",
+      "evidence_urls": [
+        "https://github.com/NeverCookFirst/DimensionsRecomp/blob/a56de4245dbe2ea7f0d7aa6fb7637ebc29a3bed7/README.md",
+        "https://github.com/NeverCookFirst/DimensionsRecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/nevercookfirst-dimensionsrecomp.json"
+      ],
+      "source_editions": [
+        {
+          "id": "lego-dimensions-xbox-360",
+          "title": "LEGO Dimensions (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/NeverCookFirst/DimensionsRecomp/blob/a56de4245dbe2ea7f0d7aa6fb7637ebc29a3bed7/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/nevercookfirst-dimensionsrecomp.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "LEGO Dimensions"
   }
 }

@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "dead-or-alive-xtreme-2",
       "evidence_urls": ["https://github.com/hibikifukui22/Dead-or-Alive-Xtreme-2-Recompilation"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dead-or-alive-xtreme-2-xbox-360",
+          "title": "Dead or Alive Xtreme 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/hibikifukui22/Dead-or-Alive-Xtreme-2-Recompilation/blob/eab2531cf93ba706a6d19f0e6643023f6830daf8/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

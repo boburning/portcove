@@ -6,7 +6,7 @@
     "original_game_title": "Super Smash Bros. Melee",
     "summary": "This public beta offers rollback, modding and Lua features. Full compatibility has not been confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/GurekamDhillon/gd-melee-workspace",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/GurekamDhillon/gd-melee-workspace",
     "manual_setup": {

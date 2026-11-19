@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "fighting-force-playstation",
+          "title": "Fighting Force (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp/blob/afbbbb061e831aa4c9a07ff64ef86ef9467a121a/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

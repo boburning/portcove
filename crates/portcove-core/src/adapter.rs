@@ -274,6 +274,7 @@ impl Adapter for StandardAdapter {
         }
         let executable = selected_executable.to_path_buf();
         let user_data = library.user_dir(&port.id);
+        crate::runtime_path_policy::check_user_data_root(port, platform, &user_data)?;
         let library_path = crate::path::unicode(library.root(), "library root")?;
         let user_data_path = crate::path::unicode(&user_data, "user data")?;
         let mut environment = BTreeMap::from([

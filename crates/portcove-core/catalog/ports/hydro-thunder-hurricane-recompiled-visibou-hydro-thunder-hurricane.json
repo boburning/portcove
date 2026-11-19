@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "hydro-thunder-hurricane",
       "evidence_urls": ["https://github.com/visibou/htrecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "hydro-thunder-hurricane-xbox-360",
+          "title": "Hydro Thunder Hurricane (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/visibou/htrecomp/blob/177a5fa713526e138b858cbccd2b7c8256485382/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

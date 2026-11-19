@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "fatal-fury-wild-ambition",
       "evidence_urls": ["https://github.com/omegakatana92/Fatal-Fury-Wild-Ambition-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "fatal-fury-wild-ambition-playstation",
+          "title": "Fatal Fury: Wild Ambition (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/omegakatana92/Fatal-Fury-Wild-Ambition-Recomp/blob/5b8d3d40a8bd35d4a6c4d9addad7468d1c8e9a0a/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

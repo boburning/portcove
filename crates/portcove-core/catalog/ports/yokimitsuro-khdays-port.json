@@ -6,7 +6,7 @@
     "summary": "The Windows installer builds Kingdom Hearts 358/2 Days locally from your own European Nintendo DS ROM. The installer also handles updates. Wireless multiplayer between two PCs remains untested.",
     "original_game_title": "Kingdom Hearts 358/2 Days",
     "project_url": "https://github.com/Yokimitsuro/khdays-port",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Yokimitsuro/khdays-port",
     "artwork": {
@@ -60,7 +60,16 @@
         "https://github.com/Yokimitsuro/khdays-port/blob/065a94b2a4c55b5217ffd023d8736af21e2d6851/README.md",
         "https://github.com/Yokimitsuro/khdays-port"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "kingdom-hearts-358-2-days-nintendo-ds",
+          "title": "Kingdom Hearts 358/2 Days (Nintendo DS)",
+          "system": "nintendo-ds",
+          "evidence_urls": [
+            "https://github.com/Yokimitsuro/khdays-port/blob/2037f79a171524eafcf40a1d641b16da14667a64/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

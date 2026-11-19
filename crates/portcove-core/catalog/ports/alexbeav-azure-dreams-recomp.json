@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "azure-dreams-playstation",
+          "title": "Azure Dreams (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp/blob/ae54f6e672da42649aa4995bd402c8f54504abfa/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

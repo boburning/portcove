@@ -4,9 +4,21 @@ use std::path::PathBuf;
 
 use sha2::{Digest, Sha256};
 
+mod build_runtime_policy;
+
 fn main() {
     write_cli_steam_exec_identity();
-    tauri_build::build()
+    tauri_build::build();
+    // Tauri sets TAURI_ENV_TARGET_TRIPLE during build(). Read the same effective
+    // configuration afterward so platform and TAURI_CONFIG overlays agree.
+    let source =
+        build_runtime_policy::windows_minimum_source(std::path::Path::new("tauri.conf.json"))
+            .expect("could not project the effective Tauri Windows runtime minimum");
+    let output = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo must provide OUT_DIR"));
+    write_if_changed(
+        &output.join("windows-runtime-minimum.rs"),
+        source.as_bytes(),
+    );
 }
 
 fn write_if_changed(path: &PathBuf, contents: &[u8]) {

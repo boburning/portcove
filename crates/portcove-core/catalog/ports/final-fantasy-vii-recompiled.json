@@ -32,7 +32,16 @@
       "format_version": 1,
       "id": "final-fantasy-vii",
       "evidence_urls": ["https://github.com/TechnicallyComputers/Final-Fantasy-VII"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "final-fantasy-vii-playstation",
+          "title": "Final Fantasy VII (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+          ]
+        }
+      ]
     }
   },
   "integration": {

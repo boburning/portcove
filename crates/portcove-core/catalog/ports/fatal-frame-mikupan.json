@@ -58,7 +58,16 @@
         "https://github.com/Mikompilation/MikuPan/blob/ec204d75441e98d8bd43ddd95cae744eb683f00c/README.md",
         "https://github.com/Mikompilation/MikuPan"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "fatal-frame-playstation-2",
+          "title": "Fatal Frame (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Mikompilation/MikuPan/blob/599b99feb41d205b10e5f4246c66e00f43aae458/README.md"
+          ]
+        }
+      ]
     }
   }
 }

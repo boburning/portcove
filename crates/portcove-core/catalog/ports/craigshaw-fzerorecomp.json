@@ -41,7 +41,16 @@
         "https://github.com/craigshaw/FZeroRecomp#readme",
         "https://github.com/craigshaw/FZeroRecomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "f-zero-super-nintendo",
+          "title": "F-Zero (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/craigshaw/FZeroRecomp/blob/5f37c22c7a2acef8b341545e9f2a4c5a4463990b/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

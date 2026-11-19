@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "armored-core-master-of-arena-playstation",
+          "title": "Armored Core: Master of Arena (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp/blob/d39c6cbae60acb545d52f99ad0b4509cf8ea3d5c/game.toml"
+          ]
+        }
+      ]
     }
   },
   "integration": {
@@ -86,50 +95,6 @@
       "windows-x86-64": ["Armored_Core_Master_of_Arena.exe"],
       "linux-x86-64": ["Armored_Core_Master_of_Arena"]
     },
-    "persistent_paths": [
-      "saves",
-      "settings.toml",
-      "settings.toml.bad",
-      "input.ini",
-      "keybinds.ini",
-      "config.ini",
-      "disc.cfg",
-      "bios.cfg",
-      "mods/installed",
-      "mods/packages",
-      "mods/.staging",
-      "mods/state.toml",
-      "mods/state.toml.tmp",
-      "mods/texture-packs",
-      "overlay-captures",
-      "overlay_captures.json",
-      "overlay_captures.json.d",
-      "overlay_captures.addendum.jsonl"
-    ],
-    "runtime_mutable_paths": [
-      "cache",
-      "psx_freeze_heartbeat.json",
-      "psx_freeze_heartbeat.json.tmp",
-      "psx_last_run_report.json",
-      "psx_cps_exit_trace.json",
-      "netplay_lan_lobby.txt",
-      "psx_crash.txt"
-    ],
-    "runtime_mutable_file_patterns": [
-      {
-        "prefix": "psx_freeze_dump_psx-runtime_",
-        "suffix": ".json"
-      },
-      {
-        "prefix": "overlay_captures.json.",
-        "suffix": ".tmp"
-      }
-    ],
-    "launch_environment": {
-      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
-    },
-    "launch_arguments": ["--no-launcher"],
-    "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
       "source_requirements": [
@@ -167,5 +132,6 @@
     "launch_disc_choice": "psx-settings-selected",
     "runtime_source_materialization": "psx-raw-set"
   },
-  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"]
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
+  "psx_managed_windows_v1": "split-mods"
 }

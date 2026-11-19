@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "ridge-racer-6",
       "evidence_urls": ["https://github.com/stuken/rr6"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "ridge-racer-6-xbox-360",
+          "title": "Ridge Racer 6 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/stuken/rr6/blob/bbb6cd9db9eb3b8a49d6e1492aa87797b896cfed/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

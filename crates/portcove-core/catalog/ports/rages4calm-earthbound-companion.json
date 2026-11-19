@@ -51,7 +51,16 @@
         "https://github.com/rages4calm/earthbound-companion/blob/5b147f42bfd17bc0aa97226beea70e5811b7c373/README.md",
         "https://github.com/rages4calm/earthbound-companion"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "earthbound-super-nintendo",
+          "title": "EarthBound (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/rages4calm/earthbound-companion/blob/0bf84bb2b80f1f7f3bc23101775a33140b7b7809/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

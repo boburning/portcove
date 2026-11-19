@@ -67,7 +67,16 @@
         "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "ace-combat-3-electrosphere-playstation",
+          "title": "Ace Combat 3: Electrosphere (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp/blob/6969f481fb52dd581c01efa331a434f0a902a685/game.toml"
+          ]
+        }
+      ]
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

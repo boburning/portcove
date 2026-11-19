@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "vagrant-story",
       "evidence_urls": ["https://github.com/mobius/psx-vagrantstory-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "vagrant-story-playstation",
+          "title": "Vagrant Story (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/mobius/psx-vagrantstory-recomp/blob/ee4843f849843ccfd3e8de0ff3cc0bbd8f26c6a5/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

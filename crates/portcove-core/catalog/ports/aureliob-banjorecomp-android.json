@@ -40,7 +40,16 @@
         "https://github.com/AurelioB/BanjoRecomp-Android/blob/android-v0.1.1/README.md",
         "https://github.com/AurelioB/BanjoRecomp-Android"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "banjo-kazooie-nintendo-64",
+          "title": "Banjo-Kazooie (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/AurelioB/BanjoRecomp-Android/blob/6b7852b0c9448e45360942ddb3a0f7e904ad2108/README.md"
+          ]
+        }
+      ]
     },
     "original_game_title": "Banjo-Kazooie"
   }

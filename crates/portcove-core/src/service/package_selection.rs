@@ -639,7 +639,7 @@ mod tests {
         for id in ["diablo-devilutionx", "diablo-hellfire-devilutionx"] {
             let listing = catalog.listing(id).unwrap();
             for (platform, expected) in [
-                (Platform::LinuxX86_64, 1u64),
+                (Platform::LinuxX86_64, 5u64),
                 (Platform::MacosX86_64, 2),
                 (Platform::MacosAarch64, 2),
             ] {
@@ -1042,7 +1042,7 @@ mod tests {
         );
         assert_eq!(
             recommend_packages(&assets[1..2], platform, &[], true).1,
-            Some(2_u64.into())
+            None
         );
         let windows = Platform::WindowsX86_64;
         let (assessments, recommended) = recommend_packages(

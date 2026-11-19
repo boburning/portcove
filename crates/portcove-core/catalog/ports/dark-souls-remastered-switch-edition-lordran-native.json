@@ -7,7 +7,7 @@
     "original_game_title": "Dark Souls",
     "project_url": "https://github.com/Nishikori-Yui/lordran-native",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Nishikori-Yui/lordran-native",
     "artwork": {

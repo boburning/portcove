@@ -1118,6 +1118,12 @@ void test("format four recovery restores an archive above eight MiB before cache
   assert.throws(() => readObserverSnapshotArchive(archive, config, Date.now(), Date.now() + 60000));
   f.artifact.size_in_bytes = archive.length;
   f.artifact.digest = `sha256:${digest(archive)}`;
+  // This fixture checks the transfer and checkpoint bytes. Deadline refusal
+  // has dedicated tests, and local CPU scheduling must not age this fixture.
+  const recoveryTime = Date.now();
+  const transportTime = performance.now();
+  t.mock.method(Date, "now", () => recoveryTime);
+  t.mock.method(performance, "now", () => transportTime);
   let downloads = 0;
   const signed =
     "https://productionresultssa1.blob.core.windows.net/actions-results/observer?sig=inert";

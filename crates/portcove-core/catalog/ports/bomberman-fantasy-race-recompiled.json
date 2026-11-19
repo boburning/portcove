@@ -31,7 +31,16 @@
       "format_version": 1,
       "id": "bomberman-fantasy-race",
       "evidence_urls": ["https://github.com/TechnicallyComputers/Bomberman-Fantasy-Race-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "bomberman-fantasy-race-playstation",
+          "title": "Bomberman Fantasy Race (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+          ]
+        }
+      ]
     }
   },
   "integration": {

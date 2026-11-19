@@ -51,7 +51,16 @@
         "https://github.com/urxp/dRally/blob/v0.2/README.md",
         "https://github.com/urxp/dRally"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "death-rally-pc",
+          "title": "Death Rally (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/urxp/dRally/blob/920d85a7f3c3b95abb685bc26b5f6d67a2f4b982/README.md"
+          ]
+        }
+      ]
     }
   }
 }

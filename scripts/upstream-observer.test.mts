@@ -811,14 +811,30 @@ void test("budgets, malformed metadata, cache corruption and repository drift fa
       { ...config, budget: { ...config.budget, requests: 2 } },
       { fetch: fixture().fetch },
     ),
-    (error: unknown) => error instanceof ObservationFailure && error.rule === "budget",
+    (error: unknown) =>
+      error instanceof ObservationFailure &&
+      error.rule === "budget" &&
+      error.message === "observation request count exhausted",
   );
   await assert.rejects(
     observeUpstream(
       { ...config, budget: { ...config.budget, response_bytes: 1 } },
       { fetch: fixture().fetch },
     ),
-    (error: unknown) => error instanceof ObservationFailure && error.rule === "budget",
+    (error: unknown) =>
+      error instanceof ObservationFailure &&
+      error.rule === "budget" &&
+      error.message === "provider response exceeds the per-response byte limit",
+  );
+  await assert.rejects(
+    observeUpstream(
+      { ...config, budget: { ...config.budget, total_bytes: 1 } },
+      { fetch: fixture().fetch },
+    ),
+    (error: unknown) =>
+      error instanceof ObservationFailure &&
+      error.rule === "budget" &&
+      error.message === "provider response byte budget exhausted",
   );
   const malformed = fixture();
   incrementFixtureId(malformed.replies.get(root).body);

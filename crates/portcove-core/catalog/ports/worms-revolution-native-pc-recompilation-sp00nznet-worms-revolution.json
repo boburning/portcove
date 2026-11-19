@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "worms-revolution",
       "evidence_urls": ["https://github.com/sp00nznet/wormsrevolution"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "worms-revolution-xbox-360",
+          "title": "Worms Revolution (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/wormsrevolution/blob/d1f43aa53eab1af000bd9dd9b2f668425375d784/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

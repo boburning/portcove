@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "tekken-dark-resurrection-psp",
       "evidence_urls": ["https://github.com/gasparegas/tkdr-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "tekken-dark-resurrection-psp-playstation-portable",
+          "title": "Tekken: Dark Resurrection (PSP) (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/gasparegas/tkdr-recomp/blob/588186e2859c76d0a93ec67f005114114cb21833/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

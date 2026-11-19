@@ -59,7 +59,16 @@
         "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "vigilante-8-playstation",
+          "title": "Vigilante 8 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp/blob/d57716e4d3b0f7ec401e92180cf4d0a24e98f149/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

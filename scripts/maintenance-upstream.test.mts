@@ -49,13 +49,19 @@ void test("rolling eligibility counts one candidate per target separately from c
       row("c", "2026-11-09T12:00:00.000Z", false, null),
       row("d", "2026-11-09T12:00:00.000Z", false, "2026-09-08T12:00:00.000Z"),
       row("e", "2026-11-12T12:00:00.000Z", true),
+      { ...row("f", "2026-11-10T20:00:00.000Z"), hold_reasons: [" "] },
+      row("f", "2026-11-10T19:00:00.000Z"),
     ],
     new Date(now),
   );
   assert.equal(result.first_recorded_evidence_at, "2026-11-09T12:00:00.000Z");
-  assert.equal(result.distinct_candidates, 2);
+  assert.equal(result.last_recorded_evidence_at, "2026-11-10T20:00:00.000Z");
+  assert.equal(result.distinct_candidates, 3);
   assert.equal(result.eligible_candidates, 1);
-  assert.equal(result.pending_candidates, 1);
+  assert.equal(result.pending_candidates, 2);
+  assert.equal(result.pending_without_recorded_hold_reason, 1);
+  assert.equal(result.observed_pending_candidates, 3);
+  assert.equal(result.observed_pending_to_eligible_candidates, 1);
   assert.equal(result.unknown_publication_times, 1);
   assert.equal(result.oldest_pending_age_ms, 216_000_000);
   assert.deepEqual(result.hold_reasons, [{ reason: "missing-digest", distinct_candidates: 1 }]);
@@ -68,6 +74,33 @@ void test("rolling eligibility counts one candidate per target separately from c
   assert.equal(result.human_interventions, null);
   assert.equal(result.signed_automatic_repairs, null);
   assert.equal(result.operating_cost, null);
+});
+
+void test("pending transitions require ordered evidence and count repeated changes once", () => {
+  const published = "2026-11-08T12:00:00.000Z";
+  const candidate = (id: string, date: string, state: "pending" | "eligible") => ({
+    candidate_key: id.repeat(64),
+    published_at: published,
+    recorded_at: date,
+    state,
+    hold_reasons: [],
+  });
+  const early = "2026-11-09T12:00:00.000Z";
+  const later = "2026-11-10T12:00:00.000Z";
+  const report = managedReleaseEligibilityWindow(
+    [
+      candidate("a", later, "pending"),
+      candidate("a", early, "eligible"),
+      candidate("b", later, "pending"),
+      candidate("b", later, "eligible"),
+      candidate("c", later, "eligible"),
+      candidate("c", early, "pending"),
+      candidate("c", later, "eligible"),
+    ],
+    new Date(now),
+  );
+  assert.equal(report.observed_pending_candidates, 3);
+  assert.equal(report.observed_pending_to_eligible_candidates, 1);
 });
 
 void test("upstream facts keep stable source facts and report coverage gaps", () => {
@@ -438,9 +471,10 @@ function observerRuns() {
         assert.equal(query.get("status"), "completed");
         // The provider filters by trigger; a foreign row is the provider's own error.
         return Promise.resolve({
-          workflow_runs: runs.filter(
-            (row) => row.event === query.get("event") || row.event === "workflow_dispatch",
-          ),
+          workflow_runs: runs
+            .filter((row) => row.event === query.get("event") || row.event === "workflow_dispatch")
+            .toSorted((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at))
+            .slice(0, Number(query.get("per_page"))),
         });
       }
       const listed = /^actions\/runs\/(\d+)\/artifacts\?per_page=100&page=1$/u.exec(endpoint);
@@ -501,6 +535,17 @@ void test("the newest qualifying schedule or push run is selected and bound", as
   assert.equal(input.config_sha256, observerConfigDigest);
   assert.deepEqual(input.checkpoint, newCatalogObserverCheckpoint());
   assert.deepEqual(input.catalog, { ...observerCatalog, listings: observerListings.listings });
+  assert.deepEqual(fixture.downloads, [`repos/boburning/portcove/actions/artifacts/${id}/zip`]);
+});
+
+void test("a full window of admission-only pushes cannot hide a scheduled snapshot", async () => {
+  const fixture = observerRuns();
+  const schedule = fixture.run(500, "schedule", 90);
+  const { id } = fixture.retain(schedule);
+  for (let minute = 1; minute <= 24; minute++) fixture.run(500 + minute, "push", minute);
+
+  const input = await fixture.read();
+  assert.match(input.revision, /^upstream-observer-run:500-1@/u);
   assert.deepEqual(fixture.downloads, [`repos/boburning/portcove/actions/artifacts/${id}/zip`]);
 });
 

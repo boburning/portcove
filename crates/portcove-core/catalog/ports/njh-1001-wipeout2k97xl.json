@@ -54,7 +54,16 @@
         "https://github.com/NJH-1001/Wipeout2K97XL/blob/464def7d7d95d46a548863475cdccee1e1ea31b3/README.md",
         "https://github.com/NJH-1001/Wipeout2K97XL"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "wipeout-xl-playstation",
+          "title": "Wipeout XL (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/NJH-1001/Wipeout2K97XL/blob/9d3fd26e392e4b8d195f06bcdc10731f8ac4b704/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods-openbios",

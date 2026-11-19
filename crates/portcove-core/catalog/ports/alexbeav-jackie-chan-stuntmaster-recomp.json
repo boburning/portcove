@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "jackie-chan-stuntmaster-playstation",
+          "title": "Jackie Chan Stuntmaster (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp/blob/9c60d7f7f683cdfe0f361a7762678c7283b2a263/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

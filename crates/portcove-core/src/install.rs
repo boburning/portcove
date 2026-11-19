@@ -21,6 +21,8 @@ use crate::{
     },
 };
 use futures_util::StreamExt;
+
+const LINUX_PACKAGED_LIBRARY_DIRECTORY: &str = "linux-libraries";
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -108,6 +110,7 @@ pub struct InstallQualification {
     /// so a rewrite never adds facts the original did not record.
     retained_acquisition: Option<crate::release::RecordedAcquisition>,
     shipped_settings_defaults: BTreeMap<String, crate::game_settings::ShippedDefault>,
+    retained_package_variant: Option<crate::ManagedPackageVariant>,
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
     requires_tar_xz: bool,
@@ -217,7 +220,11 @@ impl InstallQualification {
     ) -> Result<Self> {
         let mut qualification = Self::from_port(catalog.port(port_id)?, platform)?;
         qualification.retained_contract = Some(
-            crate::installed_contract::InstalledContract::capture(catalog, port_id)?,
+            crate::installed_contract::InstalledContract::capture_for_platform(
+                catalog,
+                port_id,
+                Some(platform),
+            )?,
         );
         Ok(qualification)
     }
@@ -268,6 +275,7 @@ impl InstallQualification {
             acquisition: None,
             retained_acquisition: None,
             shipped_settings_defaults: BTreeMap::new(),
+            retained_package_variant: None,
             retained_contract: None,
             platform,
             requires_tar_xz: port.release.requires_tar_xz(platform),
@@ -628,6 +636,8 @@ struct InstallManifest {
     artifact: ArtifactIdentity,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     github_artifact_identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    saved_package_variant: Option<crate::ManagedPackageVariant>,
     /// The uploader-continuity decision of the GitHub resolution this build came
     /// from, applied again before it becomes active (#6209).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1555,6 +1565,27 @@ impl Installer {
                 ));
             }
             package_shape = Some(shape);
+            if platform == Platform::LinuxX86_64
+                && let Some(library) = port.linux_packaged_library.as_deref()
+            {
+                let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
+                let working = request.qualification.runtime_root(&payload_root, &selected);
+                let sibling = working.join(library);
+                refuse_symlink_path_within(&payload_root, &sibling, "packaged Linux library")?;
+                if selected.parent() != Some(working.as_path())
+                    || !crate::permissions::is_platform_binary(&selected, platform)?
+                    || !crate::package_layout::is_elf_shared_library(
+                        &mut crate::external_runtime::open_single_link_file(&sibling)?,
+                    )?
+                {
+                    return Err(PortcoveError::verification(
+                        "the package needs its Linux x86-64 player and sibling library beside it",
+                    ));
+                }
+                let private = working.join(LINUX_PACKAGED_LIBRARY_DIRECTORY);
+                fs::create_dir(&private)?;
+                fs::rename(&sibling, private.join(library))?;
+            }
             if port.external_profile_policy == Some(crate::ExternalProfilePolicy::RecompDirectV1) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
                 let working_directory =
@@ -2806,6 +2837,69 @@ impl Installer {
         self.verify_critical_for(install, qualification, CriticalCheck::Launch)
     }
 
+    pub(crate) fn bind_linux_packaged_library(
+        &self,
+        install: &InstallRecord,
+        library: &str,
+        spec: &mut crate::LaunchSpec,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<()> {
+        let manifest = verified_manifest(install)?;
+        let directory = &spec.working_directory;
+        if manifest.platform != Some(Platform::LinuxX86_64)
+            || manifest.retained_contract.is_none()
+            || !directory.is_absolute()
+            || spec.executable.parent() != Some(directory)
+            || !directory.starts_with(&install.path)
+        {
+            return Err(PortcoveError::verification(
+                "packaged Linux libraries require the verified executable directory",
+            ));
+        }
+        let directory = directory.join(LINUX_PACKAGED_LIBRARY_DIRECTORY);
+        let path = directory.join(library);
+        refuse_symlink_path_within(&install.path, &path, "packaged Linux library")?;
+        for entry in fs::read_dir(&directory)? {
+            let entry = entry?;
+            if !entry.file_type()?.is_file() || entry.file_name() != library {
+                return Err(PortcoveError::verification(
+                    "the packaged Linux library directory contains an unexpected file or folder",
+                ));
+            }
+        }
+        let relative = manifest_relative(&install.path, &path)?;
+        let recorded = manifest
+            .files
+            .iter()
+            .find(|file| file.path == relative)
+            .filter(|_| !manifest_path_is_mutable(&manifest, &relative))
+            .ok_or_else(|| PortcoveError::verification("the packaged Linux library is missing"))?;
+        let mut digest = Sha256::new();
+        let size = crate::external_runtime::stream_single_link_metadata(
+            &path,
+            recorded.size,
+            checkpoint,
+            &mut |bytes| {
+                digest.update(bytes);
+                Ok(())
+            },
+        )?;
+        if size != recorded.size || hex::encode(digest.finalize()) != recorded.sha256 {
+            return Err(PortcoveError::verification(
+                "the packaged Linux library changed",
+            ));
+        }
+        let directory = crate::path::unicode(&directory, "packaged Linux library directory")?;
+        if directory.contains([':', ';', '$']) {
+            return Err(PortcoveError::launch(
+                "choose a library folder without colons, semicolons or dollar signs for this Linux package",
+            ));
+        }
+        spec.environment.insert("LD_LIBRARY_PATH".into(), directory);
+        spec.fixed_arguments_only = true;
+        Ok(())
+    }
+
     /// The same check before a managed update or version switch away from or
     /// back to this runtime (#5359 Tier 1). No process starts from it, so
     /// configuration beside the executable does not hold it either.
@@ -3113,6 +3207,7 @@ impl Installer {
         let mut adopted = qualification.clone();
         adopted.runtime_origin = RuntimeOrigin::AdoptedTree;
         adopted.shipped_settings_defaults.clear();
+        adopted.retained_package_variant = None;
         write_manifest(install_id, port_id, version, artifact, &adopted, root)
     }
 
@@ -3430,6 +3525,7 @@ impl Installer {
             adopted_tree: false,
             acquired_at: manifest.acquired_at.or(Some(install.installed_at)),
         });
+        qualification.retained_package_variant = manifest.saved_package_variant;
         Ok(qualification)
     }
 
@@ -3705,6 +3801,7 @@ mod legacy_dkr_tests {
             version: artifact.version.clone(),
             artifact: artifact_identity.clone(),
             github_artifact_identity: None,
+            saved_package_variant: None,
             uploader_continuity: None,
             acquisition_facts_recorded: false,
             acquired_at: None,
@@ -4213,6 +4310,11 @@ fn write_manifest_with_shape(
             .acquisition
             .as_ref()
             .and_then(|proof| proof.github_identity.clone()),
+        saved_package_variant: qualification
+            .acquisition
+            .as_ref()
+            .and_then(|proof| proof.saved_variant.clone())
+            .or_else(|| qualification.retained_package_variant.clone()),
         uploader_continuity: match &qualification.retained_acquisition {
             Some(retained) => retained.uploader_continuity.clone(),
             None => qualification
@@ -4487,6 +4589,21 @@ pub(crate) fn recorded_acquisition(
             .as_ref()
             .is_some_and(|runtime| runtime.origin == RuntimeOrigin::AdoptedTree),
     })
+}
+
+pub(crate) fn recorded_package_variant(
+    install: &InstallRecord,
+) -> Result<Option<crate::ManagedPackageVariant>> {
+    // Older registrations may lack all manifest identity. Their selection
+    // remains ordinary and does not gain a receipt retroactively.
+    if install.manifest_sha256.is_empty() {
+        return Ok(None);
+    }
+    let manifest = verified_manifest(install)?;
+    if let Some(variant) = &manifest.saved_package_variant {
+        variant.require_installed(install, manifest.platform)?;
+    }
+    Ok(manifest.saved_package_variant)
 }
 
 fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
@@ -6810,6 +6927,65 @@ mod tests {
         )
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn packaged_linux_library_binding_requires_a_clean_immutable_directory() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        let directory = root.join(LINUX_PACKAGED_LIBRARY_DIRECTORY);
+        fs::create_dir_all(&directory).unwrap();
+        let executable = root.join("devilutionx");
+        fs::write(&executable, b"inert fixture player").unwrap();
+        fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("diablo-devilutionx").unwrap();
+        let library = port.linux_packaged_library.as_deref().unwrap();
+        let sibling = directory.join(library);
+        fs::write(&sibling, b"reviewed library").unwrap();
+        let qualification =
+            InstallQualification::from_catalog(&catalog, &port.id, Platform::LinuxX86_64).unwrap();
+        let (installer, install) = create_test_install(&root, &qualification);
+        let spec = crate::LaunchSpec {
+            executable,
+            working_directory: root.clone(),
+            install_root: root,
+            arguments: port.launch_arguments.clone(),
+            environment: [("LD_LIBRARY_PATH".into(), "caller-path".into())].into(),
+            fixed_arguments_only: false,
+            launch_kind: crate::LaunchKind::Native,
+        };
+        let mut ready = spec.clone();
+        installer
+            .bind_linux_packaged_library(&install, library, &mut ready, &|| Ok(()))
+            .unwrap();
+        assert_eq!(
+            ready.environment["LD_LIBRARY_PATH"],
+            directory.to_str().unwrap()
+        );
+        assert!(ready.fixed_arguments_only);
+        assert_eq!(ready.arguments, spec.arguments);
+
+        let unexpected = directory.join("unrecorded-library");
+        fs::write(&unexpected, b"unexpected").unwrap();
+        assert!(
+            installer
+                .bind_linux_packaged_library(&install, library, &mut spec.clone(), &|| Ok(()))
+                .is_err()
+        );
+        fs::remove_file(unexpected).unwrap();
+
+        fs::write(&sibling, b"modified library").unwrap();
+        let mut refused = spec.clone();
+        assert!(
+            installer
+                .bind_linux_packaged_library(&install, library, &mut refused, &|| Ok(()))
+                .is_err()
+        );
+        assert_eq!(refused.environment, spec.environment);
+    }
+
     fn nested_executable_integrity_fixture() -> (
         tempfile::TempDir,
         Installer,
@@ -8250,6 +8426,129 @@ mod tests {
         installer
             .verify_import_contract(&install, &qualification)
             .unwrap_err();
+    }
+
+    #[test]
+    fn saved_native_package_choice_survives_manifest_refresh() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library_root = temporary.path().join("library");
+        let library = Library::open(&library_root).unwrap();
+        let platform = Platform::WindowsX86_64;
+        let id = "fragglet-sdl-sopwith";
+        let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == id)
+            .unwrap();
+        port.release
+            .asset_hints
+            .insert(platform, vec!["sopwith-".into(), "-win64.zip".into()]);
+        let executable = port.executable_hints[&platform][0].clone();
+        let catalog = crate::Catalog::from_document(document).unwrap();
+        let port = catalog.port(id).unwrap();
+        let root = library.versions_dir().join(id).join("saved-variant");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join(&executable), b"inert manifest fixture").unwrap();
+        let release = crate::ResolvedRelease {
+            version: "v1.2.3".into(),
+            channel: crate::ReleaseChannel::Stable,
+            published_at: None,
+            asset: ReleaseAsset {
+                name: "sopwith-1.2.3-win64.zip".into(),
+                url: "https://github.com/fragglet/sdl-sopwith/releases/download/v1.2.3/sopwith-1.2.3-win64.zip".into(),
+                size: 42,
+                sha256: "a".repeat(64),
+            },
+            uploader_continuity: None,
+        };
+        let artifact = ArtifactIdentity {
+            asset_name: release.asset.name.clone(),
+            sha256: release.asset.sha256.clone(),
+            size: release.asset.size,
+        };
+        let mut resolution = crate::ScopedResolvedRelease::legacy(release.clone())
+            .for_selection(port, platform, release.channel)
+            .unwrap();
+        assert!(crate::ManagedPackageVariant::from_review(port, platform, &resolution).is_none());
+        resolution.github_identity = Some(crate::definition_acquisition::GithubArtifactIdentity {
+            repository: port.release.repository.clone(),
+            repository_id: 7,
+            release_id: 12,
+            asset_id: 42,
+            tag: release.version.clone(),
+        });
+        let variant =
+            crate::ManagedPackageVariant::from_review(port, platform, &resolution).unwrap();
+        resolution.saved_variant = Some(variant.clone());
+        let ordinary = InstallQualification::from_catalog(&catalog, id, platform).unwrap();
+        let qualification = ordinary
+            .clone()
+            .with_acquisition_resolution(resolution)
+            .unwrap();
+        let (manifest_sha256, selected_executable, runtime) = write_manifest(
+            "saved-variant",
+            id,
+            &release.version,
+            &artifact,
+            &ordinary,
+            &root,
+        )
+        .unwrap();
+        let mut install = InstallRecord {
+            id: "saved-variant".into(),
+            port_id: id.into(),
+            version: release.version,
+            path: root.clone(),
+            channel: release.channel,
+            installed_at: 1,
+            verified: true,
+            staged: false,
+            artifact,
+            runtime,
+            manifest_sha256,
+            selected_executable,
+        };
+        assert_eq!(recorded_package_variant(&install).unwrap(), None);
+        let (digest, _, _) = write_manifest(
+            &install.id,
+            id,
+            &install.version,
+            &install.artifact,
+            &qualification,
+            &root,
+        )
+        .unwrap();
+        install.manifest_sha256 = digest;
+        assert_eq!(
+            recorded_package_variant(&install).unwrap().as_ref(),
+            Some(&variant)
+        );
+        let installer = Installer::new(library.clone()).unwrap();
+        let refreshed = installer
+            .refresh_verified_manifest(&install, &ordinary)
+            .unwrap();
+        assert_eq!(
+            recorded_package_variant(&refreshed).unwrap().as_ref(),
+            Some(&variant)
+        );
+        library.register_install(&refreshed, true).unwrap();
+        drop(installer);
+        drop(library);
+
+        let reopened = Library::open(library_root).unwrap();
+        let retained = reopened
+            .status(id, crate::ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap();
+        assert_eq!(
+            recorded_package_variant(&retained).unwrap().as_ref(),
+            Some(&variant)
+        );
+        let mut changed_channel = retained;
+        changed_channel.channel = crate::ReleaseChannel::Beta;
+        assert!(recorded_package_variant(&changed_channel).is_err());
     }
 
     #[test]

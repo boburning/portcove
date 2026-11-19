@@ -6,7 +6,7 @@
     "original_game_title": "Imabikisō",
     "summary": "Upstream reports the opening, first classroom narration, early saving and input. Most of the game remains untested. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/yasindevs/imabikisou-pc",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/yasindevs/imabikisou-pc",
     "manual_setup": {
@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "imabikiso",
       "evidence_urls": ["https://github.com/yasindevs/imabikisou-pc"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "imabikiso-playstation-3",
+          "title": "Imabikisō (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/yasindevs/imabikisou-pc/blob/9cb011b0459c26c2921f43d6374d3e6069611756/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

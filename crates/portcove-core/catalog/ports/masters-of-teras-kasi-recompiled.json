@@ -31,7 +31,16 @@
       "format_version": 1,
       "id": "star-wars-masters-of-teras-kasi",
       "evidence_urls": ["https://github.com/TechnicallyComputers/MastersOfTerasKasiRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "star-wars-masters-of-teras-kasi-playstation",
+          "title": "Star Wars: Masters of Teräs Käsi (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+          ]
+        }
+      ]
     }
   },
   "integration": {

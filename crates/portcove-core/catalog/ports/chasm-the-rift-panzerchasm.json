@@ -59,7 +59,16 @@
         "https://github.com/Panzerschrek/Chasm-Reverse",
         "https://github.com/Panzerschrek/Chasm-Reverse/tree/3f5ed23bba9bfdfade61b2aaff1bfa1edaa9769d"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "chasm-the-rift-pc",
+          "title": "Chasm: The Rift (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Panzerschrek/Chasm-Reverse/blob/f3a80d70ecde2e76ee07384fd47f889bd60e9615/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

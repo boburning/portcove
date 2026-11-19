@@ -54,7 +54,16 @@
         "https://github.com/kibertoad/chaos-overlords-new-chrome/blob/0.10.13/README.md",
         "https://github.com/kibertoad/chaos-overlords-new-chrome"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "chaos-overlords-pc",
+          "title": "Chaos Overlords (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/kibertoad/chaos-overlords-new-chrome/blob/b3b4009ebe9ecbb1d7ae4825a5e250d9ae7beb1b/README.md"
+          ]
+        }
+      ]
     }
   }
 }

@@ -25,7 +25,7 @@ const repository = "boburning/portcove";
 const workflowPath = ".github/workflows/configured-upstream-observer.yml";
 const checkpointMember = "catalog/checkpoint.json";
 // Most push runs are gated and never observe, so a day can hold many candidates.
-const candidateLimit = 24;
+const candidateLimitPerEvent = 24;
 // Bounded eight-MiB artifact decoding/validation can exceed sixty seconds on a
 // contended host. This finite CPU/harness budget does not extend provider reads.
 import { observerRecordBudgetMs } from "./observer-snapshot-records.mts";
@@ -177,9 +177,16 @@ export function managedReleaseEligibilityWindow(rows: readonly unknown[], now: D
   const end = now.getTime();
   const start = end - eligibilityWindowMs;
   let firstRecorded = Infinity;
+  let lastRecorded = -Infinity;
   const series = new Map<
     string,
-    { latest: RetainedCandidateObservation; recorded: number; eligibleAt: number | null }
+    {
+      latest: RetainedCandidateObservation;
+      recorded: number;
+      eligibleAt: number | null;
+      firstPendingAt: number;
+      lastEligibleAt: number;
+    }
   >();
   for (const row of rows) {
     if (
@@ -195,6 +202,7 @@ export function managedReleaseEligibilityWindow(rows: readonly unknown[], now: D
     const recorded = Date.parse(row.recorded_at);
     if (!(recorded >= start && recorded <= end)) continue;
     firstRecorded = Math.min(firstRecorded, recorded);
+    lastRecorded = Math.max(lastRecorded, recorded);
     const candidate: RetainedCandidateObservation = {
       state: row.state,
       published_at: typeof row.published_at === "string" ? row.published_at : null,
@@ -209,6 +217,14 @@ export function managedReleaseEligibilityWindow(rows: readonly unknown[], now: D
       latest: previous && previous.recorded > recorded ? previous.latest : candidate,
       recorded: Math.max(previous?.recorded ?? recorded, recorded),
       eligibleAt: eligibleTimes.length ? Math.min(...eligibleTimes) : null,
+      firstPendingAt: Math.min(
+        previous?.firstPendingAt ?? Infinity,
+        row.state === "pending" ? recorded : Infinity,
+      ),
+      lastEligibleAt: Math.max(
+        previous?.lastEligibleAt ?? -Infinity,
+        row.state === "eligible" ? recorded : -Infinity,
+      ),
     });
   }
   const recent = [...series.values()].filter(({ latest }) => {
@@ -223,18 +239,31 @@ export function managedReleaseEligibilityWindow(rows: readonly unknown[], now: D
     .filter((lag) => lag >= 0)
     .sort((left, right) => left - right);
   const reasons = new Map<string, number>();
-  for (const { latest } of held)
-    for (const reason of new Set(latest.hold_reasons))
-      reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+  let pendingWithoutReason = 0;
+  for (const { latest } of held) {
+    const recordedReasons = new Set(latest.hold_reasons.filter((reason) => reason.trim().length));
+    if (!recordedReasons.size) pendingWithoutReason++;
+    for (const reason of recordedReasons) reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+  }
   return {
     from: new Date(start).toISOString(),
     through: now.toISOString(),
     first_recorded_evidence_at: Number.isFinite(firstRecorded)
       ? new Date(firstRecorded).toISOString()
       : null,
+    last_recorded_evidence_at: Number.isFinite(lastRecorded)
+      ? new Date(lastRecorded).toISOString()
+      : null,
     distinct_candidates: recent.length,
     eligible_candidates: eligible.length,
     pending_candidates: held.length,
+    pending_without_recorded_hold_reason: pendingWithoutReason,
+    observed_pending_candidates: recent.filter(({ firstPendingAt }) =>
+      Number.isFinite(firstPendingAt),
+    ).length,
+    observed_pending_to_eligible_candidates: recent.filter(
+      ({ firstPendingAt, lastEligibleAt }) => firstPendingAt < lastEligibleAt,
+    ).length,
     unknown_publication_times: [...series.values()].filter(
       ({ latest }) => !latest.published_at || !Number.isFinite(Date.parse(latest.published_at)),
     ).length,
@@ -436,7 +465,7 @@ export interface UpstreamTransport {
 }
 
 /** The maintained GitHub client and artifact transfer under the local developer credential. */
-async function githubTransport(): Promise<UpstreamTransport> {
+async function githubTransport(producerEventCount: number): Promise<UpstreamTransport> {
   const { createGitHubClient } = await import("./github-client.mts");
   const { localDeveloperCredential } = await import("./github-cli.mts");
   const { downloadGitHubArtifactArchive } = await import("./github-artifact-download.mts");
@@ -457,7 +486,7 @@ async function githubTransport(): Promise<UpstreamTransport> {
       url.pathname.startsWith(`${prefix}/actions/`) &&
       !url.pathname.endsWith("/zip"),
     reserve() {
-      if (++requests > 2 + candidateLimit + 6)
+      if (++requests > producerEventCount * (1 + candidateLimitPerEvent) + 6)
         throw new MaintenanceStoreError("Upstream-observation lookup exceeded its request budget");
       return { consumeBytes() {}, settle() {} };
     },
@@ -490,16 +519,19 @@ export async function readUpstreamObservations(
     await import("./release-run-artifact-inventory.mts");
   const { producerEvents, observerStreamingSnapshotLimit, readRecoverableObserverSnapshotArchive } =
     await import("./observer-checkpoint-artifact.mts");
-  const transport = options.transport ?? (await githubTransport());
+  const transport = options.transport ?? (await githubTransport(producerEvents.length));
   const get = transport.read;
-  // One server-filtered window per producer trigger, merged newest-first.
+  // Keep each producer window. A burst of admission-only pushes must not
+  // displace a scheduled snapshot when the windows are merged newest-first.
   const runs: WorkflowRun[] = [];
   for (const event of producerEvents) {
     const window = (
       await get(
-        `actions/workflows/configured-upstream-observer.yml/runs?event=${event}&branch=main&status=completed&per_page=${candidateLimit}`,
+        `actions/workflows/configured-upstream-observer.yml/runs?event=${event}&branch=main&status=completed&per_page=${candidateLimitPerEvent}`,
       )
     ).workflow_runs as WorkflowRun[];
+    if (!Array.isArray(window) || window.length > candidateLimitPerEvent)
+      throw new MaintenanceStoreError("The observer run inventory exceeds its producer window");
     for (const run of window) {
       if (
         run.event !== event ||
@@ -514,9 +546,9 @@ export async function readUpstreamObservations(
   }
   runs.sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at));
   // Snapshots are retained for one day and admitted for twenty-four hours.
-  const candidates = runs
-    .filter(({ created_at }) => Date.now() - Date.parse(created_at) <= 24 * 3600000)
-    .slice(0, candidateLimit);
+  const candidates = runs.filter(
+    ({ created_at }) => Date.now() - Date.parse(created_at) <= 24 * 3600000,
+  );
   for (const run of candidates) {
     // A failed run can still carry a complete snapshot; other conclusions never do.
     if (!["success", "failure"].includes(String(run.conclusion))) continue;

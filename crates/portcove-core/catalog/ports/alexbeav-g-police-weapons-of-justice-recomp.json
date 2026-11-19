@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "g-police-weapons-of-justice-playstation",
+          "title": "G-Police: Weapons of Justice (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp/blob/a12950b697723f7d3568e340f1fa476705e5f644/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

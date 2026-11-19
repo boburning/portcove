@@ -9,6 +9,7 @@ import { isRecord } from "../../../scripts/runtime-values.mts";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { toolCachePaths } from "../../../scripts/tool-cache.mts";
+import { runDesktopModuleFixture } from "../../../scripts/fixtures/desktop-module-fixture.mts";
 
 void test("native Discover observations preserve separate exact ports without grouping by display title", () => {
   assert.deepEqual(decodeDiscoverPortIds('["render96ex","super-mario-64-sm64-co-op-dx"]'), [
@@ -237,4 +238,178 @@ void test("observer installation failure still runs the original interaction exa
   assert.match(result.installationFailure, /Controlled observer installation failure/);
   assert.equal(observationRecord(result.observation).available, false);
   assert.equal(fixture.isClosed(), true);
+});
+
+function clickDiagnosticFixture(program: string) {
+  return runDesktopModuleFixture(
+    new URL("./desktop-review-controls.mts", import.meta.url),
+    `
+    const {clickVisible} = await import(entry);
+    function fixture(failureStage, original, contextFailure) {
+      const calls = [];
+      const visit = (stage) => {
+        calls.push(stage);
+        if (stage === failureStage) throw original;
+      };
+      const element = {
+        async isDisplayed() { visit("visible"); return true; },
+        async isEnabled() { visit("enabled"); return true; },
+        async click() { visit("webdriver-click"); },
+      };
+      const browser = {
+        async wait(condition) {
+          const result = await (typeof condition === "function" ? condition() : condition.fn());
+          assert.equal(result, true, "Every interaction gate must pass");
+          return result;
+        },
+        async executeScript(script) {
+          const source = String(script);
+          if (source.includes("scrollContainers")) {
+            calls.push("context");
+            if (contextFailure) throw contextFailure;
+            return { target: "owned button", focused: "owned button", hit: "owned button" };
+          }
+          const stage = source.includes("getAnimations") ? "entrance"
+            : source.includes("focus(") ? "focus"
+            : source.includes("elementFromPoint") ? "pointer-target"
+            : source.includes(".click()") ? "dom-click" : "scroll";
+          visit(stage);
+          return true;
+        },
+      };
+      return { calls, element, browser };
+    }
+    function diagnostic(error) {
+      assert(error instanceof Error);
+      const line = error.message.split("\\n")[0];
+      assert(line.startsWith("Review interaction failed: "));
+      return JSON.parse(line.slice("Review interaction failed: ".length));
+    }
+    ${program}
+  `,
+  );
+}
+
+void test("native review clicks retain every gate and the requested dispatch without fallback", () => {
+  clickDiagnosticFixture(`
+    const gates = ["entrance", "focus", "scroll", "visible", "enabled", "pointer-target"];
+    for (const dispatch of ["webdriver", "dom"]) {
+      const f = fixture();
+      await clickVisible(f.browser, f.element, { dispatch });
+      assert.deepEqual(f.calls, [...gates, dispatch + "-click"]);
+    }
+  `);
+});
+
+void test("empty native click messages retain their error class, stage and original cause", () => {
+  clickDiagnosticFixture(`
+    const original = new Error("");
+    original.name = "ElementNotInteractableError";
+    const f = fixture("webdriver-click", original);
+    await assert.rejects(clickVisible(f.browser, f.element), error => {
+      assert.equal(error.cause, original);
+      assert.deepEqual(diagnostic(error), {
+        stage: "webdriver-click",
+        error: { type: "Error", name: "ElementNotInteractableError", name_truncated: false, message: "", message_truncated: false },
+      });
+      assert.match(error.message, /Review control: /);
+      return true;
+    });
+    assert.equal(f.calls.filter(stage => stage === "webdriver-click").length, 1);
+    assert.equal(f.calls.includes("dom-click"), false);
+  `);
+});
+
+void test("native click context failures cannot replace the primary rejection or its stage", () => {
+  clickDiagnosticFixture(`
+    const original = new Error("");
+    original.name = "ElementClickInterceptedError";
+    const secondary = new Error("The window closed while collecting context");
+    secondary.name = "NoSuchWindowError";
+    const f = fixture("webdriver-click", original, secondary);
+    await assert.rejects(clickVisible(f.browser, f.element), error => {
+      assert.equal(error.cause, original);
+      assert.equal(diagnostic(error).stage, "webdriver-click");
+      assert.equal(diagnostic(error).error.name, "ElementClickInterceptedError");
+      assert.match(error.message, /Review control unavailable: .*NoSuchWindowError/);
+      return true;
+    });
+    assert.equal(f.calls.filter(stage => stage === "context").length, 1);
+  `);
+});
+
+void test("native review failures identify each gate and never advance past a rejected gate", () => {
+  clickDiagnosticFixture(`
+    const gates = ["entrance", "focus", "scroll", "visible", "enabled", "pointer-target"];
+    for (const dispatch of ["webdriver", "dom"]) {
+      const stages = [...gates, dispatch + "-click"];
+      for (const [index, stage] of stages.entries()) {
+        const original = new Error("Controlled failure at " + stage);
+        const f = fixture(stage, original);
+        await assert.rejects(clickVisible(f.browser, f.element, { dispatch }), error => {
+          assert.equal(error.cause, original);
+          assert.equal(diagnostic(error).stage, stage);
+          assert.equal(diagnostic(error).error.message, original.message);
+          return true;
+        });
+        assert.deepEqual(f.calls, [...stages.slice(0, index + 1), "context"]);
+      }
+    }
+  `);
+});
+
+void test("native review diagnostics bound encoded error fields and tolerate unreadable thrown values", () => {
+  clickDiagnosticFixture(`
+    const escaped = new Error((String.fromCharCode(0, 34, 92) + "😀").repeat(10000));
+    escaped.name = escaped.message;
+    const long = new Error("x".repeat(10000));
+    const revoked = Proxy.revocable({}, {});
+    revoked.revoke();
+    let nameReads = 0;
+    let messageReads = 0;
+    const changingGetters = {
+      get name() { return ++nameReads === 1 ? "First error name" : null; },
+      get message() { return ++messageReads === 1 ? "First error message" : null; },
+    };
+    for (const [original, type] of [
+      [long, "Error"], [escaped, "Error"], ["primitive rejection", "string"],
+      [{ get name() { throw Error("Unreadable name"); },
+         get message() { throw Error("Unreadable message"); } }, "object"],
+      [revoked.proxy, "object"], [changingGetters, "object"],
+    ]) {
+      const f = fixture("webdriver-click", original, escaped);
+      await assert.rejects(clickVisible(f.browser, f.element), error => {
+        assert.equal(error.cause, original);
+        const d = diagnostic(error);
+        assert.equal(d.stage, "webdriver-click");
+        assert.equal(d.error.type, type);
+        assert(Buffer.byteLength(JSON.stringify(d.error.name)) <= 128);
+        assert(Buffer.byteLength(JSON.stringify(d.error.message)) <= 1024);
+        if (type === "Error") {
+          assert(original.message.startsWith(d.error.message));
+          assert.equal(d.error.message_truncated, true);
+          assert.equal(d.error.name_truncated, original === escaped);
+        } else if (typeof original === "string") {
+          assert.equal(d.error.message, original);
+        } else if (original === changingGetters) {
+          assert.equal(d.error.name, "First error name");
+          assert.equal(d.error.message, "First error message");
+          assert.equal(nameReads, 1);
+          assert.equal(messageReads, 1);
+        } else {
+          assert.equal(d.error.message, "<unreadable error>");
+        }
+        const retained = error.message.slice(0, 4096);
+        assert.equal(retained, error.message);
+        assert.deepEqual(JSON.parse(retained.split("\\n")[0].slice("Review interaction failed: ".length)), d);
+        const secondary = JSON.parse(retained.split("\\n")[1].slice("Review control unavailable: ".length));
+        assert.equal(secondary.type, "Error");
+        assert.equal(secondary.message_truncated, true);
+        assert(Buffer.byteLength(JSON.stringify(secondary.name)) <= 128);
+        assert(Buffer.byteLength(JSON.stringify(secondary.message)) <= 1024);
+        assert(Buffer.byteLength(error.message) < 4096);
+        return true;
+      });
+    }
+  `);
 });

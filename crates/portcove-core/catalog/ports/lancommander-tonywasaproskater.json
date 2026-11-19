@@ -58,7 +58,16 @@
         "https://github.com/LANCommander/TonyWasAProSkater/blob/2e9d7f83379307c2ba4a9af257c6be715b672db7/platform/pc/dist/README.txt",
         "https://github.com/LANCommander/TonyWasAProSkater"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "tony-hawk-s-pro-skater-playstation",
+          "title": "Tony Hawk's Pro Skater (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/LANCommander/TonyWasAProSkater/blob/2e9d7f83379307c2ba4a9af257c6be715b672db7/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

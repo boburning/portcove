@@ -55,7 +55,16 @@
         "https://github.com/Supermedo/prince-of-persia-2-windows/blob/473fb98a2ab1b87228c1f1f3ec09622c8011e5fa/README.md",
         "https://github.com/Supermedo/prince-of-persia-2-windows"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "prince-of-persia-2-the-shadow-and-the-flame-pc",
+          "title": "Prince of Persia 2: The Shadow and the Flame (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Supermedo/prince-of-persia-2-windows/blob/e2c407fa8409ad891bf78c8e98c3e052dd00869b/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

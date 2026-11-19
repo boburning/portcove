@@ -6,7 +6,7 @@
     "original_game_title": "Madden NFL 08",
     "summary": "Upstream reports testing this early native port on two PCs. Countdown beeps are missing in the 40-yard dash; vector aliasing and texture-mip fixes are documented. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/anishchandra24/MaddenNFL08-Recompiled",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/anishchandra24/MaddenNFL08-Recompiled",
     "manual_setup": {

@@ -55,7 +55,17 @@
         "https://github.com/snesrev/smw/releases/tag/v0.1",
         "https://github.com/snesrev/smw"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "super-mario-world-super-nintendo",
+          "title": "Super Mario World (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/snesrev/smw/releases/tag/v0.1",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/super-mario-world-snesrev-smw.json"
+          ]
+        }
+      ]
     }
   },
   "integration": {

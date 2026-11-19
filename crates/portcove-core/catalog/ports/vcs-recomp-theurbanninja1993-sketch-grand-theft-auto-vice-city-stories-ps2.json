@@ -6,7 +6,7 @@
     "original_game_title": "Grand Theft Auto: Vice City Stories",
     "summary": "This source-only recompilation targets the PS2 edition. It is independent of PSP Vice City Stories implementations and their original-file editions. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/theurbanninja1993-sketch/vcs-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/theurbanninja1993-sketch/vcs-recomp",
     "manual_setup": {
