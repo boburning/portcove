@@ -121,8 +121,11 @@ pub(crate) async fn open_pending_setup_resource(
     url: String,
     generation: u64,
 ) -> DesktopResult<()> {
-    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
         let url = service.pending_setup_resource(&port_id, &pending_id, &url)?;
+        require_library_generation(state_generation(&state), generation)?;
         open_host_target(std::ffi::OsStr::new(&url))
     })
     .await

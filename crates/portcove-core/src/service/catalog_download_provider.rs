@@ -174,6 +174,31 @@ impl CatalogDownloadProvider {
         }
     }
 
+    pub(super) async fn candidate_release_notes_url(
+        &self,
+        repository: &str,
+        release: &CatalogDownloadReleaseId,
+        asset: &CatalogDownloadAssetId,
+    ) -> Result<String> {
+        asset.validate_for(release)?;
+        match self {
+            Self::Github(provider) => {
+                let (Some(release), Some(asset)) = (release.github_id(), asset.github_id()) else {
+                    return Err(PortcoveError::verification(
+                        "mixed download provider identity",
+                    ));
+                };
+                provider
+                    .catalog_release_notes_url(repository, release, asset)
+                    .await
+            }
+            Self::Gitlab(provider) => provider
+                .catalog_download_candidate(repository, release, asset)
+                .await
+                .map(|candidate| candidate.release_url),
+        }
+    }
+
     pub(super) fn client(
         &self,
         repository: &str,

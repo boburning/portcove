@@ -838,43 +838,35 @@ impl PortcoveService {
         let listing = self.catalog.listing(port_id)?;
         listing.validate()?;
         self.require_download_available(port_id)?;
-        let artifact = self
-            .catalog_download_asset(listing, release_id, asset_id, provider)
+        let (repository, provider) = self.catalog_download_source(listing, provider)?;
+        let release_url = provider
+            .candidate_release_notes_url(repository.name(), release_id, asset_id)
             .await?;
-        if artifact.release_url != displayed_url {
+        if release_url != displayed_url {
             return Err(PortcoveError::conflict(
                 "The selected release page changed. Check downloads again.",
             ));
         }
-        Ok(artifact.release_url)
+        Ok(release_url)
     }
 
-    async fn catalog_download_asset(
+    fn catalog_download_source(
         &self,
         listing: &PortListing,
-        release_id: &CatalogDownloadReleaseId,
-        asset_id: &CatalogDownloadAssetId,
         provider: Option<&CatalogDownloadProvider>,
-    ) -> Result<CatalogDownloadCandidate> {
+    ) -> Result<(CatalogDownloadRepository, CatalogDownloadProvider)> {
         let repository = CatalogDownloadRepository::parse(
             listing
                 .release_url
                 .as_deref()
                 .unwrap_or(&listing.project_url),
         )?;
-        let default_provider;
         let provider = match provider {
-            Some(provider) => provider,
-            None => {
-                default_provider =
-                    CatalogDownloadProvider::for_repository(&self.library, &repository)?;
-                &default_provider
-            }
+            Some(provider) => provider.clone(),
+            None => CatalogDownloadProvider::for_repository(&self.library, &repository)?,
         };
         provider.require_repository(&repository)?;
-        provider
-            .candidate(repository.name(), release_id, asset_id)
-            .await
+        Ok((repository, provider))
     }
 
     #[cfg(test)]
@@ -899,8 +891,9 @@ impl PortcoveService {
         listing.validate()?;
         self.require_download_available(&request.port_id)?;
         let destination_path = self.download_destination(request)?;
-        let artifact = self
-            .catalog_download_asset(listing, &request.release_id, &request.asset_id, provider)
+        let (repository, provider) = self.catalog_download_source(listing, provider)?;
+        let artifact = provider
+            .candidate(repository.name(), &request.release_id, &request.asset_id)
             .await?;
         if request.extract_archive && !artifact.can_extract {
             return Err(PortcoveError::unsupported(

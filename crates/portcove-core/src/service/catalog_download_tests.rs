@@ -639,7 +639,11 @@ fn catalog_setup_browser_handoff_uses_only_the_matching_retained_record() {
 #[tokio::test]
 async fn catalog_setup_browser_handoff_rechecks_the_exact_fresh_package() {
     let (_temporary, service, request) = fixture();
-    let upstream = GithubFixture::new(archive(), None, None);
+    let upstream = GithubFixture::new(
+        archive(),
+        Some(format!("sha256:{}", "a".repeat(64))),
+        Some(format!("{}  game.zip\n", "b".repeat(64))),
+    );
     let provider = CatalogDownloadProvider::Github(upstream.provider.clone());
     let expected = "https://github.com/owner/game/releases/tag/v1.0";
     assert!(!service.is_reviewed_resource_url(expected).unwrap());
@@ -657,6 +661,16 @@ async fn catalog_setup_browser_handoff_rechecks_the_exact_fresh_package() {
         expected,
     );
     assert_eq!(upstream.requests.load(Ordering::SeqCst), 2);
+    let preview_error = service
+        .catalog_download_preview_with_provider(&request, &upstream.provider)
+        .await
+        .unwrap_err();
+    assert!(
+        preview_error
+            .message
+            .contains("conflicts with its checksum sidecar"),
+        "{preview_error}"
+    );
     assert!(
         service
             .catalog_download_release_notes_inner(
