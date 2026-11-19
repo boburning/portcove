@@ -3528,6 +3528,10 @@ environment, owned save/settings/mod paths, and disposable diagnostic paths.
 It refuses duplicate fields. A different writer layout or setup contract
 needs the explicit form and applicable qualification.
 
+`prepare-port.mts` proposes the compact PSX form automatically when its
+expanded integration matches the explicit declaration byte for byte. A
+different layout, selector or setting stays explicit.
+
 Core's managed PS1 builder runs with `--no-toolchain-download` and with
 `HTTPS_PROXY` and `HTTP_PROXY` set to a closed local address. PSXRecomp
 `7192402` stages an overlay toolchain on every rebuild by downloading Python
