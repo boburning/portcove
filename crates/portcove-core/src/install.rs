@@ -110,6 +110,7 @@ pub struct InstallQualification {
     /// so a rewrite never adds facts the original did not record.
     retained_acquisition: Option<crate::release::RecordedAcquisition>,
     shipped_settings_defaults: BTreeMap<String, crate::game_settings::ShippedDefault>,
+    shipped_settings_capture_gaps: BTreeMap<String, crate::game_settings::ShippedDefaultGap>,
     retained_package_variant: Option<crate::ManagedPackageVariant>,
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
@@ -132,11 +133,12 @@ pub struct InstallQualification {
 
 impl InstallQualification {
     #[cfg(all(test, windows))]
-    pub(crate) fn with_fixture_shipped_settings_defaults(
+    pub(crate) fn with_fixture_shipped_settings(
         mut self,
-        defaults: BTreeMap<String, crate::game_settings::ShippedDefault>,
+        captured: crate::game_settings::ShippedDefaultCapture,
     ) -> Self {
-        self.shipped_settings_defaults = defaults;
+        self.shipped_settings_defaults = captured.defaults;
+        self.shipped_settings_capture_gaps = captured.gaps;
         self
     }
 
@@ -284,6 +286,7 @@ impl InstallQualification {
             acquisition: None,
             retained_acquisition: None,
             shipped_settings_defaults: BTreeMap::new(),
+            shipped_settings_capture_gaps: BTreeMap::new(),
             retained_package_variant: None,
             retained_contract: None,
             platform,
@@ -633,6 +636,8 @@ struct InstallManifest {
     /// its artifact; historical installs have no recorded baseline.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     shipped_settings_defaults: BTreeMap<String, crate::game_settings::ShippedDefault>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    shipped_settings_capture_gaps: BTreeMap<String, crate::game_settings::ShippedDefaultGap>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1488,6 +1493,7 @@ impl Installer {
         }
         normalize_standalone_appimage(&payload_root, &artifact, &request.qualification)?;
         request.qualification.shipped_settings_defaults.clear();
+        request.qualification.shipped_settings_capture_gaps.clear();
         let mut package_shape = None;
         if let Some(contract) = &request.qualification.retained_contract {
             let catalog = contract.catalog(&request.port_id)?;
@@ -1518,14 +1524,15 @@ impl Installer {
                 let settings_root = request
                     .qualification
                     .persistence_root(&payload_root, &selected);
-                request.qualification.shipped_settings_defaults =
-                    crate::game_settings::capture_shipped_defaults(
-                        port,
-                        platform,
-                        &request.release.version,
-                        &artifact.sha256,
-                        &settings_root,
-                    );
+                let captured = crate::game_settings::capture_shipped_settings(
+                    port,
+                    platform,
+                    &request.release.version,
+                    &artifact.sha256,
+                    &settings_root,
+                );
+                request.qualification.shipped_settings_defaults = captured.defaults;
+                request.qualification.shipped_settings_capture_gaps = captured.gaps;
             }
             let grant_before_layout =
                 crate::package_layout::grant_precedes_layout_check(port, platform);
@@ -3216,6 +3223,7 @@ impl Installer {
         let mut adopted = qualification.clone();
         adopted.runtime_origin = RuntimeOrigin::AdoptedTree;
         adopted.shipped_settings_defaults.clear();
+        adopted.shipped_settings_capture_gaps.clear();
         adopted.retained_package_variant = None;
         write_manifest(install_id, port_id, version, artifact, &adopted, root)
     }
@@ -3250,6 +3258,7 @@ impl Installer {
         Ok(Some(crate::game_settings::RetainedSettingsDefaults {
             contract: settings.clone(),
             shipped: manifest.shipped_settings_defaults,
+            capture_gaps: manifest.shipped_settings_capture_gaps,
         }))
     }
 
@@ -3528,6 +3537,7 @@ impl Installer {
             qualification.runtime_origin = runtime.origin;
         }
         qualification.shipped_settings_defaults = manifest.shipped_settings_defaults;
+        qualification.shipped_settings_capture_gaps = manifest.shipped_settings_capture_gaps;
         qualification.retained_acquisition = Some(crate::release::RecordedAcquisition {
             facts_recorded: manifest.acquisition_facts_recorded,
             uploader_continuity: manifest.uploader_continuity,
@@ -3801,6 +3811,7 @@ mod legacy_dkr_tests {
         let manifest = InstallManifest {
             archive_data_admission: None,
             shipped_settings_defaults: BTreeMap::new(),
+            shipped_settings_capture_gaps: BTreeMap::new(),
             schema_version: schema,
             retained_contract: None,
             shared_preferences: None,
@@ -4301,6 +4312,7 @@ fn write_manifest_with_shape(
     let manifest = InstallManifest {
         archive_data_admission: None,
         shipped_settings_defaults: qualification.shipped_settings_defaults.clone(),
+        shipped_settings_capture_gaps: qualification.shipped_settings_capture_gaps.clone(),
         schema_version: if qualification.shared_preferences.is_some() {
             7
         } else {
@@ -4723,7 +4735,9 @@ fn verified_manifest_with_budget(
         || (manifest.schema_version == 7) != manifest.shared_preferences.is_some()
         || (manifest.schema_version < 6 && manifest.retained_contract.is_some())
         || (manifest.schema_version >= 6 && manifest.retained_contract.is_none())
-        || (manifest.retained_contract.is_none() && !manifest.shipped_settings_defaults.is_empty())
+        || (manifest.retained_contract.is_none()
+            && (!manifest.shipped_settings_defaults.is_empty()
+                || !manifest.shipped_settings_capture_gaps.is_empty()))
         || (manifest.schema_version < 4 && !manifest.mutable_file_patterns.is_empty())
         || (manifest.schema_version < 5
             && (manifest.platform.is_some() || manifest.files.iter().any(|file| file.executable)))
@@ -4761,6 +4775,7 @@ fn verified_manifest_with_budget(
             &manifest.version,
             &manifest.artifact.sha256,
             &manifest.shipped_settings_defaults,
+            &manifest.shipped_settings_capture_gaps,
         )?;
         crate::managed_runtime_policy::require_native_appimage_artifact(
             port,

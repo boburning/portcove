@@ -100,6 +100,11 @@ Portcove applies a new shipped default when the verified old default still
 matches the player's file. If Portcove cannot verify the file, or both sides
 changed it differently, the affected installation stays staged. The player's
 file remains in place and the staged installation retains its shipped default.
+A first native upgrade can establish the missing canonical copy from the
+verified old package before it applies the new default. A known runtime edit
+can be carried forward from the exact managed launch when it agrees with the
+new default or the upstream default stayed the same. Portcove records verified
+package omissions separately from files it could not read or parse.
 
 A reviewed backup restore can record the removal of a declared settings file.
 The receipt requires a snapshot that covers the exact active persistence policy,

@@ -236,11 +236,35 @@ fn shipped_defaults_require_one_exact_archive_and_a_bounded_declared_file() {
         capture_shipped_defaults(&port, platform, version, archive, root.path())
     };
 
+    let scan = || {
+        capture_shipped_settings(
+            &port,
+            release.platform,
+            &release.version,
+            &release.archive_sha256,
+            root.path(),
+        )
+    };
+    assert_eq!(
+        scan().gaps.get(&file.path),
+        Some(&ShippedDefaultGap::Omitted)
+    );
     assert!(capture(release.platform, &release.version, &release.archive_sha256).is_empty());
     std::fs::create_dir(path.parent().unwrap()).unwrap();
+    std::fs::write(&path, [0xff]).unwrap();
+    assert_eq!(
+        scan().gaps.get(&file.path),
+        Some(&ShippedDefaultGap::Malformed)
+    );
+    std::fs::write(&path, vec![b'x'; file.maximum_bytes as usize + 1]).unwrap();
+    assert_eq!(
+        scan().gaps.get(&file.path),
+        Some(&ShippedDefaultGap::Unreadable)
+    );
     let default = b"ui_scale=1.0\r\nunknown=retained\r\n";
     std::fs::write(&path, default).unwrap();
     let retained = capture(release.platform, &release.version, &release.archive_sha256);
+    assert!(scan().gaps.is_empty());
     assert_eq!(
         retained,
         BTreeMap::from([(
@@ -255,7 +279,14 @@ fn shipped_defaults_require_one_exact_archive_and_a_bounded_declared_file() {
                   version: &str,
                   archive: &str,
                   defaults: &BTreeMap<String, ShippedDefault>| {
-        verify_shipped_defaults(port, release.platform, version, archive, defaults)
+        verify_shipped_defaults(
+            port,
+            release.platform,
+            version,
+            archive,
+            defaults,
+            &BTreeMap::new(),
+        )
     };
     reopen(&port, &release.version, &release.archive_sha256, &retained).unwrap();
     assert!(reopen(&port, "v1.8.1", &release.archive_sha256, &retained).is_err());
@@ -402,7 +433,11 @@ fn retained_settings_plan_binds_the_player_preimage_and_file_identity() {
                 bytes_hex: hex::encode(bytes),
             },
         )]);
-        RetainedSettingsDefaults { contract, shipped }
+        RetainedSettingsDefaults {
+            contract,
+            shipped,
+            capture_gaps: BTreeMap::new(),
+        }
     };
     let prior = retained(old_bytes);
     let mut incoming = retained(incoming_bytes);

@@ -195,6 +195,7 @@ impl SettingsFileUpdate {
 pub(crate) struct RetainedSettingsDefaults {
     pub contract: GameSettingsContract,
     pub shipped: BTreeMap<String, ShippedDefault>,
+    pub capture_gaps: BTreeMap<String, ShippedDefaultGap>,
 }
 
 impl RetainedSettingsDefaults {
@@ -249,6 +250,31 @@ impl RetainedSettingsDefaults {
 
 /// Only the verified package's pristine private extraction may supply these
 /// defaults. Missing or unreadable files provide no baseline.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ShippedDefaultGap {
+    Omitted,
+    Unreadable,
+    Malformed,
+}
+
+impl ShippedDefaultGap {
+    pub(crate) fn hold_reason(self) -> Option<&'static str> {
+        match self {
+            Self::Omitted => None,
+            Self::Unreadable => Some("unreadable-package-default"),
+            Self::Malformed => Some("malformed-package-default"),
+        }
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct ShippedDefaultCapture {
+    pub defaults: BTreeMap<String, ShippedDefault>,
+    pub gaps: BTreeMap<String, ShippedDefaultGap>,
+}
+
+#[cfg(test)]
 pub(crate) fn capture_shipped_defaults(
     port: &crate::PortDefinition,
     platform: Platform,
@@ -256,31 +282,57 @@ pub(crate) fn capture_shipped_defaults(
     archive_sha256: &str,
     persistence_root: &Path,
 ) -> BTreeMap<String, ShippedDefault> {
+    capture_shipped_settings(port, platform, version, archive_sha256, persistence_root).defaults
+}
+
+pub(crate) fn capture_shipped_settings(
+    port: &crate::PortDefinition,
+    platform: Platform,
+    version: &str,
+    archive_sha256: &str,
+    persistence_root: &Path,
+) -> ShippedDefaultCapture {
     let Some(contract) = port.game_settings.as_ref() else {
-        return BTreeMap::new();
+        return ShippedDefaultCapture::default();
     };
     if contract.validate(&port.persistent_paths).is_err() {
-        return BTreeMap::new();
+        return ShippedDefaultCapture::default();
     }
     if !contract.covers_archive(platform, version, archive_sha256) {
-        return BTreeMap::new();
+        return ShippedDefaultCapture::default();
     }
-    contract
-        .files
-        .iter()
-        .filter_map(|file| {
-            let path = persistence_root.join(&file.path);
-            let bytes =
-                crate::external_runtime::read_single_link_metadata(&path, file.maximum_bytes)
-                    .ok()?;
-            document::read(file, &bytes).ok()?;
-            let shipped = ShippedDefault {
+    let mut captured = ShippedDefaultCapture::default();
+    for file in &contract.files {
+        let bytes = match observe_player_settings_copy(persistence_root, file) {
+            Ok(Some(bytes)) => bytes,
+            Ok(None) => {
+                captured
+                    .gaps
+                    .insert(file.path.clone(), ShippedDefaultGap::Omitted);
+                continue;
+            }
+            Err(_) => {
+                captured
+                    .gaps
+                    .insert(file.path.clone(), ShippedDefaultGap::Unreadable);
+                continue;
+            }
+        };
+        if document::read(file, &bytes).is_err() {
+            captured
+                .gaps
+                .insert(file.path.clone(), ShippedDefaultGap::Malformed);
+            continue;
+        }
+        captured.defaults.insert(
+            file.path.clone(),
+            ShippedDefault {
                 sha256: hex::encode(Sha256::digest(&bytes)),
                 bytes_hex: hex::encode(bytes),
-            };
-            Some((file.path.clone(), shipped))
-        })
-        .collect()
+            },
+        );
+    }
+    captured
 }
 
 /// Reopened installs must still bind the preserved defaults to the exact
@@ -291,8 +343,9 @@ pub(crate) fn verify_shipped_defaults(
     version: &str,
     archive_sha256: &str,
     defaults: &BTreeMap<String, ShippedDefault>,
+    gaps: &BTreeMap<String, ShippedDefaultGap>,
 ) -> Result<()> {
-    if defaults.is_empty() {
+    if defaults.is_empty() && gaps.is_empty() {
         return Ok(());
     }
     let contract = port
@@ -305,7 +358,11 @@ pub(crate) fn verify_shipped_defaults(
             )
         })?;
     contract.validate(&port.persistent_paths)?;
-    if defaults.len() > contract.files.len() {
+    if defaults.len() + gaps.len() > contract.files.len()
+        || gaps.keys().any(|path| {
+            defaults.contains_key(path) || !contract.files.iter().any(|file| &file.path == path)
+        })
+    {
         return Err(PortcoveError::verification(
             "shipped settings defaults exceed their retained file declarations",
         ));

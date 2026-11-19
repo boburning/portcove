@@ -3,7 +3,7 @@
 use super::transaction::{
     Leg, LegState, StageBinding, checked_bytes, checkpoint, hash, prepare_file_stage,
 };
-use super::*;
+use super::{activation::verified_settings_launch, *};
 use crate::game_settings::{RetainedSettingsDefaults, windows::HeldFile};
 use crate::operation::SettingsFaultPoint;
 use crate::operation::game_settings::{
@@ -264,14 +264,38 @@ impl PortcoveService {
             })
             .ok_or_else(conflict)?;
         let old = retained_default_bytes(&prior_defaults, prior_file)?;
-        let new = retained_default_bytes(&incoming_defaults, incoming_file)?;
+        let mut new = retained_default_bytes(&incoming_defaults, incoming_file)?;
         let canonical = payload.canonical.as_ref().ok_or_else(conflict)?;
-        if hash(&old) != canonical.previous_sha256 || hash(&new) != canonical.proposed_sha256 {
+        if hash(&old) != canonical.previous_sha256 {
             return Err(conflict());
         }
+        let project_runtime = if let Some(id) = &payload.runtime_projection_launch_id {
+            let launch = self.library.launch_request(id)?.ok_or_else(conflict)?;
+            if !verified_settings_launch(&launch, previous)
+                || crate::profile_deploy::restore_pending(
+                    &self.library.user_dir(&operation.port_id),
+                )
+            {
+                return Err(conflict());
+            }
+            true
+        } else {
+            false
+        };
 
         let runtime_path = |install: &InstallRecord| -> Result<Option<PathBuf>> {
             let contract = self.persistence_contract_for_install(install)?;
+            if project_runtime
+                && (contract.writes_directly
+                    || contract.port.adapter != AdapterKind::NativePortable
+                    || contract.port.runtime_data_policy.is_some()
+                    || !contract
+                        .port
+                        .persistent_paths
+                        .contains(&payload.relative_path))
+            {
+                return Err(conflict());
+            }
             (!contract.writes_directly)
                 .then(|| {
                     self.persistence_root(&contract.port, &install.path)
@@ -297,14 +321,25 @@ impl PortcoveService {
                 let mut held = HeldFile::open(&witness.path)?;
                 if held.identity != witness.original_identity
                     || held.parent_identity != witness.parent_identity
-                    || held.bytes(prior_file.maximum_bytes)? != old
                 {
+                    return Err(conflict());
+                }
+                let bytes = held.bytes(prior_file.maximum_bytes)?;
+                if project_runtime {
+                    if old != new && bytes != new {
+                        return Err(conflict());
+                    }
+                    new = bytes;
+                } else if bytes != old {
                     return Err(conflict());
                 }
                 Ok(held)
             })
             .transpose()?;
 
+        if hash(&new) != canonical.proposed_sha256 {
+            return Err(conflict());
+        }
         Ok(RecoveryInputs {
             pointer,
             old,

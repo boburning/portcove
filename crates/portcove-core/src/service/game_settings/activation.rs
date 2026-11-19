@@ -4,7 +4,7 @@
 use super::{
     HeldSettingsCopies, activation_deletion::PreparedSettingsDeletion, transaction::custody, *,
 };
-use crate::game_settings::windows::HeldFile;
+use crate::game_settings::windows::{HeldAbsence, HeldFile};
 use crate::game_settings::{
     PlayerSettings, RetainedSettingsDefaults, SettingsFileUpdate, SettingsPreimage, SettingsUpdate,
     observe_player_settings_copy,
@@ -33,6 +33,7 @@ pub(in crate::service) struct HeldDefaultReplacement {
     // The predecessor is a read-only witness, not one of the two write legs.
     previous_runtime: Option<HeldFile>,
     _copies: HeldSettingsCopies,
+    runtime_projection_launch_id: Option<String>,
 }
 
 impl PreparedSettingsDefaultActivation {
@@ -64,6 +65,7 @@ impl PreparedSettingsDefaultActivation {
             canonical: None,
             runtime: None,
             deletion: None,
+            runtime_projection_launch_id: None,
         };
         match &self.files {
             PreparedSettingsFiles::Replace(files) => {
@@ -78,6 +80,7 @@ impl PreparedSettingsDefaultActivation {
                         });
                 journal.canonical = Some(files.canonical.clone());
                 journal.runtime = files.runtime.clone();
+                journal.runtime_projection_launch_id = files.runtime_projection_launch_id.clone();
             }
             PreparedSettingsFiles::Delete(files) => {
                 files.confirm()?;
@@ -117,7 +120,7 @@ impl PortcoveService {
         }
         Ok(Installer::new(self.library.clone())?
             .retained_settings_defaults(active)?
-            .is_some_and(|defaults| !defaults.shipped.is_empty()))
+            .is_some_and(|defaults| first_participating_file(&defaults).is_some()))
     }
 
     pub(in crate::service) fn publish_settings_default_activation_locked(
@@ -205,11 +208,22 @@ impl PortcoveService {
         let prior = read_defaults(active)?;
         let incoming = read_defaults(staged)?;
         let Some(incoming) = incoming else {
-            if let Some(file) = prior.as_ref().and_then(first_shipped_file) {
+            if let Some(file) = prior.as_ref().and_then(first_participating_file) {
                 return Err(hold(file, "missing-incoming-default"));
             }
             return Ok(None);
         };
+        for defaults in prior.iter().chain(std::iter::once(&incoming)) {
+            for file in &defaults.contract.files {
+                if let Some(reason) = defaults
+                    .capture_gaps
+                    .get(&file.path)
+                    .and_then(|gap| gap.hold_reason())
+                {
+                    return Err(hold(file, reason));
+                }
+            }
+        }
         let files = incoming.contract.files.iter().filter(|file| {
             incoming.shipped.contains_key(&file.path)
                 || prior.as_ref().is_some_and(|prior| {
@@ -261,11 +275,92 @@ impl PortcoveService {
         let target_root = (!target_contract.writes_directly)
             .then(|| self.persistence_root(&target_contract.port, &staged.path))
             .transpose()?;
-        let player = observe_player_settings_copy(&canonical_root, file)?;
-        if let Some(root) = &prior_root
-            && observe_player_settings_copy(root, file)? != player
+        let mut player = observe_player_settings_copy(&canonical_root, file)?;
+        let mirrored = prior_root
+            .as_deref()
+            .map(|root| observe_player_settings_copy(root, file))
+            .transpose()?;
+        if let Some(runtime) = &mirrored
+            && *runtime != player
         {
-            return Err(hold(file, "divergent-player-settings-copies"));
+            let (Some(prior_root), Some(target_root), Some(runtime)) = (
+                prior_root.as_deref(),
+                target_root.as_deref(),
+                runtime.as_deref(),
+            ) else {
+                return Err(hold(file, "divergent-player-settings-copies"));
+            };
+            if prior_contract.port.adapter != AdapterKind::NativePortable
+                || target_contract.port.adapter != AdapterKind::NativePortable
+            {
+                return Err(hold(file, "divergent-player-settings-copies"));
+            }
+            let prior = prior
+                .as_ref()
+                .ok_or_else(|| hold(file, "missing-verified-default"))?;
+            let old_file = prior
+                .contract
+                .files
+                .iter()
+                .find(|old| old.id == file.id && old.path == file.path && old.format == file.format)
+                .ok_or_else(|| hold(file, "missing-verified-default"))?;
+            let old = prior.shipped[&file.path].verified_bytes(old_file)?;
+            let new = incoming.shipped[&file.path].verified_bytes(file)?;
+            let last_launch = self
+                .library
+                .latest_finished_launch_session(&active.port_id)?;
+            let marker = active.path.join(LAUNCH_MARKER);
+            refuse_symlink_ancestors(&marker)?;
+            if player.is_none()
+                && status.previous.is_none()
+                && last_launch.is_none()
+                && !crate::profile_deploy::restore_pending(&canonical_root)
+                && !marker.try_exists()?
+                && runtime == old
+                && observe_player_settings_copy(target_root, file)?.as_deref()
+                    == Some(new.as_slice())
+            {
+                self.require_completed_backup_restore(&active.port_id)?;
+                self.require_completed_backup_deletion(&active.port_id)?;
+                seed_pristine_canonical_settings(
+                    file,
+                    [&canonical_root, prior_root, target_root],
+                    [&old, &new],
+                    &marker,
+                )?;
+                player = Some(old);
+            } else {
+                let Some(launch) =
+                    last_launch.filter(|launch| verified_settings_launch(launch, active))
+                else {
+                    return Err(hold(file, "divergent-player-settings-copies"));
+                };
+                if !marker.is_file()
+                    || crate::profile_deploy::restore_pending(&canonical_root)
+                    || player.as_deref() != Some(old.as_slice())
+                {
+                    return Err(hold(file, "divergent-player-settings-copies"));
+                }
+                if old != new && runtime != new {
+                    return Err(hold(file, "player-and-default-diverged"));
+                }
+                let mut files = freeze_exact_replacement(
+                    file,
+                    [&canonical_root, prior_root, target_root],
+                    &hex::encode(Sha256::digest(&old)),
+                    runtime,
+                    runtime,
+                )?;
+                files.runtime_projection_launch_id = Some(launch.id);
+                return Ok(Some(PreparedSettingsDefaultActivation {
+                    previous: active.clone(),
+                    target: staged.clone(),
+                    file_id: file.id.clone(),
+                    relative_path: file.path.clone(),
+                    maximum_bytes: file.maximum_bytes,
+                    files: PreparedSettingsFiles::Replace(Box::new(files)),
+                }));
+            }
         }
         let Some(player) = player.as_deref() else {
             if prior_contract.port.adapter != AdapterKind::NativePortable
@@ -343,12 +438,59 @@ impl PortcoveService {
     }
 }
 
-fn first_shipped_file(defaults: &RetainedSettingsDefaults) -> Option<&GameSettingsFile> {
-    defaults
-        .contract
-        .files
-        .iter()
-        .find(|file| defaults.shipped.contains_key(&file.path))
+/// Start the canonical copy from the exact retained stock bytes. This can only
+/// add a missing file. If staging stops, that complete stock copy is a valid
+/// baseline for the next invocation of the normal settings writer.
+fn seed_pristine_canonical_settings(
+    file: &GameSettingsFile,
+    roots: [&Path; 3],
+    shipped: [&[u8]; 2],
+    launch_marker: &Path,
+) -> Result<()> {
+    let mut previous = HeldFile::open(&roots[1].join(&file.path))?;
+    let mut staged = HeldFile::open(&roots[2].join(&file.path))?;
+    if previous.bytes(file.maximum_bytes)? != shipped[0]
+        || staged.bytes(file.maximum_bytes)? != shipped[1]
+    {
+        return Err(hold(file, "fresh-settings-preimage-changed"));
+    }
+    let destination = roots[0].join(&file.path);
+    let parent = destination
+        .parent()
+        .ok_or_else(|| hold(file, "missing-settings-parent"))?;
+    refuse_symlink_ancestors(parent)?;
+    fs::create_dir_all(parent)?;
+    let absence = HeldAbsence::open(&destination)?;
+    crate::durability::write_bytes_atomically_checked(&destination, shipped[0], false, None, || {
+        refuse_symlink_ancestors(launch_marker)?;
+        if launch_marker.try_exists()? {
+            return Err(hold(file, "fresh-settings-preimage-changed"));
+        }
+        absence.confirm()
+    })
+}
+
+pub(super) fn verified_settings_launch(
+    launch: &LaunchSessionRecord,
+    install: &InstallRecord,
+) -> bool {
+    launch.owner_kind == crate::LaunchOwnerKind::Managed
+        && launch.port_id == install.port_id
+        && launch.install_id == install.id
+        && launch.install_root == install.path
+        && launch.phase == crate::LaunchSessionPhase::Collecting
+        && launch.outcome == Some(crate::LaunchSessionOutcome::Succeeded)
+}
+
+fn first_participating_file(defaults: &RetainedSettingsDefaults) -> Option<&GameSettingsFile> {
+    defaults.contract.files.iter().find(|file| {
+        defaults.shipped.contains_key(&file.path)
+            || defaults
+                .capture_gaps
+                .get(&file.path)
+                .and_then(|gap| gap.hold_reason())
+                .is_some()
+    })
 }
 
 fn freeze_replacement(
@@ -363,15 +505,53 @@ fn freeze_replacement(
         return Err(hold(file, "missing-player-evidence"));
     };
     plan.require_unchanged_player(file, canonical_root, prior_root)?;
+    freeze_owned_settings_replacement(
+        file,
+        canonical_root,
+        prior_root,
+        target_root,
+        sha256,
+        None,
+        bytes,
+    )
+}
+
+fn freeze_exact_replacement(
+    file: &GameSettingsFile,
+    roots: [&Path; 3],
+    previous_sha256: &str,
+    previous_runtime: &[u8],
+    proposed: &[u8],
+) -> Result<HeldDefaultReplacement> {
+    freeze_owned_settings_replacement(
+        file,
+        roots[0],
+        Some(roots[1]),
+        Some(roots[2]),
+        previous_sha256,
+        Some(previous_runtime),
+        proposed,
+    )
+}
+
+fn freeze_owned_settings_replacement(
+    file: &GameSettingsFile,
+    canonical_root: &Path,
+    prior_root: Option<&Path>,
+    target_root: Option<&Path>,
+    sha256: &str,
+    expected_runtime: Option<&[u8]>,
+    bytes: &[u8],
+) -> Result<HeldDefaultReplacement> {
     let mut copies =
         HeldSettingsCopies::open(&canonical_root.join(&file.path), None, file.maximum_bytes)?;
-    if hex::encode(Sha256::digest(&copies.before)) != *sha256 {
+    if hex::encode(Sha256::digest(&copies.before)) != sha256 {
         return Err(hold(file, "player-preimage-changed"));
     }
     let previous_runtime = prior_root
         .map(|root| {
             let mut held = HeldFile::open(&root.join(&file.path))?;
-            if held.bytes(file.maximum_bytes)? != copies.before {
+            if held.bytes(file.maximum_bytes)? != expected_runtime.unwrap_or(&copies.before) {
                 return Err(hold(file, "previous-runtime-preimage-changed"));
             }
             Ok(held)
@@ -401,6 +581,7 @@ fn freeze_replacement(
         runtime,
         previous_runtime,
         _copies: copies,
+        runtime_projection_launch_id: None,
     })
 }
 
@@ -436,6 +617,7 @@ mod tests {
                     &digest,
                     &root,
                 ),
+                capture_gaps: Default::default(),
             }
         };
         let prior = capture("v1.0.0", old);

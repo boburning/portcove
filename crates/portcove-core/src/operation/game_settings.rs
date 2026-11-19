@@ -47,6 +47,8 @@ pub(crate) struct ActivationSettingsJournal {
     pub runtime: Option<FileCustody>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deletion: Option<ActivationSettingsDeletion>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_projection_launch_id: Option<String>,
 }
 
 /// A positively recorded absence has no writable canonical leg. Only the
@@ -357,6 +359,7 @@ fn validate_activation(
         .join(&payload.relative_path);
     if let Some(deletion) = &payload.deletion {
         if payload.canonical.is_some()
+            || payload.runtime_projection_launch_id.is_some()
             || payload.runtime.is_some()
             || payload.previous_runtime.is_some()
             || !Uuid::parse_str(&deletion.restore_id)
@@ -389,7 +392,16 @@ fn validate_activation(
         return Ok(());
     }
     let canonical = payload.canonical.as_ref().ok_or_else(invalid)?;
-    if canonical.path != canonical_path || canonical.previous_sha256 == canonical.proposed_sha256 {
+    if canonical.path != canonical_path
+        || canonical.previous_sha256 == canonical.proposed_sha256
+        || payload
+            .runtime_projection_launch_id
+            .as_ref()
+            .is_some_and(|id| {
+                payload.previous_runtime.is_none()
+                    || !Uuid::parse_str(id).is_ok_and(|parsed| parsed.to_string() == *id)
+            })
+    {
         return Err(invalid());
     }
     if let Some(runtime) = &payload.runtime {
@@ -552,6 +564,7 @@ pub(crate) mod tests {
             canonical: Some(scalar.canonical),
             runtime: Some(runtime),
             deletion: None,
+            runtime_projection_launch_id: None,
             previous,
         });
         activation

@@ -22,13 +22,15 @@ impl LifecycleFaultInjector for InterruptRuntimeRename {
     }
 }
 
-fn archive(version: &str, default: &[u8]) -> Vec<u8> {
+fn archive(version: &str, default: Option<&[u8]>) -> Vec<u8> {
     let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
     for (name, bytes) in [
         ("sopwith.exe", b"inert test executable".as_slice()),
-        (FILE, default),
         ("build.txt", version.as_bytes()),
-    ] {
+    ]
+    .into_iter()
+    .chain(default.map(|bytes| (FILE, bytes)))
+    {
         zip.start_file(name, zip::write::SimpleFileOptions::default())
             .unwrap();
         zip.write_all(bytes).unwrap();
@@ -54,13 +56,36 @@ fn settings_fixture(partitioned: bool) -> Fixture {
 }
 
 fn settings_fixture_with_stage(partitioned: bool, register_staged: bool) -> Fixture {
+    settings_fixture_with_player(partitioned, register_staged, true, NEW)
+}
+
+fn settings_fixture_with_player(
+    partitioned: bool,
+    register_staged: bool,
+    seed_settings: bool,
+    incoming: &[u8],
+) -> Fixture {
+    settings_fixture_packages(
+        partitioned,
+        register_staged,
+        seed_settings,
+        [Some(OLD), Some(incoming)],
+    )
+}
+
+fn settings_fixture_packages(
+    partitioned: bool,
+    register_staged: bool,
+    seed_settings: bool,
+    defaults: [Option<&[u8]>; 2],
+) -> Fixture {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     let inputs = [
-        ("v1.0.0", archive("v1.0.0", OLD)),
-        ("v2.0.0", archive("v2.0.0", NEW)),
+        ("v1.0.0", archive("v1.0.0", defaults[0])),
+        ("v2.0.0", archive("v2.0.0", defaults[1])),
     ];
-    assert_eq!(inputs[0].1, archive("v1.0.0", OLD));
+    assert_eq!(inputs[0].1, archive("v1.0.0", defaults[0]));
     let hashes = inputs
         .each_ref()
         .map(|(_, bytes)| hex::encode(Sha256::digest(bytes)));
@@ -110,18 +135,18 @@ fn settings_fixture_with_stage(partitioned: bool, register_staged: bool) -> Fixt
                 artifact.size,
             )
             .unwrap();
-            let defaults = crate::game_settings::capture_shipped_defaults(
+            let captured = crate::game_settings::capture_shipped_settings(
                 &port,
                 Platform::WindowsX86_64,
                 version,
                 digest,
                 &root,
             );
-            assert!(defaults.contains_key(FILE));
+            assert!(captured.defaults.contains_key(FILE) || captured.gaps.contains_key(FILE));
             let qualification =
                 InstallQualification::from_catalog(&catalog, PORT, Platform::WindowsX86_64)
                     .unwrap()
-                    .with_fixture_shipped_settings_defaults(defaults);
+                    .with_fixture_shipped_settings(captured);
             let (manifest_sha256, selected_executable, runtime) = installer
                 .create_manifest(version, PORT, version, &artifact, &qualification, &root)
                 .unwrap();
@@ -148,7 +173,9 @@ fn settings_fixture_with_stage(partitioned: bool, register_staged: bool) -> Fixt
     let [old, staged]: [InstallRecord; 2] = installs.try_into().unwrap();
     let canonical = library.user_dir(PORT);
     fs::create_dir_all(&canonical).unwrap();
-    fs::write(canonical.join(FILE), OLD).unwrap();
+    if seed_settings {
+        fs::write(canonical.join(FILE), OLD).unwrap();
+    }
     fs::write(canonical.join("progress.sav"), b"owned saved progress").unwrap();
     fs::write(old.path.join("progress.sav"), b"owned saved progress").unwrap();
     let mut service =
@@ -478,4 +505,148 @@ fn staged_activation_keeps_reviewed_deletion_and_recovers_only_its_owned_default
         hex::encode(Sha256::digest(NEW))
     );
     assert!(successor_evidence["predecessor_receipt"].is_string());
+}
+
+#[test]
+fn fresh_native_activation_uses_exact_package_stock_without_mirrored_seed() {
+    let fixture = settings_fixture_with_player(false, true, false, NEW);
+    let canonical = fixture.library.user_dir(PORT).join(FILE);
+    assert!(!canonical.exists());
+    assert!(!fixture.old.path.join(LAUNCH_MARKER).exists());
+    assert!(
+        fixture
+            .library
+            .latest_finished_launch_session(PORT)
+            .unwrap()
+            .is_none()
+    );
+    let interrupted = fixture.service.activate_staged(PORT).unwrap_err();
+    assert!(
+        interrupted
+            .message
+            .contains("interrupted staged settings fixture"),
+        "{interrupted}"
+    );
+    let mut reopened =
+        PortcoveService::with_faults(fixture.library.clone(), Arc::new(NoLifecycleFaults)).unwrap();
+    reopened.replace_catalog_for_test(fixture.catalog.clone());
+    reopened.recover_pending_operations().unwrap();
+    assert_eq!(fs::read(canonical).unwrap(), NEW);
+    assert_eq!(fs::read(fixture.old.path.join(FILE)).unwrap(), OLD);
+    assert_eq!(fs::read(fixture.staged.path.join(FILE)).unwrap(), NEW);
+    assert_eq!(
+        fixture
+            .library
+            .status(PORT, ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap()
+            .id,
+        fixture.staged.id
+    );
+}
+
+fn completed_managed_launch(fixture: &Fixture, bytes: &[u8]) {
+    let activity = fixture
+        .library
+        .begin_activity(
+            ActivityOperation::Launch,
+            ActivityTargetKind::Port,
+            Some(PORT),
+        )
+        .unwrap();
+    let now = Library::now();
+    fixture
+        .library
+        .create_launch_session(&LaunchSessionRecord {
+            id: activity.id.clone(),
+            port_id: PORT.into(),
+            install_id: fixture.old.id.clone(),
+            install_root: fixture.old.path.clone(),
+            owner_kind: crate::LaunchOwnerKind::Managed,
+            supervisor_pid: std::process::id(),
+            supervisor_identity: None,
+            child_pid: None,
+            child_identity: None,
+            phase: LaunchSessionPhase::Collecting,
+            outcome: None,
+            exit_code: None,
+            message: None,
+            started_at: now,
+            updated_at: now,
+            finished_at: None,
+        })
+        .unwrap();
+    fs::write(fixture.old.path.join(LAUNCH_MARKER), b"1").unwrap();
+    fixture
+        .library
+        .finish_launch_session(
+            &activity.id,
+            crate::LaunchSessionOutcome::Succeeded,
+            Some(0),
+            None,
+        )
+        .unwrap();
+    fs::write(fixture.old.path.join(FILE), bytes).unwrap();
+}
+
+#[test]
+fn exact_launch_allows_owned_runtime_edit_only_if_defaults_are_compatible() {
+    for (incoming, player, merges) in [(OLD, PLAYER, true), (NEW, NEW, true), (NEW, PLAYER, false)]
+    {
+        let fixture = settings_fixture_with_player(false, true, true, incoming);
+        completed_managed_launch(&fixture, player);
+        let canonical = fixture.library.user_dir(PORT).join(FILE);
+        let interrupted = fixture.service.activate_staged(PORT).unwrap_err();
+        if !merges {
+            assert_eq!(
+                interrupted.details["settings_reason"],
+                "player-and-default-diverged"
+            );
+            assert_eq!(fs::read(canonical).unwrap(), OLD);
+            assert_eq!(fs::read(fixture.old.path.join(FILE)).unwrap(), player);
+            assert_eq!(fs::read(fixture.staged.path.join(FILE)).unwrap(), incoming);
+            continue;
+        }
+        assert!(
+            interrupted
+                .message
+                .contains("interrupted staged settings fixture"),
+            "{interrupted}"
+        );
+        let mut reopened =
+            PortcoveService::with_faults(fixture.library.clone(), Arc::new(NoLifecycleFaults))
+                .unwrap();
+        reopened.replace_catalog_for_test(fixture.catalog.clone());
+        reopened.recover_pending_operations().unwrap();
+        assert_eq!(fs::read(canonical).unwrap(), player);
+        assert_eq!(fs::read(fixture.old.path.join(FILE)).unwrap(), player);
+        assert_eq!(fs::read(fixture.staged.path.join(FILE)).unwrap(), player);
+        assert_eq!(
+            fixture
+                .library
+                .status(PORT, ReleaseChannel::Stable)
+                .unwrap()
+                .active
+                .unwrap()
+                .id,
+            fixture.staged.id
+        );
+    }
+}
+
+#[test]
+fn two_verified_omissions_remain_scalar_but_malformed_packages_hold() {
+    let omitted = settings_fixture_packages(false, true, false, [None, None]);
+    assert!(omitted.service.activate_staged(PORT).is_ok());
+    assert!(!omitted.library.user_dir(PORT).join(FILE).exists());
+
+    let invalid = settings_fixture_packages(false, true, false, [None, Some(&[0xff])]);
+    let error = invalid.service.activate_staged(PORT).unwrap_err();
+    assert_eq!(
+        error.details["settings_reason"],
+        "malformed-package-default"
+    );
+    assert_eq!(fs::read(invalid.staged.path.join(FILE)).unwrap(), [0xff]);
+    assert!(!invalid.library.user_dir(PORT).join(FILE).exists());
 }
