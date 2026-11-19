@@ -17,7 +17,7 @@ fn conflict() -> PortcoveError {
     )
 }
 
-fn hash(bytes: &[u8]) -> String {
+pub(super) fn hash(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 
@@ -45,20 +45,20 @@ fn confirm_persisted(store: &OperationStore, operation: &LifecycleOperation) -> 
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum LegState {
+pub(super) enum LegState {
     Before,
     Gap,
     Published,
     Cleaned,
 }
 
-struct Leg {
+pub(super) struct Leg {
     live: Option<HeldFile>,
     stage: Option<HeldFile>,
     old: Option<HeldFile>,
-    state: LegState,
-    before: Option<Vec<u8>>,
-    after: Vec<u8>,
+    pub(super) state: LegState,
+    pub(super) before: Option<Vec<u8>>,
+    pub(super) after: Vec<u8>,
 }
 
 fn open_optional(path: &Path) -> Result<Option<HeldFile>> {
@@ -96,7 +96,7 @@ fn checked_bytes(
 }
 
 impl Leg {
-    fn open(custody: &FileCustody, id: &str, role: &str, maximum: u64) -> Result<Self> {
+    pub(super) fn open(custody: &FileCustody, id: &str, role: &str, maximum: u64) -> Result<Self> {
         let (stage_path, old_path) = owned_names(&custody.path, id, role)?;
         let mut live = open_optional(&custody.path)?;
         let mut stage = open_optional(&stage_path)?;

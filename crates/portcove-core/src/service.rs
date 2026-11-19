@@ -718,6 +718,24 @@ impl PortcoveService {
             if candidate.settings_activation.is_some() {
                 // This protocol can recognize the exact owner without running
                 // ordinary collection or changing the active pointer.
+                #[cfg(windows)]
+                if let Ok(_ownership) = self
+                    .library
+                    .try_lock_port_for_settings_recovery(&candidate.port_id, &candidate.id)
+                    && let Ok(Some(current)) = store.get(&candidate.id)
+                    && current.created_at == candidate.created_at
+                    && current.port_id == candidate.port_id
+                    && current.settings_activation.is_some()
+                {
+                    match self.verify_settings_activation_recovery(&current) {
+                        Ok(verified) => {
+                            tracing::debug!(operation_id = candidate.id, next = ?verified.next,
+                            "checked settings activation recovery custody")
+                        }
+                        Err(error) => tracing::warn!(operation_id = candidate.id, %error,
+                            "settings activation recovery needs review"),
+                    }
+                }
                 tracing::warn!(
                     operation_id = candidate.id,
                     port_id = candidate.port_id,

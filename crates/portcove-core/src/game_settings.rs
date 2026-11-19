@@ -34,7 +34,7 @@ pub(crate) struct ShippedDefault {
 }
 
 impl ShippedDefault {
-    fn verified_bytes(&self, file: &GameSettingsFile) -> Result<Vec<u8>> {
+    pub(crate) fn verified_bytes(&self, file: &GameSettingsFile) -> Result<Vec<u8>> {
         if (self.bytes_hex.len() as u64) > 2 * file.maximum_bytes.min(MAX_SETTINGS_BYTES) {
             return Err(PortcoveError::verification(
                 "retained package settings default exceeds the declared file limit",

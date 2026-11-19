@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{LifecycleOperation, LifecycleOperationKind};
+use super::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase};
 use crate::{InstallRecord, Library, PortcoveError, Result};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,6 +39,49 @@ pub(crate) struct ActivationSettingsJournal {
     pub previous_runtime: Option<SettingsFileWitness>,
     pub canonical: FileCustody,
     pub runtime: Option<FileCustody>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SettingsActivationPointer {
+    PreviousActive,
+    TargetActive,
+}
+
+pub(crate) fn activation_pointer(
+    operation: &LifecycleOperation,
+    status: &crate::PortStatus,
+) -> Result<SettingsActivationPointer> {
+    let payload = operation.settings_activation.as_ref().ok_or_else(invalid)?;
+    let target = operation.install.as_ref().ok_or_else(invalid)?;
+    let matches = |actual: Option<&InstallRecord>, expected| {
+        actual.is_some_and(|actual| crate::recovery::same_activation_install(actual, expected))
+    };
+    if status.port_id == operation.port_id {
+        if matches!(
+            operation.phase,
+            LifecyclePhase::Preparing | LifecyclePhase::Prepared | LifecyclePhase::PayloadPublished
+        ) && matches(status.active.as_ref(), &payload.previous)
+            && matches(status.staged.as_ref(), target)
+        {
+            return Ok(SettingsActivationPointer::PreviousActive);
+        }
+        // SQLite can commit the pointer just before journal phase publication.
+        // Recognize only the exact target and its exact retained predecessor.
+        if matches!(
+            operation.phase,
+            LifecyclePhase::PayloadPublished
+                | LifecyclePhase::MetadataCommitted
+                | LifecyclePhase::CleanupPending
+        ) && matches(status.active.as_ref(), target)
+            && matches(status.previous.as_ref(), &payload.previous)
+            && status.staged.is_none()
+        {
+            return Ok(SettingsActivationPointer::TargetActive);
+        }
+    }
+    Err(PortcoveError::conflict(
+        "settings activation custody differs from the current installation pointers",
+    ))
 }
 
 /// An observed predecessor file. Its bytes are bound to the canonical
@@ -560,6 +603,47 @@ mod tests {
         let mut encoded = serde_json::to_value(valid.settings_activation.unwrap()).unwrap();
         encoded["unknown_execution"] = serde_json::json!("refused");
         assert!(decode_activation(Some(&encoded.to_string())).is_err());
+    }
+
+    #[test]
+    fn settings_activation_detects_a_committed_pointer_with_a_lagging_journal() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let mut operation = activation_record(&library);
+        operation.phase = LifecyclePhase::PayloadPublished;
+        let previous = &operation.settings_activation.as_ref().unwrap().previous;
+        let target = operation.install.as_ref().unwrap();
+        library.register_install(previous, true).unwrap();
+        library.register_install(target, false).unwrap();
+        let status = || {
+            library
+                .status("shipwright", ReleaseChannel::Stable)
+                .unwrap()
+        };
+        assert_eq!(
+            activation_pointer(&operation, &status()).unwrap(),
+            SettingsActivationPointer::PreviousActive
+        );
+
+        let mut stale = target.clone();
+        stale.manifest_sha256 = "f".repeat(64);
+        assert!(library.activate_staged_exact(previous, &stale).is_err());
+        assert_eq!(
+            activation_pointer(&operation, &status()).unwrap(),
+            SettingsActivationPointer::PreviousActive
+        );
+
+        library.activate_staged_exact(previous, target).unwrap();
+        // Stop after the library commits but before the journal records it.
+        assert_eq!(operation.phase, LifecyclePhase::PayloadPublished);
+        assert_eq!(
+            activation_pointer(&operation, &status()).unwrap(),
+            SettingsActivationPointer::TargetActive
+        );
+        assert!(library.activate_staged_exact(previous, target).is_err());
+        assert_eq!(status().previous.unwrap().id, previous.id);
+        operation.phase = LifecyclePhase::Prepared;
+        assert!(activation_pointer(&operation, &status()).is_err());
     }
 
     #[test]

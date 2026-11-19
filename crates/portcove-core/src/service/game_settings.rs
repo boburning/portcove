@@ -9,6 +9,8 @@ use crate::{
 
 #[cfg(windows)]
 mod activation;
+#[cfg(windows)]
+mod activation_recovery;
 #[cfg(all(test, windows))]
 mod tests;
 #[cfg(windows)]
