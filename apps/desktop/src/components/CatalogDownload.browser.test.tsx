@@ -1,4 +1,7 @@
 import { openAdvancedFilters } from "../../test/filter-fields";
+import { captureParityState as captureRenderedState } from "../../test/parity-capture";
+import { prepareCaptureTarget } from "../../test/capture-target";
+import { observeVisibleTarget } from "../../scripts/browser-readiness.mts";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { cleanup, render, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
@@ -181,6 +184,7 @@ beforeEach(async () => {
 afterEach(async () => {
   await cleanup();
   await page.viewport(1280, 800);
+  delete document.documentElement.dataset.theme;
   vi.restoreAllMocks();
 });
 
@@ -1649,7 +1653,143 @@ it("renders accepted GitLab listing observations through the shared descriptive 
     .toHaveAttribute("href", "https://gitlab.com/example/subgroup/game/-/releases/v1");
   await expect.element(evidence.getByText("game-windows-x64.zip", { exact: false })).toBeVisible();
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
-});
+
+  const observation = observedListing.upstream_observation!;
+  const variants: {
+    name: string;
+    theme: "dark" | "light";
+    width: number;
+    listing: PortListing;
+    label: string;
+    observedFirst: boolean;
+  }[] = [
+    {
+      name: "fresh-package",
+      theme: "dark",
+      width: 1280,
+      listing: observedListing,
+      label: "Package candidates observed",
+      observedFirst: true,
+    },
+    {
+      name: "no-package",
+      theme: "light",
+      width: 430,
+      listing: { ...observedListing, upstream_observation: { ...observation, releases: [] } },
+      label: "No package observed in checked releases",
+      observedFirst: false,
+    },
+    {
+      name: "stale-package",
+      theme: "dark",
+      width: 960,
+      listing: {
+        ...observedListing,
+        upstream_observation: {
+          ...observation,
+          attempted_at: new Date(Date.now() - 7200000).toISOString(),
+          observed_at: new Date(Date.now() - 7200000).toISOString(),
+          fresh_until: new Date(Date.now() - 3600000).toISOString(),
+        },
+      },
+      label: "Package candidates observed (stale observation)",
+      observedFirst: false,
+    },
+    {
+      name: "unavailable-poll",
+      theme: "light",
+      width: 430,
+      listing: {
+        ...observedListing,
+        upstream_observation: { ...observation, status: "unavailable" },
+      },
+      label: "Package candidates observed (check unavailable)",
+      observedFirst: false,
+    },
+    {
+      name: "reviewed-override",
+      theme: "light",
+      width: 960,
+      listing: {
+        ...observedListing,
+        availability: "source-only",
+        availability_override_reason:
+          "Reviewed distribution restriction: use the upstream source instructions for this project.",
+      },
+      label: "Source only (catalog setting)",
+      observedFirst: false,
+    },
+  ];
+  const peerListing: PortListing = { ...listing, id: "unobserved-peer", name: "Unobserved peer" };
+  const peer = catalogEntries(
+    undefined,
+    { format_version: 1, listings: [peerListing] },
+    [],
+    [],
+  )[0]!;
+  for (const variant of variants) {
+    await page.viewport(variant.width, 800);
+    document.documentElement.dataset.theme = variant.theme;
+    const selected = { ...entry, listing: variant.listing };
+    const statuses = new Map([[entry.id, status]]);
+    const ordered = filterPorts([peer, selected], statuses, "catalog", "all", "", "catalog", {
+      devicePlatform: "windows-x86-64",
+    });
+    expect(ordered[0]?.id).toBe(variant.observedFirst ? selected.id : peer.id);
+    await root.rerender(
+      <PortBrowser
+        view="catalog"
+        ports={ordered}
+        statuses={statuses}
+        overview={summarizeLibrary(ordered, statuses)}
+        filter="all"
+        setFilter={vi.fn()}
+        onSelect={vi.fn()}
+        loading={false}
+        queryContext={{ devicePlatform: "windows-x86-64" }}
+      />,
+    );
+    const cardSelector = `.discover-game:has([data-detail-game-id="${selected.id}"])`;
+    const cards = [...document.querySelectorAll<HTMLElement>("[data-detail-game-id]")];
+    expect(cards.map((card) => card.dataset.detailGameId)).toEqual(ordered.map((item) => item.id));
+    expect(document.querySelector(cardSelector)?.textContent).toContain(variant.label);
+    await prepareCaptureTarget({
+      target: cardSelector,
+      label: `availability ${variant.name} card`,
+      scroll: () => document.querySelector(cardSelector)?.scrollIntoView({ block: "center" }),
+      observe: () => observeVisibleTarget(cardSelector, "visual"),
+    });
+    await captureRenderedState(`availability-${variant.name}-discover`);
+    await root.rerender(
+      <ListingDetailPanel
+        entry={selected}
+        status={status}
+        generation={9}
+        perform={perform}
+        onChanged={changed}
+        close={vi.fn()}
+      />,
+    );
+    await page.getByRole("tab", { name: "Overview", exact: true }).click();
+    const currentEvidence = page.getByRole("region", {
+      name: "Project information and checks",
+      exact: true,
+    });
+    await currentEvidence
+      .getByText("Project status and compatibility qualifications", { exact: true })
+      .click();
+    await expect.element(currentEvidence.getByText(variant.label, { exact: true })).toBeVisible();
+    const facts = ".detail-evidence > details > .detail-facts";
+    await prepareCaptureTarget({
+      target: facts,
+      label: `availability ${variant.name} detail facts`,
+      scroll: () => document.querySelector(facts)?.scrollIntoView({ block: "center" }),
+      observe: () => observeVisibleTarget(facts, "visual"),
+    });
+    await captureRenderedState(`availability-${variant.name}-detail`);
+    expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+  }
+}, 30_000);
 
 it("shows the saved-download setup state in the current language with an exact path", async () => {
   const { initializeLocalization } = await import("../localization");

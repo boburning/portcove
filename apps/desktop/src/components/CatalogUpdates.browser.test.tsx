@@ -1,4 +1,6 @@
-import { captureParityState } from "../../test/parity-capture";
+import { captureParityState as captureRenderedState } from "../../test/parity-capture";
+import { prepareCaptureTarget } from "../../test/capture-target";
+import { observeVisibleTarget } from "../../scripts/browser-readiness.mts";
 import { fixtureValue } from "../test-fixtures";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -7,8 +9,9 @@ import { expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
-import type { CatalogStatus, CatalogUpdatePlan } from "../types";
+import type { CatalogStatus, CatalogUpdatePlan, CatalogProvenance, DoctorReport } from "../types";
 import { CatalogSettings } from "./CatalogUpdates";
+import { SettingsView } from "./Chrome";
 
 it("requires explicit review, invalidates changed candidates and uses core provenance after publication", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -177,7 +180,7 @@ it("requires explicit review, invalidates changed candidates and uses core prove
         ).toBeGreaterThanOrEqual(11);
       }
     }
-    await captureParityState("catalog-trust-reviewed-fixture");
+    await captureRenderedState("catalog-trust-reviewed-fixture");
     await click("Review update");
     expect(document.body.textContent).toContain("No port information will change.");
     expect(document.body.querySelector('[aria-label="Affected ports"]')).toBeNull();
@@ -196,7 +199,7 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     await click("Apply catalog update");
     expect(apply).toHaveBeenCalledWith(plan.source, plan.plan_sha256, expect.any(Function));
     expect(document.body.textContent).toContain("Catalog changed; review again");
-    await captureParityState("catalog-update-stale-plan-fixture");
+    await captureRenderedState("catalog-update-stale-plan-fixture");
     expect(button("Apply catalog update")).toBeUndefined();
     expect(refresh).not.toHaveBeenCalled();
     await click("Review update");
@@ -318,6 +321,133 @@ it("keeps fallback diagnostics in distinct technical disclosures with safe summa
 });
 
 vi.mock("../file-picker", { spy: true });
+
+it("renders mounted typed and legacy fallback summaries in the actual Advanced Settings context", async () => {
+  const signature = "Timestamp signer threshold did not match the admitted repository";
+  const unknown = `Opaque future diagnostic: ${"repository-metadata-context/".repeat(8)}`;
+  const variants: {
+    name: string;
+    theme: "dark" | "light";
+    width: number;
+    reasons: string[];
+    summary: string;
+    codes?: CatalogProvenance["fallback_codes"];
+  }[] = [
+    {
+      name: "typed",
+      theme: "dark",
+      width: 960,
+      reasons: [signature],
+      summary:
+        "Catalog information did not pass signature verification. Portcove kept the available catalog information.",
+      codes: ["signature_invalid"],
+    },
+    {
+      name: "unknown-and-legacy",
+      theme: "light",
+      width: 430,
+      reasons: [unknown, "Legacy text-only catalog diagnostic"],
+      summary:
+        "A saved catalog could not be used. Portcove continued with the available catalog information.",
+      codes: ["unknown"],
+    },
+  ];
+  vi.spyOn(desktopApi, "listingDeliveryStatus").mockResolvedValue({
+    delivery_schema: 1,
+    revision: null,
+    selected: false,
+    anchor_sha256: null,
+    repository_root_sha256: null,
+    target_sha256: null,
+    expires_at: null,
+    listing_count: 0,
+    withdrawn_ids: [],
+    fallback_reason: null,
+  });
+  const host = document.body.appendChild(document.createElement("div"));
+  const root = createRoot(host);
+  try {
+    for (const variant of variants) {
+      await page.viewport(variant.width, 800);
+      document.documentElement.dataset.theme = variant.theme;
+      const provenance: CatalogProvenance = {
+        origin: "embedded",
+        catalog_sha256: "a".repeat(64),
+        sequence: null,
+        key_id: null,
+        expires_at: null,
+        fallback_reasons: variant.reasons,
+        ...(variant.codes ? { fallback_codes: variant.codes } : {}),
+      };
+      const doctor: DoctorReport = {
+        platform: "windows-x86-64",
+        library: {
+          library_root: "C:/Fixture library",
+          volume_total_bytes: 1024,
+          volume_available_bytes: 512,
+        },
+        catalog_port_count: 1,
+        catalog_provenance: provenance,
+        installed_port_count: 0,
+        registered_source_count: 0,
+        repair: { generated_at: 1, items: [] },
+        host_tools: [],
+      };
+      await act(async () => root.render(<SettingsView category="advanced" doctor={doctor} />));
+      const section = host.querySelector<HTMLElement>('[data-settings-group="advanced"]')!;
+      const rows = [...section.querySelectorAll<HTMLElement>(".catalog-fallback-reason")];
+      expect(rows).toHaveLength(variant.reasons.length);
+      expect(section.closest(".settings-grid")).not.toBeNull();
+      expect(rows[0]?.closest(".settings-row")).not.toBeNull();
+      expect(rows[0]?.isConnected).toBe(true);
+      expect(rows[0]?.getBoundingClientRect().width).toBeGreaterThan(0);
+      expect(rows.map((row) => row.querySelector("p")?.textContent)).toEqual(
+        variant.reasons.map(() => variant.summary),
+      );
+      await expect
+        .element(
+          page
+            .getByRole("region", { name: "Advanced", exact: true })
+            .getByText(variant.summary, { exact: true })
+            .first(),
+        )
+        .toBeVisible();
+      for (const [index, row] of rows.entries()) {
+        // Identify the real mounted row without assuming its sibling element types.
+        const target = `catalog-fallback-${variant.name}-${index}`;
+        row.dataset.captureFallback = target;
+        const actualSelector = `[data-capture-fallback="${target}"]`;
+        await prepareCaptureTarget({
+          target: actualSelector,
+          label: target,
+          scroll: () => row.scrollIntoView({ block: "center" }),
+          observe: () => observeVisibleTarget(actualSelector, "visual"),
+        });
+        await captureRenderedState(`${target}-collapsed`);
+        const disclosure = row.querySelector<HTMLDetailsElement>("details")!;
+        expect(disclosure.open).toBe(false);
+        await userEvent.click(disclosure.querySelector("summary")!);
+        expect(disclosure.open).toBe(true);
+        expect(disclosure.textContent).toContain(variant.reasons[index]);
+        expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth + 1);
+        await prepareCaptureTarget({
+          target: actualSelector,
+          label: `${target} expanded`,
+          scroll: () => row.scrollIntoView({ block: "center" }),
+          observe: () => observeVisibleTarget(actualSelector, "visual"),
+        });
+        await captureRenderedState(`${target}-expanded`);
+        await userEvent.click(disclosure.querySelector("summary")!);
+        expect(disclosure.open).toBe(false);
+      }
+    }
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    delete document.documentElement.dataset.theme;
+    vi.restoreAllMocks();
+  }
+}, 30_000);
 
 it("refreshes descriptive directory data through Core and reloads the workspace", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);

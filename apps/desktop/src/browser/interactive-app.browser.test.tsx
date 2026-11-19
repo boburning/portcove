@@ -501,6 +501,58 @@ async function startParityScene(scene: string, { theme, width, height }: ParityC
   await expect.element(page.getByRole("main")).toBeVisible();
 }
 
+async function expectCompactCollectionNavigation(
+  label: "Library quick views" | "Discover collections",
+) {
+  const navigation = page.getByRole(label === "Library quick views" ? "radiogroup" : "group", {
+    name: label,
+    exact: true,
+  });
+  await expect.element(navigation).toBeVisible();
+  await document.fonts.ready;
+  const controls = [...navigation.element().querySelectorAll("button")].filter((control) =>
+    control.checkVisibility(),
+  );
+  expect(controls.length).toBeGreaterThanOrEqual(3);
+  const boxes = controls.map((control) => control.getBoundingClientRect());
+  const rows: { top: number; bottom: number }[] = [];
+  const bounds = navigation.element().getBoundingClientRect();
+  for (const [index, box] of boxes.entries()) {
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.left).toBeGreaterThanOrEqual(bounds.left - 1);
+    expect(box.right).toBeLessThanOrEqual(bounds.right + 1);
+    for (const previous of boxes.slice(0, index)) {
+      const horizontalOverlap =
+        Math.min(box.right, previous.right) - Math.max(box.left, previous.left);
+      const verticalOverlap =
+        Math.min(box.bottom, previous.bottom) - Math.max(box.top, previous.top);
+      expect(
+        Math.min(horizontalOverlap, verticalOverlap),
+        `${label} controls must not overlap`,
+      ).toBeLessThanOrEqual(0);
+    }
+    // Vertically centered controls can have different heights within one flex/grid row.
+    const row = rows.find((row) => box.top < row.bottom && box.bottom > row.top);
+    if (row) {
+      row.top = Math.min(row.top, box.top);
+      row.bottom = Math.max(row.bottom, box.bottom);
+    } else rows.push({ top: box.top, bottom: box.bottom });
+  }
+  rows.sort((left, right) => left.top - right.top);
+  for (let index = 1; index < rows.length; index++) {
+    const previous = rows[index - 1]!;
+    const current = rows[index]!;
+    const clearance = current.top - previous.bottom;
+    expect(clearance).toBeGreaterThanOrEqual(0);
+    // Wrapped choices remain one navigation group, without a control-height gap.
+    expect(clearance).toBeLessThanOrEqual(12);
+  }
+  expect(rows.length).toBeGreaterThanOrEqual(
+    innerWidth === 320 && label === "Discover collections" ? 2 : 1,
+  );
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth);
+}
+
 async function captureParity(surface: string, { theme, width, height }: ParityCase) {
   await settleCapture();
   expect(document.documentElement.dataset.theme).toBe(theme);
@@ -553,14 +605,30 @@ it.each(parityCases)(
     await expect
       .element(page.getByRole("heading", { name: "Your library", exact: true }))
       .toBeVisible();
+    await expectCompactCollectionNavigation("Library quick views");
     await captureParity("library-covers", configuration);
     await page.getByRole("button", { name: "Compact rows", exact: true }).click();
     await captureParity("library-rows", configuration);
     await navigateTo("Discover");
     await page.getByRole("button", { name: "Covers", exact: true }).click();
+    await expectCompactCollectionNavigation("Discover collections");
     await captureParity("discover-covers", configuration);
     await page.getByRole("button", { name: "Compact rows", exact: true }).click();
     await captureParity("discover-rows", configuration);
+    if (configuration.width === 320 || configuration.width === 1024) {
+      const previousFontSize = document.documentElement.style.fontSize;
+      try {
+        // Browser text enlargement checks reflow; native WebView zoom has its own owner.
+        document.documentElement.style.fontSize = "20px";
+        await expectCompactCollectionNavigation("Discover collections");
+        await captureParity("discover-collection-navigation-enlarged", configuration);
+        await navigateTo("Library");
+        await expectCompactCollectionNavigation("Library quick views");
+        await captureParity("library-quick-views-enlarged", configuration);
+      } finally {
+        document.documentElement.style.fontSize = previousFontSize;
+      }
+    }
     await navigateTo("Library");
     await page.getByRole("button", { name: "Add games", exact: true }).click();
     await expect
