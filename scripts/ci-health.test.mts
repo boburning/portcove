@@ -803,3 +803,31 @@ void test("throughput keeps timed runner jobs, same-head gate latency, and stale
   assert.equal(report.current.runnerPlatforms.Windows?.jobExecution.p50Seconds, 35);
   assert.equal(report.prior.jobExecution.p50Seconds, null);
 });
+
+void test("busy throughput windows split into disjoint whole-second searches before sampling", async () => {
+  const windows: string[] = [];
+  const request: CiRequest = async (route) => {
+    const url = new URL(`https://api.github.com/${route}`);
+    if (url.pathname.endsWith("/jobs")) return { total_count: 0, jobs: [] };
+    const created = url.searchParams.get("created");
+    if (!created) return { total_count: 0 };
+    windows.push(created);
+    const [from, to] = created.split("..");
+    if (from === stamp(-6600) && to === stamp(599)) return { total_count: 1324, workflow_runs: [] };
+    if (from === stamp(-6600) && to === stamp(-3001))
+      return { total_count: 1, workflow_runs: [run({ id: 1, created_at: stamp(-3001) })] };
+    if (from === stamp(-3000) && to === stamp(599))
+      return { total_count: 1, workflow_runs: [run({ id: 2, created_at: stamp(-3000) })] };
+    assert.equal(from, stamp(-93000));
+    return { total_count: 0, workflow_runs: [] };
+  };
+  const report = await collectThroughput(request, "example/repo", new Date(stamp(600)));
+  assert.equal(report.current.runCount, 2);
+  assert.deepEqual(
+    report.current.sampledRuns.map(({ id }) => id),
+    [2, 1],
+  );
+  assert.equal(report.prior.runCount, 0);
+  assert.ok(windows.includes(`${stamp(-6600)}..${stamp(-3001)}`));
+  assert.ok(windows.includes(`${stamp(-3000)}..${stamp(599)}`));
+});

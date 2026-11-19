@@ -1,18 +1,9 @@
 {
   "format": 1,
   "source_commit": "7330f7538c94b36af278e607834a3411e3528473",
-  "required_contexts": [
-    "catalog",
-    "dependency-review",
-    "frontend",
-    "rust",
-    "rust-quality"
-  ],
+  "required_contexts": ["catalog", "dependency-review", "frontend", "rust", "rust-quality"],
   "sample": {
-    "observed_window": [
-      "2026-11-18T19:30:00Z",
-      "2026-11-18T21:30:30Z"
-    ],
+    "observed_window": ["2026-11-18T19:30:00Z", "2026-11-18T21:30:30Z"],
     "run_count": 609,
     "run_status": {
       "queued": 194,
@@ -679,10 +670,7 @@
             "scripts/package-cli.ps1",
             "scripts/smoke-test-cli-archive.ps1"
           ],
-          "secrets_referenced": [
-            "TAURI_SIGNING_PRIVATE_KEY",
-            "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
-          ],
+          "secrets_referenced": ["TAURI_SIGNING_PRIVATE_KEY", "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"],
           "cache_artifact_steps": [
             {
               "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
@@ -715,9 +703,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/app-release.mts"
-          ],
+          "scripts_referenced": ["scripts/app-release.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -749,9 +735,7 @@
       "name": "App release",
       "on": {
         "push": {
-          "tags": [
-            "v*"
-          ]
+          "tags": ["v*"]
         }
       },
       "concurrency": {
@@ -775,9 +759,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/app-release.mts"
-          ],
+          "scripts_referenced": ["scripts/app-release.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -1507,12 +1489,8 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/application-release-protection-diagnosis.mts"
-          ],
-          "secrets_referenced": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "scripts_referenced": ["scripts/application-release-protection-diagnosis.mts"],
+          "secrets_referenced": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
@@ -1526,9 +1504,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/application-release-source.mts"
-          ],
+          "scripts_referenced": ["scripts/application-release-source.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
@@ -1584,9 +1560,7 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/application-release-source.mts"
-          ],
+          "scripts_referenced": ["scripts/application-release-source.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -1605,11 +1579,7 @@
         },
         "native": {
           "if": "${{ inputs.mode == 'prepare' && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}",
-          "needs": [
-            "source",
-            "package",
-            "tools"
-          ],
+          "needs": ["source", "package", "tools"],
           "permissions": {
             "contents": "read",
             "actions": "read",
@@ -1627,63 +1597,40 @@
         },
         "protection_payload": {
           "if": "${{ inputs.mode == 'prepare' && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}",
-          "needs": [
-            "source",
-            "package",
-            "tools",
-            "native"
-          ],
+          "needs": ["source", "package", "tools", "native"],
           "permissions": {
             "contents": "read",
             "actions": "read",
             "checks": "read"
           },
           "uses": "./.github/workflows/application-release-private.yml",
-          "reusable_secret_binding": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "reusable_secret_binding": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
         },
         "payload": {
           "if": "${{ inputs.mode == 'prepare' && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}",
-          "needs": [
-            "source",
-            "package",
-            "tools",
-            "native",
-            "protection_payload"
-          ],
+          "needs": ["source", "package", "tools", "native", "protection_payload"],
           "permissions": {
             "contents": "read",
             "actions": "read",
             "checks": "read"
           },
           "uses": "./.github/workflows/application-release-private.yml",
-          "reusable_secret_binding": [
-            "TAURI_SIGNING_PRIVATE_KEY"
-          ],
+          "reusable_secret_binding": ["TAURI_SIGNING_PRIVATE_KEY"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "TAURI_SIGNING_PRIVATE_KEY"
-          ],
+          "secrets_referenced": ["TAURI_SIGNING_PRIVATE_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
         },
         "package_qualification": {
-          "needs": [
-            "selection",
-            "qualify",
-            "dependency-review"
-          ],
+          "needs": ["selection", "qualify", "dependency-review"],
           "permissions": {
             "contents": "read",
             "actions": "read",
@@ -1733,9 +1680,7 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/application-release-tools.mts"
-          ],
+          "scripts_referenced": ["scripts/application-release-tools.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -1755,13 +1700,7 @@
         "context": {
           "name": "context / execute",
           "if": "${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || (inputs.mode == 'prepare' && needs.package.result == 'success' && needs.native.result == 'success' && needs.payload.result == 'success')) }}",
-          "needs": [
-            "source",
-            "tools",
-            "package",
-            "native",
-            "payload"
-          ],
+          "needs": ["source", "tools", "package", "native", "payload"],
           "runs-on": "ubuntu-22.04",
           "timeout-minutes": 2,
           "permissions": {
@@ -1801,234 +1740,153 @@
         },
         "protection_metadata": {
           "if": "${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' }}",
-          "needs": [
-            "source",
-            "tools",
-            "context"
-          ],
+          "needs": ["source", "tools", "context"],
           "permissions": {
             "contents": "read",
             "actions": "read",
             "checks": "read"
           },
           "uses": "./.github/workflows/application-release-private.yml",
-          "reusable_secret_binding": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "reusable_secret_binding": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
         },
         "renewal_protection_releases": {
           "if": "${{ always() && !cancelled() && ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' }}",
-          "needs": [
-            "source",
-            "tools",
-            "context"
-          ],
+          "needs": ["source", "tools", "context"],
           "permissions": {
             "contents": "read",
             "actions": "read",
             "checks": "read"
           },
           "uses": "./.github/workflows/application-release-private.yml",
-          "reusable_secret_binding": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "reusable_secret_binding": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
         },
         "renewal_protection_preview": {
           "if": "${{ always() && !cancelled() && ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' }}",
-          "needs": [
-            "source",
-            "tools",
-            "context"
-          ],
+          "needs": ["source", "tools", "context"],
           "permissions": {
             "contents": "read",
             "actions": "read",
             "checks": "read"
           },
           "uses": "./.github/workflows/application-release-private.yml",
-          "reusable_secret_binding": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "reusable_secret_binding": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
         },
         "renewal_protection_stable": {
           "if": "${{ always() && !cancelled() && ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' }}",
-          "needs": [
-            "source",
-            "tools",
-            "context"
-          ],
+          "needs": ["source", "tools", "context"],
           "permissions": {
             "contents": "read",
             "actions": "read",
             "checks": "read"
           },
           "uses": "./.github/workflows/application-release-private.yml",
-          "reusable_secret_binding": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "reusable_secret_binding": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
         },
         "releases": {
           "if": "${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && ((inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || needs.protection_metadata.result == 'success') }}",
-          "needs": [
-            "source",
-            "tools",
-            "context",
-            "protection_metadata"
-          ],
+          "needs": ["source", "tools", "context", "protection_metadata"],
           "permissions": {
             "contents": "read",
             "actions": "read",
             "checks": "read"
           },
           "uses": "./.github/workflows/application-release-private.yml",
-          "reusable_secret_binding": [
-            "PORTCOVE_TUF_RELEASES_KEY"
-          ],
+          "reusable_secret_binding": ["PORTCOVE_TUF_RELEASES_KEY"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_TUF_RELEASES_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_TUF_RELEASES_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
         },
         "preview": {
           "if": "${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && ((inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || needs.protection_metadata.result == 'success') }}",
-          "needs": [
-            "source",
-            "tools",
-            "context",
-            "protection_metadata"
-          ],
+          "needs": ["source", "tools", "context", "protection_metadata"],
           "permissions": {
             "contents": "read",
             "actions": "read",
             "checks": "read"
           },
           "uses": "./.github/workflows/application-release-private.yml",
-          "reusable_secret_binding": [
-            "PORTCOVE_TUF_PREVIEW_KEY"
-          ],
+          "reusable_secret_binding": ["PORTCOVE_TUF_PREVIEW_KEY"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_TUF_PREVIEW_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_TUF_PREVIEW_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
         },
         "stable": {
           "if": "${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && ((inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || needs.protection_metadata.result == 'success') }}",
-          "needs": [
-            "source",
-            "tools",
-            "context",
-            "protection_metadata"
-          ],
+          "needs": ["source", "tools", "context", "protection_metadata"],
           "permissions": {
             "contents": "read",
             "actions": "read",
             "checks": "read"
           },
           "uses": "./.github/workflows/application-release-private.yml",
-          "reusable_secret_binding": [
-            "PORTCOVE_TUF_STABLE_KEY"
-          ],
+          "reusable_secret_binding": ["PORTCOVE_TUF_STABLE_KEY"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_TUF_STABLE_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_TUF_STABLE_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
         },
         "protection_snapshot": {
           "if": "${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' }}",
-          "needs": [
-            "source",
-            "tools",
-            "context",
-            "releases",
-            "preview",
-            "stable"
-          ],
+          "needs": ["source", "tools", "context", "releases", "preview", "stable"],
           "permissions": {
             "contents": "read",
             "actions": "read",
             "checks": "read"
           },
           "uses": "./.github/workflows/application-release-private.yml",
-          "reusable_secret_binding": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "reusable_secret_binding": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
         },
         "renewal_protection_snapshot": {
           "if": "${{ always() && !cancelled() && ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' }}",
-          "needs": [
-            "source",
-            "tools",
-            "context",
-            "releases",
-            "preview",
-            "stable"
-          ],
+          "needs": ["source", "tools", "context", "releases", "preview", "stable"],
           "permissions": {
             "contents": "read",
             "actions": "read",
             "checks": "read"
           },
           "uses": "./.github/workflows/application-release-private.yml",
-          "reusable_secret_binding": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "reusable_secret_binding": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
@@ -2050,72 +1908,44 @@
             "checks": "read"
           },
           "uses": "./.github/workflows/application-release-private.yml",
-          "reusable_secret_binding": [
-            "PORTCOVE_TUF_SNAPSHOT_KEY"
-          ],
+          "reusable_secret_binding": ["PORTCOVE_TUF_SNAPSHOT_KEY"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_TUF_SNAPSHOT_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_TUF_SNAPSHOT_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
         },
         "protection_timestamp": {
           "if": "${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' && needs.snapshot.result == 'success' }}",
-          "needs": [
-            "source",
-            "tools",
-            "context",
-            "releases",
-            "preview",
-            "stable",
-            "snapshot"
-          ],
+          "needs": ["source", "tools", "context", "releases", "preview", "stable", "snapshot"],
           "permissions": {
             "contents": "read",
             "actions": "read",
             "checks": "read"
           },
           "uses": "./.github/workflows/application-release-private.yml",
-          "reusable_secret_binding": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "reusable_secret_binding": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
         },
         "renewal_protection_timestamp": {
           "if": "${{ always() && !cancelled() && ((inputs.mode == 'renew' && github.ref != 'refs/tags/portcove-production-controller-windows-20261112r86') || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.context.result == 'success' && needs.releases.result == 'success' && needs.preview.result == 'success' && needs.stable.result == 'success' && needs.snapshot.result == 'success' }}",
-          "needs": [
-            "source",
-            "tools",
-            "context",
-            "releases",
-            "preview",
-            "stable",
-            "snapshot"
-          ],
+          "needs": ["source", "tools", "context", "releases", "preview", "stable", "snapshot"],
           "permissions": {
             "contents": "read",
             "actions": "read",
             "checks": "read"
           },
           "uses": "./.github/workflows/application-release-private.yml",
-          "reusable_secret_binding": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "reusable_secret_binding": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
@@ -2138,14 +1968,10 @@
             "checks": "read"
           },
           "uses": "./.github/workflows/application-release-private.yml",
-          "reusable_secret_binding": [
-            "PORTCOVE_TUF_TIMESTAMP_KEY"
-          ],
+          "reusable_secret_binding": ["PORTCOVE_TUF_TIMESTAMP_KEY"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_TUF_TIMESTAMP_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_TUF_TIMESTAMP_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
@@ -2181,11 +2007,7 @@
         },
         "draft_recovery": {
           "if": "${{ always() && !cancelled() && (inputs.mode == 'prepare' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.assemble.result == 'success' }}",
-          "needs": [
-            "source",
-            "tools",
-            "assemble"
-          ],
+          "needs": ["source", "tools", "assemble"],
           "runs-on": "ubuntu-22.04",
           "timeout-minutes": 2,
           "permissions": {
@@ -2225,25 +2047,17 @@
         },
         "protection_draft_recovery": {
           "if": "${{ (inputs.mode == 'prepare' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.draft_recovery.outputs.needed == 'true' }}",
-          "needs": [
-            "source",
-            "tools",
-            "draft_recovery"
-          ],
+          "needs": ["source", "tools", "draft_recovery"],
           "permissions": {
             "contents": "read",
             "actions": "read",
             "checks": "read"
           },
           "uses": "./.github/workflows/application-release-private.yml",
-          "reusable_secret_binding": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "reusable_secret_binding": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
@@ -2303,27 +2117,17 @@
         },
         "protection_publication": {
           "if": "${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.publication_prepare.result == 'success' }}",
-          "needs": [
-            "source",
-            "tools",
-            "assemble",
-            "draft_recovery",
-            "publication_prepare"
-          ],
+          "needs": ["source", "tools", "assemble", "draft_recovery", "publication_prepare"],
           "permissions": {
             "contents": "read",
             "actions": "read",
             "checks": "read"
           },
           "uses": "./.github/workflows/application-release-private.yml",
-          "reusable_secret_binding": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "reusable_secret_binding": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
@@ -2378,12 +2182,7 @@
         },
         "feed_prepare": {
           "if": "${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && ((inputs.mode == 'recover' || inputs.mode == 'recover-bootstrap' || (inputs.mode == 'recover-metadata' && (needs.source.outputs.retained_draft_recovery != 'true' || needs.publication.result == 'success'))) || ((inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && needs.assemble.result == 'success' && needs.publication.result == 'success')) }}",
-          "needs": [
-            "source",
-            "tools",
-            "assemble",
-            "publication"
-          ],
+          "needs": ["source", "tools", "assemble", "publication"],
           "runs-on": "ubuntu-22.04",
           "timeout-minutes": 3,
           "permissions": {
@@ -2433,37 +2232,24 @@
         },
         "protection_feed": {
           "if": "${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata' || inputs.mode == 'recover-bootstrap')) && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.feed_prepare.result == 'success' }}",
-          "needs": [
-            "source",
-            "tools",
-            "feed_prepare"
-          ],
+          "needs": ["source", "tools", "feed_prepare"],
           "permissions": {
             "contents": "read",
             "actions": "read",
             "checks": "read"
           },
           "uses": "./.github/workflows/application-release-private.yml",
-          "reusable_secret_binding": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "reusable_secret_binding": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
         },
         "feed": {
           "if": "${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata' || inputs.mode == 'recover-bootstrap')) && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.feed_prepare.result == 'success' && needs.protection_feed.result == 'success' }}",
-          "needs": [
-            "source",
-            "tools",
-            "feed_prepare",
-            "protection_feed"
-          ],
+          "needs": ["source", "tools", "feed_prepare", "protection_feed"],
           "runs-on": "ubuntu-22.04",
           "timeout-minutes": "${{ inputs.mode == 'recover-bootstrap' && 16 || 2 }}",
           "permissions": {
@@ -2505,12 +2291,7 @@
         },
         "readback": {
           "if": "${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata' || inputs.mode == 'recover-bootstrap')) && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.feed_prepare.result == 'success' && needs.feed.result == 'success' }}",
-          "needs": [
-            "source",
-            "tools",
-            "feed_prepare",
-            "feed"
-          ],
+          "needs": ["source", "tools", "feed_prepare", "feed"],
           "runs-on": "ubuntu-22.04",
           "timeout-minutes": "${{ (inputs.mode == 'prepare' || inputs.mode == 'recover') && 3 || 5 }}",
           "permissions": {
@@ -2561,10 +2342,7 @@
         },
         "public_installed": {
           "if": "${{ always() && !cancelled() && (inputs.mode == 'prepare' || inputs.mode == 'recover') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.readback.result == 'success' && needs.readback.outputs.windows_has_predecessor == 'true' }}",
-          "needs": [
-            "source",
-            "readback"
-          ],
+          "needs": ["source", "readback"],
           "runs-on": "windows-2022",
           "timeout-minutes": 15,
           "permissions": {
@@ -2616,12 +2394,7 @@
         },
         "public_installed_readback": {
           "if": "${{ always() && !cancelled() && (inputs.mode == 'prepare' || inputs.mode == 'recover') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.readback.result == 'success' && needs.public_installed.result == 'success' && needs.readback.outputs.windows_has_predecessor == 'true' }}",
-          "needs": [
-            "source",
-            "tools",
-            "readback",
-            "public_installed"
-          ],
+          "needs": ["source", "tools", "readback", "public_installed"],
           "runs-on": "ubuntu-22.04",
           "timeout-minutes": 2,
           "permissions": {
@@ -2699,9 +2472,7 @@
             "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1"
           ],
-          "scripts_referenced": [
-            "scripts/controller-canary.mts"
-          ],
+          "scripts_referenced": ["scripts/controller-canary.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
@@ -2721,12 +2492,8 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
           ],
-          "scripts_referenced": [
-            "scripts/controller-canary.mts"
-          ],
-          "secrets_referenced": [
-            "PORTCOVE_CONTROLLER_CANARY"
-          ],
+          "scripts_referenced": ["scripts/controller-canary.mts"],
+          "secrets_referenced": ["PORTCOVE_CONTROLLER_CANARY"],
           "cache_artifact_steps": [
             {
               "name": "Retain only the nonsecret identity receipt",
@@ -2775,10 +2542,7 @@
               "required": true,
               "type": "choice",
               "default": "application",
-              "options": [
-                "application",
-                "catalog-publication"
-              ]
+              "options": ["application", "catalog-publication"]
             }
           }
         }
@@ -2800,9 +2564,7 @@
             "actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3",
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1"
           ],
-          "scripts_referenced": [
-            "scripts/production-controller-admission-cli.mts"
-          ],
+          "scripts_referenced": ["scripts/production-controller-admission-cli.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
@@ -2825,9 +2587,7 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/release-controller-tool-bootstrap.mts"
-          ],
+          "scripts_referenced": ["scripts/release-controller-tool-bootstrap.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -2860,10 +2620,7 @@
         },
         "tool_attest": {
           "if": "${{ !cancelled() && needs.admission.result == 'success' && (needs.admission.outputs.publication_purpose == 'application' || needs.admission.outputs.publication_purpose == 'catalog-publication') && ((needs.admission.outputs.publication_paused == 'false' && needs.admission.outputs.review_withdrawal != 'true') || (needs.admission.outputs.publication_paused == 'true' && needs.admission.outputs.review_withdrawal == 'true' && needs.admission.outputs.publication_purpose == 'application')) && needs.tool_bootstrap.result == 'success' }}",
-          "needs": [
-            "admission",
-            "tool_bootstrap"
-          ],
+          "needs": ["admission", "tool_bootstrap"],
           "runs-on": "ubuntu-22.04",
           "timeout-minutes": 1,
           "permissions": {
@@ -2954,10 +2711,7 @@
         "tool_bootstrap_windows": {
           "name": "Prepare trusted Windows controller tools",
           "if": "${{ needs.admission.outputs.release_profile == 'initial-beta-windows-x86_64-v1' && needs.admission.outputs.publication_purpose == 'application' && needs.admission.outputs.classification_transport == 'fixed-job' && needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused' }}",
-          "needs": [
-            "admission",
-            "coordinator"
-          ],
+          "needs": ["admission", "coordinator"],
           "runs-on": "windows-2022",
           "timeout-minutes": 22,
           "permissions": {
@@ -2973,9 +2727,7 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/release-controller-tool-bootstrap.mts"
-          ],
+          "scripts_referenced": ["scripts/release-controller-tool-bootstrap.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -3034,11 +2786,7 @@
         "classification_protection_observation": {
           "name": "Observe release input protections",
           "if": "${{ needs.admission.outputs.publication_purpose == 'application' && needs.admission.outputs.review_withdrawal != 'true' }}",
-          "needs": [
-            "admission",
-            "tool_bootstrap",
-            "tool_attest"
-          ],
+          "needs": ["admission", "tool_bootstrap", "tool_attest"],
           "runs-on": "ubuntu-22.04",
           "timeout-minutes": 2,
           "permissions": {
@@ -3054,12 +2802,8 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/release-reviewed-inputs.mts"
-          ],
-          "secrets_referenced": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "scripts_referenced": ["scripts/release-reviewed-inputs.mts"],
+          "secrets_referenced": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
@@ -3088,9 +2832,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/release-reviewed-inputs.mts"
-          ],
+          "scripts_referenced": ["scripts/release-reviewed-inputs.mts"],
           "secrets_referenced": [
             "PORTCOVE_CLASSIFICATION_APP_PRIVATE_KEY",
             "PORTCOVE_STORAGE_APP_PRIVATE_KEY"
@@ -3102,12 +2844,7 @@
         "coordinator": {
           "name": "Coordinate application release",
           "if": "${{ always() && needs.admission.result == 'success' && needs.tool_bootstrap.result == 'success' && needs.tool_attest.result == 'success' }}",
-          "needs": [
-            "admission",
-            "tool_bootstrap",
-            "tool_attest",
-            "classification_writer"
-          ],
+          "needs": ["admission", "tool_bootstrap", "tool_attest", "classification_writer"],
           "runs-on": "ubuntu-22.04",
           "timeout-minutes": 5,
           "permissions": {
@@ -3127,9 +2864,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/release-controller-job-credential-route.mts"
-          ],
+          "scripts_referenced": ["scripts/release-controller-job-credential-route.mts"],
           "secrets_referenced": [
             "PORTCOVE_CATALOG_COORDINATOR_JOURNAL_APP_PRIVATE_KEY",
             "PORTCOVE_CATALOG_DISPATCH_APP_PRIVATE_KEY",
@@ -3144,12 +2879,7 @@
         "coordinator_protection_observation": {
           "name": "Observe application coordinator protections",
           "if": "${{ always() && needs.admission.result == 'success' && needs.tool_bootstrap.result == 'success' && needs.tool_attest.result == 'success' }}",
-          "needs": [
-            "admission",
-            "tool_bootstrap",
-            "tool_attest",
-            "classification_writer"
-          ],
+          "needs": ["admission", "tool_bootstrap", "tool_attest", "classification_writer"],
           "runs-on": "ubuntu-22.04",
           "timeout-minutes": "${{ github.ref == 'refs/tags/portcove-production-controller-catalog-chameleon-review-window-r2' && inputs.publication_purpose == 'catalog-publication' && 8 || 5 }}",
           "permissions": {
@@ -3177,12 +2907,7 @@
         "independent_admission": {
           "name": "Authenticate release control inputs",
           "if": "${{ needs.admission.outputs.publication_purpose == 'application' && (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody != 'reused') }}",
-          "needs": [
-            "admission",
-            "tool_bootstrap",
-            "tool_attest",
-            "coordinator"
-          ],
+          "needs": ["admission", "tool_bootstrap", "tool_attest", "coordinator"],
           "runs-on": "ubuntu-22.04",
           "timeout-minutes": 9,
           "permissions": {
@@ -3199,9 +2924,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/release-controller-job-credential-route.mts"
-          ],
+          "scripts_referenced": ["scripts/release-controller-job-credential-route.mts"],
           "secrets_referenced": [
             "PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY",
             "PORTCOVE_STORAGE_APP_PRIVATE_KEY"
@@ -3213,12 +2936,7 @@
         "protection_observation": {
           "name": "Observe production release input protections",
           "if": "${{ needs.admission.outputs.publication_purpose == 'application' && always() && needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' && (needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody != 'reused')) }}",
-          "needs": [
-            "admission",
-            "tool_bootstrap",
-            "tool_attest",
-            "coordinator"
-          ],
+          "needs": ["admission", "tool_bootstrap", "tool_attest", "coordinator"],
           "runs-on": "ubuntu-22.04",
           "timeout-minutes": 10,
           "permissions": {
@@ -3235,9 +2953,7 @@
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_PROTECTION_APP_PRIVATE_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
@@ -3322,9 +3038,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/release-controller-job-credential-route.mts"
-          ],
+          "scripts_referenced": ["scripts/release-controller-job-credential-route.mts"],
           "secrets_referenced": [
             "PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY",
             "PORTCOVE_STORAGE_APP_PRIVATE_KEY",
@@ -3364,9 +3078,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/release-controller-job-credential-route.mts"
-          ],
+          "scripts_referenced": ["scripts/release-controller-job-credential-route.mts"],
           "secrets_referenced": [
             "PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY",
             "PORTCOVE_STORAGE_APP_PRIVATE_KEY",
@@ -3406,9 +3118,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/release-controller-job-credential-route.mts"
-          ],
+          "scripts_referenced": ["scripts/release-controller-job-credential-route.mts"],
           "secrets_referenced": [
             "PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY",
             "PORTCOVE_STORAGE_APP_PRIVATE_KEY",
@@ -3449,9 +3159,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/release-controller-job-credential-route.mts"
-          ],
+          "scripts_referenced": ["scripts/release-controller-job-credential-route.mts"],
           "secrets_referenced": [
             "PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY",
             "PORTCOVE_STORAGE_APP_PRIVATE_KEY",
@@ -3493,9 +3201,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/release-controller-job-credential-route.mts"
-          ],
+          "scripts_referenced": ["scripts/release-controller-job-credential-route.mts"],
           "secrets_referenced": [
             "PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY",
             "PORTCOVE_STORAGE_APP_PRIVATE_KEY",
@@ -3538,9 +3244,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/release-controller-job-credential-route.mts"
-          ],
+          "scripts_referenced": ["scripts/release-controller-job-credential-route.mts"],
           "secrets_referenced": [
             "PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY",
             "PORTCOVE_STORAGE_APP_PRIVATE_KEY",
@@ -3586,9 +3290,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/release-controller-job-credential-route.mts"
-          ],
+          "scripts_referenced": ["scripts/release-controller-job-credential-route.mts"],
           "secrets_referenced": [
             "PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY",
             "PORTCOVE_RELEASE_PUBLICATION_APP_PRIVATE_KEY",
@@ -3639,9 +3341,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/release-controller-job-credential-route.mts"
-          ],
+          "scripts_referenced": ["scripts/release-controller-job-credential-route.mts"],
           "secrets_referenced": [
             "PORTCOVE_CATALOG_COORDINATOR_JOURNAL_APP_PRIVATE_KEY",
             "PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY",
@@ -3700,12 +3400,7 @@
         "catalog_definitions": {
           "name": "Sign catalog definitions",
           "if": "${{ always() && needs.admission.outputs.publication_purpose == 'catalog-publication' && github.ref != 'refs/tags/portcove-production-controller-catalog-chameleon-review-window-r2' && needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' && needs.coordinator.outputs.mode == 'catalog' }}",
-          "needs": [
-            "admission",
-            "tool_bootstrap",
-            "tool_attest",
-            "coordinator"
-          ],
+          "needs": ["admission", "tool_bootstrap", "tool_attest", "coordinator"],
           "runs-on": "ubuntu-22.04",
           "timeout-minutes": 2,
           "permissions": {
@@ -3723,9 +3418,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/release-controller-job-credential-route.mts"
-          ],
+          "scripts_referenced": ["scripts/release-controller-job-credential-route.mts"],
           "secrets_referenced": [
             "PORTCOVE_CATALOG_COORDINATOR_JOURNAL_APP_PRIVATE_KEY",
             "PORTCOVE_CATALOG_DEFINITIONS_KEY",
@@ -3762,9 +3455,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/release-controller-job-credential-route.mts"
-          ],
+          "scripts_referenced": ["scripts/release-controller-job-credential-route.mts"],
           "secrets_referenced": [
             "PORTCOVE_CATALOG_COORDINATOR_JOURNAL_APP_PRIVATE_KEY",
             "PORTCOVE_CATALOG_POLICY_KEY",
@@ -3802,9 +3493,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/release-controller-job-credential-route.mts"
-          ],
+          "scripts_referenced": ["scripts/release-controller-job-credential-route.mts"],
           "secrets_referenced": [
             "PORTCOVE_CATALOG_COORDINATOR_JOURNAL_APP_PRIVATE_KEY",
             "PORTCOVE_CATALOG_SNAPSHOT_KEY",
@@ -3843,9 +3532,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/release-controller-job-credential-route.mts"
-          ],
+          "scripts_referenced": ["scripts/release-controller-job-credential-route.mts"],
           "secrets_referenced": [
             "PORTCOVE_CATALOG_COORDINATOR_JOURNAL_APP_PRIVATE_KEY",
             "PORTCOVE_CATALOG_TIMESTAMP_KEY",
@@ -3858,12 +3545,7 @@
         "catalog_metadata_protection_observation": {
           "name": "Observe catalog metadata signing protections",
           "if": "${{ always() && needs.admission.outputs.publication_purpose == 'catalog-publication' && github.ref != 'refs/tags/portcove-production-controller-catalog-chameleon-review-window-r2' && needs.coordinator.result == 'success' && needs.coordinator.outputs.mode == 'catalog' && needs.tool_attest.result == 'success' }}",
-          "needs": [
-            "admission",
-            "tool_bootstrap",
-            "tool_attest",
-            "coordinator"
-          ],
+          "needs": ["admission", "tool_bootstrap", "tool_attest", "coordinator"],
           "runs-on": "ubuntu-22.04",
           "timeout-minutes": 8,
           "permissions": {
@@ -3880,9 +3562,7 @@
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_CATALOG_PROTECTION_APP_PRIVATE_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_CATALOG_PROTECTION_APP_PRIVATE_KEY"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
@@ -3948,9 +3628,7 @@
       "name": "Automatic application controller wake-up",
       "on": {
         "push": {
-          "branches": [
-            "main"
-          ]
+          "branches": ["main"]
         },
         "schedule": [
           {
@@ -3983,9 +3661,7 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/release-controller-wake.mts"
-          ],
+          "scripts_referenced": ["scripts/release-controller-wake.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -4041,11 +3717,7 @@
           "strategy": {
             "fail-fast": false,
             "matrix": {
-              "route": [
-                "fast",
-                "full",
-                "contributor"
-              ]
+              "route": ["fast", "full", "contributor"]
             }
           },
           "uses_actions": [
@@ -4053,9 +3725,7 @@
             "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
             "voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76"
           ],
-          "scripts_referenced": [
-            "apps/desktop/scripts/browser-runtime.mts"
-          ],
+          "scripts_referenced": ["apps/desktop/scripts/browser-runtime.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
@@ -4103,15 +3773,9 @@
       "name": "Catalog publish",
       "on": {
         "workflow_run": {
-          "workflows": [
-            "CI"
-          ],
-          "types": [
-            "completed"
-          ],
-          "branches": [
-            "main"
-          ]
+          "workflows": ["CI"],
+          "types": ["completed"],
+          "branches": ["main"]
         },
         "schedule": [
           {
@@ -4198,11 +3862,7 @@
           "required_context": false
         },
         "sign-snapshot": {
-          "needs": [
-            "prepare",
-            "sign-definitions",
-            "sign-policy"
-          ],
+          "needs": ["prepare", "sign-definitions", "sign-policy"],
           "uses": "./.github/workflows/catalog-sign-role.yml",
           "reusable_secret_binding": "inherit",
           "uses_actions": [],
@@ -4213,10 +3873,7 @@
           "required_context": false
         },
         "sign-timestamp": {
-          "needs": [
-            "prepare",
-            "sign-snapshot"
-          ],
+          "needs": ["prepare", "sign-snapshot"],
           "uses": "./.github/workflows/catalog-sign-role.yml",
           "reusable_secret_binding": "inherit",
           "uses_actions": [],
@@ -4227,10 +3884,7 @@
           "required_context": false
         },
         "publish": {
-          "needs": [
-            "prepare",
-            "sign-timestamp"
-          ],
+          "needs": ["prepare", "sign-timestamp"],
           "runs-on": "ubuntu-24.04",
           "timeout-minutes": 30,
           "permissions": {
@@ -4241,10 +3895,7 @@
             "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1"
           ],
-          "scripts_referenced": [
-            "scripts/catalog-publish.mts",
-            "scripts/public-catalog.mts"
-          ],
+          "scripts_referenced": ["scripts/catalog-publish.mts", "scripts/public-catalog.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -4276,13 +3927,7 @@
       },
       "sample": {
         "ids": [
-          44396161207,
-          44395726105,
-          44395186517,
-          44394054183,
-          44392980052,
-          44387819609,
-          44385636584,
+          44396161207, 44395726105, 44395186517, 44394054183, 44392980052, 44387819609, 44385636584,
           44381357888
         ],
         "run_count": 8,
@@ -4482,9 +4127,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
           ],
-          "scripts_referenced": [
-            "scripts/catalog-publish.mts"
-          ],
+          "scripts_referenced": ["scripts/catalog-publish.mts"],
           "secrets_referenced": [
             "PORTCOVE_CATALOG_DEFINITIONS_KEY",
             "PORTCOVE_CATALOG_POLICY_KEY",
@@ -4536,12 +4179,7 @@
       "name": "Cancel superseded CI runs",
       "on": {
         "pull_request": {
-          "types": [
-            "opened",
-            "synchronize",
-            "reopened",
-            "ready_for_review"
-          ]
+          "types": ["opened", "synchronize", "reopened", "ready_for_review"]
         }
       },
       "concurrency": {
@@ -4562,9 +4200,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/ci-supersede.mts"
-          ],
+          "scripts_referenced": ["scripts/ci-supersede.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [
@@ -4578,97 +4214,19 @@
       },
       "sample": {
         "ids": [
-          44402137698,
-          44401017030,
-          44400994935,
-          44400688743,
-          44399703738,
-          44399704172,
-          44399489868,
-          44399081432,
-          44398912195,
-          44398839294,
-          44398689499,
-          44398371624,
-          44398369730,
-          44398366284,
-          44398362849,
-          44398360233,
-          44398158382,
-          44398081747,
-          44397788979,
-          44397662243,
-          44397341103,
-          44397279839,
-          44396968847,
-          44396654522,
-          44396619151,
-          44396546662,
-          44396310563,
-          44396249000,
-          44395971413,
-          44395970534,
-          44395347229,
-          44395003127,
-          44394986624,
-          44394465439,
-          44394452367,
-          44394438241,
-          44394379076,
-          44394378831,
-          44394089728,
-          44393567205,
-          44393555618,
-          44393091229,
-          44392815500,
-          44392343353,
-          44392080048,
-          44392058615,
-          44391383063,
-          44390465817,
-          44390313803,
-          44390241238,
-          44390158929,
-          44389061525,
-          44388710566,
-          44388013374,
-          44387966731,
-          44387670880,
-          44387498772,
-          44387247870,
-          44387078089,
-          44387020073,
-          44386906436,
-          44386894849,
-          44386843566,
-          44386566874,
-          44386438368,
-          44386281512,
-          44385880412,
-          44385816871,
-          44385816447,
-          44385421933,
-          44385335719,
-          44385109847,
-          44385010681,
-          44384743496,
-          44384716189,
-          44384307154,
-          44383923330,
-          44383634056,
-          44383201399,
-          44382955796,
-          44382942243,
-          44382331092,
-          44382302562,
-          44382163243,
-          44381886848,
-          44381873218,
-          44381311308,
-          44381312357,
-          44381309712,
-          44381306907,
-          44381295132
+          44402137698, 44401017030, 44400994935, 44400688743, 44399703738, 44399704172, 44399489868,
+          44399081432, 44398912195, 44398839294, 44398689499, 44398371624, 44398369730, 44398366284,
+          44398362849, 44398360233, 44398158382, 44398081747, 44397788979, 44397662243, 44397341103,
+          44397279839, 44396968847, 44396654522, 44396619151, 44396546662, 44396310563, 44396249000,
+          44395971413, 44395970534, 44395347229, 44395003127, 44394986624, 44394465439, 44394452367,
+          44394438241, 44394379076, 44394378831, 44394089728, 44393567205, 44393555618, 44393091229,
+          44392815500, 44392343353, 44392080048, 44392058615, 44391383063, 44390465817, 44390313803,
+          44390241238, 44390158929, 44389061525, 44388710566, 44388013374, 44387966731, 44387670880,
+          44387498772, 44387247870, 44387078089, 44387020073, 44386906436, 44386894849, 44386843566,
+          44386566874, 44386438368, 44386281512, 44385880412, 44385816871, 44385816447, 44385421933,
+          44385335719, 44385109847, 44385010681, 44384743496, 44384716189, 44384307154, 44383923330,
+          44383634056, 44383201399, 44382955796, 44382942243, 44382331092, 44382302562, 44382163243,
+          44381886848, 44381873218, 44381311308, 44381312357, 44381309712, 44381306907, 44381295132
         ],
         "run_count": 91,
         "events": {
@@ -4754,9 +4312,7 @@
       "on": {
         "pull_request": null,
         "push": {
-          "branches": [
-            "main"
-          ]
+          "branches": ["main"]
         },
         "workflow_call": {
           "inputs": {
@@ -4861,9 +4417,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
           ],
-          "scripts_referenced": [
-            "scripts/workflow-provenance.mts"
-          ],
+          "scripts_referenced": ["scripts/workflow-provenance.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -4989,10 +4543,7 @@
         "fast_rust_tests": {
           "name": "fast-rust-test (windows-x86_64, ${{ matrix.partition }})",
           "if": "needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust') && needs.classify.outputs.windows_tests_deferred != 'true'",
-          "needs": [
-            "classify",
-            "fast_rust"
-          ],
+          "needs": ["classify", "fast_rust"],
           "runs-on": "windows-latest",
           "timeout-minutes": 45,
           "strategy": {
@@ -5283,11 +4834,7 @@
           "strategy": {
             "fail-fast": false,
             "matrix": {
-              "shard": [
-                1,
-                2,
-                3
-              ]
+              "shard": [1, 2, 3]
             }
           },
           "uses_actions": [
@@ -5503,10 +5050,7 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b"
           ],
-          "scripts_referenced": [
-            "scripts/run-rust-tests.mts",
-            "scripts/windows-rust-tests.mts"
-          ],
+          "scripts_referenced": ["scripts/run-rust-tests.mts", "scripts/windows-rust-tests.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -5544,10 +5088,7 @@
         "rust_tests": {
           "name": "rust-test (${{ matrix.shard }})",
           "if": "needs.classify.outputs.mode == 'qualification'",
-          "needs": [
-            "classify",
-            "qualification_core_archive"
-          ],
+          "needs": ["classify", "qualification_core_archive"],
           "runs-on": "windows-latest",
           "timeout-minutes": 120,
           "strategy": {
@@ -5571,10 +5112,7 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b"
           ],
-          "scripts_referenced": [
-            "scripts/run-rust-tests.mts",
-            "scripts/windows-rust-tests.mts"
-          ],
+          "scripts_referenced": ["scripts/run-rust-tests.mts", "scripts/windows-rust-tests.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -5620,9 +5158,7 @@
             "taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b",
             "voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76"
           ],
-          "scripts_referenced": [
-            "scripts/qualification-nextest.mts"
-          ],
+          "scripts_referenced": ["scripts/qualification-nextest.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -5917,19 +5453,13 @@
         "intel_tests": {
           "name": "native-rust (macos-x86_64, ${{ matrix.partition }})",
           "if": "needs.classify.outputs.mode == 'qualification' && contains(fromJSON(needs.classify.outputs.platforms_json), 'macos-x86_64')",
-          "needs": [
-            "classify",
-            "intel_build"
-          ],
+          "needs": ["classify", "intel_build"],
           "runs-on": "macos-15-intel",
           "timeout-minutes": 120,
           "strategy": {
             "fail-fast": false,
             "matrix": {
-              "partition": [
-                "hash:1/2",
-                "hash:2/2"
-              ]
+              "partition": ["hash:1/2", "hash:2/2"]
             }
           },
           "uses_actions": [
@@ -5939,9 +5469,7 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b"
           ],
-          "scripts_referenced": [
-            "scripts/qualification-nextest.mts"
-          ],
+          "scripts_referenced": ["scripts/qualification-nextest.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -6038,12 +5566,8 @@
           ],
           "runs-on": "ubuntu-latest",
           "timeout-minutes": 15,
-          "uses_actions": [
-            "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-          ],
-          "scripts_referenced": [
-            "scripts/ci-result-gate.mts"
-          ],
+          "uses_actions": ["actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"],
+          "scripts_referenced": ["scripts/ci-result-gate.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
@@ -6121,12 +5645,8 @@
           ],
           "runs-on": "ubuntu-latest",
           "timeout-minutes": 15,
-          "uses_actions": [
-            "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-          ],
-          "scripts_referenced": [
-            "scripts/ci-result-gate.mts"
-          ],
+          "uses_actions": ["actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"],
+          "scripts_referenced": ["scripts/ci-result-gate.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
@@ -6323,12 +5843,8 @@
           ],
           "runs-on": "ubuntu-latest",
           "timeout-minutes": 15,
-          "uses_actions": [
-            "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-          ],
-          "scripts_referenced": [
-            "scripts/ci-result-gate.mts"
-          ],
+          "uses_actions": ["actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"],
+          "scripts_referenced": ["scripts/ci-result-gate.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
@@ -6679,21 +6195,11 @@
         },
         "catalog": {
           "if": "always()",
-          "needs": [
-            "classify",
-            "prose_checks",
-            "fast_catalog",
-            "windows_helpers",
-            "catalog_full"
-          ],
+          "needs": ["classify", "prose_checks", "fast_catalog", "windows_helpers", "catalog_full"],
           "runs-on": "ubuntu-latest",
           "timeout-minutes": 15,
-          "uses_actions": [
-            "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-          ],
-          "scripts_referenced": [
-            "scripts/ci-result-gate.mts"
-          ],
+          "uses_actions": ["actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"],
+          "scripts_referenced": ["scripts/ci-result-gate.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
@@ -6733,12 +6239,7 @@
         },
         "dependency-review": {
           "if": "github.event_name == 'pull_request' && always()",
-          "needs": [
-            "classify",
-            "prose_checks",
-            "fast_dependency_review",
-            "dependency_review_full"
-          ],
+          "needs": ["classify", "prose_checks", "fast_dependency_review", "dependency_review_full"],
           "runs-on": "ubuntu-latest",
           "timeout-minutes": 15,
           "uses_actions": [
@@ -6748,10 +6249,7 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/ci-result-gate.mts",
-            "scripts/dependency-security.mts"
-          ],
+          "scripts_referenced": ["scripts/ci-result-gate.mts", "scripts/dependency-security.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -6822,88 +6320,18 @@
       },
       "sample": {
         "ids": [
-          44402137627,
-          44400994918,
-          44400688927,
-          44399704314,
-          44398912549,
-          44398839324,
-          44398689763,
-          44398158387,
-          44398081901,
-          44397789116,
-          44397661969,
-          44397341261,
-          44397279887,
-          44396969001,
-          44396655717,
-          44396618646,
-          44396546666,
-          44396310834,
-          44396249045,
-          44396245111,
-          44396146583,
-          44395971373,
-          44395970939,
-          44395711973,
-          44395347389,
-          44395173321,
-          44395003365,
-          44394986742,
-          44394452632,
-          44394379109,
-          44394378851,
-          44394042496,
-          44393567260,
-          44393556124,
-          44392966531,
-          44392815071,
-          44392080251,
-          44392058942,
-          44391383126,
-          44390465962,
-          44390313525,
-          44390241368,
-          44390159179,
-          44389061697,
-          44388710327,
-          44387966796,
-          44387804693,
-          44387670928,
-          44387248065,
-          44387173525,
-          44387078166,
-          44387020046,
-          44386895150,
-          44386842969,
-          44386566795,
-          44386438926,
-          44386281513,
-          44385880140,
-          44385817092,
-          44385816723,
-          44385421919,
-          44385336025,
-          44385108922,
-          44385010674,
-          44384743490,
-          44384716299,
-          44384307285,
-          44383923494,
-          44383634182,
-          44383201440,
-          44382942231,
-          44382331733,
-          44382302444,
-          44382163132,
-          44381887118,
-          44381873322,
-          44381339322,
-          44381311335,
-          44381312313,
-          44381309763,
-          44381306791,
-          44381296146
+          44402137627, 44400994918, 44400688927, 44399704314, 44398912549, 44398839324, 44398689763,
+          44398158387, 44398081901, 44397789116, 44397661969, 44397341261, 44397279887, 44396969001,
+          44396655717, 44396618646, 44396546666, 44396310834, 44396249045, 44396245111, 44396146583,
+          44395971373, 44395970939, 44395711973, 44395347389, 44395173321, 44395003365, 44394986742,
+          44394452632, 44394379109, 44394378851, 44394042496, 44393567260, 44393556124, 44392966531,
+          44392815071, 44392080251, 44392058942, 44391383126, 44390465962, 44390313525, 44390241368,
+          44390159179, 44389061697, 44388710327, 44387966796, 44387804693, 44387670928, 44387248065,
+          44387173525, 44387078166, 44387020046, 44386895150, 44386842969, 44386566795, 44386438926,
+          44386281513, 44385880140, 44385817092, 44385816723, 44385421919, 44385336025, 44385108922,
+          44385010674, 44384743490, 44384716299, 44384307285, 44383923494, 44383634182, 44383201440,
+          44382942231, 44382331733, 44382302444, 44382163132, 44381887118, 44381873322, 44381339322,
+          44381311335, 44381312313, 44381309763, 44381306791, 44381296146
         ],
         "run_count": 82,
         "events": {
@@ -7421,13 +6849,8 @@
       "name": "Cleanup consumed Intel transfers",
       "on": {
         "workflow_run": {
-          "workflows": [
-            "Qualification",
-            "Release"
-          ],
-          "types": [
-            "completed"
-          ]
+          "workflows": ["Qualification", "Release"],
+          "types": ["completed"]
         },
         "schedule": [
           {
@@ -7464,9 +6887,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/cleanup-intel-artifacts.mts"
-          ],
+          "scripts_referenced": ["scripts/cleanup-intel-artifacts.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
@@ -7487,10 +6908,7 @@
               "required": true,
               "default": "archive",
               "type": "choice",
-              "options": [
-                "archive",
-                "apply"
-              ]
+              "options": ["archive", "apply"]
             },
             "batch": {
               "description": "Apply batch (1\u20138, at most 50 audited records per batch)",
@@ -7537,9 +6955,7 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/cleanup-retired-deployments.mts"
-          ],
+          "scripts_referenced": ["scripts/cleanup-retired-deployments.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -7577,13 +6993,7 @@
       "name": "Closing inventory",
       "on": {
         "pull_request_target": {
-          "types": [
-            "opened",
-            "edited",
-            "synchronize",
-            "reopened",
-            "ready_for_review"
-          ]
+          "types": ["opened", "edited", "synchronize", "reopened", "ready_for_review"]
         }
       },
       "concurrency": {
@@ -7605,9 +7015,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/closing-inventory.mts"
-          ],
+          "scripts_referenced": ["scripts/closing-inventory.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
@@ -7616,149 +7024,27 @@
       },
       "sample": {
         "ids": [
-          44402137503,
-          44401927712,
-          44401017957,
-          44400991400,
-          44400990497,
-          44400681434,
-          44400261563,
-          44400257574,
-          44400000062,
-          44399996718,
-          44399990269,
-          44399988477,
-          44399985873,
-          44399846241,
-          44399700303,
-          44399701549,
-          44399490153,
-          44399368563,
-          44399083263,
-          44398966143,
-          44398963927,
-          44398911849,
-          44398833632,
-          44398684388,
-          44398370637,
-          44398372900,
-          44398367287,
-          44398364400,
-          44398361213,
-          44398148837,
-          44398081504,
-          44397944714,
-          44397785283,
-          44397656265,
-          44397340975,
-          44397279251,
-          44397265414,
-          44396968736,
-          44396650613,
-          44396621262,
-          44396618367,
-          44396615863,
-          44396541774,
-          44396348209,
-          44396345705,
-          44396343916,
-          44396339454,
-          44396332821,
-          44396309832,
-          44396248887,
-          44396244964,
-          44395971489,
-          44395970258,
-          44395347374,
-          44394998566,
-          44394982317,
-          44394773557,
-          44394660882,
-          44394466537,
-          44394446139,
-          44394437052,
-          44394383595,
-          44394376954,
-          44394377283,
-          44394293631,
-          44394161286,
-          44394089718,
-          44394049119,
-          44393559906,
-          44393555662,
-          44393090990,
-          44392815122,
-          44392343679,
-          44392344321,
-          44392080129,
-          44392058663,
-          44391829810,
-          44391376796,
-          44390683588,
-          44390538217,
-          44390459811,
-          44390299294,
-          44390240969,
-          44390151173,
-          44389892857,
-          44389887263,
-          44389738762,
-          44389061422,
-          44388710234,
-          44388568563,
-          44388526168,
-          44388013177,
-          44387963147,
-          44387664253,
-          44387501004,
-          44387494789,
-          44387247511,
-          44387165429,
-          44387070371,
-          44387058743,
-          44387012437,
-          44386906456,
-          44386895483,
-          44386838993,
-          44386561917,
-          44386430899,
-          44386277782,
-          44385874744,
-          44385815889,
-          44385816300,
-          44385524652,
-          44385414939,
-          44385336390,
-          44385100292,
-          44384890601,
-          44384716093,
-          44384703239,
-          44384634569,
-          44384599030,
-          44384017451,
-          44384014501,
-          44383810015,
-          44383690829,
-          44383356514,
-          44383076052,
-          44382956311,
-          44382921889,
-          44382844431,
-          44382679036,
-          44382431212,
-          44382258912,
-          44381825469,
-          44381825742,
-          44381726806,
-          44381627525,
-          44381627648,
-          44381417929,
-          44381314182,
-          44381311151,
-          44381309303,
-          44381306625,
-          44381290527,
-          44381200806
+          44402137503, 44401927712, 44401017957, 44400991400, 44400990497, 44400681434, 44400261563,
+          44400257574, 44400000062, 44399996718, 44399990269, 44399988477, 44399985873, 44399846241,
+          44399700303, 44399701549, 44399490153, 44399368563, 44399083263, 44398966143, 44398963927,
+          44398911849, 44398833632, 44398684388, 44398370637, 44398372900, 44398367287, 44398364400,
+          44398361213, 44398148837, 44398081504, 44397944714, 44397785283, 44397656265, 44397340975,
+          44397279251, 44397265414, 44396968736, 44396650613, 44396621262, 44396618367, 44396615863,
+          44396541774, 44396348209, 44396345705, 44396343916, 44396339454, 44396332821, 44396309832,
+          44396248887, 44396244964, 44395971489, 44395970258, 44395347374, 44394998566, 44394982317,
+          44394773557, 44394660882, 44394466537, 44394446139, 44394437052, 44394383595, 44394376954,
+          44394377283, 44394293631, 44394161286, 44394089718, 44394049119, 44393559906, 44393555662,
+          44393090990, 44392815122, 44392343679, 44392344321, 44392080129, 44392058663, 44391829810,
+          44391376796, 44390683588, 44390538217, 44390459811, 44390299294, 44390240969, 44390151173,
+          44389892857, 44389887263, 44389738762, 44389061422, 44388710234, 44388568563, 44388526168,
+          44388013177, 44387963147, 44387664253, 44387501004, 44387494789, 44387247511, 44387165429,
+          44387070371, 44387058743, 44387012437, 44386906456, 44386895483, 44386838993, 44386561917,
+          44386430899, 44386277782, 44385874744, 44385815889, 44385816300, 44385524652, 44385414939,
+          44385336390, 44385100292, 44384890601, 44384716093, 44384703239, 44384634569, 44384599030,
+          44384017451, 44384014501, 44383810015, 44383690829, 44383356514, 44383076052, 44382956311,
+          44382921889, 44382844431, 44382679036, 44382431212, 44382258912, 44381825469, 44381825742,
+          44381726806, 44381627525, 44381627648, 44381417929, 44381314182, 44381311151, 44381309303,
+          44381306625, 44381290527, 44381200806
         ],
         "run_count": 143,
         "events": {
@@ -7848,9 +7134,7 @@
           }
         ],
         "push": {
-          "branches": [
-            "main"
-          ]
+          "branches": ["main"]
         },
         "workflow_dispatch": null
       },
@@ -7886,9 +7170,7 @@
             "scripts/observer-checkpoint-artifact.mts",
             "scripts/upstream-relocation-candidates.mts"
           ],
-          "secrets_referenced": [
-            "GITHUB_TOKEN"
-          ],
+          "secrets_referenced": ["GITHUB_TOKEN"],
           "cache_artifact_steps": [
             {
               "uses": "Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
@@ -7990,9 +7272,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
           ],
-          "scripts_referenced": [
-            "scripts/scheduled-package-drift.mts"
-          ],
+          "scripts_referenced": ["scripts/scheduled-package-drift.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -8055,12 +7335,8 @@
             "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1"
           ],
-          "scripts_referenced": [
-            "scripts/scheduled-package-drift.mts"
-          ],
-          "secrets_referenced": [
-            "GITHUB_TOKEN"
-          ],
+          "scripts_referenced": ["scripts/scheduled-package-drift.mts"],
+          "secrets_referenced": ["GITHUB_TOKEN"],
           "cache_artifact_steps": [
             {
               "uses": "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
@@ -8085,12 +7361,8 @@
             "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1"
           ],
-          "scripts_referenced": [
-            "scripts/observer-push-admission.mts"
-          ],
-          "secrets_referenced": [
-            "GITHUB_TOKEN"
-          ],
+          "scripts_referenced": ["scripts/observer-push-admission.mts"],
+          "secrets_referenced": ["GITHUB_TOKEN"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [
             {
@@ -8103,13 +7375,7 @@
       },
       "sample": {
         "ids": [
-          44396146375,
-          44395711723,
-          44395173295,
-          44394042125,
-          44392966729,
-          44387804929,
-          44387173364,
+          44396146375, 44395711723, 44395173295, 44394042125, 44392966729, 44387804929, 44387173364,
           44381337612
         ],
         "run_count": 8,
@@ -8250,9 +7516,7 @@
           ]
         },
         "push": {
-          "branches": [
-            "main"
-          ],
+          "branches": ["main"],
           "paths": [
             ".github/workflows/controller-tool-build-fixture.yml",
             "scripts/release-controller-tool*.mts",
@@ -8410,55 +7674,13 @@
       },
       "sample": {
         "ids": [
-          44400688639,
-          44399704071,
-          44398912141,
-          44397662408,
-          44397279655,
-          44396654571,
-          44396546870,
-          44396249077,
-          44396244900,
-          44395971437,
-          44395970527,
-          44395347474,
-          44395003286,
-          44394986643,
-          44394452410,
-          44394042246,
-          44392815416,
-          44392080168,
-          44392058726,
-          44391383128,
-          44390466185,
-          44390313660,
-          44390241390,
-          44390158979,
-          44389061804,
-          44387173436,
-          44387078000,
-          44386843804,
-          44386566786,
-          44386438257,
-          44386281587,
-          44385816469,
-          44385816775,
-          44385421910,
-          44385335786,
-          44385109074,
-          44385010679,
-          44384743533,
-          44384716278,
-          44383923848,
-          44383634180,
-          44383201471,
-          44382942136,
-          44382331085,
-          44382302650,
-          44382163401,
-          44381340103,
-          44381312089,
-          44381294627
+          44400688639, 44399704071, 44398912141, 44397662408, 44397279655, 44396654571, 44396546870,
+          44396249077, 44396244900, 44395971437, 44395970527, 44395347474, 44395003286, 44394986643,
+          44394452410, 44394042246, 44392815416, 44392080168, 44392058726, 44391383128, 44390466185,
+          44390313660, 44390241390, 44390158979, 44389061804, 44387173436, 44387078000, 44386843804,
+          44386566786, 44386438257, 44386281587, 44385816469, 44385816775, 44385421910, 44385335786,
+          44385109074, 44385010679, 44384743533, 44384716278, 44383923848, 44383634180, 44383201471,
+          44382942136, 44382331085, 44382302650, 44382163401, 44381340103, 44381312089, 44381294627
         ],
         "run_count": 49,
         "events": {
@@ -8568,23 +7790,13 @@
               "description": "Fixed validation operation",
               "type": "choice",
               "default": "audit",
-              "options": [
-                "audit",
-                "audit-reuse",
-                "local-check",
-                "fallow"
-              ]
+              "options": ["audit", "audit-reuse", "local-check", "fallow"]
             },
             "fallow_scope": {
               "description": "Selective Fallow scope (operation=fallow only)",
               "type": "choice",
               "default": "tooling",
-              "options": [
-                "desktop",
-                "tooling",
-                "review",
-                "css"
-              ]
+              "options": ["desktop", "tooling", "review", "css"]
             },
             "comparison_base": {
               "description": "Actual target ref for a Fallow review",
@@ -8636,9 +7848,7 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76"
           ],
-          "scripts_referenced": [
-            "scripts/run-fallow.mts"
-          ],
+          "scripts_referenced": ["scripts/run-fallow.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -8813,10 +8023,7 @@
           }
         },
         "issue_comment": {
-          "types": [
-            "created",
-            "edited"
-          ]
+          "types": ["created", "edited"]
         },
         "pull_request": {
           "paths": [
@@ -8829,10 +8036,7 @@
             "mode": {
               "description": "Process retained owner requests, or verify the existing Project credential with a same-option write",
               "type": "choice",
-              "options": [
-                "process",
-                "probe"
-              ],
+              "options": ["process", "probe"],
               "default": "process"
             },
             "probe_issue": {
@@ -8883,13 +8087,8 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/hosted-discovery-intake-runner.mts"
-          ],
-          "secrets_referenced": [
-            "PORTCOVE_DISCOVERY_DATABASE_URL",
-            "PORTCOVE_ROADMAP_TOKEN"
-          ],
+          "scripts_referenced": ["scripts/hosted-discovery-intake-runner.mts"],
+          "secrets_referenced": ["PORTCOVE_DISCOVERY_DATABASE_URL", "PORTCOVE_ROADMAP_TOKEN"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
@@ -8897,24 +8096,9 @@
       },
       "sample": {
         "ids": [
-          44399173873,
-          44399000308,
-          44398880295,
-          44398463928,
-          44397443339,
-          44396700795,
-          44396580697,
-          44395449044,
-          44395029924,
-          44393486182,
-          44392321326,
-          44391591593,
-          44390848677,
-          44386989765,
-          44384929955,
-          44383140600,
-          44382806092,
-          44382184774
+          44399173873, 44399000308, 44398880295, 44398463928, 44397443339, 44396700795, 44396580697,
+          44395449044, 44395029924, 44393486182, 44392321326, 44391591593, 44390848677, 44386989765,
+          44384929955, 44383140600, 44382806092, 44382184774
         ],
         "run_count": 18,
         "events": {
@@ -8965,10 +8149,7 @@
               "required": true,
               "default": "preview",
               "type": "choice",
-              "options": [
-                "preview",
-                "beta"
-              ]
+              "options": ["preview", "beta"]
             },
             "wait_minutes": {
               "description": "Minutes to wait for the feed to offer a strictly newer version (0-180)",
@@ -8997,9 +8178,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
           ],
-          "scripts_referenced": [
-            "scripts/hosted-installed-update.mts"
-          ],
+          "scripts_referenced": ["scripts/hosted-installed-update.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -9067,10 +8246,7 @@
         "verdict": {
           "name": "Acceptance verdict",
           "if": "always()",
-          "needs": [
-            "feed",
-            "windows"
-          ],
+          "needs": ["feed", "windows"],
           "runs-on": "ubuntu-24.04",
           "timeout-minutes": 5,
           "uses_actions": [],
@@ -9094,10 +8270,7 @@
               "description": "One bounded prerequisite rehearsal; no production acceptance",
               "required": true,
               "type": "choice",
-              "options": [
-                "windows-x86_64",
-                "linux-x86_64"
-              ]
+              "options": ["windows-x86_64", "linux-x86_64"]
             },
             "resource_observer_only": {
               "description": "Read-only cross-step counter qualification; no runtime, driver or install",
@@ -9380,9 +8553,7 @@
             "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1"
           ],
-          "scripts_referenced": [
-            "scripts/ci-job-timeout-probe.mts"
-          ],
+          "scripts_referenced": ["scripts/ci-job-timeout-probe.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
@@ -9425,10 +8596,7 @@
           "inputs": {
             "mode": {
               "type": "choice",
-              "options": [
-                "send",
-                "receive"
-              ],
+              "options": ["send", "receive"],
               "default": "send",
               "required": true
             },
@@ -9467,9 +8635,7 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/qualify-job-token-dispatch.mts"
-          ],
+          "scripts_referenced": ["scripts/qualify-job-token-dispatch.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -9498,9 +8664,7 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/qualify-job-token-dispatch.mts"
-          ],
+          "scripts_referenced": ["scripts/qualify-job-token-dispatch.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -9566,9 +8730,7 @@
             "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
             "voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76"
           ],
-          "scripts_referenced": [
-            "scripts/package-ownership-selection.mts"
-          ],
+          "scripts_referenced": ["scripts/package-ownership-selection.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
@@ -9690,9 +8852,7 @@
             "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
           ],
-          "scripts_referenced": [
-            "scripts/test-linux-package-ownership.sh"
-          ],
+          "scripts_referenced": ["scripts/test-linux-package-ownership.sh"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -9719,13 +8879,7 @@
         }
       },
       "sample": {
-        "ids": [
-          44391383048,
-          44390159171,
-          44383923359,
-          44383201805,
-          44381294717
-        ],
+        "ids": [44391383048, 44390159171, 44383923359, 44383201805, 44381294717],
         "run_count": 5,
         "events": {
           "pull_request": 5
@@ -9860,11 +9014,7 @@
             "scripts/maintenance-inventory.mts",
             "scripts/maintenance-store.mts"
           ],
-          "secrets_referenced": [
-            "GITHUB_TOKEN",
-            "PORTCOVE_DATABASE_URL",
-            "PORTCOVE_ROADMAP_TOKEN"
-          ],
+          "secrets_referenced": ["GITHUB_TOKEN", "PORTCOVE_DATABASE_URL", "PORTCOVE_ROADMAP_TOKEN"],
           "cache_artifact_steps": [
             {
               "uses": "Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
@@ -9952,9 +9102,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
           ],
-          "scripts_referenced": [
-            "scripts/maintenance-store.mts"
-          ],
+          "scripts_referenced": ["scripts/maintenance-store.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -9990,9 +9138,7 @@
         }
       },
       "sample": {
-        "ids": [
-          44396492035
-        ],
+        "ids": [44396492035],
         "run_count": 1,
         "events": {
           "workflow_dispatch": 1
@@ -10096,9 +9242,7 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/install-linux-desktop-prerequisites.sh"
-          ],
+          "scripts_referenced": ["scripts/install-linux-desktop-prerequisites.sh"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -10297,10 +9441,7 @@
           "strategy": {
             "fail-fast": false,
             "matrix": {
-              "selection": [
-                "presentation",
-                "interface-size"
-              ]
+              "selection": ["presentation", "interface-size"]
             }
           },
           "uses_actions": [
@@ -10353,9 +9494,7 @@
                 },
                 {
                   "selection": "owned-update-review",
-                  "scenarios": [
-                    "native-game-update-review"
-                  ]
+                  "scenarios": ["native-game-update-review"]
                 },
                 {
                   "selection": "owned-recovery",
@@ -10396,70 +9535,47 @@
                 },
                 {
                   "selection": "library-layout",
-                  "scenarios": [
-                    "native-library-layout"
-                  ]
+                  "scenarios": ["native-library-layout"]
                 },
                 {
                   "selection": "library-organization",
-                  "scenarios": [
-                    "native-library-organization-restart"
-                  ]
+                  "scenarios": ["native-library-organization-restart"]
                 },
                 {
                   "selection": "selected-setup",
-                  "scenarios": [
-                    "native-selected-setup-completion"
-                  ]
+                  "scenarios": ["native-selected-setup-completion"]
                 },
                 {
                   "selection": "update-acquisition",
-                  "scenarios": [
-                    "native-update-acquisition-lifecycle"
-                  ]
+                  "scenarios": ["native-update-acquisition-lifecycle"]
                 },
                 {
                   "selection": "staged-update",
-                  "scenarios": [
-                    "native-staged-update-composition"
-                  ]
+                  "scenarios": ["native-staged-update-composition"]
                 },
                 {
                   "selection": "external-runtime",
-                  "scenarios": [
-                    "native-external-runtime-review"
-                  ]
+                  "scenarios": ["native-external-runtime-review"]
                 },
                 {
                   "selection": "artwork",
-                  "scenarios": [
-                    "native-local-artwork-picker-and-recovery"
-                  ]
+                  "scenarios": ["native-local-artwork-picker-and-recovery"]
                 },
                 {
                   "selection": "restart",
-                  "scenarios": [
-                    "appearance-restart",
-                    "native-workspace-refresh-recovery"
-                  ]
+                  "scenarios": ["appearance-restart", "native-workspace-refresh-recovery"]
                 },
                 {
                   "selection": "startup-preferences",
-                  "scenarios": [
-                    "native-startup-preferences-recovery"
-                  ]
+                  "scenarios": ["native-startup-preferences-recovery"]
                 },
                 {
                   "selection": "startup-library",
-                  "scenarios": [
-                    "native-startup-library-recovery"
-                  ]
+                  "scenarios": ["native-startup-library-recovery"]
                 },
                 {
                   "selection": "library-switch",
-                  "scenarios": [
-                    "native-library-switch-recovery"
-                  ]
+                  "scenarios": ["native-library-switch-recovery"]
                 }
               ]
             }
@@ -10503,9 +9619,7 @@
             "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1"
           ],
-          "scripts_referenced": [
-            "scripts/quality-tools.test.mts"
-          ],
+          "scripts_referenced": ["scripts/quality-tools.test.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
@@ -10700,10 +9814,7 @@
         }
       },
       "sample": {
-        "ids": [
-          44395415654,
-          44395050884
-        ],
+        "ids": [44395415654, 44395050884],
         "run_count": 2,
         "events": {
           "workflow_dispatch": 2
@@ -10867,9 +9978,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/app-release.mts"
-          ],
+          "scripts_referenced": ["scripts/app-release.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -10944,9 +10053,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/pr-conventions.mts"
-          ],
+          "scripts_referenced": ["scripts/pr-conventions.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
@@ -10955,157 +10062,28 @@
       },
       "sample": {
         "ids": [
-          44402137498,
-          44401928092,
-          44401018030,
-          44400991075,
-          44400990602,
-          44400982340,
-          44400870181,
-          44400681398,
-          44400261561,
-          44400257644,
-          44400000370,
-          44399996620,
-          44399990563,
-          44399988548,
-          44399985922,
-          44399846199,
-          44399700177,
-          44399701370,
-          44399490146,
-          44399368406,
-          44399091201,
-          44399083228,
-          44398966374,
-          44398963786,
-          44398911704,
-          44398834109,
-          44398684396,
-          44398370671,
-          44398372921,
-          44398367071,
-          44398364485,
-          44398361151,
-          44398148872,
-          44398140403,
-          44398081410,
-          44397944663,
-          44397785178,
-          44397656256,
-          44397340769,
-          44397279587,
-          44397265638,
-          44396969034,
-          44396650453,
-          44396621381,
-          44396618220,
-          44396616074,
-          44396541697,
-          44396348208,
-          44396345859,
-          44396343941,
-          44396339445,
-          44396332979,
-          44396309868,
-          44396248680,
-          44396244883,
-          44395971264,
-          44395970520,
-          44395347411,
-          44394998725,
-          44394982111,
-          44394773458,
-          44394660833,
-          44394466662,
-          44394446069,
-          44394437002,
-          44394383523,
-          44394377132,
-          44394377529,
-          44394290699,
-          44394175380,
-          44394160888,
-          44394089714,
-          44394049153,
-          44393559875,
-          44393555774,
-          44393091021,
-          44392815425,
-          44392344345,
-          44392343625,
-          44392080061,
-          44392058749,
-          44391829732,
-          44391376976,
-          44390683724,
-          44390538098,
-          44390459782,
-          44390302933,
-          44390241117,
-          44390151269,
-          44389892238,
-          44389887159,
-          44389738948,
-          44389061616,
-          44388710227,
-          44388568497,
-          44388526482,
-          44388013204,
-          44387963099,
-          44387664321,
-          44387499569,
-          44387494772,
-          44387247641,
-          44387165201,
-          44387070422,
-          44387058644,
-          44387012772,
-          44386906614,
-          44386894884,
-          44386838322,
-          44386768111,
-          44386768138,
-          44386561919,
-          44386430917,
-          44386277939,
-          44385874606,
-          44385815967,
-          44385816002,
-          44385524217,
-          44385415002,
-          44385335987,
-          44385230638,
-          44385099914,
-          44384890725,
-          44384716147,
-          44384702969,
-          44384634797,
-          44384599039,
-          44384017529,
-          44384014489,
-          44383810344,
-          44383690986,
-          44383356549,
-          44383076036,
-          44382955942,
-          44382922282,
-          44382844819,
-          44382679241,
-          44382430958,
-          44382258764,
-          44381825463,
-          44381825792,
-          44381726730,
-          44381628283,
-          44381627594,
-          44381417914,
-          44381313972,
-          44381311177,
-          44381309382,
-          44381306080,
-          44381291086,
-          44381200188
+          44402137498, 44401928092, 44401018030, 44400991075, 44400990602, 44400982340, 44400870181,
+          44400681398, 44400261561, 44400257644, 44400000370, 44399996620, 44399990563, 44399988548,
+          44399985922, 44399846199, 44399700177, 44399701370, 44399490146, 44399368406, 44399091201,
+          44399083228, 44398966374, 44398963786, 44398911704, 44398834109, 44398684396, 44398370671,
+          44398372921, 44398367071, 44398364485, 44398361151, 44398148872, 44398140403, 44398081410,
+          44397944663, 44397785178, 44397656256, 44397340769, 44397279587, 44397265638, 44396969034,
+          44396650453, 44396621381, 44396618220, 44396616074, 44396541697, 44396348208, 44396345859,
+          44396343941, 44396339445, 44396332979, 44396309868, 44396248680, 44396244883, 44395971264,
+          44395970520, 44395347411, 44394998725, 44394982111, 44394773458, 44394660833, 44394466662,
+          44394446069, 44394437002, 44394383523, 44394377132, 44394377529, 44394290699, 44394175380,
+          44394160888, 44394089714, 44394049153, 44393559875, 44393555774, 44393091021, 44392815425,
+          44392344345, 44392343625, 44392080061, 44392058749, 44391829732, 44391376976, 44390683724,
+          44390538098, 44390459782, 44390302933, 44390241117, 44390151269, 44389892238, 44389887159,
+          44389738948, 44389061616, 44388710227, 44388568497, 44388526482, 44388013204, 44387963099,
+          44387664321, 44387499569, 44387494772, 44387247641, 44387165201, 44387070422, 44387058644,
+          44387012772, 44386906614, 44386894884, 44386838322, 44386768111, 44386768138, 44386561919,
+          44386430917, 44386277939, 44385874606, 44385815967, 44385816002, 44385524217, 44385415002,
+          44385335987, 44385230638, 44385099914, 44384890725, 44384716147, 44384702969, 44384634797,
+          44384599039, 44384017529, 44384014489, 44383810344, 44383690986, 44383356549, 44383076036,
+          44382955942, 44382922282, 44382844819, 44382679241, 44382430958, 44382258764, 44381825463,
+          44381825792, 44381726730, 44381628283, 44381627594, 44381417914, 44381313972, 44381311177,
+          44381309382, 44381306080, 44381291086, 44381200188
         ],
         "run_count": 151,
         "events": {
@@ -11289,9 +10267,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
           ],
-          "scripts_referenced": [
-            "scripts/rust-timing-hints.mts"
-          ],
+          "scripts_referenced": ["scripts/rust-timing-hints.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -11351,12 +10327,8 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
           ],
-          "scripts_referenced": [
-            "scripts/release-content-scan.mts"
-          ],
-          "secrets_referenced": [
-            "GITHUB_TOKEN"
-          ],
+          "scripts_referenced": ["scripts/release-content-scan.mts"],
+          "secrets_referenced": ["GITHUB_TOKEN"],
           "cache_artifact_steps": [
             {
               "name": "Restore scanned-asset checkpoint",
@@ -11393,9 +10365,7 @@
         }
       },
       "sample": {
-        "ids": [
-          44401822254
-        ],
+        "ids": [44401822254],
         "run_count": 1,
         "events": {
           "schedule": 1
@@ -11447,9 +10417,7 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/release-coordinator.mts"
-          ],
+          "scripts_referenced": ["scripts/release-coordinator.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -11492,9 +10460,7 @@
           ]
         },
         "push": {
-          "branches": [
-            "main"
-          ],
+          "branches": ["main"],
           "paths": [
             "scripts/release-handshake-hosted-fixture.mts",
             ".github/workflows/release-handshake-fixture.yml"
@@ -11518,9 +10484,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
           ],
-          "scripts_referenced": [
-            "scripts/release-handshake-hosted-fixture.mts"
-          ],
+          "scripts_referenced": ["scripts/release-handshake-hosted-fixture.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -11572,11 +10536,7 @@
               "description": "Trusted declared distribution inventory.",
               "type": "choice",
               "default": "full",
-              "options": [
-                "full",
-                "initial-beta-win-linux",
-                "initial-beta-windows-x86_64-v1"
-              ]
+              "options": ["full", "initial-beta-win-linux", "initial-beta-windows-x86_64-v1"]
             },
             "report_only_repair": {
               "description": "Restrict this invocation to an existing journal-bound report repair.",
@@ -11651,10 +10611,7 @@
         },
         "validate": {
           "if": "${{ !inputs.report_only_repair }}",
-          "needs": [
-            "identity",
-            "qualification"
-          ],
+          "needs": ["identity", "qualification"],
           "runs-on": "ubuntu-22.04",
           "uses_actions": [
             "./.github/actions/setup-rust",
@@ -11674,9 +10631,7 @@
             "scripts/validation-plan.mts",
             "scripts/workflow-provenance.mts"
           ],
-          "secrets_referenced": [
-            "GITHUB_TOKEN"
-          ],
+          "secrets_referenced": ["GITHUB_TOKEN"],
           "cache_artifact_steps": [
             {
               "uses": "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
@@ -11725,10 +10680,7 @@
         "build": {
           "name": "Build ${{ matrix.label }}",
           "if": "${{ !inputs.report_only_repair }}",
-          "needs": [
-            "identity",
-            "validate"
-          ],
+          "needs": ["identity", "validate"],
           "runs-on": "${{ matrix.os }}",
           "timeout-minutes": "${{ needs.identity.outputs.release_profile != 'full' && 60 || 360 }}",
           "permissions": {
@@ -11834,10 +10786,7 @@
         },
         "build_intel": {
           "if": "${{ !inputs.report_only_repair && needs.identity.outputs.release_profile == 'full' }}",
-          "needs": [
-            "identity",
-            "validate"
-          ],
+          "needs": ["identity", "validate"],
           "runs-on": "macos-15",
           "permissions": {
             "contents": "read"
@@ -11891,10 +10840,7 @@
         },
         "verify_intel": {
           "if": "${{ !inputs.report_only_repair && needs.identity.outputs.release_profile == 'full' }}",
-          "needs": [
-            "identity",
-            "build_intel"
-          ],
+          "needs": ["identity", "build_intel"],
           "runs-on": "macos-15-intel",
           "permissions": {
             "contents": "read"
@@ -11942,9 +10888,7 @@
             "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1"
           ],
-          "scripts_referenced": [
-            "scripts/release-result-gate.mts"
-          ],
+          "scripts_referenced": ["scripts/release-result-gate.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
@@ -11952,10 +10896,7 @@
         },
         "assemble": {
           "if": "${{ !inputs.report_only_repair }}",
-          "needs": [
-            "identity",
-            "release_gate"
-          ],
+          "needs": ["identity", "release_gate"],
           "runs-on": "ubuntu-22.04",
           "permissions": {
             "contents": "read"
@@ -12034,9 +10975,7 @@
           "permissions": {
             "contents": "read"
           },
-          "uses_actions": [
-            "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333"
-          ],
+          "uses_actions": ["actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333"],
           "scripts_referenced": [],
           "secrets_referenced": [],
           "cache_artifact_steps": [
@@ -12062,10 +11001,7 @@
         },
         "attest": {
           "if": "${{ !inputs.report_only_repair && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (needs.identity.outputs.release_profile == 'initial-beta-win-linux' || needs.identity.outputs.release_profile == 'initial-beta-windows-x86_64-v1'))) }}",
-          "needs": [
-            "identity",
-            "assemble"
-          ],
+          "needs": ["identity", "assemble"],
           "runs-on": "ubuntu-22.04",
           "permissions": {
             "artifact-metadata": "write",
@@ -12112,10 +11048,7 @@
         },
         "authorize_publication": {
           "if": "github.event_name == 'push'",
-          "needs": [
-            "assemble",
-            "attest"
-          ],
+          "needs": ["assemble", "attest"],
           "runs-on": "ubuntu-22.04",
           "permissions": {
             "contents": "read"
@@ -12127,10 +11060,7 @@
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115",
             "taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b"
           ],
-          "scripts_referenced": [
-            "scripts/linux-beta-risk-706.mts",
-            "scripts/quality-tools.mts"
-          ],
+          "scripts_referenced": ["scripts/linux-beta-risk-706.mts", "scripts/quality-tools.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
@@ -12138,11 +11068,7 @@
         },
         "publish": {
           "if": "github.event_name == 'push'",
-          "needs": [
-            "assemble",
-            "attest",
-            "authorize_publication"
-          ],
+          "needs": ["assemble", "attest", "authorize_publication"],
           "runs-on": "ubuntu-22.04",
           "permissions": {
             "contents": "write"
@@ -12183,15 +11109,8 @@
       "name": "Renovate derived data repair",
       "on": {
         "pull_request": {
-          "types": [
-            "opened",
-            "synchronize",
-            "reopened"
-          ],
-          "paths": [
-            "aqua.yaml",
-            ".aqua-version"
-          ]
+          "types": ["opened", "synchronize", "reopened"],
+          "paths": ["aqua.yaml", ".aqua-version"]
         }
       },
       "concurrency": {
@@ -12243,9 +11162,7 @@
             "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333"
           ],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_RENOVATE_REPAIR_APP_PRIVATE_KEY"
-          ],
+          "secrets_referenced": ["PORTCOVE_RENOVATE_REPAIR_APP_PRIVATE_KEY"],
           "cache_artifact_steps": [
             {
               "if": "steps.configuration.outputs.available == 'true'",
@@ -12315,12 +11232,8 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/roadmap-dispatch.mts"
-          ],
-          "secrets_referenced": [
-            "PORTCOVE_ROADMAP_TOKEN"
-          ],
+          "scripts_referenced": ["scripts/roadmap-dispatch.mts"],
+          "secrets_referenced": ["PORTCOVE_ROADMAP_TOKEN"],
           "cache_artifact_steps": [
             {
               "if": "always()",
@@ -12345,17 +11258,10 @@
       "name": "Roadmap scoped checks and diagnostics",
       "on": {
         "issues": {
-          "types": [
-            "opened",
-            "edited",
-            "reopened",
-            "closed"
-          ]
+          "types": ["opened", "edited", "reopened", "closed"]
         },
         "push": {
-          "branches": [
-            "main"
-          ],
+          "branches": ["main"],
           "paths": [
             ".github/roadmap.json",
             ".github/linux-beta-risk-706.json",
@@ -12381,11 +11287,7 @@
             "hosted_intake": {
               "description": "Owner qualification of the reviewed hosted bridge ref; none keeps ordinary Roadmap checks",
               "type": "choice",
-              "options": [
-                "none",
-                "process",
-                "probe"
-              ],
+              "options": ["none", "process", "probe"],
               "default": "none"
             },
             "issue": {
@@ -12412,14 +11314,10 @@
             "issues": "write"
           },
           "uses": "./.github/workflows/hosted-discovery-intake.yml",
-          "reusable_secret_binding": [
-            "PORTCOVE_ROADMAP_TOKEN"
-          ],
+          "reusable_secret_binding": ["PORTCOVE_ROADMAP_TOKEN"],
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_ROADMAP_TOKEN"
-          ],
+          "secrets_referenced": ["PORTCOVE_ROADMAP_TOKEN"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
@@ -12431,9 +11329,7 @@
           "permissions": {},
           "uses_actions": [],
           "scripts_referenced": [],
-          "secrets_referenced": [
-            "PORTCOVE_ROADMAP_TOKEN"
-          ],
+          "secrets_referenced": ["PORTCOVE_ROADMAP_TOKEN"],
           "cache_artifact_steps": [],
           "timeout_and_retry_steps": [],
           "required_context": false
@@ -12452,9 +11348,7 @@
             "scripts/roadmap-health.mts",
             "scripts/roadmap-membership-readback.mts"
           ],
-          "secrets_referenced": [
-            "PORTCOVE_ROADMAP_TOKEN"
-          ],
+          "secrets_referenced": ["PORTCOVE_ROADMAP_TOKEN"],
           "cache_artifact_steps": [
             {
               "if": "always()",
@@ -12473,20 +11367,8 @@
       },
       "sample": {
         "ids": [
-          44398663809,
-          44396356658,
-          44395796204,
-          44394048914,
-          44388954942,
-          44387749803,
-          44387749822,
-          44383987724,
-          44383983043,
-          44382376900,
-          44382371535,
-          44381694415,
-          44381592742,
-          44381337715
+          44398663809, 44396356658, 44395796204, 44394048914, 44388954942, 44387749803, 44387749822,
+          44383987724, 44383983043, 44382376900, 44382371535, 44381694415, 44381592742, 44381337715
         ],
         "run_count": 14,
         "events": {
@@ -12582,15 +11464,9 @@
       "name": "Publish consolidated Roadmap report",
       "on": {
         "workflow_run": {
-          "workflows": [
-            "Roadmap scoped checks and diagnostics"
-          ],
-          "types": [
-            "completed"
-          ],
-          "branches": [
-            "main"
-          ]
+          "workflows": ["Roadmap scoped checks and diagnostics"],
+          "types": ["completed"],
+          "branches": ["main"]
         },
         "workflow_dispatch": null
       },
@@ -12613,9 +11489,7 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/roadmap-publish.mts"
-          ],
+          "scripts_referenced": ["scripts/roadmap-publish.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -12645,13 +11519,7 @@
       },
       "sample": {
         "ids": [
-          44401097714,
-          44400618461,
-          44400243237,
-          44399090770,
-          44398768464,
-          44394623592,
-          44394189584
+          44401097714, 44400618461, 44400243237, 44399090770, 44398768464, 44394623592, 44394189584
         ],
         "run_count": 7,
         "events": {
@@ -12754,9 +11622,7 @@
           ]
         },
         "push": {
-          "branches": [
-            "main"
-          ],
+          "branches": ["main"],
           "paths": [
             ".github/workflows/semantic-source-fixture.yml",
             "scripts/release-semantic-source*",
@@ -12791,9 +11657,7 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413"
           ],
-          "scripts_referenced": [
-            "scripts/qualify-semantic-source.mts"
-          ],
+          "scripts_referenced": ["scripts/qualify-semantic-source.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -12827,32 +11691,19 @@
               "description": "Platform to investigate; use all for complete-matrix evidence",
               "type": "choice",
               "default": "all",
-              "options": [
-                "all",
-                "windows-x86_64",
-                "linux-x86_64",
-                "macos-x86_64",
-                "macos-aarch64"
-              ]
+              "options": ["all", "windows-x86_64", "linux-x86_64", "macos-x86_64", "macos-aarch64"]
             },
             "transition_profile": {
               "description": "Packaged version transition to exercise",
               "type": "choice",
               "default": "legacy-skipped",
-              "options": [
-                "legacy-adjacent",
-                "legacy-skipped",
-                "preview-final"
-              ]
+              "options": ["legacy-adjacent", "legacy-skipped", "preview-final"]
             },
             "linux_runner": {
               "description": "Ubuntu baseline for the installed AppImage rehearsal",
               "type": "choice",
               "default": "ubuntu-24.04",
-              "options": [
-                "ubuntu-22.04",
-                "ubuntu-24.04"
-              ]
+              "options": ["ubuntu-22.04", "ubuntu-24.04"]
             },
             "retained_reboot_only": {
               "description": "Run only the isolated Linux reboot cell with the frozen already-qualified pair",
@@ -13074,9 +11925,7 @@
           ]
         },
         "push": {
-          "branches": [
-            "main"
-          ],
+          "branches": ["main"],
           "paths": [
             "crates/portcove-core/catalog/**",
             "scripts/retcomm-psx-upstreams.json",
@@ -13133,9 +11982,7 @@
             "scripts/upstream-health-monitor.mts",
             "scripts/upstream-health-plan.mts"
           ],
-          "secrets_referenced": [
-            "GITHUB_TOKEN"
-          ],
+          "secrets_referenced": ["GITHUB_TOKEN"],
           "cache_artifact_steps": [
             {
               "name": "Restore main observation history",
@@ -13173,34 +12020,10 @@
       },
       "sample": {
         "ids": [
-          44400688735,
-          44398912173,
-          44397279603,
-          44396245218,
-          44395970594,
-          44395347313,
-          44395003616,
-          44394986818,
-          44394452396,
-          44394042298,
-          44392815237,
-          44392080051,
-          44392058793,
-          44390313601,
-          44390241493,
-          44389061635,
-          44387173475,
-          44387078135,
-          44385422003,
-          44385109283,
-          44385010598,
-          44384716165,
-          44384307243,
-          44383634151,
-          44382942203,
-          44382163267,
-          44381338228,
-          44381312102
+          44400688735, 44398912173, 44397279603, 44396245218, 44395970594, 44395347313, 44395003616,
+          44394986818, 44394452396, 44394042298, 44392815237, 44392080051, 44392058793, 44390313601,
+          44390241493, 44389061635, 44387173475, 44387078135, 44385422003, 44385109283, 44385010598,
+          44384716165, 44384307243, 44383634151, 44382942203, 44382163267, 44381338228, 44381312102
         ],
         "run_count": 28,
         "events": {
@@ -13313,12 +12136,8 @@
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/upstream-relocation-evidence.mts"
-          ],
-          "secrets_referenced": [
-            "GITHUB_TOKEN"
-          ],
+          "scripts_referenced": ["scripts/upstream-relocation-evidence.mts"],
+          "secrets_referenced": ["GITHUB_TOKEN"],
           "cache_artifact_steps": [
             {
               "name": "Retain evidence report",
@@ -13384,9 +12203,7 @@
             "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
             "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115"
           ],
-          "scripts_referenced": [
-            "scripts/app-release.mts"
-          ],
+          "scripts_referenced": ["scripts/app-release.mts"],
           "secrets_referenced": [],
           "cache_artifact_steps": [
             {
@@ -13593,36 +12410,24 @@
         "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6",
         "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
       ],
-      "scripts_referenced": [
-        "scripts/release-controller-transport.mts"
-      ]
+      "scripts_referenced": ["scripts/release-controller-transport.mts"]
     },
     ".github/actions/release-native-linux/action.yml": {
       "name": "Fixed same-job Linux native proof handoff",
       "using": "composite",
-      "step_actions": [
-        "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
-      ],
-      "scripts_referenced": [
-        "scripts/release-hosted-native-workflow.mts"
-      ]
+      "step_actions": ["actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"],
+      "scripts_referenced": ["scripts/release-hosted-native-workflow.mts"]
     },
     ".github/actions/release-native-windows/action.yml": {
       "name": "Fixed same-job Windows native proof handoff",
       "using": "composite",
-      "step_actions": [
-        "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
-      ],
-      "scripts_referenced": [
-        "scripts/release-hosted-native-workflow.mts"
-      ]
+      "step_actions": ["actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"],
+      "scripts_referenced": ["scripts/release-hosted-native-workflow.mts"]
     },
     ".github/actions/retain-browser-diagnostics/action.yml": {
       "name": "Retain browser diagnostics",
       "using": "composite",
-      "step_actions": [
-        "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
-      ],
+      "step_actions": ["actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"],
       "scripts_referenced": []
     },
     ".github/actions/setup-rust/action.yml": {
@@ -13632,9 +12437,7 @@
         "dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c",
         "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1"
       ],
-      "scripts_referenced": [
-        "scripts/run-rust-tests.mts"
-      ]
+      "scripts_referenced": ["scripts/run-rust-tests.mts"]
     },
     ".github/actions/stop-if-superseded/action.yml": {
       "name": "Stop if superseded",
