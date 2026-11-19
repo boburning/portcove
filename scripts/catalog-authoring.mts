@@ -94,7 +94,8 @@ export interface AuthoredPort extends Record<string, unknown> {
     | "bundled-openbios"
     | "split-mods"
     | "split-mods-openbios"
-    | "split-mods-overlay-directory";
+    | "split-mods-overlay-directory"
+    | "technically-computers";
   /** Shared root-level persistence for reviewed N64Recomp packages. */
   n64_recomp_persistence_v1?: true;
   /** Shared persistent paths for ReflectionHLE's reviewed portable root. */

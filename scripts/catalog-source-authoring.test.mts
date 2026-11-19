@@ -1068,7 +1068,10 @@ void test("reviewed GBA archive facts preserve both installed contract variants"
 void test("PSX managed Windows authoring preserves the embedded contracts", () => {
   const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((port) => [port.id, port]));
   const { records } = readCatalogSource(catalogRoot);
-  const consumers = records.filter((record) => record.psx_managed_windows_v1);
+  const consumers = records.filter(
+    (record) =>
+      record.psx_managed_windows_v1 && record.psx_managed_windows_v1 !== "technically-computers",
+  );
   assert.ok(consumers.length > 0);
   for (const record of consumers) {
     const id = record.listing.id;
@@ -1109,6 +1112,43 @@ void test("PSX managed Windows authoring preserves the embedded contracts", () =
     delete release.asset_hints["linux-x86-64"];
     assert.throws(() => checkedAuthoredPort(missingSelector), /explicit asset selector/u);
   }
+});
+
+void test("TechnicallyComputers PSX persistence preserves the reviewed three-platform definitions", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((port) => [port.id, port]));
+  const family = records.filter(
+    (record) => record.psx_managed_windows_v1 === "technically-computers",
+  );
+  assert.equal(family.length, 10);
+  for (const record of family) {
+    assert.equal(
+      JSON.stringify(projectAuthoredPort(record)),
+      JSON.stringify(accepted.get(record.listing.id)),
+    );
+    const explicit = projectPsxManagedWindows(record);
+    assert.deepEqual(explicit.integration?.persistent_paths, [
+      "saves",
+      "config",
+      "mods",
+      "settings.toml",
+      "game_options.json",
+      "graphics.json",
+      "input.json",
+      "sound.json",
+    ]);
+    assert.equal(explicit.integration?.runtime_subdirectory, "build-portcove");
+  }
+  const conflict = structuredClone(requiredFixture(family[0]));
+  conflict.integration!.runtime_subdirectory = "different-root";
+  assert.throws(() => checkedAuthoredPort(conflict), /already owns the runtime root/u);
+  const incorrectRoute = structuredClone(requiredFixture(family[0]));
+  incorrectRoute.integration!.platforms = ["windows-x86-64"];
+  delete incorrectRoute.managed_setup_platform_warnings;
+  assert.throws(() => checkedAuthoredPort(incorrectRoute), /reviewed Windows and macOS/u);
+  const tomba = requiredFixture(records.find(({ listing }) => listing.id === "tomba-recompiled"));
+  assert.equal(tomba.psx_managed_windows_v1, undefined);
+  assert.equal(compactPsxManagedWindows(tomba), tomba);
 });
 
 void test("PSX preparation compacts exact layouts and retains explicit writer differences", () => {

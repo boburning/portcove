@@ -3613,6 +3613,13 @@ split mod rules still apply. For the reviewed retail multidisc split-mods kits,
 keep `runtime-discs`, `psx-settings-selected` and `psx-raw-set` explicit in the
 integration.
 
+Use `"technically-computers"` for the reviewed TechnicallyComputers GitHub
+kits with Windows x64, Intel macOS and Apple silicon macOS selectors. This
+variant supplies only the `build-portcove` runtime root and eight persistent
+paths. Each record retains its repository, asset selectors, executable hints,
+original disc profile, guide and qualification. A different upstream or writer
+layout uses explicit fields.
+
 A Linux sibling uses the same generated player basename without `.exe`, its
 own asset selector and artifact-bound source applicability.
 Preserve any separate upstream setup guide. The projection
