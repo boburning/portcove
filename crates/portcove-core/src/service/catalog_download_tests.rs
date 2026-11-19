@@ -2204,7 +2204,7 @@ async fn replacement_download_keeps_current_registration_until_reviewed_relink()
         )
         .unwrap();
     assert_eq!(manual_relink.id, changed.id);
-    assert_eq!(manual_relink.executable, old_executable);
+    assert_eq!(manual_relink.executable, original.executable);
     assert_eq!(manual_relink.setup_download, changed.setup_download);
 }
 
