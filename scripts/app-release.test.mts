@@ -4,6 +4,7 @@ import { parse } from "yaml";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { Script } from "node:vm";
 import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import { execFileSync } from "node:child_process";
 import {
@@ -1025,7 +1026,11 @@ type WorkflowJob = {
   permissions?: Record<string, string>;
   steps?: WorkflowStep[];
 };
-type Workflow = { on: Record<string, unknown>; jobs: Record<string, WorkflowJob> };
+type Workflow = {
+  on: Record<string, unknown>;
+  permissions?: Record<string, string>;
+  jobs: Record<string, WorkflowJob>;
+};
 
 const workflowsDirectory = path.join(import.meta.dirname, "..", ".github", "workflows");
 const readWorkflow = async (name: string) =>
@@ -1349,4 +1354,160 @@ void test("lists the complete provider inventory at 999, 1000 and 1001 releases"
     assert.equal((await readReleaseById(api, count, `v0.0.${count}`)).id, count);
     assert.equal(endpoints.length - observed, 1, "retry reads the known ID directly");
   }
+});
+
+void test("nightly reporter isolates issue permissions and replays the triggering attempt", async () => {
+  const monitor = await readWorkflow("nightly-failure-report.yml");
+  assert.deepEqual(monitor.on.workflow_run, {
+    workflows: ["Nightly preview"],
+    types: ["completed"],
+    branches: ["main"],
+  });
+  assert.deepEqual(monitor.permissions, {});
+  const job = monitor.jobs.report!;
+  assert.deepEqual(job.permissions, { actions: "read", checks: "read", issues: "write" });
+  assert.match(job.if ?? "", /head_repository\.full_name == github\.repository/u);
+  const step = job.steps?.[0];
+  assert.equal(job.steps?.length, 1);
+  assert.ok(step);
+  assert.match(step.uses ?? "", /^actions\/github-script@[a-f0-9]{40}$/u);
+  const script = step.with?.script;
+  assert.ok(typeof script === "string");
+  assert.doesNotMatch(script, /secrets\.|actions\/checkout|publish --tag/u);
+  const execute = new Script(`(async () => {\n${script}\n})()`);
+
+  const run = {
+    id: 44324930784,
+    run_number: 7,
+    run_attempt: 2,
+    path: ".github/workflows/nightly-preview.yml",
+    head_repository: { full_name: "boburning/portcove", owner: { id: 43177418 } },
+    head_branch: "main",
+    status: "completed",
+    conclusion: "cancelled",
+    event: "schedule",
+    head_sha: "a".repeat(40),
+    created_at: "2026-11-18T14:30:00Z",
+    updated_at: "2026-11-18T15:00:00Z",
+  };
+  const oldBody = "<!-- portcove-nightly-failure-run:44324930784 -->\nOriginal incident.";
+  const issue = { number: 8176, state: "closed", body: oldBody, user: { id: 43177418 } };
+  const forgedIssue = { ...issue, number: 123, user: { id: 42 } };
+  const forgedComment = {
+    body: "<!-- portcove-nightly-failure-attempt:44324930784:2 -->",
+    user: { id: 42 },
+  };
+  const comments: Array<{ body: string; user: { id: number } }> = [];
+  const warnings: string[] = [];
+  let existing = true;
+  let reopenCount = 0;
+  let created: { body: string; assignees: string[] } | undefined;
+  let botIssue:
+    | { number: number; body: string; user: { id: number }; assignees: Array<{ login: string }> }
+    | undefined;
+  let jobsAvailable = true;
+  let assignmentAvailable = false;
+  const github = {
+    paginate: (route: string, params: { attempt_number?: number; issue_number?: number }) => {
+      switch (route) {
+        case "issues":
+          if (existing) return [forgedIssue, issue];
+          return botIssue ? [forgedIssue, botIssue] : [forgedIssue];
+        case "comments":
+          assert.equal(params.issue_number, 8176);
+          return [forgedComment, ...comments];
+        case "jobs":
+          assert.equal(params.attempt_number, 2);
+          if (!jobsAvailable) throw new Error("Job lookup unavailable");
+          return [
+            {
+              id: 134874555631,
+              name: "release / Build macos-universal",
+              conclusion: "cancelled",
+              steps: [],
+            },
+            {
+              id: 134874555632,
+              name: "release / Build windows-x86_64",
+              conclusion: "failure",
+              steps: [{ name: "Build bundles", conclusion: "failure" }],
+            },
+          ];
+        case "annotations":
+          return [
+            { annotation_level: "warning", message: "Do not publish raw annotations" },
+            {
+              annotation_level: "failure",
+              message:
+                "The job was not acquired by Runner of type hosted even after multiple attempts",
+            },
+          ];
+        default:
+          throw new Error("Unexpected route " + route);
+      }
+    },
+    rest: {
+      actions: { listJobsForWorkflowRunAttempt: "jobs" },
+      checks: { listAnnotations: "annotations" },
+      issues: {
+        listForRepo: "issues",
+        listComments: "comments",
+        update: (params: { issue_number: number; state: string }) => {
+          assert.equal(params.issue_number, 8176);
+          assert.equal(params.state, "open");
+          reopenCount++;
+        },
+        createComment: (params: { issue_number: number; body: string }) => {
+          assert.equal(params.issue_number, 8176);
+          comments.push({ body: params.body, user: { id: 41898282 } });
+        },
+        create: (params: { body: string; assignees: string[] }) => {
+          created = params;
+          botIssue = { number: 8183, body: params.body, user: { id: 41898282 }, assignees: [] };
+          return { data: botIssue };
+        },
+        addAssignees: (params: { issue_number: number; assignees: string[] }) => {
+          assert.equal(params.issue_number, 8183);
+          assert.equal(params.assignees.join(","), "boburning");
+          if (!assignmentAvailable) throw new Error("Assignment temporarily unavailable");
+          assert.ok(botIssue);
+          botIssue.assignees.push({ login: "boburning" });
+          return { data: botIssue };
+        },
+      },
+    },
+  };
+  const replay = async () => {
+    await execute.runInNewContext({
+      github,
+      context: { repo: { owner: "boburning", repo: "portcove" }, payload: { workflow_run: run } },
+      core: {
+        warning: (message: string) => warnings.push(message),
+        summary: { addRaw: () => ({ write: async () => {} }) },
+      },
+      process: { env: { GITHUB_SERVER_URL: "https://github.com" } },
+    });
+  };
+
+  await replay();
+  await replay();
+  assert.equal(reopenCount, 1);
+  assert.equal(comments.length, 1);
+  assert.equal(issue.body, oldBody);
+  assert.match(comments[0]!.body, /\/attempts\/2/u);
+  assert.match(comments[0]!.body, /never acquired a hosted runner.*\/job\/134874555631/u);
+  assert.match(comments[0]!.body, /Build bundles.*\/job\/134874555632/u);
+  assert.doesNotMatch(comments[0]!.body, /Do not publish raw annotations/u);
+
+  existing = false;
+  jobsAvailable = false;
+  await assert.rejects(replay(), /Assignment temporarily unavailable/u);
+  assert.equal(warnings.length, 1);
+  assert.equal(created?.assignees.join(","), "boburning");
+  assert.match(created?.body ?? "", /GitHub did not provide job metadata/u);
+  assignmentAvailable = true;
+  await replay();
+  assert.deepEqual(botIssue?.assignees, [{ login: "boburning" }]);
+  assert.equal(warnings.length, 1);
+  assert.equal(comments.length, 1);
 });
