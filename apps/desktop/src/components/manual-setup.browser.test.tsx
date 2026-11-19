@@ -114,6 +114,7 @@ it("shows the PS4 edition and upstream update ownership on the actual remake lis
   const identity = page.getByRole("group", { name: "Game and port identity", exact: true });
   await expect.element(identity.getByText("PlayStation 4", { exact: true })).toBeVisible();
   await expect.element(identity.getByText("Update channel not applicable")).not.toBeInTheDocument();
+  await page.getByRole("tab", { name: "Overview", exact: true }).click();
   await expect
     .element(page.getByText("Managed by the upstream project", { exact: true }))
     .toBeVisible();

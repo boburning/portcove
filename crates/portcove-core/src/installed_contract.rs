@@ -825,14 +825,19 @@ mod tests {
 
     #[test]
     fn successor_content_bounds_and_index_agreement_are_rechecked_before_reuse() {
+        use crate::definition_index::{MAX_CONTENT_BYTES, MAX_ENTRY_BYTES, MAX_INDEX_BYTES};
+
         let catalog =
             crate::test_fixture::indexed_catalog(&Catalog::embedded().unwrap(), "zelda64-recomp");
         let contract = InstalledContract::capture(&catalog, "zelda64-recomp").unwrap();
         let original = serde_json::to_value(&contract).unwrap();
-        for field in ["index_json", "entry_json", "contract_json"] {
+        for (field, maximum) in [
+            ("index_json", MAX_INDEX_BYTES),
+            ("entry_json", MAX_ENTRY_BYTES),
+            ("contract_json", MAX_CONTENT_BYTES as usize),
+        ] {
             let mut changed = original.clone();
-            changed["definition"][field] =
-                serde_json::json!(" ".repeat(crate::definition_index::MAX_INDEX_BYTES + 1));
+            changed["definition"][field] = serde_json::json!(" ".repeat(maximum + 1));
             let decoded: InstalledContract = serde_json::from_value(changed).unwrap();
             assert!(
                 decoded
