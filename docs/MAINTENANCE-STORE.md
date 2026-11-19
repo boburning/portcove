@@ -679,7 +679,7 @@ publication has been verified.
   push runs and runs whose export did not retain a snapshot are passed over.
   - It is read through the maintained GitHub client (GET-only, at most 24
     candidate runs and 32 requests) and the in-memory artifact transfer, bounded
-    by the observer's eight-MiB streaming snapshot limit.
+    by the observer's sixteen-MiB streaming snapshot limit.
   - The configuration digest in the artifact name must equal the SHA-256 of
     `release/upstream-observer.json` at the run's head commit, which is how the
     workflow names its snapshot. The archive length and SHA-256 must match

@@ -1098,21 +1098,22 @@ void test("encoded snapshots retain strict transfer, expansion, digest and envel
   assert.throws(() => encodeObserverSnapshot(good, Date.now() - 1), /deadline exhausted/);
 });
 
-void test("format four recovery restores an archive above the legacy limit before cache continuation", async (t) => {
+void test("format four recovery restores an archive above eight MiB before cache continuation", async (t) => {
   const root = await directory(t),
     f = transport();
   f.value.files["catalog/checkpoint.json"].sequence = 361;
+  const fixtureEntropy = Array.from({ length: 290000 }, (_, index) =>
+    createHash("sha256").update(`snapshot-transfer-${index}`).digest("base64"),
+  ).join("");
   Object.assign(f.value.files["catalog/checkpoint.json"], {
-    fixture_entropy: Array.from({ length: 145000 }, (_, index) =>
-      createHash("sha256").update(`snapshot-transfer-${index}`).digest("base64"),
-    ).join(""),
+    fixture_entropy: fixtureEntropy,
   });
   const encoded = await encodeStreamingObserverSnapshot(
     validateObserverSnapshot(f.value, config, Date.now()),
     Date.now() + 60000,
   );
   const archive = createAuditZip([["checkpoint.json", encoded.bytes]]);
-  assert.ok(archive.length > observerSnapshotLimit);
+  assert.ok(archive.length > 8 * 1024 * 1024);
   assert.ok(archive.length <= observerStreamingSnapshotLimit);
   assert.throws(() => readObserverSnapshotArchive(archive, config, Date.now(), Date.now() + 60000));
   f.artifact.size_in_bytes = archive.length;
@@ -1132,6 +1133,11 @@ void test("format four recovery restores an archive above the legacy limit befor
   });
   assert.deepEqual(restored, { origin: "artifact", producer: source, artifact: 7, sequence: 361 });
   assert.equal(downloads, 1);
+  const controller: unknown = JSON.parse(
+    await readFile(path.join(root, "work/upstream-observer/catalog/checkpoint.json"), "utf8"),
+  );
+  assert.ok(isRecord(controller));
+  assert.equal(digest(String(controller.fixture_entropy)), digest(fixtureEntropy));
   assert.deepEqual(
     await recoverObserverCheckpoint({
       root,
