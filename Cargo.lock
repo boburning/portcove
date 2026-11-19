@@ -3717,6 +3717,7 @@ dependencies = [
  "tar",
  "tauri",
  "tauri-build",
+ "tauri-codegen",
  "tauri-plugin-dialog",
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
