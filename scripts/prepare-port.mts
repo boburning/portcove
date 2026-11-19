@@ -33,6 +33,10 @@ import { compactN64RecompPersistence } from "./catalog-n64-recomp-persistence.mt
 import { collectPortFacts, githubRepository } from "./port-upstream-facts.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
 import {
+  compactReflectionHlePortablePaths,
+  projectReflectionHlePortablePaths,
+} from "./catalog-portable-reflectionhle.mts";
+import {
   createIgdbInspector,
   createCoreImageValidator,
   readArtworkJson,
@@ -111,6 +115,7 @@ export function portablePreparationFeedback(record: AuthoredPort, facts: Package
       next: "Review the exact declared archive pin, native headers, working directory, process lifetime and data ownership. GitHub hint uniqueness does not apply to this Direct selection.",
     }));
   }
+  const persistentPaths = projectReflectionHlePortablePaths(record).integration?.persistent_paths;
   return {
     ...selection,
     pinned_releases: direct
@@ -121,9 +126,7 @@ export function portablePreparationFeedback(record: AuthoredPort, facts: Package
             "Declared pin only; Core validation, independent authentication and native/lifecycle evidence remain required.",
         }))
       : [],
-    persistence: Array.isArray(record.integration.persistent_paths)
-      ? record.integration.persistent_paths
-      : [],
+    persistence: Array.isArray(persistentPaths) ? persistentPaths : [],
     manual_setup: {
       completion_record: record.integration.setup_marker ?? null,
       next: "For manual preparation before Play, use an upstream atomically published JSON completion record beneath already declared player data when that contract exists. Core checks bounded structural progress only; upstream still owns edition/content validation. Native capability 2 is required. Do not invent a marker, execute a discovered helper, or add a marker for a game's own first-Play picker.",
@@ -162,6 +165,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       field: "gba_staged_archive_v1",
       scope: "Managed Windows GBA archive paths and versioned mod policy for the upstream picker.",
       next: "Check the exact package, original edition, picker lifetime and writer differences against the reviewed layout. Reuse matching staging, preservation and rollback evidence. Keep repository, release selectors, executable and external saves explicit.",
+    });
+  }
+  if (record.reflectionhle_portable_paths_v1) {
+    projections.push({
+      field: "reflectionhle_portable_paths_v1",
+      scope: "Shared reviewed ReflectionHLE file and configuration paths in the portable root.",
+      next: "Keep each game's original editions, package selection, lifecycle qualification and launch facts explicit. Keep a different writer layout explicit.",
     });
   }
   if (record.psx_managed_windows_v1) {
@@ -949,6 +959,8 @@ export async function preparePort(options: PrepareOptions) {
       compactGbaArchive(compactPsxManagedWindows(record)),
     );
     if (compact !== record) record = checkedAuthoredPort(compact);
+    const compactReflection = compactReflectionHlePortablePaths(record);
+    if (compactReflection !== record) record = checkedAuthoredPort(compactReflection);
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
     const inspector = artworkInspector(options, root, validatorIdentity);
     const artwork = await prepareArtworkWorkset(artworkCatalog(records), {

@@ -225,6 +225,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "scripts/catalog-cover-mapping.mts",
       "scripts/catalog-game-review.mts",
       "scripts/catalog-n64-recomp-persistence.mts",
+      "scripts/catalog-portable-reflectionhle.mts",
       "scripts/catalog-psx-managed-windows.mts",
       "scripts/catalog-route-facts.mts",
       "scripts/catalog-staged-check.mts",

@@ -25,6 +25,10 @@ import {
 } from "./catalog-psx-managed-windows.mts";
 import { estimateHealthRequests } from "./check-catalog-repositories.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
+import {
+  compactReflectionHlePortablePaths,
+  projectReflectionHlePortablePaths,
+} from "./catalog-portable-reflectionhle.mts";
 
 import {
   requiredFixture,
@@ -281,6 +285,34 @@ void test("shared upstream family facts stay consistent while game and permissio
     guide.steps = steps;
   }
   check(independent);
+});
+
+void test("ReflectionHLE authoring preserves the exact portable data paths for all configured ports", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const family = records.filter((record) => record.reflectionhle_portable_paths_v1);
+  assert.equal(family.length, 9);
+  for (const record of family) {
+    const explicit = projectReflectionHlePortablePaths(record);
+    delete explicit.reflectionhle_portable_paths_v1;
+    const projected = requiredFixture(projectAuthoredPort(record));
+    const fromCatalog = requiredFixture(
+      fixtureRecords(schema3Fixture.ports).find((port) => port.id === record.listing.id),
+    );
+    assert.deepEqual(projected, fromCatalog);
+    assert.ok(Array.isArray(projected.persistent_paths));
+    const persistentPaths: unknown[] = projected.persistent_paths;
+    assert.equal(persistentPaths.length, 110);
+    assert.deepEqual(compactReflectionHlePortablePaths(explicit), record);
+
+    const alternate = structuredClone(explicit);
+    alternate.integration!.persistent_paths = [...persistentPaths, "custom.cfg"];
+    assert.equal(compactReflectionHlePortablePaths(alternate), alternate);
+    alternate.reflectionhle_portable_paths_v1 = true;
+    assert.throws(() => checkedAuthoredPort(alternate), /already own persistent_paths/u);
+  }
+  const nested = structuredClone(requiredFixture(family[0]));
+  nested.integration!.runtime_subdirectory = "alternate";
+  assert.throws(() => checkedAuthoredPort(nested), /reviewed portable root layout/u);
 });
 
 void test("per-port source projects all accepted operations unchanged and listing-only records stay inert", () => {

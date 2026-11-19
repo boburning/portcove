@@ -3554,6 +3554,13 @@ different provider, optional settings declaration or different writer set uses
 an explicit integration. URL preparation proposes the family form when its
 expanded integration reproduces the reviewed explicit bytes.
 
+Optional authoring-only `reflectionhle_portable_paths_v1: true` expands the
+shared portable-root persistence list for the reviewed ReflectionHLE route.
+Keep the original editions, platform packages, launch arguments and reviewed
+package layouts explicit. Preparation proposes the shared form only when it
+can reproduce the exact reviewed integration bytes. A different writer scope
+or additional runtime layout declaration uses explicit paths.
+
 The optional authoring-only `psx_managed_windows_v1` supplies the shared
 launch and data layout for the reviewed Windows GitHub PSXRecomp kit and its
 matching Linux x64 sibling when independently enrolled. Use the

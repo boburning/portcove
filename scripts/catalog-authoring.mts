@@ -19,6 +19,7 @@ import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
 import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
 import { checkRouteFacts, projectRouteFacts } from "./catalog-route-facts.mts";
 import type { RouteFactsV1 } from "./catalog-route-facts.mts";
+import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
@@ -93,6 +94,8 @@ export interface AuthoredPort extends Record<string, unknown> {
     | "split-mods-overlay-directory";
   /** Shared root-level persistence for reviewed N64Recomp packages. */
   n64_recomp_persistence_v1?: true;
+  /** Shared persistent paths for ReflectionHLE's reviewed portable root. */
+  reflectionhle_portable_paths_v1?: true;
   package_observation_v1?: PackagePlayerObservationV1;
   settings_qualification_v1?: SettingsQualificationPolicy;
   settings_observation_v1?: SettingsQualificationObservation;
@@ -717,6 +720,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   projectGbaArchive(record);
   projectPsxManagedWindows(record);
   projectN64RecompPersistence(record);
+  projectReflectionHlePortablePaths(record);
   if (record.route_facts_v1 !== undefined)
     checkRouteFacts(record.route_facts_v1, record.integration);
   if (record.package_observation_v1 !== undefined) {
@@ -762,8 +766,9 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
       ),
     ),
   );
-  if (!record.integration) return undefined;
-  const integration = structuredClone(record.integration);
+  const operational = projectReflectionHlePortablePaths(record).integration;
+  if (!operational) return undefined;
+  const integration = structuredClone(operational);
   const presentation = isRecord(integration.presentation) ? integration.presentation : {};
   const managedGuide = presentation.manual_setup;
   delete presentation.manual_setup;
