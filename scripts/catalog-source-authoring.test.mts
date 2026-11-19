@@ -1042,6 +1042,32 @@ void test("PSX preparation compacts exact layouts and retains explicit writer di
   }
 });
 
+void test("PSX retail split-mods preparation preserves the reviewed multidisc contract", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const source = records.find(
+    (record) => record.listing.id === "alexbeav-alone-in-the-dark-the-new-nightmare-recomp",
+  );
+  assert.ok(source);
+  const explicit = projectPsxManagedWindows(structuredClone(source));
+  delete explicit.psx_managed_windows_v1;
+  const compact = compactPsxManagedWindows(explicit);
+  assert.equal(compact.psx_managed_windows_v1, "split-mods");
+  assert.equal(compact.integration?.runtime_source_filename, "runtime-discs");
+  assert.equal(compact.integration?.runtime_source_materialization, "psx-raw-set");
+  assert.equal(compact.integration?.launch_disc_choice, "psx-settings-selected");
+  assert.equal(
+    JSON.stringify(projectAuthoredPort(compact)),
+    JSON.stringify(projectAuthoredPort(explicit)),
+  );
+
+  const incomplete = structuredClone(compact);
+  delete incomplete.integration!.launch_disc_choice;
+  assert.throws(() => projectPsxManagedWindows(incomplete), /multidisc/u);
+  const different = structuredClone(explicit);
+  different.integration!.runtime_source_filename = "other-discs";
+  assert.equal(compactPsxManagedWindows(different), different);
+});
+
 void test("GBA preparation compacts exact layouts and retains explicit writer differences", () => {
   const { records } = readCatalogSource(catalogRoot);
   const supported = records.filter((entry) => entry.gba_staged_archive_v1 !== undefined);

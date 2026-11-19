@@ -64,6 +64,12 @@ const retailBiosProfiles = new Set<unknown>([
   "psx-scph-5500-bios",
 ]);
 
+const multidiscFields = [
+  "runtime_source_filename",
+  "launch_disc_choice",
+  "runtime_source_materialization",
+] as const;
+
 const explicitFields = new Set([
   "support_tier",
   "channels",
@@ -76,6 +82,7 @@ const explicitFields = new Set([
   "executable_hints",
   "presentation",
   "bios_source_profile",
+  ...multidiscFields,
 ]);
 
 function isAssetSelector(value: unknown): value is string[] {
@@ -178,6 +185,18 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
       "PSX split-mods authoring requires exact Windows and Linux x64 kit selectors and generated players.",
     );
 
+  const hasMultidiscContract = multidiscFields.some((field) => Object.hasOwn(integration, field));
+  if (
+    hasMultidiscContract &&
+    (layout !== "split-mods" ||
+      integration.runtime_source_filename !== "runtime-discs" ||
+      integration.launch_disc_choice !== "psx-settings-selected" ||
+      integration.runtime_source_materialization !== "psx-raw-set")
+  )
+    throw new PsxLayoutMismatch(
+      "PSX multidisc authoring requires the retail split-mods kit and its reviewed raw-disc settings contract.",
+    );
+
   for (const field of Object.keys(runtimeLayout))
     if (Object.hasOwn(integration, field))
       throw new PsxLayoutMismatch(
@@ -190,7 +209,14 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
         `PSX managed Windows authoring does not cover ${field}; use an explicit integration for a different layout.`,
       );
 
-  const { presentation, bios_source_profile, ...operation } = integration;
+  const {
+    presentation,
+    bios_source_profile,
+    runtime_source_filename,
+    launch_disc_choice,
+    runtime_source_materialization,
+    ...operation
+  } = integration;
   const projectedLayout = structuredClone(runtimeLayout);
   if (splitMods) {
     projectedLayout.persistent_paths = projectedLayout.persistent_paths.flatMap((path) =>
@@ -207,6 +233,9 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
         : {}),
       ...(presentation === undefined ? {} : { presentation }),
       ...(bios_source_profile === undefined ? {} : { bios_source_profile }),
+      ...(hasMultidiscContract
+        ? { runtime_source_filename, launch_disc_choice, runtime_source_materialization }
+        : {}),
     },
   };
 }
