@@ -28,6 +28,7 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "tomba-2-recompiled",
     "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
     "troyedwardsjr-z2rs",
+    "warioland4",
 ];
 
 #[test]
@@ -163,4 +164,9 @@ fn prepared_guide_adoption_declared_toy_story_2_buzz_lightyear_to_the_rescue_n64
 #[test]
 fn prepared_guide_adoption_declared_troyedwardsjr_z2rs() {
     assert_declarative_prepared_player_route("troyedwardsjr-z2rs");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_warioland4() {
+    assert_declarative_prepared_player_route("warioland4");
 }
