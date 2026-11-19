@@ -516,7 +516,7 @@ export async function steamEntryScenario(context: SteamEntryContext) {
       ),
     );
     await firstBox.click();
-    assert.equal(await browser.findElement(button("Review selected shortcuts")).isEnabled(), false);
+    assert.equal(await browser.findElement(button("Review selected game")).isEnabled(), false);
     await secondBox.click();
     assert.equal(
       (await Promise.all(boxes.map((box) => box.getAttribute("aria-checked")))).filter(
