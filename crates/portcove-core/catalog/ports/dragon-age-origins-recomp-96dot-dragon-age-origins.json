@@ -35,6 +35,21 @@
       "image_sha256": "877e7713a956a12a20536dcaf457a41d7b84e5bef6c1c008b44922615e876b83",
       "game_slug": "dragon-age-origins",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-age-origins",
+      "evidence_urls": ["https://github.com/96dot/Dragon-Age-Origins-Recomp"],
+      "source_editions": [
+        {
+          "id": "dragon-age-origins-xbox-360",
+          "title": "Dragon Age: Origins (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/96dot/Dragon-Age-Origins-Recomp/blob/3ce7e37152be95b4458daf6d9bdda21d1d0a0bdb/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

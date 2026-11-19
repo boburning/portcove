@@ -46,6 +46,24 @@
       "warnings": [
         "Keep the complete Fukami app and actual memory-card/data roots. Its source waits for the same-image game child; job cleanup, real saves and gameplay were not observed here."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ridge-racer-v",
+      "evidence_urls": [
+        "https://github.com/danisandoval/fukami/blob/2ecb2810ddb742245b17fd54500bcf07d1fe6760/README.md",
+        "https://github.com/danisandoval/fukami"
+      ],
+      "source_editions": [
+        {
+          "id": "ridge-racer-v-playstation-2",
+          "title": "Ridge Racer V (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/danisandoval/fukami/blob/2ecb2810ddb742245b17fd54500bcf07d1fe6760/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

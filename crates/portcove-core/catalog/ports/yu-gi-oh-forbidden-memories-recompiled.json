@@ -16,7 +16,13 @@
       "game_slug": "yu-gi-oh-forbidden-memories",
       "match_kind": "underlying-game"
     },
-    "issue_number": 141
+    "issue_number": 141,
+    "original_game": {
+      "format_version": 1,
+      "id": "yu-gi-oh-forbidden-memories",
+      "evidence_urls": ["https://github.com/Unchiga/YuGiOhForbiddenMemoriesRecomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

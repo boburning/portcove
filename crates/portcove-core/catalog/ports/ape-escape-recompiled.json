@@ -16,7 +16,13 @@
       "game_slug": "ape-escape",
       "match_kind": "underlying-game"
     },
-    "issue_number": 142
+    "issue_number": 142,
+    "original_game": {
+      "format_version": 1,
+      "id": "ape-escape",
+      "evidence_urls": ["https://github.com/mstan/ApeEscapeRecomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

@@ -3025,6 +3025,14 @@ independent upstream package evidence applies. Declare each platform once.
 The discovery directory reports both sets. The managed definition and its
 selected release retain their own platform checks.
 
+Run `node scripts/catalog-chip-gaps.mts` for read-only source system and supported
+OS coverage. Add `--json` for per-port detail. An authored
+`original_game_review` records deliberate multi-game, framework or unresolved
+scope. The report counts these separately from missing edition facts. Update
+ownership stays with upstream for listing-only records. A same-title match is a
+research lead. Check the implementation's actual input edition against pinned
+upstream evidence before adding a source system.
+
 Use `integration.presentation.manual_setup` when Portcove-managed setup needs
 different steps or warnings from the upstream package in `listing.manual_setup`.
 The managed definition uses its own guide when present and otherwise inherits

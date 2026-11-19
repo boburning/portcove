@@ -3,7 +3,7 @@
   "listing": {
     "id": "call-of-duty-black-ops-bo1-static-recompilation-for-pc-lucioxerus-call-of-duty-black-ops-xbox-360",
     "name": "Call of Duty: Black Ops (Xbox 360) — Call of Duty Black Ops (BO1) — static recompilation for PC (LucioXerus)",
-    "original_game_title": "Call of Duty: Black Ops (Xbox 360)",
+    "original_game_title": "Call of Duty: Black Ops",
     "summary": "Campaign starts with cinematics; full playthrough still being verified. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/LucioXerus/bo1-recomp",
     "platforms": ["windows-x86-64"],
@@ -35,6 +35,21 @@
       "image_sha256": "d86af455b1db7b1247359a37eccd49eaa132857227ea5e3dcdae6a1a75ef5dfb",
       "game_slug": "call-of-duty-black-ops",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "call-of-duty-black-ops",
+      "evidence_urls": ["https://github.com/LucioXerus/bo1-recomp"],
+      "source_editions": [
+        {
+          "id": "call-of-duty-black-ops-xbox-360",
+          "title": "Call of Duty: Black Ops (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/LucioXerus/bo1-recomp/blob/0be5687d07d411644c7e878e841a54daa201328f/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

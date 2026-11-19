@@ -38,6 +38,12 @@
           "instruction": "The project reports the title screen, terms and save functions. Terrain, shadows, transparency and postprocessing still need testing. Windows, Linux and iOS players are unconfirmed."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "doraemon-story-of-seasons-friends-of-the-great-kingdom",
+      "evidence_urls": ["https://github.com/colonnellotong/MacNativePorts"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

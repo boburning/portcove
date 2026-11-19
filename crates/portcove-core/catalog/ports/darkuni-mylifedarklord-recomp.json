@@ -43,9 +43,17 @@
       "help_url": "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md"
     },
     "release_url": "https://github.com/darkuni/mylifedarklord-recomp/releases",
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-crystal-chronicles-my-life-as-a-darklord",
+      "evidence_urls": [
+        "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md",
+        "https://github.com/darkuni/mylifedarklord-recomp"
+      ],
+      "source_editions": []
+    }
   },
-  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -73,5 +81,6 @@
         "executables": ["mylifedarklord.exe", "record-audio.bat"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

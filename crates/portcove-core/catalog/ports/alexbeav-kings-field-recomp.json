@@ -110,5 +110,14 @@
       }
     },
     "bios_source_profile": "psx-scph-5500-bios"
+  },
+  "original_game_review": {
+    "disposition": "unresolved",
+    "reason": "The upstream README declares Japan but the generator still uses scaffold marker SLUS_01234. Recover an attributable actual disc/executable target before assigning the precise original game or merging it with US King’s Field; a region label alone is insufficient.",
+    "evidence_urls": [
+      "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/blob/b9266f92d8a91c78e5a4b383ba306bd24b6f0ef9/README.md",
+      "https://github.com/alexbeavs-ps1-ports/kings-field-recomp#readme",
+      "https://github.com/alexbeavs-ps1-ports/kings-field-recomp"
+    ]
   }
 }

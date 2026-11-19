@@ -58,7 +58,16 @@
       ]
     },
     "original_game_title": "SimCity 2000",
-    "platforms": ["macos-x86-64", "macos-aarch64"]
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "simcity-2000",
+      "evidence_urls": [
+        "https://github.com/OpenSC2K/OpenSC2K/blob/main/docs/install.md",
+        "https://github.com/OpenSC2K/OpenSC2K"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

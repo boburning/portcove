@@ -141,6 +141,11 @@ impl DefinitionContentIndex {
         bytes: &[u8],
         retained: bool,
     ) -> Result<DefinitionEntryInspection> {
+        if bytes.len() > crate::definition_index::MAX_ENTRY_BYTES {
+            return Err(PortcoveError::verification(
+                "definition entry exceeds its byte bound",
+            ));
+        }
         let indexed = self
             .definitions()
             .iter()

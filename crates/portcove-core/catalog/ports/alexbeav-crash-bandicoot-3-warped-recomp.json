@@ -55,7 +55,16 @@
       "macos-x86-64": ["crash-bandicoot-3-warped-", "-macos-x64.zip"],
       "macos-aarch64": ["crash-bandicoot-3-warped-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-bandicoot-3-warped",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/crash-bandicoot-3-warped-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/crash-bandicoot-3-warped-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

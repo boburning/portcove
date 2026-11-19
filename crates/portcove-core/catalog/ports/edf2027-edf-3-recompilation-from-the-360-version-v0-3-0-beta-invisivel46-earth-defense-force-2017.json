@@ -35,6 +35,21 @@
       "image_sha256": "b123151d473952fbfdeb5860b170c1c1cfc0a7d13d4fbe36569bc0d4867622c0",
       "game_slug": "earth-defense-force-2017",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "earth-defense-force-2017",
+      "evidence_urls": ["https://github.com/invisivel46/edf2027"],
+      "source_editions": [
+        {
+          "id": "earth-defense-force-2017-xbox-360",
+          "title": "Earth Defense Force 2017 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/invisivel46/edf2027/blob/b18f35b466ce150f944b8be188ae7e326304c81f/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

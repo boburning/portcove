@@ -54,7 +54,16 @@
         }
       ]
     },
-    "platforms": ["linux-x86-64"]
+    "platforms": ["linux-x86-64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "serious-sam-the-second-encounter",
+      "evidence_urls": [
+        "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md",
+        "https://github.com/tx00100xt/SeriousSamClassic"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

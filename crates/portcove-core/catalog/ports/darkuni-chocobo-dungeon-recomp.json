@@ -41,9 +41,17 @@
       "help_url": "https://github.com/darkuni/chocobo-dungeon-recomp/blob/e5991f44fac38579c349418eb0dff6028d27ca67/README.md"
     },
     "release_url": "https://github.com/darkuni/chocobo-dungeon-recomp/releases",
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-fables-chocobos-dungeon",
+      "evidence_urls": [
+        "https://github.com/darkuni/chocobo-dungeon-recomp/blob/e5991f44fac38579c349418eb0dff6028d27ca67/README.md",
+        "https://github.com/darkuni/chocobo-dungeon-recomp"
+      ],
+      "source_editions": []
+    }
   },
-  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -71,5 +79,6 @@
         "executables": ["chocobo.exe"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

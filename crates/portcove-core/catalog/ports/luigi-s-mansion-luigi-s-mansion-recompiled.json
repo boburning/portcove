@@ -46,6 +46,15 @@
       "warnings": [
         "Preserve the actual regional cards and both sides of any system/portable data move before startup. First-use builds, automatic stale-module rebuilding and recovery remain upstream-owned."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "luigi-s-mansion",
+      "evidence_urls": [
+        "https://github.com/rob646464/luigis-mansion-recompiled/blob/d448095305b81d9bcace330c2259e666805140ef/README.md",
+        "https://github.com/rob646464/luigis-mansion-recompiled"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

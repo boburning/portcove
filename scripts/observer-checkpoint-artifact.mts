@@ -885,7 +885,7 @@ async function initializeApprovedBaseline(
   const documents: Record<string, unknown> = {};
   for (const [key, filename, limit] of [
     ["config", "release/upstream-observer.json", 16384],
-    ["catalog", "crates/portcove-core/catalog/catalog.json", 4 * 1024 * 1024],
+    ["catalog", "crates/portcove-core/catalog/catalog.json", 16 * 1024 * 1024],
     ["listings", "crates/portcove-core/catalog/listings.json", 8 * 1024 * 1024],
   ] as const) {
     await assertOwnedUnlinkedPath(root, path.join(root, filename), "baseline source input");
@@ -921,7 +921,7 @@ async function initializeApprovedBaseline(
   );
   for (const [key, filename, limit] of [
     ["config", "release/upstream-observer.json", 16384],
-    ["catalog", "crates/portcove-core/catalog/catalog.json", 4 * 1024 * 1024],
+    ["catalog", "crates/portcove-core/catalog/catalog.json", 16 * 1024 * 1024],
     ["listings", "crates/portcove-core/catalog/listings.json", 8 * 1024 * 1024],
   ] as const) {
     await assertOwnedUnlinkedPath(root, path.join(root, filename), "baseline source readback");

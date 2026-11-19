@@ -38,6 +38,12 @@
           "instruction": "The development system used an RTX 4090. The project offers no release package, online play or confirmed route on another desktop OS."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-odyssey",
+      "evidence_urls": ["https://github.com/Coz-0/smo-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

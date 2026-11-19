@@ -46,7 +46,13 @@
         }
       ]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-tactics-advance",
+      "evidence_urls": ["https://github.com/james2doyle/ffta-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

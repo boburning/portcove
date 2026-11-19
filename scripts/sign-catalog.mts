@@ -36,8 +36,8 @@ Options:
 
 The escaped envelope must also fit within 16777216 bytes (16 MiB). Clients before
 library writer protocol 60 refuse envelopes above 4194304 bytes (4 MiB); the
-catalog size guard (node scripts/catalog-capacity.mts --check) keeps repository
-catalogs within a margin below that floor.
+catalog size guard (node scripts/catalog-capacity.mts --check) reserves growth
+margin below supported limits.
 Successful signing prints the existing public-key, key-ID, sequence and output JSON summary.
 
 Example:

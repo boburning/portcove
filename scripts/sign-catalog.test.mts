@@ -335,31 +335,39 @@ void test("catalog size guard reads Core bounds and fails above its stated margi
   const bounds = catalogSizeBounds(
     readFileSync(new URL("../crates/portcove-core/src/signed_catalog.rs", import.meta.url), "utf8"),
   );
-  assert.deepEqual(bounds, { current: 16777216, legacy: 4194304, percent: 85 });
+  assert.deepEqual(bounds, { current: 16777216, percent: 85 });
   assert.throws(
     () =>
       catalogSizeBounds(
-        "const MAX_CATALOG_BYTES: usize = 4;\nconst LEGACY_MAX_CATALOG_BYTES: usize = 8;\nconst CATALOG_GROWTH_CEILING_PERCENT: usize = 85;",
+        "const MAX_CATALOG_BYTES: usize = 4;\nconst CATALOG_SUPPORTED_CAPACITY_PERCENT: usize = 100;",
       ),
     /Invalid/u,
   );
   const small = { ports: [{ id: "one", summary: 'é "quoted"' }] };
   const passing = catalogSizeGuard(100, small, bounds);
+  assert.equal(
+    catalogSizeGuard(
+      5 * 1024 * 1024,
+      { ports: [{ id: "one", summary: "a".repeat(5 * 1024 * 1024) }] },
+      bounds,
+    ).ok,
+    true,
+  );
   assert.equal(passing.ok, true);
   assert.deepEqual(
     passing.rows.map((row) => [row.name, row.basis, row.ceiling]),
     [
-      ["generated catalog.json bytes", "current bound", 14260633],
-      ["compact catalog bytes", "legacy floor", 3565158],
-      ["escaped signed envelope bytes (unsigned placeholder)", "legacy floor", 3565158],
+      ["generated catalog.json bytes", "generated input bound", 14260633],
+      ["compact catalog bytes", "catalog input bound", 14260633],
+      ["escaped signed envelope bytes (unsigned placeholder)", "signed envelope bound", 14260633],
     ],
   );
   assert.match(
     formatCatalogSizeGuard(passing),
-    /^ok {3}compact catalog bytes: \d+ of 3565158 \(85% of the legacy floor 4194304\); headroom \d+;/mu,
+    /^ok {3}compact catalog bytes: \d+ of 14260633 \(85% of the catalog input bound 16777216\); headroom \d+/mu,
   );
   // Escaping alone can carry the envelope past the margin while the compact bytes still fit.
-  const escaped = { ports: [{ id: "one", summary: '"'.repeat(900000) }] };
+  const escaped = { ports: [{ id: "one", summary: '"'.repeat(3600000) }] };
   const failing = catalogSizeGuard(100, escaped, bounds);
   assert.equal(failing.ok, false);
   assert.deepEqual(

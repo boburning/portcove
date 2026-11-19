@@ -80,5 +80,10 @@
         "executables": ["gzdoom.exe"]
       }
     }
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The authored runtime/launcher accepts multiple Doom-family games and their distinct game data/mod choices. Preserve the broad engine scope rather than labeling it as one original.",
+    "evidence_urls": ["https://github.com/ZDoom/gzdoom#readme", "https://github.com/ZDoom/gzdoom"]
   }
 }

@@ -39,6 +39,15 @@
         }
       ],
       "help_url": "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "gunstar-heroes",
+      "evidence_urls": [
+        "https://github.com/1nputs/gunstars",
+        "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

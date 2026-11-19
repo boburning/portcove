@@ -16,7 +16,13 @@
       "game_slug": "wcw-vs-nwo-world-tour",
       "match_kind": "underlying-game"
     },
-    "issue_number": 90
+    "issue_number": 90,
+    "original_game": {
+      "format_version": 1,
+      "id": "wcw-vs-nwo-world-tour",
+      "evidence_urls": ["https://github.com/jessetbh/WCWvsNWOWorldTourRecomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

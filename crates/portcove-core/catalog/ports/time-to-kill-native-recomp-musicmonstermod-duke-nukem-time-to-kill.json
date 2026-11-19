@@ -35,6 +35,12 @@
       "image_sha256": "e72b4c28ca465819d972c6de8ae919cba2721ae99c503cedaa5cfc8a5fe5fe01",
       "game_slug": "duke-nukem-time-to-kill--1",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "duke-nukem-time-to-kill",
+      "evidence_urls": ["https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

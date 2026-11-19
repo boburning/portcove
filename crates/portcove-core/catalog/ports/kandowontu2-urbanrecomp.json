@@ -46,6 +46,24 @@
           "instruction": "The portable wrapper normally runs its child with the portable EXE folder as data working directory. Keep sc-settings.ini, keybinds.ini, the selected original and location, save states, mods, diagnostics and the complete save set there. The US SRAM file is urbanrecomp-us.srm with its .bak; Enhanced also keeps matching .population and .world sidecars. Keep them together with their creating runtime. Preserve actual SC_PORTABLE_DATA_DIR or SC_SRAM_PATH locations when independently configured; registration does not recreate a per-shell environment, move data or certify cross-version state compatibility. Original-derived translation/scenario data remain your upstream preparation and permission responsibility."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "simcity",
+      "evidence_urls": [
+        "https://github.com/kandowontu2/UrbanRecomp",
+        "https://github.com/kandowontu2/UrbanRecomp/blob/ba47b80a8887f6a3f15dd5ab173818d9aa2e8b55/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "simcity-super-nintendo",
+          "title": "SimCity (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/kandowontu2/UrbanRecomp/blob/f1ac9045c13ca89c255c47e8545479755ecea241/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

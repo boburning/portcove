@@ -42,7 +42,7 @@ impl DefinitionSnapshot {
         if self.namespace.len() > 255
             || self.stable_id.len() > 255
             || self.index_json.len() > crate::definition_index::MAX_INDEX_BYTES
-            || self.entry_json.len() as u64 > crate::definition_index::MAX_CONTENT_BYTES
+            || self.entry_json.len() > crate::definition_index::MAX_ENTRY_BYTES
             || self.contract_json.len() as u64 > crate::definition_index::MAX_CONTENT_BYTES
         {
             return Err(PortcoveError::verification(
@@ -94,6 +94,48 @@ impl DefinitionCatalogProjection {
     /// Existing catalog validation establishes semantics, never publisher trust.
     pub fn catalog(&self) -> &Catalog {
         &self.catalog
+    }
+
+    pub(crate) fn catalog_for_selection(&self, baseline: &Catalog) -> Result<Catalog> {
+        let selected = self.snapshot.port_id();
+        let mut catalog = if self.catalog.document().schema_version == 2
+            && baseline.document().schema_version == 3
+            && self.catalog.ports().len() == 1
+            && baseline.port(selected).is_err()
+        {
+            // The legacy single-port projection for a new identity supplies
+            // that port's contract. Keep the current catalog schema and graph.
+            let supplied = self.catalog.authoritative_document();
+            let mut document = baseline.authoritative_document();
+            let sources = document
+                .source_catalog
+                .as_mut()
+                .ok_or_else(|| PortcoveError::state("baseline catalog source graph is missing"))?;
+            let crate::SourceCatalog {
+                evidence,
+                identities,
+                contracts,
+                validators,
+                qualification,
+            } = supplied
+                .source_catalog
+                .ok_or_else(|| PortcoveError::state("projected catalog source graph is missing"))?;
+            sources.evidence.extend(evidence);
+            sources.identities.extend(identities);
+            sources.contracts.extend(contracts);
+            sources.validators.extend(validators);
+            sources.qualification.extend(qualification);
+            document.ports.extend(supplied.ports);
+            let mut catalog = Catalog::from_document(document)?;
+            catalog.retain_definition_snapshot(Arc::clone(&self.snapshot), self.entry.revision());
+            catalog
+        } else {
+            self.catalog.clone()
+        };
+        catalog.retain_embedded_file_patterns(baseline, selected)?;
+        catalog.retain_unrelated_upstream_reviews(baseline, selected);
+        crate::definition_loader::validate_definition_transition(baseline, &catalog, selected)?;
+        Ok(catalog)
     }
 
     pub(crate) fn snapshot(&self) -> &DefinitionSnapshot {

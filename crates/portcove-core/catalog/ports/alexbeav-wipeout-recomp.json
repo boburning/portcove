@@ -61,7 +61,16 @@
       "macos-x86-64": ["wipeout-recomp-", "-macos-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "WipEout"
+    "original_game_title": "WipEout",
+    "original_game": {
+      "format_version": 1,
+      "id": "wipeout",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/wipeout-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/wipeout-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {

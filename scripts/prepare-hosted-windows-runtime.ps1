@@ -2,12 +2,17 @@ param([AllowEmptyString()][string]$InspectVersion, [switch]$UseStandaloneInstall
 $ErrorActionPreference = 'Stop'
 $taskRepo = Split-Path -Parent $PSScriptRoot
 # portcove-supported-runtime-prelude-begin
-$taskFloorSource = Get-Content -LiteralPath (Join-Path $taskRepo 'apps/desktop/src-tauri/src/runtime_support.rs') -Raw
-$taskFloorMatch = [regex]::Match($taskFloorSource, '(?s)#\[cfg\(windows\)\]\s*const ENGINE_FLOOR: &\[u32\] = &\[(\d+), (\d+), (\d+), (\d+)\];')
-if (-not $taskFloorMatch.Success) { throw 'Reviewed Windows engine floor unavailable' }
-$taskFloor = ($taskFloorMatch.Groups[1..4] | ForEach-Object Value) -join '.'
+$taskFloorSource = Get-Content -LiteralPath (Join-Path $taskRepo 'apps/desktop/src-tauri/tauri.conf.json') -Raw
+$taskFloor = ($taskFloorSource | ConvertFrom-Json -AsHashtable).bundle.windows.minimumWebview2Version
+$taskFloorVersion = $null
+if ($taskFloor -isnot [string] -or $taskFloor -cnotmatch '^\d{1,10}(\.\d{1,10}){3}$' -or
+    -not [version]::TryParse($taskFloor, [ref]$taskFloorVersion)) {
+    throw 'Reviewed Windows engine floor unavailable'
+}
 function Test-EngineVersion([string]$Value) {
-    $Value -cmatch '^\d+\.\d+\.\d+\.\d+$' -and [version]$Value -ge [version]$taskFloor
+    $observed = $null
+    $Value -cmatch '^\d{1,10}(\.\d{1,10}){3}$' -and
+        [version]::TryParse($Value, [ref]$observed) -and $observed -ge $taskFloorVersion
 }
 # portcove-supported-runtime-prelude-end
 if ($PSBoundParameters.ContainsKey('InspectVersion')) {

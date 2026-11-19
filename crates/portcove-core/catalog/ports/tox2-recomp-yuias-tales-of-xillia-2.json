@@ -35,6 +35,21 @@
       "image_sha256": "d0dc11dbbdc14a07ac599ef3b0372ab039f3401dc6e7b41045bb933d82652eaf",
       "game_slug": "tales-of-xillia-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tales-of-xillia-2",
+      "evidence_urls": ["https://github.com/yuias/TOX2-recomp"],
+      "source_editions": [
+        {
+          "id": "tales-of-xillia-2-playstation-3",
+          "title": "Tales of Xillia 2 (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/yuias/TOX2-recomp/blob/1badafea0582d04199aa755ac20c9d9be068e2b5/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

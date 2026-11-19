@@ -45,10 +45,22 @@
         }
       ]
     },
-    "original_game_title": "Super Mario Advance 2: Super Mario World"
+    "original_game_title": "Super Mario World",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-world",
+      "evidence_urls": [
+        "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/README.md",
+        "https://github.com/mstan/SuperMarioAdvance2Recomp",
+        "https://www.nintendo.com/en-gb/Games/Game-Boy-Advance/Super-Mario-World-Super-Mario-Advance-2-267409.html"
+      ],
+      "source_editions": []
+    }
   },
-  "gba_staged_archive_v1": { "game_code": "AA2E", "versioned_mods": true },
-  "listing_inherit_asset_hints": ["windows-x86-64"],
+  "gba_staged_archive_v1": {
+    "game_code": "AA2E",
+    "versioned_mods": true
+  },
   "integration": {
     "support_tier": "beta",
     "channels": ["beta"],
@@ -70,5 +82,6 @@
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "Choose Play to open the upstream launcher, then select your own matching USA original GBA game and retail GBA BIOS. Portcove manages compatible Windows beta runtime replacement and local settings, input pointers, user game.toml, local saves/ when selected, and complete versioned mods beside new defaults. Your selected mod state is retained; conflicting same-ID/version packages require deliberate resolution. Mod preservation does not authenticate code or promise compatibility. Normal saves and optional state slots follow the original game file, usually outside the installation; back up that actual folder and recovery siblings separately. External originals, BIOS, saves and custom paths are outside Portcove backups. Generated executable caches stay version-local. Runtime rollback carries current declared data and does not rewind saves or guarantee older readers can use them. Experimental releases do not establish full-game compatibility."
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

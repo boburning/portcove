@@ -40,6 +40,21 @@
       "warnings": [
         "The publisher’s package metadata establishes download availability. Portcove has not confirmed runtime, save, platform or update behavior."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "yo-kai-watch-4",
+      "evidence_urls": ["https://github.com/ILFforever/YW4Recomp"],
+      "source_editions": [
+        {
+          "id": "yo-kai-watch-4-nintendo-switch",
+          "title": "Yo-kai Watch 4++ (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/ILFforever/YW4Recomp/blob/9220d3a3e04427cdcb1c5892bf66db87a636a820/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

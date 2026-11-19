@@ -35,6 +35,21 @@
       "image_sha256": "e2cf3b016cb466218d2370569f5a6cdc1ff8f3edade374a424212a208061aa93",
       "game_slug": "flow",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "flow",
+      "evidence_urls": ["https://github.com/sp00nznet/flow"],
+      "source_editions": [
+        {
+          "id": "flow-playstation-3",
+          "title": "flOw (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/flow/blob/3163de5ae40c0515c329cc40f2236c5873d6de44/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

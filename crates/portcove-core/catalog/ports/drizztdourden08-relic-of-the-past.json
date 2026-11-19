@@ -45,6 +45,16 @@
       "warnings": [
         "Select the root Relic of the Past.exe with Update.exe and current/ retained. Preserve %APPDATA%/relic-of-the-past or the already active adjacent data/ folder, including imported originals and every profile; do not create a new portable data root during registration."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-a-link-to-the-past",
+      "evidence_urls": [
+        "https://github.com/drizztdourden08/relic-of-the-past/blob/0c63a866bca4e47f7c1cc8255386fe5b01261df0/README.md",
+        "https://github.com/drizztdourden08/relic-of-the-past"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "The Legend of Zelda: A Link to the Past"
   }
 }

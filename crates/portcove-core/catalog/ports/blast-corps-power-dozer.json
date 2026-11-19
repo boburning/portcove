@@ -41,6 +41,15 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/djultra64/Power-Dozer#readme"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "blast-corps",
+      "evidence_urls": [
+        "https://github.com/djultra64/Power-Dozer#readme",
+        "https://github.com/djultra64/Power-Dozer"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

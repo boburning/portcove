@@ -4,7 +4,7 @@
     "id": "resident-evil-code-veronica-x-ps2-recvx-native",
     "name": "Resident Evil CODE: Veronica X (PS2) (RECVX Native)",
     "summary": "An unfinished Resident Evil CODE: Veronica X PS2 engine with source-only preparation from your own ISO, including extraction and movie setup. Development is documented for Apple Silicon macOS, Windows x86-64 and native Windows ARM64; general validated desktop releases remain planned. It is not a complete playable game. Portcove has not confirmed setup or gameplay.",
-    "original_game_title": "Resident Evil CODE: Veronica X (PS2)",
+    "original_game_title": "Resident Evil Code: Veronica X",
     "project_url": "https://github.com/Patt92/recvx-native",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -46,6 +46,15 @@
       "warnings": [
         "Select only the prepared recvx-runtime.exe with its complete Windows x64 folder and adjacent data/mods context. Preserve %APPDATA%/RECVX or the actual existing custom/development root; unfinished gameplay and validated-Windows acceptance remain open."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-code-veronica-x",
+      "evidence_urls": [
+        "https://github.com/Patt92/recvx-native/blob/0531b9490aec3ab859a6738420e881b0ef1b1dd1/README.md",
+        "https://github.com/Patt92/recvx-native"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

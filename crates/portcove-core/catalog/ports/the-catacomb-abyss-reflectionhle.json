@@ -51,6 +51,15 @@
           "instruction": "Use the official Android APK from the upstream releases. In its launcher, select this entry’s exact game version and complete matching original folder. The app may ask for broad storage access to browse shared folders. Keep your originals separately and back up the app’s appdata folder, where accessible, before replacing the app. Android installation and updates are handled by you and the upstream app."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-catacomb-abyss",
+      "evidence_urls": [
+        "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
+        "https://github.com/ReflectionHLE/ReflectionHLE"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
@@ -65,7 +74,6 @@
     },
     "decisions": []
   },
-  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -230,5 +238,6 @@
         "executables": ["reflectionhle.app/contents/macos/reflectionhle"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

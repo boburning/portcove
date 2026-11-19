@@ -53,6 +53,12 @@
       "warnings": [
         "The publisher describes the v0.11.0 preparation tests as using synthetic input. Game dumps, saves, graphics drivers and gameplay can still behave differently. Portcove has not qualified setup or gameplay."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "animal-crossing-new-horizons",
+      "evidence_urls": ["https://github.com/Nycolazs/ACNHRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -17,6 +17,19 @@ use crate::{
 };
 
 const MAX_SELECTION_JSON_BYTES: usize = 16 * 1024 * 1024;
+// The stored wrapper adds bounded IDs, fixed digests and an RFC3339 timestamp.
+// Reserve space for the complete wrapper before committing publisher bytes.
+pub(crate) const MAX_PUBLISHABLE_SNAPSHOT_BYTES: usize = MAX_SELECTION_JSON_BYTES - 4096;
+
+pub(crate) fn publishable_snapshot_size(snapshot: &DefinitionSnapshot) -> Result<usize> {
+    let bytes = serde_json::to_vec(snapshot)?.len();
+    if bytes > MAX_PUBLISHABLE_SNAPSHOT_BYTES {
+        return Err(PortcoveError::verification(
+            "escaped definition snapshot exceeds selection storage capacity",
+        ));
+    }
+    Ok(bytes)
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -666,14 +679,7 @@ impl Library {
         if validate_transition {
             let (baseline, _) =
                 crate::catalog_store::CatalogState::read(&transaction)?.resolve(Self::now())?;
-            let mut catalog = candidate.projection.catalog().clone();
-            catalog.retain_embedded_file_patterns(&baseline, candidate.publisher.stable_id())?;
-            catalog.retain_unrelated_upstream_reviews(&baseline, candidate.publisher.stable_id());
-            crate::definition_loader::validate_definition_transition(
-                &baseline,
-                &catalog,
-                candidate.publisher.stable_id(),
-            )?;
+            candidate.projection.catalog_for_selection(&baseline)?;
         }
         if has_explicit_scope {
             transaction.execute(
@@ -920,16 +926,7 @@ pub(crate) fn load_selected_definition_catalog(
         }
         expiration = expiration.min(policy_expiration);
     }
-    let mut catalog = projection.catalog().clone();
-    catalog.retain_embedded_file_patterns(baseline, &selection.stable_id)?;
-    // The retained publisher scope is the selected port. An unrelated active
-    // review comes from the current baseline while authenticated bytes are retained.
-    catalog.retain_unrelated_upstream_reviews(baseline, &selection.stable_id);
-    crate::definition_loader::validate_definition_transition(
-        baseline,
-        &catalog,
-        &selection.stable_id,
-    )?;
+    let mut catalog = projection.catalog_for_selection(baseline)?;
     catalog.retain_definition_selection(std::sync::Arc::new(selection.identity()))?;
     Ok(Some((catalog, expiration)))
 }

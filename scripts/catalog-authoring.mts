@@ -1,6 +1,11 @@
 import { checkImplementationMetadata } from "./implementation-metadata.mts";
 import type { ImplementationMetadata } from "./implementation-metadata.mts";
 import {
+  checkOriginalGameReview,
+  checkOriginalGameConsistency,
+  type OriginalGameReview,
+} from "./catalog-game-review.mts";
+import {
   checkPackagePlayerObservation,
   projectPackagePlayerFacts,
 } from "./package-player-observation.mts";
@@ -90,6 +95,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   /** Reviewed provenance; never projected into runtime definitions or listings. */
   upstream_lineage?: UpstreamLineage;
   release_maintenance?: { reason: string; reconsider_when: string };
+  /** Explicit repository grouping disposition; never a runtime identity fallback. */
+  original_game_review?: OriginalGameReview;
   /** Reviewed same-package borrowing for these descriptive platforms only. */
   listing_inherit_asset_hints?: string[];
 }
@@ -400,7 +407,16 @@ function validListingAssetHints(hints: unknown): hints is string[] {
 export function checkedAuthoredPort(value: unknown, expectedId?: string): AuthoredPort {
   if (!isRecord(value) || value.format_version !== 1 || !isRecord(value.listing))
     throw new Error("An authored port requires format_version 1 and a listing.");
+  if (value.original_game_review !== undefined) checkOriginalGameReview(value.original_game_review);
   const listing = value.listing;
+  if (
+    value.original_game_review &&
+    value.original_game_review.disposition !== "separate" &&
+    listing.original_game !== undefined
+  )
+    throw new Error(
+      "A non-single-game or unresolved original-game review cannot also assign a single original_game.",
+    );
   if (
     listing.collection_covers !== undefined &&
     (!validArtworkCollection(listing.collection_covers) || listing.artwork != null)
@@ -723,6 +739,7 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
   if (new Set(records.map((record) => record.listing.id)).size !== records.length)
     throw new Error("Catalog source has duplicate stable listing IDs.");
   checkLineageIdentities(records);
+  checkOriginalGameConsistency(records);
   records.sort(
     (a, b) =>
       (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER) ||

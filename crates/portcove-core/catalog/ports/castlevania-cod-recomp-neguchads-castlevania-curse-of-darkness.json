@@ -35,6 +35,12 @@
       "image_sha256": "04f23e02ba2a436b358660cd8af60e8c4cb5a4fcb2a272425e90f8764e71ad26",
       "game_slug": "castlevania-curse-of-darkness",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "castlevania-curse-of-darkness",
+      "evidence_urls": ["https://github.com/Neguchads/Castlevania-COD-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

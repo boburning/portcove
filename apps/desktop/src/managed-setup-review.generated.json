@@ -379,7 +379,7 @@
   "n64hub-rayman-2-recomp-n64-usa": "Use Load ROM to select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). The player verifies it and keeps a private copy in its profile with settings and Controller Pak files. Back up that profile separately before changing versions.",
   "n64hub-super-smash-bros-n64-usa-recomp": "Use Load ROM to select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). The player verifies it and keeps a private copy in its profile with SRAM and settings. Back up that profile separately before changing versions.",
   "nhl-94-genesis-ninety-four": "On first Play, select your own supported 1 MiB NHL ’94 Genesis US/Europe ROM in the upstream picker. Keep it at a stable location outside the managed runtime.",
-  "quake-ironwail": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside ironwail.exe before Play. Keep the original copy in its existing location. Portcove starts this copy from that local base folder and disables the online add-on server.",
+  "quake-ironwail": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside the Ironwail program before Play. Keep the original copy in its existing location. Portcove starts this copy from that local base folder and disables the online add-on server.",
   "quake-vkquake": {
     "note": "After installation, copy the id1 folder with pak0.pak and pak1.pak from your original Quake installation into the managed player’s working folder before choosing Play. Keep your original copy.",
     "warnings": [

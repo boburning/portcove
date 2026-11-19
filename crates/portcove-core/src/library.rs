@@ -51,6 +51,8 @@ struct RetainedUserSelectedListing {
     listing: crate::PortListing,
 }
 
+// Retained registrations can include the escaped catalog and a separate record.
+pub(crate) const MAX_RETAINED_REGISTRATION_BYTES: u64 = 32 * 1024 * 1024;
 const USER_SELECTED_LISTING_FORMAT: &str = "portcove-user-selected-listing";
 
 fn external_runtime_row_sha256(port_id: &str, record: &str, catalog: &str) -> Result<String> {
@@ -2720,7 +2722,7 @@ impl Library {
         port_id: &str,
         budget: &mut u64,
     ) -> Result<Option<(ExternalRuntimeRecord, Catalog)>> {
-        let ceiling = (*budget).min(crate::signed_catalog::MAX_CATALOG_BYTES as u64);
+        let ceiling = (*budget).min(MAX_RETAINED_REGISTRATION_BYTES);
         if ceiling == 0 {
             return Err(PortcoveError::unsupported(
                 "browsing metadata budget reached",
