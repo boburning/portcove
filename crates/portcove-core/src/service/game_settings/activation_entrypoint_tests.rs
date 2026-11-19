@@ -268,6 +268,20 @@ fn staged_activation_holds_conflict_and_unobserved_deletion_before_projection() 
             Some(reason),
             "{error}"
         );
+        if player.is_some() {
+            let presentation = error.report().presentation;
+            assert_eq!(presentation.presentation_key, "settings_defaults_conflict");
+            assert!(
+                presentation
+                    .summary
+                    .contains("kept your settings and the new defaults")
+            );
+            assert!(
+                presentation
+                    .summary
+                    .contains("keep using the installed version")
+            );
+        }
         assert_eq!(fs::read(&canonical).ok().as_deref(), player);
         assert_eq!(fs::read(&old).ok().as_deref(), player);
         assert_eq!(fs::read(fixture.staged.path.join(FILE)).unwrap(), NEW);
@@ -641,11 +655,39 @@ fn two_verified_omissions_remain_scalar_but_malformed_packages_hold() {
     assert!(omitted.service.activate_staged(PORT).is_ok());
     assert!(!omitted.library.user_dir(PORT).join(FILE).exists());
 
+    let missing_baseline = settings_fixture_packages(false, true, false, [None, Some(NEW)]);
+    let error = missing_baseline.service.activate_staged(PORT).unwrap_err();
+    assert_eq!(error.details["settings_reason"], "missing-verified-default");
+    let presentation = error.report().presentation;
+    assert_eq!(
+        presentation.presentation_key,
+        "settings_defaults_unverified"
+    );
+    assert!(
+        presentation
+            .summary
+            .contains("Keep using the installed version")
+    );
+    let status = missing_baseline
+        .library
+        .status(PORT, ReleaseChannel::Stable)
+        .unwrap();
+    assert_eq!(status.active.unwrap().id, missing_baseline.old.id);
+    assert_eq!(status.staged.unwrap().id, missing_baseline.staged.id);
+    assert_eq!(
+        fs::read(missing_baseline.staged.path.join(FILE)).unwrap(),
+        NEW
+    );
+
     let invalid = settings_fixture_packages(false, true, false, [None, Some(&[0xff])]);
     let error = invalid.service.activate_staged(PORT).unwrap_err();
     assert_eq!(
         error.details["settings_reason"],
         "malformed-package-default"
+    );
+    assert_eq!(
+        error.report().presentation.presentation_key,
+        "settings_defaults_unverified"
     );
     assert_eq!(fs::read(invalid.staged.path.join(FILE)).unwrap(), [0xff]);
     assert!(!invalid.library.user_dir(PORT).join(FILE).exists());

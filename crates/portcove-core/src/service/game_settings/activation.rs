@@ -4,6 +4,7 @@
 use super::{
     HeldSettingsCopies, activation_deletion::PreparedSettingsDeletion, transaction::custody, *,
 };
+use crate::failure::KnownFailureCause;
 use crate::game_settings::windows::{HeldAbsence, HeldFile};
 use crate::game_settings::{
     PlayerSettings, RetainedSettingsDefaults, SettingsFileUpdate, SettingsPreimage, SettingsUpdate,
@@ -98,6 +99,15 @@ fn hold(file: &GameSettingsFile, reason: &str) -> PortcoveError {
     )
     .detail("settings_file", &file.path)
     .detail("settings_reason", reason)
+}
+
+fn unverified_defaults(file: &GameSettingsFile, reason: &str) -> PortcoveError {
+    hold(file, reason).with_known_cause(KnownFailureCause::SettingsDefaultsUnverified)
+}
+
+fn player_defaults_conflict(file: &GameSettingsFile) -> PortcoveError {
+    hold(file, "player-and-default-diverged")
+        .with_known_cause(KnownFailureCause::SettingsDefaultsConflict)
 }
 
 impl PortcoveService {
@@ -209,7 +219,7 @@ impl PortcoveService {
         let incoming = read_defaults(staged)?;
         let Some(incoming) = incoming else {
             if let Some(file) = prior.as_ref().and_then(first_participating_file) {
-                return Err(hold(file, "missing-incoming-default"));
+                return Err(unverified_defaults(file, "missing-incoming-default"));
             }
             return Ok(None);
         };
@@ -220,7 +230,7 @@ impl PortcoveService {
                     .get(&file.path)
                     .and_then(|gap| gap.hold_reason())
                 {
-                    return Err(hold(file, reason));
+                    return Err(unverified_defaults(file, reason));
                 }
             }
         }
@@ -248,7 +258,7 @@ impl PortcoveService {
                     })
             })
         {
-            return Err(hold(file, "missing-verified-default"));
+            return Err(unverified_defaults(file, "missing-verified-default"));
         }
 
         let prior_contract = self.persistence_contract_for_install(active)?;
@@ -297,13 +307,13 @@ impl PortcoveService {
             }
             let prior = prior
                 .as_ref()
-                .ok_or_else(|| hold(file, "missing-verified-default"))?;
+                .ok_or_else(|| unverified_defaults(file, "missing-verified-default"))?;
             let old_file = prior
                 .contract
                 .files
                 .iter()
                 .find(|old| old.id == file.id && old.path == file.path && old.format == file.format)
-                .ok_or_else(|| hold(file, "missing-verified-default"))?;
+                .ok_or_else(|| unverified_defaults(file, "missing-verified-default"))?;
             let old = prior.shipped[&file.path].verified_bytes(old_file)?;
             let new = incoming.shipped[&file.path].verified_bytes(file)?;
             let last_launch = self
@@ -342,7 +352,7 @@ impl PortcoveService {
                     return Err(hold(file, "divergent-player-settings-copies"));
                 }
                 if old != new && runtime != new {
-                    return Err(hold(file, "player-and-default-diverged"));
+                    return Err(player_defaults_conflict(file));
                 }
                 let mut files = freeze_exact_replacement(
                     file,
@@ -375,13 +385,13 @@ impl PortcoveService {
             };
             let prior = prior
                 .as_ref()
-                .ok_or_else(|| hold(file, "missing-verified-default"))?;
+                .ok_or_else(|| unverified_defaults(file, "missing-verified-default"))?;
             let old_file = prior
                 .contract
                 .files
                 .iter()
                 .find(|old| old.id == file.id && old.path == file.path && old.format == file.format)
-                .ok_or_else(|| hold(file, "missing-verified-default"))?;
+                .ok_or_else(|| unverified_defaults(file, "missing-verified-default"))?;
             let old = prior.shipped[&file.path].verified_bytes(old_file)?;
             let new = incoming.shipped[&file.path].verified_bytes(file)?;
             let files = self.freeze_recorded_settings_deletion(
@@ -429,10 +439,10 @@ impl PortcoveService {
                     files: PreparedSettingsFiles::Replace(Box::new(files)),
                 }))
             }
-            SettingsUpdate::KeepPlayerAndDefault(_) => {
-                Err(hold(file, "player-and-default-diverged"))
+            SettingsUpdate::KeepPlayerAndDefault(_) => Err(player_defaults_conflict(file)),
+            SettingsUpdate::MissingBaseline { .. } => {
+                Err(unverified_defaults(file, "missing-verified-default"))
             }
-            SettingsUpdate::MissingBaseline { .. } => Err(hold(file, "missing-verified-default")),
             SettingsUpdate::MissingPlayerEvidence(_) => Err(hold(file, "missing-player-evidence")),
         }
     }

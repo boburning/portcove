@@ -99,7 +99,9 @@ For a supported Windows settings file with an independent persistent path,
 Portcove applies a new shipped default when the verified old default still
 matches the player's file. If Portcove cannot verify the file, or both sides
 changed it differently, the affected installation stays staged. The player's
-file remains in place and the staged installation retains its shipped default.
+file remains in place and the staged version keeps any verified default it
+shipped with. Keep using the installed version while the update waits for
+review or verified defaults.
 A first native upgrade can establish the missing canonical copy from the
 verified old package before it applies the new default. A known runtime edit
 can be carried forward from the exact managed launch when it agrees with the
