@@ -322,6 +322,12 @@ it.each(
       const requirements = page.getByText("Current game-file requirements", { exact: true });
       await expect.element(requirements).toBeVisible();
       expect(requirements.element().closest("details")).toBeNull();
+      requirements.element().scrollIntoView({ block: "start", behavior: "instant" });
+      const requirementsBounds = requirements.element().getBoundingClientRect();
+      expect(requirementsBounds.top).toBeGreaterThanOrEqual(0);
+      expect(requirementsBounds.bottom).toBeLessThanOrEqual(innerHeight);
+      expect(requirementsBounds.left).toBeGreaterThanOrEqual(0);
+      expect(requirementsBounds.right).toBeLessThanOrEqual(innerWidth);
       if (direction === "ltr") await captureParityState("detail-current-game-file-requirements");
       await page.getByRole("tab", { name: "Manage", exact: true }).click();
       for (const title of ["Folder for a future install", "Technical details"]) {

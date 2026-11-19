@@ -312,7 +312,10 @@ it.each([
     await expect
       .element(page.getByRole("textbox", { name: "Start in folder", exact: true }))
       .toHaveValue(directory);
-    await page.getByRole("button", { name: "Review launch details", exact: true }).click();
+    await page
+      .getByRole("region", { name: "Set up and launch", exact: true })
+      .getByRole("button", { name: "Review launch details", exact: true })
+      .click();
     await expect
       .poll(() => previewLaunch.mock.calls)
       .toEqual([[listing.id, executable, directory, savedArguments, 19]]);

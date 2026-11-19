@@ -274,6 +274,12 @@ it("checks a chosen game's files from its Discover details, preserves failures a
   const opener = page
     .getByRole("group", { name: "Check game files" })
     .getByRole("button", { name: "Check game files", exact: true });
+  opener.element().scrollIntoView({ block: "nearest", behavior: "instant" });
+  const workspaceElement = fixtureValue(
+    document.querySelector<HTMLElement>(".workspace-main"),
+    "desktop workspace",
+  );
+  const originalScroll = workspaceElement.scrollTop;
   await opener.click();
   await page.getByRole("button", { name: "Choose game files to check", exact: true }).click();
   await expect.element(page.getByRole("alert")).toMatchTextContent("Unsupported owned input");
@@ -284,7 +290,7 @@ it("checks a chosen game's files from its Discover details, preserves failures a
   await page.getByRole("button", { name: "Close", exact: true }).click();
   await expect.element(opener).toHaveFocus();
   expectDesktopShell();
-  expect(document.querySelector(".workspace-main")?.scrollTop).toBeGreaterThan(0);
+  expect(workspaceElement.scrollTop).toBe(originalScroll);
   await captureParityState("add-games-source-opener-restored-fixture");
 });
 it.each(["dark", "light"])(
