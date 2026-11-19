@@ -63832,6 +63832,76 @@
       }
     },
     {
+      "id": "dungeon-crawl-stone-soup",
+      "name": "Dungeon Crawl Stone Soup",
+      "summary": "Play the official Windows Tiles build of the open-source tactical roguelike.",
+      "project_url": "https://github.com/crawl/crawl",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "crawl/crawl",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dcss-",
+            "-win32-tiles.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "crawl.exe"
+        ]
+      },
+      "persistent_paths": [
+        "init.txt",
+        "morgue",
+        "saves",
+        "settings/macro.txt"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "No original game files are required. Portcove preserves saves, character dumps, the keyboard macro file and an optional init.txt in the game's user-data folder. Crawl handles a CRAWL_RC override or a custom data path outside that folder separately.",
+        "original_game_title": "Linley's Dungeon Crawl",
+        "original_game": {
+          "format_version": 1,
+          "id": "linleys-dungeon-crawl",
+          "evidence_urls": [
+            "https://crawl.develz.org/wordpress/about",
+            "https://github.com/crawl/crawl/blob/0.34.1/README.md#license-and-history-information"
+          ],
+          "source_editions": []
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Start the Windows Tiles edition",
+              "instruction": "Install the official Windows package and choose Play. The package already includes the game files."
+            },
+            {
+              "title": "Keep custom settings in the Crawl profile",
+              "instruction": "Place your init.txt in Portcove’s Dungeon Crawl Stone Soup user-data folder. Leave the packaged defaults in the game folder."
+            }
+          ],
+          "warnings": [
+            "Crawl handles a CRAWL_RC override and any custom data paths outside the Portcove user-data folder. Back up those files separately."
+          ],
+          "help_url": "https://crawl.develz.org/wordpress/about"
+        }
+      },
+      "launch_arguments": [
+        "-dir",
+        "."
+      ]
+    },
+    {
       "id": "eandis-sdoj-recomp",
       "name": "DoDonPachi SaiDaiOuJou / SDOJ-Recomp (eandis)",
       "summary": "Play the DoDonPachi SaiDaiOuJou recompilation with your own Xbox 360 disc or Games-on-Demand copy and its Title Update 1 data.",
