@@ -141,7 +141,9 @@ it("shows scoped launch stages beside the matching port in Discover", async () =
   await expect.element(project.getByText(/Scope:.*release v1/)).toBeVisible();
   expect(document.body.textContent).not.toContain("Different platform");
 
-  await page.getByText("Comparison settings", { exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Original game", exact: true });
+  await dialog.getByText("Comparison options and reports", { exact: true }).click();
+  await dialog.getByText("Comparison settings", { exact: true }).click();
   await page.getByRole("combobox", { name: /Game edition/ }).click();
   await page.getByRole("option", { name: "Fixture original", exact: true }).click();
   await expect
