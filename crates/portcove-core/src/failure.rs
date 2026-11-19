@@ -169,6 +169,7 @@ pub(crate) enum KnownFailureCause {
     CancellationUnavailable,
     OperationInterrupted,
     RequiredRuntimeUnverified,
+    LaunchArgumentsUnsupported,
     SourceChanged,
     AmbiguousAdoption,
     StaleRemoval,
@@ -318,6 +319,10 @@ impl KnownFailureCause {
             Self::RequiredRuntimeUnverified => (
                 "required_runtime_unverified",
                 "This installation's required runtime could not be verified. Review its runtime requirements and current installation; use an offered compatible update or repair when available.",
+            ),
+            Self::LaunchArgumentsUnsupported => (
+                "launch_arguments_unsupported",
+                "This launch uses a fixed set of arguments. Run it again without extra arguments.",
             ),
             Self::AmbiguousAdoption => (
                 "adoption_ambiguous",

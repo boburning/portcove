@@ -50,6 +50,12 @@
       "warnings": [
         "Source/API and inert native probes are distinct from acquired-package, actual original/game/save/mod/network, installed Desktop, physical/human, other-platform and protected acceptance. No Supported promotion or immutable source-to-binary certification.",
         "This bounded existing-player route adds no managed runtime or console-family infrastructure. Player/upstream retains all original inputs, generated/private outputs, profiles, actual replacements and recovery."
+      ],
+      "references": [
+        {
+          "title": "Use the Android WoodyRE package",
+          "instruction": "WoodyRE v1.0.12 includes an APK with ARM64 and x86-64 libraries. On first start, choose your original CD image or copied files. Open the installed app again to use that copy. The app keeps the imported files under Android/data/io.github.jjmhalew.woodyre/files/data, with woodyre.sav and woodyre.cfg in the parent folder."
+        }
       ]
     }
   }

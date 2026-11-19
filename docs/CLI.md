@@ -101,9 +101,12 @@ and working directory explicitly. For example, review
 `portcove external select-preview render96ex C:/Games/Render96/sm64.us.f3dex2e.exe --working-directory C:/Games/Render96 --arg=--savepath --arg=!`.
 Repeat the same details with `external select`, its `--expected-preview` and
 `--yes` to confirm execution intent. Use `--arg=VALUE` once per documented
-argument. `portcove exec render96ex` launches the saved selection; `external
-remove render96ex` removes only Portcove's reference and preserves every external
-file. You or the selected upstream launcher manage setup and updates. Selected
+argument. A runtime that uses fixed launch arguments can refuse additional
+arguments on `exec`. For a user-selected executable, review and save the
+new arguments with `external select-relink-preview` and `external select-relink`.
+`portcove exec render96ex` launches the saved selection.
+`external remove render96ex` removes Portcove's reference and preserves every
+external file. You or the selected upstream launcher manage setup and updates. Selected
 bytes are not certified as an authenticated official package, and this route
 offers no managed backup, repair, update, rollback or file deletion. A descriptive
 catalog listing is sufficient; a managed definition or declared platform is not
