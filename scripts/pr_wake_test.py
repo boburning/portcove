@@ -153,6 +153,18 @@ class WatchTests(unittest.TestCase):
         with wake.store(self.state) as db:
             return wake.load(db, pr)
 
+    def test_event_stream_attach_reconnect_and_suite_completion_are_read_hints(self):
+        line = b"Changes made before this point are not reported; read the current state now."
+        self.assertTrue(wake.event_hint(line, False))
+        self.assertTrue(wake.event_hint(line, False))
+        self.assertFalse(wake.event_hint(b"Event stream closed, reconnecting.", False))
+        self.assertFalse(wake.event_hint(b": heartbeat", True))
+        event = b'{"type":"com.github.pull_request.check_suite.status.changed.v1","data":{"conclusion":"success"}}'
+        self.assertTrue(wake.event_hint(event, True))
+        self.tick()
+        self.assertEqual(self.samples, [1])
+        self.assertEqual(self.events(), [])
+
     def test_thirty_minutes_pending_then_one_wake_despite_duplicates(self):
         for _ in range(10):
             self.tick()
@@ -282,9 +294,40 @@ class WatchTests(unittest.TestCase):
         self.assertEqual(self.events()[0]["turn"], "turn-2")
         with patch.dict(os.environ, {"CODEX_THREAD_ID": OWNERS[0]}):
             wake.event_command(self.state, argparse.Namespace(action="claim", event=self.events()[0]["id"]))
+        self.daemon.status = "completed"
         self.tick()
         self.assertEqual(len(self.daemon.turns), 2)
         self.assertIsNone(self.row()["pending"])
+
+    def test_interrupted_after_claim_retries_only_after_turn_stops(self):
+        self.conditions[1] = "green"
+        self.tick()
+        self.tick()
+        with patch.dict(os.environ, {"CODEX_THREAD_ID": OWNERS[0]}):
+            wake.event_command(self.state, argparse.Namespace(action="claim", event=self.events()[0]["id"]))
+        self.tick()
+        self.assertEqual(len(self.daemon.turns), 1)
+        self.daemon.status = "interrupted"
+        self.tick()
+        self.assertEqual(self.events()[0]["claimed"], 0)
+        self.daemon.status = "inProgress"
+        self.tick()
+        self.tick()
+        self.assertEqual(self.events()[0]["turn"], "turn-2")
+        self.assertEqual(len(self.events()), 1)
+
+    def test_pause_removes_queued_copy_while_github_is_unavailable(self):
+        self.conditions[1] = "green"
+        self.daemon.resume_works = False
+        self.tick()
+        wake.control(self.state, argparse.Namespace(action="pause", pr=1))
+        with self.assertRaises(ConnectionError):
+            wake.step(self.state, 1, read_pull=lambda _: self.unreachable())
+        self.assertEqual(self.daemon.queues, {})
+
+    @staticmethod
+    def unreachable():
+        raise ConnectionError("GitHub unavailable")
 
     def test_close_cleans_pending_enqueue_after_outage(self):
         self.conditions[1] = "green"

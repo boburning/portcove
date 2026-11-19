@@ -154,8 +154,7 @@ def relevant_feedback(watch, facts):
             body = item.get("body") or ""
             if area == "review":
                 relevant = item.get("commit_id") == head and (
-                    item["state"] in ("CHANGES_REQUESTED", "APPROVED")
-                    or (item["state"] == "COMMENTED" and bool(body.strip()))
+                    item["state"] in ("CHANGES_REQUESTED", "APPROVED") or item["state"] == "COMMENTED"
                 )
             else:
                 relevant = bool(mention.search(body)) and (
@@ -270,21 +269,28 @@ def reconcile(state, pr):
         event = db.execute("SELECT * FROM events WHERE id=?", (watch["pending"],)).fetchone()
         active = watch["status"] == "watching" and not watch["invalidated"]
         with Daemon() as daemon:
-            turn = daemon.recover(watch["owner"], event["message"], active)
-            if turn and active and not event["claimed"]:
-                status = daemon.turn_status(watch["owner"], turn)
-                if status in ("failed", "interrupted", "completed"):
-                    if not event["prior_turn"]:
-                        db.execute(
-                            "UPDATE events SET message=?, prior_turn=?, turn=NULL WHERE id=?",
-                            (event["message"] + "\nRecovery after a turn ended before claim.", turn, event["id"]),
-                        )
-                        return
-                    watch["delivery_error"] = "The retry turn ended without claiming this event"
-                    save(db, watch)
+            turn = event["turn"] if active else None
+            if not turn:
+                turn = daemon.recover(watch["owner"], event["message"], active)
+            status = daemon.turn_status(watch["owner"], turn) if turn and active else None
+        completed = status == "completed" and bool(event["claimed"])
+        interrupted = status in ("failed", "interrupted") or (status == "completed" and not completed)
+        if interrupted:
+            if not event["prior_turn"]:
+                message = (
+                    event["message"] + "\nThe previous turn ended before delivery completed. "
+                    "Check its history and current PR state before repeating any action."
+                )
+                db.execute(
+                    "UPDATE events SET message=?, prior_turn=?, turn=NULL, claimed=0 WHERE id=?",
+                    (message, turn, event["id"]),
+                )
+                return
+            watch["delivery_error"] = "The recovery turn ended before delivery completed"
+            save(db, watch)
         if turn:
             db.execute("UPDATE events SET turn=? WHERE id=?", (turn, event["id"]))
-        if (turn and active and event["claimed"]) or watch["invalidated"] or watch["status"] in ("closed", "cancelled"):
+        if completed or watch["invalidated"] or watch["status"] in ("closed", "cancelled"):
             if watch["status"] in ("closed", "cancelled"):
                 db.execute("DELETE FROM watches WHERE pr=?", (pr,))
             else:
@@ -306,6 +312,8 @@ def step(state, pr, now=time.time, observe_now=observe, dispatch=reconcile, read
     if not watch:
         return POLL
     if watch["status"] in ("paused", "cancelled", "closed"):
+        if watch["pending"]:
+            dispatch(state, pr)
         if watch["status"] == "paused" and read_pull(pr)["state"] == "closed":
             with lock(state, pr), store(state) as db:
                 current = load(db, pr)
@@ -315,9 +323,7 @@ def step(state, pr, now=time.time, observe_now=observe, dispatch=reconcile, read
                         save(db, current)
                     else:
                         db.execute("DELETE FROM watches WHERE pr=?", (pr,))
-        if watch["pending"]:
             dispatch(state, pr)
-            return 15
         return POLL
     try:
         condition, key, url, report, interval = observe_now(watch, now())
@@ -335,7 +341,12 @@ def step(state, pr, now=time.time, observe_now=observe, dispatch=reconcile, read
         )
     with lock(state, pr), store(state) as db:
         current = load(db, pr)
-        if not current or current["id"] != watch["id"] or current["status"] != "watching":
+        if (
+            not current
+            or current["id"] != watch["id"]
+            or current["status"] != "watching"
+            or current.get("revision", 0) != watch.get("revision", 0)
+        ):
             return 1
         if report:
             evidence = report.get("evidence", {})
@@ -378,6 +389,15 @@ def step(state, pr, now=time.time, observe_now=observe, dispatch=reconcile, read
     return 1 if current and current["invalidated"] else interval
 
 
+def event_hint(line, is_event):
+    if not is_event:
+        return b"read the current state now" in line.lower()
+    try:
+        return json.loads(line)["type"] in EVENT_TYPES.split(",")
+    except (ValueError, KeyError, TypeError):
+        return False
+
+
 async def listen(pr, wake):
     executable = await asyncio.create_subprocess_exec(
         "gh",
@@ -395,16 +415,8 @@ async def listen(pr, wake):
 
     async def read(stream, is_event):
         async for line in stream:
-            if is_event:
-                try:
-                    name = json.loads(line)["type"]
-                except (ValueError, KeyError, TypeError):
-                    continue
-                if name not in EVENT_TYPES.split(","):
-                    continue
-            elif b"read the current state now" not in line.lower():
-                continue
-            wake.set()
+            if event_hint(line, is_event):
+                wake.set()
 
     try:
         await asyncio.gather(read(executable.stdout, True), read(executable.stderr, False))
@@ -595,6 +607,7 @@ def control(state, args):
         if watch["status"] in ("closed", "cancelled"):
             raise RuntimeError("PR is being cleaned up")
         watch["status"] = {"pause": "paused", "resume": "watching", "cancel": "cancelled"}[args.action]
+        watch["revision"] = watch.get("revision", 0) + 1
         if args.action == "cancel" and not watch["pending"]:
             db.execute("DELETE FROM watches WHERE pr=?", (args.pr,))
         else:

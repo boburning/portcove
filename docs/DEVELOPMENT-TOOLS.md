@@ -230,9 +230,22 @@ python3 -m venv work/pr-wake-venv
 work/pr-wake-venv/bin/pip install websockets==16.0
 install -d -m 700 "$HOME/.local/state/portcove/pr-wake" "$HOME/.config/systemd/user"
 tools_checkout=$(pwd -P)
+codex_cli=$(command -v codex)
+cat > "$HOME/.config/systemd/user/portcove-codex-start.service" <<EOF
+[Unit]
+Description=Start the existing local Codex daemon
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment="PATH=$PATH"
+ExecStart="$codex_cli" app-server daemon start
+EOF
 cat > "$HOME/.config/systemd/user/portcove-pr-wake.service" <<EOF
 [Unit]
 Description=Portcove local pull request watcher
+Wants=portcove-codex-start.service
+After=portcove-codex-start.service
 
 [Service]
 Environment="PATH=$PATH"
@@ -254,8 +267,11 @@ systemctl --user status portcove-pr-wake.service
 
 Use the same `CODEX_HOME` and GitHub CLI configuration in the service and owning
 session. If either uses a custom location, set it explicitly in the service
-environment. The unit uses the existing logged-in accounts. Confirm that the
-shell PATH written into the unit contains persistent tool directories.
+environment for each relevant unit. The units use the existing logged-in
+accounts. If the runner already starts its Codex daemon at boot, point
+`Wants` and `After` at that service instead of installing the oneshot unit.
+The watcher can restart independently of the shared daemon. Confirm that
+the shell PATH written into the units contains persistent tool directories.
 
 Start the owning Codex thread on that local daemon in the PR worktree, with
 write access to the journal directory. For the Codex CLI with workspace-write
@@ -294,9 +310,13 @@ Each actionable event is written to disk before the worker invokes
 target thread's persisted user message and turn ID as pickup evidence. After
 an outage it checks the target's queue and history and resumes an existing
 queued message if it finds one. The message asks the owner to claim the event
-once and re-read the live PR before proceeding. The worker retries once if a
-turn ends before it claims its event. Inspect `delivery_error` in `status` if
-the retry also ends without a claim. Raw check evidence stays local.
+once and re-read the live PR before proceeding. A completed, claimed turn
+settles the event. The worker retries once after a failed or interrupted turn,
+or after a turn ends without claiming the event. The recovery turn reads prior
+work and current PR state before repeating any action. If `status` reports a
+`delivery_error`, open the saved UUID, inspect its last turn and current PR,
+and resolve the retained action in that thread. `receipt EVENT` shows both
+turn IDs. Raw check evidence stays local.
 To read its bounded summary, redirect the event's `report EVENT` output to
 a file, then run `node scripts/report-summary.mts watch FILE`.
 
