@@ -1863,7 +1863,7 @@ export async function preparationScenarios({
     const compactReadiness = wideReadiness ? undefined : await openReadinessOptions(libraryFilters);
     for (const label of [
       `All (${installedCount})`,
-      `Ready (${installedCount})`,
+      `Ready to play (${installedCount})`,
       "Needs attention (0)",
     ]) {
       const filter = compactReadiness
@@ -2813,19 +2813,19 @@ export async function preparationScenarios({
       await clickVisible(browser, readiness);
       const ready = await browser.wait(
         until.elementLocated(
-          By.xpath('//*[@role="option"][starts-with(normalize-space(.),"Ready (")]'),
+          By.xpath('//*[@role="option"][starts-with(normalize-space(.),"Ready to play (")]'),
         ),
         5_000,
       );
       await browser.wait(
-        async () => /^Ready \([1-9][0-9]*\)$/u.test(await ready.getText()),
+        async () => /^Ready to play \([1-9][0-9]*\)$/u.test(await ready.getText()),
         15_000,
         "Library readiness counts did not settle",
       );
       await clickVisible(browser, ready);
       const selectedReadiness = await readiness.findElement(By.css('[data-slot="select-value"]'));
       await browser.wait(
-        async () => /^Ready \([1-9][0-9]*\)$/u.test(await selectedReadiness.getText()),
+        async () => /^Ready to play \([1-9][0-9]*\)$/u.test(await selectedReadiness.getText()),
         5_000,
         "Library Ready choice did not commit",
       );
