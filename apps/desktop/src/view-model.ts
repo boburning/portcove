@@ -5,7 +5,7 @@ import {
   type CatalogQuery,
   type CatalogQueryContext,
 } from "./features/browsing/catalog-query";
-import { availablePlatforms } from "./features/browsing/catalog-entry";
+import { assessListingAvailability, availablePlatforms } from "./features/browsing/catalog-entry";
 import type { CatalogEntry } from "./features/browsing/catalog-entry";
 import type {
   ActivityRecord,
@@ -468,6 +468,8 @@ function addSourceNeed(
   requirements.set(profileId, requirement);
 }
 
+const gameNameCollator = new Intl.Collator("en", { sensitivity: "base" });
+
 export function filterPorts(
   ports: CatalogEntry[],
   statuses: Map<string, PortStatus>,
@@ -476,10 +478,10 @@ export function filterPorts(
   query: string,
   catalogSort: CatalogSort = "catalog",
   context: CatalogQueryContext = {},
+  now = Date.now(),
 ) {
   const selectedStatuses =
     typeof filter !== "string" && context.library ? context.library.statuses : statuses;
-  const normalizedQuery = normalizeGameSearchText(query.trim());
   const legacyFilter = typeof filter === "string" ? filter : "all";
   const structuredQuery =
     typeof filter !== "string"
@@ -493,27 +495,34 @@ export function filterPorts(
       visibleInView(port, selectedStatuses, view) &&
       matchesFilter(selectedStatuses.get(port.id), legacyFilter, Boolean(port.pendingSetup)),
   );
-  const visible = evaluateCatalogQuery(candidates, structuredQuery, {
-    ...context,
-    catalogUniverse: context.catalogUniverse ?? ports,
-  }).ports.filter((port) => searchableText(port).includes(normalizedQuery));
+  const { ports: matching } = evaluateCatalogQuery(
+    candidates,
+    structuredQuery,
+    { ...context, catalogUniverse: context.catalogUniverse ?? ports },
+    { includeFacetCounts: false },
+  );
+  const visible = searchCatalogPorts(matching, query);
   if (
     (view !== "catalog" && view !== "library") ||
     (catalogSort === "catalog" && !context.devicePlatform)
   )
     return visible;
   return visible
-    .map((port, index) => ({ port, index }))
+    .map((port, index) => ({
+      port,
+      index,
+      rank:
+        catalogSort === "catalog"
+          ? catalogRank(port, selectedStatuses.get(port.id), context.devicePlatform, now)
+          : 0,
+    }))
     .sort((left, right) => {
       const comparison =
         catalogSort === "catalog"
-          ? catalogRank(left.port, selectedStatuses.get(left.port.id), context.devicePlatform) -
-            catalogRank(right.port, selectedStatuses.get(right.port.id), context.devicePlatform)
+          ? left.rank - right.rank
           : catalogSort === "name" || catalogSort === "name-desc"
             ? (catalogSort === "name-desc" ? -1 : 1) *
-              gameTitle(left.port).localeCompare(gameTitle(right.port), "en", {
-                sensitivity: "base",
-              })
+              gameNameCollator.compare(gameTitle(left.port), gameTitle(right.port))
             : catalogSort === "recent"
               ? (selectedStatuses.get(right.port.id)?.last_launched_at ?? 0) -
                 (selectedStatuses.get(left.port.id)?.last_launched_at ?? 0)
@@ -534,14 +543,22 @@ export function filterPorts(
     .map(({ port }) => port);
 }
 
-function catalogRank(port: CatalogEntry, status: PortStatus | undefined, platform?: string) {
+function catalogRank(
+  port: CatalogEntry,
+  status: PortStatus | undefined,
+  platform: string | undefined,
+  now: number,
+) {
   if (status?.active || status?.external_runtime || port.pendingSetup) return 0;
   if (port.release && !portActionPresentation(status, "install").blocked) return 1;
-  if (port.listing?.availability === "unavailable" || port.listing?.availability === "source-only")
-    return 5;
-  const platforms = availablePlatforms(port);
-  if (platforms.some((candidate) => candidate === platform)) return 2;
-  return platforms.length ? 4 : 3;
+  const assessment = port.listing ? assessListingAvailability(port.listing, now) : undefined;
+  const observed = assessment?.observedPlatforms ?? [];
+  if (observed.some((candidate) => candidate === platform)) return 2;
+  const authoredAvailability = assessment?.availability;
+  if (authoredAvailability === "unavailable" || authoredAvailability === "source-only") return 5;
+  const authored = availablePlatforms(port);
+  if (authored.some((candidate) => candidate === platform)) return 2;
+  return authored.length ? 4 : 3;
 }
 
 function visibleInView(port: CatalogEntry, statuses: ReadonlyMap<string, PortStatus>, view: View) {
@@ -569,6 +586,13 @@ function matchesFilter(status: PortStatus | undefined, filter: Filter, pendingSe
   if (filter === "ready") return readiness === "ready" || readiness === "staged";
   if (filter === "setup") return needsAttention(readiness);
   return true;
+}
+
+export function searchCatalogPorts(ports: CatalogEntry[], query: string) {
+  const normalizedQuery = normalizeGameSearchText(query.trim());
+  return normalizedQuery
+    ? ports.filter((port) => searchableText(port).includes(normalizedQuery))
+    : ports;
 }
 
 function searchableText(port: CatalogEntry) {
