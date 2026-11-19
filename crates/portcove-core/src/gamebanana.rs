@@ -134,6 +134,7 @@ fn parse_file(value: &Value, web_root: &str) -> Option<ProviderFileCandidate> {
         .as_str()
         .filter(|md5| md5.len() == 32 && md5.bytes().all(|b| b.is_ascii_hexdigit()))
         .map(str::to_ascii_lowercase);
+    let archived = crate::mod_provider::provider_status_flag(value, "_bIsArchived");
     Some(ProviderFileCandidate {
         file_id,
         file_name,
@@ -141,7 +142,8 @@ fn parse_file(value: &Value, web_root: &str) -> Option<ProviderFileCandidate> {
         added_at: value["_tsDateAdded"].as_i64().unwrap_or_default(),
         download_url,
         claimed_md5: md5,
-        archived: value["_bIsArchived"].as_bool().unwrap_or(false),
+        archived: archived.unwrap_or(false),
+        status_unknown: archived.err(),
         claimed_scan: value["_sAvResult"].as_str().map(sanitize_text),
         thunderstore_dependencies: None,
     })
@@ -178,6 +180,7 @@ fn parse_summary(value: &Value, web_root: &str) -> Option<ProviderProject> {
             }
             artwork_url(&format!("{base}/{file}"), "images.gamebanana.com")
         });
+    let obsolete = crate::mod_provider::provider_status_flag(value, "_bIsObsolete");
     Some(ProviderProject {
         listing: Some(ProviderListing {
             categories: value["_aRootCategory"]["_sName"]
@@ -205,7 +208,8 @@ fn parse_summary(value: &Value, web_root: &str) -> Option<ProviderProject> {
             .as_i64()
             .or_else(|| value["_tsDateModified"].as_i64())
             .unwrap_or_default(),
-        obsolete: value["_bIsObsolete"].as_bool().unwrap_or(false),
+        obsolete: obsolete.unwrap_or(false),
+        status_unknown: obsolete.err(),
         submitter: value["_aSubmitter"]["_sName"].as_str().map(sanitize_text),
         files,
         unreadable_files: u32::try_from(unreadable_files).unwrap_or(u32::MAX),

@@ -306,6 +306,20 @@ it("offers a second same-port source and labels cached results and failed refres
   ]);
 });
 
+it("shows a file with unconfirmed eligibility without offering Add", async () => {
+  const details = project();
+  details.project.files[0]!.status_unknown = "omitted";
+  vi.spyOn(desktopApi, "providerProject").mockResolvedValue(details);
+  const planned = vi.spyOn(desktopApi, "planProviderInstall");
+  await render();
+
+  await page.getByRole("button", { name: /HD Link/ }).click();
+  await expect.element(page.getByText("pack.zip", { exact: true })).toBeVisible();
+  await expect.element(page.getByText(/The provider did not confirm availability/)).toBeVisible();
+  await expect.element(page.getByRole("button", { name: /Add pack.zip/ })).not.toBeInTheDocument();
+  expect(planned).not.toHaveBeenCalled();
+});
+
 it("offers Thunderstore's community link when the catalog exceeds Core's limits", async () => {
   const url = "https://thunderstore.io/c/zelda-64-recompiled/";
   vi.spyOn(desktopApi, "modProviderCatalog").mockRejectedValue({

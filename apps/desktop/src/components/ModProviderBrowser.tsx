@@ -207,9 +207,11 @@ export function ModProviderBrowser({
   const queued = (item: Project) =>
     draft.additions.some((entry) => modProjectKey(entry.provider, entry.project) === lookup(item));
   const eligible = (view: ProviderProjectView) =>
-    view.freshness === "stale" || view.project.obsolete
+    view.freshness === "stale" || view.project.obsolete || view.project.status_unknown
       ? []
-      : view.project.files.filter((file) => view.eligible_file_ids?.includes(file.file_id));
+      : view.project.files.filter(
+          (file) => !file.status_unknown && view.eligible_file_ids?.includes(file.file_id),
+        );
   const queue = (item: Project, file: File) => {
     if (draft.additions.length + localFiles.length >= 16) {
       setFailure(t("mods.workspace.draftLimit"));
@@ -541,7 +543,11 @@ export function ModProviderBrowser({
             </ExternalLink>
           </div>
           {files?.freshness === "stale" && <p>{t("mods.workspace.cached")}</p>}
-          {files?.project.obsolete && <p>{t("mods.browse.obsolete")}</p>}
+          {files?.project.status_unknown ? (
+            <p>{t("mods.browse.eligibilityUnknown")}</p>
+          ) : files?.project.obsolete ? (
+            <p>{t("mods.browse.obsolete")}</p>
+          ) : null}
           {installedIds && (
             <ActionRow>
               <span>{t("mods.workspace.installed")}</span>
@@ -590,6 +596,14 @@ export function ModProviderBrowser({
                   </p>
                 )}
                 <ul className="m-0 grid list-none gap-2 p-0">
+                  {files.project.files
+                    .filter((file) => file.status_unknown)
+                    .map((file) => (
+                      <li key={file.file_id} className="flex flex-wrap items-center gap-2">
+                        <bdi>{file.file_name}</bdi>
+                        <span>{t("mods.browse.eligibilityUnknown")}</span>
+                      </li>
+                    ))}
                   {eligible(files)
                     .filter((file) => !updateFiles || updateFiles.includes(file.file_id))
                     .map((file) => (

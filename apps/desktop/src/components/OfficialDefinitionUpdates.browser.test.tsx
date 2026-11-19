@@ -204,6 +204,20 @@ it("blocks same-turn duplicates and retains exclusion through authoritative read
   await expect.element(checkButton()).toBeEnabled();
 });
 
+it("localizes a nested signature failure and retains the provider diagnostic", async () => {
+  const message = "Timestamp signer threshold did not match the admitted repository";
+  vi.mocked(desktopApi.refreshOfficialDefinition).mockRejectedValue({
+    code: "verification",
+    message,
+    details: { catalog_fallback_code: "signature_invalid" },
+  });
+  await render();
+  await click(checkButton());
+  await expect.element(page.getByText(/did not pass signature verification/)).toBeVisible();
+  await page.getByText("Technical details", { exact: true }).click();
+  await expect.element(page.getByText(message, { exact: true })).toBeVisible();
+});
+
 it("keeps original partial-commit details and an independent readback failure without replay", async () => {
   const failure = {
     code: "network",

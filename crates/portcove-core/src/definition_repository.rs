@@ -721,6 +721,16 @@ fn map_tough_error(error: tough::error::Error) -> PortcoveError {
                         "definition repository metadata replay was rejected",
                     );
                 }
+                tough::error::Error::VerifyMetadata { source, .. }
+                | tough::error::Error::VerifyRoleMetadata { source, .. }
+                | tough::error::Error::VerifyTrustedMetadata { source, .. }
+                    if matches!(source, tough::schema::Error::SignatureThreshold { .. }) =>
+                {
+                    return PortcoveError::verification(
+                        "definition repository authentication failed",
+                    )
+                    .with_catalog_fallback(crate::CatalogFallbackCode::SignatureInvalid);
+                }
                 tough::error::Error::HashMismatch { .. }
                 | tough::error::Error::MaxSizeExceeded { .. }
                 | tough::error::Error::MaxUpdatesExceeded { .. }

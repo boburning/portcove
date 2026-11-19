@@ -321,7 +321,7 @@ pub use mod_package::{
 };
 pub use mod_provider::{
     Observed, ProviderFileCandidate, ProviderFreshness, ProviderPage, ProviderProject,
-    ThunderstoreDependency,
+    ProviderStatusUnknown, ThunderstoreDependency,
 };
 pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
 pub use output_relocation::{
@@ -434,7 +434,8 @@ pub use service::{
     SetupLaunchTargets, StandingSetupFailure, StandingSetupResult,
 };
 pub use signed_catalog::{
-    CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,
+    CatalogFallbackCode, CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope,
+    SignedCatalogPayload,
 };
 pub use source::SourceRelinkPlan;
 pub use source_assessment::*;

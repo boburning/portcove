@@ -156,6 +156,25 @@ impl PortcoveService {
                     observation.reason =
                         Some("the provider could not be reached; this is earlier data".into());
                 }
+                Ok(observed)
+                    if observed.value.status_unknown.is_some() || {
+                        let installed = observed
+                            .value
+                            .files
+                            .iter()
+                            .find(|candidate| candidate.file_id == installed_id);
+                        observed.value.files.iter().any(|candidate| {
+                            candidate.status_unknown.is_some()
+                                && (candidate.file_id == installed_id
+                                    || client.newer_than(candidate, &installed_id, installed))
+                        })
+                    } =>
+                {
+                    observation.freshness = Some(observed.freshness);
+                    observation.observed_version = observed.value.version.clone();
+                    observation.reason =
+                        Some(crate::mod_provider::UNKNOWN_PROVIDER_ELIGIBILITY.into());
+                }
                 Ok(observed) if observed.value.unreadable_files > 0 => {
                     observation.freshness = Some(observed.freshness);
                     observation.observed_version = observed.value.version.clone();

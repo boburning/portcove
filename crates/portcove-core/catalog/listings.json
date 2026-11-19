@@ -2883,6 +2883,12 @@
             "instruction": "The v0.0.6 release reuses the exact v0.0.4 Mac bundle. See https://github.com/elliotttate/DKC3Recomp/releases/tag/v0.0.6 for the publisher’s package and platform notes."
           }
         ]
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "DKC3Recomp-",
+          "-windows-x64.zip"
+        ]
       }
     },
     {
@@ -2908,14 +2914,6 @@
         "macos-aarch64"
       ],
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Ape-Escape-Recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "Ape-Escape-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "Ape-Escape-Recomp-",
           "-macos-x64.zip"
@@ -2923,6 +2921,14 @@
         "macos-aarch64": [
           "Ape-Escape-Recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "Ape-Escape-Recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Ape-Escape-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "setup_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp#readme",
@@ -2979,14 +2985,6 @@
         "macos-aarch64"
       ],
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Alundra-Recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "Alundra-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "Alundra-Recomp-",
           "-macos-x64.zip"
@@ -2994,6 +2992,14 @@
         "macos-aarch64": [
           "Alundra-Recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "Alundra-Recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Alundra-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "setup_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp#readme",
@@ -3050,14 +3056,6 @@
         "macos-aarch64"
       ],
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Armored-Core-Recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "Armored-Core-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "Armored-Core-Recomp-",
           "-macos-x64.zip"
@@ -3065,6 +3063,14 @@
         "macos-aarch64": [
           "Armored-Core-Recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "Armored-Core-Recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Armored-Core-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "setup_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp#readme",
@@ -3121,14 +3127,6 @@
         "macos-aarch64"
       ],
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Blood-Omen-Legacy-of-Kain-Recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "Blood-Omen-Legacy-of-Kain-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "Blood-Omen-Legacy-of-Kain-Recomp-",
           "-macos-x64.zip"
@@ -3136,6 +3134,14 @@
         "macos-aarch64": [
           "Blood-Omen-Legacy-of-Kain-Recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "Blood-Omen-Legacy-of-Kain-Recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Blood-Omen-Legacy-of-Kain-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "setup_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp#readme",
@@ -3192,14 +3198,6 @@
         "macos-aarch64"
       ],
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Digimon-World-2003-Recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "Digimon-World-2003-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "Digimon-World-2003-Recomp-",
           "-macos-x64.zip"
@@ -3207,6 +3205,14 @@
         "macos-aarch64": [
           "Digimon-World-2003-Recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "Digimon-World-2003-Recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Digimon-World-2003-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "setup_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp#readme",
@@ -3263,14 +3269,6 @@
         "macos-aarch64"
       ],
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Duke-Nukem-Land-of-the-Babes-Recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "Duke-Nukem-Land-of-the-Babes-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "Duke-Nukem-Land-of-the-Babes-Recomp-",
           "-macos-x64.zip"
@@ -3278,6 +3276,14 @@
         "macos-aarch64": [
           "Duke-Nukem-Land-of-the-Babes-Recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "Duke-Nukem-Land-of-the-Babes-Recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Duke-Nukem-Land-of-the-Babes-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "setup_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp#readme",
@@ -3334,14 +3340,6 @@
         "macos-aarch64"
       ],
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Driver-Recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "Driver-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "Driver-Recomp-",
           "-macos-x64.zip"
@@ -3349,6 +3347,14 @@
         "macos-aarch64": [
           "Driver-Recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "Driver-Recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Driver-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "setup_url": "https://github.com/alexbeavs-ps1-ports/driver-recomp#readme",
@@ -3405,14 +3411,6 @@
         "macos-aarch64"
       ],
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Duke-Nukem-Time-to-Kill-Recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "Duke-Nukem-Time-to-Kill-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "Duke-Nukem-Time-to-Kill-Recomp-",
           "-macos-x64.zip"
@@ -3420,6 +3418,14 @@
         "macos-aarch64": [
           "Duke-Nukem-Time-to-Kill-Recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "Duke-Nukem-Time-to-Kill-Recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Duke-Nukem-Time-to-Kill-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "setup_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp#readme",
@@ -3476,14 +3482,6 @@
         "macos-aarch64"
       ],
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Fade-to-Black-Recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "Fade-to-Black-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "Fade-to-Black-Recomp-",
           "-macos-x64.zip"
@@ -3491,6 +3489,14 @@
         "macos-aarch64": [
           "Fade-to-Black-Recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "Fade-to-Black-Recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Fade-to-Black-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "setup_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp#readme",
@@ -3548,14 +3554,6 @@
         "macos-aarch64"
       ],
       "download_asset_hints": {
-        "windows-x86-64": [
-          "diablo-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "diablo-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "diablo-recomp-",
           "-macos-x64.zip"
@@ -3563,6 +3561,14 @@
         "macos-aarch64": [
           "diablo-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "diablo-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "diablo-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "setup_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp#readme",
@@ -3621,14 +3627,6 @@
         "macos-aarch64"
       ],
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Ace-Combat-3-Electrosphere-Japan-Recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "Ace-Combat-3-Electrosphere-Japan-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "Ace-Combat-3-Electrosphere-Japan-Recomp-",
           "-macos-x64.zip"
@@ -3636,6 +3634,14 @@
         "macos-aarch64": [
           "Ace-Combat-3-Electrosphere-Japan-Recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "Ace-Combat-3-Electrosphere-Japan-Recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Ace-Combat-3-Electrosphere-Japan-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "setup_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp#readme",
@@ -3810,14 +3816,6 @@
         "macos-aarch64"
       ],
       "download_asset_hints": {
-        "windows-x86-64": [
-          "alien-resurrection-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "alien-resurrection-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "alien-resurrection-recomp-",
           "-macos-x64.zip"
@@ -3825,6 +3823,14 @@
         "macos-aarch64": [
           "alien-resurrection-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "alien-resurrection-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "alien-resurrection-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "setup_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp#readme",
@@ -3882,14 +3888,6 @@
         "macos-aarch64"
       ],
       "download_asset_hints": {
-        "windows-x86-64": [
-          "brave-fencer-musashi-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "brave-fencer-musashi-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "brave-fencer-musashi-recomp-",
           "-macos-x64.zip"
@@ -3897,6 +3895,14 @@
         "macos-aarch64": [
           "brave-fencer-musashi-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "brave-fencer-musashi-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "brave-fencer-musashi-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "setup_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp#readme",
@@ -5304,14 +5310,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Ace-Combat-3-Electrosphere-USA-Recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "Ace-Combat-3-Electrosphere-USA-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "Ace-Combat-3-Electrosphere-USA-Recomp-",
           "-macos-x64.zip"
@@ -5319,6 +5317,14 @@
         "macos-aarch64": [
           "Ace-Combat-3-Electrosphere-USA-Recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "Ace-Combat-3-Electrosphere-USA-Recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Ace-Combat-3-Electrosphere-USA-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -5828,12 +5834,6 @@
       },
       "original_game_title": "MechCommander 2",
       "release_url": "https://github.com/alariq/mc2/releases",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "mc2-win64-",
-          ".zip"
-        ]
-      },
       "manual_setup": {
         "help_url": "https://github.com/alariq/mc2/blob/c428dfe02b609f0864933e715ca22ed07427a545/README.md",
         "warnings": [
@@ -5856,6 +5856,12 @@
             "title": "Keep an existing copy recoverable",
             "instruction": "For a copy you registered yourself, you or upstream provide updates. Extract a new official player separately and keep the working copy. Follow upstream guidance for settings and custom content; copying old generated texture or geometry caches over a new package can replace its new files. Registration leaves every external file untouched."
           }
+        ]
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "mc2-win64-",
+          ".zip"
         ]
       },
       "platforms": [
@@ -5920,10 +5926,6 @@
       "recommended_download_channel": "stable",
       "original_game_title": "Alone in the Dark: The New Nightmare",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "Alone-in-the-Dark-The-New-Nightmare-Recompiled-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "Alone-in-the-Dark-The-New-Nightmare-Recompiled-",
           "-macos-arm64.zip"
@@ -5935,6 +5937,10 @@
         "windows-x86-64": [
           "Alone-in-the-Dark-The-New-Nightmare-Recompiled-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Alone-in-the-Dark-The-New-Nightmare-Recompiled-",
+          "-linux-x64.zip"
         ]
       }
     },
@@ -5995,14 +6001,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/apocalypse-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "apocalypse-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "apocalypse-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "apocalypse-",
           "-macos-x64.zip"
@@ -6010,6 +6008,14 @@
         "macos-aarch64": [
           "apocalypse-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "apocalypse-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "apocalypse-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6072,10 +6078,6 @@
       "recommended_download_channel": "stable",
       "original_game_title": "Armored Core: Master of Arena",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "armoredcoremasterofarena-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "armoredcoremasterofarena-",
           "-macos-arm64.zip"
@@ -6087,6 +6089,10 @@
         "windows-x86-64": [
           "armoredcoremasterofarena-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "armoredcoremasterofarena-",
+          "-linux-x64.zip"
         ]
       }
     },
@@ -6147,10 +6153,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "armoredcoreprojectphantasma-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "armoredcoreprojectphantasma-",
           "-macos-arm64.zip"
@@ -6162,6 +6164,10 @@
         "windows-x86-64": [
           "armoredcoreprojectphantasma-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "armoredcoreprojectphantasma-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6223,10 +6229,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "azuredreams-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "azuredreams-",
           "-macos-arm64.zip"
@@ -6238,6 +6240,10 @@
         "windows-x86-64": [
           "azuredreams-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "azuredreams-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6294,14 +6300,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "bloody-roar-ii-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "bloody-roar-ii-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "bloody-roar-ii-recomp-",
           "-macos-x64.zip"
@@ -6309,6 +6307,14 @@
         "macos-aarch64": [
           "bloody-roar-ii-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "bloody-roar-ii-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "bloody-roar-ii-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6370,10 +6376,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "bushidoblade2-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "bushidoblade2-",
           "-macos-arm64.zip"
@@ -6385,6 +6387,10 @@
         "windows-x86-64": [
           "bushidoblade2-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "bushidoblade2-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6441,10 +6447,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "Colin-McRae-Rally-2-0-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "Colin-McRae-Rally-2-0-Recomp-",
           "-macos-arm64.zip"
@@ -6456,6 +6458,10 @@
         "windows-x86-64": [
           "Colin-McRae-Rally-2-0-Recomp-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Colin-McRae-Rally-2-0-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -6518,14 +6524,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "colony-wars-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "colony-wars-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "colony-wars-",
           "-macos-x64.zip"
@@ -6533,6 +6531,14 @@
         "macos-aarch64": [
           "colony-wars-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "colony-wars-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "colony-wars-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6594,10 +6600,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "colonywarsredsun-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "colonywarsredsun-",
           "-macos-arm64.zip"
@@ -6609,6 +6611,10 @@
         "windows-x86-64": [
           "colonywarsredsun-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "colonywarsredsun-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6670,14 +6676,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/crash-bandicoot-3-warped-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "crash-bandicoot-3-warped-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "crash-bandicoot-3-warped-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "crash-bandicoot-3-warped-",
           "-macos-x64.zip"
@@ -6685,6 +6683,14 @@
         "macos-aarch64": [
           "crash-bandicoot-3-warped-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "crash-bandicoot-3-warped-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "crash-bandicoot-3-warped-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6741,14 +6747,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "Destruction-Derby-2-Recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "Destruction-Derby-2-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "Destruction-Derby-2-Recomp-",
           "-macos-x64.zip"
@@ -6756,6 +6754,14 @@
         "macos-aarch64": [
           "Destruction-Derby-2-Recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "Destruction-Derby-2-Recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Destruction-Derby-2-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6812,14 +6818,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "destructionderbyraw-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "destructionderbyraw-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "destructionderbyraw-",
           "-macos-x64.zip"
@@ -6827,6 +6825,14 @@
         "macos-aarch64": [
           "destructionderbyraw-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "destructionderbyraw-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "destructionderbyraw-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -6962,10 +6968,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "Die-Hard-Trilogy-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "Die-Hard-Trilogy-Recomp-",
           "-macos-arm64.zip"
@@ -6977,6 +6979,10 @@
         "windows-x86-64": [
           "Die-Hard-Trilogy-Recomp-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Die-Hard-Trilogy-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -7039,10 +7045,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "digimonworld2-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "digimonworld2-",
           "-macos-arm64.zip"
@@ -7054,6 +7056,10 @@
         "windows-x86-64": [
           "digimonworld2-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "digimonworld2-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -7115,10 +7121,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "dragonballzultimatebattle22-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "dragonballzultimatebattle22-",
           "-macos-arm64.zip"
@@ -7130,6 +7132,10 @@
         "windows-x86-64": [
           "dragonballzultimatebattle22-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "dragonballzultimatebattle22-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -7192,10 +7198,6 @@
       "recommended_download_channel": "stable",
       "original_game_title": "Fear Effect 2: Retro Helix",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "feareffect2retrohelix-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "feareffect2retrohelix-",
           "-macos-arm64.zip"
@@ -7207,6 +7209,10 @@
         "windows-x86-64": [
           "feareffect2retrohelix-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "feareffect2retrohelix-",
+          "-linux-x64.zip"
         ]
       }
     },
@@ -7267,14 +7273,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "fear-effect-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "fear-effect-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "fear-effect-",
           "-macos-x64.zip"
@@ -7282,6 +7280,14 @@
         "macos-aarch64": [
           "fear-effect-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "fear-effect-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "fear-effect-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -7343,14 +7349,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "fighting-force-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "fighting-force-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "fighting-force-recomp-",
           "-macos-x64.zip"
@@ -7358,6 +7356,14 @@
         "macos-aarch64": [
           "fighting-force-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "fighting-force-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "fighting-force-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -7420,10 +7426,6 @@
       "recommended_download_channel": "stable",
       "original_game_title": "Final Fantasy IX",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "final-fantasy-ix-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "final-fantasy-ix-",
           "-macos-arm64.zip"
@@ -7435,6 +7437,10 @@
         "windows-x86-64": [
           "final-fantasy-ix-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "final-fantasy-ix-",
+          "-linux-x64.zip"
         ]
       }
     },
@@ -7496,10 +7502,6 @@
       "recommended_download_channel": "stable",
       "original_game_title": "Final Fantasy VIII",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "final-fantasy-viii-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "final-fantasy-viii-",
           "-macos-arm64.zip"
@@ -7511,6 +7513,10 @@
         "windows-x86-64": [
           "final-fantasy-viii-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "final-fantasy-viii-",
+          "-linux-x64.zip"
         ]
       }
     },
@@ -7571,10 +7577,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "futurecoplapd-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "futurecoplapd-",
           "-macos-arm64.zip"
@@ -7586,6 +7588,10 @@
         "windows-x86-64": [
           "futurecoplapd-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "futurecoplapd-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -7647,14 +7653,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/g-police-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "g-police-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "g-police-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "g-police-",
           "-macos-x64.zip"
@@ -7662,6 +7660,14 @@
         "macos-aarch64": [
           "g-police-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "g-police-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "g-police-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -7723,10 +7729,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "gpoliceweaponsofjustice-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "gpoliceweaponsofjustice-",
           "-macos-arm64.zip"
@@ -7738,6 +7740,10 @@
         "windows-x86-64": [
           "gpoliceweaponsofjustice-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "gpoliceweaponsofjustice-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -7800,10 +7806,6 @@
       "recommended_download_channel": "stable",
       "original_game_title": "Galerians",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "galerians-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "galerians-",
           "-macos-arm64.zip"
@@ -7815,6 +7817,10 @@
         "windows-x86-64": [
           "galerians-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "galerians-",
+          "-linux-x64.zip"
         ]
       }
     },
@@ -7875,14 +7881,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/ghost-in-the-shell-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "ghost-in-the-shell-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "ghost-in-the-shell-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "ghost-in-the-shell-",
           "-macos-x64.zip"
@@ -7890,6 +7888,14 @@
         "macos-aarch64": [
           "ghost-in-the-shell-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "ghost-in-the-shell-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "ghost-in-the-shell-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -7952,10 +7958,6 @@
       "recommended_download_channel": "stable",
       "original_game_title": "In Cold Blood",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "In-Cold-Blood-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "In-Cold-Blood-Recomp-",
           "-macos-arm64.zip"
@@ -7967,6 +7969,10 @@
         "windows-x86-64": [
           "In-Cold-Blood-Recomp-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "In-Cold-Blood-Recomp-",
+          "-linux-x64.zip"
         ]
       }
     },
@@ -8027,10 +8033,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "incrediblecrisis-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "incrediblecrisis-",
           "-macos-arm64.zip"
@@ -8042,6 +8044,10 @@
         "windows-x86-64": [
           "incrediblecrisis-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "incrediblecrisis-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8103,14 +8109,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "jackie-chan-stuntmaster-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "jackie-chan-stuntmaster-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "jackie-chan-stuntmaster-recomp-",
           "-macos-x64.zip"
@@ -8118,6 +8116,14 @@
         "macos-aarch64": [
           "jackie-chan-stuntmaster-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "jackie-chan-stuntmaster-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "jackie-chan-stuntmaster-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8179,10 +8185,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "jadecocoon-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "jadecocoon-",
           "-macos-arm64.zip"
@@ -8194,6 +8196,10 @@
         "windows-x86-64": [
           "jadecocoon-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "jadecocoon-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8255,10 +8261,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "kartia-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "kartia-",
           "-macos-arm64.zip"
@@ -8270,6 +8272,10 @@
         "windows-x86-64": [
           "kartia-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "kartia-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8327,10 +8333,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "King-s-Field-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "King-s-Field-Recomp-",
           "-macos-arm64.zip"
@@ -8342,6 +8344,10 @@
         "windows-x86-64": [
           "King-s-Field-Recomp-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "King-s-Field-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -8405,10 +8411,6 @@
       "recommended_download_channel": "stable",
       "original_game_title": "Koudelka",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "Koudelka-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "Koudelka-Recomp-",
           "-macos-arm64.zip"
@@ -8420,6 +8422,10 @@
         "windows-x86-64": [
           "Koudelka-Recomp-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Koudelka-Recomp-",
+          "-linux-x64.zip"
         ]
       }
     },
@@ -8475,10 +8481,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "Kula-World-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "Kula-World-Recomp-",
           "-macos-arm64.zip"
@@ -8490,6 +8492,10 @@
         "windows-x86-64": [
           "Kula-World-Recomp-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Kula-World-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -8556,10 +8562,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "legacy-of-kain-soul-reaver-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "legacy-of-kain-soul-reaver-recomp-",
           "-macos-arm64.zip"
@@ -8571,6 +8573,10 @@
         "windows-x86-64": [
           "legacy-of-kain-soul-reaver-recomp-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "legacy-of-kain-soul-reaver-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -8633,14 +8639,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/martian-gothic-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "martian-gothic-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "martian-gothic-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "martian-gothic-",
           "-macos-x64.zip"
@@ -8648,6 +8646,14 @@
         "macos-aarch64": [
           "martian-gothic-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "martian-gothic-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "martian-gothic-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8713,10 +8719,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "mdk-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "mdk-recomp-",
           "-macos-arm64.zip"
@@ -8728,6 +8730,10 @@
         "windows-x86-64": [
           "mdk-recomp-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "mdk-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -8824,14 +8830,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "medievil-ii-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "medievil-ii-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "medievil-ii-recomp-",
           "-macos-x64.zip"
@@ -8839,6 +8837,14 @@
         "macos-aarch64": [
           "medievil-ii-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "medievil-ii-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "medievil-ii-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -8899,14 +8905,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "medievil-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "medievil-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "medievil-recomp-",
           "-macos-x64.zip"
@@ -8914,6 +8912,14 @@
         "macos-aarch64": [
           "medievil-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "medievil-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "medievil-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -8976,10 +8982,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "megamanlegends2-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "megamanlegends2-",
           "-macos-arm64.zip"
@@ -8991,6 +8993,10 @@
         "windows-x86-64": [
           "megamanlegends2-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "megamanlegends2-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -9047,10 +9053,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "Mega-Man-Legends-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "Mega-Man-Legends-Recomp-",
           "-macos-arm64.zip"
@@ -9062,6 +9064,10 @@
         "windows-x86-64": [
           "Mega-Man-Legends-Recomp-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Mega-Man-Legends-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -9119,10 +9125,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "Men-in-Black-The-Game-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "Men-in-Black-The-Game-Recomp-",
           "-macos-arm64.zip"
@@ -9134,6 +9136,10 @@
         "windows-x86-64": [
           "Men-in-Black-The-Game-Recomp-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Men-in-Black-The-Game-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -9196,14 +9202,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/metal-gear-solid-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "metal-gear-solid-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "metal-gear-solid-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "metal-gear-solid-",
           "-macos-x64.zip"
@@ -9211,6 +9209,14 @@
         "macos-aarch64": [
           "metal-gear-solid-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "metal-gear-solid-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "metal-gear-solid-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -9272,14 +9278,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "metal-slug-x-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "metal-slug-x-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "metal-slug-x-recomp-",
           "-macos-x64.zip"
@@ -9287,6 +9285,14 @@
         "macos-aarch64": [
           "metal-slug-x-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "metal-slug-x-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "metal-slug-x-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -9348,10 +9354,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "misadventuresoftronbonne-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "misadventuresoftronbonne-",
           "-macos-arm64.zip"
@@ -9363,6 +9365,10 @@
         "windows-x86-64": [
           "misadventuresoftronbonne-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "misadventuresoftronbonne-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -9419,14 +9425,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "monster-rancher-2-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "monster-rancher-2-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "monster-rancher-2-recomp-",
           "-macos-x64.zip"
@@ -9434,6 +9432,14 @@
         "macos-aarch64": [
           "monster-rancher-2-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "monster-rancher-2-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "monster-rancher-2-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -9495,14 +9501,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "monster-rancher-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "monster-rancher-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "monster-rancher-",
           "-macos-x64.zip"
@@ -9510,6 +9508,14 @@
         "macos-aarch64": [
           "monster-rancher-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "monster-rancher-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "monster-rancher-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -9566,14 +9572,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "mortal-kombat-trilogy-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "mortal-kombat-trilogy-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "mortal-kombat-trilogy-",
           "-macos-x64.zip"
@@ -9581,6 +9579,14 @@
         "macos-aarch64": [
           "mortal-kombat-trilogy-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "mortal-kombat-trilogy-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "mortal-kombat-trilogy-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -9642,10 +9648,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "nightmarecreaturesii-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "nightmarecreaturesii-",
           "-macos-arm64.zip"
@@ -9657,6 +9659,10 @@
         "windows-x86-64": [
           "nightmarecreaturesii-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "nightmarecreaturesii-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -9713,14 +9719,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "nightmare-creatures-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "nightmare-creatures-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "nightmare-creatures-recomp-",
           "-macos-x64.zip"
@@ -9728,6 +9726,14 @@
         "macos-aarch64": [
           "nightmare-creatures-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "nightmare-creatures-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "nightmare-creatures-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -9784,14 +9790,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "oddworld-abe-s-oddysee-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "oddworld-abe-s-oddysee-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "oddworld-abe-s-oddysee-recomp-",
           "-macos-x64.zip"
@@ -9799,6 +9797,14 @@
         "macos-aarch64": [
           "oddworld-abe-s-oddysee-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "oddworld-abe-s-oddysee-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "oddworld-abe-s-oddysee-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -9862,10 +9868,6 @@
       "recommended_download_channel": "stable",
       "original_game_title": "Parasite Eve",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "Parasite-Eve-Recompiled-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "Parasite-Eve-Recompiled-",
           "-macos-arm64.zip"
@@ -9877,6 +9879,10 @@
         "windows-x86-64": [
           "Parasite-Eve-Recompiled-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Parasite-Eve-Recompiled-",
+          "-linux-x64.zip"
         ]
       }
     },
@@ -10002,14 +10008,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "quake-ii-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "quake-ii-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "quake-ii-recomp-",
           "-macos-x64.zip"
@@ -10017,6 +10015,14 @@
         "macos-aarch64": [
           "quake-ii-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "quake-ii-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "quake-ii-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -10078,14 +10084,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/r-type-delta-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "r-type-delta-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "r-type-delta-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "r-type-delta-",
           "-macos-x64.zip"
@@ -10093,6 +10091,14 @@
         "macos-aarch64": [
           "r-type-delta-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "r-type-delta-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "r-type-delta-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -10224,10 +10230,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "rivalschoolsevolution-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "rivalschoolsevolution-",
           "-macos-arm64.zip"
@@ -10239,6 +10241,10 @@
         "windows-x86-64": [
           "rivalschoolsevolution-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "rivalschoolsevolution-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -10300,10 +10306,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "rivalschools-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "rivalschools-",
           "-macos-arm64.zip"
@@ -10315,6 +10317,10 @@
         "windows-x86-64": [
           "rivalschools-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "rivalschools-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -10376,10 +10382,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "rollcagestageii-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "rollcagestageii-",
           "-macos-arm64.zip"
@@ -10391,6 +10393,10 @@
         "windows-x86-64": [
           "rollcagestageii-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "rollcagestageii-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -10447,14 +10453,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "silent-bomber-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "silent-bomber-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "silent-bomber-",
           "-macos-x64.zip"
@@ -10462,6 +10460,14 @@
         "macos-aarch64": [
           "silent-bomber-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "silent-bomber-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "silent-bomber-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -10523,10 +10529,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "spiderman2enterelectro-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "spiderman2enterelectro-",
           "-macos-arm64.zip"
@@ -10538,6 +10540,10 @@
         "windows-x86-64": [
           "spiderman2enterelectro-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "spiderman2enterelectro-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -10599,14 +10605,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/spider-man-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "spider-man-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "spider-man-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "spider-man-",
           "-macos-x64.zip"
@@ -10614,6 +10612,14 @@
         "macos-aarch64": [
           "spider-man-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "spider-man-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "spider-man-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -10679,10 +10685,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "spyro-the-dragon-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "spyro-the-dragon-recomp-",
           "-macos-arm64.zip"
@@ -10694,6 +10696,10 @@
         "windows-x86-64": [
           "spyro-the-dragon-recomp-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "spyro-the-dragon-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -10756,14 +10762,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/star-wars-episode-i-the-phantom-menace-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "star-wars-episode-i-the-phantom-menace-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "star-wars-episode-i-the-phantom-menace-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "star-wars-episode-i-the-phantom-menace-",
           "-macos-x64.zip"
@@ -10771,6 +10769,14 @@
         "macos-aarch64": [
           "star-wars-episode-i-the-phantom-menace-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "star-wars-episode-i-the-phantom-menace-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "star-wars-episode-i-the-phantom-menace-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -10832,10 +10838,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "suikodenii-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "suikodenii-",
           "-macos-arm64.zip"
@@ -10847,6 +10849,10 @@
         "windows-x86-64": [
           "suikodenii-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "suikodenii-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -10903,14 +10909,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "suikoden-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "suikoden-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "suikoden-",
           "-macos-x64.zip"
@@ -10918,6 +10916,14 @@
         "macos-aarch64": [
           "suikoden-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "suikoden-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "suikoden-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -10974,14 +10980,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "syphon-filter-3-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "syphon-filter-3-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "syphon-filter-3-recomp-",
           "-macos-x64.zip"
@@ -10989,6 +10987,14 @@
         "macos-aarch64": [
           "syphon-filter-3-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "syphon-filter-3-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "syphon-filter-3-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -11050,10 +11056,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "tailconcerto-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "tailconcerto-",
           "-macos-arm64.zip"
@@ -11065,6 +11067,10 @@
         "windows-x86-64": [
           "tailconcerto-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "tailconcerto-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -11126,10 +11132,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "teambuddies-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "teambuddies-",
           "-macos-arm64.zip"
@@ -11141,6 +11143,10 @@
         "windows-x86-64": [
           "teambuddies-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "teambuddies-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -11197,14 +11203,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "tenchu-stealth-assassins-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "tenchu-stealth-assassins-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "tenchu-stealth-assassins-recomp-",
           "-macos-x64.zip"
@@ -11212,6 +11210,14 @@
         "macos-aarch64": [
           "tenchu-stealth-assassins-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "tenchu-stealth-assassins-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "tenchu-stealth-assassins-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -11273,14 +11279,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/the-fifth-element-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "the-fifth-element-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "the-fifth-element-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "the-fifth-element-",
           "-macos-x64.zip"
@@ -11288,6 +11286,14 @@
         "macos-aarch64": [
           "the-fifth-element-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "the-fifth-element-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "the-fifth-element-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -11344,10 +11350,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-",
           "-macos-arm64.zip"
@@ -11359,6 +11361,10 @@
         "windows-x86-64": [
           "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "The-Lost-World-Jurassic-Park-Special-Edition-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -11416,10 +11422,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "The-Mummy-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "The-Mummy-Recomp-",
           "-macos-arm64.zip"
@@ -11431,6 +11433,10 @@
         "windows-x86-64": [
           "The-Mummy-Recomp-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "The-Mummy-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -11493,14 +11499,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/threads-of-fate-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "threads-of-fate-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "threads-of-fate-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "threads-of-fate-",
           "-macos-x64.zip"
@@ -11508,6 +11506,14 @@
         "macos-aarch64": [
           "threads-of-fate-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "threads-of-fate-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "threads-of-fate-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -11569,14 +11575,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/tokyo-highway-battle-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "tokyo-highway-battle-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "tokyo-highway-battle-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "tokyo-highway-battle-",
           "-macos-x64.zip"
@@ -11584,6 +11582,14 @@
         "macos-aarch64": [
           "tokyo-highway-battle-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "tokyo-highway-battle-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "tokyo-highway-battle-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -11640,14 +11646,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "tony-hawk-s-pro-skater-2-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "tony-hawk-s-pro-skater-2-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "tony-hawk-s-pro-skater-2-recomp-",
           "-macos-x64.zip"
@@ -11655,6 +11653,14 @@
         "macos-aarch64": [
           "tony-hawk-s-pro-skater-2-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "tony-hawk-s-pro-skater-2-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "tony-hawk-s-pro-skater-2-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -11711,14 +11717,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "tony-hawk-s-pro-skater-3-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "tony-hawk-s-pro-skater-3-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "tony-hawk-s-pro-skater-3-recomp-",
           "-macos-x64.zip"
@@ -11726,6 +11724,14 @@
         "macos-aarch64": [
           "tony-hawk-s-pro-skater-3-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "tony-hawk-s-pro-skater-3-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "tony-hawk-s-pro-skater-3-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -11782,14 +11788,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "tony-hawk-s-pro-skater-4-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "tony-hawk-s-pro-skater-4-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "tony-hawk-s-pro-skater-4-recomp-",
           "-macos-x64.zip"
@@ -11797,6 +11795,14 @@
         "macos-aarch64": [
           "tony-hawk-s-pro-skater-4-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "tony-hawk-s-pro-skater-4-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "tony-hawk-s-pro-skater-4-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -11853,14 +11859,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "tony-hawk-s-pro-skater-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "tony-hawk-s-pro-skater-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "tony-hawk-s-pro-skater-recomp-",
           "-macos-x64.zip"
@@ -11868,6 +11866,14 @@
         "macos-aarch64": [
           "tony-hawk-s-pro-skater-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "tony-hawk-s-pro-skater-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "tony-hawk-s-pro-skater-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -11922,14 +11928,6 @@
       "release_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp/releases",
       "recommended_download_channel": "stable",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "valkyrie-profile-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "valkyrie-profile-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "valkyrie-profile-recomp-",
           "-macos-arm64.zip"
@@ -11937,6 +11935,14 @@
         "macos-x86-64": [
           "valkyrie-profile-recomp-",
           "-macos-x64.zip"
+        ],
+        "windows-x86-64": [
+          "valkyrie-profile-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "valkyrie-profile-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "artwork": {
@@ -12000,10 +12006,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "Vampire-Hunter-D-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "Vampire-Hunter-D-Recomp-",
           "-macos-arm64.zip"
@@ -12015,6 +12017,10 @@
         "windows-x86-64": [
           "Vampire-Hunter-D-Recomp-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Vampire-Hunter-D-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -12081,14 +12087,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "vib-ribbon-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "vib-ribbon-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "vib-ribbon-",
           "-macos-x64.zip"
@@ -12096,6 +12094,14 @@
         "macos-aarch64": [
           "vib-ribbon-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "vib-ribbon-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "vib-ribbon-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -12152,10 +12158,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "Vigilante-8-Recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "Vigilante-8-Recomp-",
           "-macos-arm64.zip"
@@ -12167,6 +12169,10 @@
         "windows-x86-64": [
           "Vigilante-8-Recomp-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Vigilante-8-Recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -12229,10 +12235,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "wildarms-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "wildarms-",
           "-macos-arm64.zip"
@@ -12244,6 +12246,10 @@
         "windows-x86-64": [
           "wildarms-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "wildarms-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -12310,10 +12316,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp/releases",
       "download_asset_hints": {
-        "linux-x86-64": [
-          "wipeout-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-aarch64": [
           "wipeout-recomp-",
           "-macos-arm64.zip"
@@ -12325,6 +12327,10 @@
         "windows-x86-64": [
           "wipeout-recomp-",
           "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "wipeout-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -12391,14 +12397,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "wipeout-xl-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "wipeout-xl-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "wipeout-xl-",
           "-macos-x64.zip"
@@ -12406,6 +12404,14 @@
         "macos-aarch64": [
           "wipeout-xl-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "wipeout-xl-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "wipeout-xl-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -12842,7 +12848,7 @@
     {
       "id": "animal-crossing-new-horizons-acnhrecomp",
       "name": "Animal Crossing: New Horizons (ACNHRecomp)",
-      "summary": "Build Animal Crossing: New Horizons locally from your own Switch game and 3.0.2 update. The project reports reaching the island and walking around on Ubuntu Linux. Saving and a full day of play remain unconfirmed, and online play is unavailable.",
+      "summary": "Prepare your own Animal Crossing: New Horizons game and supported update in the experimental ACNHRecomp launcher. Upstream publishes Windows x64, Linux x64 and Apple silicon packages and a separate Android APK. Earlier Ubuntu testing reached the island. Saving, a full day of play and online play remain unverified by Portcove.",
       "original_game_title": "Animal Crossing: New Horizons",
       "project_url": "https://github.com/Nycolazs/ACNHRecomp",
       "listed_at": "2026-10-25",
@@ -12851,9 +12857,13 @@
         "https://ko-fi.com/nycolazs",
         "https://buymeacoffee.com/nycolazs"
       ],
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Nycolazs/ACNHRecomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Nycolazs/ACNHRecomp/releases/tag/v0.11.0",
       "artwork": {
         "game_id": 109462,
         "cover_id": 182224,
@@ -12863,24 +12873,43 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2957,
+      "release_url": "https://github.com/Nycolazs/ACNHRecomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "ACNHRecomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "ACNHRecomp-",
+          "-linux-x64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "ACNHRecomp-",
+          "-macOS-arm64.zip"
+        ]
+      },
       "manual_setup": {
-        "help_url": "https://github.com/Nycolazs/ACNHRecomp",
+        "help_url": "https://github.com/Nycolazs/ACNHRecomp/releases/tag/v0.11.0",
         "steps": [
           {
-            "title": "Check your original game files",
-            "instruction": "Use your own base NSP and 3.0.2 update NSP for title 01006F8002326000, plus prod.keys. The project recommends title.keys and accepts optional owned DLC. Its guide requires no separate firmware folder."
+            "title": "Extract the original game files",
+            "instruction": "Use your own copy of Animal Crossing: New Horizons with update 3.0.3. Following the v0.11.0 release instructions, extract the game’s ExeFS and RomFS for the launcher. Keep the working inputs separate from your original copy."
           },
           {
-            "title": "Follow the project’s setup",
-            "instruction": "Follow the project’s Linux launcher or shell setup. It imports the game and builds locally. On Windows the setup requires WSL2, Linux or a Mac. There is no released player or native Windows build pipeline."
+            "title": "Prepare the selected desktop player",
+            "instruction": "Open the launcher from the package for your computer, choose Prepare the game from your extracted files, and select the files, a writable game folder and its target platforms. Let the launcher finish building before choosing Play."
+          },
+          {
+            "title": "Prepare the Android copy",
+            "instruction": "Use the Android APK and select a game folder with the extracted exefs and romfs directories, or choose Android as a target on your computer and copy the prepared folder to the phone."
+          },
+          {
+            "title": "Keep your saves",
+            "instruction": "Keep the user folder inside the game folder or use the upstream save backup before replacing the player."
           }
         ],
-        "warnings": [],
-        "references": [
-          {
-            "title": "Version and platform notes",
-            "instruction": "The reported Ubuntu x64 test used Iris Xe at 30 FPS. Forcing 60 FPS doubles game speed. Apple silicon scripts are untested and Android is unsupported."
-          }
+        "warnings": [
+          "The publisher describes the v0.11.0 preparation tests as using synthetic input. Game dumps, saves, graphics drivers and gameplay can still behave differently. Portcove has not qualified setup or gameplay."
         ]
       }
     },
@@ -15079,10 +15108,6 @@
         ]
       },
       "download_asset_hints": {
-        "windows-x86-64": [
-          "MediEvilRecomp-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "MediEvilRecomp-",
           "-linux-x64.tar.gz"
@@ -15094,6 +15119,10 @@
         "macos-x86-64": [
           "MediEvilRecomp-",
           "-macos-x64.zip"
+        ],
+        "windows-x86-64": [
+          "MediEvilRecomp-",
+          "-windows-x64.zip"
         ]
       },
       "original_game_title": "MediEvil",
@@ -15310,13 +15339,13 @@
           }
         ]
       },
+      "recommended_download_channel": "stable",
       "download_asset_hints": {
         "windows-x86-64": [
           "BlastCorpsRecompiled-",
           "-Windows-RelWithDebInfo.zip"
         ]
       },
-      "recommended_download_channel": "stable",
       "platforms": [
         "windows-x86-64"
       ]
@@ -15363,6 +15392,16 @@
         "warnings": [],
         "help_url": "https://github.com/djultra64/Power-Dozer#readme"
       },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "power-dozer-",
+          "-windows-x86_64.zip"
+        ],
+        "linux-x86-64": [
+          "power-dozer-",
+          "-linux-x86_64.tar.gz"
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -15405,6 +15444,53 @@
         "image_sha256": "1ec211e7b4b84301a702907c5bb9f70a42f9c2d99db35c5d90886983b62e58e5",
         "game_slug": "blast-corps",
         "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "blinx-the-time-sweeper-mstan",
+      "name": "Blinx: The Time Sweeper / BlinxRecomp",
+      "summary": "Play Blinx using your NTSC-U Xbox game files. The publisher's Windows and Linux beta has been tested through World 2.",
+      "project_url": "https://github.com/mstan/BlinxRecomp",
+      "original_game_title": "Blinx: The Time Sweeper",
+      "issue_number": 5922,
+      "listed_at": "2026-11-18",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "BlinxRecomp-windows-x64-",
+          ".zip"
+        ],
+        "linux-x86-64": [
+          "BlinxRecomp-",
+          "-linux-x86_64.AppImage"
+        ]
+      },
+      "release_url": "https://github.com/mstan/BlinxRecomp/releases/tag/v0.5.7",
+      "setup_url": "https://github.com/mstan/BlinxRecomp/blob/v0.5.7/README.md#getting-started",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Open the beta launcher",
+            "instruction": "On Windows, extract the complete ZIP into a writable folder and open Start Game.exe. On Linux x86-64, make the AppImage executable and open it on a host with Vulkan 1.3. The upstream Linux baseline is Ubuntu 24.04."
+          },
+          {
+            "title": "Import your own NTSC-U original",
+            "instruction": "Skip the optional console files if you want a fresh local console identity. Choose your own supported NTSC-U ISO or XISO in the launcher. The importer shows progress and can cancel. It remembers the selected game and reuses its disc cache. If you select an extracted default.xbe instead, keep its complete original game folder. Choose your controller under Player 1 and start the game in the launcher."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep saves and console identity",
+            "instruction": "Reopen the launcher to play again or change the controller and mods. On Windows keep the complete data folder beside the launcher, including its disc cache and console identity, when replacing the beta. On Linux the default is ~/.local/share/xboxllr/xbox-4d530013/data. Preserve the same XDG_DATA_HOME if you set a custom path, and back up any selected external save folder or HDD image separately. Keep any companion .xboxllr profile."
+          }
+        ],
+        "warnings": [
+          "Back up your existing console identity and saves before changing the game's profile. Portcove does not update this beta or back up its profile."
+        ]
       }
     },
     {
@@ -15464,18 +15550,6 @@
       "release_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases",
       "original_game_title": "Brave Fencer Musashi",
       "recommended_download_channel": "beta",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "bfm-",
-          "windows-x64",
-          ".zip"
-        ],
-        "linux-x86-64": [
-          "bfm-",
-          "linux-x86_64",
-          ".tar.gz"
-        ]
-      },
       "manual_setup": {
         "steps": [
           {
@@ -15492,6 +15566,18 @@
           "Linux requires glibc 2.38 or newer plus system OpenGL, X11 or Wayland, and ALSA or PulseAudio/PipeWire libraries. Custom native mods may need disabling or rebuilding when changing runtimes; preserving their files does not establish compatibility."
         ],
         "help_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/blob/ad71556b44506599fb08e654e28651d81eba7206/README.md"
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "bfm-",
+          "windows-x64",
+          ".zip"
+        ],
+        "linux-x86-64": [
+          "bfm-",
+          "linux-x86_64",
+          ".tar.gz"
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -15957,14 +16043,6 @@
       "release_url": "https://github.com/mcsoderh/BodyHarvestRecomp/releases",
       "original_game_title": "Body Harvest",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "BodyHarvestRecompiled-",
-          "-Windows.zip"
-        ],
-        "linux-x86-64": [
-          "BodyHarvestRecompiled-",
-          "-Linux-X64.tar.gz"
-        ],
         "macos-x86-64": [
           "BodyHarvestRecompiled-",
           "-macOS.zip"
@@ -15972,6 +16050,14 @@
         "macos-aarch64": [
           "BodyHarvestRecompiled-",
           "-macOS.zip"
+        ],
+        "windows-x86-64": [
+          "BodyHarvestRecompiled-",
+          "-Windows.zip"
+        ],
+        "linux-x86-64": [
+          "BodyHarvestRecompiled-",
+          "-Linux-X64.tar.gz"
         ]
       },
       "manual_setup": {
@@ -18220,10 +18306,6 @@
       "release_url": "https://github.com/cdlewis/snowboardkids-recomp/releases",
       "recommended_download_channel": "stable",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "SnowboardKidsRecompiled-",
-          "Windows.zip"
-        ],
         "linux-x86-64": [
           "SnowboardKidsRecompiled-",
           "Linux-X64.tar.gz"
@@ -18235,6 +18317,10 @@
         "macos-x86-64": [
           "SnowboardKidsRecompiled-",
           "macOS.zip"
+        ],
+        "windows-x86-64": [
+          "SnowboardKidsRecompiled-",
+          "Windows.zip"
         ]
       },
       "manual_setup": {
@@ -19795,10 +19881,6 @@
         "macos-aarch64"
       ],
       "download_asset_hints": {
-        "linux-x86-64": [
-          "corsixth-",
-          "-x86_64.appimage"
-        ],
         "macos-x86-64": [
           "CorsixTH-",
           ".dmg"
@@ -19806,6 +19888,10 @@
         "macos-aarch64": [
           "CorsixTH-",
           ".dmg"
+        ],
+        "linux-x86-64": [
+          "corsixth-",
+          "-x86_64.appimage"
         ]
       }
     },
@@ -20908,11 +20994,6 @@
       "original_game_title": "Crash Team Racing",
       "release_url": "https://github.com/CTR-tools/ctr-native/releases",
       "recommended_download_channel": "beta",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "-windows-x86.zip"
-        ]
-      },
       "manual_setup": {
         "help_url": "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
         "warnings": [
@@ -20935,6 +21016,11 @@
             "title": "Keep external ownership or preserve debug output before retrying",
             "instruction": "You or upstream update an external copy. Keep its complete working folder and back up memcards and captures before extracting a new player separately. Keep debug output with the originating runtime for matching-build use; no cross-version state compatibility is promised. External registration preserves every file and supplies no managed Backup or Rollback."
           }
+        ]
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "-windows-x86.zip"
         ]
       },
       "platforms": [
@@ -21577,12 +21663,6 @@
       "original_game_title": "Beetle Adventure Racing!",
       "release_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/releases",
       "recommended_download_channel": "beta",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "beetle-adventure-racing-recomp-",
-          "windows-x64.zip"
-        ]
-      },
       "manual_setup": {
         "steps": [
           {
@@ -21604,6 +21684,12 @@
             "title": "Preserve the current copy and Controller Pak data",
             "instruction": "For a copy you manage yourself, back up the whole working folder and the profile, normally %LOCALAPPDATA%\\beetle-adventure-racing-recomp, before replacing the player: it holds the copied ROM, Controller Pak saves, settings and bindings. portable.txt beside the player, or an unavailable profile folder, moves these writes beside the executable."
           }
+        ]
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "beetle-adventure-racing-recomp-",
+          "windows-x64.zip"
         ]
       },
       "platforms": [
@@ -21875,13 +21961,13 @@
         "help_url": "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md"
       },
       "release_url": "https://github.com/darkuni/afterburner-climax-recomp/releases",
+      "recommended_download_channel": "stable",
       "download_asset_hints": {
         "windows-x86-64": [
           "AfterBurnerClimax-",
           "-win64.zip"
         ]
       },
-      "recommended_download_channel": "stable",
       "platforms": [
         "windows-x86-64"
       ]
@@ -21982,13 +22068,13 @@
         "help_url": "https://github.com/darkuni/lode-runner-recomp/blob/9e34a077456f0715df2a1a76b27020421c419e22/README.md"
       },
       "release_url": "https://github.com/darkuni/lode-runner-recomp/releases",
+      "recommended_download_channel": "stable",
       "download_asset_hints": {
         "windows-x86-64": [
           "lode_runner-",
           "-win-amd64.zip"
         ]
       },
-      "recommended_download_channel": "stable",
       "platforms": [
         "windows-x86-64"
       ]
@@ -22036,13 +22122,13 @@
         "help_url": "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md"
       },
       "release_url": "https://github.com/darkuni/mylifedarklord-recomp/releases",
+      "recommended_download_channel": "stable",
       "download_asset_hints": {
         "windows-x86-64": [
           "MyLifeAsADarklord-",
           "-win64.zip"
         ]
       },
-      "recommended_download_channel": "stable",
       "platforms": [
         "windows-x86-64"
       ]
@@ -22086,13 +22172,13 @@
         "help_url": "https://github.com/darkuni/mylifeking-recomp/blob/e7f038a121f6b55622516b1c9cf7cd7518c258e9/README.md"
       },
       "release_url": "https://github.com/darkuni/mylifeking-recomp/releases",
+      "recommended_download_channel": "stable",
       "download_asset_hints": {
         "windows-x86-64": [
           "MyLifeAsAKing-",
           "-win64.zip"
         ]
       },
-      "recommended_download_channel": "stable",
       "platforms": [
         "windows-x86-64"
       ]
@@ -22140,13 +22226,13 @@
         "help_url": "https://github.com/darkuni/outrun-arcade-recomp/blob/e1c57e065b74e594d38778b05d13fdc895e90d4b/README.md"
       },
       "release_url": "https://github.com/darkuni/outrun-arcade-recomp/releases",
+      "recommended_download_channel": "stable",
       "download_asset_hints": {
         "windows-x86-64": [
           "outrun_arcade-",
           "-win-amd64.zip"
         ]
       },
-      "recommended_download_channel": "stable",
       "platforms": [
         "windows-x86-64"
       ]
@@ -22194,13 +22280,13 @@
         "help_url": "https://github.com/darkuni/poker-smash-recomp/blob/0465face8472373cac3283e13655206941310a62/README.md"
       },
       "release_url": "https://github.com/darkuni/poker-smash-recomp/releases",
+      "recommended_download_channel": "stable",
       "download_asset_hints": {
         "windows-x86-64": [
           "PokerSmash-",
           "-win64.zip"
         ]
       },
-      "recommended_download_channel": "stable",
       "platforms": [
         "windows-x86-64"
       ]
@@ -22244,13 +22330,13 @@
         "help_url": "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md"
       },
       "release_url": "https://github.com/darkuni/target-terror-wii-recomp/releases",
+      "recommended_download_channel": "stable",
       "download_asset_hints": {
         "windows-x86-64": [
           "TargetTerror-",
           "-win64.zip"
         ]
       },
-      "recommended_download_channel": "stable",
       "platforms": [
         "windows-x86-64"
       ]
@@ -23711,17 +23797,17 @@
       "release_url": "https://github.com/diasurgical/DevilutionX/releases",
       "recommended_download_channel": "stable",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "devilutionx-windows-x86_64.zip"
-        ],
-        "linux-x86-64": [
-          "devilutionx-linux-x86_64.appimage"
-        ],
         "macos-x86-64": [
           "devilutionx-macOS-universal.dmg"
         ],
         "macos-aarch64": [
           "devilutionx-macOS-universal.dmg"
+        ],
+        "windows-x86-64": [
+          "devilutionx-windows-x86_64.zip"
+        ],
+        "linux-x86-64": [
+          "devilutionx-linux-x86_64.appimage"
         ]
       },
       "manual_setup": {
@@ -23792,17 +23878,17 @@
       "release_url": "https://github.com/diasurgical/DevilutionX/releases",
       "recommended_download_channel": "stable",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "devilutionx-windows-x86_64.zip"
-        ],
-        "linux-x86-64": [
-          "devilutionx-linux-x86_64.appimage"
-        ],
         "macos-x86-64": [
           "devilutionx-macOS-universal.dmg"
         ],
         "macos-aarch64": [
           "devilutionx-macOS-universal.dmg"
+        ],
+        "windows-x86-64": [
+          "devilutionx-windows-x86_64.zip"
+        ],
+        "linux-x86-64": [
+          "devilutionx-linux-x86_64.appimage"
         ]
       },
       "manual_setup": {
@@ -24751,16 +24837,6 @@
       "setup_url": "https://github.com/dhewm/dhewm3/blob/455b88e8dff2be822f08eb498f51b383e851fa38/README.md",
       "release_url": "https://github.com/dhewm/dhewm3/releases",
       "recommended_download_channel": "stable",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "dhewm3-1.",
-          "_win32.zip"
-        ],
-        "linux-x86-64": [
-          "dhewm3-1.",
-          "_Linux_amd64.tar.gz"
-        ]
-      },
       "manual_setup": {
         "steps": [
           {
@@ -24800,7 +24876,17 @@
         "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
-      ]
+      ],
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "dhewm3-1.",
+          "_win32.zip"
+        ],
+        "linux-x86-64": [
+          "dhewm3-1.",
+          "_Linux_amd64.tar.gz"
+        ]
+      }
     },
     {
       "id": "doom-3-classic-dude-doom-3-unified-development-engine",
@@ -24824,16 +24910,6 @@
       "availability": "packages",
       "setup_url": "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md",
       "release_url": "https://github.com/Inkub0/dude/releases",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "dude-0.9.",
-          "-win64.zip"
-        ],
-        "linux-x86-64": [
-          "dude-0.9.",
-          "-linux-x86_64.tar.gz"
-        ]
-      },
       "recommended_download_channel": "stable",
       "manual_setup": {
         "steps": [
@@ -24861,6 +24937,16 @@
           }
         ]
       },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "dude-0.9.",
+          "-win64.zip"
+        ],
+        "linux-x86-64": [
+          "dude-0.9.",
+          "-linux-x86_64.tar.gz"
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -24886,16 +24972,6 @@
       "setup_url": "https://github.com/dhewm/dhewm3/blob/455b88e8dff2be822f08eb498f51b383e851fa38/README.md",
       "release_url": "https://github.com/dhewm/dhewm3/releases",
       "recommended_download_channel": "stable",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "dhewm3-1.",
-          "_win32.zip"
-        ],
-        "linux-x86-64": [
-          "dhewm3-1.",
-          "_Linux_amd64.tar.gz"
-        ]
-      },
       "manual_setup": {
         "steps": [
           {
@@ -24931,7 +25007,17 @@
         "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
-      ]
+      ],
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "dhewm3-1.",
+          "_win32.zip"
+        ],
+        "linux-x86-64": [
+          "dhewm3-1.",
+          "_Linux_amd64.tar.gz"
+        ]
+      }
     },
     {
       "id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
@@ -24955,16 +25041,6 @@
       "availability": "packages",
       "setup_url": "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md",
       "release_url": "https://github.com/Inkub0/dude/releases",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "dude-0.9.",
-          "-win64.zip"
-        ],
-        "linux-x86-64": [
-          "dude-0.9.",
-          "-linux-x86_64.tar.gz"
-        ]
-      },
       "recommended_download_channel": "stable",
       "manual_setup": {
         "steps": [
@@ -24990,6 +25066,16 @@
             "title": "Choose your Linux setup",
             "instruction": "Choose the DUDE x86-64 Doom 3 game tarball. The separately named dude-q4 package is a Quake 4 add-on. Extract the complete folder and keep its game libraries and bundled Vulkan loader. The reviewed executable needs glibc 2.34, SDL2, OpenAL and the OpenSSL variant of libcurl. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 and Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 in matching folders. Start ./dude with +set fs_game d3xp from the prepared directory. Preserve ~/.config/dude and ~/.local/share/dude or their XDG equivalents, plus any custom paths. DUDE can copy the legacy dhewm3 config on first run. Preserve both config trees before opening DUDE. The managed Linux x86-64 copy reads your PK4s from its own runtime and starts with its packaged modules. Use a separate upstream copy for custom paths, native mods or a custom library search path. If a managed first launch would copy a legacy profile, complete that setup in an upstream copy first."
           }
+        ]
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "dude-0.9.",
+          "-win64.zip"
+        ],
+        "linux-x86-64": [
+          "dude-0.9.",
+          "-linux-x86_64.tar.gz"
         ]
       },
       "platforms": [
@@ -25163,18 +25249,18 @@
           }
         ]
       },
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "crispy-doom-",
-          "-win64.zip"
-        ]
-      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
-      ]
+      ],
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "crispy-doom-",
+          "-win64.zip"
+        ]
+      }
     },
     {
       "id": "doom-ii-rpg-doomiirpg-re",
@@ -25543,18 +25629,18 @@
           }
         ]
       },
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "crispy-doom-",
-          "-win64.zip"
-        ]
-      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
-      ]
+      ],
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "crispy-doom-",
+          "-win64.zip"
+        ]
+      }
     },
     {
       "id": "doom-woof",
@@ -27215,13 +27301,13 @@
       },
       "release_url": "https://github.com/eandis/SDOJ-Recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "sdoj.recomp.",
-          ".win-amd64.zip"
-        ],
         "linux-x86-64": [
           "sdoj.recomp.",
           ".linux-amd64.tar.gz"
+        ],
+        "windows-x86-64": [
+          "sdoj.recomp.",
+          ".win-amd64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -27548,12 +27634,6 @@
         "match_kind": "underlying-game"
       },
       "release_url": "https://github.com/elasota/Aerofoil/releases",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "Aerofoil-",
-          "-win64.zip"
-        ]
-      },
       "manual_setup": {
         "steps": [
           {
@@ -27593,6 +27673,12 @@
         ]
       },
       "original_game_title": "Glider PRO",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Aerofoil-",
+          "-win64.zip"
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ]
@@ -29591,18 +29677,18 @@
           }
         ]
       },
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "crispy-doom-",
-          "-win64.zip"
-        ]
-      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
-      ]
+      ],
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "crispy-doom-",
+          "-win64.zip"
+        ]
+      }
     },
     {
       "id": "final-fantasy-resonance-ffresonancerecomp",
@@ -31796,13 +31882,13 @@
         ]
       },
       "download_asset_hints": {
-        "windows-x86-64": [
-          "goldeneye-pc-port-",
-          "-win64.zip"
-        ],
         "linux-x86-64": [
           "goldeneye-pc-port-",
           "-linux-x86_64.tar.gz"
+        ],
+        "windows-x86-64": [
+          "goldeneye-pc-port-",
+          "-win64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -32630,10 +32716,12 @@
       "id": "graw-360-recompiled-juansolo457-tom-clancy-s-ghost-recon-advanced-warfighter-xbox-360",
       "name": "Tom Clancy's Ghost Recon Advanced Warfighter (Xbox 360) — GRAW 360 Recompiled (Juansolo457)",
       "original_game_title": "Tom Clancy's Ghost Recon Advanced Warfighter (Xbox 360)",
-      "summary": "Upstream reports menus and Instant Action/co-op loading, but 3D output is black. The campaign menu starts; mission startup remains unfinished. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
+      "summary": "Play the Xbox 360 edition of Ghost Recon Advanced Warfighter using your own disc. The publisher’s v0.6 release provides a native Linux and Steam Deck package and reports campaign play. A full campaign playthrough and gameplay in Portcove remain unverified.",
       "project_url": "https://github.com/Juansolo457/graw360-recomp",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/Juansolo457/graw360-recomp",
       "manual_setup": {
         "steps": [
@@ -32642,12 +32730,12 @@
             "instruction": "Use your own USA or Europe Xbox 360 game, title ID 555307D5. This guide has only an abbreviated default.xex SHA-256, 295ac4de...c023a; check the full upstream requirement before setup. Keep the main, multiplayer and campaign executables together as one game installation."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Follow upstream’s extraction and build scripts for port, port-mp and port-yeti. No release package is confirmed; use the source-build instructions."
+            "title": "Choose the upstream setup route",
+            "instruction": "On Steam Deck or a Linux x86-64 system with AVX2, FMA and Vulkan 1.3, extract the v0.6 Linux ZIP and follow its README.txt to supply your owned disc files. The publisher reports testing on Steam Deck. On Windows, follow the v0.6 source-build instructions. Keep your game files and saves before updating."
           }
         ],
         "warnings": [
-          "Upstream reports menus and Instant Action/co-op loading, but 3D output is black. The campaign menu starts; mission startup remains unfinished.",
+          "Upstream reports campaign missions playable in v0.6. Earlier builds reported black 3D output and unfinished campaign startup. Check the v0.6 release notes for current limitations.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
         "help_url": "https://github.com/Juansolo457/graw360-recomp"
@@ -32661,6 +32749,13 @@
         "image_sha256": "ee96e971a3f788e94b1a18ac0b125ce15707ba43c3a728c4456f4c1d4b3d3ec6",
         "game_slug": "tom-clancy-s-ghost-recon-advanced-warfighter",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/Juansolo457/graw360-recomp/releases",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "GRAW360-Recompiled-",
+          "-Linux.zip"
+        ]
       }
     },
     {
@@ -34149,18 +34244,18 @@
           }
         ]
       },
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "crispy-heretic-",
-          "-win64.zip"
-        ]
-      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
-      ]
+      ],
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "crispy-heretic-",
+          "-win64.zip"
+        ]
+      }
     },
     {
       "id": "heroes-of-might-and-magic-ii-fheroes2",
@@ -34402,18 +34497,18 @@
           }
         ]
       },
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "crispy-hexen-",
-          "-win64.zip"
-        ]
-      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
-      ]
+      ],
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "crispy-hexen-",
+          "-win64.zip"
+        ]
+      }
     },
     {
       "id": "hg-kunodemetries-haunting-ground",
@@ -34676,16 +34771,6 @@
       "availability": "packages",
       "release_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/releases",
       "setup_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/blob/431720eac60bb0508ea5c4b4aec88d47fa7bc79e/README.md",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "HybridHeaven-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "HybridHeaven-",
-          "-linux-x86_64.tar.gz"
-        ]
-      },
       "recommended_download_channel": "stable",
       "manual_setup": {
         "help_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/blob/431720eac60bb0508ea5c4b4aec88d47fa7bc79e/README.md",
@@ -34717,6 +34802,16 @@
         "image_sha256": "bf0007c9b9a4ef9b1d297695a5dcfce8154960e72d9860e15da72cdb89bcf3f5",
         "game_slug": "hybrid-heaven",
         "match_kind": "underlying-game"
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "HybridHeaven-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "HybridHeaven-",
+          "-linux-x86_64.tar.gz"
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -35285,12 +35380,6 @@
       "original_game_title": "Infinite Undiscovery",
       "release_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/releases",
       "recommended_download_channel": "beta",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "InfiniteUndiscoveryRecomp-",
-          ".zip"
-        ]
-      },
       "manual_setup": {
         "help_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/ce6586c0a237541caa438122ecdd99c62982b288/README.md",
         "warnings": [
@@ -35314,6 +35403,12 @@
             "title": "Update an existing copy safely",
             "instruction": "For a copy you register yourself, you or upstream provide updates. Extract a new official player into a separate folder, keep the working copy, and follow the selected release’s instructions for carrying its complete compatible content profiles and setup.json. Do not copy old runtime DLLs or shader caches over the replacement. Runtime rollback does not rewind saves or guarantee that older software can read them. The selected release-tag documentation had not tested the Disc 1 to Disc 2 transition. Later upstream documentation at 614a0a0ebd72103fce8aaa52c715d847b703a53e reports repeated successful transitions, while complete Disc 2 progression and a full playthrough remain unverified and a Vesplume Tower / Orb of Patience softlock remains under investigation. These are upstream reports; Portcove has not run the game."
           }
+        ]
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "InfiniteUndiscoveryRecomp-",
+          ".zip"
         ]
       },
       "platforms": [
@@ -36163,13 +36258,13 @@
       "listed_at": "2026-10-25",
       "release_url": "https://github.com/james2doyle/ffta-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "FFTARecomp-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "FFTARecomp-",
           "-linux-x86_64.AppImage"
+        ],
+        "windows-x86-64": [
+          "FFTARecomp-",
+          "-windows-x64.zip"
         ]
       },
       "manual_setup": {
@@ -36294,10 +36389,13 @@
       "id": "jersey-devil-recompiled-mstan-jersey-devil",
       "name": "Jersey Devil — Jersey Devil Recompiled (mstan)",
       "original_game_title": "Jersey Devil",
-      "summary": "Upstream reports startup, intros, levels and gameplay. This is a new project; Portcove has not confirmed those results. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
+      "summary": "Prepare your own USA Jersey Devil disc with the publisher’s Windows x64 player (v0.3.3) or Linux x86-64 AppImage (v0.3.2). Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/mstan/JerseyDevilRecomp",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/mstan/JerseyDevilRecomp",
       "manual_setup": {
         "steps": [
@@ -36306,8 +36404,8 @@
             "instruction": "Use your own USA SCUS94907 disc with all 45 tracks and boot executable SCUS_949.07."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Build from source using upstream instructions. The README explicitly says no release is offered yet."
+            "title": "Choose the upstream package",
+            "instruction": "On Windows x64, extract the v0.3.3 ZIP. On Linux x86-64, use the v0.3.2 AppImage and check its setup instructions. Start the upstream player and choose the CUE file for your complete disc set. Keep your original disc files separately."
           }
         ],
         "warnings": [
@@ -36325,6 +36423,13 @@
         "image_sha256": "8ac290eb748a3fbe81782db53f5ef91467b64f55842801c8591b6a703e7d6850",
         "game_slug": "jersey-devil",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/mstan/JerseyDevilRecomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "JerseyDevilRecomp-",
+          "-windows-x64.zip"
+        ]
       }
     },
     {
@@ -40528,13 +40633,16 @@
     {
       "id": "mario-kart-8-deluxe-racing-8-dx-recomp",
       "name": "Mario Kart 8 Deluxe (Racing-8-DX-Recomp)",
-      "summary": "Racing-8-DX-Recomp builds a personal Mario Kart 8 Deluxe AppImage on Linux from your own game and 3.0.4 update. The project reports races and four-player play on AMD hardware. Its v0.1.0 tag contains no downloadable player.",
+      "summary": "Racing-8-DX-Recomp uses your own Mario Kart 8 Deluxe game and 3.0.4 update. The project reports races and four-player play on AMD hardware. The BETA-0.2.5 prerelease offered a Linux x86-64 AppImage, and v0.2.4 offered Windows and Linux packages. Portcove has yet to qualify these packages.",
       "original_game_title": "Mario Kart 8 Deluxe",
       "project_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp",
       "listed_at": "2026-10-25",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp/releases",
       "artwork": {
         "game_id": 26764,
         "cover_id": 94741,
@@ -40776,6 +40884,53 @@
         "image_sha256": "5fd4283973677bbd9f95a76b63dd21418cbf292a48b490a93206a6ffacbaf7d8",
         "game_slug": "mario-kart-double-dash",
         "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "master-of-magic-remom",
+      "name": "Master of Magic / ReMoM",
+      "summary": "Run Master of Magic with ReMoM using the original game data from your own DOS installation.",
+      "project_url": "https://github.com/jbalcomb/ReMoM",
+      "original_game_title": "Master of Magic",
+      "issue_number": 5833,
+      "listed_at": "2026-11-18",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "ReMoM-",
+          "-Windows-AMD64.zip"
+        ],
+        "linux-x86-64": [
+          "ReMoM-",
+          "-Linux-x86_64.tar.gz"
+        ]
+      },
+      "release_url": "https://github.com/jbalcomb/ReMoM/releases/tag/v0.1.0",
+      "setup_url": "https://github.com/jbalcomb/ReMoM/blob/v0.1.0/PLAYING.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose the engine archive",
+            "instruction": "Extract the full Windows ZIP and open ReMoM.exe. On Linux, extract the tarball and run ReMoM with SDL2 and SDL2_mixer installed."
+          },
+          {
+            "title": "Point ReMoM at your own Master of Magic files",
+            "instruction": "ReMoM looks for version 1.31 files in the usual GOG, Steam and CD install locations. If it cannot find them, follow the upstream guide to set game_data in ReMoM.ini, or put the original .LBX files next to the executable. Open the same program again to play."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep the working save folder",
+            "instruction": "The default save folder is %APPDATA%/ReMoM on Windows or ~/.local/share/ReMoM on Linux. The program can copy SAVE1.GAM through SAVE9.GAM from your original on first run. Keep the working copies before replacing the engine with a newer upstream release."
+          }
+        ],
+        "warnings": [
+          "Portcove does not back up your ReMoM saves."
+        ]
       }
     },
     {
@@ -42959,10 +43114,6 @@
       },
       "release_url": "https://github.com/TeamGDB/Yakumo/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "yakumo-",
-          "windows-x86_64-portable.zip"
-        ],
         "linux-x86-64": [
           "yakumo-",
           "-linux-x86_64.tar.gz"
@@ -42970,6 +43121,10 @@
         "macos-aarch64": [
           "yakumo-",
           "-macos-arm64.dmg"
+        ],
+        "windows-x86-64": [
+          "yakumo-",
+          "windows-x86_64-portable.zip"
         ]
       },
       "manual_setup": {
@@ -43293,6 +43448,63 @@
       "platforms": [
         "windows-x86-64"
       ]
+    },
+    {
+      "id": "motocross-madness-2-openmcm2",
+      "name": "Motocross Madness 2 / OpenMCM2",
+      "summary": "Play Motocross Madness 2 on Windows, Linux or Mac. OpenMCM2 can import your game files or use the project's separately offered free graphics.",
+      "project_url": "https://github.com/crspytopgn/openmcm2",
+      "original_game_title": "Motocross Madness 2",
+      "issue_number": 5837,
+      "listed_at": "2026-11-18",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "openmcm2-",
+          "-windows-x86_64.zip"
+        ],
+        "linux-x86-64": [
+          "openmcm2-",
+          "-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "openmcm2-",
+          "-macos-x86_64.zip"
+        ],
+        "macos-aarch64": [
+          "openmcm2-",
+          "-macos-arm64.zip"
+        ]
+      },
+      "release_url": "https://github.com/crspytopgn/openmcm2/releases/tag/v0.6.5",
+      "setup_url": "https://github.com/crspytopgn/openmcm2/blob/v0.6.5/README.md#playing",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Open the upstream launcher",
+            "instruction": "Extract the complete archive and open mm2-launcher on Linux, mm2-launcher.exe on Windows or OpenMCM2.app on Mac. Graphics use Vulkan on Linux, DirectX 12 or Vulkan on Windows, and Metal on Mac. For the original graphics, select your own Motocross Madness 2 CD image, disc or installed GAME folder in the launcher."
+          },
+          {
+            "title": "Play again with the saved setup",
+            "instruction": "After the launcher copies the game files, choose graphics settings and press Play. To play with the separate Free Pack, choose free graphics when the launcher asks; it downloads the pack. On a later launch, the launcher supports --play to start with saved settings. Open it normally to change settings or reimport."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep the OpenMCM2 profile",
+            "instruction": "The launcher copies the original GAME folder under %APPDATA%/MM2 on Windows, ~/.local/share/mm2 on Linux or ~/Library/Application Support/MM2 on Mac. Keep the user folder before replacing the program. The upstream launcher can add tracks and maintain its own free graphics pack."
+          }
+        ],
+        "warnings": [
+          "Portcove does not manage this program's updates or back up its user folder."
+        ]
+      }
     },
     {
       "id": "mr-finster-stunts-hd",
@@ -43678,12 +43890,6 @@
         "match_kind": "underlying-game"
       },
       "recommended_download_channel": "stable",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "DragonBallZBuusFuryRecomp-windows-x64-",
-          ".zip"
-        ]
-      },
       "release_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/releases",
       "manual_setup": {
         "steps": [
@@ -43712,6 +43918,12 @@
         ]
       },
       "original_game_title": "Dragon Ball Z: Buu's Fury",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "DragonBallZBuusFuryRecomp-windows-x64-",
+          ".zip"
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ]
@@ -43734,12 +43946,6 @@
         "match_kind": "underlying-game"
       },
       "recommended_download_channel": "stable",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "DragonBallZLegacyofGokuIIRecomp-windows-x64-",
-          ".zip"
-        ]
-      },
       "release_url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/releases",
       "manual_setup": {
         "steps": [
@@ -43768,6 +43974,12 @@
         ]
       },
       "original_game_title": "Dragon Ball Z: The Legacy of Goku II",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "DragonBallZLegacyofGokuIIRecomp-windows-x64-",
+          ".zip"
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ]
@@ -43888,12 +44100,6 @@
         "match_kind": "underlying-game"
       },
       "recommended_download_channel": "stable",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "MegaManZeroRecomp-windows-x64-",
-          ".zip"
-        ]
-      },
       "release_url": "https://github.com/mstan/MegaManZeroRecomp/releases",
       "manual_setup": {
         "steps": [
@@ -43924,6 +44130,12 @@
         "help_url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/README.md"
       },
       "original_game_title": "Mega Man Zero",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "MegaManZeroRecomp-windows-x64-",
+          ".zip"
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ]
@@ -43946,12 +44158,6 @@
         "match_kind": "underlying-game"
       },
       "recommended_download_channel": "beta",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "SuperMarioAdvance2Recomp-windows-x64-",
-          ".zip"
-        ]
-      },
       "release_url": "https://github.com/mstan/SuperMarioAdvance2Recomp/releases",
       "manual_setup": {
         "steps": [
@@ -43980,6 +44186,12 @@
         ]
       },
       "original_game_title": "Super Mario Advance 2: Super Mario World",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "SuperMarioAdvance2Recomp-windows-x64-",
+          ".zip"
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ]
@@ -44002,12 +44214,6 @@
       "availability": "packages",
       "setup_url": "https://github.com/mstan/SuperMarioAdvance4Recomp#readme",
       "recommended_download_channel": "beta",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "SuperMarioAdvance4Recomp-windows-x64-",
-          ".zip"
-        ]
-      },
       "release_url": "https://github.com/mstan/SuperMarioAdvance4Recomp/releases",
       "manual_setup": {
         "steps": [
@@ -44035,6 +44241,12 @@
         ]
       },
       "original_game_title": "Super Mario Advance 4: Super Mario Bros. 3",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "SuperMarioAdvance4Recomp-windows-x64-",
+          ".zip"
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ]
@@ -44108,12 +44320,6 @@
         "match_kind": "underlying-game"
       },
       "recommended_download_channel": "beta",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "WarioWareTwistedRecomp-windows-x64-",
-          ".zip"
-        ]
-      },
       "release_url": "https://github.com/mstan/WarioWareTwistedRecomp/releases",
       "manual_setup": {
         "steps": [
@@ -44146,6 +44352,12 @@
         ]
       },
       "original_game_title": "WarioWare: Twisted!",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "WarioWareTwistedRecomp-windows-x64-",
+          ".zip"
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ]
@@ -44651,13 +44863,13 @@
         ]
       },
       "release_url": "https://github.com/n64hub/rayman-2-recomp/releases",
+      "recommended_download_channel": "stable",
       "download_asset_hints": {
         "windows-x86-64": [
           "Rayman2Recompiled-",
           "-windows-x64.zip"
         ]
       },
-      "recommended_download_channel": "stable",
       "platforms": [
         "windows-x86-64"
       ]
@@ -44823,13 +45035,13 @@
         ]
       },
       "release_url": "https://github.com/n64hub/super-smash-bros-recomp/releases",
+      "recommended_download_channel": "stable",
       "download_asset_hints": {
         "windows-x86-64": [
           "SmashBrosRecompiled-",
           "-windows-x64.zip"
         ]
       },
-      "recommended_download_channel": "stable",
       "platforms": [
         "windows-x86-64"
       ]
@@ -46071,14 +46283,6 @@
       },
       "release_url": "https://github.com/OpenSC2K/OpenSC2K/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "OpenSC2K-",
-          "windows-x64-portable.zip"
-        ],
-        "linux-x86-64": [
-          "OpenSC2K-",
-          "-linux-x64.tar.gz"
-        ],
         "macos-x86-64": [
           "OpenSC2K-",
           "-macos-universal.dmg"
@@ -46086,6 +46290,14 @@
         "macos-aarch64": [
           "OpenSC2K-",
           "-macos-universal.dmg"
+        ],
+        "windows-x86-64": [
+          "OpenSC2K-",
+          "windows-x64-portable.zip"
+        ],
+        "linux-x86-64": [
+          "OpenSC2K-",
+          "-linux-x64.tar.gz"
         ]
       },
       "manual_setup": {
@@ -47485,11 +47697,11 @@
         ]
       },
       "download_asset_hints": {
-        "windows-x86-64": [
-          "halo-windows-release.zip"
-        ],
         "linux-x86-64": [
           "halo-Linux-release.zip"
+        ],
+        "windows-x86-64": [
+          "halo-windows-release.zip"
         ]
       }
     },
@@ -49998,6 +50210,7 @@
         ]
       },
       "release_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/releases",
+      "recommended_download_channel": "stable",
       "download_asset_hints": {
         "windows-x86-64": [
           "Pilotwings64Recomp-",
@@ -50008,7 +50221,6 @@
           "-linux-x86_64.tar.gz"
         ]
       },
-      "recommended_download_channel": "stable",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -58148,6 +58360,7 @@
         ]
       },
       "release_url": "https://github.com/HikariLucy/SnowboardKids-Recomp/releases",
+      "recommended_download_channel": "beta",
       "download_asset_hints": {
         "windows-x86-64": [
           "SnowboardKidsRecompiled-",
@@ -58158,7 +58371,6 @@
           "-Linux-x86_64.zip"
         ]
       },
-      "recommended_download_channel": "beta",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -58227,6 +58439,7 @@
       "issue_number": 3564,
       "listed_at": "2026-10-25",
       "release_url": "https://github.com/wootbeer/snprecomp/releases",
+      "recommended_download_channel": "stable",
       "download_asset_hints": {
         "windows-x86-64": [
           "SnPRecompiled-",
@@ -58237,7 +58450,6 @@
           "-linux-x86_64.tar.gz"
         ]
       },
-      "recommended_download_channel": "stable",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -61669,18 +61881,18 @@
           }
         ]
       },
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "crispy-strife-",
-          "-win64.zip"
-        ]
-      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
-      ]
+      ],
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "crispy-strife-",
+          "-win64.zip"
+        ]
+      }
     },
     {
       "id": "strike-gunner-s-t-g-strike-gunner-stg-recomp",
@@ -62752,13 +62964,15 @@
     {
       "id": "super-smash-bros-ultimate-ssbu-arena",
       "name": "Super Smash Bros. Ultimate (ssbu-arena)",
-      "summary": "SSBU Arena is an independent Windows fork for competitive one-on-one Super Smash Bros. Ultimate. It uses your own 13.0.4 or 13.0.5 game. The project tested rollback with two windows on one PC. Ranked play and replays are planned.",
+      "summary": "SSBU Arena is an independent Windows fork for competitive one-on-one Super Smash Bros. Ultimate. The v0.2.52 release provides SSBU-Arena.exe to prepare and update the game from your own supported files. Upstream reported testing rollback with two windows on one PC. Portcove has yet to verify setup, matchmaking or gameplay.",
       "original_game_title": "Super Smash Bros. Ultimate",
       "project_url": "https://github.com/SSBUArena/ssbu-arena",
       "listed_at": "2026-10-25",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/SSBUArena/ssbu-arena",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/SSBUArena/ssbu-arena/releases/tag/v0.2.52",
       "artwork": {
         "game_id": 90101,
         "cover_id": 96089,
@@ -62768,24 +62982,26 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2938,
+      "release_url": "https://github.com/SSBUArena/ssbu-arena/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "SSBU-Arena.exe"
+        ]
+      },
       "manual_setup": {
-        "help_url": "https://github.com/SSBUArena/ssbu-arena",
+        "help_url": "https://github.com/SSBUArena/ssbu-arena/releases/tag/v0.2.52",
         "steps": [
           {
-            "title": "Check your original game files",
-            "instruction": "Use your own 13.0.4 or 13.0.5 game dump and keys, with any matching updates or DLC you own. Separate firmware needs are unclear."
+            "title": "Supply your own game files",
+            "instruction": "Follow the instructions for your own Super Smash Bros. Ultimate dump, matching update, and any keys required for the selected build. The project documents 13.0.4 and 13.0.5."
           },
           {
-            "title": "Follow the project’s setup",
-            "instruction": "Check the Windows 10 or 11 x64 guide against the selected release. The README describes a local source install, while v0.2.7 contains SSBU-Arena.exe, a player ZIP and a manifest."
+            "title": "Start the upstream launcher",
+            "instruction": "On Windows x64, choose SSBU-Arena.exe. Let the launcher install or update its companion files. The separate runtime archive and release manifest are for the launcher."
           }
         ],
-        "warnings": [],
-        "references": [
-          {
-            "title": "Version and platform notes",
-            "instruction": "The reported network tests used one computer. Linux and macOS guide links do not establish confirmed gameplay or CPU support there."
-          }
+        "warnings": [
+          "The publisher requires compatible versions for online play. Linux and macOS availability and gameplay have not been verified by Portcove."
         ]
       }
     },
@@ -64044,13 +64260,13 @@
           }
         ]
       },
+      "recommended_download_channel": "beta",
       "download_asset_hints": {
         "windows-x86-64": [
           "H2HoT-Tweaked-",
           "-win32.zip"
         ]
       },
-      "recommended_download_channel": "beta",
       "platforms": [
         "windows-x86-64"
       ]
@@ -66456,6 +66672,48 @@
             "title": "Follow the current DOS build",
             "instruction": "The pinned master revision documents the DOS reconstruction. Use the matching owned GOG installer identified by upstream. After closing DOSBox, preserve build/run, including HOSPITAL.CFG and your saves, and keep the original data it links from orig. The earlier native branch instructions apply to a different revision."
           }
+        ]
+      }
+    },
+    {
+      "id": "theme-park-snes-junior-jones",
+      "name": "Theme Park (SNES) / Static Recomp",
+      "summary": "Play the SNES version of Theme Park on Windows using the supported European PAL ROM you supply.",
+      "project_url": "https://github.com/Junior-Jones/Theme-Park-SNES-Static-Recomp",
+      "original_game_title": "Theme Park",
+      "issue_number": 6591,
+      "listed_at": "2026-11-18",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Theme-Park-SNES-Static-Recomp-",
+          "-Windows-x64.zip"
+        ]
+      },
+      "release_url": "https://github.com/Junior-Jones/Theme-Park-SNES-Static-Recomp/releases/tag/v1.0.1",
+      "setup_url": "https://github.com/Junior-Jones/Theme-Park-SNES-Static-Recomp/blob/v1.0.1/README.txt",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your European PAL ROM",
+            "instruction": "Extract the ZIP into a writable folder and open Launcher.exe. Close Welcome, then use Browse ROM to select your own unheadered Theme Park (Europe) (En,Fr,De) ROM. The launcher checks the exact ROM identity. Use Run or press F7 to start the game."
+          },
+          {
+            "title": "Start with the saved ROM path",
+            "instruction": "Once the launcher has remembered your ROM, use Launcher.exe --game to start the game directly. Start Launcher.exe without arguments to reopen the launcher and change the ROM or settings."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep your snapshots when updating",
+            "instruction": "Settings and user files live beside Launcher.exe. Back up the Saves folder and settings.ini before replacing the upstream release. Snapshots preserve the machine state for their build and may not work in a different version."
+          }
+        ],
+        "warnings": [
+          "Portcove does not manage this installation or back up its snapshots."
         ]
       }
     },
@@ -70922,9 +71180,6 @@
         "match_kind": "underlying-game"
       },
       "download_asset_hints": {
-        "windows-x86-64": [
-          "VCMI-Windows.zip"
-        ],
         "linux-x86-64": [
           "VCMI-Linux-x64.AppImage"
         ],
@@ -70933,6 +71188,9 @@
         ],
         "macos-aarch64": [
           "VCMI-macOS-arm.dmg"
+        ],
+        "windows-x86-64": [
+          "VCMI-Windows.zip"
         ]
       }
     },
@@ -71059,13 +71317,13 @@
       },
       "release_url": "https://github.com/vibecodekun/shantaerecomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "shantae-recomp-",
-          "-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "shantae-recomp-",
           "-linux-x86_64.tar.gz"
+        ],
+        "windows-x86-64": [
+          "shantae-recomp-",
+          "-windows-x64.zip"
         ]
       },
       "recommended_download_channel": "stable"
@@ -71090,16 +71348,6 @@
       "original_game_title": "Banjo-Tooie",
       "release_url": "https://github.com/Vidanox/BanjoTooieRecompiled/releases",
       "recommended_download_channel": "stable",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "BanjoTooieRecompiled-",
-          "windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "BanjoTooieRecompiled-",
-          "linux-x64.tar.gz"
-        ]
-      },
       "manual_setup": {
         "steps": [
           {
@@ -71121,6 +71369,16 @@
             "title": "Keep your actual profile when updating",
             "instruction": "Preserve the player's profile before replacing a copy you manage yourself: normally %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows or ~/.config/BanjoTooieRecompiled on Linux. It holds the copied original bt.n64.us.1.0.z64, saves, settings and mods. For Flatpak, keep the complete ~/.var/app/io.github.Vidanox.BanjoTooieRecompiled folder, and keep any APP_FOLDER_PATH or portable.txt folder you actually used. Keep a working copy before replacing the player."
           }
+        ]
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "BanjoTooieRecompiled-",
+          "windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "BanjoTooieRecompiled-",
+          "linux-x64.tar.gz"
         ]
       },
       "platforms": [
@@ -72878,12 +73136,13 @@
       "id": "wipeout-pc-abdelmoumendeghbouche-wipeout-omega-collection",
       "name": "WipEout Omega Collection — wipeout_pc (AbdelmoumenDeghbouche)",
       "original_game_title": "WipEout Omega Collection",
-      "summary": "An experimental Windows port of WipEout Omega Collection using your own PS4 game files. The project reports races in HD and 2048. Its documented US target is CUSA07671 with update 01.07. Linux has a source build, and the collection has no confirmed full playthrough.",
+      "summary": "An experimental port of WipEout Omega Collection for owned PS4 game files, with a documented US target of CUSA07671 and update 01.07. The publisher offers a Windows ZIP and Linux x86-64 AppImage and reports HD and 2048 races. A full collection playthrough remains unconfirmed.",
       "project_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc",
       "manual_setup": {
         "steps": [
@@ -72892,12 +73151,12 @@
             "instruction": "Use your own PS4 WipEout Omega Collection dump. The README names USA CUSA07671 base 01.00 with update 01.07 as its development target; it also names European CUSA05670 without specifying a version. Merge your own base and update files or supply GOW3_PATCH_DIR as documented. GoldHEN folder dumps are also supported by the instructions. The runtime reads your eboot.bin and game files and links your libc, Fios2 and NpToolkit2. One executable serves 2048, HD and Fury. Exact supported executable and asset fingerprints are not established."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Upstream README declares wipeout-windows.zip from Releases. Extract it, run WipEout.exe and select the owned game folder containing eboot.bin. Supply the matching owned base/update data as documented; runtime continues reading original files. Windows source build uses MSYS2 CLANG64/Python and upstream build.sh; Linux has a source-build route without a package or stated CPU matrix. No release asset was downloaded or verified. This manual discovery route is not managed acquisition or runtime qualification."
+            "title": "Choose the upstream player",
+            "instruction": "On Windows use the publisher’s wipeout-windows.zip. On Linux x86-64 use the publisher’s AppImage and check its system requirements. Open the upstream player and select your owned game folder containing eboot.bin. Follow the upstream instructions for your disc edition and update data. Only the publisher’s package listing was reviewed."
           }
         ],
         "warnings": [
-          "Upstream early-development status claims boot/menus/saves and HD/2048 races/results, with 110–150FPS reported in 2048 on RTX 4070 Laptop, not a full collection playthrough. New README reports extra render-resolution patches and experimental PS4 Pro mode GOW3_NEO=1 loading a race with correct picture since v0.2.3; not tested further. All HD/HD Fury/2048 event types are not yet tested, HDR RCAS fix awaits testing and new audio effects may have defects; PSVR is not planned. Linux builds from source without a package; do not infer Linux gameplay/CPU qualification. No Portcove runtime or completion qualification was performed.",
+          "Upstream early-development status claims boot/menus/saves and HD/2048 races/results, with 110–150FPS reported in 2048 on RTX 4070 Laptop, not a full collection playthrough. New README reports extra render-resolution patches and experimental PS4 Pro mode GOW3_NEO=1 loading a race with correct picture since v0.2.3; not tested further. All HD/HD Fury/2048 event types are not yet tested, HDR RCAS fix awaits testing and new audio effects may have defects; PSVR is not planned. The upstream Linux x86-64 AppImage is listed in the release; Linux gameplay and CPU compatibility remain unverified. No Portcove runtime or completion qualification was performed.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
         "help_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc",
@@ -72921,6 +73180,15 @@
         "image_sha256": "0f45789393ff7e10aa1e4f1f0550c1175476019adf78e922e0bc44fe592be8b1",
         "game_slug": "wipeout-omega-collection",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "wipeout-windows.zip"
+        ],
+        "linux-x86-64": [
+          "wipeout-x86_64.AppImage"
+        ]
       }
     },
     {
@@ -74557,14 +74825,6 @@
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "xena-warrior-princess-recomp-",
-          "-windows-x64.zip"
-        ],
-        "linux-x86-64": [
-          "xena-warrior-princess-recomp-",
-          "-linux-x64.zip"
-        ],
         "macos-x86-64": [
           "xena-warrior-princess-recomp-",
           "-macos-x64.zip"
@@ -74572,6 +74832,14 @@
         "macos-aarch64": [
           "xena-warrior-princess-recomp-",
           "-macos-arm64.zip"
+        ],
+        "windows-x86-64": [
+          "xena-warrior-princess-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "xena-warrior-princess-recomp-",
+          "-linux-x64.zip"
         ]
       },
       "recommended_download_channel": "stable",
@@ -74844,16 +75112,19 @@
     {
       "id": "yo-kai-watch-4-yw4recomp",
       "name": "Yo-kai Watch 4++ (YW4Recomp)",
-      "summary": "This Windows port targets Yo-kai Watch 4++ update 2.2.0. Build it from your own extracted files. The project reports starting a game, visiting the house and town, and autosaving. Effects are missing and later areas can crash.",
+      "summary": "Prepare your own Yo-kai Watch 4++ files with update 2.2.0 in the upstream Windows x64 or Linux x86-64 launcher. Earlier upstream testing reached the house and town and autosaved. Effects were missing and later areas could crash. Portcove has yet to qualify setup or gameplay.",
       "original_game_title": "Yo-kai Watch 4++",
       "project_url": "https://github.com/ILFforever/YW4Recomp",
       "listed_at": "2026-10-25",
       "funding_urls": [
         "https://buymeacoffee.com/ilfforever"
       ],
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ILFforever/YW4Recomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/ILFforever/YW4Recomp/releases/tag/launcher-v1.4.0",
       "artwork": {
         "game_id": 127255,
         "cover_id": 311098,
@@ -74863,24 +75134,31 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2952,
+      "release_url": "https://github.com/ILFforever/YW4Recomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "YW4-Recomp-Launcher-",
+          "-portable.zip"
+        ],
+        "linux-x86-64": [
+          "YW4-Recomp-Launcher-",
+          "-x86_64.AppImage"
+        ]
+      },
       "manual_setup": {
-        "help_url": "https://github.com/ILFforever/YW4Recomp",
+        "help_url": "https://github.com/ILFforever/YW4Recomp/releases/tag/launcher-v1.4.0",
         "steps": [
           {
-            "title": "Check your original game files",
-            "instruction": "Use hash-checked ExeFS and RomFS for the 4++ 2.2.0 update. The original Yo-kai Watch 4 requires a different profile. The root guide has no separate instructions for keys or firmware."
+            "title": "Provide the supported game edition",
+            "instruction": "Follow the publisher’s extraction guide for your own Yo-kai Watch 4++ with update 2.2.0. Use the required ExeFS and RomFS for the 4++ edition. The original Yo-kai Watch 4 requires a different profile."
           },
           {
-            "title": "Follow the project’s setup",
-            "instruction": "Follow the project’s Windows x64 source build with Python, Git, Clang, GCC and the Vulkan SDK. The player needs Vulkan 1.3. There is no release package."
+            "title": "Choose a launcher package",
+            "instruction": "Choose the Windows launcher or Linux x86-64 AppImage. Prepare the owned game files through the upstream launcher and use its Update button for game updates. The separately listed game-update ZIP is for an existing launcher installation."
           }
         ],
-        "warnings": [],
-        "references": [
-          {
-            "title": "Version and platform notes",
-            "instruction": "The project reports 30 FPS in early areas. The Linux badge describes a planned route and has no Linux test behind it. No Mac route is documented."
-          }
+        "warnings": [
+          "The publisher’s package metadata establishes download availability. Portcove has not confirmed runtime, save, platform or update behavior."
         ]
       }
     },

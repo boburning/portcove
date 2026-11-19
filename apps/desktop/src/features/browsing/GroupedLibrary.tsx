@@ -58,6 +58,7 @@ export function GroupedLibrary({
   statuses,
   organization,
   renderPort,
+  renderFavorite,
   onSelect,
   layout = "covers",
   resultsReady = true,
@@ -67,7 +68,8 @@ export function GroupedLibrary({
   matching: readonly CatalogEntry[];
   statuses: ReadonlyMap<string, PortStatus>;
   organization?: Organization | undefined;
-  renderPort: (port: CatalogEntry) => ReactNode;
+  renderPort: (port: CatalogEntry, group: GameGroup) => ReactNode;
+  renderFavorite?: ((port: CatalogEntry, group: GameGroup) => ReactNode) | undefined;
   onSelect: (portId: string, originKey?: string) => void;
   layout?: CollectionLayout;
   resultsReady?: boolean;
@@ -182,7 +184,7 @@ export function GroupedLibrary({
         {(group, index) => (
           <LibraryGame
             key={group.id}
-            {...{ group, statuses, organization, renderPort, onSelect, layout, t }}
+            {...{ group, statuses, organization, renderPort, renderFavorite, onSelect, layout, t }}
             item={items[index]!}
             expanded={expanded.has(group.id)}
             onExpanded={expand}
@@ -202,6 +204,7 @@ const LibraryGame = memo(function LibraryGame({
   statuses,
   organization,
   renderPort,
+  renderFavorite,
   onSelect,
   layout,
 }: {
@@ -212,7 +215,8 @@ const LibraryGame = memo(function LibraryGame({
   t: TFunction<"browsing">;
   statuses: ReadonlyMap<string, PortStatus>;
   organization: Organization | undefined;
-  renderPort: (port: CatalogEntry) => ReactNode;
+  renderPort: (port: CatalogEntry, group: GameGroup) => ReactNode;
+  renderFavorite?: ((port: CatalogEntry, group: GameGroup) => ReactNode) | undefined;
   onSelect: (portId: string, originKey?: string) => void;
   layout: CollectionLayout;
 }) {
@@ -245,9 +249,12 @@ const LibraryGame = memo(function LibraryGame({
       data-detail-return-group={group.id}
     >
       {choice.port ? (
-        renderPort(choice.port)
+        renderPort(choice.port, group)
       ) : (
-        <LibraryChoicePrompt {...{ group, first, choice, layout, organization, restore }} />
+        <LibraryChoicePrompt
+          {...{ group, first, choice, layout, organization, restore }}
+          favoriteControl={renderFavorite?.(first, group)}
+        />
       )}
       {grouped && (
         <details
@@ -307,6 +314,7 @@ function LibraryChoicePrompt({
   layout,
   organization,
   restore,
+  favoriteControl,
 }: {
   group: GameGroup;
   first: CatalogEntry;
@@ -314,13 +322,14 @@ function LibraryChoicePrompt({
   layout: CollectionLayout;
   organization: Organization | undefined;
   restore: (trigger: HTMLButtonElement) => void;
+  favoriteControl?: ReactNode;
 }) {
   const { t } = useAppTranslation("browsing");
   const { element, visible } = useArtworkVisibility();
   const { display } = useArtwork(first.id, "cover", visible);
   return (
     <article
-      className={`port-card port-card-library collection-entry collection-${layout === "rows" ? "row" : "cover"} min-w-0`}
+      className={`port-card port-card-library collection-entry collection-${layout === "rows" ? "row" : "cover"} relative min-w-0`}
     >
       <div className="collection-main">
         <div className="collection-identity">
@@ -346,6 +355,7 @@ function LibraryChoicePrompt({
           </div>
         </div>
       </div>
+      {favoriteControl && <div className="collection-personal-actions">{favoriteControl}</div>}
       <div className="library-entry-footer">
         <p className="collection-state text-xs text-pc-muted-foreground">
           {choice.reason === "stale"

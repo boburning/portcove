@@ -1741,6 +1741,12 @@ for (const [file, tests] of [
     ],
   ],
   [".config/nextest.toml", [...rustWorkflowContractTests, "scripts/nextest-equivalence.test.mts"]],
+  ...["scripts/check-retcomm-upstreams.mts", "scripts/retcomm-index.mts"].map(
+    (file): [string, string[]] => [
+      file,
+      ["scripts/check-retcomm-upstreams.test.mts", "scripts/development-cli-help.test.mts"],
+    ],
+  ),
   [
     "scripts/desktop-test-cli.mts",
     [
@@ -2412,6 +2418,10 @@ for (const file of [
     "scripts/application-release-budget.test.mts",
   ]);
 
+explicitNodeTests.set("scripts/release-controller-fixture-scope.mts", [
+  "scripts/ci-release-workflow.test.mts",
+]);
+
 const workflowTests = new Map([
   ["upstream-relocation-evidence.yml", ["scripts/check-catalog-repositories.test.mts"]],
   ["hosted-installed-update.yml", ["scripts/hosted-installed-update.test.mts"]],
@@ -2419,7 +2429,10 @@ const workflowTests = new Map([
     "hosted-native-continuity.yml",
     ["scripts/hosted-native-continuity.test.mts", "scripts/updater-artifact-inventory.test.mts"],
   ],
-  ["controller-tool-build-fixture.yml", ["scripts/release-controller-tools.test.mts"]],
+  [
+    "controller-tool-build-fixture.yml",
+    ["scripts/release-controller-tools.test.mts", "scripts/ci-release-workflow.test.mts"],
+  ],
   [
     "application-update-production.yml",
     [
@@ -2461,8 +2474,8 @@ const workflowTests = new Map([
     ["scripts/updater-artifact-inventory.test.mts", "scripts/release-payload-signing.test.mts"],
   ],
   ["pr-conventions.yml", ["scripts/pr-conventions.test.mts"]],
-  ["closing-inventory.yml", ["scripts/pr-delivery.test.mts"]],
-  ["ci-supersede.yml", ["scripts/ci-supersede.test.mts"]],
+  ["closing-inventory.yml", ["scripts/pr-delivery.test.mts", "scripts/pr-conventions.test.mts"]],
+  ["ci-supersede.yml", ["scripts/ci-supersede.test.mts", "scripts/select-ci-plan.test.mts"]],
 ]);
 
 for (const file of [

@@ -1,7 +1,7 @@
 import { Fragment, useId, useState, useRef, type ReactNode } from "react";
 import { Popover } from "@base-ui/react/popover";
 import { Menu } from "@base-ui/react/menu";
-import { Bookmark, EyeOff, Eye, Check, Folder, Plus } from "lucide-react";
+import { Heart, EyeOff, Eye, Check, Folder, Plus } from "lucide-react";
 import { Trans } from "react-i18next";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -9,7 +9,8 @@ import { controlFocus } from "../../components/ui/control-style";
 import type { CatalogEntry } from "../browsing/catalog-entry";
 import { originalGame, gameGroupId } from "../browsing/original-game";
 import { useAppTranslation } from "../../localization";
-import { gameIdentityLabel } from "../../port-identity";
+import { gameIdentityLabel, gameTitle } from "../../port-identity";
+import type { useFavorites } from "../favorites/use-favorites";
 import type { useOrganization } from "./use-organization";
 
 export type Organization = ReturnType<typeof useOrganization>;
@@ -21,23 +22,42 @@ export function savedForPort(organization: Organization | undefined, port: Catal
   const ids = organization?.snapshot?.saved_game_ids;
   return Boolean(ids?.includes(savedGameId(port)) || ids?.includes(`port-${port.id}`));
 }
+/** A game is a favorite when either the port-level or the game-level choice marks it. */
+export function favoriteForPort(
+  organization: Organization | undefined,
+  favoriteIds: ReadonlySet<string> | undefined,
+  port: CatalogEntry,
+): boolean {
+  return Boolean(favoriteIds?.has(port.id) || savedForPort(organization, port));
+}
+/** Resolve legacy port IDs against the full catalog before applying view filters. */
+export function favoriteGroupIds(
+  universe: readonly CatalogEntry[],
+  organization: Organization | undefined,
+  favoriteIds: ReadonlySet<string> | undefined,
+) {
+  return new Set(
+    universe.filter((port) => favoriteForPort(organization, favoriteIds, port)).map(gameGroupId),
+  );
+}
+
 export function organizedPorts(
   ports: CatalogEntry[],
   organization: Organization | undefined,
   selected: string,
   discover = false,
   universe: readonly CatalogEntry[] = ports,
+  favoriteIds?: ReadonlySet<string>,
 ) {
   const snapshot = organization?.snapshot;
   if (!snapshot) return selected === "all" ? ports : [];
-  const savedGroups = new Set(
-    universe.filter((port) => savedForPort(organization, port)).map(gameGroupId),
-  );
+  const savedGroups =
+    selected === "saved" ? favoriteGroupIds(universe, organization, favoriteIds) : undefined;
   return ports.filter((port) => {
     const hidden = snapshot.hidden_port_ids.includes(port.id);
     if (selected === "hidden") return hidden;
     if (hidden && !discover) return false;
-    if (selected === "saved") return savedGroups.has(gameGroupId(port));
+    if (selected === "saved") return savedGroups?.has(gameGroupId(port)) ?? false;
     if (selected === "followed") return snapshot.followed_port_ids.includes(port.id);
     if (selected.startsWith("collection:"))
       return snapshot.collections[selected.slice(11)]?.port_ids.includes(port.id) ?? false;
@@ -56,9 +76,11 @@ export function OrganizationControls({
   triggerClassName,
   afterAll,
   allSelected,
+  showFavorites = true,
 }: {
   afterAll?: ReactNode;
   allSelected?: boolean;
+  showFavorites?: boolean;
   children?: ReactNode;
   trigger?: ReactNode;
   triggerLabel?: string;
@@ -85,7 +107,7 @@ export function OrganizationControls({
         ["all", t("view.all")],
         ...(discover
           ? [
-              ["saved", t("view.saved")],
+              ...(showFavorites ? [["saved", t("view.saved")]] : []),
               ["followed", t("view.followed")],
             ]
           : [["hidden", t("view.hidden")]]),
@@ -347,58 +369,122 @@ export function SidebarCollections({
   );
 }
 
-export function SaveGameButton({
+type Favorites = ReturnType<typeof useFavorites>;
+export type FavoriteFocusRestore = (
+  button: HTMLElement,
+  action: () => Promise<boolean>,
+) => Promise<void>;
+
+export function FavoriteGameButton({
   port,
   organization,
+  favorites,
   groupPorts = [port],
   card = false,
+  restoreAfter,
 }: {
   port: CatalogEntry;
-  groupPorts?: readonly CatalogEntry[];
+  groupPorts?: readonly CatalogEntry[] | undefined;
   card?: boolean;
   organization?: Organization | undefined;
+  favorites?: Favorites | undefined;
+  restoreAfter?: FavoriteFocusRestore | undefined;
 }) {
   const { t } = useAppTranslation("organization");
-  if (!organization) return null;
-  const gameId = savedGameId(port);
-  const saved = groupPorts.some((entry) => savedForPort(organization, entry));
+  if (!organization && !favorites) return null;
+  const allPorts = groupPorts.length ? groupPorts : [port];
+  const favorite = allPorts.some((entry) => favoriteForPort(organization, favorites?.ids, entry));
+  const busy = Boolean(organization?.busy || favorites?.busy);
+  const unavailable = (organization && !organization.snapshot) || (favorites && !favorites.ids);
   return (
     <Button
       size={card ? "icon-sm" : "sm"}
-      className={card ? "collection-art-action collection-save" : undefined}
-      data-collection-control="save-game"
-      title={saved ? t("save.removeTitle") : t("save.title")}
-      variant={saved ? "selected" : "ghost"}
+      className={card ? "collection-art-action collection-favorite" : undefined}
+      data-collection-control="favorite"
+      title={favorite ? t("favorite.removeTitle") : t("favorite.title")}
+      variant={favorite ? "selected" : "ghost"}
       data-focusable
-      aria-pressed={saved}
-      aria-label={t("save.label", { game: gameIdentityLabel(port) })}
-      disabled={!organization.snapshot || organization.busy}
+      aria-pressed={favorite}
+      aria-label={t("favorite.label", {
+        game: originalGame(port) ? gameTitle(port) : gameIdentityLabel(port),
+      })}
+      aria-busy={busy}
+      disabled={Boolean(unavailable || busy || organization?.failure || favorites?.failure)}
+      focusableWhenDisabled={!unavailable}
       onClick={(event) => {
-        const button = event.currentTarget;
-        const root = button.closest("[data-focus-region=workspace]") ?? document;
-        void organization
-          .commit({
-            kind: "set_saved_group",
-            game_id: gameId,
-            legacy_port_ids: groupPorts.map((entry) => entry.id),
-            saved: !saved,
-          })
-          .then((accepted) => {
-            if (accepted)
-              requestAnimationFrame(() => {
-                if (!button.isConnected && document.activeElement === document.body)
-                  root
-                    .querySelector<HTMLButtonElement>(
-                      '[data-organization-controls="discover"] button',
-                    )
-                    ?.focus();
-              });
-          });
+        const action = () => changeFavorite(organization, favorites, port, allPorts, !favorite);
+        if (restoreAfter) void restoreAfter(event.currentTarget, action);
+        else void action();
       }}
     >
-      <Bookmark aria-hidden="true" />
-      {!card && (saved ? t("save.saved") : t("save.save"))}
+      <Heart aria-hidden="true" fill={favorite ? "currentColor" : "none"} />
+      {!card && t("favorite.favorite")}
     </Button>
+  );
+}
+
+async function changeFavorite(
+  organization: Organization | undefined,
+  favorites: Favorites | undefined,
+  port: CatalogEntry,
+  groupPorts: readonly CatalogEntry[],
+  favorite: boolean,
+) {
+  if (!organization) {
+    return (
+      favorites?.setPorts(
+        favorite
+          ? [port.id]
+          : groupPorts.filter((entry) => favorites.ids?.has(entry.id)).map((entry) => entry.id),
+        favorite,
+      ) ?? false
+    );
+  }
+  const legacyPortIds = groupPorts.map((entry) => entry.id);
+  const commitGame = () =>
+    organization.commit({
+      kind: "set_saved_group",
+      game_id: savedGameId(port),
+      legacy_port_ids: legacyPortIds,
+      saved: favorite,
+    });
+  const writeGame = favorite || groupPorts.some((entry) => savedForPort(organization, entry));
+  if (!favorites) return writeGame && commitGame();
+  const clearPorts = favorite ? [] : legacyPortIds.filter((id) => favorites.ids?.has(id));
+  return favorites.setPorts(clearPorts, false, writeGame ? commitGame : undefined);
+}
+
+export function FavoritePreferenceFailure({
+  favorites,
+  organization,
+  restoreAfter,
+}: {
+  favorites?: Favorites | undefined;
+  organization?: Organization | undefined;
+  restoreAfter?: FavoriteFocusRestore | undefined;
+}) {
+  const { t } = useAppTranslation("organization");
+  if (!favorites?.failure && !organization?.failure) return null;
+  return (
+    <div role="status" className="basis-full text-sm text-pc-warning-foreground">
+      <span>{t("favorite.unconfirmed")}</span>
+      <Button
+        variant="link"
+        size="sm"
+        disabled={Boolean(favorites?.busy || organization?.busy)}
+        focusableWhenDisabled
+        onClick={(event) => {
+          const refresh = async () => {
+            const reads = await Promise.all([favorites?.refresh(), organization?.refresh()]);
+            return reads.every((read) => read !== false);
+          };
+          if (restoreAfter) void restoreAfter(event.currentTarget, refresh);
+          else void refresh();
+        }}
+      >
+        {t("favorite.retry")}
+      </Button>
+    </div>
   );
 }
 

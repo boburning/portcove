@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useAppTranslation } from "../../localization";
+import { useId, useState } from "react";
 import { platforms } from "../../catalog-values.generated";
 import { platformLabel, releaseChannelPresentation } from "../../view-model";
 import { ChoiceSelect } from "../../components/ChoiceSelect";
@@ -250,6 +251,8 @@ export function GameComparisonEvidence({
   portId: string;
   organization: Organization | undefined;
 }) {
+  const { t } = useAppTranslation("organization");
+  const noticeDescriptionId = useId();
   const disclosureScope = JSON.stringify([comparison.scopeBinding, portId]);
   const [disclosure, setDisclosure] = useState({ scope: disclosureScope, open: false });
   const report = comparison.report;
@@ -391,7 +394,15 @@ export function GameComparisonEvidence({
             size="sm"
             variant={followed ? "selected" : "ghost"}
             aria-pressed={followed}
-            disabled={!organization.snapshot || organization.busy || comparison.loading}
+            aria-describedby={noticeDescriptionId}
+            aria-busy={organization.busy}
+            focusableWhenDisabled={Boolean(organization.snapshot)}
+            disabled={
+              !organization.snapshot ||
+              organization.busy ||
+              Boolean(organization.failure) ||
+              comparison.loading
+            }
             onClick={() =>
               void organization.commit({
                 kind: "set_followed_project",
@@ -401,14 +412,17 @@ export function GameComparisonEvidence({
               })
             }
           >
-            {followed ? `Following ${port.name}` : `Follow ${port.name}`}
+            {t("comparisonNotice.label", { port: port.name })}
           </Button>
+          <span aria-hidden="true" className="self-center text-sm">
+            {followed ? t("comparisonNotice.on") : t("comparisonNotice.off")}
+          </span>
+          <p id={noticeDescriptionId} className="basis-full text-xs text-pc-muted-foreground">
+            {t("comparisonNotice.effect")}
+          </p>
           {port.update_notice && followed && (
             <div role="status" className="basis-full text-sm">
-              <p>
-                New download noticed: {port.update_notice.version}. This doesn’t install it or
-                switch versions.
-              </p>
+              <p>{t("comparisonNotice.available", { version: port.update_notice.version })}</p>
               <Button
                 data-focusable
                 variant="ghost"
@@ -422,7 +436,7 @@ export function GameComparisonEvidence({
                   })
                 }
               >
-                Mark update notice as seen
+                {t("comparisonNotice.markSeen")}
               </Button>
             </div>
           )}
