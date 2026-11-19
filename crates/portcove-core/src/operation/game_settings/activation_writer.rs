@@ -2,11 +2,6 @@
 use super::*;
 use crate::operation::OperationStore;
 
-// Prospective slot 71 follows the saved-variant writer. Leave this unset until
-// the migration actually recognizes settings activation custody. An unrelated
-// future schema version must not enable this writer.
-const SETTINGS_ACTIVATION_WRITER_SCHEMA: Option<i64> = None;
-
 pub(crate) struct SettingsActivationWriter<'a> {
     store: &'a OperationStore,
 }
@@ -15,23 +10,34 @@ impl OperationStore {
     pub(crate) fn settings_activation_writer(
         &self,
     ) -> Result<Option<SettingsActivationWriter<'_>>> {
-        let Some(required) = SETTINGS_ACTIVATION_WRITER_SCHEMA else {
-            return Ok(None);
-        };
-        if crate::database::CURRENT_SCHEMA_VERSION < required {
-            return Ok(None);
-        }
+        let required = crate::database::SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION;
         let version: i64 = self.library.connection()?.query_row(
             "SELECT COALESCE(MAX(version), 0) FROM schema_migrations",
             [],
             |row| row.get(0),
         )?;
-        Ok((version == crate::database::CURRENT_SCHEMA_VERSION)
-            .then_some(SettingsActivationWriter { store: self }))
+        Ok(
+            (version >= required && version == crate::database::CURRENT_SCHEMA_VERSION)
+                .then_some(SettingsActivationWriter { store: self }),
+        )
     }
 }
 
 impl SettingsActivationWriter<'_> {
+    pub(crate) fn begin(&self, operation: &mut LifecycleOperation) -> Result<()> {
+        let payload = operation.settings_activation.as_ref().ok_or_else(invalid)?;
+        if operation.phase != LifecyclePhase::Preparing
+            || payload.canonical.replacement_identity.is_some()
+            || payload
+                .runtime
+                .as_ref()
+                .is_some_and(|leg| leg.replacement_identity.is_some())
+        {
+            return Err(invalid());
+        }
+        self.store.put_owned(operation, true)?;
+        self.confirm(operation)
+    }
     #[cfg(test)]
     pub(crate) fn for_windows_fixture(store: &OperationStore) -> SettingsActivationWriter<'_> {
         SettingsActivationWriter { store }

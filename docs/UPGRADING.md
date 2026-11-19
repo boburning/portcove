@@ -88,6 +88,19 @@ earlier refuse to open the library. Those versions could erase a saved choice or
 replace an installation without using it. Keep the pre-upgrade copy if you need
 to reopen it with an older version.
 
+### Managed settings recovery
+
+Writer protocol 71 protects a settings update while Portcove activates a staged
+game version. The library upgrade waits for older Desktop and CLI processes to
+close. After upgrading, versions with writer protocol 70 or earlier refuse the
+library. Keep the pre-upgrade copy if you need to use an older client.
+
+For a supported Windows settings file with an independent persistent path,
+Portcove applies a new shipped default when the verified old default still
+matches the player's file. If Portcove cannot verify the file, or both sides
+changed it differently, the affected installation stays staged. The player's
+file remains in place and the staged installation retains its shipped default.
+
 ### Required desktop runtime
 
 The first-beta Windows baseline is Windows 11 26H2 x86-64 with normal security

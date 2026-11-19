@@ -277,10 +277,14 @@ impl OperationStore {
     }
 
     pub fn put(&self, operation: &mut LifecycleOperation) -> Result<()> {
+        self.put_owned(operation, false)
+    }
+
+    fn put_owned(&self, operation: &mut LifecycleOperation, settings_owner: bool) -> Result<()> {
         operation.validate_family()?;
         acquisition::validate_journal(&self.library, operation)?;
         game_settings::validate_journal(&self.library, operation)?;
-        if operation.settings_activation.is_some() {
+        if operation.settings_activation.is_some() && !settings_owner {
             // An older writer would recover this as ordinary activation. Do
             // not emit the new envelope before the writer-protocol migration.
             return Err(PortcoveError::unsupported(
@@ -339,11 +343,14 @@ impl OperationStore {
             .as_ref()
             .map(serde_json::to_string)
             .transpose()?;
-        let game_settings_json = operation
-            .game_settings
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()?;
+        let game_settings_json = match &operation.settings_activation {
+            Some(payload) => Some(serde_json::to_string(payload)?),
+            None => operation
+                .game_settings
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()?,
+        };
         if game_settings_json
             .as_ref()
             .is_some_and(|value| value.len() > 16384)
@@ -387,7 +394,8 @@ impl OperationStore {
                activate=excluded.activate,
                last_error=excluded.last_error,
                updated_at=excluded.updated_at
-             WHERE NOT (lifecycle_operations.kind='activate' AND lifecycle_operations.game_settings_json IS NOT NULL)",
+             WHERE NOT (lifecycle_operations.kind='activate' AND lifecycle_operations.game_settings_json IS NOT NULL)
+               AND NOT (excluded.kind='activate' AND excluded.game_settings_json IS NOT NULL)",
             params![
                 operation.id,
                 operation.kind.to_string(),

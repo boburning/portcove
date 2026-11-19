@@ -18,7 +18,6 @@ pub(in crate::service) struct PreparedSettingsDefaultActivation {
     pub(in crate::service) relative_path: String,
     pub(in crate::service) maximum_bytes: u64,
     pub(in crate::service) files: HeldDefaultReplacement,
-    pub(in crate::service) bytes: Vec<u8>,
 }
 
 pub(in crate::service) struct HeldDefaultReplacement {
@@ -77,8 +76,75 @@ fn hold(file: &GameSettingsFile, reason: &str) -> PortcoveError {
 }
 
 impl PortcoveService {
-    /// Prepare after ordinary projection has established the target's copy and
-    /// before the active pointer changes. The caller owns the port lock.
+    pub(in crate::service) fn settings_update_requires_staging(
+        &self,
+        port: &PortDefinition,
+        active: Option<&InstallRecord>,
+    ) -> Result<bool> {
+        let Some(active) = active else {
+            return Ok(false);
+        };
+        if Platform::current()? != Platform::WindowsX86_64 {
+            return Ok(false);
+        }
+        if port.game_settings.is_some() {
+            return Ok(true);
+        }
+        if active.manifest_sha256.is_empty() {
+            return Ok(false);
+        }
+        Ok(Installer::new(self.library.clone())?
+            .retained_settings_defaults(active)?
+            .is_some_and(|defaults| !defaults.shipped.is_empty()))
+    }
+
+    pub(in crate::service) fn publish_settings_default_activation_locked(
+        &self,
+        store: &OperationStore,
+        mut operation: LifecycleOperation,
+        kind: crate::VersionChangeKind,
+        prepared: PreparedSettingsDefaultActivation,
+    ) -> Result<InstallRecord> {
+        let writer = store.settings_activation_writer()?.ok_or_else(|| {
+            PortcoveError::unsupported(
+                "managed settings activation requires its compatible library writer protocol",
+            )
+        })?;
+        self.require_completed_backup_restore(&operation.port_id)?;
+        self.require_completed_backup_deletion(&operation.port_id)?;
+        let excluded = Some(prepared.relative_path.as_str());
+        self.collect_active_user_data_except(&operation.port_id, excluded)?;
+        self.snapshot_before_version_change(
+            &operation.port_id,
+            kind,
+            &prepared.previous,
+            Some(&prepared.previous.version),
+            &prepared.target.version,
+            false,
+        )?;
+        self.prepare_retained_install_data_except(&prepared.target, excluded)?;
+        self.carry_unknown_files(&prepared.previous, &prepared.target)?;
+        let target = prepared.target.clone();
+        prepared.bind_journal(&mut operation)?;
+        writer.begin(&mut operation)?;
+        drop(prepared);
+        if let Err(error) = self.recover_checked_settings_activation(&writer, &mut operation) {
+            let _ = writer.record_hold(&mut operation, &error.message);
+            return Err(error);
+        }
+        self.library
+            .status(&operation.port_id, target.channel)?
+            .active
+            .filter(|current| crate::recovery::same_activation_install(current, &target))
+            .ok_or_else(|| {
+                PortcoveError::state(
+                    "settings activation committed without its exact active target",
+                )
+            })
+    }
+
+    /// Freeze the settings coordinate before ordinary data collection or
+    /// projection can touch it. The caller owns the port lock.
     pub(in crate::service) fn prepare_settings_default_activation_locked(
         &self,
         active: &InstallRecord,
@@ -108,8 +174,14 @@ impl PortcoveService {
         }
 
         let installer = Installer::new(self.library.clone())?;
-        let prior = installer.retained_settings_defaults(active)?;
-        let incoming = installer.retained_settings_defaults(staged)?;
+        let read_defaults = |install: &InstallRecord| {
+            (!install.manifest_sha256.is_empty())
+                .then(|| installer.retained_settings_defaults(install))
+                .transpose()
+                .map(Option::flatten)
+        };
+        let prior = read_defaults(active)?;
+        let incoming = read_defaults(staged)?;
         let Some(incoming) = incoming else {
             if let Some(file) = prior.as_ref().and_then(first_shipped_file) {
                 return Err(hold(file, "missing-incoming-default"));
@@ -132,9 +204,34 @@ impl PortcoveService {
         if files.peek().is_some() {
             return Err(hold(file, "multiple-declared-settings-files"));
         }
+        if !incoming.shipped.contains_key(&file.path)
+            || !prior.as_ref().is_some_and(|prior| {
+                prior.shipped.contains_key(&file.path)
+                    && prior.contract.files.iter().any(|old| {
+                        old.id == file.id && old.path == file.path && old.format == file.format
+                    })
+            })
+        {
+            return Err(hold(file, "missing-verified-default"));
+        }
 
         let prior_contract = self.persistence_contract_for_install(active)?;
         let target_contract = self.persistence_contract_for_install(staged)?;
+        for port in [&prior_contract.port, &target_contract.port] {
+            if port.runtime_data_policy.is_some()
+                || crate::persistence::requires_restore_receipt(port)
+                || !port.persistent_paths.contains(&file.path)
+                || port
+                    .persistent_paths
+                    .iter()
+                    .any(|path| file.path.starts_with(&format!("{path}/")))
+            {
+                return Err(hold(
+                    file,
+                    "settings-path-is-not-an-independent-persistent-file",
+                ));
+            }
+        }
         let canonical_root = self.library.user_dir(&staged.port_id);
         let prior_root = (!prior_contract.writes_directly)
             .then(|| self.persistence_root(&prior_contract.port, &active.path))
@@ -148,9 +245,11 @@ impl PortcoveService {
         {
             return Err(hold(file, "divergent-player-settings-copies"));
         }
-        let recorded = player
-            .as_deref()
-            .map_or(PlayerSettings::Unobserved, PlayerSettings::Present);
+        let recorded = PlayerSettings::Present(
+            player
+                .as_deref()
+                .ok_or_else(|| hold(file, "missing-player-evidence"))?,
+        );
         let plans = incoming.plan_update(
             prior.as_ref(),
             &std::collections::BTreeMap::from([(file.path.clone(), recorded)]),
@@ -177,7 +276,6 @@ impl PortcoveService {
                     relative_path: file.path.clone(),
                     maximum_bytes: file.maximum_bytes,
                     files,
-                    bytes: bytes.clone(),
                 }))
             }
             SettingsUpdate::KeepPlayerAndDefault(_) => {
@@ -209,12 +307,8 @@ fn freeze_replacement(
         return Err(hold(file, "missing-player-evidence"));
     };
     plan.require_unchanged_player(file, canonical_root, prior_root)?;
-    let runtime = target_root.map(|root| root.join(&file.path));
-    let copies = HeldSettingsCopies::open(
-        &canonical_root.join(&file.path),
-        runtime.as_deref(),
-        file.maximum_bytes,
-    )?;
+    let mut copies =
+        HeldSettingsCopies::open(&canonical_root.join(&file.path), None, file.maximum_bytes)?;
     if hex::encode(Sha256::digest(&copies.before)) != *sha256 {
         return Err(hold(file, "player-preimage-changed"));
     }
@@ -229,10 +323,23 @@ fn freeze_replacement(
         .transpose()?;
     let proposed_sha256 = hex::encode(Sha256::digest(bytes));
     let canonical = custody(&copies.canonical, sha256, &proposed_sha256);
-    let runtime = copies
-        .runtime
-        .as_ref()
-        .map(|held| custody(held, sha256, &proposed_sha256));
+    let runtime = target_root
+        .map(|root| {
+            let mut held = HeldFile::open(&root.join(&file.path))?;
+            held.require_editable_security()?;
+            let target_bytes = held.bytes(file.maximum_bytes)?;
+            if target_bytes != copies.before && target_bytes != bytes {
+                return Err(hold(file, "staged-settings-preimage-changed"));
+            }
+            let leg = custody(
+                &held,
+                &hex::encode(Sha256::digest(&target_bytes)),
+                &proposed_sha256,
+            );
+            copies.runtime = Some(held);
+            Ok(leg)
+        })
+        .transpose()?;
     Ok(HeldDefaultReplacement {
         canonical,
         runtime,
@@ -321,8 +428,17 @@ mod tests {
         drop(held);
 
         fs::write(staged.join(&file.path), incoming).unwrap();
+        let pristine = prepare().unwrap();
+        let pristine_runtime = pristine.runtime.as_ref().unwrap();
+        assert_eq!(
+            pristine_runtime.previous_sha256,
+            pristine_runtime.proposed_sha256
+        );
+        drop(pristine);
+        let foreign = b"concurrent staged bytes";
+        fs::write(staged.join(&file.path), foreign).unwrap();
         assert!(prepare().is_err());
-        assert_eq!(fs::read(staged.join(&file.path)).unwrap(), incoming);
+        assert_eq!(fs::read(staged.join(&file.path)).unwrap(), foreign);
         assert_eq!(fs::read(canonical.join(&file.path)).unwrap(), old);
         fs::write(staged.join(&file.path), old).unwrap();
         fs::write(previous.join(&file.path), incoming).unwrap();
@@ -331,3 +447,7 @@ mod tests {
         assert_eq!(fs::read(staged.join(&file.path)).unwrap(), old);
     }
 }
+
+#[cfg(test)]
+#[path = "activation_entrypoint_tests.rs"]
+mod activation_entrypoint_tests;

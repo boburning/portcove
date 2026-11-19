@@ -131,6 +131,15 @@ pub struct InstallQualification {
 }
 
 impl InstallQualification {
+    #[cfg(all(test, windows))]
+    pub(crate) fn with_fixture_shipped_settings_defaults(
+        mut self,
+        defaults: BTreeMap<String, crate::game_settings::ShippedDefault>,
+    ) -> Self {
+        self.shipped_settings_defaults = defaults;
+        self
+    }
+
     pub(crate) fn with_shared_preferences(
         mut self,
         accepted: Option<crate::managed_shared_preferences::Acceptance>,

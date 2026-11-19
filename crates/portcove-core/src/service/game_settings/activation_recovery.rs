@@ -130,7 +130,8 @@ impl PortcoveService {
             }
             let mut held = HeldFile::open(&custody.path)?;
             held.require_editable_security()?;
-            if checked_bytes(&mut held, custody, true, payload.maximum_bytes)? != inputs.old {
+            let expected = inputs.preimage(custody);
+            if checked_bytes(&mut held, custody, true, payload.maximum_bytes)? != expected {
                 return Err(conflict());
             }
             Ok(held)
@@ -190,11 +191,13 @@ impl PortcoveService {
             .as_ref()
             .map(|leg| Leg::open(leg, &operation.id, "runtime", payload.maximum_bytes))
             .transpose()?;
-        for leg in std::iter::once(&canonical).chain(runtime.iter()) {
+        for (leg, custody) in std::iter::once((&canonical, &payload.canonical))
+            .chain(runtime.as_ref().zip(payload.runtime.as_ref()))
+        {
             if leg
                 .before
                 .as_deref()
-                .is_some_and(|bytes| bytes != inputs.old.as_slice())
+                .is_some_and(|bytes| bytes != inputs.preimage(custody))
                 || leg.after != inputs.new
             {
                 return Err(conflict());
@@ -305,6 +308,16 @@ impl PortcoveService {
             new,
             previous_runtime,
         })
+    }
+}
+
+impl RecoveryInputs {
+    fn preimage(&self, leg: &crate::operation::game_settings::FileCustody) -> &[u8] {
+        if leg.previous_sha256 == leg.proposed_sha256 {
+            &self.new
+        } else {
+            &self.old
+        }
     }
 }
 

@@ -242,6 +242,7 @@ pub(crate) fn validate_journal(library: &Library, operation: &LifecycleOperation
         operation.phase,
         &payload.canonical,
         payload.runtime.as_ref(),
+        false,
     )?;
     if let Some(runtime) = &payload.runtime {
         let relative = runtime
@@ -263,6 +264,7 @@ fn validate_legs(
     phase: super::LifecyclePhase,
     canonical: &FileCustody,
     runtime: Option<&FileCustody>,
+    allow_pristine_runtime: bool,
 ) -> Result<()> {
     for custody in std::iter::once(canonical).chain(runtime) {
         if !identity(&custody.parent_identity)
@@ -275,7 +277,9 @@ fn validate_legs(
             || custody.replacement_identity.as_deref() == Some(custody.original_identity.as_str())
             || !digest(&custody.previous_sha256)
             || !digest(&custody.proposed_sha256)
-            || custody.previous_sha256 != canonical.previous_sha256
+            || (custody.previous_sha256 != canonical.previous_sha256
+                && !(allow_pristine_runtime
+                    && custody.previous_sha256 == canonical.proposed_sha256))
             || custody.proposed_sha256 != canonical.proposed_sha256
         {
             return Err(invalid());
@@ -379,6 +383,7 @@ fn validate_activation(
         operation.phase,
         &payload.canonical,
         payload.runtime.as_ref(),
+        true,
     )
 }
 
