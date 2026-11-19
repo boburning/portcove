@@ -317,18 +317,16 @@ export function PortCapabilities({
       {report && report.observations.length > 0 && (
         <details>
           <summary data-focusable>{t("capabilities.observations.summary")}</summary>
-          <div className="pt-3">
-            <p>{t("capabilities.observations.intro")}</p>
-            {report.observations.map((observation) => (
-              <div key={observation.id} className="mt-2 text-sm">
-                <p>{observation.explanation}</p>
-                <p>{JSON.stringify(observation.scope)}</p>
-                <ExternalLink href={observation.source}>
-                  {t("capabilities.observations.source")}
-                </ExternalLink>
-              </div>
-            ))}
-          </div>
+          <p>{t("capabilities.observations.intro")}</p>
+          {report.observations.map((observation) => (
+            <div key={observation.id} className="mt-2 text-sm">
+              <p>{observation.explanation}</p>
+              <p>{JSON.stringify(observation.scope)}</p>
+              <ExternalLink href={observation.source}>
+                {t("capabilities.observations.source")}
+              </ExternalLink>
+            </div>
+          ))}
         </details>
       )}
     </section>

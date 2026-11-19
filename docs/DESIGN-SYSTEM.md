@@ -1261,7 +1261,8 @@ keyboard disclosure controls remain reachable in compact windows.
 
 Launch advisories pair each first-launch or repeat-Play label with its value,
 using quieter labels, stronger values and a clear gap between phases. Historical
-observation bodies leave room below the summary's visible keyboard focus ring.
+observation spacing belongs to the surrounding `detail-evidence` consumer;
+verify the complete explanation, exact scope and source in that context.
 
 ## Prototype presentation alignment
 

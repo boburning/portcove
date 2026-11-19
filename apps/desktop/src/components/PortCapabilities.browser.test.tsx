@@ -329,6 +329,7 @@ it("keeps complete advisory and recorded scopes readable in narrow detail column
   try {
     document.documentElement.dataset.theme = "light";
     const { host, render } = await mount();
+    host.className = "detail-evidence";
     // Match the narrow App's navigation rail and padded detail column.
     host.style.cssText =
       "display:grid;grid-template-columns:minmax(0,1fr);width:calc(100% - 60px);margin-inline-start:60px;padding:20px;box-sizing:border-box";
@@ -383,6 +384,30 @@ it("keeps complete advisory and recorded scopes readable in narrow detail column
       expect(host.textContent).toContain("the results remain historical");
       recorded.scrollIntoView({ block: "center" });
       assertContained(recorded);
+      assertContained(introduction);
+      const source = history.parentElement?.querySelector("a");
+      if (!source) throw new Error("Expected the historical evidence source");
+      expect(source.getAttribute("href")).toBe("https://example.com/history");
+      expect(source.textContent).toBe("Evidence source");
+      assertContained(source);
+      const historical = history.parentElement;
+      if (!historical) throw new Error("Expected the historical observation disclosure");
+      const historicalBounds = historical.getBoundingClientRect();
+      requireCompleteCaptureTarget(
+        {
+          target: "complete historical observation",
+          target_count: 1,
+          visible: historical.checkVisibility(),
+          rect: {
+            x: historicalBounds.x,
+            y: historicalBounds.y,
+            width: historicalBounds.width,
+            height: historicalBounds.height,
+          },
+          viewport: { width: innerWidth, height: innerHeight },
+        },
+        "complete historical observation",
+      );
       await captureParityState("capabilities-complete-historical-scope");
       history.focus();
       await userEvent.keyboard("{Enter}");
