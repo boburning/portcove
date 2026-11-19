@@ -3905,6 +3905,8 @@ try {
   }
   await scenario("keyboard-layout", async () => {
     const browser = driverBrowser();
+    // A grouped result can display the original game's title even when a port matched the query.
+    const ghostshipIdentity = By.css('.discover-game-identity[data-detail-game-id="ghostship"]');
     const futureFolderSummary = By.xpath(
       '//details[contains(@class,"future-setup-disclosure")]/summary[normalize-space(.)="Folder for a future install"]',
     );
@@ -4249,29 +4251,27 @@ try {
     await clearCatalogFilters(browser);
     await browser.findElement(By.id("port-search")).sendKeys("Ghostship");
     assert.equal(await search.getAttribute("value"), "Ghostship");
-    await browser.wait(
-      () =>
-        executeBrowserScript(browser, () =>
-          [...document.querySelectorAll(".discover-game-identity")].some((card) =>
-            card.textContent?.includes("Ghostship"),
-          ),
-        ),
+    const searched = await browser.wait(
+      until.elementLocated(ghostshipIdentity),
       15_000,
+      "The searched Ghostship port did not enter the rendered catalog window",
     );
-    const origin = await executeBrowserScript(browser, () => {
-      const cards = [...document.querySelectorAll(".discover-game-identity")];
-      const card = cards.find((item) => item.textContent?.includes("Ghostship"));
-      if (!(card instanceof HTMLElement)) throw new Error("Catalog detail origin is missing");
-      card.scrollIntoView({ block: "center", inline: "nearest" });
-      card.focus();
-      const originKey = card.getAttribute("data-detail-origin");
-      const workspace = document.querySelector("main");
-      if (!originKey || !(workspace instanceof HTMLElement))
-        throw new Error("Catalog detail origin is incomplete");
-      const scrollTop = workspace.scrollTop;
-      card.click();
-      return { originKey, scrollTop };
-    });
+    const origin = await executeBrowserScript(
+      browser,
+      (card) => {
+        if (!(card instanceof HTMLElement)) throw new Error("Catalog detail origin is missing");
+        card.scrollIntoView({ block: "center", inline: "nearest" });
+        card.focus();
+        const originKey = card.getAttribute("data-detail-origin");
+        const workspace = document.querySelector("main");
+        if (!originKey || !(workspace instanceof HTMLElement))
+          throw new Error("Catalog detail origin is incomplete");
+        const scrollTop = workspace.scrollTop;
+        card.click();
+        return { originKey, scrollTop };
+      },
+      searched,
+    );
     await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
     assert.equal(
       await executeBrowserScript(browser, () =>
@@ -4576,27 +4576,23 @@ try {
         await captureScenarioScreenshot(`catalog-short-window-${theme}`);
 
         await browser.findElement(By.id("port-search")).sendKeys("Ghostship");
-        await browser.wait(
-          () =>
-            executeBrowserScript(browser, () =>
-              [...document.querySelectorAll(".discover-game-identity")].some((card) =>
-                card.textContent?.includes("Ghostship"),
-              ),
-            ),
+        const themedCard = await browser.wait(
+          until.elementLocated(ghostshipIdentity),
           15_000,
-          "The searched Ghostship card did not enter the rendered catalog window",
+          "The searched Ghostship port did not enter the rendered catalog window",
         );
-        const themedOrigin = await executeBrowserScript(browser, () => {
-          const card = [...document.querySelectorAll(".discover-game-identity")].find((item) =>
-            item.textContent?.includes("Ghostship"),
-          );
-          if (!(card instanceof HTMLElement)) throw new Error("Ghostship card is missing");
-          const originKey = card.getAttribute("data-detail-origin");
-          if (!originKey) throw new Error("Ghostship detail origin is missing");
-          card.scrollIntoView({ block: "center", inline: "nearest" });
-          card.click();
-          return originKey;
-        });
+        const themedOrigin = await executeBrowserScript(
+          browser,
+          (card) => {
+            if (!(card instanceof HTMLElement)) throw new Error("Ghostship card is missing");
+            const originKey = card.getAttribute("data-detail-origin");
+            if (!originKey) throw new Error("Ghostship detail origin is missing");
+            card.scrollIntoView({ block: "center", inline: "nearest" });
+            card.click();
+            return originKey;
+          },
+          themedCard,
+        );
         await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
         for (const size of [
           { width: 960, height: 640 },
