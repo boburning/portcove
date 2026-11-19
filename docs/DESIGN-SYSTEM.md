@@ -1128,6 +1128,10 @@ External-folder registration and relink reviews keep Folder, Game program and
 Previous folder values as exact left-to-right paths using the shared path-value
 wrapping rule; labels remain ordinary UI text, and extended Windows prefixes
 continue on the same first line as their path.
+Version and Checked files share a compact first row. Folder and Game program each
+use the full metadata width below it, in that document order, so long exact paths
+do not force short facts into tall empty cells. Preserve the same structure at
+compact and normal dialog widths.
 
 Preparation completion reports that game data is prepared. It does not grant
 launch availability: the refreshed Core readiness and existing current-action

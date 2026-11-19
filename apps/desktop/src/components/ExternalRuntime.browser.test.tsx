@@ -968,6 +968,38 @@ it.each([
   expect(document.body.textContent).not.toContain("Portcove retains");
 });
 
+function expectExternalMetadataLayout(metadata: Element) {
+  const labels = [...metadata.querySelectorAll("small")];
+  expect(labels.map((label) => label.textContent)).toEqual([
+    "Version",
+    "Checked files",
+    "Folder",
+    "Game program",
+  ]);
+  const facts = labels.map((label) =>
+    fixtureValue(label.parentElement, `${label.textContent} metadata fact`).getBoundingClientRect(),
+  );
+  const version = fixtureValue(facts[0], "Version fact");
+  const checked = fixtureValue(facts[1], "Checked files fact");
+  const folder = fixtureValue(facts[2], "Folder fact");
+  const program = fixtureValue(facts[3], "Game program fact");
+  const bounds = metadata.getBoundingClientRect();
+  expect(version.width).toBeGreaterThan(0);
+  expect(Math.abs(version.top - checked.top)).toBeLessThanOrEqual(1);
+  expect(Math.abs(version.width - checked.width)).toBeLessThanOrEqual(1);
+  expect(checked.left).toBeGreaterThan(version.right);
+  expect(folder.top).toBeGreaterThan(version.bottom);
+  expect(program.top).toBeGreaterThan(folder.bottom);
+  for (const path of [folder, program]) {
+    expect(Math.abs(path.left - bounds.left)).toBeLessThanOrEqual(1);
+    expect(Math.abs(path.right - bounds.right)).toBeLessThanOrEqual(1);
+    expect(path.width).toBeGreaterThan(version.width * 2);
+  }
+  // Short facts must not stretch to match these deliberately long paths.
+  expect(version.height).toBeLessThan(folder.height);
+  expect(checked.height).toBeLessThan(program.height);
+}
+
 function expectCompleteExternalPath(target: Element, label: string, path: string) {
   expect(target.textContent).toBe(path);
   expect(target.getAttribute("dir")).toBe("ltr");
@@ -1048,6 +1080,7 @@ it.each(
         document.querySelector('[aria-label="External runtime review"]'),
         "actual external review metadata",
       );
+      expectExternalMetadataLayout(metadata);
       const pathFor = (label: string) => {
         const heading = fixtureValue(
           [...metadata.querySelectorAll("small")].find((small) => small.textContent === label),
@@ -1203,6 +1236,7 @@ it.each(["dark", "light"] as const)(
         dialog.element().querySelector('[aria-label="External runtime review"]'),
         "replacement review metadata",
       );
+      expectExternalMetadataLayout(metadata);
       const codes = [...metadata.querySelectorAll("code")];
       expect(codes).toHaveLength(2);
       expectCompleteExternalPath(

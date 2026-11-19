@@ -756,28 +756,28 @@ function RegisterExternalDialog({
         )}
         {preview && (
           <div
-            className="metadata grid grid-cols-[1fr_1fr] gap-[10px]"
+            className="metadata grid grid-cols-2 gap-[10px]"
             aria-label="External runtime review"
           >
             <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
               <small className="mb-[5px] block text-[var(--color-text-muted)]">Version</small>
               {preview.version}
             </span>
-            <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
+            <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+              <small className="mb-[5px] block text-[var(--color-text-muted)]">Checked files</small>
+              {preview.immutable_file_count}
+            </span>
+            <span className="col-span-2 min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
               <small className="mb-[5px] block text-[var(--color-text-muted)]">Folder</small>
               <code dir="ltr" className="path-value whitespace-normal">
                 {preview.path}
               </code>
             </span>
-            <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
+            <span className="col-span-2 min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
               <small className="mb-[5px] block text-[var(--color-text-muted)]">Game program</small>
               <code dir="ltr" className="path-value whitespace-normal">
                 {preview.executable}
               </code>
-            </span>
-            <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-              <small className="mb-[5px] block text-[var(--color-text-muted)]">Checked files</small>
-              {preview.immutable_file_count}
             </span>
             {preview.shared_preferences && (
               <p className="col-span-2 [overflow-wrap:anywhere]">
