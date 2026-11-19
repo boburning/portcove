@@ -396,3 +396,24 @@ async fn a_new_extension_for_the_same_mod_is_planned_as_a_replacement_and_ambigu
     server.join().unwrap();
     assert!(error.message.contains("same mod"), "{}", error.message);
 }
+
+#[tokio::test]
+async fn provider_plan_refuses_unconfirmed_archival_status_before_download() {
+    let w = world();
+    let mut project: serde_json::Value =
+        serde_json::from_str(&project_body(777, 10, "pack.zip", 10)).unwrap();
+    project["_aFiles"][0]["_bIsArchived"] = serde_json::Value::Null;
+    let response = json_response(&project.to_string());
+    let (found, requests, server) = serve_http_bytes(vec![response]);
+    let client = GameBananaClient::with_roots(&found, None).unwrap();
+    let error = w
+        .service
+        .plan_provider_install_with(&client, "starship", &w.profile, 42, 10)
+        .await
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Verification);
+    assert!(error.message.contains("did not confirm"));
+    server.join().unwrap();
+    assert!(requests.recv().unwrap().contains("Mod/42"));
+    assert!(requests.try_recv().is_err());
+}

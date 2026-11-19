@@ -781,7 +781,9 @@ pub(crate) fn provider_project_text(view: &portcove_core::ProviderProjectView) -
     )];
     let stale = stale_note(&project.provider, view.freshness, view.observed_at);
     lines.extend(stale.clone());
-    if project.obsolete {
+    if project.status_unknown.is_some() {
+        lines.push("The provider did not confirm this mod's availability. Check its project page and then refresh the listing.".into());
+    } else if project.obsolete {
         lines.push("Its author marked it obsolete, so Portcove won't install it.".into());
     }
     if project.files.is_empty() {
@@ -793,10 +795,12 @@ pub(crate) fn provider_project_text(view: &portcove_core::ProviderProjectView) -
             clean(&file.file_id),
             clean(&file.file_name),
             crate::human::format_bytes(file.size),
-            match (file.archived, noun) {
-                (false, _) => "",
-                (true, "version") => "; no longer offered, so it can't be installed",
-                (true, _) => "; archived, so it can't be installed",
+            match (file.status_unknown, file.archived, noun) {
+                (Some(_), _, _) =>
+                    "; availability unknown, refresh the listing before reviewing it",
+                (None, false, _) => "",
+                (None, true, "version") => "; no longer offered, so it can't be installed",
+                (None, true, _) => "; archived, so it can't be installed",
             },
             file.claimed_scan
                 .as_deref()
@@ -813,7 +817,12 @@ pub(crate) fn provider_project_text(view: &portcove_core::ProviderProjectView) -
             "{count} more {noun}s on {provider} couldn't be read safely and aren't listed."
         )),
     }
-    let installable = !project.obsolete && project.files.iter().any(|file| !file.archived);
+    let installable = !project.obsolete
+        && project.status_unknown.is_none()
+        && project
+            .files
+            .iter()
+            .any(|file| !file.archived && file.status_unknown.is_none());
     if stale.is_some() {
         lines.push(format!(
             "Try again when {provider} can be reached before reviewing a {noun}."
@@ -1691,6 +1700,7 @@ mod provider_text_tests {
             game_id: Some("16121".into()),
             updated_at: 5,
             obsolete,
+            status_unknown: None,
             profile_url: String::new(),
             submitter: None,
             files: vec![ProviderFileCandidate {
@@ -1701,6 +1711,7 @@ mod provider_text_tests {
                 download_url: String::new(),
                 claimed_md5: None,
                 archived,
+                status_unknown: None,
                 claimed_scan: Some("clean".into()),
                 thunderstore_dependencies: None,
             }],

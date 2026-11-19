@@ -46475,6 +46475,17 @@
             "minimum": 0,
             "type": "integer"
           },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish archival status."
+          },
           "thunderstore_dependencies": {
             "description": "Exact provider coordinates, independent of native loader requirements.\nAbsent for providers that do not supply this field.",
             "items": {
@@ -46580,6 +46591,17 @@
           "provider": {
             "type": "string"
           },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish project eligibility."
+          },
           "submitter": {
             "type": [
               "string",
@@ -46619,6 +46641,15 @@
           "unreadable_files"
         ],
         "type": "object"
+      },
+      "ProviderStatusUnknown": {
+        "description": "Why a provider's eligibility flag could not be determined.",
+        "enum": [
+          "omitted",
+          "null",
+          "malformed"
+        ],
+        "type": "string"
       },
       "ThunderstoreDependency": {
         "description": "One exact Thunderstore dependency coordinate from a version listing.",
@@ -46832,6 +46863,17 @@
             "minimum": 0,
             "type": "integer"
           },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish archival status."
+          },
           "thunderstore_dependencies": {
             "description": "Exact provider coordinates, independent of native loader requirements.\nAbsent for providers that do not supply this field.",
             "items": {
@@ -46894,6 +46936,15 @@
           "project"
         ],
         "type": "object"
+      },
+      "ProviderStatusUnknown": {
+        "description": "Why a provider's eligibility flag could not be determined.",
+        "enum": [
+          "omitted",
+          "null",
+          "malformed"
+        ],
+        "type": "string"
       },
       "ProviderWrapper": {
         "properties": {
@@ -47107,6 +47158,17 @@
             "minimum": 0,
             "type": "integer"
           },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish archival status."
+          },
           "thunderstore_dependencies": {
             "description": "Exact provider coordinates, independent of native loader requirements.\nAbsent for providers that do not supply this field.",
             "items": {
@@ -47181,6 +47243,17 @@
           "provider": {
             "type": "string"
           },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish project eligibility."
+          },
           "submitter": {
             "type": [
               "string",
@@ -47220,6 +47293,15 @@
           "unreadable_files"
         ],
         "type": "object"
+      },
+      "ProviderStatusUnknown": {
+        "description": "Why a provider's eligibility flag could not be determined.",
+        "enum": [
+          "omitted",
+          "null",
+          "malformed"
+        ],
+        "type": "string"
       },
       "ThunderstoreDependency": {
         "description": "One exact Thunderstore dependency coordinate from a version listing.",
@@ -47355,6 +47437,17 @@
             "minimum": 0,
             "type": "integer"
           },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish archival status."
+          },
           "thunderstore_dependencies": {
             "description": "Exact provider coordinates, independent of native loader requirements.\nAbsent for providers that do not supply this field.",
             "items": {
@@ -47438,6 +47531,15 @@
           "project"
         ],
         "type": "object"
+      },
+      "ProviderStatusUnknown": {
+        "description": "Why a provider's eligibility flag could not be determined.",
+        "enum": [
+          "omitted",
+          "null",
+          "malformed"
+        ],
+        "type": "string"
       },
       "ProviderUpdateState": {
         "oneOf": [
@@ -47690,6 +47792,17 @@
             "minimum": 0,
             "type": "integer"
           },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish archival status."
+          },
           "thunderstore_dependencies": {
             "description": "Exact provider coordinates, independent of native loader requirements.\nAbsent for providers that do not supply this field.",
             "items": {
@@ -47849,6 +47962,15 @@
           "project"
         ],
         "type": "object"
+      },
+      "ProviderStatusUnknown": {
+        "description": "Why a provider's eligibility flag could not be determined.",
+        "enum": [
+          "omitted",
+          "null",
+          "malformed"
+        ],
+        "type": "string"
       },
       "ProviderWrapper": {
         "properties": {
@@ -48352,6 +48474,17 @@
             "minimum": 0,
             "type": "integer"
           },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish archival status."
+          },
           "thunderstore_dependencies": {
             "description": "Exact provider coordinates, independent of native loader requirements.\nAbsent for providers that do not supply this field.",
             "items": {
@@ -48531,6 +48664,15 @@
           "members"
         ],
         "type": "object"
+      },
+      "ProviderStatusUnknown": {
+        "description": "Why a provider's eligibility flag could not be determined.",
+        "enum": [
+          "omitted",
+          "null",
+          "malformed"
+        ],
+        "type": "string"
       },
       "ProviderWrapper": {
         "properties": {

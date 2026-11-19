@@ -262,6 +262,24 @@ it("browses, reviews a file and installs only the confirmed plan", async () => {
   expect(onInstalled).toHaveBeenCalledWith("Installed hd-link.o2r from HD Link into Default.");
 });
 
+it("shows unconfirmed file eligibility without offering an install review", async () => {
+  vi.spyOn(desktopApi, "browseProviderMods").mockResolvedValue(browse());
+  const details = project();
+  details.project.files[0]!.status_unknown = "omitted";
+  vi.spyOn(desktopApi, "providerProject").mockResolvedValue(details);
+  const planned = vi.spyOn(desktopApi, "planProviderInstall");
+  const { host } = await render();
+
+  await act(async () => button(host, "Find mods on GameBanana…").click());
+  await act(async () => button(host, "Show files of HD Link").click());
+  await expect.element(page.getByText("pack.zip", { exact: true })).toBeVisible();
+  await expect.element(page.getByText(/The provider did not confirm availability/)).toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Review pack.zip" }))
+    .not.toBeInTheDocument();
+  expect(planned).not.toHaveBeenCalled();
+});
+
 it("cancelling a review discards it and stale data offers no review", async () => {
   vi.spyOn(desktopApi, "browseProviderMods").mockResolvedValue(browse());
   const projectRead = vi.spyOn(desktopApi, "providerProject").mockResolvedValueOnce(project());

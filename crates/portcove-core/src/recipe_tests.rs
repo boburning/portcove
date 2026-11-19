@@ -750,6 +750,7 @@ fn reviewed_provider_bytes_join_a_recipe_only_after_the_final_exact_approval() {
             download_url: "https://gamebanana.com/dl/2".into(),
             claimed_md5: None,
             archived: false,
+            status_unknown: None,
             claimed_scan: None,
             thunderstore_dependencies: None,
         },

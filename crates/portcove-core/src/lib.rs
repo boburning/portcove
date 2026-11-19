@@ -323,7 +323,7 @@ pub use mod_package::{
 };
 pub use mod_provider::{
     Observed, ProviderFileCandidate, ProviderFreshness, ProviderPage, ProviderProject,
-    ThunderstoreDependency,
+    ProviderStatusUnknown, ThunderstoreDependency,
 };
 pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
 pub use output_relocation::{

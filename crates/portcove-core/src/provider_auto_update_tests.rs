@@ -823,6 +823,7 @@ fn changed_thunderstore_dependency_coordinates_invalidate_the_exact_file_hold() 
         download_url: "https://thunderstore.io/package/download/Owner/Root/2.0.0/".into(),
         claimed_md5: None,
         archived: false,
+        status_unknown: None,
         claimed_scan: None,
         thunderstore_dependencies: Some(vec![crate::ThunderstoreDependency {
             namespace: "Tools".into(),

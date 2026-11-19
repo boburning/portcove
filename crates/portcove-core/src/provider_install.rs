@@ -162,6 +162,11 @@ fn validate_offer(
             "this project does not belong to the game this port is bound to",
         ));
     }
+    if project.status_unknown.is_some() || file.status_unknown.is_some() {
+        return Err(PortcoveError::verification(
+            crate::mod_provider::UNKNOWN_PROVIDER_ELIGIBILITY,
+        ));
+    }
     if project.obsolete {
         return Err(PortcoveError::unsupported(
             "the provider marks this project obsolete",

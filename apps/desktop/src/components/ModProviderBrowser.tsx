@@ -662,7 +662,9 @@ function ProviderProjectFiles({
 }) {
   const { t, i18n } = useAppTranslation("gameSettings");
   const [showArchived, setShowArchived] = useState(false);
-  const files = project.project.files.filter((file) => showArchived || !file.archived);
+  const files = project.project.files.filter(
+    (file) => showArchived || !file.archived || file.status_unknown,
+  );
   return (
     <section
       aria-label={t("mods.browse.filesLabel", { name: project.project.name })}
@@ -686,8 +688,11 @@ function ProviderProjectFiles({
         </ExternalLink>
       )}
       {projectStale && <p className="text-sm">{projectStale}</p>}
+      {project.project.status_unknown && (
+        <p className="text-sm">{t("mods.browse.eligibilityUnknown")}</p>
+      )}
       {project.project.obsolete && <p className="text-sm">{t("mods.browse.obsolete")}</p>}
-      {project.project.files.some((file) => file.archived) && (
+      {project.project.files.some((file) => file.archived && !file.status_unknown) && (
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -708,7 +713,12 @@ function ProviderProjectFiles({
       ) : (
         <ul className="m-0 grid list-none gap-1 p-0">
           {files.map((file) => {
-            const installable = !file.archived && !project.project.obsolete && !projectStale;
+            const installable =
+              !file.archived &&
+              !file.status_unknown &&
+              !project.project.obsolete &&
+              !project.project.status_unknown &&
+              !projectStale;
             const date = new Date(file.added_at * 1000);
             return (
               <li
@@ -718,10 +728,17 @@ function ProviderProjectFiles({
                 <span className="min-w-0 flex-1">
                   <Trans
                     t={t}
-                    i18nKey={file.archived ? "mods.browse.fileArchived" : "mods.browse.file"}
+                    i18nKey={
+                      file.archived && !file.status_unknown
+                        ? "mods.browse.fileArchived"
+                        : "mods.browse.file"
+                    }
                     values={{ size: formatBytes(file.size) }}
                     components={{ file: <bdi>{file.file_name}</bdi> }}
                   />
+                  {file.status_unknown && (
+                    <span className="block">{t("mods.browse.eligibilityUnknown")}</span>
+                  )}
                 </span>
                 <details className="text-sm">
                   <summary>{t("mods.browse.fileDetails")}</summary>
