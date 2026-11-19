@@ -30914,6 +30914,12 @@
         ],
         "warnings": [
           "Select the root Relic of the Past.exe with Update.exe and current/ retained. Preserve %APPDATA%/relic-of-the-past or the already active adjacent data/ folder, including imported originals and every profile; do not create a new portable data root during registration."
+        ],
+        "references": [
+          {
+            "title": "Use the upstream Android prerelease",
+            "instruction": "Relic of the Past v0.21.3 publishes rotp-android.apk with ARM64 libraries. The prerelease adds touch controls, a layout editor and save-state controls. Follow the project’s release instructions for its Android app and keep the existing profile when replacing it."
+          }
         ]
       },
       "original_game": {
@@ -35940,6 +35946,10 @@
           {
             "title": "Preserve saves, preferences and mods",
             "instruction": "Preserve the complete saves/ folder, legacy save copies, preferences, mods/ including 3d_marcas.txt, captures and custom packs. The selected runtime uses wario_land_sm3_dx_v12 for saves; upstream owns save-slot replacement/deletion and all compatibility decisions. Save or mod compatibility across other ports, builds or editions is not established."
+          },
+          {
+            "title": "Use the Android Bigodao package",
+            "instruction": "The project’s 1.8.0 release publishes Bigodao-1.8-release.apk for ARM64. Use Android’s file picker to give the app your own unmodified Wario Land: Super Mario Land 3 (World) ROM. The APK includes the patch manifest. On Android, Back opens the project menu so you can reach controls and settings again."
           }
         ]
       }
@@ -43200,6 +43210,12 @@
         ],
         "warnings": [
           "Use the standalone US disc data; preserve game-folder UDATA separately from the actual per-user or portable launcher storage."
+        ],
+        "references": [
+          {
+            "title": "Use the Android JSRF Unleashed package",
+            "instruction": "JSRF Unleashed v0.6.10 publishes JSRF-Unleashed-android-arm64.apk. Open it once and select your supported original Xbox disc image. If you copy the extracted game into Android/data/com.jumatt.jsrfunleashed/files/game instead, tap I copied the folder: start. Later launches use that copy. Keep the app’s profile when updating. The project reports Android emulator testing."
+          }
         ]
       },
       "original_game": {
@@ -47820,7 +47836,13 @@
           "Version 0.3.0 is experimental: crashes, latency and occasional race hangs remain. Upstream claims Mac/Linux at 30 FPS with 5x upscale; M1/macOS 15.6 and Ubuntu 22.04.5 VM are the named tests. Windows 11 VM/Intel i7 support is still experimental. Switch 100% career progress is a separate destination observation and is not desktop completion evidence. No Portcove runtime/gameplay qualification.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/laureladastra/mcdub3-nx"
+        "help_url": "https://github.com/laureladastra/mcdub3-nx",
+        "references": [
+          {
+            "title": "Choose the Android package for your own disc edition",
+            "instruction": "The v1.1.0 release has separate ARM64 beta APKs. Open the matching app once, then copy your extracted disc with default.xbe to Android/data/io.github.laureladastra.mcdub3/files/game for DUB Edition or Android/data/io.github.laureladastra.mcdub3remix/files/game for Remix. Press Play in the app. Uninstalling deletes that app’s folder and saves."
+          }
+        ]
       },
       "issue_number": 3459,
       "listed_at": "2026-10-25",
@@ -49773,6 +49795,10 @@
           {
             "title": "Version and platform notes",
             "instruction": "Nightly downloads include Windows x86 and x86-64 ZIPs, a Linux x86-64 Flatpak, Mac Intel and Apple silicon disk images, and an Android universal APK. Nightly builds can have bugs. The exact accepted language and retail patch are unconfirmed."
+          },
+          {
+            "title": "Use the experimental Android nightly",
+            "instruction": "The upstream OpenEnroth nightly APK includes ARM64, ARMv7, x86 and x86-64 libraries. Copy ANIMS, DATA, MUSIC and SOUNDS from your own supported game to Android/data/io.github.openenroth.openenroth/files. The project describes this package as experimental. Retain the app’s data when replacing a nightly."
           }
         ]
       },
@@ -53990,6 +54016,12 @@
         ],
         "warnings": [
           "Keep both Windows data/config roots and matching companions. Main-game attachment does not establish arcade handoff, real-save or physical Windows qualification."
+        ],
+        "references": [
+          {
+            "title": "Use the experimental Android player",
+            "instruction": "Ninja Gaiden Black Recompiled v0.9.74 publishes NinjaGaidenBlack-android-arm64.apk for ARM64. On first start, select your own retail USA Xbox disc image. Open the app again to use its installed data. The tagged guide identifies Android/data/io.github.gamboozino.ngbrecomp/files as the Android data and saves location. Check the actual storage you chose during setup."
+          }
         ]
       },
       "original_game": {
@@ -61591,7 +61623,13 @@
           "Native-runtime build instructions are available. They do not establish full playability.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/zmbkilla/PSP2I_Recomp"
+        "help_url": "https://github.com/zmbkilla/PSP2I_Recomp",
+        "references": [
+          {
+            "title": "Build the playable Android app from your original game",
+            "instruction": "The android-latest release publishes psp2i-android-no-game-code.apk with ARM64 libraries. This package opens and reports missing game code. Follow the project’s Android build guide to generate the code from your own supported copy and build the playable app."
+          }
+        ]
       },
       "issue_number": 3093,
       "listed_at": "2026-10-25",
@@ -63700,7 +63738,13 @@
           "The project advertises Vulkan, multiplayer and mods. Complete-game coverage is unknown.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/tokeneffortports/ReCompiledSteel"
+        "help_url": "https://github.com/tokeneffortports/ReCompiledSteel",
+        "references": [
+          {
+            "title": "Prepare the Real Steel Android package",
+            "instruction": "ReCompiledSteel v0.2.0 publishes ReCompiledSteel-android-arm64-0.2.0.apk. Select the folder containing your own Xbox 360 game and its title update in Install game files. The project puts the imported data in its RealSteel folder. After setup, use Start in the app."
+          }
+        ]
       },
       "issue_number": 3253
     },
@@ -64207,6 +64251,12 @@
         ],
         "warnings": [
           "Select only the prepared recvx-runtime.exe with its complete Windows x64 folder and adjacent data/mods context. Preserve %APPDATA%/RECVX or the actual existing custom/development root; unfinished gameplay and validated-Windows acceptance remain open."
+        ],
+        "references": [
+          {
+            "title": "Prepare the experimental Android package on a computer",
+            "instruction": "Prepare data from your own supported PS2 disc on a computer. Install and open recvx-android-arm64.apk from build-0.7.261 once, then copy the data to Android/data/org.recvx.nativeport/files/data. A newer debug-signed build may require uninstalling first, which removes the app’s saves and data. The project documents emulator testing for this package."
+          }
         ]
       },
       "original_game": {
@@ -85370,6 +85420,12 @@
         "warnings": [
           "Source/API and inert native probes are distinct from acquired-package, actual original/game/save/mod/network, installed Desktop, physical/human, other-platform and protected acceptance. No Supported promotion or immutable source-to-binary certification.",
           "This bounded existing-player route adds no managed runtime or console-family infrastructure. Player/upstream retains all original inputs, generated/private outputs, profiles, actual replacements and recovery."
+        ],
+        "references": [
+          {
+            "title": "Use the Android WoodyRE package",
+            "instruction": "WoodyRE v1.0.12 includes an APK with ARM64 and x86-64 libraries. On first start, choose your original CD image or copied files. Open the installed app again to use that copy. The app keeps the imported files under Android/data/io.github.jjmhalew.woodyre/files/data, with woodyre.sav and woodyre.cfg in the parent folder."
+          }
         ]
       }
     },
