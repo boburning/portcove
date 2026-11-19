@@ -245,8 +245,8 @@ This preserves the planner's standalone and incompatible-fixture refusals.
 For #6511, a temporary **unmerged** controller follows the #6841 qualification
 pattern. Its ordinary verification PR requires the normal five exact-head checks
 and independent source/composition review before dispatch. It binds application
-commit `3acc0c67843cb0169cb3df00e5be9bff362caf1b` and tree
-`5c98d23b7b236043c322620142be606230d87da0` separately from the controller commit.
+commit `fdfbb7ad8e51771d66d0b7ccb74f7593661f19d4` and tree
+`af8325e042ac156653c1aa18e0747688e8025c0c` separately from the controller commit.
 Eleven fixed Windows rows request only the remaining 21 scenarios; each checks
 its actual maintained plan, dependencies, artifact roles and harness budget before
 execution. This controller does not replace Main's 18 groups and must close
@@ -261,11 +261,28 @@ Standalone, per-case and product deadlines are unchanged. Two unchanged successf
 startup recovery rows from run 44395050884 are retained and omitted from this follow-up. #6840 measured about 74 minutes of cold setup/build, in addition to the
 40-minute review harness and bounded 20-minute driver publication wait. The
 existing Linux private-X11 route runs only selected setup completion with the
-qualification application, Core qualification CLI and owned probe. Its observation
-step allows 20 minutes for the maintained 1,170-second nested maximum plus cleanup
-room; the job allows 90 minutes. Product, network, cancellation and cleanup
-assertions remain unchanged. These are finite validation envelopes, not a grant of
-physical-device, minimum-OS, installed-package or gameplay acceptance.
+qualification application, Core qualification CLI and owned probe. It consolidates
+the separate prerequisite recovery: a 1,200-second install through the maintained
+archive preference inside a 30-minute prerequisite step. The preference rewrites
+supported Azure entries; it does not guarantee an EC2 mirror switch, and statuses
+124/137 still refuse in-place package retry.
+
+The delivered namespace-input capture correction accounts for each existing
+60-second capture. For the unchanged 600-second selected-case harness and its
+60-second supervisor allowance, the actual private-X11 command budget is 1,470
+seconds. It fits the reviewed 1,770-second ceiling inside a 30-minute observation
+step, leaving 30 seconds outside the ceiling. The job allows 110 minutes: 80
+outside prerequisites and 50 outside prerequisites plus observation. The existing
+helper timer, product, network, cancellation, evidence and cleanup controls remain
+unchanged. These finite validation envelopes do not establish physical-device,
+minimum-OS, installed-package or gameplay acceptance.
+
+The two separately recorded requests use `product-workflows` on `windows-2022`
+and `linux-preparation-continuity` on `ubuntu-24.04`. Their existing concurrency
+keys differ by runner and retain `cancel-in-progress: false`; qualification must
+finish for the exact application and controller before either intentional
+request. Old controller/run evidence remains historical; a prepared request is
+not a dispatch or runtime result.
 
 The shared hosted Windows preparation also serves the presentation jobs.
 Public `windows-2022` registers WebView2 below the application's floor, so the

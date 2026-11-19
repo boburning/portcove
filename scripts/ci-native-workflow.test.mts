@@ -249,6 +249,33 @@ void test("normal-app presentation uses fixed isolated Windows selections and bo
   );
 });
 
+void test("temporary controller keeps Windows and Linux requests on distinct existing concurrency keys", () => {
+  const source = nativeDesignCompatibilityWorkflow;
+  const workflow = parseDocument(source).toJS();
+  assert.ok(isRecord(workflow) && isRecord(workflow.concurrency));
+  const concurrency = workflow.concurrency;
+  assert.equal(
+    concurrency.group,
+    "native-design-compatibility-${{ inputs.runner }}-${{ github.ref }}",
+  );
+  assert.equal(concurrency["cancel-in-progress"], false);
+  const windows = workflowJob("product_workflows", source);
+  const linux = workflowJob("linux_preparation_continuity", source);
+  assert.equal(
+    windows.if,
+    "${{ inputs.operation == 'product-workflows' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}",
+  );
+  assert.equal(
+    linux.if,
+    "${{ inputs.operation == 'linux-preparation-continuity' && inputs.runner == 'ubuntu-24.04' && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}",
+  );
+  const key = (runner: string) =>
+    String(concurrency.group)
+      .replace("${{ inputs.runner }}", runner)
+      .replace("${{ github.ref }}", "refs/heads/feature/6511-hosted-native-followup");
+  assert.notEqual(key("windows-2022"), key("ubuntu-24.04"));
+});
+
 void test("temporary native controller preserves exact remaining selections, artifact roles and isolation constraints", () => {
   const source = nativeDesignCompatibilityWorkflow;
   const job = workflowJob("product_workflows", source);
@@ -309,7 +336,7 @@ void test("temporary native controller preserves exact remaining selections, art
       cli_required: execution.fixtures.owned,
       probe_required: execution.fixtures.owned,
     });
-    assert.equal(group.source, "3acc0c67843cb0169cb3df00e5be9bff362caf1b");
+    assert.equal(group.source, "fdfbb7ad8e51771d66d0b7ccb74f7593661f19d4");
     requested.push(...scenarios);
   }
   assert.equal(requested.length, 21);

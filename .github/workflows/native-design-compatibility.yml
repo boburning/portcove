@@ -279,10 +279,10 @@ jobs:
     if: ${{ inputs.operation == 'linux-preparation-continuity' && inputs.runner == 'ubuntu-24.04' && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}
     name: Linux selected setup completion
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 110
     env:
-      SOURCE_HEAD: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
-      SOURCE_TREE: 5c98d23b7b236043c322620142be606230d87da0
+      SOURCE_HEAD: fdfbb7ad8e51771d66d0b7ccb74f7593661f19d4
+      SOURCE_TREE: af8325e042ac156653c1aa18e0747688e8025c0c
       CONTROLLER_HEAD: ${{ github.sha }}
       CARGO_TARGET_DIR: ${{ github.workspace }}/work/slice3-native-${{ github.sha }}
     steps:
@@ -338,9 +338,9 @@ jobs:
         timeout-minutes: 3
         run: node scripts/run-rust-tests.mts --guard-command node scripts/desktop-linux-namespace-preflight.mts
       - name: Install the existing disposable Linux prerequisites
-        timeout-minutes: 20
+        timeout-minutes: 30
         run: |
-          ./scripts/install-linux-desktop-prerequisites.sh --include-webdriver --install-timeout-seconds=600
+          ./scripts/install-linux-desktop-prerequisites.sh --include-webdriver --prefer-archive-mirror --install-timeout-seconds=1200
           version=$(node -p "require('./.config/tool-bootstrap.json').desktop.tauri_driver")
           cargo install tauri-driver --locked --version "$version" \
             --root "$RUNNER_TEMP/slice3-native-driver" \
@@ -407,9 +407,10 @@ jobs:
             fs.writeFileSync(path.join(output, `${name}-config.json`), JSON.stringify(config, null, 2) + '\n', { flag: 'wx' });
           }
           NODE
-      # Existing X11 command: 300s capture + 690s outer + 120s verification + 60s cleanup.
+      # Namespace-aware X11 command: 1470s, below the reviewed 1770s ceiling.
+      # Keep 30s outside that ceiling for the observation step's own reporting.
       - name: Observe the exact selected setup completion
-        timeout-minutes: 20
+        timeout-minutes: 30
         run: |
           node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-selected-setup-completion/selected-completion-config.json"
       - name: Withdraw only the quiescent qualification profile
@@ -671,7 +672,7 @@ jobs:
       matrix:
         include:
           - selection: review-continuation
-            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
+            source: fdfbb7ad8e51771d66d0b7ccb74f7593661f19d4
             scenarios:
               - native-interrupted-preparation-recovery
               - native-source-intake-and-discovery-dialogs
@@ -703,7 +704,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: install-steam-artwork
-            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
+            source: fdfbb7ad8e51771d66d0b7ccb74f7593661f19d4
             scenarios:
               - install-progress-cancellation
               - install-commit-refresh-recovery
@@ -730,7 +731,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: saved-folder-selected-setup
-            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
+            source: fdfbb7ad8e51771d66d0b7ccb74f7593661f19d4
             scenarios:
               - native-saved-folder-selected-setup
             expected_plan:
@@ -744,7 +745,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: preliminary-selected-setup
-            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
+            source: fdfbb7ad8e51771d66d0b7ccb74f7593661f19d4
             scenarios:
               - native-preliminary-selected-setup
             expected_plan:
@@ -758,7 +759,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: saved-folder-hash-resume
-            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
+            source: fdfbb7ad8e51771d66d0b7ccb74f7593661f19d4
             scenarios:
               - native-saved-folder-hash-resume
             expected_plan:
@@ -772,7 +773,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: external-runtime-review
-            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
+            source: fdfbb7ad8e51771d66d0b7ccb74f7593661f19d4
             scenarios:
               - native-external-runtime-review
             expected_plan:
@@ -786,7 +787,7 @@ jobs:
                 "probe_required": false,
               }
           - selection: library-switch-recovery
-            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
+            source: fdfbb7ad8e51771d66d0b7ccb74f7593661f19d4
             scenarios:
               - native-library-switch-recovery
             expected_plan:
@@ -800,7 +801,7 @@ jobs:
                 "probe_required": false,
               }
           - selection: minimized-preparation-continuity
-            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
+            source: fdfbb7ad8e51771d66d0b7ccb74f7593661f19d4
             scenarios:
               - native-minimized-preparation-continuity
             expected_plan:
@@ -814,7 +815,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: closed-preparation-recovery
-            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
+            source: fdfbb7ad8e51771d66d0b7ccb74f7593661f19d4
             scenarios:
               - native-closed-preparation-recovery
             expected_plan:
@@ -828,7 +829,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: secondary-panels
-            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
+            source: fdfbb7ad8e51771d66d0b7ccb74f7593661f19d4
             scenarios:
               - native-secondary-panel-presentation
             expected_plan:
@@ -842,7 +843,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: public-collection
-            source: 3acc0c67843cb0169cb3df00e5be9bff362caf1b
+            source: fdfbb7ad8e51771d66d0b7ccb74f7593661f19d4
             scenarios:
               - native-collection-artwork-presentation
             expected_plan:
@@ -857,7 +858,7 @@ jobs:
               }
     env:
       SOURCE_HEAD: ${{ matrix.source }}
-      SOURCE_TREE: 5c98d23b7b236043c322620142be606230d87da0
+      SOURCE_TREE: af8325e042ac156653c1aa18e0747688e8025c0c
       CONTROLLER_HEAD: ${{ github.sha }}
       EXPECTED_NATIVE_PLAN: ${{ toJSON(matrix.expected_plan) }}
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-product-workflows-${{ matrix.selection }}

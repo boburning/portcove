@@ -55,6 +55,11 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { parse as parseYaml } from "yaml";
 import { recoverBackupEvidence } from "./native-backup-evidence.mts";
+import { linuxX11ExecutionBudgets } from "./desktop-linux-x11.mts";
+import {
+  prerequisiteInvocation,
+  prerequisiteOperations,
+} from "./fixtures/linux-prerequisites-fixture.mts";
 
 import {
   buildWorkflowProvenance,
@@ -1970,12 +1975,62 @@ void test("Linux selected completion binds source and controller and publishes a
   );
   const job = record(record(record(workflow).jobs).linux_preparation_continuity);
   assert.equal(job["runs-on"], "ubuntu-24.04");
-  assert.equal(job["timeout-minutes"], 90);
-  assert.equal(record(job.env).SOURCE_HEAD, "3acc0c67843cb0169cb3df00e5be9bff362caf1b");
+  assert.equal(job["timeout-minutes"], 110);
+  assert.equal(record(job.env).SOURCE_HEAD, "fdfbb7ad8e51771d66d0b7ccb74f7593661f19d4");
   assert.equal(record(job.env).CONTROLLER_HEAD, "${{ github.sha }}");
   assert.ok(!Object.hasOwn(record(job.env), "PORTCOVE_RETAINED_EVIDENCE_DIR"));
   assert.ok(Array.isArray(job.steps));
   const steps: unknown[] = job.steps;
+  const prerequisiteStep = record(
+    required(
+      steps.find(
+        (value) => record(value).name === "Install the existing disposable Linux prerequisites",
+      ),
+    ),
+  );
+  assert.equal(prerequisiteStep["timeout-minutes"], 30);
+  const prerequisiteArgs = prerequisiteInvocation(
+    required(text(prerequisiteStep.run).split("\n")[0]),
+  );
+  assert.deepEqual(prerequisiteArgs, [
+    "--include-webdriver",
+    "--prefer-archive-mirror",
+    "--install-timeout-seconds=1200",
+  ]);
+  const prerequisitePlan = prerequisiteOperations(
+    String.raw`
+plan_desktop_prerequisites ubuntu 24.04 "$@"
+printf '%s\0' "$install_deadline" "$prefer_archive_mirror"
+`,
+    prerequisiteArgs,
+  );
+  assert.equal(prerequisitePlan.status, 0, prerequisitePlan.stderr);
+  assert.deepEqual(prerequisitePlan.stdout.slice(0, -1).split("\0"), ["1200s", "true"]);
+  const observation = record(
+    required(
+      steps.find((value) => record(value).name === "Observe the exact selected setup completion"),
+    ),
+  );
+  assert.equal(observation["timeout-minutes"], 30);
+  const budgets = linuxX11ExecutionBudgets({
+    stage: "harness",
+    harness_args: ["--scenario", "native-selected-setup-completion"],
+  });
+  assert.equal(budgets.harness, 660_000);
+  assert.equal(budgets.namespaceCapture, 60_000);
+  assert.equal(budgets.outer, 930_000);
+  assert.equal(budgets.command, 1_470_000);
+  const reviewedNestedCeiling = 1_770_000;
+  assert.ok(budgets.command <= reviewedNestedCeiling);
+  assert.equal(Number(observation["timeout-minutes"]) * 60_000 - reviewedNestedCeiling, 30_000);
+  assert.equal(Number(prerequisiteStep["timeout-minutes"]) * 60 - 1200, 600);
+  assert.equal(Number(job["timeout-minutes"]) - Number(prerequisiteStep["timeout-minutes"]), 80);
+  assert.equal(
+    Number(job["timeout-minutes"]) -
+      Number(prerequisiteStep["timeout-minutes"]) -
+      Number(observation["timeout-minutes"]),
+    50,
+  );
   const nodeSetup = record(
     required(
       steps.find(
@@ -2015,14 +2070,14 @@ void test("Linux selected completion binds source and controller and publishes a
     GITHUB_ENV: environmentFile,
     GITHUB_SHA: "b".repeat(40),
     CONTROLLER_HEAD: "b".repeat(40),
-    SOURCE_HEAD: "3acc0c67843cb0169cb3df00e5be9bff362caf1b",
-    SOURCE_TREE: "5c98d23b7b236043c322620142be606230d87da0",
+    SOURCE_HEAD: "fdfbb7ad8e51771d66d0b7ccb74f7593661f19d4",
+    SOURCE_TREE: "af8325e042ac156653c1aa18e0747688e8025c0c",
   };
   const stubbedEnvironment = [
     "import cp from 'node:child_process';",
     "import {syncBuiltinESMExports} from 'node:module';",
     "cp.execFileSync=(command,args)=>{",
-    " if(command==='git')return args.includes('--porcelain')?'':args.includes('HEAD^{tree}')?'5c98d23b7b236043c322620142be606230d87da0':'3acc0c67843cb0169cb3df00e5be9bff362caf1b';",
+    " if(command==='git')return args.includes('--porcelain')?'':args.includes('HEAD^{tree}')?'af8325e042ac156653c1aa18e0747688e8025c0c':'fdfbb7ad8e51771d66d0b7ccb74f7593661f19d4';",
     " if(['uname','pnpm','rustc'].includes(command))return 'fixture version';",
     " throw new Error('Unexpected environment command'); };",
     "syncBuiltinESMExports();",
