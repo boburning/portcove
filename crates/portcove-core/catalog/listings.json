@@ -38482,6 +38482,62 @@
       }
     },
     {
+      "id": "gti-club-2-konami-viper-recomp",
+      "issue_number": 7076,
+      "name": "GTI Club 2 / Konami Viper",
+      "original_game_title": "GTI Club 2",
+      "summary": "Build a native GTI Club 2 player from your own arcade game and Konami Viper board dumps with the project's setup package.",
+      "project_url": "https://github.com/spita90/konami-viper-recomp",
+      "listed_at": "2026-11-18",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/spita90/konami-viper-recomp/releases/tag/v0.16.2",
+      "setup_url": "https://github.com/spita90/konami-viper-recomp/blob/v0.16.2/README.md#download-and-play",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Build your game once",
+            "instruction": "Extract the package. Put your own supported GTI Club 2 JAB (Corso Italiano) or EAA (Driving Party) game files and the kviper board files in roms (941b01.u25 and the ds2430.u3 EEPROM). Include the matching CHD and NVRAM files listed by the project. Run viper-setup.exe on Windows or viper-setup from the package folder on Linux or Mac. Setup builds a player from the files it recognizes."
+          },
+          {
+            "title": "Open the generated player",
+            "instruction": "After setup succeeds, open the player for your original. gticlub2 for JAB or gticlub2ea for EAA. On Windows the player has an .exe extension. Open the same player on later launches. Use Options for settings. The --classic option starts the arcade mode."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep saves when replacing the package",
+            "instruction": "Keep the NVRAM saves and settings beside the generated player, including its separate enhanced and classic saves. Back up that folder before replacing the release, then run the upstream setup again for the new version. Portcove does not replace the generated runtime or back up its data."
+          },
+          {
+            "title": "Use the upstream command line",
+            "instruction": "For the default release variant, run viper-setup --prepare --roms with your original-files folder followed by gticlub2. Watch the progress lines and wait for success. Then viper-setup --play gticlub2 starts the generated player and returns its exit status. Exit code 66 means the upstream setup has no built game for that variant."
+          }
+        ],
+        "warnings": [
+          "The release package contains a builder. You supply the original game files and board BIOS."
+        ]
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "konami-viper-",
+          "-windows-x86_64.zip"
+        ],
+        "linux-x86-64": [
+          "konami-viper-",
+          "-linux-x86_64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "konami-viper-",
+          "-macos-arm64.zip"
+        ]
+      }
+    },
+    {
       "id": "gtteancum-openjam",
       "name": "NBA JAM: On Fire Edition (OpenJam)",
       "summary": "Attach an independently permitted, prepared OpenJam Windows player for your purchased NBA JAM: On Fire Edition XBLA copy. The published player already contains recompiled code; upstream setup prepares your game data, with separate per-mod save roots.",
@@ -61161,6 +61217,62 @@
       }
     },
     {
+      "id": "project-i-g-i-i-m-going-in-openigi",
+      "issue_number": 5843,
+      "name": "Project I.G.I. / OpenIGI",
+      "original_game_title": "Project I.G.I.",
+      "summary": "Play Project I.G.I. using your own retail installation. OpenIGI publishes standalone players and has a separate launcher that manages game versions.",
+      "project_url": "https://github.com/OpenIGI/OpenIGI",
+      "listed_at": "2026-11-18",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/OpenIGI/OpenIGI/releases/tag/v0.6.9-beta.4",
+      "setup_url": "https://github.com/OpenIGI/OpenIGI/blob/v0.6.9-beta.4/README.md#playing",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your own Project I.G.I. files",
+            "instruction": "Open the upstream OpenIGI Launcher and choose your retail installation in Settings if it does not find it. The launcher installs and updates OpenIGI. Select Beta in its settings to use v0.6.9-beta.4."
+          },
+          {
+            "title": "Choose the right standalone player",
+            "instruction": "Use the self-contained player on Windows 10 or 11 x86-64, Linux x86-64 with Vulkan or macOS 13 or later on Apple silicon. The separate .NET downloads require .NET 10. On Linux, make the exact openigi-game-0.6.9-beta.4-linux-x64 file executable. On Mac, extract its app and follow the project release's first-run instructions."
+          },
+          {
+            "title": "Launch a standalone player again",
+            "instruction": "Run the player with -game followed by the path to your own retail Project I.G.I. folder, or set IGI_GAME_PATH before launching. Keep the same original install location. The project's launcher is a separate way to reopen Settings and play."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep your OpenIGI data",
+            "instruction": "Keep OpenIGI in your per-user application-data folder, including %APPDATA%/OpenIGI on Windows, the XDG configuration directory on Linux or ~/Library/Application Support on Mac. Also keep any settings.cfg beside the executable. The upstream launcher updates its own installations. When using standalone players, replace the runtime yourself and keep your profile."
+          }
+        ],
+        "warnings": [
+          "This guide applies to Project I.G.I. The separate I.G.I. 2 project has its own setup and release status."
+        ]
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "openigi-game-",
+          "-win-x64.exe"
+        ],
+        "linux-x86-64": [
+          "openigi-game-0.6.9-beta.4-linux-x64"
+        ],
+        "macos-aarch64": [
+          "openigi-game-",
+          "-osx-arm64.tar.gz"
+        ]
+      },
+      "recommended_download_channel": "beta"
+    },
+    {
       "id": "project-iron-6-genrythefox0-tekken-6",
       "name": "Tekken 6 — Project Iron 6 (GenryTheFox0)",
       "original_game_title": "Tekken 6",
@@ -63868,6 +63980,41 @@
           "No Core-managed acquisition/preparation/Install/Update/Backup/Rollback/migration/external deletion, new SDK/.NET/compiler provisioning, exact original authentication or generic Xbox framework. No game/package/original execution, gameplay/save compatibility/installed/protected acceptance or Supported promotion is established here."
         ]
       }
+    },
+    {
+      "id": "redguard-maiko",
+      "issue_number": 6668,
+      "name": "The Elder Scrolls Adventures: Redguard / Maiko",
+      "original_game_title": "The Elder Scrolls Adventures: Redguard",
+      "summary": "Build a native Redguard player locally from the supported Glide executable in your own GOG or CD copy.",
+      "project_url": "https://github.com/michidk/maiko",
+      "listed_at": "2026-11-18",
+      "platforms": [],
+      "availability": "source-only",
+      "release_url": "https://github.com/michidk/maiko/releases/tag/v1.1.0",
+      "setup_url": "https://github.com/michidk/maiko/blob/v1.1.0/README.md#setup",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Build from your copy of Redguard",
+            "instruction": "Give the upstream Maiko browser builder RGFX.EXE from your own supported GOG or CD installation. It builds locally in the browser. The Steam release supplies a different executable. Windows and Linux also have an upstream command-line builder using a matching runtime kit and Wasmtime."
+          },
+          {
+            "title": "Keep the generated package together",
+            "instruction": "Extract the generated ZIP into its own writable folder. Open maiko-launcher.exe on Windows or maiko on Linux or Mac and choose your Redguard folder if it is not found. Then choose Play Redguard. Reopen the launcher to play with your saved installation choice or to change settings. Use redguard-native for the project's direct-play options. The generated player needs 64-bit Windows 10 or later, Linux x86-64 with glibc 2.36 or later and a Vulkan or OpenGL graphics driver, or macOS 11 or later on Intel or Apple silicon."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep the actual Redguard saves",
+            "instruction": "By default Maiko and the original DOS game share SAVEGAME and settings in the writable Redguard game folder. If you use --user-dir, keep that folder instead. Preserve a previous setup's user-data folder until you have checked your saves in the new build. Rebuild through the upstream builder when replacing Maiko."
+          }
+        ],
+        "warnings": [
+          "The release assets are preparation tools and runtime kits. Portcove does not create a player, replace it or back up the external game profile."
+        ]
+      },
+      "download_block_reason": "Upstream publishes build tools and runtime kits. Use its build guide to create a player from your own Redguard files."
     },
     {
       "id": "redneck-rampage-raze",
@@ -77771,6 +77918,62 @@
           "https://github.com/scemino/engge2"
         ],
         "source_editions": []
+      }
+    },
+    {
+      "id": "thrill-drive-2-konami-viper-recomp",
+      "issue_number": 7073,
+      "name": "Thrill Drive 2 / Konami Viper",
+      "original_game_title": "Thrill Drive 2",
+      "summary": "Build a native Thrill Drive 2 player from your own arcade game and Konami Viper board dumps with the project's setup package.",
+      "project_url": "https://github.com/spita90/konami-viper-recomp",
+      "listed_at": "2026-11-18",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/spita90/konami-viper-recomp/releases/tag/v0.16.2",
+      "setup_url": "https://github.com/spita90/konami-viper-recomp/blob/v0.16.2/README.md#download-and-play",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Build your game once",
+            "instruction": "Extract the package. Put your own supported Thrill Drive 2 EBB, JAA or AAA game files and the kviper board files in roms (941b01.u25 and the ds2430.u3 EEPROM). Include the matching CHD and NVRAM files listed by the project. Run viper-setup.exe on Windows or viper-setup from the package folder on Linux or Mac. Setup builds a player from the files it recognizes."
+          },
+          {
+            "title": "Open the generated player",
+            "instruction": "After setup succeeds, open the player for your original. td2 for EBB, td2j for JAA or td2a for AAA. On Windows the player has an .exe extension. Open the same player on later launches. Use Options for settings. The --classic option starts the arcade mode."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep saves when replacing the package",
+            "instruction": "Keep the NVRAM saves and settings beside the generated player, including its separate enhanced and classic saves. Back up that folder before replacing the release, then run the upstream setup again for the new version. Portcove does not replace the generated runtime or back up its data."
+          },
+          {
+            "title": "Use the upstream command line",
+            "instruction": "For the default release variant, run viper-setup --prepare --roms with your original-files folder followed by thrild2. Watch the progress lines and wait for success. Then viper-setup --play thrild2 starts the generated player and returns its exit status. Exit code 66 means the upstream setup has no built game for that variant."
+          }
+        ],
+        "warnings": [
+          "The release package contains a builder. You supply the original game files and board BIOS."
+        ]
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "konami-viper-",
+          "-windows-x86_64.zip"
+        ],
+        "linux-x86-64": [
+          "konami-viper-",
+          "-linux-x86_64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "konami-viper-",
+          "-macos-arm64.zip"
+        ]
       }
     },
     {
