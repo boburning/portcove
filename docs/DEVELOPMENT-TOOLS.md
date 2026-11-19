@@ -250,7 +250,6 @@ After=portcove-codex-start.service
 [Service]
 Environment="PATH=$PATH"
 Environment="PORTCOVE_PR_WAKE_STATE=%h/.local/state/portcove/pr-wake"
-WorkingDirectory="$tools_checkout"
 ExecStart="$tools_checkout/work/pr-wake-venv/bin/python" "$tools_checkout/scripts/pr_wake.py" serve
 UMask=0077
 Restart=on-failure
