@@ -35,6 +35,12 @@
       "image_sha256": "9b34a54ffe2bc96d33ca4a8ba35b66400454e514516efd3600da9994d74e6b22",
       "game_slug": "mechassault-2-lone-wolf",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mechassault-2-lone-wolf",
+      "evidence_urls": ["https://github.com/LegendaryXP/Mechassault2-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

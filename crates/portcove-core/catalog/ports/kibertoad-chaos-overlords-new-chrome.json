@@ -46,6 +46,15 @@
         "Original Chaos Overlords saves are a separate format. Keep the creating New Chrome version with your saves and replays because the upstream development format can change.",
         "Upstream describes its Mac installers as unsigned. Review the publisher and follow its macOS setup instructions."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "chaos-overlords",
+      "evidence_urls": [
+        "https://github.com/kibertoad/chaos-overlords-new-chrome/blob/0.10.13/README.md",
+        "https://github.com/kibertoad/chaos-overlords-new-chrome"
+      ],
+      "source_editions": []
     }
   }
 }

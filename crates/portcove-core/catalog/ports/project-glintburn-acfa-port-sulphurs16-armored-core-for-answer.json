@@ -35,6 +35,21 @@
       "image_sha256": "06fa2288439bb78c4526dfbc0fcebbd5685813eb555f8bdfe8d01295bed686cc",
       "game_slug": "armored-core-for-answer",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "armored-core-for-answer",
+      "evidence_urls": ["https://github.com/SulphurS16/ACFA-Port"],
+      "source_editions": [
+        {
+          "id": "armored-core-for-answer-playstation-3",
+          "title": "Armored Core: For Answer (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/SulphurS16/ACFA-Port/blob/3deb3de0c1a33b9922419d663930c581c7453918/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

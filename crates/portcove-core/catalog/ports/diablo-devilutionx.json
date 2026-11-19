@@ -21,8 +21,6 @@
     "release_url": "https://github.com/diasurgical/DevilutionX/releases",
     "recommended_download_channel": "stable",
     "download_asset_hints": {
-      "windows-x86-64": ["devilutionx-windows-x86_64.zip"],
-      "linux-x86-64": ["devilutionx-linux-x86_64.appimage"],
       "macos-x86-64": ["devilutionx-macOS-universal.dmg"],
       "macos-aarch64": ["devilutionx-macOS-universal.dmg"]
     },
@@ -66,7 +64,16 @@
         }
       ]
     },
-    "platforms": ["macos-x86-64", "macos-aarch64"]
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "diablo",
+      "evidence_urls": [
+        "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md",
+        "https://github.com/diasurgical/DevilutionX"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -80,6 +87,7 @@
     },
     "decisions": []
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

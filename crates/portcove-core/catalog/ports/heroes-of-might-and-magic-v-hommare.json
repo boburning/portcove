@@ -43,6 +43,25 @@
       "warnings": [
         "Linux x64 and ARM64 have upstream Vulkan source-build instructions. The publisher offers a separate iPhone and iPad package with its own setup. There is no Intel Mac, Windows or Android HommaRe package in this release."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "heroes-of-might-and-magic-v",
+      "evidence_urls": [
+        "https://github.com/livmaster-dev/HommaRe-public/blob/v0.1-playable-457/README.md#quick-start",
+        "https://github.com/livmaster-dev/HommaRe-public/blob/v0.1-playable-457/README.md",
+        "https://github.com/livmaster-dev/HommaRe-public"
+      ],
+      "source_editions": [
+        {
+          "id": "heroes-of-might-and-magic-v-pc",
+          "title": "Heroes of Might and Magic V (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/livmaster-dev/HommaRe-public/blob/d04e4ba07f7643e61924abe3995b10f93c8a5cc9/README.md"
+          ]
+        }
+      ]
     }
   }
 }

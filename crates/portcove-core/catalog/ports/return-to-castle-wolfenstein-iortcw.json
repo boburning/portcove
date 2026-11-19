@@ -48,6 +48,15 @@
         "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
         "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "return-to-castle-wolfenstein",
+      "evidence_urls": [
+        "https://github.com/iortcw/iortcw/tree/c42648b0d30c1e560cdbeea1018f28990d0d69c5",
+        "https://github.com/iortcw/iortcw"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

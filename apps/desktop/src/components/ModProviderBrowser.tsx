@@ -77,7 +77,12 @@ export function ModProviderBrowser(props: Props) {
   const [plan, setPlan] = useState<ProviderInstallPlan>();
   const [working, setWorking] = useState<string>();
   // Core failure text stays verbatim; the app's own follow-up is rendered live.
-  const [error, setError] = useState<{ text: string; reviewAgain?: boolean; projectId?: string }>();
+  const [error, setError] = useState<{
+    text: string;
+    reviewAgain?: boolean;
+    projectId?: string;
+    browseUrl?: string;
+  }>();
   const heading = useRef<HTMLHeadingElement>(null);
   const focusOnOpen = useRef(false);
   const headingId = useId();
@@ -130,8 +135,24 @@ export function ModProviderBrowser(props: Props) {
       if (alive.current) apply(value);
       return value;
     } catch (failure) {
-      if (alive.current)
-        setError({ text: errorText(failure), ...(projectId ? { projectId } : {}) });
+      if (alive.current) {
+        const details =
+          failure && typeof failure === "object" && "details" in failure
+            ? failure.details
+            : undefined;
+        const url =
+          details && typeof details === "object" && "provider_browse_url" in details
+            ? details.provider_browse_url
+            : undefined;
+        setError({
+          text: errorText(failure),
+          ...(projectId ? { projectId } : {}),
+          ...(typeof url === "string" &&
+          /^https:\/\/thunderstore\.io\/c\/[a-zA-Z0-9_-]{1,128}\/$/u.test(url)
+            ? { browseUrl: url }
+            : {}),
+        });
+      }
       return undefined;
     } finally {
       if (alive.current) setWorking(undefined);
@@ -141,7 +162,7 @@ export function ModProviderBrowser(props: Props) {
   const showPage = (number: number) =>
     void run(
       t("mods.browse.checking", { provider }),
-      () => desktopApi.browseProviderMods(portId, number, generation),
+      () => desktopApi.browseProviderMods(portId, number, generation, providerId),
       (next) => {
         setPage(next);
         setProject(undefined);
@@ -152,7 +173,7 @@ export function ModProviderBrowser(props: Props) {
     if (project && project.project.project_id !== projectId) setProject(undefined);
     void run(
       t("mods.browse.checking", { provider }),
-      () => desktopApi.providerProject(portId, projectId, generation),
+      () => desktopApi.providerProject(portId, projectId, generation, providerId),
       (next) => {
         setProject(next);
         if (next.freshness !== "stale") requestStandingSetup();
@@ -227,6 +248,11 @@ export function ModProviderBrowser(props: Props) {
           <bdi>{error.text}</bdi>
           {error.reviewAgain ? ` ${t("mods.browse.reviewAgain")}` : ""}
         </p>
+      )}
+      {error?.browseUrl && (
+        <ExternalLink href={error.browseUrl}>
+          {t("mods.browse.sourcePage", { provider })}
+        </ExternalLink>
       )}
       {failedProjectId && (
         <ActionRow>
@@ -322,7 +348,12 @@ export function ModProviderBrowser(props: Props) {
         <ProviderProjectFiles
           project={project}
           openProject={() =>
-            desktopApi.openProviderModProject(portId, project.project.project_id, generation)
+            desktopApi.openProviderModProject(
+              portId,
+              project.project.project_id,
+              generation,
+              providerId,
+            )
           }
           projectStale={projectStale}
           provider={provider}
@@ -344,6 +375,7 @@ export function ModProviderBrowser(props: Props) {
                   project.project.project_id,
                   file.file_id,
                   generation,
+                  providerId,
                 ),
               showPlan,
             ).then((reviewed) => {
@@ -630,7 +662,9 @@ function ProviderProjectFiles({
 }) {
   const { t, i18n } = useAppTranslation("gameSettings");
   const [showArchived, setShowArchived] = useState(false);
-  const files = project.project.files.filter((file) => showArchived || !file.archived);
+  const files = project.project.files.filter(
+    (file) => showArchived || !file.archived || file.status_unknown,
+  );
   return (
     <section
       aria-label={t("mods.browse.filesLabel", { name: project.project.name })}
@@ -654,8 +688,11 @@ function ProviderProjectFiles({
         </ExternalLink>
       )}
       {projectStale && <p className="text-sm">{projectStale}</p>}
+      {project.project.status_unknown && (
+        <p className="text-sm">{t("mods.browse.eligibilityUnknown")}</p>
+      )}
       {project.project.obsolete && <p className="text-sm">{t("mods.browse.obsolete")}</p>}
-      {project.project.files.some((file) => file.archived) && (
+      {project.project.files.some((file) => file.archived && !file.status_unknown) && (
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -676,7 +713,12 @@ function ProviderProjectFiles({
       ) : (
         <ul className="m-0 grid list-none gap-1 p-0">
           {files.map((file) => {
-            const installable = !file.archived && !project.project.obsolete && !projectStale;
+            const installable =
+              !file.archived &&
+              !file.status_unknown &&
+              !project.project.obsolete &&
+              !project.project.status_unknown &&
+              !projectStale;
             const date = new Date(file.added_at * 1000);
             return (
               <li
@@ -686,10 +728,17 @@ function ProviderProjectFiles({
                 <span className="min-w-0 flex-1">
                   <Trans
                     t={t}
-                    i18nKey={file.archived ? "mods.browse.fileArchived" : "mods.browse.file"}
+                    i18nKey={
+                      file.archived && !file.status_unknown
+                        ? "mods.browse.fileArchived"
+                        : "mods.browse.file"
+                    }
                     values={{ size: formatBytes(file.size) }}
                     components={{ file: <bdi>{file.file_name}</bdi> }}
                   />
+                  {file.status_unknown && (
+                    <span className="block">{t("mods.browse.eligibilityUnknown")}</span>
+                  )}
                 </span>
                 <details className="text-sm">
                   <summary>{t("mods.browse.fileDetails")}</summary>

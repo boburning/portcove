@@ -41,6 +41,15 @@
         "The two downloaded preview packages both contain an Apple Silicon launcher built for macOS 27.2. Use a corrected package or verify the source-build route separately for earlier macOS versions.",
         "This setup uses the base game executable. The publisher offers a separate owned Legends of Aranna archive route. Keep expansion files and saves separate from your base game."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dungeon-siege",
+      "evidence_urls": [
+        "https://github.com/Joshspeakman/dungeon-siege-macos/blob/beta-3/README.md",
+        "https://github.com/Joshspeakman/dungeon-siege-macos"
+      ],
+      "source_editions": []
     }
   }
 }

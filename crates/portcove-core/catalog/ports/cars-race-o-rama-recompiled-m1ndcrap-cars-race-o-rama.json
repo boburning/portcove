@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/m1ndcrap/Cars-Race-O-Rama-Recompiled"
     },
-    "issue_number": 3304
+    "issue_number": 3304,
+    "original_game": {
+      "format_version": 1,
+      "id": "cars-race-o-rama",
+      "evidence_urls": ["https://github.com/m1ndcrap/Cars-Race-O-Rama-Recompiled"],
+      "source_editions": [
+        {
+          "id": "cars-race-o-rama-xbox-360",
+          "title": "Cars Race-O-Rama (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/m1ndcrap/Cars-Race-O-Rama-Recompiled/blob/bd95c43a383bc9ccd9f8281bae7f31ac0deaeb3f/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

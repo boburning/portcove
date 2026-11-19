@@ -47,6 +47,13 @@
           "instruction": "Keep the entire package and KnowYourRole-files/runtime, including generated Recompiled.* libraries, build stamp and matching runtime. Back up KnowYourRole-files/user, including carda.sav, cardb.sav, settings.json, interface.ini, launcher.json, user controller mappings and logs. Existing RECOMPONE_DATA_DIR and RECOMPONE_LOG_DIR overrides take precedence: preserve their actual locations as well as mods, caches, backups and original disc. Retain MIT and THIRD-PARTY-NOTICES; framework notices do not grant original-game rights."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wwf-smackdown-2-know-your-role",
+      "evidence_urls": ["https://github.com/Comfubar/KnowYourRoleRecomp"],
+      "source_editions": []
+    },
+    "original_game_title": "WWF SmackDown! 2: Know Your Role"
   }
 }

@@ -34,6 +34,12 @@
         }
       ],
       "warnings": ["The project’s game saves and settings stay outside Portcove’s backups."]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-golf-nintendo-64",
+      "evidence_urls": ["https://github.com/n64hub/mario-golf-recomp/blob/v0.1.28/README.md"],
+      "source_editions": []
     }
   }
 }

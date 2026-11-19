@@ -1,18 +1,20 @@
 /** The narrow shell reads in document flow; wide workspaces scroll independently. */
-function scrollOwner(workspace: HTMLElement | null | undefined) {
+export function workspaceScrollOwner(
+  workspace: HTMLElement | null | undefined,
+): HTMLElement | undefined {
   if (!workspace) return undefined;
   const document = workspace.ownerDocument;
   return document.defaultView?.getComputedStyle(workspace).overflowY === "visible"
-    ? (document.scrollingElement ?? document.documentElement)
+    ? ((document.scrollingElement ?? document.documentElement) as HTMLElement)
     : workspace;
 }
 
 export function workspaceScrollTop(workspace: HTMLElement | null | undefined) {
-  return scrollOwner(workspace)?.scrollTop ?? 0;
+  return workspaceScrollOwner(workspace)?.scrollTop ?? 0;
 }
 
 export function scrollWorkspaceTo(workspace: HTMLElement | null | undefined, top: number) {
-  scrollOwner(workspace)?.scrollTo({ top });
+  workspaceScrollOwner(workspace)?.scrollTo({ top });
 }
 import { useEffect, type RefObject } from "react";
 import { fieldOwnsArrows, navigationScope } from "./focus";
@@ -24,7 +26,7 @@ export function useWorkspaceReflow(workspace: RefObject<HTMLElement | null>) {
     if (!element) return;
     const feedback = element.querySelector<HTMLElement>("[data-workspace-feedback]");
     const scope = () => element.getAttribute("data-workspace-continuity-scope");
-    let owner = scrollOwner(element);
+    let owner = workspaceScrollOwner(element);
     let anchor: { element: HTMLElement; top: number; scope: string | null } | undefined;
     let frame = 0;
     let revealRequested = false;
@@ -43,7 +45,7 @@ export function useWorkspaceReflow(workspace: RefObject<HTMLElement | null>) {
     const overlayOpen = () => navigationScope() !== document;
     const remember = (event?: Event) => {
       // The resize route owns scroll-owner transfer, not a content observer.
-      if (scrollOwner(element) !== owner) return;
+      if (workspaceScrollOwner(element) !== owner) return;
       // A content shrink can clamp scroll before ResizeObserver runs. That is
       // not a new reading choice; retain the anchor until this reflow settles.
       if (
@@ -76,7 +78,7 @@ export function useWorkspaceReflow(workspace: RefObject<HTMLElement | null>) {
       frame = requestAnimationFrame(() => {
         const revealFocus = revealRequested;
         revealRequested = false;
-        const nextOwner = scrollOwner(element);
+        const nextOwner = workspaceScrollOwner(element);
         try {
           if (!revealFocus && nextOwner !== owner) return;
           owner = nextOwner;
@@ -86,6 +88,8 @@ export function useWorkspaceReflow(workspace: RefObject<HTMLElement | null>) {
             anchor.scope === scope() &&
             !overlayOpen()
           ) {
+            // The measured collection owns row-size and responsive-owner compensation.
+            if (anchor.element.closest("[data-virtual-collection]")) return;
             const delta = anchor.element.getBoundingClientRect().top - anchor.top;
             // Browser anchoring already accounted for any compensated movement.
             // Correct only remaining displacement; never restore a launch baseline.

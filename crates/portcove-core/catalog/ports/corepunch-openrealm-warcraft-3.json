@@ -56,6 +56,15 @@
           "instruction": "OpenRealm saves the data folder it last used in config.cfg in the shared profile. After a run with -data data, a Windows copy started without -data looks for that relative data folder instead of searching for a Warcraft III installation; pass -data with your own folder for that copy. If the profile folder cannot be written, OpenRealm keeps config.cfg and saves under share/warcraft-3 beside the program instead."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "warcraft-iii",
+      "evidence_urls": [
+        "https://github.com/corepunch/open-realm/blob/v0.0.11-alpha/README.md",
+        "https://github.com/corepunch/open-realm"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

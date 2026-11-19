@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/ElGuslml/KameoRecomp"
     },
-    "issue_number": 3141
+    "issue_number": 3141,
+    "original_game": {
+      "format_version": 1,
+      "id": "kameo-elements-of-power",
+      "evidence_urls": ["https://github.com/ElGuslml/KameoRecomp"],
+      "source_editions": [
+        {
+          "id": "kameo-elements-of-power-xbox-360",
+          "title": "Kameo: Elements of Power (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/ElGuslml/KameoRecomp/blob/f56b5ca35daed1ca282e0a5e92a480fa85930b35/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

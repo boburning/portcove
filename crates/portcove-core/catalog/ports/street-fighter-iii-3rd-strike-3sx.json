@@ -16,7 +16,13 @@
       "game_slug": "street-fighter-iii-3rd-strike--2",
       "match_kind": "underlying-game"
     },
-    "original_game_title": "Street Fighter III: 3rd Strike"
+    "original_game_title": "Street Fighter III: 3rd Strike",
+    "original_game": {
+      "format_version": 1,
+      "id": "street-fighter-iii-3rd-strike",
+      "evidence_urls": ["https://github.com/crowded-street/3sx"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

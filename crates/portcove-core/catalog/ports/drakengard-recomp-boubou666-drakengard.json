@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/boubou666/Drakengard_Recomp"
     },
-    "issue_number": 3057
+    "issue_number": 3057,
+    "original_game": {
+      "format_version": 1,
+      "id": "drakengard",
+      "evidence_urls": ["https://github.com/boubou666/Drakengard_Recomp"],
+      "source_editions": [
+        {
+          "id": "drakengard-playstation-2",
+          "title": "Drakengard (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/boubou666/Drakengard_Recomp/blob/d8cdbcb80809ca39ef1cdcfb0dcdc69bdeed04d8/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

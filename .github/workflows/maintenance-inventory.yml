@@ -26,7 +26,8 @@ jobs:
       actions: read
       issues: read
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # Preserve the existing operation budget plus the optional throughput read.
+    timeout-minutes: 94
     outputs:
       postgres_major: ${{ steps.postgres.outputs.major }}
       backup_artifact: ${{ steps.backup.outputs.artifact }}
@@ -167,6 +168,17 @@ jobs:
           node scripts/maintenance-store.mts server > work/maintenance-evidence/server.json
           printf 'backup\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
           echo "artifact=$ARTIFACT" >> "$GITHUB_OUTPUT"
+      - name: Sample hosted Actions throughput
+        if: ${{ !cancelled() && steps.report.outcome == 'success' && steps.backup.outcome == 'success' }}
+        continue-on-error: true
+        timeout-minutes: 4
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! node scripts/ci-health.mts --throughput --output work/maintenance-report/ci-throughput.json >> "$GITHUB_STEP_SUMMARY"; then
+            printf '## Hosted Actions throughput\n\nObservation unavailable. See the sampling step log.\n' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
       - name: Record run evidence
         if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
         timeout-minutes: 2

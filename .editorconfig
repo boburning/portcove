@@ -13,3 +13,6 @@ indent_size = 4
 
 [*.md]
 trim_trailing_whitespace = false
+
+[apps/desktop/scripts/native-confirmation.ps1]
+charset = utf-8-bom

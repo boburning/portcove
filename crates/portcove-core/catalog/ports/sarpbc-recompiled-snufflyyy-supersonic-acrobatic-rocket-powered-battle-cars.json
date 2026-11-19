@@ -18,6 +18,21 @@
       "image_sha256": "b9cd24c365823b5bce196f8b2d3ad6569e24b94596f9571cdc94bac6941aa317",
       "game_slug": "supersonic-acrobatic-rocket-powered-battle-cars",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "supersonic-acrobatic-rocket-powered-battle-cars",
+      "evidence_urls": ["https://github.com/snufflyyy/SARPBC-recompiled"],
+      "source_editions": [
+        {
+          "id": "supersonic-acrobatic-rocket-powered-battle-cars-playstation-3",
+          "title": "Supersonic Acrobatic Rocket-Powered Battle-Cars (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/snufflyyy/SARPBC-recompiled/blob/d545239978ebe84efd1bfe77a49d6cef7b29b84e/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

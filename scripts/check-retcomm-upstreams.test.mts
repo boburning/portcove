@@ -63,6 +63,10 @@ void test("offline RetComM validation rejects bad mappings without loading upstr
       new URL("./runtime-values.mts", import.meta.url),
       path.join(root, "scripts/runtime-values.mts"),
     );
+    await copyFile(
+      new URL("./retcomm-index.mts", import.meta.url),
+      path.join(root, "scripts/retcomm-index.mts"),
+    );
     const preload = join(root, "deny-network.mjs");
     await writeFile(preload, 'globalThis.fetch = () => { throw new Error("NETWORK_FORBIDDEN"); };');
     const port = {
@@ -289,7 +293,7 @@ void test("offline RetComM validation rejects bad mappings without loading upstr
   }
 });
 
-void test("RetComM remote manifests fall back only after 404 and retain access failures", async () => {
+void test("RetComM pins a moved repository and published directory and retains access failures", async () => {
   const { copyFile } = await import("node:fs/promises");
   const { pathToFileURL } = await import("node:url");
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-retcomm-remote-"));
@@ -301,6 +305,10 @@ void test("RetComM remote manifests fall back only after 404 and retain access f
     await copyFile(
       new URL("./runtime-values.mts", import.meta.url),
       path.join(root, "scripts/runtime-values.mts"),
+    );
+    await copyFile(
+      new URL("./retcomm-index.mts", import.meta.url),
+      path.join(root, "scripts/retcomm-index.mts"),
     );
     const independent = independentFixtures();
     assert.equal(independent.length, 2);
@@ -327,7 +335,14 @@ const requests = [];
 globalThis.fetch = async (url, options) => {
   requests.push({ url, headers: options.headers });
   writeFileSync(process.env.RETCOMM_FIXTURE_REQUESTS, JSON.stringify(requests));
-  const reply = replies[requests.length - 1];
+  const revision = "a".repeat(40);
+  if (url === "https://api.github.com/repositories/1316230812")
+    return Response.json({ id: 1316230812, full_name: "RenamedOwner/RenamedCatalog", default_branch: "ports/current" });
+  if (url.startsWith("https://api.github.com/repos/RenamedOwner/RenamedCatalog/commits/"))
+    return Response.json({ sha: revision });
+  if (url.endsWith("/index.json"))
+    return Response.json({ platforms: { psx: { dir: "games/new-psx", titles: ["fixture-title"] } } });
+  const reply = replies[requests.length - 4];
   if (!reply) throw new Error("UNEXPECTED_NETWORK_REQUEST");
   if (reply.error) throw new Error(reply.error);
   return new Response(reply.body, { status: reply.status });
@@ -336,13 +351,19 @@ globalThis.fetch = async (url, options) => {
     const valid = { status: 200, body: JSON.stringify({ release: { github: "owner/game" } }) };
     const missing = { status: 404, body: "missing" };
     const cases = [
-      { name: "platform precedence", replies: [valid], status: 0, requests: 1 },
-      { name: "legacy fallback", replies: [missing, valid], status: 0, requests: 2 },
+      { name: "current default branch", replies: [valid], status: 0, requests: 1 },
       {
-        name: "both missing",
-        replies: [missing, missing],
+        name: "explicit revision override",
+        replies: [valid],
+        status: 0,
+        requests: 1,
+        ref: "fixture/ref",
+      },
+      {
+        name: "missing indexed title",
+        replies: [missing],
         status: 1,
-        requests: 2,
+        requests: 1,
         error: /returned 404/,
       },
       {
@@ -374,13 +395,6 @@ globalThis.fetch = async (url, options) => {
         error: /fixture:/,
       },
       {
-        name: "invalid legacy JSON",
-        replies: [missing, { status: 200, body: "{" }],
-        status: 1,
-        requests: 2,
-        error: /fixture:/,
-      },
-      {
         name: "missing repository",
         replies: [{ status: 200, body: "{}" }, valid],
         status: 1,
@@ -403,10 +417,8 @@ globalThis.fetch = async (url, options) => {
         error: /repositories differ/,
       },
     ];
-    const urls = [
-      "https://raw.githubusercontent.com/TechnicallyComputers/retcomm-catalog/fixture%2Fref/titles/psx/fixture-title.json",
-      "https://raw.githubusercontent.com/TechnicallyComputers/retcomm-catalog/fixture%2Fref/titles/fixture-title.json",
-    ];
+    const revision = "a".repeat(40);
+    const base = `https://raw.githubusercontent.com/RenamedOwner/RenamedCatalog/${revision}`;
     for (const fixture of cases) {
       await writeFile(requestsFile, "[]");
       const result = spawnSync(
@@ -418,7 +430,7 @@ globalThis.fetch = async (url, options) => {
           env: {
             ...process.env,
             RETCOMM_CATALOG_DIR: "",
-            RETCOMM_CATALOG_REF: "fixture/ref",
+            RETCOMM_CATALOG_REF: fixture.ref ?? "",
             RETCOMM_FIXTURE_REPLIES: JSON.stringify(fixture.replies),
             RETCOMM_FIXTURE_REQUESTS: requestsFile,
           },
@@ -436,7 +448,12 @@ globalThis.fetch = async (url, options) => {
       });
       assert.deepEqual(
         requests.map((request) => request.url),
-        urls.slice(0, fixture.requests),
+        [
+          "https://api.github.com/repositories/1316230812",
+          `https://api.github.com/repos/RenamedOwner/RenamedCatalog/commits/${encodeURIComponent(fixture.ref ?? "ports/current")}`,
+          `${base}/index.json`,
+          `${base}/games/new-psx/fixture-title.json`,
+        ],
         fixture.name,
       );
       for (const request of requests) {
@@ -472,6 +489,10 @@ void test("upstream summaries report zero, one, and many selected repositories w
   await copyFile(
     new URL("./runtime-values.mts", import.meta.url),
     path.join(root, "scripts/runtime-values.mts"),
+  );
+  await copyFile(
+    new URL("./retcomm-index.mts", import.meta.url),
+    path.join(root, "scripts/retcomm-index.mts"),
   );
   const catalog = path.join(root, "crates/portcove-core/catalog");
   const upstream = path.join(root, "upstream");
@@ -550,6 +571,10 @@ void test("RetComM scoped live reads exclude unrelated manifests without narrowi
       new URL("./runtime-values.mts", import.meta.url),
       path.join(root, "scripts/runtime-values.mts"),
     );
+    await copyFile(
+      new URL("./retcomm-index.mts", import.meta.url),
+      path.join(root, "scripts/retcomm-index.mts"),
+    );
     await writeFile(
       path.join(root, "crates/portcove-core/catalog/catalog.json"),
       JSON.stringify({
@@ -610,6 +635,10 @@ void test("RetComM local manifests preserve platform precedence and refuse malfo
     await copyFile(
       new URL("./runtime-values.mts", import.meta.url),
       path.join(root, "scripts/runtime-values.mts"),
+    );
+    await copyFile(
+      new URL("./retcomm-index.mts", import.meta.url),
+      path.join(root, "scripts/retcomm-index.mts"),
     );
     await writeFile(
       path.join(root, "crates/portcove-core/catalog/catalog.json"),
@@ -686,6 +715,10 @@ void test("RetComM lag behind a reviewed same-identity relocation is reported, n
     await copyFile(
       new URL("./runtime-values.mts", import.meta.url),
       path.join(root, "scripts/runtime-values.mts"),
+    );
+    await copyFile(
+      new URL("./retcomm-index.mts", import.meta.url),
+      path.join(root, "scripts/retcomm-index.mts"),
     );
     await writeFile(
       path.join(root, "crates/portcove-core/catalog/catalog.json"),

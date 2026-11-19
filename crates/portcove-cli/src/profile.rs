@@ -316,6 +316,9 @@ pub(crate) enum ProfileCommand {
         /// Page number, from 1.
         #[arg(long, default_value_t = 1)]
         page: u32,
+        /// Reviewed provider when the port offers more than one.
+        #[arg(long)]
+        provider: Option<String>,
     },
     /// Show one mod's files or versions and the IDs `provider-plan` takes; reads only.
     ProviderProject {
@@ -323,6 +326,9 @@ pub(crate) enum ProfileCommand {
         port_id: String,
         /// Mod ID from `provider-browse`: a GameBanana number or a Thunderstore NAMESPACE-NAME.
         project_id: String,
+        /// Reviewed provider when the port offers more than one.
+        #[arg(long)]
+        provider: Option<String>,
     },
     /// Check installed provider packages for newer files, same-version changes or removals.
     ProviderUpdates {
@@ -341,6 +347,9 @@ pub(crate) enum ProfileCommand {
         project_id: String,
         /// A GameBanana file ID or a Thunderstore version, from `provider-project`.
         file_id: String,
+        /// Reviewed provider when the port offers more than one.
+        #[arg(long)]
+        provider: Option<String>,
     },
     /// Install exactly the reviewed plan; changed bytes or a newer revision refuse.
     ProviderApply {
@@ -740,7 +749,7 @@ pub(crate) fn provider_browse_text(result: &portcove_core::ProviderBrowsePage) -
                 .unwrap_or_default()
         ));
     }
-    if !page.complete && !page.projects.is_empty() {
+    if !page.complete {
         if page.page < result.last_page {
             lines.push(format!(
                 "More mods: `portcove profile provider-browse {} --page {}`.",
@@ -772,7 +781,9 @@ pub(crate) fn provider_project_text(view: &portcove_core::ProviderProjectView) -
     )];
     let stale = stale_note(&project.provider, view.freshness, view.observed_at);
     lines.extend(stale.clone());
-    if project.obsolete {
+    if project.status_unknown.is_some() {
+        lines.push("The provider did not confirm this mod's availability. Check its project page and then refresh the listing.".into());
+    } else if project.obsolete {
         lines.push("Its author marked it obsolete, so Portcove won't install it.".into());
     }
     if project.files.is_empty() {
@@ -784,10 +795,12 @@ pub(crate) fn provider_project_text(view: &portcove_core::ProviderProjectView) -
             clean(&file.file_id),
             clean(&file.file_name),
             crate::human::format_bytes(file.size),
-            match (file.archived, noun) {
-                (false, _) => "",
-                (true, "version") => "; no longer offered, so it can't be installed",
-                (true, _) => "; archived, so it can't be installed",
+            match (file.status_unknown, file.archived, noun) {
+                (Some(_), _, _) =>
+                    "; availability unknown, refresh the listing before reviewing it",
+                (None, false, _) => "",
+                (None, true, "version") => "; no longer offered, so it can't be installed",
+                (None, true, _) => "; archived, so it can't be installed",
             },
             file.claimed_scan
                 .as_deref()
@@ -804,7 +817,12 @@ pub(crate) fn provider_project_text(view: &portcove_core::ProviderProjectView) -
             "{count} more {noun}s on {provider} couldn't be read safely and aren't listed."
         )),
     }
-    let installable = !project.obsolete && project.files.iter().any(|file| !file.archived);
+    let installable = !project.obsolete
+        && project.status_unknown.is_none()
+        && project
+            .files
+            .iter()
+            .any(|file| !file.archived && file.status_unknown.is_none());
     if stale.is_some() {
         lines.push(format!(
             "Try again when {provider} can be reached before reviewing a {noun}."
@@ -849,15 +867,24 @@ pub(crate) async fn execute(
 ) -> Result<()> {
     let name = command.name();
     match command {
-        ProfileCommand::ProviderBrowse { port_id, page } => {
-            let result = service.browse_provider_mods(&port_id, page).await?;
+        ProfileCommand::ProviderBrowse {
+            port_id,
+            page,
+            provider,
+        } => {
+            let result = service
+                .browse_provider_mods_for_provider(&port_id, page, provider.as_deref())
+                .await?;
             render_read_success(mode, name, result, provider_browse_text)
         }
         ProfileCommand::ProviderProject {
             port_id,
             project_id,
+            provider,
         } => {
-            let view = service.provider_project(&port_id, &project_id).await?;
+            let view = service
+                .provider_project_for_provider(&port_id, &project_id, provider.as_deref())
+                .await?;
             render_read_success(mode, name, view, provider_project_text)
         }
         ProfileCommand::ProviderUpdates {
@@ -905,9 +932,16 @@ pub(crate) async fn execute(
             profile_id,
             project_id,
             file_id,
+            provider,
         } => {
             let plan = service
-                .plan_provider_install(&port_id, &profile_id, &project_id, &file_id)
+                .plan_provider_install_for_provider(
+                    &port_id,
+                    &profile_id,
+                    &project_id,
+                    &file_id,
+                    provider.as_deref(),
+                )
                 .await?;
             render_read_success(mode, name, plan, plan_text)
         }
@@ -1666,6 +1700,7 @@ mod provider_text_tests {
             game_id: Some("16121".into()),
             updated_at: 5,
             obsolete,
+            status_unknown: None,
             profile_url: String::new(),
             submitter: None,
             files: vec![ProviderFileCandidate {
@@ -1676,6 +1711,7 @@ mod provider_text_tests {
                 download_url: String::new(),
                 claimed_md5: None,
                 archived,
+                status_unknown: None,
                 claimed_scan: Some("clean".into()),
                 thunderstore_dependencies: None,
             }],
@@ -1756,7 +1792,7 @@ mod provider_text_tests {
         };
         let empty = provider_browse_text(&page(Vec::new(), 41, 4, false));
         assert!(empty.contains("No mods on this page."));
-        assert!(!empty.contains("--page 5"));
+        assert!(empty.contains("provider-browse shipwright --page 5"));
         let unknown = provider_browse_text(&page(vec![project(false, 0, false)], 0, 1, false));
         assert!(unknown.contains("total unknown"));
         assert!(unknown.contains("provider-browse shipwright --page 2"));

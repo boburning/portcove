@@ -46,6 +46,15 @@
         "Release ZIPs are setup kits rather than generated game builds. Keep your complete 12-track disc and the supplied OpenBIOS. Controller and enhancement support varies. Back up cards, settings and mods before rebuilding; the pinned framework allows noncommercial use only."
       ],
       "help_url": "https://github.com/NJH-1001/Wipeout2K97XL/blob/464def7d7d95d46a548863475cdccee1e1ea31b3/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wipeout-xl",
+      "evidence_urls": [
+        "https://github.com/NJH-1001/Wipeout2K97XL/blob/464def7d7d95d46a548863475cdccee1e1ea31b3/README.md",
+        "https://github.com/NJH-1001/Wipeout2K97XL"
+      ],
+      "source_editions": []
     }
   },
   "psx_managed_windows_v1": "split-mods-openbios",

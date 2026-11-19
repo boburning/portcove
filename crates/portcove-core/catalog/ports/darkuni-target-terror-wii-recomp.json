@@ -39,10 +39,25 @@
       "help_url": "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md"
     },
     "release_url": "https://github.com/darkuni/target-terror-wii-recomp/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["TargetTerror-", "-win64.zip"]
-    },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "target-terror",
+      "evidence_urls": [
+        "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md",
+        "https://github.com/darkuni/target-terror-wii-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "target-terror-wii",
+          "title": "TARGET: Terror (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -71,5 +86,6 @@
         "executables": ["targetterror.exe"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

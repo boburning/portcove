@@ -172,6 +172,12 @@
       "executable": "teeworlds.exe",
       "arguments": [],
       "managed_native": false
+    },
+    {
+      "port_id": "warioland4",
+      "executable": "wl4-launcher.exe",
+      "arguments": [],
+      "managed_native": false
     }
   ]
 }

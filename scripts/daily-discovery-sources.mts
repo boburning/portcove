@@ -1,3 +1,4 @@
+import { resolveRetcommRevision, retcommTitlePaths } from "./retcomm-index.mts";
 import {
   DiscoveryPrimaryReads,
   discoveryNextPage,
@@ -58,6 +59,29 @@ async function metadataRequest(
     url: new URL(endpoint, "https://api.github.com/").href,
     headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
   });
+}
+
+const pcgamingwikiUrl = "https://www.pcgamingwiki.com/wiki/List_of_unofficial_ports";
+
+export async function collectPcgamingwikiSource(
+  c: Pick<SourceContext, "http" | "save">,
+): Promise<CollectedSource> {
+  const page = await c.http.request("GET", pcgamingwikiUrl);
+  c.save("pcgamingwiki", page);
+  const reviewable = page.status === 200 && Boolean(page.text.trim());
+  return {
+    id: "pcgamingwiki",
+    status: reviewable ? "partial" : "inaccessible",
+    evidence: pcgamingwikiUrl,
+    next_page: null,
+    truncated: false,
+    records: [],
+    http_status: page.status,
+    coverage: "Response capture for manual review only; no automated table coverage",
+    next_action: reviewable
+      ? "Verify the wiki revision and relevant changed rows manually, then corroborate leads upstream"
+      : "Resume manual review on restored normal access",
+  };
 }
 
 export async function collectRecompBoardSource(
@@ -240,10 +264,13 @@ export async function collectDiscoverySources(
     }
   }
   try {
-    const meta = await metadata(c, "RetroPortingToolKit/Retro-Catalog");
-    const repo = str(meta.full_name);
-    const ref = await commit(c, meta);
+    const {
+      repository: repo,
+      revision: ref,
+      repository_id,
+    } = await resolveRetcommRevision(async (endpoint) => (await metadataRequest(c, endpoint)).data);
     const got = await content(c, repo, "index.json", ref);
+    const index = retcommTitlePaths(got.data);
     c.save("retcomm-index", got);
     accept({
       id: "retcomm-index",
@@ -252,14 +279,13 @@ export async function collectDiscoverySources(
       next_page: null,
       truncated: false,
       records: [{ key: "index", fingerprint: observationHash(got.data) }],
-      repository_id: meta.id,
+      repository_id,
       continuity: "Historical transfer continuity requires independently bound provider identity",
     });
     const tree = rec((await metadataRequest(c, `repos/${repo}/git/trees/${ref}?recursive=1`)).data);
     if (tree.truncated !== false || !Array.isArray(tree.tree))
       throw new Error("RetComM tree is incomplete");
     const paths = new Map(tree.tree.map(rec).map((n) => [str(n.path), str(n.sha)]));
-    const platforms = rec(rec(got.data).platforms);
     const titles: {
       key: string;
       file: string;
@@ -268,24 +294,19 @@ export async function collectDiscoverySources(
       changed: boolean;
       checked: string;
     }[] = [];
-    for (const [platform, value] of Object.entries(platforms)) {
-      const p = rec(value);
-      if (!Array.isArray(p.titles)) throw new Error("Malformed RetComM title list");
-      for (const title of p.titles) {
-        const key = `retcomm-${str(title)}`;
-        const file = `${str(p.dir)}/${str(title)}.json`;
-        const sha = paths.get(file);
-        if (!sha) throw new Error("Indexed RetComM title absent from exact tree");
-        const previous = known.sources[key];
-        titles.push({
-          key,
-          file,
-          platform,
-          sha,
-          changed: previous?.hashes[`blob:${file}`] !== observationHash(sha),
-          checked: previous?.completed_at ?? "",
-        });
-      }
+    for (const { platform, title, path: file } of index.values()) {
+      const key = `retcomm-${title}`;
+      const sha = paths.get(file);
+      if (!sha) throw new Error("Indexed RetComM title absent from exact tree");
+      const previous = known.sources[key];
+      titles.push({
+        key,
+        file,
+        platform,
+        sha,
+        changed: previous?.hashes[`blob:${file}`] !== observationHash(sha),
+        checked: previous?.completed_at ?? "",
+      });
     }
     accept({
       id: "retcomm-tree",
@@ -419,26 +440,9 @@ export async function collectDiscoverySources(
     fail("portforge", "https://github.com/zamiba/portforge-mediaitems", e);
   }
   try {
-    const page = await c.http.request(
-      "GET",
-      "https://www.pcgamingwiki.com/wiki/List_of_unofficial_ports",
-    );
-    c.save("pcgamingwiki", page);
-    accept({
-      id: "pcgamingwiki",
-      status: page.status === 200 ? "partial" : "inaccessible",
-      evidence: "https://www.pcgamingwiki.com/wiki/List_of_unofficial_ports",
-      next_page: null,
-      truncated: false,
-      records: [],
-      http_status: page.status,
-      next_action:
-        page.status === 200
-          ? "Review revision and relevant changed rows before declaring complete table coverage"
-          : "Resume on restored normal access",
-    });
+    accept(await collectPcgamingwikiSource(c));
   } catch (e) {
-    fail("pcgamingwiki", "https://www.pcgamingwiki.com/wiki/List_of_unofficial_ports", e);
+    fail("pcgamingwiki", pcgamingwikiUrl, e);
   }
   try {
     accept(await collectRecompBoardSource(c, known));

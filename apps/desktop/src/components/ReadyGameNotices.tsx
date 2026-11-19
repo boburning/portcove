@@ -29,6 +29,7 @@ type NoticeScope = {
   generation: number;
   assessment: number;
   pending: Set<string>;
+  notices: ReadyNotice[];
   acknowledgedThrough: Map<string, number>;
 };
 
@@ -74,6 +75,7 @@ export function ReadyGameNotices({
       generation,
       assessment: 0,
       pending: new Set(),
+      notices: [],
       acknowledgedThrough: new Map(),
     };
     scope.current = current;
@@ -81,8 +83,27 @@ export function ReadyGameNotices({
       const call = ++current.assessment;
       return desktopApi
         .assessPortIntents(generation)
-        .then((assessed) => {
+        .then(async (assessed) => {
           if (scope.current !== current || current.assessment !== call) return;
+          const visited = new Set(assessed.assessments.map((assessment) => assessment.port_id));
+          const earlier = current.notices.filter(
+            (notice) => !visited.has(notice.assessment.port_id),
+          );
+          const saved =
+            assessed.ready_notices_enabled !== false && assessed.not_assessed > 0 && earlier.length
+              ? await desktopApi.portIntents(generation).catch(() => [])
+              : [];
+          if (scope.current !== current || current.assessment !== call) return;
+          const stillNotifying = new Map(
+            saved
+              .filter(
+                (intent) =>
+                  intent.mode === "notify" &&
+                  (intent.explicitly_uninstalled_at === undefined ||
+                    intent.explicitly_uninstalled_at === null),
+              )
+              .map((intent) => [intent.port_id, intent]),
+          );
           const notices = assessed.assessments
             .flatMap(noticeFor)
             .filter((notice) => (current.acknowledgedThrough.get(notice.key) ?? 0) < call);
@@ -90,8 +111,19 @@ export function ReadyGameNotices({
           for (const [key, through] of current.acknowledgedThrough) {
             if (through < call) current.acknowledgedThrough.delete(key);
           }
-          rememberRemovedFocus((key) => !notices.some((notice) => notice.key === key));
-          setReady({ generation, notices });
+          current.notices = [
+            ...earlier.filter((notice) => {
+              const intent = stillNotifying.get(notice.assessment.port_id);
+              return Boolean(
+                intent &&
+                intent.acknowledged_plan_sha256 !== notice.sha &&
+                current.notices.some((previous) => previous.key === notice.key),
+              );
+            }),
+            ...notices,
+          ];
+          rememberRemovedFocus((key) => !current.notices.some((notice) => notice.key === key));
+          setReady({ generation, notices: current.notices });
         })
         .catch(() => undefined);
     };
@@ -143,14 +175,8 @@ export function ReadyGameNotices({
       if (scope.current !== current) return;
       current.acknowledgedThrough.set(notice.key, current.assessment);
       rememberRemovedFocus((key) => key === notice.key);
-      setReady((previous) =>
-        previous?.generation === generation
-          ? {
-              generation,
-              notices: previous.notices.filter((item) => item.key !== notice.key),
-            }
-          : previous,
-      );
+      current.notices = current.notices.filter((item) => item.key !== notice.key);
+      setReady({ generation, notices: current.notices });
       setDismissals((previous) => {
         const next = { ...previous };
         delete next[statusKey];

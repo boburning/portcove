@@ -19,9 +19,6 @@
     },
     "original_game_title": "MechCommander 2",
     "release_url": "https://github.com/alariq/mc2/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["mc2-win64-", ".zip"]
-    },
     "manual_setup": {
       "help_url": "https://github.com/alariq/mc2/blob/c428dfe02b609f0864933e715ca22ed07427a545/README.md",
       "warnings": [
@@ -45,8 +42,18 @@
           "instruction": "For a copy you registered yourself, you or upstream provide updates. Extract a new official player separately and keep the working copy. Follow upstream guidance for settings and custom content; copying old generated texture or geometry caches over a new package can replace its new files. Registration leaves every external file untouched."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mechcommander-2",
+      "evidence_urls": [
+        "https://github.com/alariq/mc2/blob/c428dfe02b609f0864933e715ca22ed07427a545/README.md",
+        "https://github.com/alariq/mc2"
+      ],
+      "source_editions": []
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

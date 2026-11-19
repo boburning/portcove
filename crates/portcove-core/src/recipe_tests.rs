@@ -116,7 +116,7 @@ fn inspection_accepts_exported_bytes_and_rejects_malformed_or_forged_recipes() {
         "digest binds content"
     );
     let mut future = serde_json::to_value(&recipe).unwrap();
-    future["format"] = serde_json::json!(RECIPE_FORMAT + 1);
+    future["format"] = serde_json::json!(RECIPE_FORMAT_WITH_PROVIDER_BINDINGS + 1);
     assert_eq!(
         ProfileRecipe::inspect(future.to_string().as_bytes())
             .unwrap_err()
@@ -270,6 +270,7 @@ fn missing_changed_or_foreign_inputs_hold_the_plan_and_change_nothing() {
     assert!(!plan.can_apply);
     assert_eq!(plan.packages[0].status, RecipeInputStatus::Unavailable);
     missing.packages[0].provider = Some(ProviderPackageRef {
+        binding: None,
         provider: "gamebanana".into(),
         project: "1".into(),
         file: Some("2".into()),
@@ -289,18 +290,21 @@ fn missing_changed_or_foreign_inputs_hold_the_plan_and_change_nothing() {
     // Only a complete GameBanana file reference for a bound game can be planned.
     for provider in [
         ProviderPackageRef {
+            binding: None,
             provider: "gamebanana".into(),
             project: "1".into(),
             file: None,
             version: None,
         },
         ProviderPackageRef {
+            binding: None,
             provider: "elsewhere".into(),
             project: "1".into(),
             file: Some("2".into()),
             version: None,
         },
         ProviderPackageRef {
+            binding: None,
             provider: "gamebanana".into(),
             project: "../1".into(),
             file: Some("2".into()),
@@ -433,6 +437,7 @@ fn constructed_recipes_are_held_to_the_same_rules_as_inspected_ones() {
 
 fn label(project: &str, file: &str) -> ProviderPackageRef {
     ProviderPackageRef {
+        binding: None,
         provider: "gamebanana".into(),
         project: project.into(),
         file: Some(file.into()),
@@ -745,6 +750,7 @@ fn reviewed_provider_bytes_join_a_recipe_only_after_the_final_exact_approval() {
             download_url: "https://gamebanana.com/dl/2".into(),
             claimed_md5: None,
             archived: false,
+            status_unknown: None,
             claimed_scan: None,
             thunderstore_dependencies: None,
         },

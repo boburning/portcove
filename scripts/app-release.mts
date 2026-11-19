@@ -4,6 +4,7 @@
 // `latest.json` feed. No AI review, journal or controller is involved.
 import { execFileSync } from "node:child_process";
 import {
+  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -124,12 +125,109 @@ export function stampVersion(root: string, version: string) {
   }
 }
 
-const platformAssets: { platform: string; suffix: string }[] = [
-  { platform: "windows-x86_64", suffix: "_x64-setup.exe" },
-  { platform: "linux-x86_64", suffix: "_amd64.AppImage" },
-  { platform: "darwin-aarch64", suffix: "_universal.app.tar.gz" },
-  { platform: "darwin-x86_64", suffix: "_universal.app.tar.gz" },
+type AppReleaseTarget = {
+  label: string;
+  os: string;
+  target: string;
+  rust_targets: string;
+  bundles: string;
+  cliTargets: Partial<
+    Record<"windows-x86_64" | "linux-x86_64" | "macos-aarch64" | "macos-x86_64", string>
+  >;
+  display: string;
+  download: { directory: string; suffix: string; purpose: string };
+  updater: { directory: string; suffix: string; aliases: readonly string[]; source?: string };
+};
+
+export const appReleaseProfile: readonly AppReleaseTarget[] = [
+  {
+    label: "windows-x86_64",
+    os: "windows-latest",
+    target: "x86_64-pc-windows-msvc",
+    rust_targets: "x86_64-pc-windows-msvc",
+    bundles: "nsis",
+    cliTargets: { "windows-x86_64": "x86_64-pc-windows-msvc" },
+    display: "Windows x86-64",
+    download: { directory: "nsis", suffix: "_x64-setup.exe", purpose: "Desktop installer" },
+    updater: { directory: "nsis", suffix: "_x64-setup.exe", aliases: ["windows-x86_64"] },
+  },
+  {
+    label: "linux-x86_64",
+    os: "ubuntu-24.04",
+    target: "x86_64-unknown-linux-gnu",
+    rust_targets: "x86_64-unknown-linux-gnu",
+    bundles: "appimage",
+    cliTargets: { "linux-x86_64": "x86_64-unknown-linux-gnu" },
+    display: "Linux x86-64",
+    download: {
+      directory: "appimage",
+      suffix: "_amd64.AppImage",
+      purpose: "Desktop AppImage (run directly)",
+    },
+    updater: { directory: "appimage", suffix: "_amd64.AppImage", aliases: ["linux-x86_64"] },
+  },
+  {
+    label: "macos-universal",
+    os: "macos-15",
+    target: "universal-apple-darwin",
+    rust_targets: "aarch64-apple-darwin,x86_64-apple-darwin",
+    bundles: "app,dmg",
+    cliTargets: { "macos-aarch64": "aarch64-apple-darwin", "macos-x86_64": "x86_64-apple-darwin" },
+    display: "macOS Apple Silicon and Intel",
+    download: { directory: "dmg", suffix: "_universal.dmg", purpose: "Desktop disk image" },
+    updater: {
+      directory: "macos",
+      suffix: "_universal.app.tar.gz",
+      aliases: ["darwin-aarch64", "darwin-x86_64"],
+      source: "Portcove.app.tar.gz",
+    },
+  },
 ];
+
+export function appReleaseMatrix() {
+  return {
+    include: appReleaseProfile.map(({ label, os, target, rust_targets, bundles, cliTargets }) => ({
+      label,
+      os,
+      target,
+      rust_targets,
+      bundles,
+      cli_targets: JSON.stringify(cliTargets),
+    })),
+  };
+}
+
+function bundleName(version: string, suffix: string) {
+  return `Portcove_${version}${suffix}`;
+}
+
+function updaterSignature(bytes: string, filename: string) {
+  const signature = bytes.trim();
+  if (!signature) throw new Error(`missing signed updater asset signature in ${filename}`);
+  return signature;
+}
+
+export function collectAppReleaseBundles(
+  root: string,
+  dist: string,
+  label: string,
+  version: string,
+) {
+  classifyRelease(version);
+  const target = appReleaseProfile.find((entry) => entry.label === label);
+  if (!target) throw new Error(`unknown app release target ${label}`);
+  const bundle = path.join(root, "target", target.target, "release", "bundle");
+  const files = new Map<string, string>();
+  const download = bundleName(version, target.download.suffix);
+  const updater = bundleName(version, target.updater.suffix);
+  const source = path.join(bundle, target.updater.directory, target.updater.source ?? updater);
+  files.set(download, path.join(bundle, target.download.directory, download));
+  files.set(updater, source);
+  files.set(`${updater}.sig`, `${source}.sig`);
+  updaterSignature(readFileSync(`${source}.sig`, "utf8"), path.basename(source));
+  mkdirSync(dist, { recursive: true });
+  for (const [filename, from] of files) copyFileSync(from, path.join(dist, filename));
+}
 
 /** Tauri static updater feed from the published `.sig` files of one release. */
 export function buildFeed(options: {
@@ -138,17 +236,20 @@ export function buildFeed(options: {
   pubDate: string;
   assetsDir: string;
   downloadBase: string;
+  profile?: readonly AppReleaseTarget[];
 }) {
   const files = new Set(readdirSync(options.assetsDir));
   const platforms: Record<string, { signature: string; url: string }> = {};
-  for (const { platform, suffix } of platformAssets) {
-    const name = `Portcove_${options.version}${suffix}`;
+  for (const { updater } of options.profile ?? appReleaseProfile) {
+    const name = bundleName(options.version, updater.suffix);
     // The published release's asset set is verified separately; the feed needs its signatures.
     if (!files.has(`${name}.sig`)) throw new Error(`missing signed updater asset ${name}`);
-    platforms[platform] = {
-      signature: readFileSync(path.join(options.assetsDir, `${name}.sig`), "utf8").trim(),
-      url: `${options.downloadBase}/${name}`,
-    };
+    const signature = updaterSignature(
+      readFileSync(path.join(options.assetsDir, `${name}.sig`), "utf8"),
+      name,
+    );
+    for (const platform of updater.aliases)
+      platforms[platform] = { signature, url: `${options.downloadBase}/${name}` };
   }
   return { version: options.version, notes: options.notes, pub_date: options.pubDate, platforms };
 }
@@ -299,6 +400,7 @@ export const nightlyLookback = 100;
  * first-parent commit of `origin/main` that is newer than every commit carrying a
  * `v*` or `nightly-*` tag. On a busy `main` the newest commit often has no finished
  * `CI` run yet (pending runs are replaced), so an older reviewed commit is used.
+ * The selected commit must support the reusable workflow's packaging profile.
  * The version follows the chosen commit's `Cargo.toml` workspace version.
  * The tag only names the release: signing is admitted by the `main` ref of the
  * nightly run, never by this tag.
@@ -328,14 +430,27 @@ export async function nightlyPreview(
     }
     const conclusion = await ci(sha);
     if (conclusion === "success") {
-      commit = sha;
-      break;
+      let script = "";
+      try {
+        script = git(["show", `${sha}:scripts/app-release.mts`]);
+      } catch {
+        // Older source may predate the tag release workflow.
+      }
+      if (
+        script.includes('command === "build-matrix"') &&
+        script.includes('command === "collect-bundles"')
+      ) {
+        commit = sha;
+        break;
+      }
+      seen.push(`${sha.slice(0, 9)} predates the release profile`);
+      continue;
     }
     seen.push(`${sha.slice(0, 9)} got '${conclusion || "none"}'`);
   }
   if (!commit)
     return {
-      skipped: `CI has not succeeded on any of the latest ${candidates.length} main commits (${seen.join("; ")})`,
+      skipped: `No eligible CI-green candidate among any of the latest ${candidates.length} main commits (${seen.join("; ")})`,
     };
   const workspaceVersion = parseWorkspaceVersion(git(["show", `${commit}:Cargo.toml`]));
   const tags = listVersionTags(run);
@@ -484,67 +599,116 @@ export async function ciConclusion(token: string, sha: string) {
   return runs.at(-1)?.conclusion ?? "";
 }
 
-/**
- * Conclusion of the newest completed `CI` push run per commit, from the latest
- * `nightlyLookback` completed `ci.yml` push runs on `main` in one read. The nightly looks up its
- * candidate commits here instead of reading each commit's runs.
- */
+type MainCiRun = {
+  name: string;
+  head_sha: string;
+  head_branch: string;
+  path: string;
+  event: string;
+  head_repository: { full_name: string } | null;
+  status: string;
+  conclusion: string | null;
+  run_attempt: number;
+  id: number;
+};
+
 export async function mainCiConclusions(token: string) {
-  const api = await client(token);
-  // Scoped to ci.yml: the repository-wide list mixes every push workflow, which
-  // would cover far fewer than `nightlyLookback` commits. Replaced pending runs
-  // complete as cancelled, so 100 completed runs span about 100 main commits.
-  const response = await api.request(
-    "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
-    {
-      owner: "boburning",
-      repo: "portcove",
-      workflow_id: "ci.yml",
-      branch: "main",
-      event: "push",
-      status: "completed",
-      per_page: nightlyLookback,
-      ...read(),
-    },
-  );
+  return readMainCiConclusions(await client(token));
+}
+
+/** Read the completed lookback and a recent view of the same main CI pushes.
+ * GitHub's status index can omit an already completed recent run. Keep both
+ * reads bounded and use the run's own current attempt and completion fields. */
+export async function readMainCiConclusions(api: Awaited<ReturnType<typeof client>>) {
+  const route = "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs";
+  const scope = {
+    owner: "boburning",
+    repo: "portcove",
+    workflow_id: "ci.yml",
+    branch: "main",
+    event: "push",
+    per_page: nightlyLookback,
+    ...read(),
+  };
+  const views = await Promise.all([
+    api.request(route, { ...scope, status: "completed" }),
+    api.request(route, scope),
+  ]);
   return newestConclusions(
-    (
-      response.data as {
-        workflow_runs: {
-          name: string;
-          head_sha: string;
-          conclusion: string | null;
-          run_attempt: number;
-          id: number;
-        }[];
-      }
-    ).workflow_runs,
+    views.flatMap(({ data }) => {
+      const { workflow_runs } = data as { workflow_runs: MainCiRun[] };
+      if (!Array.isArray(workflow_runs) || workflow_runs.length > nightlyLookback)
+        throw new Error("main CI run inventory exceeds its expected page");
+      return workflow_runs;
+    }),
   );
 }
 
-/** The conclusion of each commit's newest `CI` run and attempt. */
-export function newestConclusions(
-  runs: readonly {
-    name: string;
-    head_sha: string;
-    conclusion: string | null;
-    run_attempt: number;
-    id: number;
-  }[],
-) {
-  const newest = new Map<string, { id: number; attempt: number; conclusion: string }>();
+type MainCiConclusion = string | { unresolved: string };
+export type MainCiConclusions = ReadonlyMap<string, MainCiConclusion>;
+
+/** Read one first-parent decision. Earlier selection leaves older disputes alone. */
+export function mainCiConclusion(conclusions: MainCiConclusions, sha: string) {
+  const finding = conclusions.get(sha);
+  if (typeof finding === "object") throw new Error(finding.unresolved);
+  return finding ?? "";
+}
+
+/** Reconcile the newest observed main CI run and attempt per commit. */
+export function newestConclusions(runs: readonly MainCiRun[]): MainCiConclusions {
+  const newest = new Map<string, MainCiRun>();
+  const attempts = new Map<string, MainCiRun>();
+  const commits = new Map<number, string>();
+  const successfulHeads = new Set<string>();
+  const unresolved = new Map<string, string>();
   for (const run of runs) {
-    if (run.name !== "CI") continue;
-    const known = newest.get(run.head_sha);
-    if (known && (known.id > run.id || (known.id === run.id && known.attempt >= run.run_attempt)))
+    if (
+      run.name !== "CI" ||
+      run.path !== ".github/workflows/ci.yml" ||
+      run.head_branch !== "main" ||
+      run.event !== "push" ||
+      run.head_repository?.full_name !== "boburning/portcove" ||
+      !/^[a-f0-9]{40}$/u.test(run.head_sha) ||
+      !Number.isSafeInteger(run.id) ||
+      run.id <= 0 ||
+      !Number.isSafeInteger(run.run_attempt) ||
+      run.run_attempt <= 0
+    )
       continue;
-    newest.set(run.head_sha, {
-      id: run.id,
-      attempt: run.run_attempt,
-      conclusion: run.conclusion ?? "",
-    });
+    const oldCommit = commits.get(run.id);
+    if (oldCommit !== undefined && oldCommit !== run.head_sha) {
+      const reason = `main CI inventory disagrees about the commit for run ${run.id}`;
+      unresolved.set(oldCommit, reason);
+      unresolved.set(run.head_sha, reason);
+      continue;
+    }
+    commits.set(run.id, run.head_sha);
+    const identity = `${run.id}/${run.run_attempt}`;
+    const seen = attempts.get(identity);
+    if (seen) {
+      const complete = run.status === "completed";
+      if (
+        (seen.status === "completed") !== complete ||
+        (complete && seen.conclusion !== run.conclusion)
+      )
+        unresolved.set(run.head_sha, `main CI inventory disagrees about run attempt ${identity}`);
+      continue;
+    }
+    attempts.set(identity, run);
+    if (run.status === "completed" && run.conclusion === "success")
+      successfulHeads.add(run.head_sha);
+    const known = newest.get(run.head_sha);
+    if (!known || run.id > known.id || (run.id === known.id && run.run_attempt > known.run_attempt))
+      newest.set(run.head_sha, run);
   }
-  return new Map([...newest].map(([sha, run]) => [sha, run.conclusion]));
+  const findings = new Map<string, MainCiConclusion>();
+  for (const [sha, run] of newest) {
+    if (run.status !== "completed" && successfulHeads.has(sha) && !unresolved.has(sha))
+      unresolved.set(sha, `main CI success is superseded by an unfinished attempt for ${sha}`);
+    findings.set(sha, run.status === "completed" ? (run.conclusion ?? "") : "");
+  }
+  for (const [sha, reason] of unresolved) findings.set(sha, { unresolved: reason });
+  return findings;
 }
 
 type Release = {
@@ -640,21 +804,26 @@ export async function readReleaseById(
   return release;
 }
 
-export async function assertAppReleaseAssets(version: string, names: readonly string[]) {
+export async function assertAppReleaseAssets(
+  version: string,
+  names: readonly string[],
+  profile = appReleaseProfile,
+) {
   const policy = await loadPackagePolicy();
+  const cliPlatforms = new Set(profile.flatMap(({ cliTargets }) => Object.keys(cliTargets)));
   const cli = policy.packages
-    .filter((entry) => entry.interface === "cli")
+    .filter((entry) => entry.interface === "cli" && cliPlatforms.has(entry.platform_label))
     .map((entry) => ({ label: entry.display_label, filename: artifactName(entry, version) }));
-  const updaterPayloads = [
-    ...new Set(platformAssets.map(({ suffix }) => `Portcove_${version}${suffix}`)),
-  ];
+  if (cli.length !== cliPlatforms.size)
+    throw new Error("app release CLI targets lack package policy");
+  const desktopAssets = new Set(
+    profile.flatMap(({ download, updater }) => {
+      const name = bundleName(version, updater.suffix);
+      return [bundleName(version, download.suffix), name, `${name}.sig`];
+    }),
+  );
   assertExactArtifactNames(
-    [
-      ...cli.map((entry) => entry.filename),
-      ...updaterPayloads.flatMap((name) => [name, `${name}.sig`]),
-      `Portcove_${version}_universal.dmg`,
-      "SHA256SUMS",
-    ],
+    [...cli.map((entry) => entry.filename), ...desktopAssets, "SHA256SUMS"],
     names,
     "app release assets",
   );
@@ -665,19 +834,20 @@ export async function renderAppReleaseDownloadSection(
   tag: string,
   version: string,
   names: readonly string[],
+  profile = appReleaseProfile,
 ) {
-  const cli = await assertAppReleaseAssets(version, names);
+  const cli = await assertAppReleaseAssets(version, names, profile);
   const channel = classifyRelease(version).channel;
   if (tag !== `v${version}` && !(channel === "preview" && tag === `nightly-${version}`))
     throw new Error("download section tag and version disagree");
 
   const base = `https://github.com/${repository}/releases/download/${tag}`;
   const link = (name: string) => `[${name}](${base}/${name})`;
-  const rows: [string, string, string][] = [
-    ["Windows x86-64", "Desktop installer", `Portcove_${version}_x64-setup.exe`],
-    ["Linux x86-64", "Desktop AppImage (run directly)", `Portcove_${version}_amd64.AppImage`],
-    ["macOS Apple Silicon and Intel", "Desktop disk image", `Portcove_${version}_universal.dmg`],
-  ];
+  const rows: [string, string, string][] = profile.map(({ display, download }) => [
+    display,
+    download.purpose,
+    bundleName(version, download.suffix),
+  ]);
   for (const entry of cli)
     rows.push([entry.label, "Standalone CLI (extract and run)", entry.filename]);
   return [
@@ -693,7 +863,13 @@ export async function renderAppReleaseDownloadSection(
     "",
     `Check the SHA-256 for your exact filename in ${link("SHA256SUMS")} before using it.`,
     "",
-    `The ${link(`Portcove_${version}_universal.app.tar.gz`)} archive is for the macOS updater. The signature files also serve the updater.`,
+    ...profile.flatMap(({ download, updater }) =>
+      updater.suffix === download.suffix
+        ? []
+        : [
+            `The ${link(bundleName(version, updater.suffix))} archive is for the macOS updater. The signature files also serve the updater.`,
+          ],
+    ),
     "",
     "### CLI quick start",
     "",
@@ -716,6 +892,8 @@ export async function publishRelease(options: {
 }) {
   const expected = readdirSync(options.distDir).sort();
   await assertAppReleaseAssets(options.version, expected);
+  for (const name of expected.filter((entry) => entry.endsWith(".sig")))
+    updaterSignature(readFileSync(path.join(options.distDir, name), "utf8"), name);
   const api = await client(options.token);
   const uploads = await client(options.token, "https://uploads.github.com");
   let release = await findRelease(api, options.tag);
@@ -774,10 +952,23 @@ export async function publishRelease(options: {
 }
 
 /** Writes the published release's `.sig` files, so the feed always matches the immutable bytes. */
-export async function downloadPublishedSignatures(token: string, tag: string, dir: string) {
+export async function downloadPublishedSignatures(
+  token: string,
+  tag: string,
+  dir: string,
+  exactProfile = false,
+) {
   const api = await client(token);
   const release = await findPublishedRelease(api, tag);
   if (release === null) throw new Error(`${tag} is not a published release`);
+  if (exactProfile) {
+    const version = tagVersion(tag);
+    if (version === null) throw new Error("publisher readback has no release version");
+    await assertAppReleaseAssets(
+      version,
+      release.assets.map(({ name }) => name),
+    );
+  }
   mkdirSync(dir, { recursive: true });
   for (const asset of release.assets.filter((entry) => entry.name.endsWith(".sig"))) {
     const response = await fetch(asset.browser_download_url, {
@@ -786,6 +977,7 @@ export async function downloadPublishedSignatures(token: string, tag: string, di
     if (!response.ok) throw new Error(`download of ${asset.name} failed with ${response.status}`);
     const bytes = Buffer.from(await response.arrayBuffer());
     if (bytes.length > 4096) throw new Error(`${asset.name} exceeds the signature bound`);
+    if (exactProfile) updaterSignature(bytes.toString("utf8"), asset.name);
     writeFileSync(path.join(dir, asset.name), bytes);
   }
 }
@@ -1081,7 +1273,11 @@ async function main(argv: string[]) {
     if (index < 0 || rest[index + 1] === undefined) throw new Error(`--${name} is required`);
     return rest[index + 1]!;
   };
-  if (command === "plan") {
+  if (command === "build-matrix") {
+    console.log(`matrix=${JSON.stringify(appReleaseMatrix())}`);
+  } else if (command === "collect-bundles") {
+    collectAppReleaseBundles(process.cwd(), flag("dist"), flag("target-label"), flag("version"));
+  } else if (command === "plan") {
     const tag = flag("tag");
     if (!tag.startsWith("v")) throw new Error("release tags start with v");
     const release = classifyRelease(tag.slice(1));
@@ -1140,7 +1336,12 @@ async function main(argv: string[]) {
     });
     console.log(`published release ${result.id} with ${result.assets} assets`);
   } else if (command === "download-signatures")
-    await downloadPublishedSignatures(token(), flag("tag"), flag("dir"));
+    await downloadPublishedSignatures(
+      token(),
+      flag("tag"),
+      flag("dir"),
+      rest.includes("--exact-profile"),
+    );
   else if (command === "withdrawn")
     // Prints true or false; an unreadable list fails instead of reading as "not withdrawn".
     console.log(String(isWithdrawn(flag("version"), readOptional(flag("file")))));
@@ -1148,7 +1349,7 @@ async function main(argv: string[]) {
     console.log(nextPreviewVersion(listVersionTags(), readWorkspaceVersion(process.cwd())));
   else if (command === "nightly-preview") {
     const conclusions = await mainCiConclusions(token());
-    const result = await nightlyPreview((sha) => Promise.resolve(conclusions.get(sha) ?? ""));
+    const result = await nightlyPreview(async (sha) => mainCiConclusion(conclusions, sha));
     if ("skipped" in result) {
       console.error(`::notice::No nightly preview: ${result.skipped}`);
       console.log("tag=");
@@ -1189,7 +1390,7 @@ async function main(argv: string[]) {
     console.log(`tagged ${result.tag} (${result.channel}) at ${result.commit}`);
   } else
     throw new Error(
-      "usage: app-release.mts plan|stamp|feed|compare|ci-status|publish|download-signatures|withdrawn|next-preview|nightly-preview|verify-inputs|version-unclaimed|withdraw|tag",
+      "usage: app-release.mts build-matrix|collect-bundles|plan|stamp|feed|compare|ci-status|publish|download-signatures|withdrawn|next-preview|nightly-preview|verify-inputs|version-unclaimed|withdraw|tag",
     );
 }
 

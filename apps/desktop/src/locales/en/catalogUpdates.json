@@ -59,7 +59,7 @@
     "fallbackGeneric": "A saved catalog could not be used. Portcove continued with the available catalog information.",
     "fallbackNotLoaded": "The selected catalog definition could not be loaded. Portcove continued with the available catalog information.",
     "fallbackReplay": "Portcove couldn’t accept this catalog update. Portcove continued with the available catalog information.",
-    "fallbackSignature": "A saved catalog did not pass signature verification. Portcove continued with the available catalog information.",
+    "fallbackSignature": "Catalog information did not pass signature verification. Portcove kept the available catalog information.",
     "fallbackUntrusted": "A saved catalog was signed by a publisher that is no longer trusted. Portcove continued with the available catalog information.",
     "fingerprint": "Publisher fingerprint",
     "loadingInformation": "Loading catalog information…",
@@ -116,13 +116,18 @@
   "listings": {
     "addressPlaceholder": "https://",
     "builtIn": "Using the built-in directory",
+    "checkingStatus": "Checking game listing status…",
     "contentAddress": "Catalog content address",
     "description": "Refresh port listings, artwork and setup information from the configured official publisher. Game installations keep their existing permissions and files.",
     "metadataAddress": "Catalog metadata address",
     "refresh": "Refresh game listings",
     "refreshing": "Refreshing game listings…",
+    "retryStatus": "Retry listing status",
     "revision_one": "Game listings revision {{revision}} · {{count}} published listing",
     "revision_other": "Game listings revision {{revision}} · {{count}} published listings",
+    "savedDirectoryUnavailable": "Portcove could not use the saved listing directory.",
+    "settings": "Listing refresh settings",
+    "statusFailed": "Game listing status is unknown. Could not read it: {{error}}",
     "title": "Game listings"
   }
 }

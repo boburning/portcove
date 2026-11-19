@@ -114,7 +114,9 @@ async function fixture() {
           issues.map((issue) => ({
             ...issue,
             blockedBy: connection([]),
-            projectItems: connection([items[issue.number - 1]]),
+            projectItems: connection([
+              { ...items[issue.number - 1], fieldValues: { ...connection([]), edges: [] } },
+            ]),
           })),
         ),
       },

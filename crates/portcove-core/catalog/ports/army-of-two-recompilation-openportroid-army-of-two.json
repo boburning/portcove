@@ -35,6 +35,21 @@
       "image_sha256": "c18a22095f16a0cd9efc70383ce92291ff1b70f3aad6b7037630e51501c3c3c8",
       "game_slug": "army-of-two",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "army-of-two",
+      "evidence_urls": ["https://github.com/OpenPortroid/ArmyOfTwoRecompilation"],
+      "source_editions": [
+        {
+          "id": "army-of-two-xbox-360",
+          "title": "Army of Two (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/OpenPortroid/ArmyOfTwoRecompilation/blob/8333f2b637d077fecc82c02741e665de539c1ac7/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

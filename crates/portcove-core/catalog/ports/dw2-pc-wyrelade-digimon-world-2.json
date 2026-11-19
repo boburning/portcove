@@ -35,6 +35,12 @@
       "image_sha256": "26270ce540b53c94de9dde72607de9d641c36a2f9c55df661b53102d8b1fca75",
       "game_slug": "digimon-world-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "digimon-world-2",
+      "evidence_urls": ["https://github.com/Wyrelade/DW2-PC"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

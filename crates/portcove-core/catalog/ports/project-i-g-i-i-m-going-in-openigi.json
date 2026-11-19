@@ -1,0 +1,47 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "project-i-g-i-i-m-going-in-openigi",
+    "issue_number": 5843,
+    "name": "Project I.G.I. / OpenIGI",
+    "original_game_title": "Project I.G.I.",
+    "summary": "Play Project I.G.I. using your own retail installation. OpenIGI publishes standalone players and has a separate launcher that manages game versions.",
+    "project_url": "https://github.com/OpenIGI/OpenIGI",
+    "listed_at": "2026-11-18",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/OpenIGI/OpenIGI/releases/tag/v0.6.9-beta.4",
+    "setup_url": "https://github.com/OpenIGI/OpenIGI/blob/v0.6.9-beta.4/README.md#playing",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use your own Project I.G.I. files",
+          "instruction": "Open the upstream OpenIGI Launcher and choose your retail installation in Settings if it does not find it. The launcher installs and updates OpenIGI. Select Beta in its settings to use v0.6.9-beta.4."
+        },
+        {
+          "title": "Choose the right standalone player",
+          "instruction": "Use the self-contained player on Windows 10 or 11 x86-64, Linux x86-64 with Vulkan or macOS 13 or later on Apple silicon. The separate .NET downloads require .NET 10. On Linux, make the exact openigi-game-0.6.9-beta.4-linux-x64 file executable. On Mac, extract its app and follow the project release's first-run instructions."
+        },
+        {
+          "title": "Launch a standalone player again",
+          "instruction": "Run the player with -game followed by the path to your own retail Project I.G.I. folder, or set IGI_GAME_PATH before launching. Keep the same original install location. The project's launcher is a separate way to reopen Settings and play."
+        }
+      ],
+      "references": [
+        {
+          "title": "Keep your OpenIGI data",
+          "instruction": "Keep OpenIGI in your per-user application-data folder, including %APPDATA%/OpenIGI on Windows, the XDG configuration directory on Linux or ~/Library/Application Support on Mac. Also keep any settings.cfg beside the executable. The upstream launcher updates its own installations. When using standalone players, replace the runtime yourself and keep your profile."
+        }
+      ],
+      "warnings": [
+        "This guide applies to Project I.G.I. The separate I.G.I. 2 project has its own setup and release status."
+      ]
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["openigi-game-", "-win-x64.exe"],
+      "linux-x86-64": ["openigi-game-0.6.9-beta.4-linux-x64"],
+      "macos-aarch64": ["openigi-game-", "-osx-arm64.tar.gz"]
+    },
+    "recommended_download_channel": "beta"
+  }
+}

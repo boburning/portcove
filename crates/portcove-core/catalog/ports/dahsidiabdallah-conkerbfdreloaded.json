@@ -46,6 +46,24 @@
           "instruction": "You or upstream provide runtime updates. Keep the complete working copy and actual profile: normally %LOCALAPPDATA%\\ConkerBFDReloaded or ~/.config/ConkerBFDReloaded. Preserve the cached ROM, saves, settings, mods, save states, Photos and generated key_prompts together, including portable/custom locations actually used. Keep the current copy until its replacement is ready. Portcove records launch details without adopting, backing up, rolling back or deleting external files."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "conker-s-bad-fur-day",
+      "evidence_urls": [
+        "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/README.md",
+        "https://github.com/DahSidiAbdallah/ConkerBFDReloaded"
+      ],
+      "source_editions": [
+        {
+          "id": "conker-s-bad-fur-day-nintendo-64",
+          "title": "Conker's Bad Fur Day (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/9cfebde3b65bb2b79b97c1b80aacb2285b072098/README.md"
+          ]
+        }
+      ]
     }
   }
 }

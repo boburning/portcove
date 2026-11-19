@@ -1,11 +1,12 @@
 # Portcove CLI
 
-Use the standalone CLI to inspect and manage one explicitly selected library.
-This guide describes the maintained source contract. Published Alpha 2 contains
-API 34 and does not provide the later library-identity, reviewed-first-install,
-durable launch-request and activity-feed contracts. Select a [published package](DOWNLOADS.md) for its actual
-capabilities, or an [identified compatible candidate](INTEGRATION-AUTHOR.md#choose-a-cli-and-fixture-library)
-for current integration development. A local candidate is not a public release.
+Use the standalone CLI to inspect and manage one library. Choose the library
+before you run commands that open it. This guide describes the current source.
+The published Alpha 2 CLI uses API 34. Later versions add library identity,
+reviewed first installs, stored launch requests, and the activity feed.
+Check the capabilities of the [published package](DOWNLOADS.md) you choose.
+If you develop an integration against current source, choose an
+[identified compatible build](INTEGRATION-AUTHOR.md#choose-a-cli-and-fixture-library).
 
 ## Task guides
 
@@ -33,16 +34,16 @@ changes command names, serialized fields, IDs, timestamps or permission checks.
 
 Run `portcove --help` for four task groups: **Everyday commands**, **Game files
 and library**, **Updates and recovery**, and **Advanced and integration**.
-Use `portcove COMMAND --help` for the selected command's arguments, required
-review inputs and examples before a consequential action. Help is human
-discovery, not a stable parsing contract; machine clients use capabilities,
-schemas and JSON/JSONL.
-The commands below use `PORT_ID` from
-`catalog list`. For a source command, `portcove catalog show PORT_ID` displays the
-declared `Game-file profile ID` and `BIOS profile ID` when present; use the
-applicable one as `PROFILE_ID`. Substitute paths on your machine. Use `--library PATH` when working with a library other than
-the saved default. These examples are human-output commands; automation should
-use the [reference below](#automation-and-integration-reference).
+Before you run a command that changes data, run `portcove COMMAND --help`.
+Read its arguments, required review inputs, and examples. For software clients,
+use capabilities, schemas, and JSON/JSONL for stable responses.
+
+Get `PORT_ID` from `catalog list`. For source commands, run
+`portcove catalog show PORT_ID`. If it shows a `Game-file profile ID` or
+`BIOS profile ID`, use the applicable one as `PROFILE_ID`. Substitute paths on
+your machine. If you use a library other than the saved default, pass
+`--library PATH`. For scripts, use the
+[automation reference](#automation-and-integration-reference).
 
 1. Browse the full descriptive directory with `portcove catalog listings`.
    For managed definitions, use `portcove catalog list`, then read a port's game
@@ -100,9 +101,12 @@ and working directory explicitly. For example, review
 `portcove external select-preview render96ex C:/Games/Render96/sm64.us.f3dex2e.exe --working-directory C:/Games/Render96 --arg=--savepath --arg=!`.
 Repeat the same details with `external select`, its `--expected-preview` and
 `--yes` to confirm execution intent. Use `--arg=VALUE` once per documented
-argument. `portcove exec render96ex` launches the saved selection; `external
-remove render96ex` removes only Portcove's reference and preserves every external
-file. You or the selected upstream launcher manage setup and updates. Selected
+argument. A runtime that uses fixed launch arguments can refuse additional
+arguments on `exec`. For a user-selected executable, review and save the
+new arguments with `external select-relink-preview` and `external select-relink`.
+`portcove exec render96ex` launches the saved selection.
+`external remove render96ex` removes Portcove's reference and preserves every
+external file. You or the selected upstream launcher manage setup and updates. Selected
 bytes are not certified as an authenticated official package, and this route
 offers no managed backup, repair, update, rollback or file deletion. A descriptive
 catalog listing is sufficient; a managed definition or declared platform is not
@@ -948,13 +952,15 @@ the registered copy of its own files at the moment you choose. (Shared
 prerequisites such as a BIOS are checked by the ordinary install review.) If a
 different copy is registered later, the chosen copy is removed, or the game's
 channel changes, the game waits with that reason instead of being set up from something
-you didn't choose; choosing the mode again accepts the current files and
+you did not choose; choosing the mode again accepts the current files and
 channel. A choice made before any files were registered uses the first files
 that arrive.
 
-`games intents` reassesses every notify or set-up-when-ready choice with the
-ordinary first-install planner and changes nothing. New or changed files,
-catalog contracts and tools are reflected without selecting the files again.
+`games intents` uses the ordinary first-install planner to reassess up to 512
+notify or set-up-when-ready choices per call. When more remain, the next call
+continues from its saved position, including after a restart. Standing setup
+keeps its own position. The assessment leaves your saved choice intact and
+reflects changes to files, catalog contracts and tools on a later pass.
 Each game shows `installed`, `ready` with its plan digest, or `waiting` with the
 reason. `games intents-acknowledge --item PORT_ID=PLAN_SHA256` marks a ready
 game as seen. It is reported again only when its ready plan changes.
@@ -971,7 +977,7 @@ update, reinstall, rollback or channel change no longer counts, and a release
 that is already staged is shown as staged, not available. A notify-mode game is
 reported once per newly available release; acknowledge it
 with that release's SHA-256 as `PLAN_SHA256`. Assessing reads saved state only:
-it doesn't check for updates, download, stage or activate anything. The
+it does not check for updates, download, stage or activate anything. The
 existing update check and update policy own those, and standing setup never
 updates a game.
 
@@ -1023,13 +1029,13 @@ adding a folder never turns it on.
 `future-only` lists the folder when you choose it and remembers every file and
 subfolder there, whether or not Portcove recognizes it yet. A file is
 remembered by its path inside the folder and size, and also by its size and
-exact modification time, so renaming or moving it inside the folder doesn't
+exact modification time, so renaming or moving it inside the folder does not
 make it new. A game stored as a folder counts as already there if its folder
 or any file inside it was. Those files are never set up by this choice, so restarts,
 rescans, repeated events, catalog changes that recognize more files, and clock
 changes never enroll them. The folder must be available when you choose it.
 Relinking the folder to another location remembers the files already there
-too; if that location can't be listed, automatic setup for the folder is
+too; if that location cannot be listed, automatic setup for the folder is
 turned off. Choosing a mode again records a new boundary.
 
 `games setup-ready` handles these folders in the same pass as
@@ -1046,7 +1052,7 @@ continue. For each matched file in the folder, Portcove:
   ROOT_ID on`, it instead copies only that game's required files (the exact
   file, ZIP or file set the source contract admits) into Portcove's game-file
   folder and registers the copy, so games that read their originals at launch
-  don't need this folder connected. Originals are never moved or deleted; the
+  do not need this folder connected. Originals are never moved or deleted; the
   choice is off by default, survives boundary changes and applies to later
   registrations. It never replaces a different copy you already use;
 - then installs the game with an ordinary one-game batch that re-plans and
@@ -1054,11 +1060,11 @@ continue. For each matched file in the folder, Portcove:
 
 Problems that can pass on their own, such as being offline or the game being
 busy with another task, are reported as waiting and are not counted. A game
-whose files can't be registered or whose install fails is tried again only up
+whose files cannot be registered or whose install fails is tried again only up
 to three times with the same plan or file; it becomes eligible again when that
 changes. Each pass plans at most 32 folder files and looks up at most 4,096
 matches. Matches the library already settles, such as installed games or
-games waiting for the player's choice, cost no planning, so they don't hold
+games waiting for the player's choice, cost no planning, so they do not hold
 back a new file elsewhere in the folder. Checking whether a file was already
 there reads at most about 8,192 files and folder entries per pass. Each available folder gets an equal share of
 these bounds, and each pass continues where that folder's last pass stopped. It
@@ -1197,6 +1203,9 @@ is already a saved game-file folder. A known store product has an optional
 `product_id`. A reviewed product-to-profile mapping can add an
 `original_folder` with the source profile and candidate path. Desktop offers
 the reviewed Steam or Windows GOG original folder directly in compatible setup.
+Portcove ships the mappings in its reviewed `catalog/store-original-layouts.json`
+data. Each mapping binds a store product to an existing source profile and
+declares the relative original folder and any required child directories.
 Use `--profile <profile-id>` to request suggestions for one known source profile.
 For Blake Stone, this selects the Aliens of Gold or Planet Strike child folder
 inside the Steam anthology. Without a selected profile, the anthology has no
@@ -1240,7 +1249,7 @@ the store when its original is inside a listed game folder or a Steam library's
 removes the whole folder at the end), or when any folder on its path is named
 `steamapps`, because the store's game would lose the files. Protection otherwise
 depends on the stores' metadata: a GOG or Epic game whose registry entry or
-manifest can't be read, a Steam library beyond the 64-library bound outside a
+manifest cannot be read, a Steam library beyond the 64-library bound outside a
 `steamapps` folder, or an unlisted folder that merely holds such a game, is not
 recognized, so choose Copy for files from a store's folder.
 
@@ -1620,9 +1629,28 @@ portcove --library <path> --json library export
 portcove --library <path> --json library export --output <new-file.json>
 ```
 
-Export reads one consistent SQLite snapshot. The versioned metadata document contains source references, managed version identities, active/previous/staged state, per-port preferences, and successful launch history. Application versions, user data, Source Inbox, backups, toolchains, and local artwork are identified as separate content roots; their contents and credentials are not embedded. The lazy `runtime-sources` cache is rebuildable from a registered source and is deliberately excluded from metadata, import, move, and backup content roots. Export requires every registered installation path to be inside the library root so its path can be saved relative to that root. For custom managed folders on another drive, follow the [manual recovery copy instructions](UPGRADING.md#before-upgrading). Source references retain their original paths and identities. Format-1 Alpha 1 metadata without a Source Inbox root remains importable.
+Export reads one consistent SQLite snapshot. The metadata records source
+references, managed version identities, and which versions are active, previous,
+or staged. It also records per-port preferences and successful launches.
 
-Without `--output`, the document appears in the normal CLI response. With `--output`, core writes a raw metadata document to a new file and returns its path, byte size, and SHA-256. Publication does not replace an existing file. In Desktop, open Settings → Library and storage → Recovery copies and library location → Prepare a recovery copy → Export library information. The native save dialog exports the same metadata.
+The metadata lists separate folders for application versions, user data, Source
+Inbox, backups, toolchains, and local artwork. The file contains none of those
+folders' contents or any credentials. Portcove can rebuild the `runtime-sources`
+cache from a registered source. Metadata, import, move, and backup exclude it.
+
+Export stores installation paths relative to the library root. If a registered
+installation path is outside the root, export refuses. If you store managed
+folders on another drive, follow the
+[manual recovery copy instructions](UPGRADING.md#before-upgrading).
+Source references keep their original paths and identities. You can still
+import Alpha 1 format-1 metadata without a Source Inbox root.
+
+If you omit `--output`, the CLI returns the document in its normal response.
+If you pass `--output`, Core writes raw metadata to a new file. It returns
+the path, size in bytes, and SHA-256. An existing file prevents export to that
+path. In Desktop, use **Settings → Library and storage → Recovery copies and
+library location → Prepare a recovery copy → Export library information**.
+The native save dialog exports the same metadata.
 
 ### Library imports and recovery
 
@@ -1770,7 +1798,7 @@ Human task wording follows the [glossary](../GLOSSARY.md) and
 [content-design guidance](CONTENT-DESIGN.md). **Check installed files** (`verify`)
 compares the full recorded installation manifest; its report names that scope
 and the actual checked-file count. Launch-critical checks are separate.
-**Unrecognized files** are files the installation didn't ship that are not
+**Unrecognized files** are files the installation did not ship that are not
 programs, scripts, libraries or links. The report lists them apart from its
 findings; JSON reports them as `unknown_file_count` and up to 64
 `unknown_files` paths, and `valid` stays false while any remain
@@ -2654,7 +2682,7 @@ the only byte identity, and a version Thunderstore no longer offers cannot be
 installed. Thunderstore listings are read once per community, conditionally and
 cached, and shown in Thunderstore's order. Desktop browses either provider the same
 way; when a reviewed file contains mods that run code, it names them, says Portcove
-can't tell whether the code is safe, and installs only through **Allow their code and
+cannot tell whether the code is safe, and installs only through **Allow their code and
 install** (or **Allow its code and install** for one mod), which consents to exactly
 that reviewed plan.
 
@@ -2664,15 +2692,19 @@ shown before anything changes) and install it only after an explicit Install;
 Cancel discards the review. Stale data offers no review.
 
 `provider-browse` and `provider-project` only read. `provider-browse` lists one page
-(20 mods, pages 1–50; GameBanana's most downloaded first) of the bound game's mods
-and says when more pages exist; `provider-project` shows one mod's files or versions
+(20 mods; GameBanana's most downloaded first) of the bound game's mods and says
+when more pages exist. Thunderstore's whole-community index has download and
+package-count bounds; an oversized community response provides the provider's
+browse URL. `provider-project` shows one mod's files or versions
 with the IDs `provider-plan` takes, refusing a mod from another game. Provider text is
 sanitized presentation data: names, popularity and version labels never establish
 compatibility, and a `stale` result is earlier data from an outage.
 
 `provider-plan` needs a reviewed binding and a current provider observation; cached
-data from an outage never produces a plan. It refuses another game's project, an
-obsolete or archived file and a file the provider's scan reports as infected, and it
+data from an outage never produces a plan. Missing, null, or malformed eligibility
+flags leave the provider status unknown. Inspect the provider's project page and
+refresh the listing before reviewing that package or update. The plan refuses
+another game's project, an obsolete or archived file and a file the provider's scan reports as infected, and it
 checks a GameBanana file's type before downloading (a Thunderstore version is always
 a zip). It downloads privately (following only the
 provider's own hosts, enforcing the declared size), unwraps only the loader's package

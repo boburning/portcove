@@ -2,10 +2,23 @@
 
 `useOrganization(generation)` reads private host choices for Core's canonical
 library identity. Its snapshot contains collections, hidden independent port IDs,
-Saved authored game IDs, update notice choices and installation-scoped user setup
+game-level Favorite IDs (stored as `saved_game_ids`), update notice choices and installation-scoped user setup
 statements. Missing catalog identities remain stored. These choices never create
 an installation, authorize a task, change Core readiness or establish gameplay
 testing. Favorites retain their existing owner.
+
+A game is a Favorite when its game-level choice (`saved_game_ids`), a known
+sibling's legacy Saved alias, or any known sibling port Favorite marks it. Adding
+a Favorite writes the authored game choice. Removing it clears the game choice
+and known Saved aliases, then explicitly sets each marked sibling port Favorite
+to false. Unknown IDs remain stored and existing values are read without a
+migration. The control shows the last confirmed state during writes. If a write
+fails or its reply is lost, Retry favorites rereads both stores. If the game is
+still a Favorite, removing it again only clears choices that still mark it.
+
+`followed_port_ids` controls **Update notices** for each port independently.
+Turning notices on shows new download notices for that port. It never installs
+anything.
 
 `preferred_port_by_game` remembers a deliberate implementation choice by explicit
 `original_game.id` and stable port ID. The default empty map may be omitted from

@@ -35,6 +35,12 @@
       "image_sha256": "6666bf1fd24a854a974f4cb75c8acf9941ea10313025d13d2b35c51f59a6168a",
       "game_slug": "the-sword-of-etheria",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-sword-of-etheria",
+      "evidence_urls": ["https://github.com/AncletoCEO/OverEtheria"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

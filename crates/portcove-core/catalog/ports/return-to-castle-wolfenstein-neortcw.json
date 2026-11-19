@@ -40,6 +40,15 @@
         "The Apple Silicon archive requires macOS 15 or later and loads sdl2, opusfile, opus, libvorbis, libogg, jpeg-turbo, and freetype from /opt/homebrew. The publisher supplies no Intel Mac, Linux ARM64, or Android package in this release.",
         "The Windows x64 clients need a compatible zlib1.dll, which is missing from the publisher's 1.0.0 ZIP."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "return-to-castle-wolfenstein",
+      "evidence_urls": [
+        "https://github.com/klaussilveira/neortcw/blob/1.0.0/README.md",
+        "https://github.com/klaussilveira/neortcw"
+      ],
+      "source_editions": []
     }
   }
 }

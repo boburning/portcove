@@ -60,7 +60,16 @@
         }
       ]
     },
-    "original_game_title": "Duke Nukem II"
+    "original_game_title": "Duke Nukem II",
+    "original_game": {
+      "format_version": 1,
+      "id": "duke-nukem-ii",
+      "evidence_urls": [
+        "https://github.com/lethal-guitar/RigelEngine#running-rigelengine",
+        "https://github.com/lethal-guitar/RigelEngine"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

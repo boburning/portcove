@@ -1,0 +1,44 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "disgaea-d2-luukasr1-win-port",
+    "name": "Disgaea D2: A Brighter Darkness / Disgaea D2 Win Port",
+    "original_game_title": "Disgaea D2: A Brighter Darkness",
+    "summary": "Build the DirectX 12 player using the upstream Windows launcher and your own supported US release.",
+    "project_url": "https://github.com/LUUKASR1/disgaea-d2-recomp-windows",
+    "issue_number": 6684,
+    "listed_at": "2026-11-18",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "download_asset_hints": {
+      "windows-x86-64": ["DisgaeaD2Launcher-", "-Windows-x64.zip"]
+    },
+    "release_url": "https://github.com/LUUKASR1/disgaea-d2-recomp-windows/releases/tag/v1.0.2",
+    "setup_url": "https://github.com/LUUKASR1/disgaea-d2-recomp-windows/blob/v1.0.2/docs/RELEASE-0.2.1.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the US game",
+          "instruction": "Open the launcher from the complete portable ZIP. Supply your own compatible US ISO and the BLUS31313 version 1.40 update. First setup downloads tools and compiles the player locally. It requires an internet connection and a DirectX 12 graphics driver."
+        },
+        {
+          "title": "Return to the prepared player",
+          "instruction": "Open the launcher again and choose Play after preparation. Keep its prepared game files. Use the upstream launcher for settings and follow its release notes when replacing it."
+        }
+      ],
+      "references": [
+        {
+          "title": "Keep the current Windows profile",
+          "instruction": "Saves and settings live in %LOCALAPPDATA%/DisgaeaD2Recomp-Graphics-Preview. Back up that folder before switching versions. The stable v1.0.2 launcher retains a build prepared with v1.0.0 according to the publisher."
+        },
+        {
+          "title": "Use a separate European profile",
+          "instruction": "The v1.0.32 European preview has separate setup for BLES01939. It accepts an owned European PS3_GAME folder or ISO and keeps US and European profiles separate. Check its prerelease instructions before deciding to use it."
+        }
+      ],
+      "warnings": [
+        "Use each supported original with its own profile. Portcove does not build or update this game or back up its profile."
+      ]
+    }
+  }
+}

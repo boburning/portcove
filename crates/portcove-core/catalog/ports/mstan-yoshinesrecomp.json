@@ -47,6 +47,24 @@
         "Default settings use executable-parent config.ini; rom.cfg follows the chosen settings file. A custom --config is not an all-writes redirect: default cartridge battery/state paths remain executable-relative. Preserve actual existing --save-file choices; do not add --save-file or --no-save merely to register. --no-save disables battery loading as well as writing.",
         "These upstream previews and their source/backend migration reports are not Portcove gameplay or save-compatibility qualification. Core user-selected registration does not authenticate the ROM, generated code, component rights or build provenance. No managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion, sandbox, network/debug/netplay or exclusive process-family guarantee is supplied. Actual game execution, gameplay/state/installed/protected and other-platform observations remain unqualified here."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "yoshi",
+      "evidence_urls": [
+        "https://github.com/mstan/YoshiNESRecomp",
+        "https://github.com/mstan/YoshiNESRecomp/blob/f219991df2e70d6bf41f4ba9a46c8ddf990b572e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "yoshi-nes",
+          "title": "Yoshi (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/mstan/YoshiNESRecomp/blob/f4cc2f23bbb7308de9fde3eeab8e74b4f5a52aab/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

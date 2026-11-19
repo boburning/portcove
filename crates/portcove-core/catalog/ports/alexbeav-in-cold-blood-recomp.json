@@ -53,10 +53,17 @@
     "recommended_download_channel": "stable",
     "original_game_title": "In Cold Blood",
     "download_asset_hints": {
-      "linux-x86-64": ["In-Cold-Blood-Recomp-", "-linux-x64.zip"],
       "macos-aarch64": ["In-Cold-Blood-Recomp-", "-macos-arm64.zip"],
-      "macos-x86-64": ["In-Cold-Blood-Recomp-", "-macos-x64.zip"],
-      "windows-x86-64": ["In-Cold-Blood-Recomp-", "-windows-x64.zip"]
+      "macos-x86-64": ["In-Cold-Blood-Recomp-", "-macos-x64.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "in-cold-blood",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {
@@ -159,5 +166,6 @@
     "runtime_source_filename": "runtime-discs",
     "launch_disc_choice": "psx-settings-selected",
     "runtime_source_materialization": "psx-raw-set"
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"]
 }

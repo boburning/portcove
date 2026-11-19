@@ -1046,14 +1046,19 @@ mod tests {
 
     #[test]
     fn successor_content_bounds_and_index_agreement_are_rechecked_before_reuse() {
+        use crate::definition_index::{MAX_CONTENT_BYTES, MAX_ENTRY_BYTES, MAX_INDEX_BYTES};
+
         let catalog =
             crate::test_fixture::indexed_catalog(&Catalog::embedded().unwrap(), "zelda64-recomp");
         let contract = InstalledContract::capture(&catalog, "zelda64-recomp").unwrap();
         let original = serde_json::to_value(&contract).unwrap();
-        for field in ["index_json", "entry_json", "contract_json"] {
+        for (field, maximum) in [
+            ("index_json", MAX_INDEX_BYTES),
+            ("entry_json", MAX_ENTRY_BYTES),
+            ("contract_json", MAX_CONTENT_BYTES as usize),
+        ] {
             let mut changed = original.clone();
-            changed["definition"][field] =
-                serde_json::json!(" ".repeat(crate::definition_index::MAX_INDEX_BYTES + 1));
+            changed["definition"][field] = serde_json::json!(" ".repeat(maximum + 1));
             let decoded: InstalledContract = serde_json::from_value(changed).unwrap();
             assert!(
                 decoded
@@ -1126,17 +1131,10 @@ mod tests {
         );
     }
 
-    // Core-serialized catalog bytes that a node script cannot reproduce: the
-    // compact catalog projection, the retained format-1 contract and the
-    // manifest-embedded (JSON-escaped) copy that browsing reads under
-    // MAX_CATALOG_BYTES. Each stays within the stated margin below the bound
-    // older clients still enforce, so growth fails here before it strands them.
     #[test]
-    fn catalog_growth_stays_within_the_legacy_compatibility_margin() {
-        use crate::signed_catalog::{
-            CATALOG_GROWTH_CEILING_PERCENT, LEGACY_MAX_CATALOG_BYTES, MAX_CATALOG_BYTES,
-        };
-        let ceiling = LEGACY_MAX_CATALOG_BYTES * CATALOG_GROWTH_CEILING_PERCENT / 100;
+    fn catalog_growth_stays_within_supported_capacity() {
+        use crate::signed_catalog::{CATALOG_SUPPORTED_CAPACITY_PERCENT, MAX_CATALOG_BYTES};
+
         let catalog = Catalog::embedded().unwrap();
         let projection = serde_json::to_vec(&serde_json::json!({
             "contract_schema": 1, "representation": "catalog_projection",
@@ -1146,23 +1144,64 @@ mod tests {
         let contract = InstalledContract::capture(&catalog, "zelda64-recomp").unwrap();
         assert!(contract.definition.is_none());
         let escaped = serde_json::to_vec(&contract).unwrap();
-        for (measure, bytes) in [
-            ("compact catalog projection", projection.len()),
+        let bundle = crate::test_fixture::indexed_catalog_bundle(&catalog, "zelda64-recomp");
+        let index = crate::DefinitionContentIndex::parse(&bundle.index).unwrap();
+        let definition = &index.definitions()[0];
+        let content = |target| {
+            bundle
+                .contents
+                .iter()
+                .find(|(name, _)| name == target)
+                .unwrap()
+                .1
+                .as_slice()
+        };
+        let entry = content(definition.target());
+        let inspection = index
+            .inspect_entry("official", "zelda64-recomp", entry)
+            .unwrap();
+        let indexed = index
+            .inspect_catalog_projection(
+                "official",
+                "zelda64-recomp",
+                entry,
+                content(inspection.execution_contract()),
+            )
+            .unwrap();
+        let snapshot =
+            crate::definition_candidate::selection::publishable_snapshot_size(indexed.snapshot())
+                .unwrap();
+        for (measure, bytes, bound) in [
+            (
+                "escaped indexed selection snapshot",
+                snapshot,
+                crate::definition_candidate::selection::MAX_PUBLISHABLE_SNAPSHOT_BYTES,
+            ),
+            (
+                "compact catalog projection",
+                projection.len(),
+                crate::definition_index::MAX_CONTENT_BYTES as usize,
+            ),
             (
                 "retained format-1 catalog_json",
                 contract.catalog_json.len(),
+                MAX_CATALOG_BYTES,
             ),
-            ("escaped retained contract", escaped.len()),
+            (
+                "escaped retained contract",
+                escaped.len(),
+                MAX_CATALOG_BYTES,
+            ),
         ] {
+            let ceiling = bound * CATALOG_SUPPORTED_CAPACITY_PERCENT / 100;
             println!(
-                "{measure}: {bytes} bytes; ceiling {ceiling} ({CATALOG_GROWTH_CEILING_PERCENT}% of the \
-                 legacy {LEGACY_MAX_CATALOG_BYTES}); headroom {}; current bound {MAX_CATALOG_BYTES}",
+                "{measure}: {bytes} bytes; ceiling {ceiling} ({CATALOG_SUPPORTED_CAPACITY_PERCENT}% of \
+                 {bound}); headroom {}",
                 ceiling as i64 - bytes as i64
             );
             assert!(
                 bytes <= ceiling,
-                "{measure} is {bytes} bytes, above {ceiling}: older clients would soon refuse it. \
-                 Reduce catalog bytes or record an owner decision to move the compatibility floor."
+                "{measure} is {bytes} bytes, above {ceiling}"
             );
         }
     }

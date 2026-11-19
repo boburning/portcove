@@ -42,6 +42,24 @@
         "This guide follows the selected upstream source and release descriptions. Portcove has not checked the archive’s contents or checksum, installed prerequisites, or tested launch, graphics, gameplay or restoring real saves."
       ],
       "help_url": "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp#readme"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pac-man-championship-edition",
+      "evidence_urls": [
+        "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp",
+        "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp#readme"
+      ],
+      "source_editions": [
+        {
+          "id": "pac-man-championship-edition-xbox-360",
+          "title": "Pac-Man Championship Edition (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp/blob/47d15962913edd4547afcbc396120a6a67b5c884/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

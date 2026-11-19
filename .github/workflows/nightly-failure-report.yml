@@ -1,0 +1,149 @@
+# Reports failure independently of the nightly build and signing workflow.
+# Only the triggering attempt is inspected. No source checkout is needed.
+name: Nightly failure report
+
+on:
+  workflow_run:
+    workflows: ["Nightly preview"]
+    types: [completed]
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  report:
+    if: >-
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('["failure", "cancelled", "timed_out", "startup_failure"]'),
+      github.event.workflow_run.conclusion)
+    concurrency:
+      group: nightly-failure-${{ github.event.workflow_run.id }}
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      checks: read
+      issues: write
+    steps:
+      - name: File a diagnostic issue for a failed or cancelled nightly
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          retries: 0
+          debug: false
+          script: |
+            const run = context.payload.workflow_run;
+            const { owner, repo } = context.repo;
+            const repository = `${owner}/${repo}`;
+            const ownerId = run.head_repository?.owner?.id;
+            if (run.path !== ".github/workflows/nightly-preview.yml" ||
+                run.head_repository?.full_name !== repository || run.head_branch !== "main" ||
+                run.status !== "completed" ||
+                !["failure", "cancelled", "timed_out", "startup_failure"].includes(run.conclusion) ||
+                !Number.isSafeInteger(ownerId) || ownerId < 1 ||
+                !Number.isSafeInteger(run.id) || run.id < 1 ||
+                !Number.isSafeInteger(run.run_attempt) || run.run_attempt < 1) {
+              throw new Error("Unexpected nightly workflow attempt");
+            }
+
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${repository}/actions/runs/${run.id}`;
+            const attemptUrl = `${runUrl}/attempts/${run.run_attempt}`;
+            const runMarker = `<!-- portcove-nightly-failure-run:${run.id} -->`;
+            const attemptMarker = `<!-- portcove-nightly-failure-attempt:${run.id}:${run.run_attempt} -->`;
+            const actionsBotId = 41898282;
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner, repo, state: "all", since: run.created_at, per_page: 100,
+            });
+            const matches = issues.filter((issue) => !issue.pull_request &&
+              (issue.user?.id === actionsBotId || issue.user?.id === ownerId) &&
+              issue.body?.split(/\r?\n/u, 1)[0] === runMarker);
+            if (matches.length > 1) throw new Error("Multiple issues already report this nightly");
+            const existing = matches[0];
+            const ensureOwnerAssignment = async (issue) => {
+              if (issue.assignees?.some((assignee) => assignee.login === owner)) return;
+              const { data } = await github.rest.issues.addAssignees({
+                owner, repo, issue_number: issue.number, assignees: [owner],
+              });
+              if (!data.assignees?.some((assignee) => assignee.login === owner)) {
+                throw new Error(`Nightly report #${issue.number} is missing its owner assignment`);
+              }
+            };
+            if (existing?.user.id === actionsBotId) await ensureOwnerAssignment(existing);
+            const firstAttemptMarker = existing?.body.split(/\r?\n/u, 2)[1];
+            if (firstAttemptMarker === attemptMarker) return;
+            if (existing && run.run_attempt === 1 && !firstAttemptMarker?.startsWith("<!-- portcove-nightly-failure-attempt:")) return;
+            if (existing) {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner, repo, issue_number: existing.number, per_page: 100,
+              });
+              if (comments.some((comment) => comment.user?.id === actionsBotId &&
+                  comment.body?.split(/\r?\n/u, 1)[0] === attemptMarker)) return;
+            }
+
+            let jobs;
+            try {
+              jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRunAttempt, {
+                owner, repo, run_id: run.id, attempt_number: run.run_attempt, per_page: 100,
+              });
+            } catch {
+              core.warning("Could not retrieve job metadata for the triggering nightly attempt");
+            }
+            const tableCell = (value) => value.replace(/[\r\n|<>@]/gu, " ");
+            const jobRows = jobs && await Promise.all(jobs.map(async (job) => {
+              const affected = (job.steps ?? []).filter((step) =>
+                ["failure", "cancelled", "timed_out"].includes(step.conclusion));
+              const steps = affected.map((step) => tableCell(step.name)).join(", ");
+              let evidence = steps || "None identified";
+              if (job.conclusion === "cancelled" && !job.steps?.length) {
+                try {
+                  const annotations = await github.paginate(github.rest.checks.listAnnotations, {
+                    owner, repo, check_run_id: job.id, per_page: 100,
+                  });
+                  if (annotations.some((annotation) => annotation.annotation_level === "failure" &&
+                      annotation.message === "The job was not acquired by Runner of type hosted even after multiple attempts")) {
+                    evidence = "GitHub reported that the job never acquired a hosted runner";
+                  }
+                } catch {
+                  core.warning("Could not retrieve check annotations for cancelled job " + job.id);
+                }
+              }
+              return `| ${tableCell(job.name)} | ${job.conclusion ?? job.status} | ${evidence} | [Job](${runUrl}/job/${job.id}) |`;
+            }));
+            const report = [
+              attemptMarker,
+              "## Nightly release failure",
+              "",
+              `- Run: [#${run.run_number}, attempt ${run.run_attempt}](${attemptUrl})`,
+              `- Conclusion: ${run.conclusion}`,
+              `- Trigger: ${run.event}`,
+              `- Workflow commit: ${run.head_sha}`,
+              `- Started: ${run.run_started_at ?? "Not recorded"}`,
+              `- Finished/updated: ${run.updated_at}`,
+              "",
+              "### Job outcomes",
+              "",
+              ...(jobRows?.length ? [
+                "| Job | Outcome | Evidence | Details |",
+                "| --- | --- | --- | --- |",
+                ...jobRows,
+              ] : ["GitHub did not provide job metadata for this attempt."]),
+              "",
+              "Open the affected jobs to inspect annotations, logs and cancellation evidence.",
+              "Verify all platform assets and the Preview feed after retrying failed jobs.",
+            ].join("\n");
+
+            if (existing) {
+              const issue = { owner, repo, issue_number: existing.number };
+              if (existing.state === "closed") await github.rest.issues.update({ ...issue, state: "open" });
+              await github.rest.issues.createComment({ ...issue, body: report });
+            } else {
+              const date = run.created_at.slice(0, 10);
+              const { data: issue } = await github.rest.issues.create({
+                owner, repo,
+                title: `Nightly release failure — ${date} (run ${run.id})`,
+                body: `${runMarker}\n${report}`,
+                assignees: [owner],
+              });
+              await ensureOwnerAssignment(issue);
+            }
+            await core.summary.addRaw(report).write();

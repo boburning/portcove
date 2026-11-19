@@ -3,7 +3,7 @@
   "listing": {
     "id": "carspsprecomp-danielperezl-disney-pixar-cars-psp",
     "name": "Disney/Pixar Cars (PSP) — CarsPSPRecomp (DanielPerezL)",
-    "original_game_title": "Disney/Pixar Cars (PSP)",
+    "original_game_title": "Cars (PSP)",
     "summary": "The project describes a custom native C player with graphics, audio and video. A complete playthrough is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/DanielPerezL/CarsPSPRecomp",
     "platforms": [],
@@ -35,6 +35,21 @@
       "image_sha256": "99edf952fb7a369667ca64ec9dfaf0218960d6a2ea299bb0aac366dabab61976",
       "game_slug": "cars--1",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "cars-2006-psp",
+      "evidence_urls": ["https://github.com/DanielPerezL/CarsPSPRecomp"],
+      "source_editions": [
+        {
+          "id": "cars-2006-psp-playstation-portable",
+          "title": "Cars (PSP) (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/DanielPerezL/CarsPSPRecomp/blob/6333b5e1049415ad1d8aadea76ae789342c0b59b/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
