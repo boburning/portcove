@@ -42,9 +42,7 @@
     "original_game": {
       "format_version": 1,
       "id": "hyrule-warriors-definitive-edition",
-      "evidence_urls": [
-        "https://github.com/sonsegajp/HWDER"
-      ],
+      "evidence_urls": ["https://github.com/sonsegajp/HWDER"],
       "source_editions": []
     }
   }

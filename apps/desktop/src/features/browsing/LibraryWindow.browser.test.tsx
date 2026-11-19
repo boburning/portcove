@@ -5,7 +5,6 @@ import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { PortBrowser } from "../../components/PortBrowser";
 import { portDefinition } from "../../test-fixtures";
-import { initializeLocalization } from "../../localization";
 import { OperationPresentationProvider } from "../operations/operation-presentation";
 import {
   captureCollectionDestination,
@@ -142,7 +141,6 @@ async function draw(props: Parameters<typeof Fixture>[0] = {}) {
   await frames();
 }
 beforeEach(async () => {
-  initializeLocalization(["en"]);
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   fixture = browserFixture({ viewport: true });
   await page.viewport(1280, 800);
@@ -426,8 +424,15 @@ it.each(["covers", "rows"] as const)(
   async (layout) => {
     await act(async () => root.render(<CollectionMembershipFixture layout={layout} />));
     await frames();
-    await page.getByRole("button", { name: "Handpicked (2)", exact: true }).click();
+    await page.getByRole("button", { name: "Collections", exact: true }).click();
+    const collections = page.getByRole("group", { name: "Library collections", exact: true });
+    await collections.getByRole("button", { name: "Handpicked (2)", exact: true }).click();
+    await userEvent.keyboard("{Escape}");
+    await expect.element(collections).not.toBeInTheDocument();
     const group = await mountLibraryPort("library-2");
+    expect(
+      group.querySelector(`.collection-${layout === "rows" ? "row" : "cover"}`),
+    ).not.toBeNull();
     const origin = "library:card-more:library-2";
     await act(async () => {
       await userEvent.click(group.querySelector(`[data-detail-origin="${origin}"]`)!);
@@ -442,11 +447,14 @@ it.each(["covers", "rows"] as const)(
       included: false,
     });
     await expect.poll(() => group.isConnected).toBe(false);
-    await expect
-      .element(page.getByRole("button", { name: "Handpicked (1)", exact: true }))
-      .toHaveAttribute("aria-pressed", "true");
     await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
-    await page.getByRole("button", { name: "All games", exact: true }).click();
+    await page.getByRole("button", { name: "Collections · Handpicked", exact: true }).click();
+    await expect
+      .element(collections.getByRole("button", { name: "Handpicked (1)", exact: true }))
+      .toHaveAttribute("aria-pressed", "true");
+    await collections.getByRole("button", { name: "All games", exact: true }).click();
+    await userEvent.keyboard("{Escape}");
+    await expect.element(collections).not.toBeInTheDocument();
     const returned = await mountLibraryPort("library-2");
     await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
     expect(

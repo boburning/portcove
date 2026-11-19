@@ -15,18 +15,14 @@
     "summary": "A Windows project for the original 2015 PS4 edition of Until Dawn. New downloads are unavailable while distribution rights for parts of the player remain unresolved. The developer reports completing the game on one NVIDIA PC, with crashes, shader pauses and rendering defects.",
     "project_url": "https://github.com/SuperCatElvis/UntilDawn_PC",
     "listed_at": "2026-10-25",
-    "platforms": [
-      "windows-x86-64"
-    ],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "download_block_reason": "New downloads are unavailable while the closed-source player’s distribution/provenance remains unresolved, including declared game-derived shader programs and its icon. A native description or own-disc requirement does not approve those files. Information about original CUSA02636/update 01.03 and project-reported progress is retained under this entry’s existing identity. Exact package/source provenance must be resolved before downloads are offered.",
     "issue_number": 3461,
     "original_game": {
       "format_version": 1,
       "id": "until-dawn-2015",
-      "evidence_urls": [
-        "https://github.com/SuperCatElvis/UntilDawn_PC"
-      ],
+      "evidence_urls": ["https://github.com/SuperCatElvis/UntilDawn_PC"],
       "source_editions": []
     }
   },

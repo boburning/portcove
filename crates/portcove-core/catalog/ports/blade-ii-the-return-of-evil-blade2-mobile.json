@@ -42,9 +42,7 @@
     "original_game": {
       "format_version": 1,
       "id": "blade-ii-the-return-of-evil",
-      "evidence_urls": [
-        "https://github.com/ha7rock/blade2-mobile"
-      ],
+      "evidence_urls": ["https://github.com/ha7rock/blade2-mobile"],
       "source_editions": []
     }
   },
