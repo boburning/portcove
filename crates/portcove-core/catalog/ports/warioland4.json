@@ -66,7 +66,8 @@
         }
       ],
       "warnings": [
-        "The packages contain recompiled game program code. Supply your own original ROM for the game data. The upstream launcher reads it from the location you select.",
+        "The packages contain recompiled game program code. Upstream's MIT notice covers its identified sources, and upstream documents inherited code with no recorded license. The launcher reads game data from your own original ROM.",
+        "The Windows v0.3.2-beta runtime could not start on the Windows 11 build 26300 host tested by Portcove. This release could not reserve the memory range it needs for the game. See upstream for newer beta releases.",
         "The Windows launcher saves the selected ROM path in your user registry. Windows v0.3.2-beta can read earlier settings, but beta 1 and beta 2 cannot read the newer settings it saves. Back up settings before downgrading."
       ]
     }
