@@ -1513,6 +1513,17 @@ enum GithubSelection<'a> {
     Saved(&'a ManagedPackageVariant),
 }
 
+struct SavedReleaseAssetRefresh {
+    refreshed: std::collections::BTreeSet<u64>,
+    deadline: tokio::time::Instant,
+}
+
+impl SavedReleaseAssetRefresh {
+    fn needs(&self, release: &GithubRelease) -> bool {
+        release.id.is_none_or(|id| !self.refreshed.contains(&id))
+    }
+}
+
 impl GithubSelection<'_> {
     fn asset<'a>(
         self,
@@ -1542,6 +1553,7 @@ impl GithubReleaseProvider {
         platform: Platform,
         scope: Option<&crate::DefinitionAcquisitionScope>,
         releases: &mut [GithubRelease],
+        refresh: &mut SavedReleaseAssetRefresh,
     ) -> Result<()> {
         // Inspect releases in normal channel order until a complete asset
         // inventory establishes the platform candidate. An inline list naming
@@ -1556,53 +1568,18 @@ impl GithubReleaseProvider {
                 "the saved package release inventory repeats a provider release identity",
             ));
         }
-        let mut refreshed = std::collections::BTreeSet::new();
-        while let Some(release) = select_channel_candidate(
-            releases,
-            channel,
-            port.release.rolling_tag.as_deref(),
-            |release| {
-                !release.draft
-                    && (release.id.is_none_or(|id| !refreshed.contains(&id))
-                        || native_release_applies_to_platform(port, platform, release))
-            },
-            is_beta_release,
-            |release| release.tag_name.as_str(),
-        ) {
-            let release_id = fresh_release_id(release)?;
-            if !refreshed.insert(release_id) {
+        while let Some(index) = select_github_release_index(releases, port, channel, |release| {
+            !release.draft
+                && (refresh.needs(release)
+                    || native_release_applies_to_platform(port, platform, release))
+        }) {
+            let release = &mut releases[index];
+            if !refresh.needs(release) {
                 break;
             }
-            let release = releases
-                .iter_mut()
-                .find(|release| release.id == Some(release_id))
-                .unwrap();
             release.assets = self
-                .saved_release_assets(&port.release.repository, release_id, scope, refreshed.len())
+                .saved_release_assets(&port.release.repository, release, scope, refresh)
                 .await?;
-        }
-        if let Some(hold) = port.managed_acquisition_hold.as_ref()
-            && !hold.excluded_artifacts.is_empty()
-        {
-            for release in releases.iter_mut().filter(|release| {
-                !release.draft
-                    && hold
-                        .reviewed_artifacts
-                        .iter()
-                        .any(|artifact| artifact.version == release.tag_name)
-            }) {
-                let release_id = fresh_release_id(release)?;
-                if refreshed.insert(release_id) {
-                    release.assets = self
-                        .saved_release_assets(
-                            &port.release.repository,
-                            release_id,
-                            scope,
-                            refreshed.len(),
-                        )
-                        .await?;
-                }
-            }
         }
         Ok(())
     }
@@ -1610,19 +1587,27 @@ impl GithubReleaseProvider {
     async fn saved_release_assets(
         &self,
         repository: &str,
-        release_id: u64,
+        release: &GithubRelease,
         scope: Option<&crate::DefinitionAcquisitionScope>,
-        refresh_count: usize,
+        refresh: &mut SavedReleaseAssetRefresh,
     ) -> Result<Vec<GithubAsset>> {
-        if refresh_count > GITHUB_SAVED_RELEASE_INVENTORY_LIMIT {
+        if refresh.refreshed.len() >= GITHUB_SAVED_RELEASE_INVENTORY_LIMIT {
             return Err(PortcoveError::verification(
                 "the saved package check exceeds the supported release inventory limit",
             )
             .detail("saved_package_variant", "release-inventory-limit"));
         }
-        let assets = self
-            .release_assets_scoped(repository, release_id, scope)
-            .await?;
+        let release_id = fresh_release_id(release)?;
+        let assets = tokio::time::timeout_at(
+            refresh.deadline,
+            self.release_assets_scoped(repository, release_id, scope),
+        )
+        .await
+        .map_err(|_| {
+            PortcoveError::network(
+                "saved package asset inventory did not complete within the provider request budget",
+            )
+        })??;
         let mut ids = std::collections::BTreeSet::new();
         if assets
             .iter()
@@ -1632,6 +1617,7 @@ impl GithubReleaseProvider {
                 "the complete saved package inventory contains missing or repeated asset identities",
             ));
         }
+        refresh.refreshed.insert(release_id);
         Ok(assets)
     }
 
@@ -1843,17 +1829,21 @@ impl GithubReleaseProvider {
             Some(scope) => self.releases_scoped(&repository_url, Some(scope)).await?,
             None => self.releases(&repository_url).await?,
         };
-        if matches!(selection, GithubSelection::Saved(_)) {
-            tokio::time::timeout(
-                self.network_bounds.request,
-                self.refresh_saved_release_assets(port, channel, platform, scope, &mut releases),
+        let mut saved_refresh =
+            matches!(selection, GithubSelection::Saved(_)).then(|| SavedReleaseAssetRefresh {
+                refreshed: std::collections::BTreeSet::new(),
+                deadline: tokio::time::Instant::now() + self.network_bounds.request,
+            });
+        if let Some(refresh) = &mut saved_refresh {
+            self.refresh_saved_release_assets(
+                port,
+                channel,
+                platform,
+                scope,
+                &mut releases,
+                refresh,
             )
-            .await
-            .map_err(|_| {
-                PortcoveError::network(
-                    "saved package asset inventory did not complete within the provider request budget",
-                )
-            })??;
+            .await?;
         }
         if let Some(record) = curated.filter(|record| !record.preserved_locations.is_empty()) {
             // Failover-capable records only: classify an accepted release or asset
@@ -1886,35 +1876,28 @@ impl GithubReleaseProvider {
         let applies = |release: &GithubRelease| {
             !release.draft && native_release_applies_to_platform(port, platform, release)
         };
-        let select = |eligible: &dyn Fn(&GithubRelease) -> bool| {
-            select_channel_candidate(
-                &releases,
-                channel,
-                port.release.rolling_tag.as_deref(),
-                eligible,
-                is_beta_release,
-                |release| release.tag_name.as_str(),
-            )
-        };
-        let latest = select(&applies).ok_or_else(|| {
-            PortcoveError::not_found(format!(
-                "no published {channel} release exists for {}",
-                port.name
-            ))
-        })?;
+        let latest_index = select_github_release_index(&releases, port, channel, applies)
+            .ok_or_else(|| {
+                PortcoveError::not_found(format!(
+                    "no published {channel} release exists for {}",
+                    port.name
+                ))
+            })?;
+        let latest = &releases[latest_index];
         let mut observed_digest = None;
         let mut fallback_reason = None;
         // The continuity decision for the asset finally selected, kept with the build.
         let mut continuity = None;
-        let require_continuing_uploader = |release: &GithubRelease, asset: &GithubAsset| {
-            uploader_continuity::require(
-                port,
-                repository.owner.as_ref(),
-                &releases,
-                &release.tag_name,
-                asset,
-            )
-        };
+        let require_continuing_uploader =
+            |releases: &[GithubRelease], release: &GithubRelease, asset: &GithubAsset| {
+                uploader_continuity::require(
+                    port,
+                    repository.owner.as_ref(),
+                    releases,
+                    &release.tag_name,
+                    asset,
+                )
+            };
         let hold = port.managed_acquisition_hold.as_ref();
         let reviewed = if let Some(withheld) = withheld {
             let latest_asset = selection.asset(port, platform, latest)?;
@@ -1944,7 +1927,7 @@ impl GithubReleaseProvider {
         {
             let latest_asset = selection.asset(port, platform, latest)?;
             let latest_continuity =
-                require_continuing_uploader(latest, latest_asset)?.record(latest_asset);
+                require_continuing_uploader(&releases, latest, latest_asset)?.record(latest_asset);
             let digest = self
                 .observed_asset_digest(port, latest, latest_asset, scope)
                 .await?;
@@ -1964,27 +1947,49 @@ impl GithubReleaseProvider {
         } else {
             None
         };
-        let release = if let Some(reviewed) = reviewed {
-            let mut checked = Vec::<&GithubRelease>::new();
+        let release_index = if let Some(reviewed) = reviewed {
+            let latest_tag = latest.tag_name.clone();
+            let mut checked = Vec::<usize>::new();
             loop {
-                let fallback = select(&|candidate| {
-                    candidate.tag_name != latest.tag_name
-                        && applies(candidate)
+                // A saved choice needs complete evidence only for the next
+                // reviewed fallback in channel order after the latest digest
+                // has actually triggered the hold.
+                let index = select_github_release_index(&releases, port, channel, |candidate| {
+                    candidate.tag_name != latest_tag
+                        && !candidate.draft
                         && !checked
                             .iter()
-                            .any(|previous| std::ptr::eq(*previous, candidate))
+                            .any(|previous| std::ptr::eq(&releases[*previous], candidate))
                         && reviewed
                             .iter()
                             .any(|(version, _)| *version == candidate.tag_name)
-                        && selection.asset(port, platform, candidate).is_ok()
+                        && (saved_refresh
+                            .as_ref()
+                            .is_some_and(|refresh| refresh.needs(candidate))
+                            || applies(candidate))
                 })
                 .ok_or_else(|| match (withheld, hold) {
                     (None, Some(hold)) => PortcoveError::unsupported(hold.reason.clone()),
                     _ => PortcoveError::not_found("no reviewed fallback release is available"),
                 })?;
-                let asset = selection.asset(port, platform, fallback)?;
+                checked.push(index);
+                let fallback = &mut releases[index];
+                if let Some(refresh) = &mut saved_refresh
+                    && refresh.needs(fallback)
+                {
+                    fallback.assets = self
+                        .saved_release_assets(&port.release.repository, fallback, scope, refresh)
+                        .await?;
+                }
+                let fallback = &releases[index];
+                if !applies(fallback) {
+                    continue;
+                }
+                let Ok(asset) = selection.asset(port, platform, fallback) else {
+                    continue;
+                };
                 let fallback_continuity =
-                    require_continuing_uploader(fallback, asset)?.record(asset);
+                    require_continuing_uploader(&releases, fallback, asset)?.record(asset);
                 let digest = self
                     .observed_asset_digest(port, fallback, asset, scope)
                     .await?;
@@ -1995,13 +2000,13 @@ impl GithubReleaseProvider {
                 {
                     observed_digest = Some(digest);
                     continuity = Some(fallback_continuity);
-                    break fallback;
+                    break index;
                 }
-                checked.push(fallback);
             }
         } else {
-            latest
+            latest_index
         };
+        let release = &releases[release_index];
         let asset = selection.asset(port, platform, release)?;
         if let Some(scope) = scope {
             scope.require_current()?;
@@ -2011,7 +2016,8 @@ impl GithubReleaseProvider {
         // every other selection follows upstream and must continue its uploaders.
         // Refuse before any checksum request or caching.
         if curated.is_none() && observed_digest.is_none() {
-            continuity = Some(require_continuing_uploader(release, asset)?.record(asset));
+            continuity =
+                Some(require_continuing_uploader(&releases, release, asset)?.record(asset));
         }
         let sha256 = if let Some(record) = curated {
             let scope = scope.ok_or_else(|| PortcoveError::unsupported("curated scope missing"))?;
@@ -2254,6 +2260,25 @@ pub(crate) fn select_channel_candidate<'a, T>(
     releases
         .iter()
         .find(|release| selectable(release) && !beta(release) && !is_rolling(release))
+}
+
+fn select_github_release_index(
+    releases: &[GithubRelease],
+    port: &PortDefinition,
+    channel: ReleaseChannel,
+    selectable: impl Fn(&GithubRelease) -> bool,
+) -> Option<usize> {
+    let candidate = select_channel_candidate(
+        releases,
+        channel,
+        port.release.rolling_tag.as_deref(),
+        selectable,
+        is_beta_release,
+        |release| release.tag_name.as_str(),
+    )?;
+    releases
+        .iter()
+        .position(|release| std::ptr::eq(release, candidate))
 }
 
 fn release_version(tag: &str) -> String {

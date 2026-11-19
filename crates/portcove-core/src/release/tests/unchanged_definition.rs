@@ -1735,6 +1735,124 @@ async fn saved_linux_variant_checks_newer_release_before_skipping_other_platform
 }
 
 #[tokio::test]
+async fn saved_package_reads_reviewed_fallback_only_after_latest_exact_exclusion() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("super-metroid-recomp").unwrap().clone();
+    let channel = ReleaseChannel::Stable;
+    let platform = Platform::LinuxX86_64;
+    let repository = || ok_json(r#"{"id":1263295135,"archived":false}"#, "");
+    let linux = |tag: &str, asset_id: u64, size: u64, sha256: &str| {
+        let name = format!("supermetroid-{}-linux-x64.zip", tag.trim_start_matches('v'));
+        serde_json::json!({
+            "id": asset_id, "name": name, "size": size, "digest": format!("sha256:{sha256}"),
+            "browser_download_url": format!("https://github.com/mstan/SuperMetroidRecomp/releases/download/{tag}/{name}"),
+        })
+    };
+    let identified_release = |tag: &str, id: u64, assets| {
+        let mut release = release(tag, assets);
+        release["id"] = id.into();
+        release
+    };
+    // Exact Linux identities from the repository's release asset endpoints.
+    let reviewed_digest = "72e6d67a0de4115a1bd943cd33d9e2e2a282315b6f6bd84199c0d05b83f65cbe";
+    let reviewed = linux("v0.4.5", 728_387_215, 15_246_207, reviewed_digest);
+    let excluded = linux(
+        "v0.4.6",
+        745_593_476,
+        15_253_787,
+        "026848df0ec061cea67ac18114aa873163edcb13247f162474197363b29db0f5",
+    );
+    let (origin, _, server) = serve_http(vec![
+        repository(),
+        releases(&[identified_release(
+            "v0.4.5",
+            439_450_376,
+            vec![reviewed.clone()],
+        )]),
+    ]);
+    let acquired = GithubReleaseProvider::with_api_root(origin)
+        .unwrap()
+        .resolve_scoped(&port, channel, platform, None)
+        .await
+        .unwrap();
+    let receipt = ManagedPackageVariant::from_review(&port, platform, &acquired).unwrap();
+    server.join().unwrap();
+
+    // v0.4.7 and the reviewed opposite-channel tag are controlled fixture metadata.
+    let mut beta = identified_release("v0.4.8", 48, Vec::new());
+    beta["prerelease"] = true.into();
+    let hold = port.managed_acquisition_hold.as_mut().unwrap();
+    hold.reviewed_artifacts.push(crate::ReviewedHoldArtifact {
+        version: "v0.4.8".into(),
+        sha256: "e".repeat(64),
+    });
+    let unavailable_old = identified_release("v0.4.2", 433_412_381, Vec::new());
+    let inline_reviewed = identified_release("v0.4.5", 439_450_376, Vec::new());
+    for (tag, release_id, latest, expected_id, expected_digest, should_fallback) in [
+        (
+            "v0.4.7",
+            47,
+            linux("v0.4.7", 470, 42, &"e".repeat(64)),
+            470,
+            "e".repeat(64),
+            false,
+        ),
+        (
+            "v0.4.6",
+            444_848_673,
+            excluded,
+            728_387_215,
+            reviewed_digest.into(),
+            true,
+        ),
+    ] {
+        let latest_route = format!("/releases/{release_id}/assets?");
+        let release_page = [
+            beta.clone(),
+            identified_release(tag, release_id, vec![latest.clone()]),
+            inline_reviewed.clone(),
+            unavailable_old.clone(),
+        ];
+        let latest_assets = releases(&[latest]);
+        let reviewed_assets = releases(&[reviewed.clone()]);
+        let (origin, requests, server) =
+            serve_routed_http(3 + usize::from(should_fallback), move |request| {
+                let path = request.lines().next().unwrap();
+                if path.contains("/releases?") {
+                    releases(&release_page)
+                } else if path.contains(&latest_route) {
+                    latest_assets.clone()
+                } else if should_fallback && path.contains("/releases/439450376/assets?") {
+                    reviewed_assets.clone()
+                } else if path.starts_with("GET /repos/mstan/SuperMetroidRecomp HTTP/") {
+                    repository()
+                } else {
+                    "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        .into()
+                }
+            });
+        let observed = GithubReleaseProvider::with_api_root(origin)
+            .unwrap()
+            .resolve_saved_variant(&port, channel, platform, None, &receipt)
+            .await
+            .unwrap();
+        assert_eq!(observed.github_identity.unwrap().asset_id, expected_id);
+        assert_eq!(observed.release.asset.sha256, expected_digest);
+        assert_eq!(observed.fallback_reason.is_some(), should_fallback);
+        server.join().unwrap();
+        let assets = requests
+            .try_iter()
+            .filter(|path| path.contains("/assets?"))
+            .collect::<Vec<_>>();
+        assert_eq!(assets.len(), 1 + usize::from(should_fallback));
+        assert!(assets[0].contains(&format!("/releases/{release_id}/assets?")));
+        if should_fallback {
+            assert!(assets[1].contains("/releases/439450376/assets?"));
+        }
+    }
+}
+
+#[tokio::test]
 async fn observed_native_archive_layouts_resolve_successors_without_definition_changes() {
     let catalog = crate::Catalog::embedded().unwrap();
     // Observed names/sizes/digests; controlled HTTP replay, no artifact execution.
