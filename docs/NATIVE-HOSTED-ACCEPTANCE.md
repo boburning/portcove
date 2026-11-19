@@ -263,8 +263,8 @@ For #6511, a temporary **unmerged** controller follows the #6841 qualification
 pattern. Its ordinary verification PR requires the normal five exact-head checks
 and independent source/composition review before dispatch. The Linux setup job binds
 the exact App checkout tested by CI, commit
-`7835b09bfd8e99ad82bc9eb4b340f82ed71068f0`, and tree
-`f5343d8dfeca1aad49744fe93a140dcc2d1801cf` separately from the controller commit.
+`03ac3d4a3af57a348b55b7e6249ebe8207ecb34f`, and tree
+`c3f806d866d2e7287e36ea9511f875a207983c46` separately from the controller commit.
 The Windows rows bind application commit
 `8fae27ea0bae1fa188c8292bc2f03f0238b72752` and tree
 `f67daf29fe8f54c2f3c16993e7c28569f05bdb71` with the Windows startup repair.
