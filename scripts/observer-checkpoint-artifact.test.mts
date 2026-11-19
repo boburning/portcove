@@ -1119,16 +1119,32 @@ void test("format four recovery restores an archive above eight MiB before cache
   f.artifact.size_in_bytes = archive.length;
   f.artifact.digest = `sha256:${digest(archive)}`;
   let downloads = 0;
-  const restored = await recoverObserverCheckpoint({
+  const signed =
+    "https://productionresultssa1.blob.core.windows.net/actions-results/observer?sig=inert";
+  const restored = await recoverObserverCheckpointWithSdk({
     root,
     config,
     current,
     deadline: Date.now() + 60000,
-    api: f.api,
-    download: (_endpoint, { maxBytes }) => {
-      assert.equal(maxBytes, archive.length);
-      downloads++;
-      return archive;
+    token: "inert-observer-reader",
+    fetch: async (input, init) => {
+      const request = new Request(input, init),
+        url = new URL(request.url);
+      if (url.href === signed) {
+        assert.equal(request.headers.get("authorization"), null);
+        assert.equal(init?.credentials, "omit");
+        downloads++;
+        return new Response(new Uint8Array(archive));
+      }
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.headers.get("authorization"), "token inert-observer-reader");
+      if (url.pathname === "/repos/boburning/portcove/actions/artifacts/7/zip")
+        return new Response(null, { status: 302, headers: { location: signed } });
+      const response = await f.api.read(url.pathname.slice(1) + url.search);
+      return Response.json(response.body, {
+        status: response.status,
+        headers: Object.fromEntries(response.headers),
+      });
     },
   });
   assert.deepEqual(restored, { origin: "artifact", producer: source, artifact: 7, sequence: 361 });

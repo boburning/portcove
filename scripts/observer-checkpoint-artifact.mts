@@ -12,7 +12,10 @@ import { rateLimitFromResponse } from "./github-operation.mts";
 import { createGitHubClient } from "./github-client.mts";
 import { readObserverMetadata } from "./upstream-observer.mts";
 import type { GitHubMetadataResponse } from "./github-operation.mts";
-import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
+import {
+  downloadGitHubArtifactArchive,
+  observerCheckpointArchiveLimit,
+} from "./github-artifact-download.mts";
 import { readCompleteRunArtifactInventoryAsync } from "./release-run-artifact-inventory.mts";
 import {
   validateCatalogObserverCheckpoint,
@@ -38,7 +41,7 @@ import {
 
 // One existing response envelope is reserved inside the sixteen-MiB output budget.
 export const observerSnapshotLimit = 4 * 1024 * 1024;
-export const observerStreamingSnapshotLimit = 16 * 1024 * 1024;
+export const observerStreamingSnapshotLimit = observerCheckpointArchiveLimit;
 const repository = "boburning/portcove",
   repositoryId = 1354613114;
 const workflow = ".github/workflows/configured-upstream-observer.yml";
@@ -1302,6 +1305,7 @@ export async function recoverObserverCheckpointWithSdk({
         credential,
         deadline: Math.min(deadline, performance.now() + timeoutMs),
         maxBytes,
+        bufferAllowance: "observer-checkpoint",
         lookup: { requestTimeoutMs: timeoutMs },
         ...(fetch ? { fetch } : {}),
       }),

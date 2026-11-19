@@ -8,6 +8,8 @@ import type {
 } from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
 
+export const observerCheckpointArchiveLimit = 16 * 1024 * 1024;
+
 /** GitHub Actions redirects the authenticated API lookup to a short-lived
  * blob URL. Keep that URL out of observations, diagnostics and persistence. */
 type ArtifactDownloadOptions = {
@@ -183,10 +185,13 @@ async function transferSignedDelivery(
 
 export async function downloadGitHubArtifactArchive(
   endpoint: string,
-  options: ArtifactDownloadOptions & { bufferAllowance?: "ci-provenance" },
+  options: ArtifactDownloadOptions & { bufferAllowance?: "ci-provenance" | "observer-checkpoint" },
 ): Promise<Buffer> {
   const chunks: Uint8Array[] = [];
-  const maximum = (options.bufferAllowance === "ci-provenance" ? 20 : 8) * 1024 * 1024;
+  const maximum =
+    options.bufferAllowance === "observer-checkpoint"
+      ? observerCheckpointArchiveLimit
+      : (options.bufferAllowance === "ci-provenance" ? 20 : 8) * 1024 * 1024;
   const bytes = await transferGitHubArtifactArchive(endpoint, options, maximum, (chunk) => {
     chunks.push(chunk);
   });

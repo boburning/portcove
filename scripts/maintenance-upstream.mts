@@ -377,6 +377,7 @@ async function githubTransport(): Promise<UpstreamTransport> {
         credential,
         deadline: Math.min(deadline, performance.now() + 110_000),
         maxBytes,
+        bufferAllowance: "observer-checkpoint",
       }),
   };
 }
