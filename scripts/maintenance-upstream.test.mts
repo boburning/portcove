@@ -4,6 +4,7 @@ import test from "node:test";
 import { canonicalJson, sha256 } from "./maintenance-inventory.mts";
 import {
   managedReleaseEligibilityWindow,
+  readObserverOperatingUsage,
   readUpstreamObservations,
   upstreamAttention,
   upstreamFacts,
@@ -25,6 +26,94 @@ import {
 } from "./fixtures/upstream-checkpoint-fixture.mts";
 
 const now = Date.parse("2026-11-11T00:00:00.000Z");
+
+void test("operating usage binds the imported attempt and measures only executed jobs", async () => {
+  const source = "a".repeat(40);
+  const digest = `sha256:${"b".repeat(64)}`;
+  const prefix = "actions/runs/123";
+  const attempt = `${prefix}/attempts/2`;
+  const report = {
+    format: "portcove-maintenance-inventory",
+    runs: [
+      {
+        source: "upstream-observations",
+        source_revision: `upstream-observer-run:123-2@${source}#${digest}`,
+        coverage: "partial",
+      },
+    ],
+  };
+  const job = {
+    run_id: 123,
+    run_attempt: 2,
+    head_sha: source,
+    status: "completed",
+    started_at: "2026-11-11T00:00:00Z",
+    completed_at: "2026-11-11T00:01:17.000Z",
+  };
+  const observation = { ...job, id: 1, name: "observe", conclusion: "failure" };
+  const jobs = [
+    observation,
+    { ...job, id: 2, name: "report", conclusion: "skipped" },
+    { ...job, id: 3, name: "admit", conclusion: "success", started_at: "2026-11-11" },
+  ];
+  const checkpoint = {
+    id: 789,
+    name: `upstream-observer-checkpoint-${"c".repeat(64)}-123-2`,
+    digest,
+    size_in_bytes: 12345,
+    workflow_run: { id: 123, head_sha: source },
+  };
+  const jobInventory = { total_count: 3, jobs };
+  const responses: Record<string, Record<string, unknown>> = {
+    [attempt]: {
+      id: 123,
+      run_attempt: 2,
+      head_sha: source,
+      head_branch: "main",
+      head_repository: { full_name: "boburning/portcove" },
+      path: ".github/workflows/configured-upstream-observer.yml",
+      event: "schedule",
+      status: "completed",
+      conclusion: "failure",
+    },
+    [`${attempt}/jobs?per_page=100`]: jobInventory,
+    [`${prefix}/artifacts?per_page=100`]: { total_count: 1, artifacts: [checkpoint] },
+  };
+  const transport = {
+    read: async (path: string) => {
+      const response = responses[path];
+      assert.ok(response, path);
+      return response;
+    },
+  };
+  const usage = await readObserverOperatingUsage(report, transport);
+  assert.equal(usage.producer.event, "schedule");
+  assert.equal(usage.observed_runner_seconds, 77);
+  assert.equal(usage.unmeasured_jobs, 1);
+  assert.equal(usage.billed_cost_usd, null);
+  assert.deepEqual(usage.checkpoint, { id: 789, digest, bytes: 12345 });
+  assert.deepEqual(
+    usage.executed_jobs.map(({ id, seconds }) => [id, seconds]),
+    [
+      [1, 77],
+      [3, null],
+    ],
+  );
+
+  observation.started_at = "2026-02-30T00:00:00Z";
+  const malformed = await readObserverOperatingUsage(report, transport);
+  assert.equal(malformed.observed_runner_seconds, null);
+  assert.equal(malformed.unmeasured_jobs, 2);
+
+  jobInventory.total_count = 4;
+  await assert.rejects(readObserverOperatingUsage(report, transport), /inventory is incomplete/u);
+  jobInventory.total_count = 3;
+  observation.run_attempt = 1;
+  await assert.rejects(readObserverOperatingUsage(report, transport), /job identity differs/u);
+  observation.run_attempt = 2;
+  checkpoint.digest = `sha256:${"d".repeat(64)}`;
+  await assert.rejects(readObserverOperatingUsage(report, transport), /checkpoint differs/u);
+});
 
 void test("rolling eligibility counts one candidate per target separately from client availability", () => {
   const published = "2026-11-08T12:00:00.000Z";

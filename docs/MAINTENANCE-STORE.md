@@ -777,6 +777,12 @@ publication has been verified.
   budget, cancellation and quota stops) are routine continuation and stay quiet;
   an exception without a recorded rule stays visible. No freshness threshold or
   policy is applied beyond the observer's own.
+- Hosted inventory retains `observer-operating-usage.json` when it can verify
+  the exact imported observer attempt and checkpoint digest. The evidence binds
+  the inventory by its SHA-256. It records the event type, checkpoint bytes, executed job durations and the number of jobs
+  with missing times. Skipped jobs contribute no duration. Each report covers
+  one imported attempt. Billed cost remains unknown without billing evidence.
+
 - **Authority:** this projection grants no admission, eligibility, acquisition or
   publication authority.
 

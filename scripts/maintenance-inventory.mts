@@ -55,6 +55,7 @@ import {
 } from "./maintenance-release-content.mts";
 import {
   readUpstreamObservations,
+  readObserverOperatingUsage,
   upstreamAttention,
   upstreamObservation,
   managedReleaseEligibilityWindow,
@@ -3964,6 +3965,8 @@ commands:
                                        abandon planned operations whose handoff moved on (executor
                                        role, local store only; never dispatches)
 
+  observer-usage --report FILE --output FILE
+
 options:
   --database-env NAME   environment variable holding the database URL (default ${defaultDatabaseEnvironment})
   --database-env-file PATH   read that variable from an env file
@@ -3973,6 +3976,25 @@ PORTCOVE_MAINTENANCE_RUNNER optionally names the runner recorded with each colle
 export async function main(argv = process.argv.slice(2)) {
   const args = [...argv];
   const command = args.shift();
+  if (command === "observer-usage") {
+    const report = option(args, "--report");
+    const output = option(args, "--output");
+    if (!report || !output || args.length)
+      throw new MaintenanceStoreError("observer-usage requires --report FILE --output FILE");
+    const source = path.resolve(report);
+    const bytes = await readBoundedPublicBuildInputFile(
+      path.dirname(source),
+      path.basename(source),
+      64 * 1024 * 1024,
+    );
+    const usage = await readObserverOperatingUsage(
+      parseJson(new TextDecoder("utf-8", { fatal: true }).decode(bytes), "maintenance report"),
+    );
+    const evidence = { ...usage, inventory_sha256: sha256(bytes) };
+    writeFileSync(output, `${JSON.stringify(evidence, null, 2)}\n`, { flag: "wx" });
+    return;
+  }
+
   if (!command || command === "--help" || command === "-h") {
     console.log(usage);
     return command ? 0 : 2;
