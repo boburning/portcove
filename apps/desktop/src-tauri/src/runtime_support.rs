@@ -16,11 +16,21 @@ fn version_at_least(actual: &str, floor: &str) -> bool {
     )
 }
 
+// Tauri's generated runtime context drops bundle-only Windows fields.
 #[cfg(any(windows, test))]
-fn windows_floor(windows_minimum: Option<&str>) -> Result<&str, String> {
-    windows_minimum
+const WINDOWS_BUNDLE_CONFIG: &str = include_str!("../tauri.conf.json");
+
+#[cfg(any(windows, test))]
+fn windows_floor(bundle_config: &str) -> Result<String, String> {
+    let missing = || "This Portcove build lacks a valid WebView2 runtime minimum.".to_owned();
+    let config: tauri::utils::config::Config =
+        serde_json::from_str(bundle_config).map_err(|_| missing())?;
+    config
+        .bundle
+        .windows
+        .minimum_webview2_version
         .filter(|minimum| minimum.split('.').count() == 4 && version_at_least(minimum, minimum))
-        .ok_or_else(|| "This Portcove build lacks a valid WebView2 runtime minimum.".to_owned())
+        .ok_or_else(missing)
 }
 
 #[cfg(any(windows, test))]
@@ -33,16 +43,14 @@ fn check_windows_version(version: &str, floor: &str) -> Result<(), String> {
     ))
 }
 
-pub fn check(windows_minimum: Option<&str>) -> Result<(), String> {
+pub fn check() -> Result<(), String> {
     #[cfg(windows)]
-    let floor = windows_floor(windows_minimum)?;
-    #[cfg(target_os = "linux")]
-    let _ = windows_minimum;
+    let floor = windows_floor(WINDOWS_BUNDLE_CONFIG)?;
     let version = tauri::webview_version().map_err(|error| {
         format!("Portcove could not find its required WebView runtime: {error}. Repair the runtime before starting Portcove.")
     })?;
     #[cfg(windows)]
-    check_windows_version(&version, floor)?;
+    check_windows_version(&version, &floor)?;
     #[cfg(target_os = "linux")]
     if !version_at_least(&version, LINUX_ENGINE_FLOOR) {
         return Err(format!(
@@ -77,7 +85,7 @@ pub fn report_failure(message: &str) {
 
 #[cfg(test)]
 mod tests {
-    use super::{check_windows_version, version_at_least, windows_floor};
+    use super::{WINDOWS_BUNDLE_CONFIG, check_windows_version, version_at_least, windows_floor};
 
     #[test]
     fn engine_floor_accepts_exact_and_newer_serviced_versions() {
@@ -88,17 +96,22 @@ mod tests {
 
     #[test]
     fn changed_bundle_floor_drives_windows_startup() {
-        let config: tauri::utils::config::Config = serde_json::from_str(include_str!(
+        let floor = windows_floor(include_str!(
             "../../../../scripts/fixtures/changed-webview2-tauri.conf.json"
         ))
         .unwrap();
-        let floor =
-            windows_floor(config.bundle.windows.minimum_webview2_version.as_deref()).unwrap();
-        let guidance = check_windows_version("156.2.3.3", floor).unwrap_err();
+        let guidance = check_windows_version("156.2.3.3", &floor).unwrap_err();
         assert!(guidance.contains("156.2.3.3"));
         assert!(guidance.contains(&format!("to {floor} or later")));
-        assert!(check_windows_version(floor, floor).is_ok());
-        assert!(check_windows_version("156.2.3.5", floor).is_ok());
+        assert!(check_windows_version(&floor, &floor).is_ok());
+        assert!(check_windows_version("156.2.3.5", &floor).is_ok());
+    }
+
+    #[test]
+    fn startup_bundle_embeds_a_valid_windows_floor() {
+        let floor = windows_floor(WINDOWS_BUNDLE_CONFIG).unwrap();
+        assert!(check_windows_version(&floor, &floor).is_ok());
+        assert!(windows_floor("{}").is_err());
     }
 
     #[test]
