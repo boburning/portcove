@@ -23,6 +23,7 @@ import {
   assertPrimaryReviewAction,
   captureAccessibilityReport,
   clearCatalogFilters,
+  clickVisible,
   reviewControls,
   selectCatalogPort,
   selectPrimaryNavigation,
@@ -479,7 +480,14 @@ export async function selectedSetupCompletionScenario({
         const connection = By.css(connectFolderAction);
         await browser.wait(until.elementLocated(connection), 5_000);
         await screenshot("initial-folder-connection");
-        await click(connection);
+        if (process.platform === "linux") {
+          // WebKitGTK 2.52.6 rejected Element Click for this fully visible
+          // 400% control. Exercise one native pointer action at the verified point.
+          const control = await browser.wait(until.elementLocated(connection), 15_000);
+          await clickVisible(browser, control, { dispatch: "viewport-pointer" });
+        } else {
+          await click(connection);
+        }
         await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
         await browser.wait(
           async () =>

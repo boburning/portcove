@@ -25,8 +25,18 @@ import type { GameFileScanSnapshot } from "../src/transport-types.generated.d.ts
 import { clickVisible, selectGameFilesSettings } from "./desktop-review-controls.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 
-function offscreenReviewControl(mode: "normal" | "hidden" | "disabled" | "occluded") {
-  const state = { scrolled: false, clicks: 0, visibilityChecks: 0, enabledChecks: 0, hits: 0 };
+function offscreenReviewControl(
+  mode: "normal" | "hidden" | "disabled" | "occluded",
+  dispatch: "webdriver" | "viewport-pointer" = "webdriver",
+) {
+  const state = {
+    scrolled: false,
+    clicks: 0,
+    visibilityChecks: 0,
+    enabledChecks: 0,
+    hits: 0,
+    actions: [] as unknown[],
+  };
   const control = {
     outerHTML: '<button role="tab">Tasks</button>',
     parentElement: null,
@@ -57,12 +67,23 @@ function offscreenReviewControl(mode: "normal" | "hidden" | "disabled" | "occlud
         case "executeScript": {
           const parameters: unknown = command.getParameters();
           assert.ok(isRecord(parameters) && typeof parameters.script === "string");
-          assert.ok(Array.isArray(parameters.args) && parameters.args.length === 1);
+          assert.ok(Array.isArray(parameters.args) && isRecord(parameters.args[0]));
+          const options = parameters.args.slice(1);
+          assert.deepEqual(
+            options,
+            parameters.script.includes("integerCoordinates")
+              ? [dispatch === "viewport-pointer"]
+              : [],
+          );
           // Execute the helper's actual serialized callbacks against the recorded
           // offscreen shape; do not replace scrolling/hit testing with a stub true.
           const result: unknown = runInNewContext(
             `(function(){${parameters.script}}).apply(null, args)`,
-            { args: [control], document, window: { innerWidth: 960, innerHeight: 640 } },
+            {
+              args: [control, ...options],
+              document,
+              window: { innerWidth: 960, innerHeight: 640 },
+            },
           );
           return result;
         }
@@ -80,6 +101,9 @@ function offscreenReviewControl(mode: "normal" | "hidden" | "disabled" | "occlud
         case "clickElement":
           state.clicks++;
           return;
+        case "actions":
+          state.actions.push(command.getParameter("actions"));
+          return;
         default:
           assert.fail(`Unexpected review interaction command: ${command.getName()}`);
       }
@@ -93,6 +117,32 @@ it("scrolls an offscreen native review target before asking the driver for visib
   await clickVisible(browser, element);
   assert.equal(state.clicks, 1);
   assert.ok(state.visibilityChecks > 0 && state.enabledChecks > 0 && state.hits > 0);
+});
+
+it("serializes one viewport pointer action sequence at the verified center", async () => {
+  const { browser, element, state } = offscreenReviewControl("normal", "viewport-pointer");
+  await clickVisible(browser, element, { dispatch: "viewport-pointer" });
+  assert.equal(state.clicks, 0);
+  assert.ok(state.visibilityChecks > 0 && state.enabledChecks > 0 && state.hits > 0);
+  assert.equal(state.actions.length, 1);
+  const [devices] = state.actions;
+  assert.ok(Array.isArray(devices) && devices.length === 1);
+  const mouse: unknown = devices[0];
+  assert.ok(isRecord(mouse) && Array.isArray(mouse.actions) && mouse.actions.length === 3);
+  assert.partialDeepStrictEqual(state.actions, [
+    [
+      {
+        type: "pointer",
+        id: "default mouse",
+        parameters: { pointerType: "mouse" },
+        actions: [
+          { type: "pointerMove", origin: "viewport", x: 161, y: 40, duration: 0 },
+          { type: "pointerDown", button: 0 },
+          { type: "pointerUp", button: 0 },
+        ],
+      },
+    ],
+  ]);
 });
 
 for (const mode of ["hidden", "disabled", "occluded"] as const)
