@@ -55,7 +55,16 @@
         "https://github.com/snesrev/sm/blob/578f90b3cc49557bb70060ad033bb90b8cf8ac50/BUILDING.md",
         "https://github.com/snesrev/sm"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "super-metroid-super-nintendo",
+          "title": "Super Metroid (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/snesrev/sm/blob/578f90b3cc49557bb70060ad033bb90b8cf8ac50/README.md"
+          ]
+        }
+      ]
     }
   }
 }

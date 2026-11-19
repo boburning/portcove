@@ -6666,7 +6666,26 @@
             "instruction": "Keep the entire creating project, generated image/native code, original UMD-derived files, extraction manifests, runtime libraries and permitted fonts. Default saves use memstick/PSP/SAVEDATA relative to the chosen CWD; PSPRECO_MEMSTICK overrides that root. Default pspreco.toml is CWD-relative; PSPRECO_SETTINGS overrides it. Keep textures/ULUS10176 and PSPRECO_TEXTURES, PSPRECO_FONTDIR and every other actual custom path, with mods/scripts, caches, logs and backups. Retain project GPL-2.0 and separate ImGui, ATRAC decoder, Basis/zstd and font notices. The source calls its PPSSPP PGF fonts freely licensed; this is an upstream attribution, not a new grant for PSP firmware or the original game. No cross-game/save compatibility is assumed."
           }
         ]
-      }
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "ace-combat-x-skies-of-deception",
+        "evidence_urls": [
+          "https://github.com/sal063/Ace-Combat-X-Recompilation",
+          "https://github.com/sal063/Ace-Combat-X-Recompilation/blob/f6268e959cac75481989077a94305b22e55ec8ad/README.txt"
+        ],
+        "source_editions": [
+          {
+            "id": "ace-combat-x-skies-of-deception-playstation-portable",
+            "title": "Ace Combat X: Skies of Deception (PSP)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/sal063/Ace-Combat-X-Recompilation/blob/f6268e959cac75481989077a94305b22e55ec8ad/README.txt"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Ace Combat X: Skies of Deception"
     },
     {
       "id": "ace-of-spades-openspades",
@@ -6766,7 +6785,9 @@
       "project_url": "https://github.com/sp00nznet/advancewars",
       "issue_number": 166,
       "listed_at": "2026-10-23",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "source-only",
       "setup_url": "https://github.com/sp00nznet/advancewars#readme",
       "artwork": {
@@ -6796,7 +6817,27 @@
             "instruction": "Use your own Advance Wars USA Rev 1 ROM with SHA-1 15053499d5b3f49128a941d7f2d84876f5424d0c. The player derives the Flash save path from its ROM argument. With game/aw.gba this is game/aw.sav. Close the game and preserve both files and the creating runtime before replacing it. Keep locally generated game code private."
           }
         ]
-      }
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "advance-wars",
+        "evidence_urls": [
+          "https://github.com/sp00nznet/advancewars#readme",
+          "https://github.com/sp00nznet/advancewars/blob/cb3facb53b6be32e4fc37e04d849ff4dddbab05f/README.md",
+          "https://github.com/sp00nznet/advancewars"
+        ],
+        "source_editions": [
+          {
+            "id": "advance-wars-game-boy-advance",
+            "title": "Advance Wars (Game Boy Advance)",
+            "system": "game-boy-advance",
+            "evidence_urls": [
+              "https://github.com/sp00nznet/advancewars/blob/cb3facb53b6be32e4fc37e04d849ff4dddbab05f/README.md"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Advance Wars"
     },
     {
       "id": "aegis-wing-xbla-pc-recomp-caiuscodes-aegis-wing",
@@ -15151,7 +15192,10 @@
       "project_url": "https://github.com/alexbatalov/arcanum-ce",
       "issue_number": 828,
       "listed_at": "2026-10-23",
-      "platforms": [],
+      "platforms": [
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "availability": "source-only",
       "setup_url": "https://github.com/alexbatalov/arcanum-ce/blob/a7ff41b300ef712f0e7d088183a3d08957110cdd/README.md",
       "artwork": {
@@ -15193,7 +15237,16 @@
           "https://github.com/alexbatalov/arcanum-ce/blob/a7ff41b300ef712f0e7d088183a3d08957110cdd/README.md",
           "https://github.com/alexbatalov/arcanum-ce"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "arcanum-of-steamworks-and-magick-obscura-pc",
+            "title": "Arcanum: Of Steamworks and Magick Obscura (Windows)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/alexbatalov/arcanum-ce/blob/a7ff41b300ef712f0e7d088183a3d08957110cdd/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -16091,7 +16144,16 @@
           "https://github.com/AurelioB/BanjoRecomp-Android/blob/android-v0.1.1/README.md",
           "https://github.com/AurelioB/BanjoRecomp-Android"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "banjo-kazooie-nintendo-64",
+            "title": "Banjo-Kazooie (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/AurelioB/BanjoRecomp-Android/blob/6b7852b0c9448e45360942ddb3a0f7e904ad2108/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "Banjo-Kazooie"
     },
@@ -26965,7 +27027,27 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/vs-sr-dev/pc-deepfear#readme"
-      }
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "deep-fear",
+        "evidence_urls": [
+          "https://github.com/vs-sr-dev/pc-deepfear#readme",
+          "https://github.com/vs-sr-dev/pc-deepfear",
+          "https://github.com/vs-sr-dev/pc-deepfear/blob/c3d3e4aed34678139e97b5cb83c4fd7b0cf1d343/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "deep-fear-sega-saturn",
+            "title": "Deep Fear (Sega Saturn)",
+            "system": "sega-saturn",
+            "evidence_urls": [
+              "https://github.com/vs-sr-dev/pc-deepfear/blob/c3d3e4aed34678139e97b5cb83c4fd7b0cf1d343/README.md"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Deep Fear"
     },
     {
       "id": "deep-sea-ah64-dll-the-legend-of-zelda-the-wind-waker",
@@ -37088,7 +37170,9 @@
       "project_url": "https://github.com/KIexster/god-of-war-recomp",
       "issue_number": 1671,
       "listed_at": "2026-10-23",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "source-only",
       "setup_url": "https://github.com/KIexster/god-of-war-recomp#readme",
       "artwork": {
@@ -37112,7 +37196,27 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/KIexster/god-of-war-recomp#readme"
-      }
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "god-of-war",
+        "evidence_urls": [
+          "https://github.com/KIexster/god-of-war-recomp#readme",
+          "https://github.com/KIexster/god-of-war-recomp",
+          "https://github.com/KIexster/god-of-war-recomp/blob/d1d11ec545c3baf2f3fc17e2df4247ac4b732d5c/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "god-of-war-playstation-2",
+            "title": "God of War (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/KIexster/god-of-war-recomp/blob/d1d11ec545c3baf2f3fc17e2df4247ac4b732d5c/README.md"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "God of War"
     },
     {
       "id": "god-of-war-psp-native-ports-drummingbird1-god-of-war-chains-of-olympus",
@@ -38299,7 +38403,16 @@
           "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid/blob/v0.9.5/README.md",
           "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-the-wind-waker-wii-u",
+            "title": "The Legend of Zelda: The Wind Waker HD (Wii U)",
+            "system": "wii-u",
+            "evidence_urls": [
+              "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid/blob/b1993cf31b5ef146daa718ace570ea592150614d/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "The Legend of Zelda: The Wind Waker"
     },
@@ -42050,7 +42163,16 @@
           "https://github.com/izzy2lost/Lighthouse/blob/1.0.2/README.md",
           "https://github.com/izzy2lost/Lighthouse"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "banjo-kazooie-nintendo-64",
+            "title": "Banjo-Kazooie (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/izzy2lost/Lighthouse/blob/b0acff83a19913213de439aa9b4f7138c68cbad9/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "Banjo-Kazooie"
     },
@@ -42094,7 +42216,16 @@
           "https://github.com/izzy2lost/perfect_dark/blob/2.0.0/README.md",
           "https://github.com/izzy2lost/perfect_dark"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "perfect-dark-nintendo-64",
+            "title": "Perfect Dark (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/izzy2lost/perfect_dark/blob/0bc2e28d142bdfbf9b4aa7b19014ccb0e5202c80/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "Perfect Dark"
     },
@@ -42138,7 +42269,16 @@
           "https://github.com/izzy2lost/SpaghettiKart/blob/2.0.0/README.md",
           "https://github.com/izzy2lost/SpaghettiKart"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mario-kart-64-nintendo-64",
+            "title": "Mario Kart 64 (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/izzy2lost/SpaghettiKart/blob/9253aad869c96a8e660f707a74fe57c5d4ebdd2a/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "Mario Kart 64"
     },
@@ -42182,7 +42322,16 @@
           "https://github.com/izzy2lost/Starship/blob/v2.0.0/README.md",
           "https://github.com/izzy2lost/Starship"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "star-fox-64-nintendo-64",
+            "title": "Star Fox 64 (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/izzy2lost/Starship/blob/cb19785b51698185a688e17ba1a34c7889195bdb/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "Star Fox 64"
     },
@@ -47742,7 +47891,16 @@
         "evidence_urls": [
           "https://github.com/mariopartyrd/partyboard"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mario-party-4-nintendo-gamecube",
+            "title": "Mario Party 4 (GameCube)",
+            "system": "nintendo-gamecube",
+            "evidence_urls": [
+              "https://github.com/mariopartyrd/partyboard/blob/cccbf87e783173f74f439f151f1d963e51900021/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "Mario Party 4"
     },
@@ -50571,7 +50729,16 @@
           "https://github.com/OGmidway/mksm-recomp#readme",
           "https://github.com/OGmidway/mksm-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mortal-kombat-shaolin-monks-playstation-2",
+            "title": "Mortal Kombat: Shaolin Monks (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/OGmidway/mksm-recomp/blob/9c014184b54f8f4235db9327bf6a5d77566475c5/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "Mortal Kombat: Shaolin Monks"
     },
@@ -55029,7 +55196,16 @@
           "https://github.com/ogdanimal/Goemon64Recomp-Android/blob/v1.0.8/README.md",
           "https://github.com/ogdanimal/Goemon64Recomp-Android"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mystical-ninja-starring-goemon-nintendo-64",
+            "title": "Mystical Ninja Starring Goemon (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/ogdanimal/Goemon64Recomp-Android/blob/367b1017907d08867d70a4b2e9730b21d75577ff/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "Mystical Ninja Starring Goemon"
     },
@@ -64118,7 +64294,12 @@
       "summary": "Build a native Redguard player locally from the supported Glide executable in your own GOG or CD copy.",
       "project_url": "https://github.com/michidk/maiko",
       "listed_at": "2026-11-18",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "availability": "source-only",
       "release_url": "https://github.com/michidk/maiko/releases/tag/v1.1.0",
       "setup_url": "https://github.com/michidk/maiko/blob/v1.1.0/README.md#setup",
@@ -67766,7 +67947,16 @@
           "https://github.com/Simon358/ctr-native-android/blob/Android-Build4/README.md",
           "https://github.com/Simon358/ctr-native-android"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "crash-team-racing-playstation",
+            "title": "Crash Team Racing (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Simon358/ctr-native-android/blob/7d3403bf91d4771255fad35203f4b6b88ba83c2f/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "Crash Team Racing"
     },
@@ -67813,7 +68003,16 @@
           "https://github.com/maximilianoide/sin-punishment-recompiled#readme",
           "https://github.com/maximilianoide/sin-punishment-recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "sin-and-punishment-nintendo-64",
+            "title": "Sin and Punishment (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/maximilianoide/sin-punishment-recompiled/blob/8c31a07009464a0f285fb40e252789393bd101b1/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "Sin and Punishment"
     },
@@ -68674,7 +68873,27 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/SAT-R/sa2#readme"
-      }
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "sonic-advance-2",
+        "evidence_urls": [
+          "https://github.com/SAT-R/sa2#readme",
+          "https://github.com/SAT-R/sa2",
+          "https://github.com/SAT-R/sa2/blob/2dd3f17d30cd3c156e508aac0017620ae485b9ba/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "sonic-advance-2-game-boy-advance",
+            "title": "Sonic Advance 2 (Game Boy Advance)",
+            "system": "game-boy-advance",
+            "evidence_urls": [
+              "https://github.com/SAT-R/sa2/blob/2dd3f17d30cd3c156e508aac0017620ae485b9ba/README.md"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Sonic Advance 2"
     },
     {
       "id": "sonic-advance-sat-r-sa2-repository",
@@ -68707,7 +68926,27 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/SAT-R/sa2#readme"
-      }
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "sonic-advance",
+        "evidence_urls": [
+          "https://github.com/SAT-R/sa2#readme",
+          "https://github.com/SAT-R/sa2",
+          "https://github.com/SAT-R/sa2/blob/2dd3f17d30cd3c156e508aac0017620ae485b9ba/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "sonic-advance-game-boy-advance",
+            "title": "Sonic Advance (Game Boy Advance)",
+            "system": "game-boy-advance",
+            "evidence_urls": [
+              "https://github.com/SAT-R/sa2/blob/2dd3f17d30cd3c156e508aac0017620ae485b9ba/README.md"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Sonic Advance"
     },
     {
       "id": "sonic-cd-2011-rsdkv3",
@@ -70529,7 +70768,16 @@
           "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED/blob/1.7/README.md",
           "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-the-wind-waker-wii-u",
+            "title": "The Legend of Zelda: The Wind Waker HD (Wii U)",
+            "system": "wii-u",
+            "evidence_urls": [
+              "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED/blob/2f28a4012fd2b5001695d1c8fd96d453d6304878/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "The Legend of Zelda: The Wind Waker"
     },
@@ -71036,7 +71284,9 @@
       "project_url": "https://github.com/jedijosh920/SWROTS-PC",
       "issue_number": 1310,
       "listed_at": "2026-10-23",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "packages",
       "setup_url": "https://github.com/jedijosh920/SWROTS-PC",
       "artwork": {
@@ -71074,7 +71324,27 @@
         "warnings": [
           "Use only an actual copy and components you are permitted to use. Preserve originals, runtime companions, saves, settings, mods, caches, logs, backups and custom roots. Another executable may share them. Actual bounded archive/PE observations and owned probes do not establish source-to-binary reproduction, upstream execution, gameplay, real-save, installed-client, Supported or protected acceptance."
         ]
-      }
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "star-wars-episode-iii-revenge-of-the-sith",
+        "evidence_urls": [
+          "https://github.com/jedijosh920/SWROTS-PC/blob/fbea4d817669106c70c0a349870774f28d5fdfeb/README.md",
+          "https://github.com/jedijosh920/SWROTS-PC",
+          "https://github.com/jedijosh920/SWROTS-PC/blob/3b8f6cfc70d78f3294f2459fe22371935c22ee6c/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "star-wars-episode-iii-revenge-of-the-sith-xbox",
+            "title": "Star Wars: Episode III – Revenge of the Sith (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/jedijosh920/SWROTS-PC/blob/3b8f6cfc70d78f3294f2459fe22371935c22ee6c/README.md"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Star Wars: Episode III – Revenge of the Sith"
     },
     {
       "id": "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
@@ -71269,7 +71539,10 @@
       "project_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp",
       "issue_number": 1576,
       "listed_at": "2026-10-23",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
       "availability": "source-only",
       "setup_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp#readme",
       "artwork": {
@@ -71311,7 +71584,27 @@
             "instruction": "Run the upstream Windows Debug build first to generate the Android build inputs, then use the Gradle instructions with NDK 29.0.14206865. The ARM64 app requires Android 9 or later with Vulkan 1.1. Select your own ROM with the app’s file picker. The app validates and imports it. Preserve the effective com.rs64recomp.app files folder and its saves, mods and roguesq_touch.json. The app can fall back to internal storage."
           }
         ]
-      }
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "star-wars-rogue-squadron",
+        "evidence_urls": [
+          "https://github.com/MikeSemicolonD/RogueSquadron64Recomp/blob/bee164655638263b7a748236bdeab411e9394afe/docs/guides/building-all-platforms.md",
+          "https://github.com/MikeSemicolonD/RogueSquadron64Recomp",
+          "https://github.com/MikeSemicolonD/RogueSquadron64Recomp/blob/ef4e46f67c9a6a4831620e63f8fcb5309cbac5dd/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "star-wars-rogue-squadron-nintendo-64",
+            "title": "Star Wars: Rogue Squadron (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/MikeSemicolonD/RogueSquadron64Recomp/blob/ef4e46f67c9a6a4831620e63f8fcb5309cbac5dd/README.md"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Star Wars: Rogue Squadron"
     },
     {
       "id": "star-wars-shadows-of-the-empire-n64-sote-recomp",
@@ -73540,7 +73833,16 @@
           "https://github.com/snesrev/sm/blob/578f90b3cc49557bb70060ad033bb90b8cf8ac50/BUILDING.md",
           "https://github.com/snesrev/sm"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-metroid-super-nintendo",
+            "title": "Super Metroid (Super Nintendo)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/snesrev/sm/blob/578f90b3cc49557bb70060ad033bb90b8cf8ac50/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -77926,7 +78228,16 @@
           "https://github.com/matteo-pacini/theme-hospital-decomp/commit/7993814a4f562a1898b20621dbfa60644f9697d7",
           "https://api.github.com/repos/matteo-pacini/theme-hospital-enhanced"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "theme-hospital-dos",
+            "title": "Theme Hospital (DOS)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/matteo-pacini/theme-hospital-decomp/blob/7993814a4f562a1898b20621dbfa60644f9697d7/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "Theme Hospital"
     },
@@ -78342,7 +78653,27 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/NeilSeligmann/tsfp-recomp#readme"
-      }
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "timesplitters-future-perfect",
+        "evidence_urls": [
+          "https://github.com/NeilSeligmann/tsfp-recomp#readme",
+          "https://github.com/NeilSeligmann/tsfp-recomp",
+          "https://github.com/NeilSeligmann/tsfp-recomp/blob/dd3f062cdd7f6b7a35e15185dd14ee1b046ae64f/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "timesplitters-future-perfect-xbox",
+            "title": "TimeSplitters: Future Perfect (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/NeilSeligmann/tsfp-recomp/blob/dd3f062cdd7f6b7a35e15185dd14ee1b046ae64f/README.md"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "TimeSplitters: Future Perfect"
     },
     {
       "id": "timesplitters-gtteancum-timesplitters",
@@ -81492,7 +81823,11 @@
       "project_url": "https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled",
       "issue_number": 1910,
       "listed_at": "2026-10-23",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
       "availability": "packages",
       "setup_url": "https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled",
       "artwork": {
@@ -81541,7 +81876,16 @@
         "evidence_urls": [
           "https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "yu-gi-oh-forbidden-memories-playstation",
+            "title": "Yu-Gi-Oh! Forbidden Memories (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled/blob/36d499c13522402a83c5b4772714f66046f80357/README.md"
+            ]
+          }
+        ]
       },
       "original_game_title": "Yu-Gi-Oh! Forbidden Memories"
     },
@@ -83555,7 +83899,27 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/vs-sr-dev/pc-virtualhydlide#readme"
-      }
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "virtual-hydlide",
+        "evidence_urls": [
+          "https://github.com/vs-sr-dev/pc-virtualhydlide#readme",
+          "https://github.com/vs-sr-dev/pc-virtualhydlide",
+          "https://github.com/vs-sr-dev/pc-virtualhydlide/blob/74e8e8abfc5a23623dab610cc207e26bbf9d0ec9/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "virtual-hydlide-sega-saturn",
+            "title": "Virtual Hydlide (Sega Saturn)",
+            "system": "sega-saturn",
+            "evidence_urls": [
+              "https://github.com/vs-sr-dev/pc-virtualhydlide/blob/74e8e8abfc5a23623dab610cc207e26bbf9d0ec9/README.md"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Virtual Hydlide"
     },
     {
       "id": "virtualon-pc-drakenabarion-cyber-troopers-virtual-on",
@@ -84515,7 +84879,10 @@
       "project_url": "https://github.com/ethannicholas/bluestorm-recomp",
       "issue_number": 1572,
       "listed_at": "2026-10-23",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64",
+        "macos-aarch64"
+      ],
       "availability": "source-only",
       "setup_url": "https://github.com/ethannicholas/bluestorm-recomp#readme",
       "artwork": {
@@ -84557,7 +84924,26 @@
             "instruction": "Follow build-visionos.sh on a Mac with Xcode 26 and the visionOS SDK. Use your own Apple development team and paired headset in Developer Mode. Select the owned image in Files or use upstream’s push option. Keep the disc, memory card, settings and logs in the app’s Documents folder."
           }
         ]
-      }
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "wave-race-blue-storm",
+        "evidence_urls": [
+          "https://github.com/ethannicholas/bluestorm-recomp/blob/3d864805fb781354d59c95a5a9715302b62984ab/README.md",
+          "https://github.com/ethannicholas/bluestorm-recomp"
+        ],
+        "source_editions": [
+          {
+            "id": "wave-race-blue-storm-nintendo-gamecube",
+            "title": "Wave Race: Blue Storm (GameCube)",
+            "system": "nintendo-gamecube",
+            "evidence_urls": [
+              "https://github.com/ethannicholas/bluestorm-recomp/blob/3d864805fb781354d59c95a5a9715302b62984ab/README.md"
+            ]
+          }
+        ]
+      },
+      "original_game_title": "Wave Race: Blue Storm"
     },
     {
       "id": "way-of-the-samurai-decomp-dnb4ever-way-of-the-samurai",
@@ -85439,7 +85825,16 @@
           "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/f1ab735d3bd71f1527a2580d1a210a809d116248/README.md",
           "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wipeout-3-special-edition-playstation",
+            "title": "WipEout 3 Special Edition (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/f1ab735d3bd71f1527a2580d1a210a809d116248/README.md"
+            ]
+          }
+        ]
       }
     },
     {
