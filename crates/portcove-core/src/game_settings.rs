@@ -1,11 +1,15 @@
 //! Version-bound game configuration declarations. Declarations do not grant
 //! installation, filesystem, execution or definition-admission authority.
 
-use std::collections::BTreeSet;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::Path,
+};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 
 use crate::{Platform, PortcoveError, Result};
 
@@ -18,6 +22,41 @@ pub(crate) mod windows;
 pub use service_types::*;
 
 pub(crate) const MAX_SETTINGS_BYTES: u64 = 1024 * 1024;
+
+/// Only the verified package's pristine private extraction may supply these
+/// digests. Missing or unreadable files provide no baseline.
+pub(crate) fn capture_shipped_defaults(
+    port: &crate::PortDefinition,
+    platform: Platform,
+    version: &str,
+    archive_sha256: &str,
+    runtime_root: &Path,
+) -> BTreeMap<String, String> {
+    let Some(contract) = port.game_settings.as_ref() else {
+        return BTreeMap::new();
+    };
+    if contract.validate(&port.persistent_paths).is_err() {
+        return BTreeMap::new();
+    }
+    if !contract.releases.iter().any(|release| {
+        release.platform == platform
+            && release.version == version
+            && release.archive_sha256 == archive_sha256
+    }) {
+        return BTreeMap::new();
+    }
+    contract
+        .files
+        .iter()
+        .filter_map(|file| {
+            let path = runtime_root.join(&file.path);
+            crate::path::refuse_symlink_ancestors(&path).ok()?;
+            let bytes = crate::path::read_bounded_regular(&path, file.maximum_bytes).ok()?;
+            document::read(file, &bytes).ok()?;
+            Some((file.path.clone(), hex::encode(Sha256::digest(&bytes))))
+        })
+        .collect()
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

@@ -220,3 +220,40 @@ fn descriptor_shape_refuses_unknown_execution_and_write_semantics() {
     value.files[0].maximum_bytes = MAX_SETTINGS_BYTES + 1;
     assert!(value.validate(&persistence()).is_err());
 }
+
+#[test]
+fn shipped_defaults_require_one_exact_archive_and_a_bounded_declared_file() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("shipwright").unwrap().clone();
+    let contract = fixture();
+    let release = contract.releases[0].clone();
+    let file = contract.files[0].clone();
+    port.game_settings = Some(contract);
+    port.persistent_paths = persistence();
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join(&file.path);
+    let capture = |platform, version: &str, archive: &str| {
+        capture_shipped_defaults(&port, platform, version, archive, root.path())
+    };
+
+    assert!(capture(release.platform, &release.version, &release.archive_sha256).is_empty());
+    std::fs::create_dir(path.parent().unwrap()).unwrap();
+    let default = b"ui_scale=1.0\r\nunknown=retained\r\n";
+    std::fs::write(&path, default).unwrap();
+    assert_eq!(
+        capture(release.platform, &release.version, &release.archive_sha256),
+        BTreeMap::from([(file.path, hex::encode(Sha256::digest(default)))])
+    );
+    assert!(
+        capture(
+            Platform::LinuxX86_64,
+            &release.version,
+            &release.archive_sha256
+        )
+        .is_empty()
+    );
+    assert!(capture(release.platform, "v1.8.1", &release.archive_sha256).is_empty());
+    assert!(capture(release.platform, &release.version, &"b".repeat(64)).is_empty());
+    std::fs::write(&path, vec![b' '; file.maximum_bytes as usize + 1]).unwrap();
+    assert!(capture(release.platform, &release.version, &release.archive_sha256).is_empty());
+}

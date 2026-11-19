@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
     sync::Arc,
@@ -106,6 +107,7 @@ pub struct InstallQualification {
     /// Carried forward from an existing manifest when it is rewritten or derived,
     /// so a rewrite never adds facts the original did not record.
     retained_acquisition: Option<crate::release::RecordedAcquisition>,
+    shipped_settings_defaults: BTreeMap<String, String>,
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
     requires_tar_xz: bool,
@@ -265,6 +267,7 @@ impl InstallQualification {
             native_build_recipe: port.release.managed_build.get(&platform).copied(),
             acquisition: None,
             retained_acquisition: None,
+            shipped_settings_defaults: BTreeMap::new(),
             retained_contract: None,
             platform,
             requires_tar_xz: port.release.requires_tar_xz(platform),
@@ -609,6 +612,10 @@ struct InstallManifest {
     schema_version: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     archive_data_admission: Option<crate::archive_data_transition::Admission>,
+    /// Package defaults observed before preparation. The manifest binds them to
+    /// its artifact; historical installs have no recorded baseline.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    shipped_settings_defaults: BTreeMap<String, String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1364,7 +1371,7 @@ impl Installer {
 
     async fn install_inner<F>(
         &self,
-        request: InstallRequest,
+        mut request: InstallRequest,
         replacement: Option<&ExternalReplacement<'_>>,
         acquired: Option<&crate::service::game_update_acquisition::AcquiredInputs>,
         operation: &OperationCoordinator,
@@ -1461,6 +1468,7 @@ impl Installer {
             )?;
         }
         normalize_standalone_appimage(&payload_root, &artifact, &request.qualification)?;
+        request.qualification.shipped_settings_defaults.clear();
         let mut package_shape = None;
         if let Some(contract) = &request.qualification.retained_contract {
             let catalog = contract.catalog(&request.port_id)?;
@@ -1484,6 +1492,20 @@ impl Installer {
                 ));
             }
             let platform = request.qualification.platform;
+            if port.game_settings.is_some()
+                && let Ok(selected) =
+                    resolve_declared_executable(&payload_root, &request.qualification)
+            {
+                let settings_root = request.qualification.runtime_root(&payload_root, &selected);
+                request.qualification.shipped_settings_defaults =
+                    crate::game_settings::capture_shipped_defaults(
+                        port,
+                        platform,
+                        &request.release.version,
+                        &artifact.sha256,
+                        &settings_root,
+                    );
+            }
             let grant_before_layout =
                 crate::package_layout::grant_precedes_layout_check(port, platform);
             if grant_before_layout {
@@ -3088,6 +3110,7 @@ impl Installer {
         }
         let mut adopted = qualification.clone();
         adopted.runtime_origin = RuntimeOrigin::AdoptedTree;
+        adopted.shipped_settings_defaults.clear();
         write_manifest(install_id, port_id, version, artifact, &adopted, root)
     }
 
@@ -3372,6 +3395,7 @@ impl Installer {
         if let Some(runtime) = &install.runtime {
             qualification.runtime_origin = runtime.origin;
         }
+        qualification.shipped_settings_defaults = manifest.shipped_settings_defaults;
         qualification.retained_acquisition = Some(crate::release::RecordedAcquisition {
             facts_recorded: manifest.acquisition_facts_recorded,
             uploader_continuity: manifest.uploader_continuity,
@@ -3643,6 +3667,7 @@ mod legacy_dkr_tests {
         };
         let manifest = InstallManifest {
             archive_data_admission: None,
+            shipped_settings_defaults: BTreeMap::new(),
             schema_version: schema,
             retained_contract: None,
             shared_preferences: None,
@@ -4141,6 +4166,7 @@ fn write_manifest_with_shape(
     }
     let manifest = InstallManifest {
         archive_data_admission: None,
+        shipped_settings_defaults: qualification.shipped_settings_defaults.clone(),
         schema_version: if qualification.shared_preferences.is_some() {
             7
         } else {
