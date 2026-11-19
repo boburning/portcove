@@ -293,7 +293,22 @@ async fn a_forged_plan_cannot_name_paths_or_foreign_providers_at_apply() {
         let mut forged = plan.clone();
         mutate(&mut forged);
         forged.plan_sha256 = digest(&forged).unwrap();
-        let token = w.service.authorize_provider_install(&forged).unwrap().token;
+        if forged.provider.provider != plan.provider.provider {
+            assert_eq!(
+                w.service
+                    .authorize_provider_install(&forged)
+                    .unwrap_err()
+                    .code,
+                ErrorCode::Verification
+            );
+        }
+        // A token from an earlier review or stale caller cannot bypass apply's validation.
+        let token = w
+            .service
+            .library()
+            .issue_authorization(ACTION, &target(&forged).unwrap(), &forged.plan_sha256)
+            .unwrap()
+            .token;
         assert_eq!(
             w.service
                 .apply_provider_install(&forged, &token)
@@ -380,4 +395,25 @@ async fn a_new_extension_for_the_same_mod_is_planned_as_a_replacement_and_ambigu
         .unwrap_err();
     server.join().unwrap();
     assert!(error.message.contains("same mod"), "{}", error.message);
+}
+
+#[tokio::test]
+async fn provider_plan_refuses_unconfirmed_archival_status_before_download() {
+    let w = world();
+    let mut project: serde_json::Value =
+        serde_json::from_str(&project_body(777, 10, "pack.zip", 10)).unwrap();
+    project["_aFiles"][0]["_bIsArchived"] = serde_json::Value::Null;
+    let response = json_response(&project.to_string());
+    let (found, requests, server) = serve_http_bytes(vec![response]);
+    let client = GameBananaClient::with_roots(&found, None).unwrap();
+    let error = w
+        .service
+        .plan_provider_install_with(&client, "starship", &w.profile, 42, 10)
+        .await
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Verification);
+    assert!(error.message.contains("did not confirm"));
+    server.join().unwrap();
+    assert!(requests.recv().unwrap().contains("Mod/42"));
+    assert!(requests.try_recv().is_err());
 }

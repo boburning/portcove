@@ -1,14 +1,21 @@
 # Portcove frontend design system
 
-The current whole-product composition and coverage contract is [Integrated UI design](INTEGRATED-UI-DESIGN.md). Reuse the existing control, token, preference and domain-projection owners throughout; task-specific layouts do not introduce a second authority.
+Use [Integrated UI design](INTEGRATED-UI-DESIGN.md) for layouts and coverage
+across Portcove. Reuse the existing controls, design tokens, preferences, and
+domain projections. Each layout uses the same owners for these decisions.
 
 ## Path values
 
-Opaque file and folder paths use `path-value` or the existing `saved-file-path`
-primitive. They remain selectable, exact and left to right. Break long values
-across available lines without leaving an extended Windows prefix alone above
-the drive or UNC location. Preserve each consumer's existing typography and
-surface; this presentation rule never normalizes or changes a stored path.
+Display file and folder paths with `path-value` or the existing
+`saved-file-path` component. Keep the value exact, selectable, and left to
+right. If it is too long, wrap it across lines. Keep an extended Windows prefix
+with its drive or UNC location. Keep the typography and surface for each use.
+These display rules leave the stored path intact. Editable path fields also use
+left-to-right direction; their labels retain the interface direction.
+
+Loading and unavailable messages are ordinary UI copy, not path values. They
+use normal word wrapping; only an actual path uses code styling and forced
+left-to-right direction.
 
 ## Required-file discovery
 
@@ -34,6 +41,15 @@ Current and reviewed output destinations summarize all existing eligibility chec
 Raw filesystem availability cannot announce passed checks when ownership or
 validation refuses the folder. Full, unavailable and unknown results remain
 explicit; the host retains apply authorization and preimage checks.
+
+Install-folder reads belong to the exact port and library generation. A new
+scope starts a fresh loading session; ordinary rerenders in the same scope keep
+the player's draft. An unavailable initial read offers a read-only retry through
+the existing metadata APIs, including while unrelated work is busy. Path changes
+retain their existing review, busy and readiness guards. Loading, unavailable and
+loaded information stay distinct. Retry completion transfers focus only while
+it still owns the current navigation scope; a player who moved to another control
+or dialog keeps that focus.
 
 ## Library and Discover covers and compact rows
 
@@ -192,6 +208,11 @@ checks, candidate decisions, staged activation, rollback, future preferences and
 private notice choices. Manage owns installation/location/artwork/Steam/CLI,
 verification/removal and the existing reviewed managed-route transition. Unsupported routes state their actual limits and keep upstream links.
 
+Manual disclosure summaries reserve a trailing icon column. Their title and
+secondary information wrap within the remaining text column, keeping the icon
+beside the first title line in compact, wide and right-to-left layouts. Native
+summary semantics, keyboard behavior and focus indicators remain intact.
+
 A concise attention strip exposes relevant exceptions and running work; its action
 opens the owning section. An available update does not change the current playable
 installation into a readiness failure. Header and overflow shortcuts reveal the
@@ -236,7 +257,7 @@ the remaining measured displacement, not a saved launch scroll offset. New user
 input, navigation, library/detail changes and modal interaction take precedence;
 feedback changes never take focus or reveal a control the player left behind.
 
-Primary destinations display Library, Discover, Activity and Settings; internal `catalog`/`updates` route identities stay compatible. Ordinary Activity entry selects Tasks. Explicit game-update links select Game updates; terminal records remain in History. Application-update preferences remain in Settings. Section controls retain a non-color selected cue and keep their content mounted, hidden from interaction when inactive. The same exact-ID record tree serves Tasks and History, preserving disclosures and a focused settling record.
+Primary destinations display Library, Discover, Activity and Settings; internal `catalog`/`updates` route identities stay compatible. Ordinary Activity entry selects Tasks. Explicit game-update links select Game updates; terminal records remain in History. Application-update preferences remain in Settings. Section controls retain a non-color selected cue and keep their content mounted, hidden from interaction when inactive. The same exact-ID record tree serves Tasks and History, preserving disclosures and a focused settling record. Preparation diagnostics appear before Task details. Leave space between the log summary’s keyboard focus outline and the preceding failure information.
 
 Cards, details and Activity use the same action-presentation selector. Core readiness remains distinct from a temporary local exclusion. Feedback names the action and game/port or library target. Independent failures remain individually dismissible; a successful mutation followed by failed refresh is presented as finished work with unavailable current state, not an instruction to repeat the mutation. Link a specific task only when its exact owned identity exists. Shared progress announces phase changes separately from numeric ticks. Cancellation requested stays pending until authoritative settlement. Invocation-backed polite messages use a status owner that exists empty before work begins, with an atomic action/target message for each invocation. Pending, execution completion, readback and terminal changes update that invocation’s message; simultaneous results do not replace one another. Real failures retain their attributed assertive notices, and visual progress does not duplicate the owned announcement. Browser lifecycle checks do not establish actual screen-reader speech.
 
@@ -345,7 +366,7 @@ uses the same 60px rail. Keep task controls
 in the workspace flow. [Theme ownership](THEME.md#whole-interface-enlargement-and-reflow) owns
 the controller, persistence and native/browser evidence boundaries.
 
-Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+Display game release streams as **Stable**, **Preview** and **Rolling**. Use the [CLI channel contract](CLI.md#release-channels) when translating stored values into labels.
 
 - Import only controls demonstrated by current product needs. Checked-in controls should stay close to official composition, refs, events, and accessibility behavior; do not put a near-identical Portcove wrapper around every shadcn control.
 - A specific Base UI control may be replaced when a reproducible Tauri, controller, accessibility, or supported-platform failure remains after bounded repair. Preserve the shared API, semantics, and theme where practical, record the evidence, and review the replacement independently; one incompatible control does not reopen the selected system.
@@ -498,16 +519,15 @@ saved update policy. A successful launch activity says **Process exited**, with
 an explicit explanation that successful process termination does not establish
 tested gameplay. Keep update and activity statuses in readable sentence case.
 
-Details first offers Review game update without a disposition selector for an
-unidentified candidate. Its first review retains the saved policy's current
-default (automatic installs; other policies keep for later). Once Core supplies
-the release, show its consequences and offer the alternate action through a new
-reviewed plan. Switching action never reuses the previous plan's fingerprint.
+For an available game update, **Update now** and **Download for later** select
+the immediate action. A saved policy governs future updates. Review the release
+and its consequences for the selected action. If the player switches actions,
+get a new plan before applying it.
 Details labels matching saved checks as earlier observations, shows their update
 version when available, and makes Check for updates primary when no available or
 saved candidate is known. Manual review remains available as a secondary action.
 The optional application-update choice notice uses a secondary review action;
-ordinary first-use Add games remains the primary task.
+the empty Library keeps **Browse games** as its primary action.
 
 Use **Check method** for a configured way to inspect game files; say whether a check
 actually ran and what it found separately. Show the planned output folder with
@@ -536,6 +556,14 @@ report does not identify the affected file.
 In Game files settings, distinguish a library with no installed ports from
 installed ports with no missing game-file requirements; neither state proves a
 fresh file verification or launch readiness.
+Exact scan candidates use their actual Settings-row width: below 38rem, actions
+follow the full-width identity and exact path; at wider widths, keep the bounded
+18rem action column. This applies to both streaming and completed matches,
+including a medium window with both navigation sidebars visible.
+Saved-folder scan issues retain each reported requirement’s catalog profile label,
+falling back to its exact profile ID when the label is unavailable or blank.
+Path-only issues keep their full path without inventing a requirement identity;
+each original message and any bounded direct-check action remain beside it.
 Use the saved update-policy choice verbatim in summaries. Separate an unchecked
 port, a successful last check with no update, an available update, an update
 saved for later whose activation still needs core checks, and a failed or
@@ -622,6 +650,18 @@ Long words wrap, filters can wrap, and the collection scrolls rather than shrink
 covers to fit a row count. The grid chooses columns from available width; a
 reference composition's fixed frame width or column count is not a window rule.
 
+Library and Discover mount visible complete visual rows with a small overscan,
+plus independently retained focus, destination and open-overlay rows. The full
+logical group count and order remain available to navigation and return-focus
+restoration. Library alternatives retain their expanded state when their row
+leaves the viewport; returning to an alternative mounts and expands that exact
+group before focus restoration. Accepted background reordering retains the logical
+reading anchor and exact focused control within the same query and generation;
+a newer player intent cancels restoration. Pending actions can retain focus while
+refusing activation. Saved membership never implies installation.
+Singleton styling follows the logical result count, including a final partial
+virtual row, and both layouts keep their existing responsive sizing rules.
+
 The scrolling workspace fills the available window width. Library and Catalog
 grids use that width to add columns as the window grows; the 1600x1000 reference
 does not impose a maximum collection width or column count. Artwork is
@@ -693,7 +733,9 @@ wrapped footer rhythm uses an 8px gap while action controls retain 32px height.
 Library quick views retain their full meaning, lighter400-weight labels and44px
 minimum control height. Compact count badges are visually omitted, with counts
 retained in accessible names/descriptions. Very narrow/enlarged content reflows
-rather than clipping. Needs attention still includes repair/readiness needs.
+rather than clipping. Wrapped collection tabs keep an 8px row gap and 24px
+column gap; Library’s compact two-column layout keeps its own spacing.
+Needs attention still includes repair/readiness needs.
 An unfavorited heart stays visible; More is subordinate until hover/focus on a
 fine pointer and remains visible on touch. Every action retains keyboard access.
 
@@ -939,6 +981,10 @@ credential provenance and request accounting in Connection details. Token entry
 has a persistent visible label, while environment-controlled credentials keep
 their outside-Portcove recovery instructions. An unavailable connection-status
 read must not appear as an anonymous sign-in result.
+Returning from GitHub settings keeps the pending installed-port check bound to
+its installation selection. After sign-in, it shows the current account and
+allowance and focuses the explicit check action. Returning without signing in
+resumes the anonymous decision. Navigation and dismissal leave the check idle.
 Disc-tool recovery leads with the tool name, missing or invalid state, and a
 working Locate or retry action. Keep executable paths, configuration variables,
 and discovery provenance in Tool details; an environment override cannot be
@@ -1039,13 +1085,13 @@ for work the application did not perform.
 
 The genuine first-use Library omits collection layout, sorting and filter tools
 until there is content or a browsing constraint to operate on. Keep its mascot
-compact (4rem) and Add games visible at the supported minimum window, including
-the initial application-update choice notice. Filtered no-results retains its
+compact (4rem) and keep Browse games visible at the supported minimum window,
+including with the initial application-update choice notice. Filtered no-results retains its
 reset and filtering controls; hiding first-use tools must not clear preferences.
 
-Library's heading Add games action and empty-state primary action open the
-same in-flow workspace. Keep source choice, current port identity and the next
-review action together. Start with three routes: Browse games (opens Discover,
+In an empty Library, **Browse games** takes the player directly to Discover.
+**Add games** opens the in-flow setup workspace. Keep the source choice, current
+port and next review action together. Its three routes are Browse games (Discover,
 where choosing a game always happens), Scan a folder, or use an existing
 installation. Show only the selected route's actual inputs and requirements. In
 Add games, "Choose folder to scan" saves the chosen folder and scans the saved
@@ -1087,6 +1133,20 @@ explicit confirmation. Initial focus belongs to the review heading so compact
 and enlarged windows begin with identity and inputs; keyboard navigation reaches
 the confirmation and cancellation controls in document order. Cancellation and
 completion keep the existing context-bound return-focus owner.
+
+External-folder registration and relink reviews keep Folder, Game program and
+Previous folder values as exact left-to-right paths using the shared path-value
+wrapping rule; labels remain ordinary UI text, and extended Windows prefixes
+continue on the same first line as their path.
+Version and Checked files share a compact first row. Folder and Game program each
+use the full metadata width below it, in that document order, so long exact paths
+do not force short facts into tall empty cells. Preserve the same structure at
+compact and normal dialog widths.
+
+Keep literal launch arguments left to right in editors, reviews, and Manage,
+including in RTL layouts. Preserve spaces, empty arguments, and line breaks.
+A selected program outside scanned suggestions stays visible as the current
+choice. Core still determines launch readiness.
 
 Preparation completion reports that game data is prepared. It does not grant
 launch availability: the refreshed Core readiness and existing current-action
@@ -1242,6 +1302,11 @@ Compatibility and project-implementation disclosures shrink within their actual
 detail or comparison column. Long release, edition, artifact and dependency
 identifiers wrap without truncation; complete evidence remains selectable and
 keyboard disclosure controls remain reachable in compact windows.
+
+Launch advisories pair each first-launch or repeat-Play label with its value,
+using quieter labels, stronger values and a clear gap between phases. Historical
+observation spacing belongs to the surrounding `detail-evidence` consumer;
+verify the complete explanation, exact scope and source in that context.
 
 ## Prototype presentation alignment
 

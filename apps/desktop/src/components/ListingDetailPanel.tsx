@@ -1,8 +1,12 @@
+import type { useFavorites } from "../features/favorites/use-favorites";
 import { releaseKey } from "../features/browsing/download-identity";
 import { upstreamUpdatesDestination } from "../features/browsing/upstream-links";
 import { ArrowRight, FolderOpen, Save } from "lucide-react";
 import type { ReactNode } from "react";
-import { SaveGameButton } from "../features/organization/OrganizationControls";
+import {
+  FavoriteGameButton,
+  FavoritePreferenceFailure,
+} from "../features/organization/OrganizationControls";
 import { ListingMaintenanceFacts } from "../features/browsing/ListingMaintenanceFacts";
 import type { CatalogEntry } from "../features/browsing/catalog-entry";
 import {
@@ -15,7 +19,8 @@ import type { PortStatus } from "../types";
 import { platformLabel } from "../view-model";
 import { ArtworkControls } from "./Artwork";
 import { DetailLayout } from "./DetailLayout";
-import { ChoiceFailure, SetupStatement, type DetailOrganization } from "./DetailChoices";
+import { SetupStatement, type DetailOrganization } from "./DetailChoices";
+import { RuntimeLaunchFacts } from "./ExternalRuntime";
 import { ExternalLink } from "./ExternalLink";
 import { SelfServiceSetup } from "./SelfServiceSetup";
 import { PortCapabilities } from "./PortCapabilities";
@@ -133,13 +138,13 @@ export function ListingDetailPanel({
   openSupport,
   organization,
   groupPorts,
-  favoriteControl,
+  favorites,
   implementationControl,
   managementSupplement,
 }: {
   entry: CatalogEntry;
   groupPorts?: readonly CatalogEntry[] | undefined;
-  favoriteControl?: ReactNode;
+  favorites?: ReturnType<typeof useFavorites> | undefined;
   implementationControl?: ReactNode;
   managementSupplement?: ReactNode;
   libraryRoot?: string | undefined;
@@ -165,8 +170,8 @@ export function ListingDetailPanel({
     <div className="flex flex-wrap gap-4 text-sm">
       <ExternalLink href={listing.project_url}>Project website</ExternalLink>
       {updates?.releases && <ExternalLink href={updates.url}>Upstream releases</ExternalLink>}
-      {listing.setup_url && (
-        <ExternalLink href={listing.setup_url}>Setup instructions</ExternalLink>
+      {!entry.pendingSetup && listing.setup_url && (
+        <ExternalLink href={listing.setup_url}>Project setup guide</ExternalLink>
       )}
     </div>
   );
@@ -188,18 +193,13 @@ export function ListingDetailPanel({
           favoriteControl={
             <>
               {implementationControl}
-              {registered ? (
-                favoriteControl
-              ) : (
-                <>
-                  <SaveGameButton
-                    port={entry}
-                    groupPorts={groupPorts ?? [entry]}
-                    organization={organization}
-                  />
-                  {organization && <ChoiceFailure organization={organization} />}
-                </>
-              )}
+              <FavoriteGameButton
+                port={entry}
+                groupPorts={groupPorts}
+                organization={organization}
+                favorites={favorites}
+              />
+              <FavoritePreferenceFailure favorites={favorites} organization={organization} />
             </>
           }
           projectUrl={listing?.project_url}
@@ -411,9 +411,15 @@ export function ListingDetailPanel({
                 <CurrentStateSummary title="Installation" className="mb-6">
                   {registered ? (
                     <>
-                      <p className="[overflow-wrap:anywhere]">{registered.path}</p>
+                      <RuntimeLaunchFacts
+                        executable={registered.executable}
+                        workingDirectory={registered.path}
+                        launchArguments={registered.user_selected?.arguments}
+                      />
                       <p>
                         You or the upstream launcher maintain this installation and its updates.
+                        Keep backups of your external saves with the tools or instructions from the
+                        project.
                       </p>
                       <Button
                         variant="link"

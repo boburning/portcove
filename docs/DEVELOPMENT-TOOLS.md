@@ -1,10 +1,11 @@
 # Development tools
 
-Start with [Frontend workflow](#frontend-workflow) for pinned tools and focused
-checks, [Warm single-session workflow](#warm-single-session-workflow) for pickup,
-and [Shared local resources](#shared-local-resources) before heavyweight work.
-[Quality](QUALITY.md#required-hosted-baseline) owns required validation and review;
-the detailed recipes and retained observations below do not add merge gates.
+Use the [Frontend workflow](#frontend-workflow) to install the pinned tools
+and run focused checks. When you pick up work, use the
+[Warm single-session workflow](#warm-single-session-workflow). Before you run
+large jobs, read [Shared local resources](#shared-local-resources).
+[Quality](QUALITY.md#required-hosted-baseline) lists the tests and reviews
+required to merge.
 
 ## Dependency patches
 
@@ -205,15 +206,148 @@ Use `node scripts/report-summary.mts watch FILE` for its bounded final summary.
 Consume the watch result or retained snapshots; retrieve the identified failed
 job when needed.
 
-For agent delivery sessions, use that watcher rather than repeated snapshot reads.
-Retain raw reports, then use `report-summary` or project the identity, changed
-state and next required action before printing. A collector timeout is an
-observation failure: inspect the bound run before deciding whether execution
-needs repeating. The personal `github-pull-request-delivery` skill provides
-bounded MCP reads and checkpoint helpers when those surfaces are used.
-When a tool returns a running session, consume it with a bounded wait of at most
-60 seconds before the next commentary update. Reuse its final report; do not
-start another watcher or repeatedly fetch unchanged state.
+For agent delivery, hand off the wait to the local worker when available. End
+the turn once the worker acknowledges the saved watch. For a foreground run,
+consume the final report or retained evidence. A collector timeout calls for
+inspection of the bound run before deciding whether execution needs repeating.
+
+### Local Codex PR handoff
+
+Run the watcher on the Linux runner under the account that owns the Codex daemon
+and the authenticated GitHub CLI. A systemd user service keeps the worker alive
+after logout and recovers its SQLite journal at boot. Use a stable, reviewed
+Portcove tools checkout for the service. Install the checkout's pinned Node and
+dependencies, `just`, `gh`, and a Codex build whose `queue --help` includes
+`--resume`. The worker uses Python 3.11+ and its `websockets` package for local
+daemon readback. Run these once on that host, with those tools on PATH.
+
+```sh
+cd /absolute/path/to/portcove-tools
+gh auth status
+codex app-server daemon start
+codex app-server daemon version
+codex queue --help
+python3 -m venv work/pr-wake-venv
+work/pr-wake-venv/bin/pip install websockets==16.0
+install -d -m 700 "$HOME/.local/state/portcove/pr-wake" "$HOME/.config/systemd/user"
+tools_checkout=$(pwd -P)
+codex_cli=$(command -v codex)
+cat > "$HOME/.config/systemd/user/portcove-codex-start.service" <<EOF
+[Unit]
+Description=Start the existing local Codex daemon
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment="PATH=$PATH"
+ExecStart="$codex_cli" app-server daemon start
+EOF
+cat > "$HOME/.config/systemd/user/portcove-pr-wake.service" <<EOF
+[Unit]
+Description=Portcove local pull request watcher
+Wants=portcove-codex-start.service
+After=portcove-codex-start.service
+
+[Service]
+Environment="PATH=$PATH"
+Environment="PORTCOVE_PR_WAKE_STATE=%h/.local/state/portcove/pr-wake"
+ExecStart="$tools_checkout/work/pr-wake-venv/bin/python" "$tools_checkout/scripts/pr_wake.py" serve
+UMask=0077
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=default.target
+EOF
+loginctl enable-linger "$(id -un)"
+systemctl --user daemon-reload
+systemctl --user enable --now portcove-pr-wake.service
+systemctl --user status portcove-pr-wake.service
+```
+
+Use the same `CODEX_HOME` and GitHub CLI configuration in the service and owning
+session. If either uses a custom location, set it explicitly in the service
+environment for each relevant unit. The units use the existing logged-in
+accounts. If the runner already starts its Codex daemon at boot, point
+`Wants` and `After` at that service instead of installing the oneshot unit.
+The watcher can restart independently of the shared daemon. Confirm that
+the shell PATH written into the units contains persistent tool directories.
+
+Start the owning Codex thread on that local daemon in the PR worktree, with
+write access to the journal directory. For the Codex CLI with workspace-write
+sandboxing, run `codex --add-dir "$HOME/.local/state/portcove/pr-wake"` in
+that worktree. Supply the actual run and attempt. A queued workflow may have
+a run and attempt before any job starts. Supply a finite UTC observation
+deadline at handoff, and retain it across restarts. The journal records GitHub's
+run creation and first observed attempt-job start separately. The timeout
+configured on GitHub still governs job execution.
+
+```sh
+export PORTCOVE_PR_WAKE_STATE="$HOME/.local/state/portcove/pr-wake"
+tools_checkout=/absolute/path/to/portcove-tools
+python3 "$tools_checkout/scripts/pr_wake.py" handoff --pr NUMBER --head SHA --run RUN --attempt ATTEMPT --deadline UTC
+```
+
+The command reads the thread UUID injected by Codex and checks the local
+worktree HEAD. The service reads that exact thread and its queue and turn history,
+verifies its worktree, and commits the acceptance timestamp to the journal.
+Wait for the receipt with `accepted` before ending the model turn. An
+unacknowledged handoff can be retried with the same binding. After the required
+review of a new head, the same owner can hand off its new binding while the
+repair turn is active. The worker reconciles the previous event before
+accepting the replacement.
+
+The worker runs `just pr-watch --sample --json` locally. Ordinary polling
+starts no Codex turns. The worker also listens
+for PR events when supported by the account and `gh`. Each attachment and
+reconnection triggers a fresh read because GitHub does not replay missed events.
+A check-suite event triggers the full required-check evaluation. The three-minute
+poll also catches conversation comments that address the PR author from a
+repository owner, member, or collaborator, and submitted review feedback on the
+bound head. Duplicate hints coalesce before evaluation. The GitHub CLI's
+preview subscriptions expire automatically.
+
+Each actionable event is written to disk before the worker invokes
+`codex queue --thread UUID --resume --message EVENT`. The worker reads the
+target thread's persisted user message and turn ID as pickup evidence. After
+an outage it checks the target's queue and history and resumes an existing
+queued message if it finds one. The message asks the owner to claim the event
+once and re-read the live PR before proceeding. A completed, claimed turn
+settles the event. The worker retries once after a failed or interrupted turn,
+or after a turn ends without claiming the event. The recovery turn reads prior
+work and current PR state before repeating any action. If `status` reports a
+`delivery_error`, open the saved UUID, inspect its last turn and current PR,
+and resolve the retained action in that thread. `receipt EVENT` shows both
+turn IDs. Raw check evidence stays local.
+To read its bounded summary, redirect the event's `report EVENT` output to
+a file, then run `node scripts/report-summary.mts watch FILE`.
+
+Use these commands under the same account to inspect or recover delivery.
+
+```sh
+python3 "$tools_checkout/scripts/pr_wake.py" status NUMBER
+python3 "$tools_checkout/scripts/pr_wake.py" receipt EVENT
+python3 "$tools_checkout/scripts/pr_wake.py" pause NUMBER
+python3 "$tools_checkout/scripts/pr_wake.py" resume NUMBER
+python3 "$tools_checkout/scripts/pr_wake.py" cancel NUMBER
+codex app-server daemon start
+systemctl --user restart portcove-pr-wake.service
+journalctl --user -u portcove-pr-wake.service -n 50
+```
+
+Pausing stops new sends and removes an outstanding queued copy when reachable.
+Use `resume` to re-enable the watch. Cancellation, merge, and closure retire
+the watch after queued copies are reconciled. The event journal retains delivery
+receipts. A pause or cancellation after a turn has started prevents new claims.
+Use the thread's normal interrupt control to stop work already claimed.
+
+Use a disposable local Codex thread to validate host activation. Register a
+disposable PR with pending checks, end the turn and close the Codex window.
+After an actionable condition, use `status NUMBER` to get the event ID and
+`receipt EVENT` to verify the picked-up turn and registered UUID against the
+daemon's thread history. The
+fixture command `python3 scripts/pr_wake_test.py` covers controlled-clock
+polling and recovery independently of host activation.
 
 ### Connector delivery observations
 
@@ -1805,7 +1939,7 @@ loop. This section is the single place for concrete model recommendations.
 
 ### Current recommendations
 
-Recommendations as of 2026-11-14. They are starting assignments by
+Recommendations as of 2026-11-19. They are starting assignments by
 responsibility, not claims of equivalent performance or compute across
 providers. The two visual-helper choices in particular are separate starting
 points, each to be evaluated on its own evidence. The implementation owner is
@@ -1814,24 +1948,27 @@ these instructions do not change it.
 
 | Responsibility                                 | Codex                   | Claude                      |
 | ---------------------------------------------- | ----------------------- | --------------------------- |
-| Delegated implementation (only when asked)     | `gpt-6.1-sol`, medium   | `claude-sonnet-5-5`, medium |
-| Independent reviewer                           | `gpt-6.1-sol`, medium   | `claude-sonnet-5-5`, medium |
-| Critical reviewer (listed critical areas only) | `gpt-6-astra`, high     | `claude-fable-5-2`, high    |
-| Specialist (named difficult problem)           | `gpt-6-astra`, high     | `claude-fable-5-2`, high    |
+| Delegated implementation (only when asked)     | `gpt-6.2-sol`, medium   | `claude-sonnet-5-5`, medium |
+| Independent reviewer                           | `gpt-6.2-sol`, medium   | `claude-sonnet-5-5`, medium |
+| Critical reviewer (listed critical areas only) | `gpt-6.2-astra`, high   | `claude-fable-5-2`, high    |
+| Specialist (named difficult problem)           | `gpt-6.2-astra`, high   | `claude-fable-5-2`, high    |
 | Research scout (bounded extraction)            | `gpt-6-luna`, medium    | `claude-haiku-5-5`, medium  |
 | Visual helper (optional)                       | `gpt-6.1-terra`, medium | `claude-sonnet-5-5`, medium |
 
-Escalate an independent review to `claude-opus-5-5` or `gpt-6.1-sol` at high
+Escalate an independent review to `claude-opus-5-5` or `gpt-6.2-sol` at high
 effort only when a first review leaves a substantive unresolved question that a
 stronger pass is likely to settle. The critical reviewer and specialist rows are
 for the narrow cases QUALITY and AGENTS name, not for routine PRs.
 
-Documented availability, checked 2026-11-13: all eight models appear on
-the official [OpenAI models](https://developers.openai.com/api/docs/models) and
-[Claude models](https://platform.claude.com/docs/en/about-claude/models/overview)
-pages, none is on a listed retirement, and every listed model documents both
-`medium` and `high` effort. Observed access is narrower: the local Codex CLI
-0.164.0 model list cached 2026-10-25 offered `gpt-6.1-sol`, `gpt-6-astra` and
+The [OpenAI model catalog](https://developers.openai.com/api/docs/models)
+lists GPT-6.2 Sol and GPT-6.2 Astra with both `medium` and `high` reasoning.
+The local Codex model cache included both model IDs when checked on 2026-11-19.
+The other model recommendations were checked against the official OpenAI and
+[Claude model catalogs](https://platform.claude.com/docs/en/about-claude/models/overview)
+on 2026-11-13.
+
+The local Codex CLI
+0.164.0 model list cached on 2026-10-25 offered `gpt-6.1-sol`, `gpt-6-astra` and
 `gpt-6-luna` but not `gpt-6.1-terra`; Claude Code 2.1.323 accepted and ran a
 delegated research scout requested as `haiku` at `medium` effort, without
 separately reporting the served model. When the client does not
@@ -2195,6 +2332,19 @@ just desktop-verify --scenario keyboard-layout --scenario accessibility
 just desktop-verify --profile presentation
 ```
 
+`keyboard-layout` reads back the native window and WebView viewport after its
+narrow-size request. A native minimum-width clamp keeps the desktop navigation
+journey active; it does not establish compact drawer coverage. The retained
+`keyboard-layout-navigation.json` records the actual dimensions and explicitly
+marks compact navigation unexercised outside its breakpoint. Where the actual
+viewport is compact, drawer visibility and both navigation landmarks remain
+required. Browser compact-navigation coverage and `native-interface-size` cover
+their own responsive and enlargement contracts separately.
+Native fixture text replacement uses explicit WebDriver select-all actions and
+modifier release before separate Backspace and plain-text commands. This keeps
+real keyboard editing coverage on WebKitGTK drivers that retain the modifier
+across a NULL within one Element Send Keys command; it does not set DOM values.
+
 `native-interface-size` selects presets through the actual Appearance control.
 Before sending its selection keys, it waits for the popup to own focus and
 checks the highlighted option before committing. A mounted listbox alone does
@@ -2256,6 +2406,18 @@ Public failures retain concrete member failures and any partial/fallback evidenc
 and fail complete-collection acceptance. Browser fixtures for Library/Manage remain
 separate evidence; this listing-only native case does not qualify those installed
 surfaces, gameplay or publication. It is absent from routine profiles.
+
+The collection case collects bounded diagnostic observations before checking its
+unchanged-catalog invariant and retains them in a sidecar during finalization.
+It records document and indexed entry hashes, the
+existing catalog and listing delivery status, and early command/request IDs from
+the private host logs. Object-key-normalized hashes are diagnostic transport
+identities, not Core definition or trust identities; array order remains meaningful.
+The sidecar is limited to 2 MiB within the unchanged 12 MiB evidence codec. Host
+logging is best effort: missing, changing, malformed or excessive logs are recorded
+as incomplete, never as proof that a command did not run. These observations do not
+reset the initial catalog digest or weaken source, status, artwork-choice or cleanup
+assertions.
 
 `just desktop-verify --scenario native-saved-folder-hash-resume --require-clean`
 selects one standalone
@@ -2340,6 +2502,8 @@ with selection preserved. No validator, preparation, acquisition, gameplay,
 physical-storage or Linux execution is claimed. The existing preliminary
 review-only scenario remains separately selectable.
 
+### Select a native scenario and profile
+
 With no selector, `desktop-verify` uses the `smoke` profile. Exact `--scenario`
 flags are repeatable and mutually exclusive with `--profile`; selection is normalized
 in catalog order. The pure `scripts/desktop-execution-plan.mts` supplies fixture
@@ -2389,7 +2553,9 @@ routine profiles. It retains malformed preferences and player-data before copies
 checks the actual startup diagnostics and absence of the normal workspace, and
 proves owned host-tree exit before externally repairing only the fixture's saved
 choice. Two independent restarts check the usable workspace, saved selection,
-library identity and player data. The failed-startup screen keeps its main landmark and announces the failure in
+library identity and player data. A six-minute harness watchdog covers the
+initial refusal, both restarts, and owned-process cleanup. The failed-startup
+screen keeps its main landmark and announces the failure in
 the error paragraph, with native accessibility evidence retained.
 Technical labels retain their exact spelling while wrapping within their column;
 the scenario checks actual label/value separation and requires no unresolved
@@ -2442,6 +2608,8 @@ preparation and actual-device evidence gaps belong to #51/#217 for the Public be
 follow-up, Required before 1.0; they consume the shared engine baseline without
 becoming #993 initial-beta closure conditions. Do not stop fixture development or
 turn missing evidence into a pass.
+
+### Choose a verification profile
 
 The curated profiles are:
 
@@ -2566,6 +2734,8 @@ registration removal preserves the complete postgame inventory. Failure cleanup
 can signal only a separately captured, verified game process tree. This journey
 does not establish human gameplay, an installed package, Linux qualification or
 catalog support admission. Keep any earlier failed receipts and their limits.
+
+### Capture a game-first scenario
 
 Game-first visual captures scroll to one complete identified target, then let the
 shared settled-capture owner wait for fresh, stable geometry before taking its
@@ -2855,6 +3025,8 @@ native scenarios always execute in a fresh evidence directory. The run metadata
 records whether frontend bytes were rebuilt or reused, while source revision and
 `--require-clean` evidence remain independent and unchanged.
 
+### Coordinate focus and session ownership
+
 Every native run can take focus and send input. The shared lock serializes
 Portcove qualification runners across worktrees, but it cannot prevent unrelated
 user input. Announce the foreground run and establish an uncontended window.
@@ -3042,6 +3214,8 @@ retry plus refresh recovery, not upstream availability, game compatibility,
 gameplay or human acceptance.
 Core/component tests and human acceptance remain separate. An incomplete report is
 not full desktop qualification.
+
+### Restart and recover a Windows test session
 
 Windows restart checks capture the exact driver-owned application and child
 process identities before closing the session. Before reusing its WebView profile,
@@ -3838,7 +4012,11 @@ retains external custody; connection loss never authorizes its release.
 The host bounds queued raw bytes to 32 KiB; UTF-8 decoding stays inside the
 message parser so stream lengths retain byte units.
 Windows process-identity inspection retains a finite 15-second harness
-budget under host I/O load; host release allows 65 seconds for its bounded
+budget under host I/O load. Native Windows first checks existence with signal0,
+which sends no signal: only ESRCH returns absent without CIM. A possibly live
+process, permissions error or uncertain result still requires the exact CIM
+creation identity. This does not prove descendant or external-work cleanup;
+their existing custody checks remain required. Host release allows 65 seconds for its bounded
 remote cleanup probe and identity checks. Timeouts retain custody. The host adapter's --recover action consumes the original reference and
 invocation before using existing external-capacity recovery. Prelaunch recovery
 requires an explicit completion marker. If registration is missing after launch,

@@ -3,7 +3,7 @@
   "listing": {
     "id": "the-legend-of-zelda-tears-of-the-kingdom-nxport",
     "name": "The Legend of Zelda: Tears of the Kingdom (nxport)",
-    "summary": "An experimental nxport Switch builder for The Legend of Zelda: Tears of the Kingdom, using an Apple Silicon NVN compatibility layer with game-specific support. The project reports iOS/macOS testing, with rendering flicker, terrain-normal defects and Rauru audio problems. The exact tested version is unconfirmed. There is no release package: clone and build nxport-builder, choose this game’s profile and the Mac or iOS target, then build a local app or IPA. You and the project manage preparation and rebuilding. Use your own extracted ExeFS/RomFS/Logo. Exact accepted version, region and title ID are unconfirmed. Windows and Linux players are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "The nxport builder creates a Mac or iOS app from your own extracted Tears of the Kingdom files. The project reports testing both platforms, with rendering flicker, terrain defects and audio problems. There is no ready-made download or confirmed game revision.",
     "original_game_title": "The Legend of Zelda: Tears of the Kingdom",
     "project_url": "https://github.com/nxporting/nxport",
     "listed_at": "2026-10-25",
@@ -18,7 +18,33 @@
       "game_slug": "the-legend-of-zelda-tears-of-the-kingdom",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2967
+    "issue_number": 2967,
+    "manual_setup": {
+      "help_url": "https://github.com/nxporting/nxport",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Provide your own extracted ExeFS, RomFS and Logo. The project has not confirmed which game version, region or title ID this profile accepts."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Build nxport-builder from source, choose Tears of the Kingdom and select the Mac or iOS target to produce a local app or IPA. You handle preparation and later rebuilds."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The project reports problems with terrain lighting and Rauru’s audio. The builder targets Apple silicon. There is no confirmed Windows or Linux player."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-tears-of-the-kingdom",
+      "evidence_urls": ["https://github.com/nxporting/nxport"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

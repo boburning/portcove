@@ -29,6 +29,13 @@ pub(crate) fn is_package_filename(name: &str) -> bool {
         .any(|extension| name.ends_with(extension))
 }
 
+pub(crate) fn is_server_package(name: &str) -> bool {
+    name.split(|c: char| !c.is_ascii_alphanumeric())
+        .any(|token| {
+            token.eq_ignore_ascii_case("server") || token.eq_ignore_ascii_case("dedicated")
+        })
+}
+
 pub(crate) fn package_platform_match(name: &str, platform: Platform) -> PackagePlatformMatch {
     let name = name.to_ascii_lowercase();
     let tokens = name
@@ -128,6 +135,13 @@ pub(crate) fn assess_package_name(
     // recommended release. A reviewed debug player needs its whole filename.
     let finish = |suitability, reason, score| (suitability, reason, score);
     let archive = ARCHIVE_FORMS.iter().any(|ext| name.ends_with(ext));
+    if is_server_package(&name) {
+        return finish(
+            "auxiliary",
+            "This package is labeled as a dedicated server. Choose a game client to play.",
+            None,
+        );
+    }
     if has(&[
         "checksums",
         "checksum",
@@ -361,6 +375,40 @@ mod tests {
             recommend_packages(&assets, Platform::WindowsX86_64, &[], false).1,
             None
         );
+    }
+
+    #[test]
+    fn crusader_desktop_listing_recognizes_versioned_player_archives() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let id = "crusader-no-remorse-sebsebseb1982-sdl-port";
+        let listing = catalog.listing(id).unwrap();
+        assert!(catalog.port(id).is_err(), "display only");
+        for version in ["1.41.2", "1.47.0", "1.49.0"] {
+            let mut assets = [
+                asset(1, &format!("crusader-{version}-windows-x64.zip")),
+                asset(2, &format!("crusader-{version}-linux-x64.tar.gz")),
+                asset(3, &format!("crusader-{version}-portmaster-aarch64.zip")),
+                asset(4, &format!("crusader-{version}-source-windows-x64.zip")),
+                asset(5, "SHA256SUMS"),
+            ];
+            assets[1].can_extract = true;
+            for (platform, expected) in
+                [(Platform::WindowsX86_64, 1u64), (Platform::LinuxX86_64, 2)]
+            {
+                let hints = &listing.download_asset_hints[&platform];
+                let (options, recommendation) = recommend_packages(&assets, platform, hints, true);
+                assert_eq!(recommendation, Some(expected.into()));
+                assert!(
+                    assess_package(&assets[expected as usize - 1], platform, hints)
+                        .1
+                        .unwrap()
+                        >= 100
+                );
+                assert_eq!(options[2].suitability, "incompatible");
+                assert_eq!(options[3].suitability, "auxiliary");
+                assert_eq!(options[4].suitability, "auxiliary");
+            }
+        }
     }
 
     #[test]

@@ -3,7 +3,7 @@
   "listing": {
     "id": "super-mario-bros-wonder-nxport",
     "name": "Super Mario Bros. Wonder (nxport)",
-    "summary": "An experimental nxport Switch builder for Super Mario Bros. Wonder, using an Apple Silicon NVN compatibility layer with game-specific support. The project reports macOS testing, with question-mark button prompts. The exact tested version is unconfirmed. There is no release package: clone and build nxport-builder, choose this game’s profile and the Mac or iOS target, then build a local app or IPA. You and the project manage preparation and rebuilding. Use your own extracted ExeFS/RomFS/Logo. Exact accepted version, region and title ID are unconfirmed. Windows and Linux players are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "Build the nxport version of Super Mario Bros. Wonder from your own extracted Switch files. The project reports macOS testing with some button prompts appearing as question marks. The iOS build target is available, but its gameplay and the tested game version remain unconfirmed.",
     "original_game_title": "Super Mario Bros. Wonder",
     "project_url": "https://github.com/nxporting/nxport",
     "listed_at": "2026-10-25",
@@ -18,7 +18,33 @@
       "game_slug": "super-mario-bros-wonder",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2969
+    "issue_number": 2969,
+    "manual_setup": {
+      "help_url": "https://github.com/nxporting/nxport",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Supply your own extracted ExeFS, RomFS and Logo. The project does not identify a confirmed version, region or title ID."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Build nxport-builder from source, select Super Mario Bros. Wonder and choose Mac or iOS to generate a local app or IPA. You manage preparation and updates. There is no ready-made package."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The builder targets Apple silicon. Windows and Linux players are unconfirmed."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-bros-wonder",
+      "evidence_urls": ["https://github.com/nxporting/nxport"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

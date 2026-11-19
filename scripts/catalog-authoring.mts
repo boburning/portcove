@@ -1,6 +1,11 @@
 import { checkImplementationMetadata } from "./implementation-metadata.mts";
 import type { ImplementationMetadata } from "./implementation-metadata.mts";
 import {
+  checkOriginalGameReview,
+  checkOriginalGameConsistency,
+  type OriginalGameReview,
+} from "./catalog-game-review.mts";
+import {
   checkPackagePlayerObservation,
   projectPackagePlayerFacts,
 } from "./package-player-observation.mts";
@@ -90,6 +95,10 @@ export interface AuthoredPort extends Record<string, unknown> {
   /** Reviewed provenance; never projected into runtime definitions or listings. */
   upstream_lineage?: UpstreamLineage;
   release_maintenance?: { reason: string; reconsider_when: string };
+  /** Explicit repository grouping disposition; never a runtime identity fallback. */
+  original_game_review?: OriginalGameReview;
+  /** Reviewed same-package borrowing for these descriptive platforms only. */
+  listing_inherit_asset_hints?: string[];
 }
 
 export const catalogSourceNames = {
@@ -273,7 +282,46 @@ function checkPlayerGuideCopy(
     checkPlayerCopy(id, `${field}.warnings[${index}]`, warning);
 }
 
-function projectGbaArchive(record: AuthoredPort): AuthoredPort {
+class GbaLayoutMismatch extends Error {}
+
+/** Prefer the family recipe only when its expansion preserves the exact integration. */
+export function compactGbaArchive(record: AuthoredPort): AuthoredPort {
+  const { integration } = record;
+  if (
+    record.gba_staged_archive_v1 !== undefined ||
+    integration?.adapter !== "staged-source-portable"
+  )
+    return record;
+  const paths = integration.runtime_mutable_paths;
+  if (!Array.isArray(paths)) return record;
+  const codes = paths.flatMap((path) => {
+    const match =
+      typeof path === "string" ? /^recomp_coverage_([A-Z0-9]{4})\.json$/u.exec(path) : null;
+    return match?.[1] ? [match[1]] : [];
+  });
+  if (codes.length !== 1 || !codes[0]) return record;
+
+  const facts = { ...integration };
+  for (const field of ["persistent_paths", "runtime_mutable_paths", "mod_package_policy"])
+    delete facts[field];
+  const candidate = {
+    ...record,
+    integration: facts,
+    gba_staged_archive_v1: {
+      game_code: codes[0],
+      versioned_mods: integration.mod_package_policy === "versioned-packages-v1",
+    },
+  };
+  try {
+    if (JSON.stringify(projectGbaArchive(candidate).integration) === JSON.stringify(integration))
+      return candidate;
+  } catch (error) {
+    if (!(error instanceof GbaLayoutMismatch)) throw error;
+  }
+  return record;
+}
+
+export function projectGbaArchive(record: AuthoredPort): AuthoredPort {
   const facts = record.gba_staged_archive_v1;
   if (facts === undefined) return record;
   const integration = record.integration;
@@ -294,12 +342,12 @@ function projectGbaArchive(record: AuthoredPort): AuthoredPort {
     record.settings_qualification_v1 !== undefined ||
     record.settings_observation_v1 !== undefined
   )
-    throw new Error(
+    throw new GbaLayoutMismatch(
       "GBA archive facts require a reviewed Windows staged GitHub archive with an upstream picker.",
     );
   for (const field of ["persistent_paths", "runtime_mutable_paths", "mod_package_policy"])
     if (Object.hasOwn(integration, field))
-      throw new Error(
+      throw new GbaLayoutMismatch(
         `GBA archive facts already own ${field}; use an explicit integration for a different layout.`,
       );
 
@@ -331,10 +379,83 @@ function projectGbaArchive(record: AuthoredPort): AuthoredPort {
   };
 }
 
+/** Resolve descriptive selectors from the same record's reviewed GitHub releases. */
+export function listingDownloadAssetHints(record: AuthoredPort) {
+  const authored = record.listing.download_asset_hints;
+  const inherit = record.listing_inherit_asset_hints;
+  if (inherit === undefined) return authored;
+  const listing = record.listing;
+  const integration = record.integration;
+  const release = integration?.release;
+  const invalid = () =>
+    new Error(
+      `${listing.id} listing asset hint inheritance requires reviewed same-project GitHub release routes and unique managed platforms.`,
+    );
+  if (
+    !Array.isArray(inherit) ||
+    !inherit.length ||
+    new Set(inherit).size !== inherit.length ||
+    listing.availability !== "packages" ||
+    listing.download_block_reason !== undefined ||
+    !Array.isArray(integration?.platforms) ||
+    !Array.isArray(integration.channels) ||
+    !integration.channels.includes(listing.recommended_download_channel ?? "stable") ||
+    !isRecord(release) ||
+    (release.provider !== undefined && release.provider !== "github") ||
+    typeof release.repository !== "string" ||
+    !isRecord(release.asset_hints)
+  )
+    throw invalid();
+  const repository = release.repository.toLowerCase();
+  const scope = `https://github.com/${repository}`;
+  const normalize = (value: string) => value.toLowerCase().replace(/\/$/u, "");
+  if (
+    !/^[a-z0-9_-]+\/[a-z0-9_.-]+$/u.test(repository) ||
+    normalize(listing.project_url) !== scope ||
+    (listing.release_url !== undefined &&
+      ![scope, `${scope}/releases`].includes(normalize(listing.release_url)))
+  )
+    throw invalid();
+  const hints = { ...authored };
+  for (const platform of inherit) {
+    if (
+      !(platforms as readonly string[]).includes(platform) ||
+      !integration.platforms.includes(platform) ||
+      [release.direct, release.curated, release.managed_build, release.user_prepared].some(
+        (routes) => isRecord(routes) && Object.hasOwn(routes, platform),
+      )
+    )
+      throw invalid();
+    const inherited = release.asset_hints[platform];
+    if (!validListingAssetHints(inherited)) throw invalid();
+    if (!Object.hasOwn(hints, platform)) hints[platform] = [...inherited];
+  }
+  return authored && Object.keys(authored).length === 0 ? authored : hints;
+}
+
+function validListingAssetHints(hints: unknown): hints is string[] {
+  return (
+    Array.isArray(hints) &&
+    hints.length >= 1 &&
+    hints.length <= 8 &&
+    hints.every((hint) => boundedText(hint, 160)) &&
+    new Set(hints.map((hint) => hint.toLowerCase())).size === hints.length
+  );
+}
+
 export function checkedAuthoredPort(value: unknown, expectedId?: string): AuthoredPort {
   if (!isRecord(value) || value.format_version !== 1 || !isRecord(value.listing))
     throw new Error("An authored port requires format_version 1 and a listing.");
+  if (value.original_game_review !== undefined) checkOriginalGameReview(value.original_game_review);
   const listing = value.listing;
+  if (
+    value.original_game_review &&
+    value.original_game_review.disposition !== "separate" &&
+    listing.original_game !== undefined
+  )
+    throw new Error(
+      "A non-single-game or unresolved original-game review cannot also assign a single original_game.",
+    );
   if (
     listing.collection_covers !== undefined &&
     (!validArtworkCollection(listing.collection_covers) || listing.artwork != null)
@@ -427,12 +548,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       !isRecord(listing.download_asset_hints) ||
       Object.entries(listing.download_asset_hints).some(
         ([platform, hints]) =>
-          !(platforms as readonly string[]).includes(platform) ||
-          !Array.isArray(hints) ||
-          hints.length < 1 ||
-          hints.length > 8 ||
-          hints.some((hint) => !boundedText(hint, 160)) ||
-          new Set(hints.map((hint) => String(hint).toLowerCase())).size !== hints.length,
+          !(platforms as readonly string[]).includes(platform) || !validListingAssetHints(hints),
       )
     )
       throw new Error(
@@ -533,6 +649,16 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     if (!isRecord(value.integration)) throw new Error("Integration must be a strict object.");
     const integration = value.integration;
     if (
+      integration.upstream_active_reviewed !== undefined &&
+      (typeof integration.upstream_active_reviewed !== "boolean" ||
+        (integration.upstream_active_reviewed &&
+          integration.upstream_status !== undefined &&
+          integration.upstream_status !== "active"))
+    ) {
+      throw new Error("Invalid reviewed active upstream status.");
+    }
+
+    if (
       listing.download_block_reason !== undefined &&
       (!isRecord(integration.release) || integration.release.provider !== "user-prepared")
     )
@@ -593,6 +719,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     checkSettingsPolicy(record.settings_qualification_v1);
   if (record.settings_observation_v1 !== undefined) projectSettingsQualification(record);
   assessUpstreamLineage(record);
+  listingDownloadAssetHints(record);
   return record;
 }
 
@@ -651,6 +778,7 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
   if (new Set(records.map((record) => record.listing.id)).size !== records.length)
     throw new Error("Catalog source has duplicate stable listing IDs.");
   checkLineageIdentities(records);
+  checkOriginalGameConsistency(records);
   records.sort(
     (a, b) =>
       (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER) ||
@@ -677,33 +805,37 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
   const listings = records
     .map(projectRouteFacts)
     .map(projectPackagePlayerFacts)
-    .map((record) => ({
-      ...structuredClone(record.listing),
-      platforms: [
-        ...(Array.isArray(record.integration?.platforms)
-          ? (record.integration.platforms as unknown[])
-          : []),
-        ...(record.listing.platforms ?? []),
-      ],
-      availability: record.listing.availability ?? "unknown",
-      ...(record.release_maintenance
-        ? {
-            release_maintenance: {
-              ...record.release_maintenance,
-              pinned_releases: Object.entries(
-                (record.integration!.release as Record<string, unknown>).direct as Record<
-                  string,
-                  { version: string; published_at?: string }
-                >,
-              ).map(([platform, pin]) => ({
-                platform,
-                version: pin.version,
-                published_at: pin.published_at ?? null,
-              })),
-            },
-          }
-        : {}),
-    }));
+    .map((record) => {
+      const hints = listingDownloadAssetHints(record);
+      return {
+        ...structuredClone(record.listing),
+        ...(hints === undefined ? {} : { download_asset_hints: hints }),
+        platforms: [
+          ...(Array.isArray(record.integration?.platforms)
+            ? (record.integration.platforms as unknown[])
+            : []),
+          ...(record.listing.platforms ?? []),
+        ],
+        availability: record.listing.availability ?? "unknown",
+        ...(record.release_maintenance
+          ? {
+              release_maintenance: {
+                ...record.release_maintenance,
+                pinned_releases: Object.entries(
+                  (record.integration!.release as Record<string, unknown>).direct as Record<
+                    string,
+                    { version: string; published_at?: string }
+                  >,
+                ).map(([platform, pin]) => ({
+                  platform,
+                  version: pin.version,
+                  published_at: pin.published_at ?? null,
+                })),
+              },
+            }
+          : {}),
+      };
+    });
   const extendedMedia = listings.some(
     (listing) =>
       Array.isArray(listing.media) &&

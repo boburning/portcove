@@ -32,6 +32,16 @@
       "warnings": [],
       "help_url": "https://github.com/ogdanimal/Goemon64Recomp-Android/blob/v1.0.8/README.md"
     },
-    "release_url": "https://github.com/ogdanimal/Goemon64Recomp-Android/releases"
+    "release_url": "https://github.com/ogdanimal/Goemon64Recomp-Android/releases",
+    "original_game": {
+      "format_version": 1,
+      "id": "mystical-ninja-starring-goemon",
+      "evidence_urls": [
+        "https://github.com/ogdanimal/Goemon64Recomp-Android/blob/v1.0.8/README.md",
+        "https://github.com/ogdanimal/Goemon64Recomp-Android"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Mystical Ninja Starring Goemon"
   }
 }

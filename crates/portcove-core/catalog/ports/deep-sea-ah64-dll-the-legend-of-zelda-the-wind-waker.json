@@ -35,6 +35,12 @@
       "image_sha256": "3cddca6230a670b7b1eb79f84ea5b57202b9341ed4e0b47067a3e1a0e0cba1a9",
       "game_slug": "the-legend-of-zelda-the-wind-waker",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-the-wind-waker",
+      "evidence_urls": ["https://github.com/AH64-dll/DeepSea"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

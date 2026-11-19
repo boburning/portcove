@@ -47,7 +47,16 @@
         }
       ]
     },
-    "original_game_title": "Super Mario World"
+    "original_game_title": "Super Mario World",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-world",
+      "evidence_urls": [
+        "https://github.com/snesrev/smw/releases/tag/v0.1",
+        "https://github.com/snesrev/smw"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

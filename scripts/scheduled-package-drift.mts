@@ -17,7 +17,7 @@ export interface ObservationRun {
 
 export interface DriftTarget {
   portId: string;
-  issue: number;
+  issue?: number;
   platform: string;
   channel: "stable" | "beta";
   definitionSha256: string;
@@ -57,11 +57,9 @@ function knownRoutes(catalog: unknown, listings: unknown, shapes: unknown) {
   if (!isRecord(catalog) || !isRecord(listings) || !isRecord(shapes)) {
     throw new Error("The managed catalog, listing projection and shape table are required");
   }
-  const portIssues = new Map(
+  const listingsById = new Map(
     records(listings.listings).flatMap((listing) =>
-      typeof listing.id === "string" && positiveInteger(listing.issue_number)
-        ? [[listing.id, listing.issue_number] as const]
-        : [],
+      typeof listing.id === "string" ? [[listing.id, listing] as const] : [],
     ),
   );
   if (!positiveInteger(shapes.shape_version)) throw new Error("Invalid shape table version");
@@ -70,7 +68,7 @@ function knownRoutes(catalog: unknown, listings: unknown, shapes: unknown) {
   const routes = new Map<
     string,
     {
-      issue: number;
+      issue?: number;
       repository: string;
       baselineSha256: string;
       derivationSha256: string;
@@ -86,8 +84,9 @@ function knownRoutes(catalog: unknown, listings: unknown, shapes: unknown) {
       !Array.isArray(port.platforms)
     )
       continue;
-    const issue = portIssues.get(port.id);
-    if (!issue) continue;
+    const listing = listingsById.get(port.id);
+    if (!listing) continue;
+    const issue = listing.issue_number;
     for (const platform of port.platforms) {
       if (typeof platform !== "string" || !platforms.has(platform)) continue;
       const baselines = table.filter(
@@ -101,7 +100,7 @@ function knownRoutes(catalog: unknown, listings: unknown, shapes: unknown) {
       )
         continue;
       routes.set(`${port.id}/${platform}`, {
-        issue,
+        ...(positiveInteger(issue) ? { issue } : {}),
         repository: port.release.repository,
         baselineSha256: createHash("sha256").update(JSON.stringify(baselines)).digest("hex"),
         derivationSha256,
@@ -217,7 +216,7 @@ export function collectDriftTargets(
         if (!asset) continue;
         const target: DriftTarget = {
           portId: policy.port_id,
-          issue: route.issue,
+          ...(route.issue === undefined ? {} : { issue: route.issue }),
           platform: projection.platform,
           channel: projection.channel,
           definitionSha256: policy.catalog_definition_sha256,
@@ -241,7 +240,8 @@ export function collectDriftTargets(
 }
 
 export function driftTargetKey(target: DriftTarget): string {
-  return createHash("sha256").update(JSON.stringify(target)).digest("hex");
+  const { issue: _issue, ...inspectionInputs } = target;
+  return createHash("sha256").update(JSON.stringify(inspectionInputs)).digest("hex");
 }
 
 interface Inspection {

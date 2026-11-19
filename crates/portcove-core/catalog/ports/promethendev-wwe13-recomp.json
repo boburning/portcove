@@ -46,6 +46,24 @@
       "warnings": [
         "Keep the mandatory matching title update and actual existing user-data root. Direct launch uses explicit source-supported paths; launcher performance/display environment is not automatically reproduced."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wwe-13",
+      "evidence_urls": [
+        "https://github.com/PromethenDev/wwe13-recomp/blob/d6574985f7e73ab2a4c09f68684aba49ba454d07/README.md",
+        "https://github.com/PromethenDev/wwe13-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "wwe-13-xbox-360",
+          "title": "WWE '13 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/PromethenDev/wwe13-recomp/blob/d6574985f7e73ab2a4c09f68684aba49ba454d07/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

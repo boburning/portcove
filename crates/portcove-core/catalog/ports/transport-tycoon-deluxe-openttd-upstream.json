@@ -63,7 +63,25 @@
         }
       ]
     },
-    "release_url": "https://www.openttd.org/downloads/openttd-releases/latest"
+    "release_url": "https://www.openttd.org/downloads/openttd-releases/latest",
+    "original_game": {
+      "format_version": 1,
+      "id": "transport-tycoon-deluxe",
+      "evidence_urls": [
+        "https://wiki.openttd.org/en/Manual/Installation",
+        "https://github.com/OpenTTD/OpenTTD"
+      ],
+      "source_editions": [
+        {
+          "id": "transport-tycoon-deluxe-pc",
+          "title": "Transport Tycoon Deluxe (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/OpenTTD/OpenTTD/blob/f58f96d4fec6f44c041a6e6a5d0e36bda0fb1ec3/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

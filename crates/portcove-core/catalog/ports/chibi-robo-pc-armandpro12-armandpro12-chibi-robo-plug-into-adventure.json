@@ -35,6 +35,21 @@
       "image_sha256": "efd3aca5b2f4a79f3e06cdb702b969a4032c4b27478a1fbd48854c17061014dc",
       "game_slug": "chibi-robo",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "chibi-robo-plug-into-adventure",
+      "evidence_urls": ["https://github.com/Armandpro12/chibi-robo-pc"],
+      "source_editions": [
+        {
+          "id": "chibi-robo-plug-into-adventure-nintendo-gamecube",
+          "title": "Chibi-Robo! Plug Into Adventure! (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/Armandpro12/chibi-robo-pc/blob/df9482eb9794a826914cf08ecdc58ce7d4479034/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

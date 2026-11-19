@@ -51,6 +51,15 @@
       "warnings": [
         "Retain package settings, the actual user/save root and legacy gow3 data; complete upstream migrations, updates and restart paths outside attachment."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war-iii-remastered",
+      "evidence_urls": [
+        "https://github.com/FelipePrado0/SpartanPort",
+        "https://github.com/FelipePrado0/SpartanPort/blob/a2299cd59bc363fb9d0dbfe11cac26c2a49e5aaa/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

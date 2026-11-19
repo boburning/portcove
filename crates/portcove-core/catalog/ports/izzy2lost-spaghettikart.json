@@ -32,6 +32,16 @@
       "warnings": [],
       "help_url": "https://github.com/izzy2lost/SpaghettiKart/blob/2.0.0/README.md"
     },
-    "release_url": "https://github.com/izzy2lost/SpaghettiKart/releases"
+    "release_url": "https://github.com/izzy2lost/SpaghettiKart/releases",
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-kart-64",
+      "evidence_urls": [
+        "https://github.com/izzy2lost/SpaghettiKart/blob/2.0.0/README.md",
+        "https://github.com/izzy2lost/SpaghettiKart"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Mario Kart 64"
   }
 }

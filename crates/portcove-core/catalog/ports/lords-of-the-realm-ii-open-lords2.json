@@ -40,6 +40,16 @@
       "warnings": [
         "This is the upstream preview. If you use its multiplayer option, both players need the same engine build and their own original game files."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "lords-of-the-realm-ii",
+      "evidence_urls": [
+        "https://github.com/brettins/open-lords2/blob/v0.1.0-pre.6/README.md",
+        "https://github.com/brettins/open-lords2/releases/tag/v0.1.0-pre.6",
+        "https://github.com/brettins/open-lords2"
+      ],
+      "source_editions": []
     }
   }
 }

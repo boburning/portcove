@@ -35,6 +35,12 @@
       "image_sha256": "7423dfe09c380bd3dc83f8bb1e0997ad4e7b617b112584e0673b0a7056df77c8",
       "game_slug": "midnight-club-3-dub-edition",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "midnight-club-3-dub-edition",
+      "evidence_urls": ["https://github.com/laureladastra/mcdub3-nx"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

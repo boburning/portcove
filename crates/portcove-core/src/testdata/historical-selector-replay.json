@@ -1,0 +1,700 @@
+{
+  "wario_land_4": {
+    "repository": {
+      "id": 1422452935,
+      "archived": false,
+      "owner": {
+        "id": 36543494,
+        "login": "BioRhythmicStudios",
+        "type": "User"
+      }
+    },
+    "releases": [
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/BioRhythmicStudios/warioland4/releases/download/linux-v0.1.0-beta/Wario_Land_4-v0.1.0-beta-x86_64.AppImage",
+            "created_at": "2026-10-22T17:59:14Z",
+            "digest": "sha256:c80bd54f8a9aa8a71c00149be607c61349da79346219f764ab8520efbb3cb7b2",
+            "id": 666635349,
+            "name": "Wario_Land_4-v0.1.0-beta-x86_64.AppImage",
+            "size": 4766200,
+            "uploader": {
+              "id": 36543494,
+              "login": "BioRhythmicStudios",
+              "type": "User"
+            }
+          },
+          {
+            "browser_download_url": "https://github.com/BioRhythmicStudios/warioland4/releases/download/linux-v0.1.0-beta/Wario_Land_4-v0.1.0-beta-x86_64.AppImage.sha256",
+            "created_at": "2026-10-22T17:59:15Z",
+            "digest": "sha256:ea84caf061e1d34def003bedadfd9af9837822577187033987284a88bcbb315b",
+            "id": 666635422,
+            "name": "Wario_Land_4-v0.1.0-beta-x86_64.AppImage.sha256",
+            "size": 107,
+            "uploader": {
+              "id": 36543494,
+              "login": "BioRhythmicStudios",
+              "type": "User"
+            }
+          }
+        ],
+        "draft": false,
+        "html_url": "https://github.com/BioRhythmicStudios/warioland4/releases/tag/linux-v0.1.0-beta",
+        "id": 421034069,
+        "prerelease": false,
+        "published_at": "2026-10-22T17:59:17Z",
+        "tag_name": "linux-v0.1.0-beta"
+      },
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/BioRhythmicStudios/warioland4/releases/download/v0.3.2-beta/WarioLand4-Native-PC-Port-v0.3.2-beta-Windows-x64.zip",
+            "created_at": "2026-10-22T17:59:03Z",
+            "digest": "sha256:b2d63930fa4eaacdeee25e0fdca497e8cc03d18a09fe7c08101ac3107357ce8f",
+            "id": 666634916,
+            "name": "WarioLand4-Native-PC-Port-v0.3.2-beta-Windows-x64.zip",
+            "size": 2894916,
+            "uploader": {
+              "id": 36543494,
+              "login": "BioRhythmicStudios",
+              "type": "User"
+            }
+          },
+          {
+            "browser_download_url": "https://github.com/BioRhythmicStudios/warioland4/releases/download/v0.3.2-beta/WarioLand4-Native-PC-Port-v0.3.2-beta-Windows-x64.zip.sha256",
+            "created_at": "2026-10-22T17:59:04Z",
+            "digest": "sha256:a5e1f8c070389a2f1ef03ce298e4798e07aaa75939dcff9a466ee5c2ec3b986b",
+            "id": 666634976,
+            "name": "WarioLand4-Native-PC-Port-v0.3.2-beta-Windows-x64.zip.sha256",
+            "size": 121,
+            "uploader": {
+              "id": 36543494,
+              "login": "BioRhythmicStudios",
+              "type": "User"
+            }
+          }
+        ],
+        "draft": false,
+        "html_url": "https://github.com/BioRhythmicStudios/warioland4/releases/tag/v0.3.2-beta",
+        "id": 421033928,
+        "prerelease": false,
+        "published_at": "2026-10-22T17:59:05Z",
+        "tag_name": "v0.3.2-beta"
+      },
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/BioRhythmicStudios/warioland4/releases/download/v0.3.1-beta/WarioLand4-Native-PC-Port-v0.3.1-beta-Windows-x64.zip",
+            "created_at": "2026-10-22T10:27:32Z",
+            "digest": "sha256:c2a837e5c2d07055dd982ab3fd7e66fb0724561b7bbdf20d7b8752894f937164",
+            "id": 665493231,
+            "name": "WarioLand4-Native-PC-Port-v0.3.1-beta-Windows-x64.zip",
+            "size": 2894574,
+            "uploader": {
+              "id": 36543494,
+              "login": "BioRhythmicStudios",
+              "type": "User"
+            }
+          },
+          {
+            "browser_download_url": "https://github.com/BioRhythmicStudios/warioland4/releases/download/v0.3.1-beta/WarioLand4-Native-PC-Port-v0.3.1-beta-Windows-x64.zip.sha256",
+            "created_at": "2026-10-22T10:27:33Z",
+            "digest": "sha256:33073e1f251e0924df4581dda397fac5bcda9150cf7910ddd2b850058743c646",
+            "id": 665493285,
+            "name": "WarioLand4-Native-PC-Port-v0.3.1-beta-Windows-x64.zip.sha256",
+            "size": 121,
+            "uploader": {
+              "id": 36543494,
+              "login": "BioRhythmicStudios",
+              "type": "User"
+            }
+          }
+        ],
+        "draft": false,
+        "html_url": "https://github.com/BioRhythmicStudios/warioland4/releases/tag/v0.3.1-beta",
+        "id": 420583338,
+        "prerelease": false,
+        "published_at": "2026-10-22T10:27:34Z",
+        "tag_name": "v0.3.1-beta"
+      }
+    ]
+  },
+  "folklore": {
+    "repository": {
+      "id": 1428300417,
+      "owner": {
+        "id": 117562313,
+        "login": "Mava-b",
+        "type": "User"
+      }
+    },
+    "releases": [
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/Mava-b/folklore-decomp/releases/download/v0.62/Folklore-20261108-1524.zip",
+            "created_at": "2026-11-08T15:25:48Z",
+            "digest": "sha256:df1e281e1c607dfdbc0e264872691b2848dcfbb73c56a450cecb2e6375cd7b4e",
+            "id": 724337881,
+            "name": "Folklore-20261108-1524.zip",
+            "size": 96642979,
+            "uploader": {
+              "id": 117562313,
+              "login": "Mava-b",
+              "type": "User"
+            }
+          },
+          {
+            "browser_download_url": "https://github.com/Mava-b/folklore-decomp/releases/download/v0.62/Folklore-20261108-1524_1.10.zip",
+            "created_at": "2026-11-08T15:26:08Z",
+            "digest": "sha256:73e0effa4c050a2bd7b4cf0603499e559287c8abdbb21a196b802189300e25d0",
+            "id": 724339036,
+            "name": "Folklore-20261108-1524_1.10.zip",
+            "size": 97202740,
+            "uploader": {
+              "id": 117562313,
+              "login": "Mava-b",
+              "type": "User"
+            }
+          },
+          {
+            "browser_download_url": "https://github.com/Mava-b/folklore-decomp/releases/download/v0.62/Folklore-20261108-1524_eu.zip",
+            "created_at": "2026-11-08T15:25:57Z",
+            "digest": "sha256:2f5badca4bf008c5a3e52396e12d3d93b9aa841eb7760978405ffaefd36c7404",
+            "id": 724338352,
+            "name": "Folklore-20261108-1524_eu.zip",
+            "size": 96641808,
+            "uploader": {
+              "id": 117562313,
+              "login": "Mava-b",
+              "type": "User"
+            }
+          },
+          {
+            "browser_download_url": "https://github.com/Mava-b/folklore-decomp/releases/download/v0.62/Folklore-20261108-1524_eu_1.10.zip",
+            "created_at": "2026-11-08T15:26:21Z",
+            "digest": "sha256:5d9c5017706c84b361e834f0a479fd23c865b014d99d3cdabaacadb30af1bb95",
+            "id": 724339536,
+            "name": "Folklore-20261108-1524_eu_1.10.zip",
+            "size": 97203019,
+            "uploader": {
+              "id": 117562313,
+              "login": "Mava-b",
+              "type": "User"
+            }
+          }
+        ],
+        "draft": false,
+        "html_url": "https://github.com/Mava-b/folklore-decomp/releases/tag/v0.62",
+        "id": 438331934,
+        "prerelease": false,
+        "published_at": "2026-11-08T15:27:15Z",
+        "tag_name": "v0.62"
+      },
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/Mava-b/folklore-decomp/releases/download/v0.6/Folklore-20261107-1109.zip",
+            "created_at": "2026-11-07T11:12:36Z",
+            "digest": "sha256:8c599018f1229ee1e13e2cc1d400bbc7868caae2a97f58ebc8fd3cba964941ce",
+            "id": 720470880,
+            "name": "Folklore-20261107-1109.zip",
+            "size": 96638864,
+            "uploader": {
+              "id": 117562313,
+              "login": "Mava-b",
+              "type": "User"
+            }
+          },
+          {
+            "browser_download_url": "https://github.com/Mava-b/folklore-decomp/releases/download/v0.6/Folklore-20261107-1109_1.10.zip",
+            "created_at": "2026-11-07T11:12:15Z",
+            "digest": "sha256:d8e30973a33b410e63d10c9108e8f17c1e5b3fd01e17375f5715ac15a97fcbc0",
+            "id": 720470037,
+            "name": "Folklore-20261107-1109_1.10.zip",
+            "size": 97200023,
+            "uploader": {
+              "id": 117562313,
+              "login": "Mava-b",
+              "type": "User"
+            }
+          },
+          {
+            "browser_download_url": "https://github.com/Mava-b/folklore-decomp/releases/download/v0.6/Folklore-20261107-1109_eu.zip",
+            "created_at": "2026-11-07T11:12:05Z",
+            "digest": "sha256:e62fae1f9c2eb5d88baa14bc516701e0fd9ff536a618a15463fd80cd1598a533",
+            "id": 720469725,
+            "name": "Folklore-20261107-1109_eu.zip",
+            "size": 96638620,
+            "uploader": {
+              "id": 117562313,
+              "login": "Mava-b",
+              "type": "User"
+            }
+          },
+          {
+            "browser_download_url": "https://github.com/Mava-b/folklore-decomp/releases/download/v0.6/Folklore-20261107-1109_eu_1.10.zip",
+            "created_at": "2026-11-07T11:12:27Z",
+            "digest": "sha256:de7d5f1ed3c971e02570399207cdce3974f7df5a047f396e7cd8de8fbc590dd7",
+            "id": 720470523,
+            "name": "Folklore-20261107-1109_eu_1.10.zip",
+            "size": 97199149,
+            "uploader": {
+              "id": 117562313,
+              "login": "Mava-b",
+              "type": "User"
+            }
+          }
+        ],
+        "draft": false,
+        "html_url": "https://github.com/Mava-b/folklore-decomp/releases/tag/v0.6",
+        "id": 437523415,
+        "prerelease": false,
+        "published_at": "2026-11-07T11:13:05Z",
+        "tag_name": "v0.6"
+      }
+    ]
+  },
+  "tekken_tag_tournament_2": {
+    "repository": {
+      "id": 1416152559,
+      "owner": {
+        "id": 42039842,
+        "login": "shihabal3amri",
+        "type": "User"
+      }
+    },
+    "releases": [
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc/releases/download/v0.2.0/ttt2-server-0.2.0-linux-amd64.tar.gz",
+            "created_at": "2026-11-09T16:20:07Z",
+            "digest": "sha256:af21062b403af1b4ec1cf95d50452a16be3b2633e8944145db410880830258f9",
+            "id": 728129522,
+            "name": "ttt2-server-0.2.0-linux-amd64.tar.gz",
+            "size": 6195690,
+            "uploader": {
+              "id": 42039842,
+              "login": "shihabal3amri",
+              "type": "User"
+            }
+          },
+          {
+            "browser_download_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc/releases/download/v0.2.0/ttt2-server-0.2.0-linux-arm64.tar.gz",
+            "created_at": "2026-11-09T16:20:07Z",
+            "digest": "sha256:2ab0ad076ed3e0cfcaf4782e3a5131aa9d12d706b8df9703775f0c9baff481fe",
+            "id": 728129517,
+            "name": "ttt2-server-0.2.0-linux-arm64.tar.gz",
+            "size": 5715360,
+            "uploader": {
+              "id": 42039842,
+              "login": "shihabal3amri",
+              "type": "User"
+            }
+          },
+          {
+            "browser_download_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc/releases/download/v0.2.0/ttt2-server-0.2.0-windows-amd64.zip",
+            "created_at": "2026-11-09T16:20:07Z",
+            "digest": "sha256:b3638ca8edbbcf1eeb1b420aad70cef5b61617c3d32310db29c19fd837ee8356",
+            "id": 728129523,
+            "name": "ttt2-server-0.2.0-windows-amd64.zip",
+            "size": 6268114,
+            "uploader": {
+              "id": 42039842,
+              "login": "shihabal3amri",
+              "type": "User"
+            }
+          },
+          {
+            "browser_download_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc/releases/download/v0.2.0/ttt2_setup.exe",
+            "created_at": "2026-11-09T16:20:07Z",
+            "digest": "sha256:35d2e4963f99334a367be5bcbed38916009a49c6afb5af505150dc0b51430c29",
+            "id": 728129516,
+            "name": "ttt2_setup.exe",
+            "size": 67759616,
+            "uploader": {
+              "id": 42039842,
+              "login": "shihabal3amri",
+              "type": "User"
+            }
+          }
+        ],
+        "draft": false,
+        "html_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc/releases/tag/v0.2.0",
+        "id": 439362999,
+        "prerelease": false,
+        "published_at": "2026-11-09T16:20:16Z",
+        "tag_name": "v0.2.0"
+      },
+      {
+        "assets": [
+          {
+            "browser_download_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc/releases/download/v0.1.7/ttt2-server-0.1.7-linux-amd64.tar.gz",
+            "created_at": "2026-10-23T20:23:10Z",
+            "digest": "sha256:a235483d80754bfe7fceb7ab5c62b0e0ab36df00856f9ef6069c6d772ac0cc4e",
+            "id": 670302174,
+            "name": "ttt2-server-0.1.7-linux-amd64.tar.gz",
+            "size": 6187171,
+            "uploader": {
+              "id": 42039842,
+              "login": "shihabal3amri",
+              "type": "User"
+            }
+          },
+          {
+            "browser_download_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc/releases/download/v0.1.7/ttt2-server-0.1.7-linux-arm64.tar.gz",
+            "created_at": "2026-10-23T20:23:10Z",
+            "digest": "sha256:32e12313b7f4a46c4effc2bb79df5057c9935b24495420c3f1609378f4585317",
+            "id": 670302171,
+            "name": "ttt2-server-0.1.7-linux-arm64.tar.gz",
+            "size": 5708852,
+            "uploader": {
+              "id": 42039842,
+              "login": "shihabal3amri",
+              "type": "User"
+            }
+          },
+          {
+            "browser_download_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc/releases/download/v0.1.7/ttt2-server-0.1.7-windows-amd64.zip",
+            "created_at": "2026-10-23T20:23:10Z",
+            "digest": "sha256:a5d9595b044d28b73c51e9c6f006a404ef360a0e80c0561da0c4e8f88d04ff3f",
+            "id": 670302165,
+            "name": "ttt2-server-0.1.7-windows-amd64.zip",
+            "size": 6257361,
+            "uploader": {
+              "id": 42039842,
+              "login": "shihabal3amri",
+              "type": "User"
+            }
+          },
+          {
+            "browser_download_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc/releases/download/v0.1.7/ttt2_setup.exe",
+            "created_at": "2026-10-23T20:23:10Z",
+            "digest": "sha256:2649442f5a82122bbb432cad93f612b241aa842c4dfb68330a7ad14b97638941",
+            "id": 670302167,
+            "name": "ttt2_setup.exe",
+            "size": 66564096,
+            "uploader": {
+              "id": 42039842,
+              "login": "shihabal3amri",
+              "type": "User"
+            }
+          }
+        ],
+        "draft": false,
+        "html_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc/releases/tag/v0.1.7",
+        "id": 422277148,
+        "prerelease": false,
+        "published_at": "2026-10-23T20:23:16Z",
+        "tag_name": "v0.1.7"
+      }
+    ]
+  },
+  "resident_evil_cv_x_enhanced": {
+    "releases": [
+      {
+        "id": 446049318,
+        "tag_name": "v0.8.0",
+        "draft": false,
+        "prerelease": true,
+        "published_at": "2026-11-15T12:35:21Z",
+        "assets": [
+          {
+            "id": 750950963,
+            "name": "recvx-enhanced-port-0.8.0-linux-i686-debug.tar.gz",
+            "browser_download_url": "https://github.com/aikatore/recvx-enhanced-port/releases/download/v0.8.0/recvx-enhanced-port-0.8.0-linux-i686-debug.tar.gz",
+            "size": 17599698,
+            "digest": "sha256:dc720010f180155f52eb024803a79ea82ff3f0829d97070964552d365da898e2"
+          },
+          {
+            "id": 750950969,
+            "name": "recvx-enhanced-port-0.8.0-linux-i686.tar.gz",
+            "browser_download_url": "https://github.com/aikatore/recvx-enhanced-port/releases/download/v0.8.0/recvx-enhanced-port-0.8.0-linux-i686.tar.gz",
+            "size": 4385476,
+            "digest": "sha256:111d913aee9a4acce96691b1636b65ae3e2a77eb1cde8c737fc25829630a18b8"
+          },
+          {
+            "id": 750950966,
+            "name": "recvx-enhanced-port-0.8.0-windows-x86-debug.zip",
+            "browser_download_url": "https://github.com/aikatore/recvx-enhanced-port/releases/download/v0.8.0/recvx-enhanced-port-0.8.0-windows-x86-debug.zip",
+            "size": 18456880,
+            "digest": "sha256:674fa6be6d9383cca6e98794a3ecbb762079236ac6f6875ad239dd983a632c6f"
+          },
+          {
+            "id": 750950970,
+            "name": "recvx-enhanced-port-0.8.0-windows-x86.zip",
+            "browser_download_url": "https://github.com/aikatore/recvx-enhanced-port/releases/download/v0.8.0/recvx-enhanced-port-0.8.0-windows-x86.zip",
+            "size": 4474959,
+            "digest": "sha256:aed2da2ddfac97eb5fe4521727129b9c9e5ad57bdb66a3cca5562532e3573b3b"
+          },
+          {
+            "id": 750950967,
+            "name": "recvx-server-0.8.0-linux-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/aikatore/recvx-enhanced-port/releases/download/v0.8.0/recvx-server-0.8.0-linux-x86_64.tar.gz",
+            "size": 565391,
+            "digest": "sha256:b1ee73296e1b3b6e756d4f5277cc01d0069a3b75a06cb8be60c3d1d997ef194b"
+          },
+          {
+            "id": 750950998,
+            "name": "SHA256SUMS",
+            "browser_download_url": "https://github.com/aikatore/recvx-enhanced-port/releases/download/v0.8.0/SHA256SUMS",
+            "size": 553,
+            "digest": "sha256:272930513a483dc95b83b4528e8b020d9b6db79802d9030cc62134b7d174e239"
+          }
+        ]
+      }
+    ]
+  },
+  "gitlab_duke_nukem_zero_hour": {
+    "project": {
+      "id": 84110205,
+      "path_with_namespace": "sonicdcer/DNZHRecomp"
+    },
+    "coverage": {
+      "releases": true,
+      "packages": true
+    },
+    "releases": [
+      {
+        "tag_name": "0.0.3",
+        "released_at": "2025-11-01T03:00:00.000Z",
+        "upcoming_release": false,
+        "assets": {
+          "links": [
+            {
+              "id": 12399650,
+              "name": "DNZHRecompiled-0.0.3-Flatpak-X64-Release",
+              "url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333737226/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333737226/download",
+              "link_type": "package"
+            },
+            {
+              "id": 12399649,
+              "name": "DNZHRecompiled-0.0.3-Linux-ARM64-Release",
+              "url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333737191/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333737191/download",
+              "link_type": "package"
+            },
+            {
+              "id": 12399648,
+              "name": "DNZHRecompiled-0.0.3-Linux-X64-Release",
+              "url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333737109/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333737109/download",
+              "link_type": "package"
+            },
+            {
+              "id": 12399647,
+              "name": "DNZHRecompiled-0.0.3-macOS-Release",
+              "url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333737048/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333737048/download",
+              "link_type": "package"
+            },
+            {
+              "id": 12399646,
+              "name": "DNZHRecompiled-0.0.3-Windows-RelWithDebInfo",
+              "url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333736951/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333736951/download",
+              "link_type": "package"
+            }
+          ]
+        }
+      }
+    ],
+    "packages": [
+      {
+        "id": 66444421,
+        "name": "dnzh64recompiledwindows",
+        "version": "0.0.3"
+      },
+      {
+        "id": 66444460,
+        "name": "dnzh64recompiledmacos",
+        "version": "0.0.3"
+      },
+      {
+        "id": 66444482,
+        "name": "dnzhrecompiledlinuxx64",
+        "version": "0.0.3"
+      },
+      {
+        "id": 66444504,
+        "name": "dnzhrecompiledlinuxarm64",
+        "version": "0.0.3"
+      },
+      {
+        "id": 66444516,
+        "name": "dnzhrecompiledlinuxflatpakx64",
+        "version": "0.0.3"
+      }
+    ],
+    "package_files": {
+      "66444421": [
+        {
+          "id": 333736951,
+          "file_name": "DNZHRecompiled-0.0.3-Windows-RelWithDebInfo.zip",
+          "size": 24044294,
+          "file_sha256": "ece88320327ffc58ec73e084c23aca274a016e45dd3558a684d59c37f88bdbc3"
+        }
+      ],
+      "66444460": [
+        {
+          "id": 333737048,
+          "file_name": "DNZHRecompiled-0.0.3-macOS-Release.zip",
+          "size": 21206813,
+          "file_sha256": "bcfeb108c58eb0a8f1fd95df43129401f2d756c642bd713db14bbb6613619bfd"
+        }
+      ],
+      "66444482": [
+        {
+          "id": 333737109,
+          "file_name": "DNZHRecompiled-0.0.3-Linux-X64-Release.zip",
+          "size": 13271902,
+          "file_sha256": "7c7e07257d79aa00f3043407730001e8076d4138566464e7c1c11f8ac197429b"
+        }
+      ],
+      "66444504": [
+        {
+          "id": 333737191,
+          "file_name": "DNZHRecompiled-0.0.3-Linux-ARM64-Release.zip",
+          "size": 13235901,
+          "file_sha256": "add1ba91db84ac93d6dbfb34723cb33cc5de4bde3d42f838695447af2024ea5f"
+        }
+      ],
+      "66444516": [
+        {
+          "id": 333737226,
+          "file_name": "DNZHRecompiled-0.0.3-Flatpak-X64-Release.zip",
+          "size": 9790348,
+          "file_sha256": "edbf3efda7feb91f8c6f3cde2a9922b68a5440513fe3926d4189438d87daf2d8"
+        }
+      ]
+    }
+  },
+  "gitlab_extreme_g": {
+    "project": {
+      "id": 84983826,
+      "path_with_namespace": "sonicdcer/ExtremeGRecomp"
+    },
+    "coverage": {
+      "releases": true,
+      "packages": true
+    },
+    "releases": [
+      {
+        "tag_name": "v1.0.0",
+        "released_at": "2026-08-23T02:33:50.513Z",
+        "upcoming_release": false,
+        "assets": {
+          "links": [
+            {
+              "id": 12504219,
+              "name": "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo",
+              "url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153139/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153139/download",
+              "link_type": "package"
+            },
+            {
+              "id": 12504218,
+              "name": "ExtremeGRecompiled-v1.0.0-macOS-Release",
+              "url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153222/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153222/download",
+              "link_type": "package"
+            },
+            {
+              "id": 12504217,
+              "name": "ExtremeGRecompiled-v1.0.0-Linux-X64-Release",
+              "url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153275/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153275/download",
+              "link_type": "package"
+            },
+            {
+              "id": 12504216,
+              "name": "ExtremeGRecompiled-v1.0.0-Linux-ARM64-Release",
+              "url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153292/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153292/download",
+              "link_type": "package"
+            },
+            {
+              "id": 12504215,
+              "name": "ExtremeGRecompiled-v1.0.0-Flatpak-X64-Release",
+              "url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153302/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153302/download",
+              "link_type": "package"
+            }
+          ]
+        }
+      }
+    ],
+    "packages": [
+      {
+        "id": 67429909,
+        "name": "extremegrecompiledwindows",
+        "version": "1.0.0"
+      },
+      {
+        "id": 67429947,
+        "name": "extremegrecompiledmacos",
+        "version": "1.0.0"
+      },
+      {
+        "id": 67429967,
+        "name": "extremegrecompiledlinuxx64",
+        "version": "1.0.0"
+      },
+      {
+        "id": 67429972,
+        "name": "extremegrecompiledlinuxarm64",
+        "version": "1.0.0"
+      },
+      {
+        "id": 67429975,
+        "name": "extremegrecompiledlinuxflatpakx64",
+        "version": "1.0.0"
+      }
+    ],
+    "package_files": {
+      "67429909": [
+        {
+          "id": 338153139,
+          "file_name": "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo.zip",
+          "size": 18530070,
+          "file_sha256": "f72d1d2a77d1270b622e05e108fd30af408bd42c45e661552bff89ba339c1633"
+        }
+      ],
+      "67429947": [
+        {
+          "id": 338153222,
+          "file_name": "ExtremeGRecompiled-v1.0.0-macOS-Release.zip",
+          "size": 17269289,
+          "file_sha256": "10eed09d37154b59cfcaebc78ea5bd2b23f9923f2d820fd0a5458b7dc514fd8f"
+        }
+      ],
+      "67429967": [
+        {
+          "id": 338153275,
+          "file_name": "ExtremeGRecompiled-v1.0.0-Linux-X64-Release.zip",
+          "size": 7763007,
+          "file_sha256": "0289e5cd4d39f043981ab13578a34dcedf383e169a9a57cf403afa1c61af154d"
+        }
+      ],
+      "67429972": [
+        {
+          "id": 338153292,
+          "file_name": "ExtremeGRecompiled-v1.0.0-Linux-ARM64-Release.zip",
+          "size": 7659695,
+          "file_sha256": "8ed3a683df63cefedfdc948de8308a98a381805b55ba41c60315305ebb074d56"
+        }
+      ],
+      "67429975": [
+        {
+          "id": 338153302,
+          "file_name": "ExtremeGRecompiled-v1.0.0-Flatpak-X64-Release.zip",
+          "size": 5366011,
+          "file_sha256": "5a727014c2eddd68d5b1512ad92c8e71daa10ea77ee6a6e00afa516318fdd22e"
+        }
+      ]
+    }
+  }
+}

@@ -3,7 +3,7 @@
   "listing": {
     "id": "zuma-deluxe-zuma-portable-circleshootapp",
     "name": "Zuma Deluxe (Zuma Portable / CircleShootApp)",
-    "summary": "Research listing. Upstream route: Decompilation called fully playable upstream; original-data and BASS dependency documented. Limits: Upstream says fully playable with expected bugs/inaccuracies; source build and separate BASS library remain required. Upstream platforms: Windows source-build scripts using legacy MSVC7 by default; optional 64-bit build documented. No observed binary assets; output architecture must follow chosen toolchain/BASS library. Original data: Supply Zuma Deluxe data files from an owned original installation; assets and bass.dll are not included. For 32-bit builds use the original BASS 1.8 DLL; BASS 2.4 is required for 64-bit and optionally supported for 32-bit. The reconstruction reference is the official web/PopCap Ultimate Collection Zuma.exe SHA-256 51cf7bbc6df4a41ec137a52d4496c3149ba32c9ae2acc4653279d04c164809aa; exact Steam-data compatibility remains unestablished here. Portcove setup/gameplay not verified.",
+    "summary": "Build Zuma Portable for Windows from your own Zuma Deluxe data and a matching BASS library. The project describes the game as playable with some inaccuracies. The selected release has no ready-made player, and Steam edition compatibility is unconfirmed.",
     "original_game_title": "Zuma Deluxe",
     "project_url": "https://github.com/kyle-sylvestre/CircleShootApp",
     "platforms": [],
@@ -46,7 +46,22 @@
       "warnings": [
         "Use only components you are already permitted to use; public engine source or releases do not grant original-game, music, mod or middleware rights.",
         "Keep the complete creating runtime and all actual effective data/profile roots before changes. Another executable can share the same player profile."
+      ],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The reconstruction uses the official web or PopCap Ultimate Collection Zuma.exe as its reference, SHA-256 51cf7bbc6df4a41ec137a52d4496c3149ba32c9ae2acc4653279d04c164809aa. The documented Windows scripts default to MSVC7. Match BASS 1.8 or 2.4 to the chosen build as described in setup."
+        }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "zuma-deluxe",
+      "evidence_urls": [
+        "https://github.com/kyle-sylvestre/CircleShootApp/tree/090dc13912c8bb2b0f55dbdf3c6ff79cfe694ef2",
+        "https://github.com/kyle-sylvestre/CircleShootApp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

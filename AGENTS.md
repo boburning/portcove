@@ -103,8 +103,10 @@ reassessment. Only changes in the loop's listed critical areas use a critical
 reviewer. After repeated unsuccessful attempts, change approach, investigate a
 discriminating reproduction or bring in a specialist; no attempt count turns a
 blocker into approval. While CI, review or an external prerequisite is pending,
-keep the waiting head frozen and continue independent authorized work in the
-same session rather than starting new delegated owners.
+keep the waiting head frozen. When the local Codex watcher is available, obtain
+its durable handoff receipt and end the turn while waiting. The same owner resumes
+on an actionable event. Follow the [local PR watcher](docs/DEVELOPMENT-TOOLS.md#local-codex-pr-handoff)
+for setup and recovery.
 
 ## Task map
 

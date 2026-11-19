@@ -65,5 +65,13 @@
       "macos-aarch64": ["TRX-", "-Mac.dmg"]
     },
     "download_block_reason": "Published TRX packages bundle the Tomb Raider II Golden Mask expansion levels, converted game images and music, and data injections built from the original games. The engine licence does not cover that game content and Portcove has no permission for it, so Portcove does not download these packages. Use an existing copy you are permitted to use. Reconsider with a program-only package or attributable permission for the included content."
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The record explicitly spans TombRaiderI–III through a shared engine. Those are distinct original games; do not choose one as the umbrella identity.",
+    "evidence_urls": [
+      "https://github.com/LostArtefacts/TRX/blob/develop/docs/trx/INSTALLING.md",
+      "https://github.com/LostArtefacts/TRX"
+    ]
   }
 }

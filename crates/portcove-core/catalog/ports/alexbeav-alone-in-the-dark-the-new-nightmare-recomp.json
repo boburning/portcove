@@ -53,10 +53,17 @@
     "recommended_download_channel": "stable",
     "original_game_title": "Alone in the Dark: The New Nightmare",
     "download_asset_hints": {
-      "linux-x86-64": ["Alone-in-the-Dark-The-New-Nightmare-Recompiled-", "-linux-x64.zip"],
       "macos-aarch64": ["Alone-in-the-Dark-The-New-Nightmare-Recompiled-", "-macos-arm64.zip"],
-      "macos-x86-64": ["Alone-in-the-Dark-The-New-Nightmare-Recompiled-", "-macos-x64.zip"],
-      "windows-x86-64": ["Alone-in-the-Dark-The-New-Nightmare-Recompiled-", "-windows-x64.zip"]
+      "macos-x86-64": ["Alone-in-the-Dark-The-New-Nightmare-Recompiled-", "-macos-x64.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "alone-in-the-dark-the-new-nightmare",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {
@@ -159,5 +166,6 @@
     "runtime_source_filename": "runtime-discs",
     "launch_disc_choice": "psx-settings-selected",
     "runtime_source_materialization": "psx-raw-set"
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"]
 }

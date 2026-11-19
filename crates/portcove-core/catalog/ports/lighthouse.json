@@ -39,6 +39,15 @@
         "Portcove has no native macOS execution result for this port. An external registration gives Portcove no ownership of the copy."
       ],
       "help_url": "https://github.com/HarbourMasters/Lighthouse/releases"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "banjo-kazooie",
+      "evidence_urls": [
+        "https://github.com/BanjoRecomp/BanjoRecomp/blob/dbd52154bc1e00e56867b1fac94a8f907052f41b/README.md",
+        "https://github.com/HarbourMasters/Lighthouse/blob/f757b547c8996ad0d67647560098c76bac0898a6/README.md"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

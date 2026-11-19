@@ -712,12 +712,15 @@ async fn corruption_and_expiry_fall_back_without_trusting_bad_metadata() {
     let service = PortcoveService::new(library.clone()).unwrap();
     publish(&service, &write_candidate(root.path(), 1)).await;
     publish(&service, &write_candidate(root.path(), 2)).await;
+    let mut corrupt: SignedCatalogEnvelope =
+        serde_json::from_slice(&sign(&fixture(2, Library::now()))).unwrap();
+    corrupt.signature = "00".repeat(64);
     library
         .connection()
         .unwrap()
         .execute(
             "UPDATE catalog_state SET active=?1",
-            [b"bad signature".as_slice()],
+            [serde_json::to_vec(&corrupt).unwrap()],
         )
         .unwrap();
     signed_catalog::reset_verify_invocations();
@@ -725,7 +728,10 @@ async fn corruption_and_expiry_fall_back_without_trusting_bad_metadata() {
     assert_eq!(signed_catalog::verify_invocations(), 2);
     assert_eq!(fallback.provenance.origin, CatalogOrigin::SignedPrevious);
     assert_eq!(fallback.provenance.sequence, Some(1));
-    assert!(!fallback.provenance.fallback_reasons.is_empty());
+    assert_eq!(
+        fallback.provenance.fallback_codes,
+        vec![crate::CatalogFallbackCode::SignatureInvalid]
+    );
     let repeated = library.catalog_status().unwrap();
     assert_eq!(signed_catalog::verify_invocations(), 4);
     assert_eq!(repeated, fallback);
@@ -735,6 +741,13 @@ async fn corruption_and_expiry_fall_back_without_trusting_bad_metadata() {
     let expired = state.status(now + 7200).unwrap();
     assert_eq!(signed_catalog::verify_invocations(), 2);
     assert_eq!(expired.provenance.origin, CatalogOrigin::Embedded);
+    assert_eq!(
+        expired.provenance.fallback_codes,
+        vec![
+            crate::CatalogFallbackCode::SignatureInvalid,
+            crate::CatalogFallbackCode::InvalidValidity,
+        ]
+    );
     assert!(!expired.can_use_cached);
     assert!(!expired.can_rollback);
 }
@@ -980,10 +993,22 @@ async fn catalog_above_the_legacy_bound_is_applied_stored_and_refused_only_past_
     trusted(&library);
     let service = PortcoveService::new(library.clone()).unwrap();
     let larger = root.path().join("larger.json");
-    let bytes = padded_envelope(
-        &fixture(1, Library::now()),
-        LEGACY_MAX_CATALOG_BYTES + 1024 * 1024,
-    );
+    let mut payload = fixture(1, Library::now());
+    append_exact_qualification(&mut payload);
+    let evidence = payload
+        .catalog
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .evidence
+        .last_mut()
+        .unwrap();
+    evidence
+        .claim
+        .push_str(&" Synthetic reviewed qualification evidence.".repeat(50_000));
+    let bytes = sign(&payload);
+    assert!(serde_json::to_vec(&payload.catalog).unwrap().len() > LEGACY_MAX_CATALOG_BYTES);
+    assert!(bytes.len() > 5 * 1024 * 1024);
     std::fs::write(&larger, &bytes).unwrap();
     let status = publish(&service, &CatalogUpdateSource::File(larger)).await;
     assert_eq!(status.highest_sequence, 1);
@@ -995,10 +1020,28 @@ async fn catalog_above_the_legacy_bound_is_applied_stored_and_refused_only_past_
         .unwrap();
     assert_eq!(stored, bytes);
 
+    payload.sequence = 2;
+    let latest_path = root.path().join("latest.json");
+    std::fs::write(&latest_path, sign(&payload)).unwrap();
+    let latest = publish(&service, &CatalogUpdateSource::File(latest_path)).await;
+    assert!(latest.can_rollback);
+    let previous: Vec<u8> = library
+        .connection()
+        .unwrap()
+        .query_row("SELECT previous FROM catalog_state", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(previous, bytes);
+    library.rollback_catalog(&latest.state_sha256).unwrap();
+    let reopened = Library::open(root.path().join("library")).unwrap();
+    assert_eq!(
+        reopened.catalog_status().unwrap().provenance.sequence,
+        Some(1)
+    );
+
     // Past the new bound the candidate is refused whole, before any parse or
     // selection change; nothing is truncated to fit.
     let oversized = root.path().join("oversized.json");
-    let overflow = padded_envelope(&fixture(2, Library::now()), MAX_CATALOG_BYTES + 1);
+    let overflow = padded_envelope(&fixture(3, Library::now()), MAX_CATALOG_BYTES + 1);
     std::fs::write(&oversized, &overflow).unwrap();
     assert!(
         service
@@ -1011,7 +1054,7 @@ async fn catalog_above_the_legacy_bound_is_applied_stored_and_refused_only_past_
     };
     assert_eq!(error.message, signed_catalog::MAX_CATALOG_LIMIT_MESSAGE);
     let status = library.catalog_status().unwrap();
-    assert_eq!(status.highest_sequence, 1);
+    assert_eq!(status.highest_sequence, 2);
     assert_eq!(status.provenance.sequence, Some(1));
 }
 

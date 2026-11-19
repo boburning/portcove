@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/dzakyraf/pes2017-recomp"
     },
-    "issue_number": 3180
+    "issue_number": 3180,
+    "original_game": {
+      "format_version": 1,
+      "id": "pro-evolution-soccer-2017",
+      "evidence_urls": ["https://github.com/dzakyraf/pes2017-recomp"],
+      "source_editions": [
+        {
+          "id": "pro-evolution-soccer-2017-xbox-360",
+          "title": "Pro Evolution Soccer 2017 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/dzakyraf/pes2017-recomp/blob/8dd109b38f875774275e259550d066cefd618da0/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

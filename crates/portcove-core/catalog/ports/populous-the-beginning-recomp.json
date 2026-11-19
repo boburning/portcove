@@ -17,6 +17,16 @@
       "image_sha256": "e41e163b6dc71ebbb75dedaa74cf7d8bfe14b66989166513cead45dd86863149",
       "game_slug": "populous-the-beginning",
       "match_kind": "underlying-game"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "populous-the-beginning",
+      "evidence_urls": [
+        "https://github.com/veritr1x/populous-recomp/blob/866704fb89f5f19124fa2825281eb065a5cf3c79/README.md",
+        "https://github.com/veritr1x/populous-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Populous: The Beginning"
   }
 }

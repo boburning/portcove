@@ -35,6 +35,12 @@
       "image_sha256": "d1ddebb5cd67d94c11bf471b292c2b54484b95e8c1446d5d20313dc51441631a",
       "game_slug": "armored-core",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "armored-core",
+      "evidence_urls": ["https://github.com/NeonLightning/AC1Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

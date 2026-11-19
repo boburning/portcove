@@ -86,6 +86,31 @@ function isAssetSelector(value: unknown): value is string[] {
   );
 }
 
+class PsxLayoutMismatch extends Error {}
+
+/** Prefer a shared layout only when it reproduces the exact authored integration. */
+export function compactPsxManagedWindows(record: AuthoredPort): AuthoredPort {
+  const { integration } = record;
+  if (record.psx_managed_windows_v1 !== undefined || integration?.adapter !== "psx-recomp-managed")
+    return record;
+  const layoutFields = Object.keys(runtimeLayout);
+  if (layoutFields.some((field) => !Object.hasOwn(integration, field))) return record;
+  const explicitIntegration = JSON.stringify(integration);
+  const facts = { ...integration };
+  for (const field of layoutFields) delete facts[field];
+  const layouts = [true, "bundled-openbios", "split-mods", "split-mods-openbios"] as const;
+  for (const layout of layouts) {
+    const proposed = { ...record, psx_managed_windows_v1: layout, integration: facts };
+    try {
+      if (JSON.stringify(projectPsxManagedWindows(proposed).integration) === explicitIntegration)
+        return proposed;
+    } catch (error) {
+      if (!(error instanceof PsxLayoutMismatch)) throw error;
+    }
+  }
+  return record;
+}
+
 export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const layout = record.psx_managed_windows_v1;
   if (layout === undefined) return record;
@@ -131,7 +156,7 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
     record.settings_qualification_v1 !== undefined ||
     record.settings_observation_v1 !== undefined
   )
-    throw new Error(
+    throw new PsxLayoutMismatch(
       "PSX managed Windows authoring requires the reviewed Windows GitHub kit, a generated player, an explicit disc profile and either retail SCPH-1001 BIOS, an explicit retail SCPH-5552 or SCPH-5500 BIOS, or explicit bundled OpenBIOS without a retail profile. A Linux x64 sibling requires the same generated player basename and an explicit asset selector.",
     );
 
@@ -149,19 +174,19 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
       linuxAssets[1] !== "-linux-x64.zip" ||
       Object.keys(executableHints).length !== 2)
   )
-    throw new Error(
+    throw new PsxLayoutMismatch(
       "PSX split-mods authoring requires exact Windows and Linux x64 kit selectors and generated players.",
     );
 
   for (const field of Object.keys(runtimeLayout))
     if (Object.hasOwn(integration, field))
-      throw new Error(
+      throw new PsxLayoutMismatch(
         `PSX managed Windows authoring already owns ${field}; use an explicit integration for a different layout.`,
       );
 
   for (const field of Object.keys(integration))
     if (!explicitFields.has(field))
-      throw new Error(
+      throw new PsxLayoutMismatch(
         `PSX managed Windows authoring does not cover ${field}; use an explicit integration for a different layout.`,
       );
 

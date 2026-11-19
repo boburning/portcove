@@ -42,6 +42,15 @@
       "image_sha256": "e4ffa1a3537f7174634208e1084335e6cda41c597c80f08a4e23d92242a3c0e4",
       "game_slug": "abuse",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "abuse",
+      "evidence_urls": [
+        "https://github.com/apancik/Abuse_2025/blob/244543fcae4b140771ec6a7f4c5e619851d4711f/README.md",
+        "https://github.com/apancik/Abuse_2025"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

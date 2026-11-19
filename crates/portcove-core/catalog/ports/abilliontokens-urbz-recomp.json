@@ -12,7 +12,7 @@
     },
     "name": "The Urbz: Sims in the City — Original Xbox (Urbz recomp)",
     "summary": "Register an independently permitted prepared The Urbz: Sims in the City original-Xbox Windows player with your own matching USA disc data and preserved external profile.",
-    "original_game_title": "The Urbz: Sims in the City",
+    "original_game_title": "The Urbz: Sims in the City (console)",
     "project_url": "https://github.com/abilliontokens/urbz-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -48,6 +48,24 @@
         {
           "title": "Keep the complete profile with its game version",
           "instruction": "The inspected SDK places settings.toml, logs/ and hdd/ beside the executable; numbered upstream instances can use separately numbered hdd roots. Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-urbz-sims-in-the-city-console",
+      "evidence_urls": [
+        "https://github.com/abilliontokens/urbz-recomp",
+        "https://github.com/abilliontokens/urbz-recomp/blob/aac2198e767fece3d690863fab6ff3d42776fb3f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-urbz-sims-in-the-city-console-xbox",
+          "title": "The Urbz: Sims in the City (console) (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/abilliontokens/urbz-recomp/blob/aac2198e767fece3d690863fab6ff3d42776fb3f/README.md"
+          ]
         }
       ]
     }

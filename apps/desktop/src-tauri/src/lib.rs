@@ -1257,7 +1257,7 @@ async fn get_port_intents(
     .await
 }
 
-/// Reassesses remembered choices against current files, catalog and tools. Reads only.
+/// Reassesses remembered choices against current files, catalog and tools, saving scan progress.
 #[tauri::command]
 async fn assess_port_intents(
     state: tauri::State<'_, DesktopState>,
@@ -1555,7 +1555,7 @@ async fn refresh_game_file_query_at_generation(
     let snapshot = blocking_worker(move || {
         let service = service_at_generation(&worker_state, generation)?;
         service
-            .refresh_game_file_query_with_progress(&request, emit)
+            .refresh_browsing_game_file_query_with_progress(&request, emit)
             .map_err(Into::into)
     })
     .await?;
@@ -2970,8 +2970,16 @@ pub fn run() -> std::process::ExitCode {
             return std::process::ExitCode::FAILURE;
         }
     };
+    let context = tauri::generate_context!();
     #[cfg(any(windows, target_os = "linux"))]
-    if let Err(message) = runtime_support::check() {
+    if let Err(message) = runtime_support::check(
+        context
+            .config()
+            .bundle
+            .windows
+            .minimum_webview2_version
+            .as_deref(),
+    ) {
         tracing::error!(
             component = "startup",
             phase = "runtime_support",
@@ -3098,6 +3106,7 @@ pub fn run() -> std::process::ExitCode {
             application_update::get_application_update_preferences,
             application_update::set_application_update_preferences,
             cli_context::get_cli_command_context,
+            steam_entry_commands::discover_steam_client_roots,
             steam_entry_commands::list_steam_profiles,
             steam_entry_commands::preview_steam_entry,
             steam_entry_commands::apply_steam_entry,
@@ -3253,6 +3262,8 @@ pub fn run() -> std::process::ExitCode {
             catalog_download::download_catalog_package,
             catalog_download::forget_pending_setup,
             catalog_download::open_pending_setup_folder,
+            catalog_download::open_pending_setup_resource,
+            catalog_download::open_catalog_download_release_notes,
             external_runtime_commands::preview_external_runtime_relink,
             external_runtime_commands::preview_managed_route_change,
             external_runtime_commands::change_to_managed_runtime,
@@ -3322,7 +3333,7 @@ pub fn run() -> std::process::ExitCode {
                 })?;
             Ok(())
         })
-        .build(tauri::generate_context!());
+        .build(context);
     match application {
         Ok(application) => application.run(move |_, event| {
             // Tauri exits the process directly, without dropping local guards.

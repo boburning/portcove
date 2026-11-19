@@ -55,6 +55,7 @@ import {
   readUpstreamObservations,
   upstreamAttention,
   upstreamObservation,
+  managedReleaseEligibilityWindow,
   upstreamSummary,
   type UpstreamInput,
   type UpstreamObservation,
@@ -380,9 +381,18 @@ export function capabilityResult(observation: CapabilityObservation) {
   };
 }
 
-export function hostPlatform() {
-  const arch = process.arch === "x64" ? "x86-64" : process.arch;
-  return `${process.platform === "win32" ? "windows" : process.platform === "darwin" ? "macos" : process.platform}-${arch}`;
+/** Use the executable's runtime identity for its own assessment. */
+export async function readAssessmentPlatform(cli: string, supportedPlatforms: readonly unknown[]) {
+  const envelope = await isolatedCli(cli, ["doctor"]);
+  const { platform } = (envelope.data ?? {}) as { platform?: unknown };
+  if (
+    !envelope.ok ||
+    typeof platform !== "string" ||
+    !/^[a-z0-9]+(-[a-z0-9]+)*$/u.test(platform) ||
+    !supportedPlatforms.includes(platform)
+  )
+    throw new MaintenanceStoreError("Portcove doctor did not identify a supported host platform");
+  return platform;
 }
 
 const literal = (value: string) => `'${value.replaceAll("'", "''")}'`;
@@ -454,6 +464,7 @@ export function coreReuseKey(input: {
       api: input.apiSchema,
       projection: capabilityProjectionVersion,
       platform: input.platform,
+      platform_identity: "cli-doctor-platform-v1",
       isolation: isolationScope,
     }),
   );
@@ -1840,8 +1851,6 @@ export async function collect(options: {
   progress?: readonly ProgressSource[] | undefined;
   /** With `all`, also collect every #177 hosted-intake request through the executor's status. */
   hostedIntake?: (() => Promise<HostedStatusAll>) | undefined;
-  /** Host platform label; defaults to this host. Fixtures use it to model other hosts. */
-  platform?: string | undefined;
   environment: NodeJS.ProcessEnv;
   runner?: string | undefined;
 }) {
@@ -1853,21 +1862,20 @@ export async function collect(options: {
   const cliSha256 = sha256(readFileSync(options.cli));
   const envelope = await isolatedCli(options.cli, ["capabilities"]);
   const capabilities = envelope.data as
-    | { schema_version?: unknown; port_capability_schema?: unknown }
+    | { schema_version?: unknown; port_capability_schema?: unknown; platforms?: unknown }
     | undefined;
   if (
     !envelope.ok ||
     capabilities?.port_capability_schema !== 1 ||
-    typeof capabilities.schema_version !== "number"
+    typeof capabilities.schema_version !== "number" ||
+    !Array.isArray(capabilities.platforms)
   )
     throw new MaintenanceStoreError(
       "portcove capabilities are unavailable or use an unsupported port capability schema",
     );
   const apiSchema = capabilities.schema_version;
   const coreSourceClean = git(["status", "--porcelain", "--", ...coreSemanticPaths]).trim() === "";
-  const platform = options.platform ?? hostPlatform();
-  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/u.test(platform))
-    throw new MaintenanceStoreError("Invalid platform label");
+  const platform = await readAssessmentPlatform(options.cli, capabilities.platforms);
   // Freshness is the database's order of this ticket, never this runner's clock.
   const acquisition = acquireCollection(options.environment);
   const startedAt = new Date().toISOString();
@@ -2238,7 +2246,7 @@ export async function collect(options: {
 
 const corePrefix = "core-port-capabilities-";
 
-const reportQuery = `WITH latest_issue AS (
+const reportQuery = (from: string, through: string) => `WITH latest_issue AS (
     SELECT DISTINCT ON (o.subject_key) o.payload
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
@@ -2377,6 +2385,18 @@ SELECT json_build_object(
                      AS observed_at
               FROM portcove_maintenance.collection_runs
              WHERE coverage <> 'in_progress' GROUP BY source) f),
+  'managed_release_observations', (
+    SELECT coalesce(json_agg(candidate.value || jsonb_build_object('recorded_at', o.observed_at)
+                             ORDER BY o.observed_at, o.observation_id), '[]')
+    FROM portcove_maintenance.observations o
+    JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(o.payload -> 'sources') = 'array'
+          THEN o.payload -> 'sources' ELSE '[]'::jsonb END) AS source(value)
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(source.value -> 'managed_release_candidates') = 'array'
+          THEN source.value -> 'managed_release_candidates' ELSE '[]'::jsonb END) AS candidate(value)
+    WHERE r.source = 'upstream-observations' AND r.coverage IN ('complete', 'partial')
+      AND o.observed_at BETWEEN ${literal(from)}::timestamptz AND ${literal(through)}::timestamptz
+  ),
   'progress', ${progressReportQuery},
   'generation', (SELECT coalesce(max(acquisition), 0) FROM portcove_maintenance.collection_runs
       WHERE coverage <> 'in_progress'),
@@ -2494,6 +2514,7 @@ export interface InventoryReport {
   unsupported_sources: { source: string; reason: string }[];
   runs: unknown[];
   progress?: ReturnType<typeof visibleProgress>;
+  managed_release_eligibility?: ReturnType<typeof managedReleaseEligibilityWindow>;
   /** Per source: when it was last attempted and last read successfully, aged against this report. */
   freshness?: SourceFreshness[];
   subjects: unknown[];
@@ -2748,7 +2769,8 @@ export interface HostedIntakeEntry {
 }
 
 export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): InventoryReport {
-  const data = JSON.parse(runSql(environment, reportQuery).trim()) as {
+  const { from, through } = managedReleaseEligibilityWindow([], now);
+  const data = JSON.parse(runSql(environment, reportQuery(from, through)).trim()) as {
     generation: number;
     universe_inputs: {
       records: Parameters<typeof buildUniverse>[0]["records"];
@@ -2757,6 +2779,7 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     };
     runs: unknown[];
     progress?: StoredProgress[];
+    managed_release_observations: unknown[];
     freshness: {
       source: string;
       attempted_at: string | null;
@@ -2896,6 +2919,10 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       .map(([source, reason]) => ({ source, reason })),
     runs: data.runs,
     progress: visibleProgress(data.progress ?? [], now),
+    managed_release_eligibility: managedReleaseEligibilityWindow(
+      data.managed_release_observations,
+      now,
+    ),
     freshness: sourceFreshness(data.freshness, now),
     subjects: subjects.map((subject) => {
       const target = subject.identity?.target_key;

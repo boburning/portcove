@@ -649,7 +649,7 @@ export async function prepareHostedWindowsDiagnosticClosure() {
     originalState: unknown = JSON.parse(stateBytes.toString("utf8")),
     runtime = inspectSupportedHostedWindowsRuntimeInput(
       await readControllerToolFile(
-        path.join(source, "apps/desktop/src-tauri/src/runtime_support.rs"),
+        path.join(source, "apps/desktop/src-tauri/tauri.conf.json"),
         65536,
       ),
       await readControllerToolFile(

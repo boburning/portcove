@@ -45,6 +45,16 @@
       "warnings": [
         "Add the prepared Tenkaichi3Decomp.exe in the complete Windows release after upstream USA SLUS-21678 setup. Preserve saves/, bt3_settings.txt, gamedata and customization; another Budokai title/edition and optional online/mod routes are separate."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-ball-z-budokai-tenkaichi-3",
+      "evidence_urls": [
+        "https://github.com/z3xox/Tenkaichi3Decomp/blob/be4c75b367fb859f088cc74126c8067bc6987d29/README.md",
+        "https://github.com/z3xox/Tenkaichi3Decomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Dragon Ball Z: Budokai Tenkaichi 3"
   }
 }

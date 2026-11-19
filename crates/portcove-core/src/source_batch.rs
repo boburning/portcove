@@ -97,7 +97,7 @@ impl PortcoveService {
         operation: &OperationCoordinator,
         before_accept: impl FnOnce() -> Result<()>,
     ) -> Result<RegisteredSourceInspectionBatch> {
-        if profile_ids.is_empty() {
+        if profile_ids.is_empty() || profile_ids.len() > 256 {
             return Err(PortcoveError::usage(
                 "registered-source inspection needs 1-256 unique profiles",
             ));
@@ -116,7 +116,8 @@ impl PortcoveService {
 
     /// Internal composition keeps the inspection handles and inventories owned
     /// until the complete projected result passes final fences and publication.
-    /// Only this Core-owned composition can use an empty profile selection.
+    /// Core-owned projections can use an empty selection or cover more profiles
+    /// than the explicit inspection request allows, under the same I/O limits.
     pub(crate) fn inspect_registered_sources_bounded_with_projection<T>(
         &self,
         profile_ids: &[String],
@@ -126,11 +127,6 @@ impl PortcoveService {
         before_publish: impl FnOnce(&T) -> Result<()>,
     ) -> Result<T> {
         limits.validate()?;
-        if profile_ids.len() > 256 {
-            return Err(PortcoveError::usage(
-                "registered-source inspection profile budget reached",
-            ));
-        }
         let mut ids = profile_ids.to_vec();
         ids.sort_unstable();
         ids.dedup();

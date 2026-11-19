@@ -34,6 +34,12 @@
         }
       ],
       "warnings": ["The project’s game saves and settings stay outside Portcove’s backups."]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "f-zero-x",
+      "evidence_urls": ["https://github.com/n64hub/f-zero-x-recomp/blob/v0.1.16/README.md"],
+      "source_editions": []
     }
   }
 }

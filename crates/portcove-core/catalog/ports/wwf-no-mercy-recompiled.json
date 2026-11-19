@@ -16,7 +16,13 @@
       "game_slug": "wwf-no-mercy",
       "match_kind": "underlying-game"
     },
-    "issue_number": 95
+    "issue_number": 95,
+    "original_game": {
+      "format_version": 1,
+      "id": "wwf-no-mercy",
+      "evidence_urls": ["https://github.com/jessetbh/WWFNoMercyRecomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

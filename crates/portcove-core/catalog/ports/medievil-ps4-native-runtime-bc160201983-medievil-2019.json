@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/bc160201983/medievil_2019_pc_port"
     },
-    "issue_number": 3333
+    "issue_number": 3333,
+    "original_game": {
+      "format_version": 1,
+      "id": "medievil-2019",
+      "evidence_urls": ["https://github.com/bc160201983/medievil_2019_pc_port"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -48,5 +54,10 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "separate",
+    "reason": "The exact source contract targets the 2019 PS4 remake, distinct from the original PlayStation MediEvil.",
+    "evidence_urls": ["https://github.com/bc160201983/medievil_2019_pc_port"]
   }
 }

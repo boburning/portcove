@@ -534,6 +534,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         recoveryChoice === "original" ? "fixture/original" : "fixture/library",
       );
     },
+    get_default_library_root: (args) => {
+      requireArgs("get_default_library_root", args, {});
+      return "fixture/library";
+    },
     reset_default_library: (args) => {
       requireArgs("reset_default_library", args, {});
       if (journey !== "recovery") return unsupported("reset_default_library");
@@ -711,6 +715,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         rate_limit: null,
         source: "anonymous",
       } satisfies Awaited<ReturnType<typeof desktopApi.githubAuthStatus>>;
+    },
+    discover_steam_client_roots: (args) => {
+      requireArgs("discover_steam_client_roots", args, { generation });
+      return [];
     },
     get_steamgriddb_key_status: (args) => {
       requireArgs("get_steamgriddb_key_status", args, {});

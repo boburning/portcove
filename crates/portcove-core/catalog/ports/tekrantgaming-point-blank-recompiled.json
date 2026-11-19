@@ -46,6 +46,15 @@
       "warnings": [
         "Use the prepared 1.1.0 PlayStation player and complete USA CUE/BIN. Preserve actual memory-card paths; arcade and physical-lightgun acceptance remain separate."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "point-blank",
+      "evidence_urls": [
+        "https://github.com/TekRantGaming/point-blank-recompiled/blob/cf3b5fc9eb988bd2572964a5774c3828a6dcd635/README.md",
+        "https://github.com/TekRantGaming/point-blank-recompiled"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

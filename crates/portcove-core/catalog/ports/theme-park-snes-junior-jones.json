@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "theme-park-snes-junior-jones",
+    "name": "Theme Park (SNES) / Static Recomp",
+    "summary": "Play the SNES version of Theme Park on Windows using the supported European PAL ROM you supply.",
+    "project_url": "https://github.com/Junior-Jones/Theme-Park-SNES-Static-Recomp",
+    "original_game_title": "Theme Park",
+    "issue_number": 6591,
+    "listed_at": "2026-11-18",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "download_asset_hints": {
+      "windows-x86-64": ["Theme-Park-SNES-Static-Recomp-", "-Windows-x64.zip"]
+    },
+    "release_url": "https://github.com/Junior-Jones/Theme-Park-SNES-Static-Recomp/releases/tag/v1.0.1",
+    "setup_url": "https://github.com/Junior-Jones/Theme-Park-SNES-Static-Recomp/blob/v1.0.1/README.txt",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your European PAL ROM",
+          "instruction": "Extract the ZIP into a writable folder and open Launcher.exe. Close Welcome, then use Browse ROM to select your own unheadered Theme Park (Europe) (En,Fr,De) ROM. The launcher checks the exact ROM identity. Use Run or press F7 to start the game."
+        },
+        {
+          "title": "Start with the saved ROM path",
+          "instruction": "Once the launcher has remembered your ROM, use Launcher.exe --game to start the game directly. Start Launcher.exe without arguments to reopen the launcher and change the ROM or settings."
+        }
+      ],
+      "references": [
+        {
+          "title": "Keep your snapshots when updating",
+          "instruction": "Settings and user files live beside Launcher.exe. Back up the Saves folder and settings.ini before replacing the upstream release. Snapshots preserve the machine state for their build and may not work in a different version."
+        }
+      ],
+      "warnings": ["Portcove does not manage this installation or back up its snapshots."]
+    }
+  }
+}

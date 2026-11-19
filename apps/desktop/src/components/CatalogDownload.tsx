@@ -22,6 +22,7 @@ import { pickInstallFolder } from "../file-picker";
 import { gameIdentityLabel } from "../port-identity";
 import { LatestRequestGeneration } from "../shared/concurrency-state";
 import type {
+  CatalogDownloadCandidate,
   CatalogDownloadCandidates,
   CatalogDownloadRequest,
   PendingSetupRecord,
@@ -43,6 +44,32 @@ interface DownloadControlProps {
   perform: Perform;
   autoCheck?: boolean;
   libraryRoot?: string | undefined;
+}
+
+function ReleaseSetupLink({
+  artifact,
+  portId,
+  generation,
+  pendingId,
+}: {
+  artifact: CatalogDownloadCandidate;
+  portId: string;
+  generation: number;
+  pendingId?: string;
+}) {
+  const { asset_id, release_id } = artifact;
+  const openUrl = useCallback(
+    (url: string) =>
+      pendingId
+        ? desktopApi.openPendingSetupResource(portId, pendingId, url, generation)
+        : desktopApi.openCatalogDownloadReleaseNotes(portId, release_id, asset_id, url, generation),
+    [asset_id, generation, pendingId, portId, release_id],
+  );
+  return (
+    <ExternalLink href={artifact.release_url} openUrl={openUrl}>
+      Release notes for <bdi>{artifact.release_tag}</bdi>
+    </ExternalLink>
+  );
 }
 
 export function CatalogDownloadControl(props: DownloadControlProps) {
@@ -581,6 +608,17 @@ function PendingActions({
   };
   return (
     <>
+      <p className="grid gap-1 text-sm [overflow-wrap:anywhere]">
+        <span>
+          Downloaded file: <bdi>{pending.artifact.name}</bdi>
+        </span>
+        <ReleaseSetupLink
+          artifact={pending.artifact}
+          portId={entry.id}
+          generation={generation}
+          pendingId={pending.id}
+        />
+      </p>
       <ActionRow>
         <Button
           data-focusable
@@ -769,9 +807,6 @@ function DownloadOptions({
             }
           </p>
         )}
-        {selected && (
-          <ExternalLink href={selected.release_url}>Release notes and requirements</ExternalLink>
-        )}
         <ActionRow>
           <Button
             data-focusable
@@ -850,6 +885,16 @@ function RecommendedDownload({
         </strong>
         <p className="[overflow-wrap:anywhere]">
           {model.selected.name} · {formatBytes(model.selected.size)}
+        </p>
+        <ReleaseSetupLink
+          artifact={model.selected}
+          portId={model.entry.id}
+          generation={model.generation}
+        />
+        <p className="text-sm">
+          {model.selected.can_extract && model.extract
+            ? "Portcove will extract this package. Choose the game program after setup."
+            : "Portcove will save this file for manual setup. Follow the instructions for this release."}
         </p>
         {model.destination && (
           <p className="text-sm [overflow-wrap:anywhere]">

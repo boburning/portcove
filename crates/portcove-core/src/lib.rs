@@ -110,8 +110,10 @@ mod profile_file_preservation;
 mod profile_loader;
 mod profile_originals;
 mod provider_auto_update;
+mod provider_binding;
 mod provider_browse;
 mod provider_client;
+pub use provider_binding::ModProviderBinding;
 mod provider_http;
 mod provider_install;
 mod provider_update;
@@ -321,7 +323,7 @@ pub use mod_package::{
 };
 pub use mod_provider::{
     Observed, ProviderFileCandidate, ProviderFreshness, ProviderPage, ProviderProject,
-    ThunderstoreDependency,
+    ProviderStatusUnknown, ThunderstoreDependency,
 };
 pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
 pub use output_relocation::{
@@ -432,7 +434,8 @@ pub use service::{
     SetupLaunchTargets, StandingSetupFailure, StandingSetupResult,
 };
 pub use signed_catalog::{
-    CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,
+    CatalogFallbackCode, CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope,
+    SignedCatalogPayload,
 };
 pub use source::SourceRelinkPlan;
 pub use source_assessment::*;

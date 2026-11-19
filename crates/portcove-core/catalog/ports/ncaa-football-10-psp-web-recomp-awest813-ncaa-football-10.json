@@ -35,6 +35,12 @@
       "image_sha256": "d9e7633646a8f846224aed52b3e772c4adda4c0a7219e28957d62a10ed58ea93",
       "game_slug": "ncaa-football-10",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ncaa-football-10",
+      "evidence_urls": ["https://github.com/awest813/NCAA-10-PSP-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

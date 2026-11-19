@@ -3,7 +3,7 @@
   "listing": {
     "id": "pokemon-legends-z-a-pokez-arecomp",
     "name": "Pokémon Legends: Z-A (PokeZ-ARecomp)",
-    "summary": "An experimental Pokémon Legends: Z-A port derived from LAS, translating AArch64 code to C/x64 with Vulkan. The project reports only Windows/NVIDIA play, with partial Lumiose exploration and battles. Black flashes and night-wall stripes remain; a complete playthrough is unconfirmed. The Windows ZIP launcher is described as a game-free player, generator, importer and compiler that imports and recompiles your own files locally once. Windows 10 v1903+/11 x64 needs Vulkan 1.3; AVX2 is preferred, with a slower SSE4.2 fallback. Inherited Linux/Mac builds are untested for Z-A. Use your own version 1.0.0 base XCI/NSP, optional 2.0.0 update and owned DLC, with prod.keys/title.keys. Firmware fonts are optional; the Windows fallback lacks button icons. Back up before save conversion: 2.0.0 saves cannot load on 1.0.0. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "The Windows launcher builds Pokémon Legends: Z-A from your own 1.0.0 Switch game, with an optional 2.0.0 update. The project reports exploring parts of Lumiose and playing battles on NVIDIA hardware. Back up saves before converting them to 2.0.0.",
     "original_game_title": "Pokémon Legends: Z-A",
     "project_url": "https://github.com/Hexveil404/PokeZ-ARecomp",
     "listed_at": "2026-10-25",
@@ -18,7 +18,35 @@
       "game_slug": "pokemon-legends-z-a",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2959
+    "issue_number": 2959,
+    "manual_setup": {
+      "help_url": "https://github.com/Hexveil404/PokeZ-ARecomp",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Select a 1.0.0 base XCI or NSP, prod.keys and title.keys. Add the matching update and DLC you own if desired. Firmware fonts are optional. The Windows fallback omits button icons."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Use the Windows x64 ZIP on Windows 10 version 1903 or later, or Windows 11, with Vulkan 1.3. The launcher compiles on first setup. AVX2 is preferred, with a slower SSE4.2 path."
+        }
+      ],
+      "warnings": [
+        "Keep a copy of the old save before converting it. Version 1.0.0 cannot load a 2.0.0 save."
+      ],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "Black flashes and stripes on walls at night remain. The Linux and Mac builds inherited from another project have not been tested with this game."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-legends-z-a",
+      "evidence_urls": ["https://github.com/Hexveil404/PokeZ-ARecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -35,6 +35,12 @@
       "image_sha256": "4a88feddca16eb24e174eb5963551e6f859c5ade13adbc691ccbfb0ebcb4577d",
       "game_slug": "tom-and-jerry-in-house-trap",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tom-and-jerry-in-house-trap",
+      "evidence_urls": ["https://github.com/IraFunesto/TomJerryRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -49,7 +49,17 @@
       "game_slug": "stunts",
       "match_kind": "underlying-game"
     },
-    "platforms": ["macos-x86-64", "macos-aarch64"]
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "stunts",
+      "evidence_urls": [
+        "https://github.com/mr-finster/stunts-hd/blob/59b9e1a22c1ecf880a16b199a4a454489b20e59d/README.md",
+        "https://github.com/mr-finster/stunts-hd",
+        "https://github.com/vs-sr-dev/pc-4ddriving/blob/fbff75fabe221c731de74e7981e0b17b64f30441/README.md"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
