@@ -96,27 +96,14 @@
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
-      "repository": "ZDoom/Raze",
-      "asset_hints": {
-        "windows-x86-64": ["Raze-", "-windows.zip"]
-      }
+      "repository": "ZDoom/Raze"
     },
-    "executable_hints": {
-      "windows-x86-64": ["raze.exe"]
-    },
-    "persistent_paths": ["raze_portable.ini", "Save", "Screenshots", "Demos", "autoexec.cfg"],
-    "portable_marker_file": "raze_portable.ini",
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Choose Install, then Play. In Raze, choose the detected game and edition, or add the folder holding your own original game files. Keep your originals where they are. The managed Windows player keeps its configuration (raze_portable.ini), saves, screenshots and demos beside it; its normal-profile settings are not imported. Raze keeps some caches under your Windows local application data folder outside Portcove."
-    },
-    "reviewed_package_layouts": {
-      "windows-x86-64": {
-        "directories": ["soundfonts"],
-        "executables": ["raze.exe"]
-      }
     }
-  }
+  },
+  "raze_windows_profile_v1": true
 }
