@@ -1287,9 +1287,11 @@ it.each(["dark", "light"] as const)(
       const previousContext = fixtureValue(previous.parentElement, "Previous folder consequence");
       previousContext.scrollIntoView({ block: "center" });
       expectCompleteExternalPath(previous, "Previous folder", previousPath);
-      expect(previousContext.textContent).toBe(
-        `Previous folder: ${previousPath}. Its files stay where they are.`,
-      );
+      expect([...previousContext.children].map((child) => child.textContent)).toEqual([
+        "Previous folder:",
+        previousPath,
+        "Its files stay where they are.",
+      ]);
       complete(previousContext, "whole Previous folder consequence");
       const consent = page.getByText(
         "Portcove will save this location and check the required files before each launch. It will not copy, update, back up, or delete the external folder.",

@@ -167,11 +167,10 @@ function ExternalPreparationRequirements({ port }: { port: PortDefinition }) {
         {Object.entries(port.release.user_prepared).map(([platform, required]) => (
           <li key={platform}>
             {platformLabel(platform)}: Prepare {required.archive_name} version {required.version},
-            then choose the folder containing <br />
-            <code dir="ltr" className="path-value whitespace-normal">
+            then choose the folder containing this file:
+            <code dir="ltr" className="path-value block w-full whitespace-normal">
               {required.executable}
             </code>
-            .{" "}
             <details>
               <summary>File details</summary>Archive SHA-256: <code>{required.archive_sha256}</code>
             </details>
@@ -224,13 +223,13 @@ function ExternalRuntimeContext({
     <>
       {registered ? (
         <div>
-          <p>
-            Portcove uses version {registered.version} in place at <br />
-            <code dir="ltr" className="path-value whitespace-normal">
+          <div className="grid min-w-0 gap-2">
+            <p>Portcove uses version {registered.version} in place at:</p>
+            <code dir="ltr" className="path-value block w-full whitespace-normal">
               {registered.path}
             </code>
-            . It does not copy, update, back up, or delete these files.
-          </p>
+            <p>It does not copy, update, back up, or delete these files.</p>
+          </div>
           <Button
             data-focusable
             variant="outline"
@@ -757,13 +756,13 @@ function RegisterExternalDialog({
         </DialogDescription>
         {pending === "review" && <p role="status">Checking runtime files…</p>}
         {preview?.previous_path && (
-          <p>
-            Previous folder:{" "}
-            <code dir="ltr" className="path-value whitespace-normal">
+          <div className="grid min-w-0 gap-2">
+            <p>Previous folder:</p>
+            <code dir="ltr" className="path-value block w-full whitespace-normal">
               {preview.previous_path}
             </code>
-            . Its files stay where they are.
-          </p>
+            <p>Its files stay where they are.</p>
+          </div>
         )}
         {preview && (
           <div
@@ -780,13 +779,13 @@ function RegisterExternalDialog({
             </span>
             <span className="col-span-2 min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
               <small className="mb-[5px] block text-[var(--color-text-muted)]">Folder</small>
-              <code dir="ltr" className="path-value whitespace-normal">
+              <code dir="ltr" className="path-value block w-full whitespace-normal">
                 {preview.path}
               </code>
             </span>
             <span className="col-span-2 min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
               <small className="mb-[5px] block text-[var(--color-text-muted)]">Game program</small>
-              <code dir="ltr" className="path-value whitespace-normal">
+              <code dir="ltr" className="path-value block w-full whitespace-normal">
                 {preview.executable}
               </code>
             </span>
@@ -872,8 +871,8 @@ function RemoveExternalDialog({
         {pending === "review" && <p role="status">Checking saved location…</p>}
         {preview && (
           <p>
-            Files will stay in: <br />
-            <code dir="ltr" className="path-value whitespace-normal">
+            Files will stay in:
+            <code dir="ltr" className="path-value block w-full whitespace-normal">
               {preview.path}
             </code>
           </p>
@@ -1049,8 +1048,8 @@ function RuntimeLaunchSuggestions({
               )}
             {model.executable === suggestions.recommended_executable && (
               <p className="[overflow-wrap:anywhere]">
-                Game or launcher: <br />
-                <code dir="ltr" className="path-value whitespace-normal">
+                Game or launcher:
+                <code dir="ltr" className="path-value block w-full whitespace-normal">
                   {model.executable}
                 </code>
               </p>
@@ -1128,8 +1127,8 @@ function RuntimeRegistrationForm({
       {<RuntimeLaunchSuggestions {...model} />}
       {model.executable && model.executable !== model.suggestions?.recommended_executable && (
         <p className="[overflow-wrap:anywhere]">
-          Game or launcher: <br />
-          <code dir="ltr" className="path-value whitespace-normal">
+          Game or launcher:
+          <code dir="ltr" className="path-value block w-full whitespace-normal">
             {model.executable}
           </code>
         </p>
@@ -1209,8 +1208,8 @@ function RuntimeLaunchDetails(
         </Button>
         {model.executable && (
           <p className="[overflow-wrap:anywhere]">
-            Game program: <br />
-            <code dir="ltr" className="path-value whitespace-normal">
+            Game program:
+            <code dir="ltr" className="path-value block w-full whitespace-normal">
               {model.executable}
             </code>
           </p>
@@ -1458,16 +1457,25 @@ function ExistingRuntimeActions({
   return (
     <>
       <p>
-        You or the upstream launcher manage this installation and its updates. Portcove launches{" "}
-        <br />
-        <code dir="ltr" className="path-value whitespace-normal">
-          {registered.executable}
-        </code>{" "}
-        using <br />
-        <code dir="ltr" className="path-value whitespace-normal">
-          {registered.path}
-        </code>{" "}
-        as its working directory. It does not manage its files, settings or saves.
+        You or the upstream launcher manage this installation and its updates. Portcove launches
+        using these details:
+      </p>
+      <dl className="grid min-w-0 gap-3">
+        <div className="min-w-0">
+          <dt>Game program</dt>
+          <dd dir="ltr" className="path-value font-mono whitespace-normal">
+            {registered.executable}
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt>Start in folder</dt>
+          <dd dir="ltr" className="path-value font-mono whitespace-normal">
+            {registered.path}
+          </dd>
+        </div>
+      </dl>
+      <p>
+        It does not manage its files, settings or saves.
         {registered.user_selected && " It does not authenticate it as an official package."}
       </p>
       <Button

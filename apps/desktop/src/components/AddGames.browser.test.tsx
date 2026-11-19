@@ -9,31 +9,63 @@ import * as picker from "../file-picker";
 import { initializeLocalization, LocalizationProvider } from "../localization";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { workspace } from "../dev-scenarios/interactive/scenarios";
-import { sourceProfile } from "../test-fixtures";
+import { fixtureValue, sourceProfile } from "../test-fixtures";
 import { THEME_STORAGE_KEY } from "../theme";
 vi.mock("../file-picker", { spy: true });
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
+let appHost: HTMLDivElement | undefined;
 beforeEach(async () => {
   localStorage.clear();
   await page.viewport(1600, 1000);
 });
 afterEach(async () => {
   await cleanup();
+  appHost?.remove();
+  appHost = undefined;
   transport?.dispose();
   vi.restoreAllMocks();
   delete document.documentElement.dataset.theme;
 });
-async function mount(journey: "library" | "collection" = "library") {
-  transport = installInteractiveTransport(journey, () => {});
-  initializeLocalization(["en"]);
+async function renderApp() {
+  // App supplies the real InterfaceSizeProvider and its responsive workspace.
+  // Match main.tsx's bounded #root without overriding compact document scrolling.
+  appHost = document.body.appendChild(document.createElement("div"));
+  appHost.className = "h-dvh";
   await render(
     <LocalizationProvider api={desktopApi}>
       <App />
     </LocalizationProvider>,
+    { container: appHost },
   );
+}
+async function mount(journey: "library" | "collection" = "library") {
+  transport = installInteractiveTransport(journey, () => {});
+  initializeLocalization(["en"]);
+  await renderApp();
   await page.getByRole("button", { name: "Add games", exact: true }).click();
   await expect.element(page.getByRole("heading", { name: "Add games", level: 1 })).toHaveFocus();
+}
+function expectDesktopShell() {
+  expect(window.scrollY).toBe(0);
+  expect(document.scrollingElement?.scrollTop).toBe(0);
+  // Dialogs make the background inert; inspect the same real navigation rather
+  // than asking an accessibility locator to enter the inactive background.
+  const navigation = fixtureValue(
+    document.querySelector<HTMLElement>('nav[aria-label="Primary navigation"]'),
+    "primary navigation",
+  );
+  expect(navigation.checkVisibility()).toBe(true);
+  const bounds = navigation.getBoundingClientRect();
+  expect(bounds.width).toBeGreaterThan(0);
+  expect(bounds.height).toBeGreaterThan(0);
+  expect(bounds.top).toBeGreaterThanOrEqual(0);
+  expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(innerWidth);
+  const sidebar = fixtureValue(navigation.closest<HTMLElement>(".sidebar"), "desktop sidebar");
+  expect(sidebar.getBoundingClientRect().top).toBe(0);
+  expect(sidebar.getBoundingClientRect().height).toBe(innerHeight);
 }
 function route(name: string) {
   return page
@@ -210,6 +242,7 @@ it("retains the chosen folder route through details, navigation and closing the 
     .click();
   await expect.element(page.getByRole("heading", { name: "Add games", level: 1 })).toBeVisible();
   await expect.element(folders).toBeVisible();
+  expectDesktopShell();
   await captureParityState("add-games-folder-route-return-fixture");
   await page.getByRole("button", { name: "Back to Library", exact: true }).click();
   await expect.element(page.getByRole("button", { name: "Add games", exact: true })).toHaveFocus();
@@ -248,9 +281,12 @@ it("checks a chosen game's files from its Discover details, preserves failures a
   await expect.element(page.getByRole("alert")).toMatchTextContent("Unsupported owned input");
   expect(choose).toHaveBeenCalledWith(profile, "", "game");
   expect(inspect).toHaveBeenCalledExactlyOnceWith(profile.id, ["E:/owned/未知.iso"]);
+  expectDesktopShell();
   await captureParityState("add-games-source-failed-fixture");
   await page.getByRole("button", { name: "Close", exact: true }).click();
   await expect.element(opener).toHaveFocus();
+  expectDesktopShell();
+  expect(document.querySelector(".workspace-main")?.scrollTop).toBeGreaterThan(0);
   await captureParityState("add-games-source-opener-restored-fixture");
 });
 it.each(["dark", "light"])(
@@ -279,11 +315,7 @@ it.each([320, 240])("returns to the actual document reading position at %spx", a
   await page.viewport(width, 800);
   transport = installInteractiveTransport("collection", () => {});
   initializeLocalization(["en"]);
-  await render(
-    <LocalizationProvider api={desktopApi}>
-      <App />
-    </LocalizationProvider>,
-  );
+  await renderApp();
   const origin = page.getByRole("button", { name: "Add games", exact: true });
   await expect.element(origin).toBeVisible();
   origin.element().scrollIntoView({ block: "center" });
