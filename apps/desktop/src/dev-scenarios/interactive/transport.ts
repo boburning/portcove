@@ -719,6 +719,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         ReturnType<typeof desktopApi.steamGridDbKeyStatus>
       >;
     },
+    discover_steam_client_roots: (args) => {
+      requireArgs("discover_steam_client_roots", args, { generation });
+      return [];
+    },
     get_application_update_preferences: (args) => {
       requireArgs("get_application_update_preferences", args, {});
       return applicationUpdatePreferences;
