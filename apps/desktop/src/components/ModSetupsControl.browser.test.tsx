@@ -712,16 +712,16 @@ it("asks before adding a mod that runs code and binds the choice to the reviewed
   vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view({ package_types: ["nrm"] }));
   vi.mocked(picker.pickModPackagePath).mockResolvedValue("/mods/timer.nrm");
   const review = vi.spyOn(desktopApi, "planLocalModPackage").mockResolvedValue(localPlan);
-  vi.spyOn(desktopApi, "previewModSetupDraft").mockResolvedValue({
+  const add = vi
+    .spyOn(desktopApi, "applyModSetupDraft")
+    .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.applyModSetupDraft>>);
+  const host = await render();
+  const preview = vi.mocked(desktopApi.previewModSetupDraft).mockResolvedValue({
     order: [],
     conflicts: [],
     conflicts_truncated: false,
     local_code_packages: [localPlan.native_id],
   });
-  const add = vi
-    .spyOn(desktopApi, "applyModSetupDraft")
-    .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.applyModSetupDraft>>);
-  const host = await render();
   await act(async () => button(host, "Add mod file…").click());
   expect(review).toHaveBeenCalledWith("shipwright", "default", "/mods/timer.nrm", 3, 7, true);
   expect(add).not.toHaveBeenCalled();
@@ -739,20 +739,15 @@ it("asks before adding a mod that runs code and binds the choice to the reviewed
   expect(add).not.toHaveBeenCalled();
   await act(async () => button(host, "Review changes").click());
   await act(async () => button(host, "Check files").click());
+  const edits = {
+    packages: [],
+    order: null,
+    local_files: [{ path: "/mods/timer.nrm", expected_plan_sha256: "c".repeat(64) }],
+  };
+  expect(preview).toHaveBeenCalledWith("shipwright", "default", 3, [], edits, 7);
+  expect(add).not.toHaveBeenCalled();
   await act(async () => button(host, "Allow this code and apply changes").click());
-  expect(add).toHaveBeenCalledWith(
-    "shipwright",
-    "default",
-    3,
-    [],
-    {
-      packages: [],
-      order: null,
-      local_files: [{ path: "/mods/timer.nrm", expected_plan_sha256: "c".repeat(64) }],
-    },
-    7,
-    true,
-  );
+  expect(add).toHaveBeenCalledWith("shipwright", "default", 3, [], edits, 7, true);
 });
 
 it("reviews a disabled replacement before adding a local file", async () => {
