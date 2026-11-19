@@ -134,8 +134,10 @@ async fn authenticate(
                 8 * 1024 * 1024
             } else if name.raw().starts_with("policy/") {
                 65536
+            } else if name.raw() == "definitions/index.json" {
+                DEFINITION_INDEX_MAX
             } else {
-                4 * 1024 * 1024
+                DEFINITION_CONTENT_MAX
             };
             if target.length == 0 || target.length > maximum {
                 return invalid("catalog prior target byte bound differs");
@@ -318,8 +320,10 @@ fn historical_revision_floors(files: &Files, new: &Files) -> Result<()> {
             let raw = at(files, &path)?;
             let maximum = if target.raw() == "policy/official/catalog.listings.json" {
                 8 * 1024 * 1024
+            } else if target.raw() == "definitions/index.json" {
+                DEFINITION_INDEX_MAX as usize
             } else if definition_role {
-                4 * 1024 * 1024
+                DEFINITION_CONTENT_MAX as usize
             } else {
                 65536
             };

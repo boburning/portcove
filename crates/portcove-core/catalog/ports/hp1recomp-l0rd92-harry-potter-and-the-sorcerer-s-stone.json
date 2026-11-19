@@ -3,7 +3,7 @@
   "listing": {
     "id": "hp1recomp-l0rd92-harry-potter-and-the-sorcerer-s-stone",
     "name": "Harry Potter and the Sorcerer's Stone — HP1Recomp (l0rd92)",
-    "original_game_title": "Harry Potter and the Sorcerer's Stone",
+    "original_game_title": "Harry Potter and the Sorcerer's Stone (PlayStation)",
     "artwork": {
       "game_id": 341,
       "cover_id": 165204,
@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/l0rd92/HP1Recomp"
     },
-    "issue_number": 3395
+    "issue_number": 3395,
+    "original_game": {
+      "format_version": 1,
+      "id": "harry-potter-and-the-sorcerers-stone-playstation",
+      "evidence_urls": ["https://github.com/l0rd92/HP1Recomp"],
+      "source_editions": [
+        {
+          "id": "harry-potter-and-the-sorcerers-stone-playstation-playstation",
+          "title": "Harry Potter and the Sorcerer's Stone (PlayStation) (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/l0rd92/HP1Recomp/blob/37d0b04494ad6e75a6de641c37d6c3b0da180c21/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

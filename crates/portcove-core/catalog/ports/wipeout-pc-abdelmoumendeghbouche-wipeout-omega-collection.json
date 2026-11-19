@@ -4,10 +4,10 @@
     "id": "wipeout-pc-abdelmoumendeghbouche-wipeout-omega-collection",
     "name": "WipEout Omega Collection — wipeout_pc (AbdelmoumenDeghbouche)",
     "original_game_title": "WipEout Omega Collection",
-    "summary": "An experimental Windows port of WipEout Omega Collection using your own PS4 game files. The project reports races in HD and 2048. Its documented US target is CUSA07671 with update 01.07. Linux has a source build, and the collection has no confirmed full playthrough.",
+    "summary": "An experimental port of WipEout Omega Collection for owned PS4 game files, with a documented US target of CUSA07671 and update 01.07. The publisher offers a Windows ZIP and Linux x86-64 AppImage and reports HD and 2048 races. A full collection playthrough remains unconfirmed.",
     "project_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc",
-    "platforms": ["windows-x86-64"],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc",
     "manual_setup": {
       "steps": [
@@ -16,12 +16,12 @@
           "instruction": "Use your own PS4 WipEout Omega Collection dump. The README names USA CUSA07671 base 01.00 with update 01.07 as its development target; it also names European CUSA05670 without specifying a version. Merge your own base and update files or supply GOW3_PATCH_DIR as documented. GoldHEN folder dumps are also supported by the instructions. The runtime reads your eboot.bin and game files and links your libc, Fios2 and NpToolkit2. One executable serves 2048, HD and Fury. Exact supported executable and asset fingerprints are not established."
         },
         {
-          "title": "Follow upstream setup",
-          "instruction": "Upstream README declares wipeout-windows.zip from Releases. Extract it, run WipEout.exe and select the owned game folder containing eboot.bin. Supply the matching owned base/update data as documented; runtime continues reading original files. Windows source build uses MSYS2 CLANG64/Python and upstream build.sh; Linux has a source-build route without a package or stated CPU matrix. No release asset was downloaded or verified. This manual discovery route is not managed acquisition or runtime qualification."
+          "title": "Choose the upstream player",
+          "instruction": "On Windows use the publisher’s wipeout-windows.zip. On Linux x86-64 use the publisher’s AppImage and check its system requirements. Open the upstream player and select your owned game folder containing eboot.bin. Follow the upstream instructions for your disc edition and update data. Only the publisher’s package listing was reviewed."
         }
       ],
       "warnings": [
-        "Upstream early-development status claims boot/menus/saves and HD/2048 races/results, with 110–150FPS reported in 2048 on RTX 4070 Laptop, not a full collection playthrough. New README reports extra render-resolution patches and experimental PS4 Pro mode GOW3_NEO=1 loading a race with correct picture since v0.2.3; not tested further. All HD/HD Fury/2048 event types are not yet tested, HDR RCAS fix awaits testing and new audio effects may have defects; PSVR is not planned. Linux builds from source without a package; do not infer Linux gameplay/CPU qualification. No Portcove runtime or completion qualification was performed.",
+        "Upstream early-development status claims boot/menus/saves and HD/2048 races/results, with 110–150FPS reported in 2048 on RTX 4070 Laptop, not a full collection playthrough. New README reports extra render-resolution patches and experimental PS4 Pro mode GOW3_NEO=1 loading a race with correct picture since v0.2.3; not tested further. All HD/HD Fury/2048 event types are not yet tested, HDR RCAS fix awaits testing and new audio effects may have defects; PSVR is not planned. The upstream Linux x86-64 AppImage is listed in the release; Linux gameplay and CPU compatibility remain unverified. No Portcove runtime or completion qualification was performed.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc",
@@ -45,6 +45,11 @@
       "image_sha256": "0f45789393ff7e10aa1e4f1f0550c1175476019adf78e922e0bc44fe592be8b1",
       "game_slug": "wipeout-omega-collection",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["wipeout-windows.zip"],
+      "linux-x86-64": ["wipeout-x86_64.AppImage"]
     }
   },
   "upstream_lineage": {
@@ -58,5 +63,10 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "WipEoutOmegaCollection combines HD/Fury and2048 content. Preserve the collection’s actual distinct game/campaign scope.",
+    "evidence_urls": ["https://github.com/AbdelmoumenDeghbouche/wipeout_pc"]
   }
 }

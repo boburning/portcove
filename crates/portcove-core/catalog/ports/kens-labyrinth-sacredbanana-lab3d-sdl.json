@@ -40,6 +40,16 @@
       "warnings": [
         "The Linux system package can place gamedata in a system-owned directory. Use the writable portable copy for saving game progress."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kens-labyrinth",
+      "evidence_urls": [
+        "https://github.com/sacredbanana/lab3d-sdl/blob/4.4.0/README.md#installation",
+        "https://github.com/sacredbanana/lab3d-sdl/blob/4.4.0/README.md",
+        "https://github.com/sacredbanana/lab3d-sdl"
+      ],
+      "source_editions": []
     }
   }
 }

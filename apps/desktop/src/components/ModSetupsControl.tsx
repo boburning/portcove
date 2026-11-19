@@ -173,6 +173,20 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
     setFailure,
     refreshAfterProviderInstall,
   } = useModSetupInventory(portId, generation, busy);
+  const [providerChoice, setProviderChoice] = useState<{
+    portId: string;
+    generation: number;
+    provider: string;
+  }>();
+  const selectedProvider =
+    providerChoice?.portId === portId && providerChoice.generation === generation
+      ? providerChoice.provider
+      : undefined;
+  const browseProvider =
+    view?.provider ??
+    (selectedProvider && view?.providers?.includes(selectedProvider)
+      ? selectedProvider
+      : undefined);
   const [browserBusy, setBrowserBusy] = useState(false);
   const [recipeBusy, setRecipeBusy] = useState(false);
   const [copyName, setCopyName] = useState("");
@@ -301,7 +315,7 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
           <ModSetupNotices
             nativeMessage={nativeMessage}
             browserBusy={browserBusy}
-            provider={view.provider}
+            provider={browseProvider ?? null}
             heldUpdates={heldUpdates}
           />
           {staleDefault && (
@@ -507,11 +521,26 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
                   }}
                 />
               )}
-              {view.provider && (
+              {view.providers && view.providers.length > 1 && (
+                <div className="flex flex-wrap gap-2">
+                  {view.providers.map((provider) => (
+                    <Button
+                      key={provider}
+                      variant="outline"
+                      aria-pressed={selectedProvider === provider}
+                      disabled={browserBusy || working || !fresh || recipeBusy}
+                      onClick={() => setProviderChoice({ portId, generation, provider })}
+                    >
+                      {providerName(provider)}
+                    </Button>
+                  ))}
+                </div>
+              )}
+              {browseProvider && (
                 <ModProviderBrowser
-                  key={JSON.stringify(["provider", selected.profile.id])}
+                  key={JSON.stringify(["provider", selected.profile.id, browseProvider])}
                   portId={portId}
-                  provider={view.provider}
+                  provider={browseProvider}
                   generation={generation}
                   profileId={selected.profile.id}
                   profileName={selected.profile.display_name}

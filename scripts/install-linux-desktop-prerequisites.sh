@@ -73,7 +73,7 @@ use_archive_mirror() {
     if [[ -f "$source" ]]; then
       "${privilege[@]}" sed -i '
 :rewrite
-s#\(^\|[[:space:]]\)https\?://azure\.archive\.ubuntu\.com/ubuntu\([/[:space:]]\|$\)#\1https://archive.ubuntu.com/ubuntu\2#g
+s#\(^\|[[:space:]]\)https\?://\(azure\|us-east-2\.ec2\)\.archive\.ubuntu\.com/ubuntu\([/[:space:]]\|$\)#\1https://archive.ubuntu.com/ubuntu\3#g
 t rewrite
 ' "$source"
     fi
@@ -123,7 +123,7 @@ execute_desktop_prerequisites() {
     fi
   fi
 
-  # GitHub's Azure-backed Ubuntu mirror has repeatedly throttled concurrent jobs.
+  # The Azure and EC2 Ubuntu mirrors have both delayed hosted builds.
   # Fall back to the archive mirror in both supported runner image formats. If a
   # runner already uses another mirror, the second attempt still gets the longer
   # bounded retry window without rewriting that source.

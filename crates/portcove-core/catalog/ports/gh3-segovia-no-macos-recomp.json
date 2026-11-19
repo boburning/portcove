@@ -40,6 +40,15 @@
       "warnings": [
         "The publisher describes this builder as experimental and unnotarized. Review the publisher and this package before using Apple’s per-app approval to open it."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "guitar-hero-iii-legends-of-rock",
+      "evidence_urls": [
+        "https://github.com/segovia-no/GH3-macOS-Recomp/blob/v0.1.0/docs/guides/install.md",
+        "https://github.com/segovia-no/GH3-macOS-Recomp"
+      ],
+      "source_editions": []
     }
   }
 }

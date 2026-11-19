@@ -61,6 +61,29 @@ async function metadataRequest(
   });
 }
 
+const pcgamingwikiUrl = "https://www.pcgamingwiki.com/wiki/List_of_unofficial_ports";
+
+export async function collectPcgamingwikiSource(
+  c: Pick<SourceContext, "http" | "save">,
+): Promise<CollectedSource> {
+  const page = await c.http.request("GET", pcgamingwikiUrl);
+  c.save("pcgamingwiki", page);
+  const reviewable = page.status === 200 && Boolean(page.text.trim());
+  return {
+    id: "pcgamingwiki",
+    status: reviewable ? "partial" : "inaccessible",
+    evidence: pcgamingwikiUrl,
+    next_page: null,
+    truncated: false,
+    records: [],
+    http_status: page.status,
+    coverage: "Response capture for manual review only; no automated table coverage",
+    next_action: reviewable
+      ? "Verify the wiki revision and relevant changed rows manually, then corroborate leads upstream"
+      : "Resume manual review on restored normal access",
+  };
+}
+
 export async function collectRecompBoardSource(
   c: Pick<SourceContext, "http" | "save">,
   known: DiscoveryCheckpoint,
@@ -417,26 +440,9 @@ export async function collectDiscoverySources(
     fail("portforge", "https://github.com/zamiba/portforge-mediaitems", e);
   }
   try {
-    const page = await c.http.request(
-      "GET",
-      "https://www.pcgamingwiki.com/wiki/List_of_unofficial_ports",
-    );
-    c.save("pcgamingwiki", page);
-    accept({
-      id: "pcgamingwiki",
-      status: page.status === 200 ? "partial" : "inaccessible",
-      evidence: "https://www.pcgamingwiki.com/wiki/List_of_unofficial_ports",
-      next_page: null,
-      truncated: false,
-      records: [],
-      http_status: page.status,
-      next_action:
-        page.status === 200
-          ? "Review revision and relevant changed rows before declaring complete table coverage"
-          : "Resume on restored normal access",
-    });
+    accept(await collectPcgamingwikiSource(c));
   } catch (e) {
-    fail("pcgamingwiki", "https://www.pcgamingwiki.com/wiki/List_of_unofficial_ports", e);
+    fail("pcgamingwiki", pcgamingwikiUrl, e);
   }
   try {
     accept(await collectRecompBoardSource(c, known));

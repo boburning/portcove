@@ -60,7 +60,7 @@
     "fallbackGeneric": "No se pudo usar un catálogo guardado. Portcove continuó con la información de catálogo disponible.",
     "fallbackNotLoaded": "No se pudo cargar la definición de catálogo seleccionada. Portcove continuó con la información de catálogo disponible.",
     "fallbackReplay": "Portcove no pudo aceptar esta actualización del catálogo. Portcove continuó con la información de catálogo disponible.",
-    "fallbackSignature": "Un catálogo guardado no superó la verificación de firma. Portcove continuó con la información de catálogo disponible.",
+    "fallbackSignature": "La información del catálogo no superó la verificación de firma. Portcove conservó la información de catálogo disponible.",
     "fallbackUntrusted": "Un catálogo guardado estaba firmado por un editor que ya no es de confianza. Portcove continuó con la información de catálogo disponible.",
     "fingerprint": "Huella del editor",
     "loadingInformation": "Cargando la información del catálogo…",
@@ -117,14 +117,19 @@
   "listings": {
     "addressPlaceholder": "https://",
     "builtIn": "Se usa el directorio integrado",
+    "checkingStatus": "Comprobando el estado de las fichas de juegos…",
     "contentAddress": "Dirección del contenido del catálogo",
     "description": "Actualiza las fichas de adaptaciones, las imágenes y la información de configuración desde el editor oficial configurado. Las instalaciones de juegos conservan sus permisos y archivos actuales.",
     "metadataAddress": "Dirección de los metadatos del catálogo",
     "refresh": "Actualizar las fichas de juegos",
     "refreshing": "Actualizando las fichas de juegos…",
+    "retryStatus": "Volver a comprobar el estado de las fichas",
     "revision_one": "Revisión {{revision}} de las fichas de juegos · {{count}} ficha publicada",
     "revision_many": "Revisión {{revision}} de las fichas de juegos · {{count}} fichas publicadas",
     "revision_other": "Revisión {{revision}} de las fichas de juegos · {{count}} fichas publicadas",
+    "savedDirectoryUnavailable": "Portcove no pudo usar el directorio de listados guardado.",
+    "settings": "Ajustes de actualización de las fichas",
+    "statusFailed": "Se desconoce el estado de las fichas de juegos. No se pudo leer: {{error}}",
     "title": "Fichas de juegos"
   }
 }

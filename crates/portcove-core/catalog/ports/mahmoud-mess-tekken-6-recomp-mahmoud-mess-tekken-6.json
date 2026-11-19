@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/mahmoud-mess/tekken6-recomp"
     },
-    "issue_number": 3128
+    "issue_number": 3128,
+    "original_game": {
+      "format_version": 1,
+      "id": "tekken-6",
+      "evidence_urls": ["https://github.com/mahmoud-mess/tekken6-recomp"],
+      "source_editions": [
+        {
+          "id": "tekken-6-xbox-360",
+          "title": "Tekken 6 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/mahmoud-mess/tekken6-recomp/blob/e5617817c8e5572e44b01ee88915f7e463b29b28/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

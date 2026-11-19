@@ -85,6 +85,7 @@ it("models application update settings while refusing extra or invalid arguments
 it("supports current read surfaces without hiding unsupported mutations", async () => {
   const refuse = vi.fn();
   transport = installInteractiveTransport("library", refuse);
+  expect(await invoke("discover_steam_client_roots", { generation: 1 })).toEqual([]);
   expect(await desktopApi.favoritePorts(1)).toEqual([]);
   await desktopApi.setPortFavorite("sample", true, 1);
   expect(await desktopApi.favoritePorts(1)).toEqual(["sample"]);
@@ -110,6 +111,13 @@ it("supports current read surfaces without hiding unsupported mutations", async 
     "Feature details are unavailable in this browser fixture",
   );
   expect(refuse).not.toHaveBeenCalled();
+  await expect(invoke("discover_steam_client_roots", { generation: 2 })).rejects.toThrow(
+    "unexpected arguments",
+  );
+  await expect(invoke("discover_steam_client_roots")).rejects.toThrow("unexpected arguments");
+  await expect(
+    invoke("discover_steam_client_roots", { generation: 1, extra: true }),
+  ).rejects.toThrow("unexpected arguments");
   await expect(desktopApi.resetOutputLocation("sample", "unreviewed", 1)).rejects.toThrow(
     "Unsupported fixture action",
   );

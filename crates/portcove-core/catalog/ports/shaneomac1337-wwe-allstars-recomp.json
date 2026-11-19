@@ -46,6 +46,24 @@
           "instruction": "Keep the complete parent release folder containing game, gamedata, updatedata, userdata, cache, logs, mods and licenses. Keep userdata/launcher-state.json and all saves/settings together, along with any selected external game-data, update-data or user-data folders. The direct player derives the normal portable root from its executable’s parent and writes session logs in the root logs folder. Preserve crash reports and shader caches too. Do not copy only game/wweallstars.exe or assume another ReXGlue title uses these same paths."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wwe-all-stars",
+      "evidence_urls": [
+        "https://github.com/shaneomac1337/WWE-AllStars-Recomp/blob/34d7b71d926440262f14f6a6e2d9763494588498/launcher/release/README.txt",
+        "https://github.com/shaneomac1337/WWE-AllStars-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "wwe-all-stars-xbox-360",
+          "title": "WWE All Stars (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/shaneomac1337/WWE-AllStars-Recomp/blob/31e428daf4ea69eab670db408c757b42b21d2ad8/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

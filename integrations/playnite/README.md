@@ -2,14 +2,14 @@
 
 Map game release preferences as described in the [CLI game-channel contract](../../docs/CLI.md#release-channels).
 
-A small Windows library extension consuming the standalone CLI. It uses the
-public Playnite SDK and Portcove JSON/JSONL commands. Core owns catalog, sources,
-readiness, downloads, trust, installation, persistence and recovery. The client
-has no per-port branches, SQLite access, Rust dependency or private Playnite
-assembly reference.
+This Windows library extension uses the public Playnite SDK. It calls the
+standalone Portcove CLI through JSON/JSONL commands. Core owns the catalog,
+sources, readiness, downloads, trust, installation, saved data, and recovery.
+The client has no per-port rules or SQLite access. It depends on neither Rust
+nor private Playnite assemblies.
 
-This source builds a locally installable `.pext` candidate. It is not a
-marketplace release or a claim of completed Public beta qualification.
+This source builds a `.pext` package for local testing. Marketplace release
+and Public beta qualification require separate evidence.
 [#243](https://github.com/boburning/portcove/issues/243) retains the separate
 frontend, lifecycle, independent-consumer and human evidence. [Issue
 #910](https://github.com/boburning/portcove/issues/910) also owns personal-library

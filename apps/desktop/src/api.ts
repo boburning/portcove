@@ -526,19 +526,25 @@ export const desktopApi = {
       profileId,
       generation,
     }),
-  openProviderModProject: (portId: string, projectId: string, generation: number) =>
-    invoke<void>("open_provider_mod_project", { portId, projectId, generation }),
-  browseProviderMods: (portId: string, page: number, generation: number) =>
+  openProviderModProject: (
+    portId: string,
+    projectId: string,
+    generation: number,
+    provider?: string,
+  ) => invoke<void>("open_provider_mod_project", { portId, projectId, generation, provider }),
+  browseProviderMods: (portId: string, page: number, generation: number, provider?: string) =>
     invoke<import("./types").ProviderBrowsePage>("browse_provider_mods", {
       portId,
       page,
       generation,
+      provider,
     }),
-  providerProject: (portId: string, projectId: string, generation: number) =>
+  providerProject: (portId: string, projectId: string, generation: number, provider?: string) =>
     invoke<import("./types").ProviderProjectView>("get_provider_project", {
       portId,
       projectId,
       generation,
+      provider,
     }),
   planProviderInstall: (
     portId: string,
@@ -546,6 +552,7 @@ export const desktopApi = {
     projectId: string,
     fileId: string,
     generation: number,
+    provider?: string,
   ) =>
     invoke<import("./types").ProviderInstallPlan>("plan_provider_install", {
       portId,
@@ -553,6 +560,7 @@ export const desktopApi = {
       projectId,
       fileId,
       generation,
+      provider,
     }),
   applyProviderInstall: (
     portId: string,
@@ -635,6 +643,8 @@ export const desktopApi = {
     invoke<CliCommandContext>("get_cli_command_context", { generation }),
   libraryIdentity: (generation: number) =>
     invoke<LibraryIdentity>("get_library_identity", { generation }),
+  discoverSteamClientRoots: (generation: number) =>
+    invoke<string[]>("discover_steam_client_roots", { generation }),
   listSteamProfiles: (steamRoot: string, generation: number) =>
     invoke<string[]>("list_steam_profiles", { steamRoot, generation }),
   previewSteamEntry: (
@@ -842,6 +852,22 @@ export const desktopApi = {
     invoke<void>("forget_pending_setup", { portId, pendingId, generation }),
   openPendingSetupFolder: (portId: string, pendingId: string, generation: number) =>
     invoke<void>("open_pending_setup_folder", { portId, pendingId, generation }),
+  openPendingSetupResource: (portId: string, pendingId: string, url: string, generation: number) =>
+    invoke<void>("open_pending_setup_resource", { portId, pendingId, url, generation }),
+  openCatalogDownloadReleaseNotes: (
+    portId: string,
+    releaseId: CatalogDownloadRequest["release_id"],
+    assetId: CatalogDownloadRequest["asset_id"],
+    url: string,
+    generation: number,
+  ) =>
+    invoke<void>("open_catalog_download_release_notes", {
+      portId,
+      releaseId,
+      assetId,
+      url,
+      generation,
+    }),
   discoverOrphanedOperations: (generation: number) =>
     invoke<void>("discover_orphaned_operations", { generation }),
   planPreparation: (portId: string, generation: number) =>

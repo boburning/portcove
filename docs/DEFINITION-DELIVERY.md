@@ -1,15 +1,19 @@
 # Independent definition delivery contract
 
-This is the successor design for #245. It does not extend signed catalog format
-1, admit a new port, provision a publisher, or activate automatic delivery.
-`portcove-core` remains the sole definition, admission and lifecycle authority.
-The CLI and Tauri expose its outcomes; React and external clients present them.
-The Project owns scheduling. Completed #245/#397/#398 components supply the
-design, compatible client and configured observer; completed #254 supplies bounded
-authoring tooling. #177 owns continued discovery and normalized observations,
-#247 scoped release-health incidents/recovery, and #246 the actual protected
-publication and unchanged-client journey. #534 retains provisioning acceptance;
-component fixtures do not complete either production outcome.
+This document describes the successor design for #245. Signed catalog format 1
+keeps its own contract. Use the separate procedures for port admission, publisher
+setup, and automatic delivery.
+
+`portcove-core` decides which definitions and lifecycle operations to accept.
+The CLI and Tauri expose those results. React and external clients display them.
+Use the Project for scheduling.
+
+Completed work in #245, #397, and #398 covers the design, client, and observer.
+Completed work in #254 covers authoring tools. Find ongoing discovery and
+normalized observations in #177. Find release health and recovery in #247.
+Find protected publication and the unchanged-client workflow in #246.
+Issue #534 holds publisher setup acceptance. Both production outcomes need
+evidence beyond component fixtures.
 
 ## Implemented engine capability negotiation
 
@@ -829,9 +833,10 @@ but occur once in the inventory. Empty snapshots are structurally valid; parsing
 one cannot remove catalog availability. Unknown or duplicate fields at every
 index boundary fail closed. Index bytes are retained exactly, not reserialized.
 
-The parser enforces the 4 MiB index, 4,096 definitions, 4 MiB per content target
-and 32 MiB aggregate bounds below before exposing an immutable inventory. This
-first representation conservatively bounds all listed content, including records
+The parser enforces a 4 MiB index, at most 4,096 definitions and a 32 MiB aggregate
+content bound before exposing an immutable inventory. The general per-target
+ceiling is 16 MiB. Individual definition entries keep their 4 MiB limit. This
+representation conservatively bounds all listed content, including records
 not referenced by a definition. A transport can obtain each target's validated
 length before its bounded read and then check supplied bytes against that length
 and SHA-256. Repeated reads remain the transport's responsibility.
@@ -900,7 +905,7 @@ persistence contracts and referenced artifact/evidence identities. Bound entry
 count, individual and total bytes, depth, path lengths and fetched references;
 reject cycles and missing references. No reference can become an executable URL.
 The initial content contract uses a 4 MiB index, at most 4,096 entries, 4 MiB per
-entry, 32 MiB total fetched definition/contract content, depth 32, at most 1,024
+entry, 16 MiB per projection target, 32 MiB total fetched definition/contract content, depth 32, at most 1,024
 references per entry, and 255 UTF-8 bytes per relative path component. Existing
 stricter core path/archive limits still apply. TUF metadata retains the maintained
 client's own separate limits. An unsupported larger document cannot evict the
@@ -949,8 +954,9 @@ remain required. An indexed empty object is not a usable execution contract.
 `DefinitionContentIndex::inspect_catalog_projection` interprets supplied entry
 and contract bytes through the existing core validators. Its terminal record has
 exactly `contract_schema: 1`, `representation: "catalog_projection"` and `catalog`.
-The catalog is the complete authoritative schema-1 or schema-2 document. Schema 2
-omits derived `source_profiles`; the existing loader reconstructs that projection.
+The catalog is an authoritative schema-1, schema-2 or schema-3 document.
+Schemas 2 and 3 omit derived `source_profiles`. The catalog loader reconstructs
+those profiles from the supplied source graph.
 Every field emitted by the authoritative serializer must be present, including
 default-valued port fields. Unknown, missing or discarded semantics and duplicate
 decoded JSON keys fail closed. Whitespace and object-key order are immaterial;
@@ -969,8 +975,8 @@ role leaves or record types require a separately implemented versioned contract;
 they are rejected rather than silently ignored or traversed. Thus this supported
 target graph is exactly one edge deep with one distinct leaf, within the index's
 existing byte and reference bounds. As one content target, the projected catalog
-keeps the 4 MiB content bound, inside the 16 MiB signed-catalog bound its decoded
-catalog shares ([size bounds](SIGNED-CATALOG.md#size-bounds-and-older-clients)). Source-graph references are checked by the current catalog validators.
+has a 16 MiB content bound. Its decoded catalog independently shares the
+16 MiB signed-catalog bound ([size bounds](SIGNED-CATALOG.md#size-bounds-and-older-clients)). Source-graph references are checked by the current catalog validators.
 
 All catalog semantics must validate, the selected port must exactly match the
 entry, and its installed template requirements must be supported. A failure
@@ -994,6 +1000,15 @@ recaptures the complete record. Format 2 stays readable as supplied successor
 content but gains no invented authentication. Writer protocols 25 and 27 prevent
 older clients from dropping exact successor bytes or the authenticated admission
 record.
+At authenticated selection and reopen, Core can add a new identity from a
+legacy schema-2 projection that supplies one port and its source graph to a
+schema-3 baseline. Core validates the combined graph and applies the existing
+scope checks, including source ownership and collision checks. The effective
+catalog keeps the baseline schema and unrelated ports, and the receipt retains
+the exact verified projection bytes. Other transitions still require the
+complete scoped replacement graph. Clients built before this compatibility
+change require a complete projection matching their baseline schema and scope.
+
 Authenticated loading, freshness/revocation, transactional catalog selection and
 scoped runtime activation are implemented in core. Production root and grant
 provisioning remain required before automatic public delivery can use this path.
@@ -1612,8 +1627,8 @@ contains `definitions/index.json`, exactly its `sha256/*.json` content, and the
 corresponding `policy/official/<stable_id>.json` plus required `.launch.json`
 records. Core reuses the definition, capability, publisher and launch parsers;
 missing, extra, changed, linked or unsupported content refuses. The bounds are
-16,385 files and 32 MiB in total, with 4 MiB indexed leaves and 64 KiB policy
-records. Its exact file/definition manifest grants no semantic or publisher
+16,385 files and 32 MiB in total, with 16 MiB indexed projection leaves, 4 MiB indexes and individual
+definition entries, and 64 KiB policy records. Its exact file/definition manifest grants no semantic or publisher
 acceptance. An empty index is bootstrap preparation, not a delivered definition.
 
 The maintained release inspector and its real-CLI build fixtures accept API84
@@ -1876,3 +1891,27 @@ manifest, encoded current/prior content and changed-source evidence. Attempts
 that exhaust that budget refuse complete review and remain held. The transport
 fixture exercises a 2 MiB current directory and retained prior copy; it supplies
 no actual semantic-review acceptance or production qualification.
+
+### Reviewed mod provider bindings
+
+An indexed definition can carry one exact GameBanana game ID and one
+Thunderstore community under `mod_provider_bindings`. The port must already
+have a reviewed mod loader. Indexed Libultraship and N64 recomp bindings
+require template versions 6 and 8 respectively. Legacy signed catalog
+envelopes cannot appoint a binding. An omitted field keeps the compiled scopes.
+An explicit empty list withdraws the provider choices. The library records
+which ports have adopted explicit scopes. If that selection expires, is
+revoked or is replaced by another port, its compiled provider is held until
+a fresh authenticated definition appoints an exact scope. Shared profile writes
+require library schema 69 or newer. Recipes carrying an explicit scope use
+format 4.
+
+When multiple providers are available, select the provider before requesting
+a project or planning an install. Desktop offers the choices and the CLI
+accepts `--provider`. A plan or installed reference for a new scope carries its
+exact binding. A historical reference with no binding resolves only to its
+original compiled scope. Install, update and recipe replay refuse a changed
+scope.
+
+Keep newly authored scopes out of public projections until the matching
+reader and profile writer are available to the clients using those scopes.

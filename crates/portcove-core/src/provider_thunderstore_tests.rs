@@ -187,7 +187,7 @@ fn world_with_dependency(dependency: Option<Vec<u8>>) -> World {
     let (root, requests, server) = serve(versions.clone(), dependency);
     let client = ProviderClient::Thunderstore {
         client: ThunderstoreClient::with_root(&root, None).unwrap(),
-        community: COMMUNITY,
+        community: COMMUNITY.into(),
     };
     World {
         _temporary: temporary,
@@ -378,7 +378,7 @@ async fn recomp_plans_compare_no_asset_entries_and_unattended_updates_take_the_n
 fn a_backport_published_after_a_newer_release_is_not_an_update() {
     let client = ProviderClient::Thunderstore {
         client: ThunderstoreClient::with_root("http://127.0.0.1:9", None).unwrap(),
-        community: COMMUNITY,
+        community: COMMUNITY.into(),
     };
     let file = |version: &str, added_at: i64| crate::ProviderFileCandidate {
         file_id: version.into(),
@@ -388,6 +388,7 @@ fn a_backport_published_after_a_newer_release_is_not_an_update() {
         download_url: String::new(),
         claimed_md5: None,
         archived: false,
+        status_unknown: None,
         claimed_scan: None,
         thunderstore_dependencies: None,
     };

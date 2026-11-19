@@ -60,6 +60,15 @@
       "windows-x86-64": ["rechan-win64.zip"],
       "linux-x86-64": ["rechan-linux64.tar.gz"]
     },
-    "recommended_download_channel": "beta"
+    "recommended_download_channel": "beta",
+    "original_game": {
+      "format_version": 1,
+      "id": "jackie-chan-stuntmaster",
+      "evidence_urls": [
+        "https://github.com/SilverwireGames/ReChan/blob/ecd39935559d024992b2049576ea0ecc3b204b8c/README.md",
+        "https://github.com/SilverwireGames/ReChan"
+      ],
+      "source_editions": []
+    }
   }
 }

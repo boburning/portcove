@@ -124,7 +124,8 @@ impl PortcoveService {
         connection: &rusqlite::Connection,
     ) -> Result<Catalog> {
         let mut document = catalog.listing_document().clone();
-        let mut budget = 8 * 1024 * 1024;
+        // Reading retired registrations is a request-wide aggregate.
+        let mut budget = crate::library::MAX_RETAINED_REGISTRATION_BYTES;
         for id in Library::external_runtime_port_ids_from(connection)? {
             if document.listings.iter().any(|listing| listing.id == id) {
                 continue;

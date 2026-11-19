@@ -35,8 +35,27 @@ permissions:
   contents: read
 
 jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.profile.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Read the reviewed release profile
+        id: profile
+        run: node scripts/app-release.mts build-matrix >> "$GITHUB_OUTPUT"
+
   build:
     name: Build ${{ matrix.label }}
+    needs: plan
     environment:
       name: ${{ inputs.environment }}
       deployment: false
@@ -45,26 +64,7 @@ jobs:
       contents: read
     strategy:
       fail-fast: true
-      matrix:
-        include:
-          - label: windows-x86_64
-            os: windows-latest
-            target: x86_64-pc-windows-msvc
-            rust_targets: x86_64-pc-windows-msvc
-            bundles: nsis
-            cli_targets: '{"windows-x86_64":"x86_64-pc-windows-msvc"}'
-          - label: linux-x86_64
-            os: ubuntu-24.04
-            target: x86_64-unknown-linux-gnu
-            rust_targets: x86_64-unknown-linux-gnu
-            bundles: appimage
-            cli_targets: '{"linux-x86_64":"x86_64-unknown-linux-gnu"}'
-          - label: macos-universal
-            os: macos-15
-            target: universal-apple-darwin
-            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
-            bundles: app,dmg
-            cli_targets: '{"macos-aarch64":"aarch64-apple-darwin","macos-x86_64":"x86_64-apple-darwin"}'
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     env:
       VERSION: ${{ inputs.version }}
@@ -97,11 +97,13 @@ jobs:
           targets: ${{ matrix.rust_targets }}
       - name: Install Linux desktop prerequisites
         if: runner.os == 'Linux'
-        timeout-minutes: 15
+        # The initial and fallback APT operations can each spend 10 minutes
+        # installing, after 2 and 4 minutes of index updates respectively.
+        timeout-minutes: 28
         shell: bash
         run: |
           set -euo pipefail
-          ./scripts/install-linux-desktop-prerequisites.sh
+          ./scripts/install-linux-desktop-prerequisites.sh --prefer-archive-mirror --install-timeout-seconds=600
           webkit_version="$(pkg-config --modversion webkit2gtk-4.1)"
           if ! pkg-config --atleast-version=2.52.6 webkit2gtk-4.1; then
             printf 'The Linux AppImage needs WebKitGTK 2.52.6 or later. Found %s.\n' "$webkit_version" >&2
@@ -138,21 +140,9 @@ jobs:
           --config '{"bundle":{"createUpdaterArtifacts":true,"macOS":{"signingIdentity":"-"}}}'
       - name: Collect release assets
         shell: bash
-        run: |
-          set -euo pipefail
-          bundle="target/${{ matrix.target }}/release/bundle"
-          mkdir -p dist
-          case "${{ matrix.label }}" in
-            windows-x86_64)
-              cp "$bundle/nsis/Portcove_${VERSION}_x64-setup.exe" "$bundle/nsis/Portcove_${VERSION}_x64-setup.exe.sig" dist/ ;;
-            linux-x86_64)
-              cp "$bundle/appimage/Portcove_${VERSION}_amd64.AppImage" "$bundle/appimage/Portcove_${VERSION}_amd64.AppImage.sig" dist/ ;;
-            macos-universal)
-              cp "$bundle/macos/Portcove.app.tar.gz" "dist/Portcove_${VERSION}_universal.app.tar.gz"
-              cp "$bundle/macos/Portcove.app.tar.gz.sig" "dist/Portcove_${VERSION}_universal.app.tar.gz.sig"
-              cp "$bundle/dmg/Portcove_${VERSION}_universal.dmg" dist/ ;;
-          esac
-          ls -l dist
+        env:
+          TARGET_LABEL: ${{ matrix.label }}
+        run: node scripts/app-release.mts collect-bundles --target-label "$TARGET_LABEL" --version "$VERSION" --dist dist
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-${{ matrix.label }}
@@ -218,7 +208,7 @@ jobs:
       - name: Write the updater feed from the published signatures
         # The feed must match the immutable published bytes, even when this run rebuilt them.
         run: |
-          node scripts/app-release.mts download-signatures --tag "$TAG" --dir published
+          node scripts/app-release.mts download-signatures --tag "$TAG" --dir published --exact-profile
           node scripts/app-release.mts feed --version "$VERSION" --notes-file notes.md \
             --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --assets-dir published \
             --download-base "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG" > latest.json

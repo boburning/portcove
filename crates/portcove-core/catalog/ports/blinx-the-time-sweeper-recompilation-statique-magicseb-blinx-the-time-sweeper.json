@@ -35,6 +35,12 @@
       "image_sha256": "6b255d9d97e014d4c8ace3c76c659d5cc22bdbcbca6167ed893806bdb15e2521",
       "game_slug": "blinx-the-time-sweeper",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "blinx-the-time-sweeper",
+      "evidence_urls": ["https://github.com/magicseb/blinx-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

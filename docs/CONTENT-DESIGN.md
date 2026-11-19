@@ -9,6 +9,17 @@ and limits without creating a new readiness, trust or recovery decision.
 
 ## Start with the player's task
 
+Use the [Plain rules from SimpleEnglish](https://github.com/AminBlg/SimpleEnglish/blob/300432a9e4c473229a7049ab61b8ca2522d9214c/skills/simple-english/SKILL.md)
+when you write or edit documentation. Aim for one action per instruction and
+20 words or fewer per instruction. Aim for 25 words or fewer per sentence in an
+explanation. Put conditions before actions. Name who or what performs each
+action. Define an unfamiliar term before the reader needs it.
+
+Keep exact interface labels, commands, paths, API fields, and quoted messages.
+Use the glossary when words identify different states or guarantees. Preserve
+uncertainty, version limits, and warnings. Keep published release notes and
+dated observations as records of what people knew at the time.
+
 Lead with the situation, then its consequence and next action. Put paths, hashes,
 test environments and engineering evidence in named optional details unless they
 are needed to choose safely. “Why this port?” begins with gameplay, controls,
@@ -170,6 +181,8 @@ authority and effects.
 | **Start setup**                        | Launch is permitted and the game opens into its own first-run setup.                                                                                                              |
 | **Check again** / **Refresh** + object | A failed, unknown or stale read can be refreshed; it reads state and repeats no mutation. Name the object when it is not obvious (“Refresh backup history”, “Check setup again”). |
 | **Repair / Import / Open installer**   | That is the actual operation.                                                                                                                                                     |
+| **Favorite**                           | The player marks a game to return to. Use the same label in Discover, Library and details, and show whether the choice is on.                                                     |
+| **Update notices**                     | The player chooses whether to see new download notices for one port. Show “Update notices on” or “Update notices off” and explain that the choice only shows a notice.            |
 
 Player-facing setup states use these names; internal distinctions stay in
 details. **Setup needed** pairs with **Finish setup**. **Can't check right now**

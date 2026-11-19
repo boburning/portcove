@@ -65,5 +65,13 @@
         "match_kind": "underlying-game"
       }
     ]
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The collection publishes title-specific launchers for multiple Xbox360 games; each selected bundle has its own SOURCE.txt original identity. This umbrella record has no one original-game scope.",
+    "evidence_urls": [
+      "https://github.com/CrownParkComputing/Xbox360-Native-Ports/releases",
+      "https://github.com/CrownParkComputing/Xbox360-Native-Ports"
+    ]
   }
 }

@@ -591,9 +591,6 @@
     max-width: 16px;
     max-height: 16px;
   }
-  .discover-game .collection-save {
-    border-radius: 0.375rem;
-  }
   .collection-art-action:hover {
     color: var(--color-text-on-dark);
     background: var(--color-primary-surface);
@@ -603,9 +600,6 @@
   }
   .collection-favorite[aria-pressed="true"] {
     color: var(--color-card-favorite);
-  }
-  .collection-save[aria-pressed="true"] {
-    color: var(--color-card-saved);
   }
   .collection-art-action[aria-pressed="true"]::after {
     display: none;
@@ -635,9 +629,6 @@
   }
   .collection-row .collection-favorite[aria-pressed="true"] {
     color: var(--color-primary-text);
-  }
-  .discover-rows .collection-save[aria-pressed="true"] {
-    color: var(--color-interactive-text-strong);
   }
   .discover-rows .collection-favorite[aria-pressed="true"] {
     color: var(--color-primary-text);
@@ -904,24 +895,38 @@
 @layer utilities {
   @media (height <= 50rem), (width <= 30rem) {
     .collection-covers
-      > :is(.collection-entry.collection-cover, [data-library-game-id]):only-child {
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):is(
+        [data-collection-singleton="true"],
+        :only-child:not([data-collection-singleton="false"])
+      ) {
       --collection-art-limit: min(40%, clamp(6rem, 20vw, 10rem));
       grid-column: 1 / -1;
       width: min(100%, 26rem);
     }
 
-    .collection-covers > [data-library-game-id]:only-child > .collection-cover {
+    .collection-covers
+      > [data-library-game-id]:is(
+        [data-collection-singleton="true"],
+        :only-child:not([data-collection-singleton="false"])
+      )
+      > .collection-cover {
       width: 100%;
     }
 
     .collection-covers
-      > :is(.collection-entry.collection-cover, [data-library-game-id]):only-child
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):is(
+        [data-collection-singleton="true"],
+        :only-child:not([data-collection-singleton="false"])
+      )
       :is(.collection-identity, .collection-art, .library-entry-footer) {
       width: 100%;
     }
 
     .collection-covers
-      > :is(.collection-entry.collection-cover, [data-library-game-id]):only-child
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):is(
+        [data-collection-singleton="true"],
+        :only-child:not([data-collection-singleton="false"])
+      )
       .collection-identity {
       grid-template-columns: var(--collection-art-limit) minmax(0, 1fr);
       align-items: center;
@@ -929,7 +934,10 @@
     }
 
     .collection-covers
-      > :is(.collection-entry.collection-cover, [data-library-game-id]):only-child
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):is(
+        [data-collection-singleton="true"],
+        :only-child:not([data-collection-singleton="false"])
+      )
       .collection-personal-actions {
       max-inline-size: var(--collection-art-limit);
       gap: var(--space-1);
@@ -937,13 +945,19 @@
     }
 
     .collection-covers
-      > :is(.collection-entry.collection-cover, [data-library-game-id]):only-child
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):is(
+        [data-collection-singleton="true"],
+        :only-child:not([data-collection-singleton="false"])
+      )
       .collection-caption {
       padding-block-start: 0;
     }
 
     .collection-covers
-      > :is(.collection-entry.collection-cover, [data-library-game-id]):only-child
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):is(
+        [data-collection-singleton="true"],
+        :only-child:not([data-collection-singleton="false"])
+      )
       :is(.collection-title, .collection-project, .library-entry-chips) {
       min-block-size: 0;
     }
@@ -956,27 +970,44 @@
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
     }
     .collection-covers
-      > :is(.collection-entry.collection-cover, [data-library-game-id]):not(:only-child) {
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):is(
+        [data-collection-singleton="false"],
+        :not([data-collection-singleton="true"], :only-child)
+      ) {
       --collection-art-limit: min(40%, clamp(6rem, 16vw, 9rem));
       width: min(100%, 26rem);
     }
-    .collection-covers > [data-library-game-id]:not(:only-child) > .collection-cover {
+    .collection-covers
+      > [data-library-game-id]:is(
+        [data-collection-singleton="false"],
+        :not([data-collection-singleton="true"], :only-child)
+      )
+      > .collection-cover {
       width: 100%;
     }
     .collection-covers
-      > :is(.collection-entry.collection-cover, [data-library-game-id]):not(:only-child)
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):is(
+        [data-collection-singleton="false"],
+        :not([data-collection-singleton="true"], :only-child)
+      )
       :is(.collection-identity, .collection-art, .library-entry-footer) {
       width: 100%;
     }
     .collection-covers
-      > :is(.collection-entry.collection-cover, [data-library-game-id]):not(:only-child)
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):is(
+        [data-collection-singleton="false"],
+        :not([data-collection-singleton="true"], :only-child)
+      )
       .collection-identity {
       grid-template-columns: var(--collection-art-limit) minmax(0, 1fr);
       align-items: start;
       gap: var(--space-3);
     }
     .collection-covers
-      > :is(.collection-entry.collection-cover, [data-library-game-id]):not(:only-child)
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):is(
+        [data-collection-singleton="false"],
+        :not([data-collection-singleton="true"], :only-child)
+      )
       .collection-personal-actions {
       max-inline-size: var(--collection-art-limit);
       flex-wrap: wrap;
@@ -984,22 +1015,34 @@
       padding-inline: min(var(--space-2), 1vi);
     }
     .collection-covers
-      > :is(.collection-entry.collection-cover, [data-library-game-id]):not(:only-child)
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):is(
+        [data-collection-singleton="false"],
+        :not([data-collection-singleton="true"], :only-child)
+      )
       .collection-caption {
       padding-block-start: 0;
     }
     .collection-covers
-      > :is(.collection-entry.collection-cover, [data-library-game-id]):not(:only-child)
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):is(
+        [data-collection-singleton="false"],
+        :not([data-collection-singleton="true"], :only-child)
+      )
       :is(.collection-title, .collection-project, .library-entry-chips) {
       min-block-size: 0;
     }
     .collection-covers
-      > :is(.collection-entry.collection-cover, [data-library-game-id]):not(:only-child)
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):is(
+        [data-collection-singleton="false"],
+        :not([data-collection-singleton="true"], :only-child)
+      )
       .collection-title {
       margin-block-start: 0;
     }
     .collection-covers
-      > :is(.collection-entry.collection-cover, [data-library-game-id]):not(:only-child)
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):is(
+        [data-collection-singleton="false"],
+        :not([data-collection-singleton="true"], :only-child)
+      )
       .collection-identity:not(:focus-visible)
       .collection-project {
       display: -webkit-box;
@@ -1151,5 +1194,39 @@
     .collection-cover .library-entry-footer .library-card-action {
       inline-size: 100%;
     }
+  }
+}
+
+/* Bound the DOM by complete visual rows; each row retains the four shared tracks. */
+@layer components {
+  .virtual-discover {
+    position: relative;
+    display: block;
+    overflow-anchor: none;
+  }
+  .virtual-discover-probe {
+    position: absolute;
+    display: grid;
+    inline-size: 100%;
+    block-size: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .virtual-discover-typography {
+    position: absolute;
+    inline-size: 1em;
+    block-size: 1em;
+  }
+  .virtual-discover-row {
+    position: absolute;
+    inset-inline: 0;
+    display: grid;
+    align-items: stretch;
+  }
+  .virtual-discover-row.discover-grid.collection-covers {
+    grid-template-rows: repeat(4, auto);
+  }
+  .virtual-discover-row.collection-rows {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

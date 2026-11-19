@@ -18,6 +18,18 @@
       "game_slug": "battle-arena-toshinden--3",
       "match_kind": "underlying-game"
     },
-    "download_block_reason": "Fresh acquisition of the inspected Battle Arena Toshinden 1.2 ZIP is held: it contains a 512 KiB rom_data object with the BA.TOSHINDEN Game Boy header despite the own-ROM/no-ROM distribution description. A project description or matching package checksum does not establish permission for that embedded game content. Resume with an attributable applicable content/use basis for the exact package, or a reviewed asset-clean publication and supported owned-input route. Existing copies retain their own independent permission and ownership requirements."
+    "download_block_reason": "Fresh acquisition of the inspected Battle Arena Toshinden 1.2 ZIP is held: it contains a 512 KiB rom_data object with the BA.TOSHINDEN Game Boy header despite the own-ROM/no-ROM distribution description. A project description or matching package checksum does not establish permission for that embedded game content. Resume with an attributable applicable content/use basis for the exact package, or a reviewed asset-clean publication and supported owned-input route. Existing copies retain their own independent permission and ownership requirements.",
+    "original_game": {
+      "format_version": 1,
+      "id": "battle-arena-toshinden-game-boy",
+      "evidence_urls": ["https://github.com/omegakatana92/Battle-Arena-Toshinden-GB-Recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Battle Arena Toshinden (Game Boy)"
+  },
+  "original_game_review": {
+    "disposition": "separate",
+    "reason": "The source targets the 2D Game Boy adaptation, distinct in game content and mechanics from the original PlayStation fighting game; source titles alone do not merge them.",
+    "evidence_urls": ["https://github.com/omegakatana92/Battle-Arena-Toshinden-GB-Recomp"]
   }
 }

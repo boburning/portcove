@@ -40,6 +40,24 @@
       ],
       "help_url": "https://github.com/AliveTeam/alive_reversing#readme"
     },
-    "download_block_reason": "Fresh downloads remain held pending an attributable distribution grant for the shipped engine and assets and a supported release package. The current debug packages have publisher checksums. Use an existing copy you are permitted to use."
+    "download_block_reason": "Fresh downloads remain held pending an attributable distribution grant for the shipped engine and assets and a supported release package. The current debug packages have publisher checksums. Use an existing copy you are permitted to use.",
+    "original_game": {
+      "format_version": 1,
+      "id": "oddworld-abes-exoddus",
+      "evidence_urls": [
+        "https://github.com/AliveTeam/alive_reversing#readme",
+        "https://github.com/AliveTeam/alive_reversing"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Oddworld: Abe's Exoddus"
+  },
+  "original_game_review": {
+    "disposition": "separate",
+    "reason": "R.E.L.I.V.E. supports two distinct original games. This entry is explicitly scoped to Abe’s Exoddus; it is not Abe’s Oddysee.",
+    "evidence_urls": [
+      "https://github.com/AliveTeam/alive_reversing#readme",
+      "https://github.com/AliveTeam/alive_reversing"
+    ]
   }
 }

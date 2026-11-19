@@ -37,7 +37,8 @@ const unsupportedByReason: Record<string, string[]> = {
     download_catalog_package export_library_metadata forget_pending_setup
     import_artwork import_library import_source install_application_update install_port logout_github
     move_library open_bug_report open_external_url open_provider_mod_project open_host_tool_official_site submit_report
-    open_manual_setup_folder open_pending_setup_folder open_source_evidence
+    open_manual_setup_folder open_pending_setup_folder open_pending_setup_resource
+    open_catalog_download_release_notes open_source_evidence
     open_source_inbox open_support_report_folder open_user_data
     poll_github_device_login recheck_host_tool
     preserve_mod_file recover_ghostship_legacy_data recover_library_import refresh_game_file_query
@@ -76,7 +77,7 @@ const unsupportedByReason: Record<string, string[]> = {
   "read-only getter that the mounted fixture surfaces do not request, or a user-started flow they do not mount (get_catalog and get_statuses are replaced by get_workspace_snapshot)":
     `
     browse_provider_mods get_provider_project list_mod_setup_revisions list_mod_setup_recovery_builds
-    forecast_installed_update_checks get_catalog get_catalog_media_thumbnail get_default_library_root
+    forecast_installed_update_checks get_catalog get_catalog_media_thumbnail
     get_engine_capabilities get_game_settings get_install_batch get_library_identity
     get_library_memberships get_runtime_diagnostic_health get_sources get_statuses
     list_steam_profiles

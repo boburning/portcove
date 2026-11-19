@@ -209,7 +209,7 @@ export async function runCatalogUpstreams(
 
   const catalogInput = await readBoundedEvidenceFile(
     path.join(root, "crates/portcove-core/catalog/catalog.json"),
-    4 * 1024 * 1024,
+    16 * 1024 * 1024,
   );
   const operational: unknown = JSON.parse(catalogInput.bytes.toString("utf8"));
   const listingInput = await readBoundedEvidenceFile(
@@ -631,7 +631,7 @@ export async function runCatalogOpportunity(
       readBoundedEvidenceFile(path.join(root, "release/upstream-observer.json"), 16384),
       readBoundedEvidenceFile(
         path.join(root, "crates/portcove-core/catalog/catalog.json"),
-        4 * 1024 * 1024,
+        16 * 1024 * 1024,
       ),
       readBoundedEvidenceFile(
         path.join(root, "crates/portcove-core/catalog/listings.json"),

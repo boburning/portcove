@@ -24,6 +24,14 @@
   "collection": {
     "withCount": "<name/> ({{total}})"
   },
+  "comparisonNotice": {
+    "available": "Nueva descarga disponible: {{version}}.",
+    "effect": "Portcove muestra un aviso cuando encuentra una nueva descarga para esta adaptación. No instala nada.",
+    "label": "Avisos de actualización de {{port}}",
+    "markSeen": "Marcar el aviso de actualización como visto",
+    "off": "Avisos de actualización desactivados",
+    "on": "Avisos de actualización activos"
+  },
   "edit": {
     "create": "Crear colección",
     "nameLabel": "Nombre de la colección",
@@ -37,6 +45,17 @@
     "reload": "Volver a cargar las elecciones",
     "write": "Portcove no pudo confirmar los cambios. Se muestran tus últimas elecciones confirmadas."
   },
+  "favorite": {
+    "count_one": "{{count, number}} juego",
+    "count_other": "{{count, number}} juegos",
+    "countUnavailable": "no disponible",
+    "favorite": "Favorito",
+    "label": "Marcar {{game}} como favorito",
+    "removeTitle": "Quitar de favoritos",
+    "retry": "Volver a comprobar los favoritos",
+    "title": "Añadir a favoritos",
+    "unconfirmed": "Portcove no pudo confirmar tus favoritos. Vuelve a intentarlo para comprobar qué se guardó."
+  },
   "group": {
     "discover": "Colecciones de Descubrir",
     "library": "Colecciones de la Biblioteca"
@@ -44,13 +63,6 @@
   "menu": {
     "hide": "Ocultar de la Biblioteca",
     "show": "Mostrar en la Biblioteca"
-  },
-  "save": {
-    "label": "Guardar {{game}} para más tarde",
-    "removeTitle": "Quitar juego guardado",
-    "save": "Guardar",
-    "saved": "Guardado",
-    "title": "Guardar para más tarde"
   },
   "sidebar": {
     "collectionLabel": "Colección: {{name}}",
@@ -71,8 +83,8 @@
   },
   "view": {
     "all": "Todos los juegos",
-    "followed": "Seguidos",
+    "followed": "Con avisos de actualización",
     "hidden": "Ocultos",
-    "saved": "Guardados"
+    "saved": "Favoritos"
   }
 }

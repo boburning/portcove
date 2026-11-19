@@ -55,10 +55,16 @@
         }
       ]
     },
-    "download_asset_hints": {
-      "windows-x86-64": ["crispy-doom-", "-win64.zip"]
-    },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "doom-ii",
+      "evidence_urls": [
+        "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
+        "https://github.com/fabiangreffrath/crispy-doom"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -183,5 +189,6 @@
       "DOOMWADDIR": "originals"
     },
     "windows_temp_directory": "temp"
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

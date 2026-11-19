@@ -16,7 +16,16 @@
       "game_slug": "spaghettikart",
       "match_kind": "port"
     },
-    "issue_number": 60
+    "issue_number": 60,
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-kart-64",
+      "evidence_urls": [
+        "https://github.com/HarbourMasters/SpaghettiKart/blob/ce0f9358f0505bbdeb76b1aff7a25556cda3fdef/README.md",
+        "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/README.md"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "stable",

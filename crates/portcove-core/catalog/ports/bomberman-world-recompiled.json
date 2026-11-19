@@ -26,7 +26,13 @@
       "game_slug": "bomberman-world",
       "match_kind": "underlying-game"
     },
-    "issue_number": 75
+    "issue_number": 75,
+    "original_game": {
+      "format_version": 1,
+      "id": "bomberman-world",
+      "evidence_urls": ["https://github.com/TechnicallyComputers/Bomberman-World-Recomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

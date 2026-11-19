@@ -20,8 +20,6 @@
     "release_url": "https://github.com/mcsoderh/BodyHarvestRecomp/releases",
     "original_game_title": "Body Harvest",
     "download_asset_hints": {
-      "windows-x86-64": ["BodyHarvestRecompiled-", "-Windows.zip"],
-      "linux-x86-64": ["BodyHarvestRecompiled-", "-Linux-X64.tar.gz"],
       "macos-x86-64": ["BodyHarvestRecompiled-", "-macOS.zip"],
       "macos-aarch64": ["BodyHarvestRecompiled-", "-macOS.zip"]
     },
@@ -48,8 +46,27 @@
         }
       ]
     },
-    "platforms": ["macos-x86-64", "macos-aarch64"]
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "body-harvest",
+      "evidence_urls": [
+        "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md",
+        "https://github.com/mcsoderh/BodyHarvestRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "body-harvest-nintendo-64",
+          "title": "Body Harvest (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md"
+          ]
+        }
+      ]
+    }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

@@ -45,6 +45,16 @@
       "warnings": [
         "Select the prepared earthworm_jim_hd.exe, retain game/ and the actual user root shown upstream. Complete setup, required restarts and updates separately; do not infer another game’s save location or qualification."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "earthworm-jim-hd",
+      "evidence_urls": [
+        "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled/blob/a0203ce6287e305cf0eef4e97f3c598cc6d953ab/README.md",
+        "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Earthworm Jim HD"
   }
 }

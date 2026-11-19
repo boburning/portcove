@@ -41,7 +41,7 @@
       ],
       "warnings": [
         "The publisher player can register a Discord link handler on startup. Installation, updates and user data stay with the upstream package or your own copy.",
-        "The packaged notices omit credits for some bundled engine assets. See the publisher\u2019s Legalese section for those credits."
+        "The packaged notices omit credits for some bundled engine assets. See the publisher’s Legalese section for those credits."
       ],
       "help_url": "https://github.com/MrAlaux/Nugget-Doom/blob/nugget-doom-6.1.0/README.md#legalese",
       "references": [
@@ -69,5 +69,13 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The authored source/setup scope explicitly permits Doom or Freedoom originals, with per-IWAD game/save choices. This broad engine record is not scoped to one original game.",
+    "evidence_urls": [
+      "https://github.com/MrAlaux/Nugget-Doom/blob/nugget-doom-6.1.0/README.md#legalese",
+      "https://github.com/MrAlaux/Nugget-Doom"
+    ]
   }
 }

@@ -35,6 +35,12 @@
       "image_sha256": "395ec67ddfa8865add714babc05e7f400176918480431acde75a672e259195d4",
       "game_slug": "mirror-s-edge",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mirrors-edge-xbox-360",
+      "evidence_urls": ["https://github.com/singlemate/RunnerRecompiled"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

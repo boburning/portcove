@@ -51,7 +51,16 @@
         }
       ]
     },
-    "download_block_reason": "New downloads are waiting for attributable permission covering the selected Windows package and its included translated original-game code. Upstream explicitly distinguishes that included game code from the engine/project source; a project or engine license does not by itself establish its distribution grant. Reconsider on an attributable applicable grant or a separately reviewed supported owned-input preparation/package that excludes that unresolved material."
+    "download_block_reason": "New downloads are waiting for attributable permission covering the selected Windows package and its included translated original-game code. Upstream explicitly distinguishes that included game code from the engine/project source; a project or engine license does not by itself establish its distribution grant. Reconsider on an attributable applicable grant or a separately reviewed supported owned-input preparation/package that excludes that unresolved material.",
+    "original_game": {
+      "format_version": 1,
+      "id": "eternal-darkness-sanity-s-requiem",
+      "evidence_urls": [
+        "https://github.com/griches/EternalDarknessRecomp",
+        "https://github.com/griches/EternalDarknessRecomp/blob/1cb3fe676bacbff321f195079398fb8f4c017982/tools/win/README.txt"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

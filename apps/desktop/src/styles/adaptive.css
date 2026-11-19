@@ -515,7 +515,7 @@
     background: var(--color-bg-hover);
   }
   :is([aria-label="Library quick views"], [aria-label="Discover collections"]) {
-    gap: 24px;
+    gap: 8px 24px;
   }
   :is([aria-label="Library quick views"], [aria-label="Discover collections"]) > button {
     min-block-size: 44px;

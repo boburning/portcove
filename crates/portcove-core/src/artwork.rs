@@ -374,7 +374,7 @@ impl PortcoveService {
         // User-owned registrations and unfinished setup retain their display
         // identity independently of whether a newer directory still lists it.
         // Their validated snapshots grant no managed lifecycle authority.
-        let mut budget = 8 * 1024 * 1024;
+        let mut budget = crate::library::MAX_RETAINED_REGISTRATION_BYTES;
         if let Some((_, retained)) = self
             .library()
             .external_runtime_with_port_bounded(port_id, &mut budget)?

@@ -52,13 +52,21 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["colony-wars-", "-windows-x64.zip"],
-      "linux-x86-64": ["colony-wars-", "-linux-x64.zip"],
       "macos-x86-64": ["colony-wars-", "-macos-x64.zip"],
       "macos-aarch64": ["colony-wars-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "colony-wars",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp"
+      ],
+      "source_editions": []
+    }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

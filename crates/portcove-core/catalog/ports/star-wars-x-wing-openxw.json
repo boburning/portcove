@@ -53,6 +53,15 @@
     "download_asset_hints": {
       "linux-x86-64": ["-linux-x86_64-release.tar.xz"],
       "macos-aarch64": ["-macos-arm64-release.dmg"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-x-wing",
+      "evidence_urls": [
+        "https://github.com/elyosh/OpenXW/blob/6ab86085a8285eb8dd12637c2bb81164dc234ff4/README.md",
+        "https://github.com/elyosh/OpenXW"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

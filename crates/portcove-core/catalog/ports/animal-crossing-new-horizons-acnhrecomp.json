@@ -3,7 +3,7 @@
   "listing": {
     "id": "animal-crossing-new-horizons-acnhrecomp",
     "name": "Animal Crossing: New Horizons (ACNHRecomp)",
-    "summary": "Build Animal Crossing: New Horizons locally from your own Switch game and 3.0.2 update. The project reports reaching the island and walking around on Ubuntu Linux. Saving and a full day of play remain unconfirmed, and online play is unavailable.",
+    "summary": "Prepare your own Animal Crossing: New Horizons game and supported update in the experimental ACNHRecomp launcher. Upstream publishes Windows x64, Linux x64 and Apple silicon packages and a separate Android APK. Earlier Ubuntu testing reached the island. Saving, a full day of play and online play remain unverified by Portcove.",
     "original_game_title": "Animal Crossing: New Horizons",
     "project_url": "https://github.com/Nycolazs/ACNHRecomp",
     "listed_at": "2026-10-25",
@@ -12,9 +12,9 @@
       "https://ko-fi.com/nycolazs",
       "https://buymeacoffee.com/nycolazs"
     ],
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Nycolazs/ACNHRecomp",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/Nycolazs/ACNHRecomp/releases/tag/v0.11.0",
     "artwork": {
       "game_id": 109462,
       "cover_id": 182224,
@@ -24,25 +24,41 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2957,
+    "release_url": "https://github.com/Nycolazs/ACNHRecomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["ACNHRecomp-", "-windows-x64.zip"],
+      "linux-x86-64": ["ACNHRecomp-", "-linux-x64.tar.gz"],
+      "macos-aarch64": ["ACNHRecomp-", "-macOS-arm64.zip"]
+    },
     "manual_setup": {
-      "help_url": "https://github.com/Nycolazs/ACNHRecomp",
+      "help_url": "https://github.com/Nycolazs/ACNHRecomp/releases/tag/v0.11.0",
       "steps": [
         {
-          "title": "Check your original game files",
-          "instruction": "Use your own base NSP and 3.0.2 update NSP for title 01006F8002326000, plus prod.keys. The project recommends title.keys and accepts optional owned DLC. Its guide requires no separate firmware folder."
+          "title": "Extract the original game files",
+          "instruction": "Use your own copy of Animal Crossing: New Horizons with update 3.0.3. Following the v0.11.0 release instructions, extract the game’s ExeFS and RomFS for the launcher. Keep the working inputs separate from your original copy."
         },
         {
-          "title": "Follow the project’s setup",
-          "instruction": "Follow the project’s Linux launcher or shell setup. It imports the game and builds locally. On Windows the setup requires WSL2, Linux or a Mac. There is no released player or native Windows build pipeline."
+          "title": "Prepare the selected desktop player",
+          "instruction": "Open the launcher from the package for your computer, choose Prepare the game from your extracted files, and select the files, a writable game folder and its target platforms. Let the launcher finish building before choosing Play."
+        },
+        {
+          "title": "Prepare the Android copy",
+          "instruction": "Use the Android APK and select a game folder with the extracted exefs and romfs directories, or choose Android as a target on your computer and copy the prepared folder to the phone."
+        },
+        {
+          "title": "Keep your saves",
+          "instruction": "Keep the user folder inside the game folder or use the upstream save backup before replacing the player."
         }
       ],
-      "warnings": [],
-      "references": [
-        {
-          "title": "Version and platform notes",
-          "instruction": "The reported Ubuntu x64 test used Iris Xe at 30 FPS. Forcing 60 FPS doubles game speed. Apple silicon scripts are untested and Android is unsupported."
-        }
+      "warnings": [
+        "The publisher describes the v0.11.0 preparation tests as using synthetic input. Game dumps, saves, graphics drivers and gameplay can still behave differently. Portcove has not qualified setup or gameplay."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "animal-crossing-new-horizons",
+      "evidence_urls": ["https://github.com/Nycolazs/ACNHRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

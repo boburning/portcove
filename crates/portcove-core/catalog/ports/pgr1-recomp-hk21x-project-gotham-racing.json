@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/hk21x/pgr1-recomp"
     },
-    "issue_number": 3573
+    "issue_number": 3573,
+    "original_game": {
+      "format_version": 1,
+      "id": "project-gotham-racing",
+      "evidence_urls": ["https://github.com/hk21x/pgr1-recomp"],
+      "source_editions": [
+        {
+          "id": "project-gotham-racing-xbox",
+          "title": "Project Gotham Racing (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/hk21x/pgr1-recomp/blob/ce110e2c441a5e128a98a57dfe6b5d582c619a03/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

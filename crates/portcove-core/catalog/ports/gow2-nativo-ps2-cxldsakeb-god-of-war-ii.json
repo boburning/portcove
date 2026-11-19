@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/cxldsakeb/GoW2-nativo-PS2"
     },
-    "issue_number": 3051
+    "issue_number": 3051,
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war-ii",
+      "evidence_urls": ["https://github.com/cxldsakeb/GoW2-nativo-PS2"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

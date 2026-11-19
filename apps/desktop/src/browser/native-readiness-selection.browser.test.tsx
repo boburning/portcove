@@ -26,7 +26,9 @@ async function mount(width: number) {
       <App />
     </LocalizationProvider>,
   );
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await expect
+    .poll(() => document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize"))
+    .toBe("12");
   return page.getByRole("radiogroup", { name: "Library quick views" }).element();
 }
 
@@ -63,14 +65,14 @@ for (const width of [640, 1600]) {
     await expect.element(picker).toBeVisible();
     await picker.click();
     const listId = picker.element().getAttribute("aria-controls")!;
-    await page.getByRole("option", { name: /^Ready \(/ }).click();
+    await page.getByRole("option", { name: /^Ready to play \(/ }).click();
     await expect.element(picker).toHaveAttribute("aria-expanded", "false");
     await expect.poll(() => readinessClosed(listId)).toBe(true);
     expect(document.querySelectorAll(".collection-entry").length).toBeLessThan(12);
     await openDetails();
     await page.getByRole("button", { name: /^Back to (Library|Discover)$/ }).click();
     await openAdvancedFilters();
-    await expect.element(picker).toHaveAccessibleName(/^Readiness Ready \(\d+\)$/);
+    await expect.element(picker).toHaveAccessibleName(/^Readiness Ready to play \(\d+\)$/);
     picker.element().focus();
     await expect.element(picker).toHaveFocus();
     await userEvent.keyboard("{Enter}");

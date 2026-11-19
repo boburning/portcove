@@ -57,6 +57,24 @@
           "instruction": "Use Building from source in the upstream guide. It lists CMake 3.25+, Ninja, a C11 compiler, Python with Capstone, SDL3, FFmpeg, system libcurl and ds-decomp 0.12.1. Follow the region-specific extraction and build instructions with your own original."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "chrono-trigger",
+      "evidence_urls": [
+        "https://github.com/power-pudu/egg-of-time#readme",
+        "https://github.com/power-pudu/egg-of-time"
+      ],
+      "source_editions": [
+        {
+          "id": "chrono-trigger-nintendo-ds",
+          "title": "Chrono Trigger (Nintendo DS)",
+          "system": "nintendo-ds",
+          "evidence_urls": [
+            "https://github.com/power-pudu/egg-of-time/blob/ed0b61101f3e18cefc5bee9894717dd480747964/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

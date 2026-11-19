@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/m1ndcrap/Captain-America-Super-Soldier-Recompiled"
     },
-    "issue_number": 3305
+    "issue_number": 3305,
+    "original_game": {
+      "format_version": 1,
+      "id": "captain-america-super-soldier",
+      "evidence_urls": ["https://github.com/m1ndcrap/Captain-America-Super-Soldier-Recompiled"],
+      "source_editions": [
+        {
+          "id": "captain-america-super-soldier-xbox-360",
+          "title": "Captain America: Super Soldier (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/m1ndcrap/Captain-America-Super-Soldier-Recompiled/blob/362f6c305f20ae98645540b9a28e4b0433e7952e/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

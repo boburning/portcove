@@ -38,6 +38,12 @@
           "instruction": "The project reports sound and Mii creation on Mac, with input problems in later scenes. An iPad Air M2 running iPadOS 27 has limited startup evidence. The iPhone build has no play report. There is no release package."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tomodachi-life-living-the-dream",
+      "evidence_urls": ["https://github.com/kuosuko/tomodachi-native"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
