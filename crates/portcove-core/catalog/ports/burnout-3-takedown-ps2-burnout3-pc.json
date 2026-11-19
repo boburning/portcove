@@ -6,8 +6,8 @@
     "summary": "Register the completed Burnout3 PC Windows player for your own NTSC-U PS2 disc and preserve its local card, settings and mods.",
     "original_game_title": "Burnout 3: Takedown",
     "project_url": "https://github.com/danielgomesvieira2000/burnout3-pc",
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/danielgomesvieira2000/burnout3-pc",
     "artwork": {
       "game_id": 5761,
@@ -48,9 +48,19 @@
         {
           "title": "Use permitted content and check this release’s limits",
           "instruction": "Retain the project and engine MIT notices plus each bundled component’s separate notices. Their grants cover their own code, not Electronic Arts game code or assets; original-game rights and any third-party texture or music permissions remain separate. This alpha’s upstream gameplay and device claims are not Portcove observations. This guide offers local existing-copy launch; it does not qualify LAN, VPN, online accounts, network setup, managed preparation or protected publication."
+        },
+        {
+          "title": "Set up the experimental Linux player",
+          "instruction": "Use glibc 2.35 or later, X11 or Wayland, and a Vulkan 1.1 driver. Keep burnout3-sse4 beside the main program for CPUs without AVX2. Start ./burnout3 from the writable extracted folder and select your own NTSC-U SLUS-21050 ISO. The program remembers the path. If the file picker is unavailable, use --disc with your ISO path. Preserve saves and settings beside the executable or in ~/.local/share/burnout3 when the package folder is read-only."
         }
       ]
     },
+    "release_url": "https://github.com/danielgomesvieira2000/burnout3-pc/releases/tag/v0.9.0-alpha",
+    "download_asset_hints": {
+      "windows-x86-64": ["Burnout3-PC-", "windows-x64.zip"],
+      "linux-x86-64": ["Burnout3-PC-", "linux-x64.tar.gz"]
+    },
+    "recommended_download_channel": "beta",
     "original_game": {
       "format_version": 1,
       "id": "burnout-3-takedown",

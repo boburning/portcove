@@ -13,11 +13,11 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Use your own RMHP08 .iso or .rvz. Select or extract the image using the runtime setup. Original assets are still needed; upstream says its downloads do not contain the game."
+          "instruction": "Use your own supported RMHP08 ISO or RVZ. Select or extract the image using the upstream setup from a copy you are permitted to use."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "README declares author-published compiled releases and v1.9.0; use the official runtime package and supply the owned image in its setup. Source alternative: CMake 3.22+, Ninja and C++20 Clang or Visual Studio 2022. Setup is not described as recompiling the game locally."
+          "instruction": "Upstream documents source preparation with CMake 3.22 or later, Ninja and a C++20 Clang or Visual Studio 2022 toolchain. Follow the project guide for the setup and files required by your copy."
         }
       ],
       "warnings": [
@@ -36,6 +36,7 @@
       "game_slug": "monster-hunter-tri",
       "match_kind": "underlying-game"
     },
+    "download_block_reason": "The v1.9.5 Windows ZIP includes original Monster Hunter Tri Wii disc files, including the RMHP08 boot header and main.dol. Portcove downloads are paused until a clean upstream package is reviewed.",
     "original_game": {
       "format_version": 1,
       "id": "monster-hunter-tri",

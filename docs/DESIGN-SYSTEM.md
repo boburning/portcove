@@ -647,6 +647,10 @@ group before focus restoration. Accepted background reordering retains the logic
 reading anchor and exact focused control within the same query and generation;
 a newer player intent cancels restoration. Pending actions can retain focus while
 refusing activation. Saved membership never implies installation.
+A Library overflow menu belongs to the exact port supplying its group's card
+actions. Retire it when that port is no longer the action target in the logical
+results, including after a collection membership change. Returning to an earlier
+view must not reopen the menu or revive its focus return.
 Singleton styling follows the logical result count, including a final partial
 virtual row, and both layouts keep their existing responsive sizing rules.
 
