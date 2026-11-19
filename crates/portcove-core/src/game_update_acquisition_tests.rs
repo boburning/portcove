@@ -431,6 +431,136 @@ async fn grant(service: &PortcoveService) -> crate::DestructiveAuthorization {
 fn acquisition_event(event: OperationEvent) {
     eprintln!("acquisition fixture event: {event:?}");
 }
+
+#[tokio::test]
+async fn desktop_archive_acquisition_replays_the_saved_native_variant() {
+    struct VariantProvider {
+        release: ResolvedRelease,
+        expected: crate::ManagedPackageVariant,
+        resolutions: Arc<AtomicU8>,
+    }
+    #[async_trait::async_trait]
+    impl ReleaseProvider for VariantProvider {
+        async fn resolve(
+            &self,
+            _: &PortDefinition,
+            _: ReleaseChannel,
+            _: Platform,
+        ) -> Result<ResolvedRelease> {
+            Err(PortcoveError::conflict(
+                "ordinary selection has two eligible packages",
+            ))
+        }
+
+        async fn resolve_saved_variant(
+            &self,
+            port: &PortDefinition,
+            channel: ReleaseChannel,
+            platform: Platform,
+            _: Option<&crate::DefinitionAcquisitionScope>,
+            variant: &crate::ManagedPackageVariant,
+        ) -> Result<crate::ScopedResolvedRelease> {
+            assert_eq!(variant, &self.expected);
+            self.resolutions.fetch_add(1, Ordering::SeqCst);
+            crate::ScopedResolvedRelease::legacy(self.release.clone())
+                .for_selection(port, platform, channel)
+        }
+    }
+
+    let platform = Platform::current().unwrap();
+    let platform_name = serde_json::to_value(platform).unwrap();
+    let suffix = format!("-{}.zip", platform_name.as_str().unwrap());
+    let mut document = catalog().authoritative_document();
+    document.ports[0]
+        .release
+        .asset_hints
+        .insert(platform, vec!["fixture-hd-".into(), suffix.clone()]);
+    let catalog = Catalog::from_document(document).unwrap();
+    let (_temporary, mut service, server) = fixture_with_catalog(false, false, catalog);
+    let port = service.catalog.port(PORT).unwrap();
+    let mut active = service.status(PORT).unwrap().active.unwrap();
+    active.version = "v1.0.0".into();
+    active.artifact.asset_name = format!("fixture-hd-1.0.0{suffix}");
+    let old = ResolvedRelease {
+        version: active.version.clone(),
+        channel: active.channel,
+        published_at: None,
+        asset: ReleaseAsset {
+            name: active.artifact.asset_name.clone(),
+            url: "https://github.com/fixture/game/releases/download/v1.0.0/previous.zip".into(),
+            size: active.artifact.size,
+            sha256: active.artifact.sha256.clone(),
+        },
+        uploader_continuity: None,
+    };
+    let mut resolution = crate::ScopedResolvedRelease::legacy(old)
+        .for_selection(port, platform, active.channel)
+        .unwrap();
+    resolution.github_identity = Some(crate::definition_acquisition::GithubArtifactIdentity {
+        repository: "fixture/game".into(),
+        repository_id: 8,
+        release_id: 11,
+        asset_id: 31,
+        tag: active.version.clone(),
+    });
+    let variant = crate::ManagedPackageVariant::from_review(port, platform, &resolution).unwrap();
+    resolution.saved_variant = Some(variant.clone());
+    let qualification = InstallQualification::from_catalog(&service.catalog, PORT, platform)
+        .unwrap()
+        .with_acquisition_resolution(resolution)
+        .unwrap();
+    let (hash, _, _) = Installer::new(service.library.clone())
+        .unwrap()
+        .create_manifest(
+            &active.id,
+            PORT,
+            &active.version,
+            &active.artifact,
+            &qualification,
+            &active.path,
+        )
+        .unwrap();
+    active.manifest_sha256 = hash;
+    service.library.register_install(&active, true).unwrap();
+
+    let bytes = archive();
+    let offered = ResolvedRelease {
+        version: "v2.0.0".into(),
+        channel: active.channel,
+        published_at: None,
+        asset: ReleaseAsset {
+            name: format!("fixture-hd-2.0.0{suffix}"),
+            url: server.url.clone(),
+            size: bytes.len() as u64,
+            sha256: crate::signed_catalog::digest(&bytes),
+        },
+        uploader_continuity: None,
+    };
+    let resolutions = Arc::new(AtomicU8::new(0));
+    service.releases = Arc::new(VariantProvider {
+        release: offered.clone(),
+        expected: variant,
+        resolutions: resolutions.clone(),
+    });
+    let authorization = grant(&service).await;
+    let acquired = service
+        .acquire_game_update(PORT, &authorization.token, |_| {})
+        .await
+        .unwrap();
+    assert_eq!(acquired.phase, Phase::Acquired);
+    assert_eq!(acquired.release, offered);
+    assert_eq!(resolutions.load(Ordering::SeqCst), 4);
+    assert_eq!(
+        service
+            .status(PORT)
+            .unwrap()
+            .active
+            .unwrap()
+            .manifest_sha256,
+        active.manifest_sha256
+    );
+}
+
 async fn arrived(
     server: &Server,
     transfer: &mut tokio::task::JoinHandle<Result<GameUpdateAcquisition>>,

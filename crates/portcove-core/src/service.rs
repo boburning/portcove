@@ -2861,8 +2861,13 @@ impl PortcoveService {
         status
             .active
             .as_ref()
-            .or(status.staged.as_ref())
             .filter(|install| install.channel == channel)
+            .or_else(|| {
+                status
+                    .staged
+                    .as_ref()
+                    .filter(|install| install.channel == channel)
+            })
             .map(crate::install::recorded_package_variant)
             .transpose()
             .map(Option::flatten)
