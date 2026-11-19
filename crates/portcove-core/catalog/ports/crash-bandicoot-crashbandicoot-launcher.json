@@ -8,9 +8,14 @@
     "issue_number": 385,
     "listed_at": "2026-10-23",
     "funding_urls": ["https://ko-fi.com/V7V61GBYAX", "https://wallfinch.com/"],
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Matteo842/CrashBandicoot-Launcher",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "download_asset_hints": {
+      "windows-x86-64": ["CrashBandicoot.exe"],
+      "linux-x86-64": ["CrashBandicoot-Linux"]
+    },
+    "release_url": "https://github.com/Matteo842/CrashBandicoot-Launcher/releases/tag/2.6",
+    "setup_url": "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/2.6/README.md",
     "original_game_title": "Crash Bandicoot",
     "manual_setup": {
       "help_url": "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/edc2771064132975a1870bfb7cfccceb7fbdf1ee/README.md",
@@ -42,6 +47,14 @@
         {
           "title": "Preserve all creating runtime and player files",
           "instruction": "Keep the whole actual copy and original: settings.json/CdPath, interface.ini, save/carda.sav and cardb.sav, save/states/slotN.state and companions, game/<fingerprint> source/DLL/manifest, mods/.cache/custom assets, examples, catalog, captures, logs and every unknown/custom path. Windows roots data beside the real executable, not its single-file extraction TEMP directory; changing initial CWD is not a profile redirect. Upstream may move legacy root cards into save when destination is absent and seed/refresh stock mods; this is not Core migration. Keep old state with its creating runtime. Removing registration removes only metadata and preserves all external bytes."
+        },
+        {
+          "title": "Prepare and play with the 2.6 desktop release",
+          "instruction": "Choose the Windows or Linux executable for your processor. On Linux, mark the downloaded file executable. Open the launcher, select your own supported NTSC-U disc, then choose Start Game to prepare the player. For direct play later, the upstream --run option reuses a valid disc path saved in settings.json. Open the normal launcher to change settings. Keep the disc in place for streamed levels and audio."
+        },
+        {
+          "title": "Keep the 2.6 profile or choose another platform",
+          "instruction": "On desktop, saves are in save beside the program, with settings.json and the prepared game beside it. Back up that profile before replacing the program. The project also publishes native Windows ARM64 and Linux ARM64 files and an Android ARM64 APK. Follow the upstream release instructions for those copies. These package facts do not extend the prepared 2.3.1 registration guide above."
         }
       ]
     },
@@ -52,6 +65,24 @@
       "image_sha256": "c540e5f90bcc619f80f45c5cd074773bdb0a007e99af18ef7f56498d77a38f7d",
       "game_slug": "crash-bandicoot",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-bandicoot",
+      "evidence_urls": [
+        "https://github.com/Matteo842/CrashBandicoot-Launcher",
+        "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/edc2771064132975a1870bfb7cfccceb7fbdf1ee/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "crash-bandicoot-playstation",
+          "title": "Crash Bandicoot (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/6c3fd658935846e24cdfaee7f0091df4816d7149/README.md"
+          ]
+        }
+      ]
     }
   }
 }

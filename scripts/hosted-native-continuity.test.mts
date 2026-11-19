@@ -99,13 +99,10 @@ void test("standalone runtime source keeps its real gate closed and preserves ex
     controlled = controlled.replaceAll(before, after);
   }
   const source = path.join(root, "source.ps1"),
-    floor = path.join(root, "runtime_support.rs"),
+    floor = path.join(root, "tauri.conf.json"),
     wrapper = path.join(root, "control.ps1");
   await writeFile(source, controlled);
-  await copyFile(
-    new URL("../apps/desktop/src-tauri/src/runtime_support.rs", import.meta.url),
-    floor,
-  );
+  await copyFile(new URL("../apps/desktop/src-tauri/tauri.conf.json", import.meta.url), floor);
   await writeFile(
     wrapper,
     String.raw`param([string]$Source,[string]$Floor,[string]$Root)
@@ -188,8 +185,8 @@ $rows=@(foreach($mode in @('held','valid','foreign-host','second-redirect','decl
  $global:fixtureInstalled=$false;$global:fixtureStarts=0;$global:fixtureSignatures=0
  $directory=Join-Path $Root $mode
  New-Item -ItemType Directory -Path (Join-Path $directory 'scripts') -Force|Out-Null
- New-Item -ItemType Directory -Path (Join-Path $directory 'apps/desktop/src-tauri/src') -Force|Out-Null
- Copy-Item -LiteralPath $Floor -Destination (Join-Path $directory 'apps/desktop/src-tauri/src/runtime_support.rs')
+ New-Item -ItemType Directory -Path (Join-Path $directory 'apps/desktop/src-tauri') -Force|Out-Null
+ Copy-Item -LiteralPath $Floor -Destination (Join-Path $directory 'apps/desktop/src-tauri/tauri.conf.json')
  $text=[IO.File]::ReadAllText($Source)
  if($mode -ne 'held') {$text=$text.Replace('$taskStandaloneExecutionAuthorized = $false','$taskStandaloneExecutionAuthorized = $true')}
  $inputHelper=Join-Path $directory 'scripts/prepare-hosted-windows-runtime.ps1'
@@ -374,6 +371,41 @@ void test("hosted runtime gate retains the shipping floor and rejects absent, ma
     });
   }
 });
+void test("a changed bundle setting moves the hosted Windows prerequisite", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-bundle-floor-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const scripts = path.join(root, "scripts");
+  const config = path.join(root, "apps/desktop/src-tauri");
+  await mkdir(scripts);
+  await mkdir(config, { recursive: true });
+  const copy = path.join(scripts, "prepare-hosted-windows-runtime.ps1");
+  await copyFile(helper, copy);
+  const changedConfig = new URL("./fixtures/changed-webview2-tauri.conf.json", import.meta.url);
+  const configDocument: unknown = JSON.parse(await readFile(changedConfig, "utf8"));
+  assert(isRecord(configDocument) && isRecord(configDocument.bundle));
+  assert(isRecord(configDocument.bundle.windows));
+  const minimum = configDocument.bundle.windows.minimumWebview2Version;
+  assert(typeof minimum === "string");
+  await copyFile(changedConfig, path.join(config, "tauri.conf.json"));
+  for (const [actual, eligible] of [
+    ["156.2.3.3", false],
+    [minimum, true],
+    ["156.2.3.5", true],
+    ["9999999999.2.3.5", false],
+  ] as const) {
+    const result = spawnSync("pwsh", ["-NoProfile", "-File", copy, "-InspectVersion", actual], {
+      encoding: "utf8",
+      timeout: 15000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), {
+      scope: "declared-version-only; no host observation or installation",
+      minimum,
+      eligible,
+    });
+  }
+});
+
 void test("owner-host invocation refuses before any runtime installation", () => {
   const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", helper], {
     encoding: "utf8",
@@ -412,12 +444,12 @@ void test(
       const root = await mkdtemp(path.join(os.tmpdir(), "portcove-hosted-runtime-test-"));
       t.after(() => rm(root, { recursive: true, force: true }));
       await mkdir(path.join(root, "scripts"));
-      await mkdir(path.join(root, "apps/desktop/src-tauri/src"), { recursive: true });
+      await mkdir(path.join(root, "apps/desktop/src-tauri"), { recursive: true });
       const copiedHelper = path.join(root, "scripts/prepare-hosted-windows-runtime.ps1");
       await copyFile(helper, copiedHelper);
       await copyFile(
-        new URL("../apps/desktop/src-tauri/src/runtime_support.rs", import.meta.url),
-        path.join(root, "apps/desktop/src-tauri/src/runtime_support.rs"),
+        new URL("../apps/desktop/src-tauri/tauri.conf.json", import.meta.url),
+        path.join(root, "apps/desktop/src-tauri/tauri.conf.json"),
       );
       const wrapper = path.join(root, "run.ps1");
       await writeFile(
@@ -520,14 +552,14 @@ void test("ordinary Windows tool fixture binds the checked-out head before runti
   ]) {
     const directory = path.join(root, mode);
     await mkdir(path.join(directory, "scripts"), { recursive: true });
-    await mkdir(path.join(directory, "apps/desktop/src-tauri/src"), { recursive: true });
+    await mkdir(path.join(directory, "apps/desktop/src-tauri"), { recursive: true });
     const source = path.join(directory, "scripts/prepare-hosted-windows-runtime.ps1");
     // Only this private copy changes host observation; git/registry/process peers
     // are inert. Actual source, workflow, first effects and receipt logic run.
     await writeFile(source, original.replace("if (-not $IsWindows -or", "if (-not $true -or"));
     await copyFile(
-      new URL("../apps/desktop/src-tauri/src/runtime_support.rs", import.meta.url),
-      path.join(directory, "apps/desktop/src-tauri/src/runtime_support.rs"),
+      new URL("../apps/desktop/src-tauri/tauri.conf.json", import.meta.url),
+      path.join(directory, "apps/desktop/src-tauri/tauri.conf.json"),
     );
     const wrapper = path.join(directory, "control.ps1");
     await writeFile(
@@ -600,7 +632,7 @@ void test("Windows tool fixture prepares the ordinary supported runtime before i
     assert.ok(isRecord(value) && Array.isArray(value.paths));
     for (const file of [
       "scripts/prepare-hosted-windows-runtime.ps1",
-      "apps/desktop/src-tauri/src/runtime_support.rs",
+      "apps/desktop/src-tauri/tauri.conf.json",
     ])
       assert.ok(value.paths.includes(file));
   }

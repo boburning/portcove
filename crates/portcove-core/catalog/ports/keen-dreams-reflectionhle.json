@@ -52,8 +52,14 @@
         }
       ]
     },
-    "download_asset_hints": {
-      "windows-x86-64": ["reflectionhle-win64-", ".zip"]
+    "original_game": {
+      "format_version": 1,
+      "id": "keen-dreams",
+      "evidence_urls": [
+        "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
+        "https://github.com/ReflectionHLE/ReflectionHLE"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
@@ -232,5 +238,6 @@
         "executables": ["reflectionhle.app/contents/macos/reflectionhle"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

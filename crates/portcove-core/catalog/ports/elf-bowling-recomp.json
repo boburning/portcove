@@ -47,6 +47,16 @@
       "warnings": [
         "The project has not published a license for its engine source. The original game is supplied separately."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "elf-bowling",
+      "evidence_urls": [
+        "https://github.com/AdamLovattDevOps/elfbowling-recomp/blob/v1.1/README.md#quick-start",
+        "https://github.com/AdamLovattDevOps/elfbowling-recomp/blob/v1.1/port/pkg/README.md",
+        "https://github.com/AdamLovattDevOps/elfbowling-recomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

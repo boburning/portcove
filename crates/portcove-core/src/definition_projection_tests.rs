@@ -15,6 +15,129 @@ fn projection() -> Value {
 }
 
 #[test]
+fn legacy_chameleon_projection_adds_only_its_reviewed_contract_to_schema_three() {
+    // The retained qualification bundle contains the exact published index,
+    // entry and terminal contract, before it was applied to a schema-3 client.
+    let index = DefinitionContentIndex::parse(include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../docs/qualification/chameleon-twist-jp-managed-bundle-2026-10-30/bundle/definitions/index.json",
+    )))
+    .unwrap();
+    let entry = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../docs/qualification/chameleon-twist-jp-managed-bundle-2026-10-30/bundle/sha256/7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4.json",
+    ));
+    let contract = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../docs/qualification/chameleon-twist-jp-managed-bundle-2026-10-30/bundle/sha256/beaf84046b4bcbda4cf4ba79246faa688f643e134f35bd4a7cbfa38101624e8d.json",
+    ));
+    let port_id = "chameleon-twist-jp-recompiled";
+    let projection = index
+        .inspect_catalog_projection("official", port_id, entry, contract)
+        .unwrap();
+    assert_eq!(projection.catalog().document().schema_version, 2);
+    assert_eq!(projection.catalog().ports().len(), 1);
+
+    let baseline = Catalog::embedded().unwrap();
+    assert_eq!(baseline.document().schema_version, 3);
+    let effective = projection.catalog_for_selection(&baseline).unwrap();
+    assert_eq!(effective.document().schema_version, 3);
+    assert_eq!(effective.ports().len(), baseline.ports().len() + 1);
+    assert_eq!(
+        serde_json::to_value(&effective.ports()[..baseline.ports().len()]).unwrap(),
+        serde_json::to_value(baseline.ports()).unwrap(),
+    );
+    assert_eq!(
+        serde_json::to_value(effective.port(port_id).unwrap()).unwrap(),
+        serde_json::to_value(projection.entry().port()).unwrap(),
+    );
+    assert!(std::ptr::eq(
+        projection.snapshot(),
+        effective.definition_snapshot(port_id).unwrap(),
+    ));
+
+    // A sparse older projection cannot replace an ID already in the baseline.
+    let error = projection.catalog_for_selection(&effective).unwrap_err();
+    assert!(error.message.contains("catalog schema changed"));
+
+    let mut colliding = baseline.authoritative_document();
+    let duplicate = projection.catalog().source_catalog().unwrap().evidence[0].clone();
+    colliding
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .evidence
+        .push(duplicate);
+    let colliding = Catalog::from_document(colliding).unwrap();
+    let error = projection.catalog_for_selection(&colliding).unwrap_err();
+    assert!(error.message.contains("duplicate evidence id"), "{error}");
+}
+
+#[test]
+fn indexed_upstream_review_requires_matching_new_schemas() {
+    let mut document = generic_projection();
+    document["catalog"]["ports"][0]["upstream_active_reviewed"] = json!(true);
+    let contract = serde_json::to_vec(&document).unwrap();
+    let mut selected = entry(&document, &contract, 0);
+    assert!(
+        inspect(&selected, &contract)
+            .unwrap_err()
+            .message
+            .contains("schema 2")
+    );
+    selected["definition_schema"] = json!(2);
+    assert!(inspect(&selected, &contract).is_err());
+
+    document["contract_schema"] = json!(2);
+    let contract = serde_json::to_vec(&document).unwrap();
+    let mut selected = entry(&document, &contract, 0);
+    selected["definition_schema"] = json!(2);
+    let projected = inspect(&selected, &contract).unwrap();
+    assert_eq!(
+        projected
+            .catalog()
+            .port("projection-fixture")
+            .unwrap()
+            .declared_upstream_status(),
+        Some(crate::UpstreamStatus::Active)
+    );
+}
+
+#[test]
+fn retained_indexed_selection_uses_current_unrelated_upstream_review() {
+    let legacy = generic_projection();
+    let contract = serde_json::to_vec(&legacy).unwrap();
+    let entry = entry(&legacy, &contract, 0);
+    let projection = inspect(&entry, &contract).unwrap();
+    let mut baseline = legacy["catalog"].clone();
+    baseline["ports"][1]["upstream_active_reviewed"] = json!(true);
+    let baseline = Catalog::from_json(&baseline.to_string()).unwrap();
+    assert!(
+        crate::definition_loader::validate_definition_transition(
+            &baseline,
+            projection.catalog(),
+            "projection-fixture"
+        )
+        .is_err()
+    );
+    let retained = projection.catalog_for_selection(&baseline).unwrap();
+    assert_eq!(
+        retained
+            .port("projection-sibling")
+            .unwrap()
+            .declared_upstream_status(),
+        Some(crate::UpstreamStatus::Active)
+    );
+    assert!(
+        retained
+            .port("projection-fixture")
+            .unwrap()
+            .declared_upstream_status()
+            .is_none()
+    );
+}
+
+#[test]
 fn catalog_projection_refuses_embedded_only_patterns_in_sibling_ports() {
     let catalog = Catalog::embedded().unwrap();
     let document = json!({

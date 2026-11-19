@@ -29,6 +29,13 @@ pub(crate) fn is_package_filename(name: &str) -> bool {
         .any(|extension| name.ends_with(extension))
 }
 
+pub(crate) fn is_server_package(name: &str) -> bool {
+    name.split(|c: char| !c.is_ascii_alphanumeric())
+        .any(|token| {
+            token.eq_ignore_ascii_case("server") || token.eq_ignore_ascii_case("dedicated")
+        })
+}
+
 pub(crate) fn package_platform_match(name: &str, platform: Platform) -> PackagePlatformMatch {
     let name = name.to_ascii_lowercase();
     let tokens = name
@@ -123,11 +130,18 @@ pub(crate) fn assess_package_name(
         && hints
             .iter()
             .all(|hint| name.contains(&hint.to_ascii_lowercase()));
+    let exact_hint = hinted && hints.iter().any(|hint| hint.eq_ignore_ascii_case(&name));
     // Generic managed/platform hints must not turn a debug build into the
     // recommended release. A reviewed debug player needs its whole filename.
-    let reviewed_debug_player = hinted && hints.iter().any(|hint| hint.eq_ignore_ascii_case(&name));
     let finish = |suitability, reason, score| (suitability, reason, score);
     let archive = ARCHIVE_FORMS.iter().any(|ext| name.ends_with(ext));
+    if is_server_package(&name) {
+        return finish(
+            "auxiliary",
+            "This package is labeled as a dedicated server. Choose a game client to play.",
+            None,
+        );
+    }
     if has(&[
         "checksums",
         "checksum",
@@ -136,7 +150,7 @@ pub(crate) fn assess_package_name(
         "symbols",
         "pdb",
         "dsym",
-    ]) || (!reviewed_debug_player && has(&["debug"]))
+    ]) || (!exact_hint && has(&["debug"]))
         || [
             ".sha256",
             ".sha512",
@@ -227,7 +241,13 @@ pub(crate) fn assess_package_name(
             None,
         );
     }
-    let supported_form = can_extract || OTHER_PACKAGE_FORMS.iter().any(|ext| name.ends_with(ext));
+    // A reviewed bare Linux binary can be downloaded as a file. A broad hint
+    // or the platform name by itself doesn't establish an extensionless form.
+    let reviewed_bare_linux_player =
+        exact_hint && platform_match && platform == Platform::LinuxX86_64 && !name.contains('.');
+    let supported_form = can_extract
+        || reviewed_bare_linux_player
+        || OTHER_PACKAGE_FORMS.iter().any(|ext| name.ends_with(ext));
     if !supported_form || (!platform_match && !hinted) {
         return finish(
             "uncertain",
@@ -355,6 +375,40 @@ mod tests {
             recommend_packages(&assets, Platform::WindowsX86_64, &[], false).1,
             None
         );
+    }
+
+    #[test]
+    fn crusader_desktop_listing_recognizes_versioned_player_archives() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let id = "crusader-no-remorse-sebsebseb1982-sdl-port";
+        let listing = catalog.listing(id).unwrap();
+        assert!(catalog.port(id).is_err(), "display only");
+        for version in ["1.41.2", "1.47.0", "1.49.0"] {
+            let mut assets = [
+                asset(1, &format!("crusader-{version}-windows-x64.zip")),
+                asset(2, &format!("crusader-{version}-linux-x64.tar.gz")),
+                asset(3, &format!("crusader-{version}-portmaster-aarch64.zip")),
+                asset(4, &format!("crusader-{version}-source-windows-x64.zip")),
+                asset(5, "SHA256SUMS"),
+            ];
+            assets[1].can_extract = true;
+            for (platform, expected) in
+                [(Platform::WindowsX86_64, 1u64), (Platform::LinuxX86_64, 2)]
+            {
+                let hints = &listing.download_asset_hints[&platform];
+                let (options, recommendation) = recommend_packages(&assets, platform, hints, true);
+                assert_eq!(recommendation, Some(expected.into()));
+                assert!(
+                    assess_package(&assets[expected as usize - 1], platform, hints)
+                        .1
+                        .unwrap()
+                        >= 100
+                );
+                assert_eq!(options[2].suitability, "incompatible");
+                assert_eq!(options[3].suitability, "auxiliary");
+                assert_eq!(options[4].suitability, "auxiliary");
+            }
+        }
     }
 
     #[test]
@@ -904,6 +958,46 @@ mod tests {
                 Platform::WindowsX86_64,
                 &["-setup.exe".into()],
                 false
+            )
+            .1,
+            None
+        );
+    }
+
+    #[test]
+    fn crash_bandicoot_recommends_reviewed_bare_linux_binary_for_matching_host() {
+        let windows = asset(1, "CrashBandicoot.exe");
+        let linux = asset(2, "CrashBandicoot-Linux");
+        let linux_arm = asset(3, "CrashBandicoot-Linux-arm64");
+        let android = asset(4, "CrashBandicoot-2.6.apk");
+        let windows_arm = asset(5, "CrashBandicoot-arm64.exe");
+        let assets = [windows, linux, linux_arm, android, windows_arm];
+        let catalog = crate::Catalog::embedded().unwrap();
+        let listing = catalog
+            .listing("crash-bandicoot-crashbandicoot-launcher")
+            .unwrap();
+        for (platform, id) in [(Platform::WindowsX86_64, 1_u64), (Platform::LinuxX86_64, 2)] {
+            assert_eq!(
+                recommend_packages(
+                    &assets,
+                    platform,
+                    &listing.download_asset_hints[&platform],
+                    true
+                )
+                .1,
+                Some(id.into())
+            );
+        }
+        assert_eq!(
+            recommend_packages(&assets, Platform::LinuxX86_64, &["linux".into()], true).1,
+            None
+        );
+        assert_eq!(
+            recommend_packages(
+                &assets,
+                Platform::LinuxX86_64,
+                &["CrashBandicoot-Linux-arm64".into()],
+                true,
             )
             .1,
             None

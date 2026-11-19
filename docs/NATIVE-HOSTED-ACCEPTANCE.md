@@ -171,6 +171,23 @@ unreadable logs never establish native acceptance. Failure or an exceeded retent
 bound remains visible and incomplete. The proven reader route is not a promise that
 all future large logs will fit: complete real evidence recovery is an execution gate.
 
+### Linux prerequisite calibration
+
+The permanent `linux-preparation-continuity` route keeps its Ubuntu 22.04 host,
+two existing native selections and 10-minute observation step. Its prerequisite
+step now requests the maintained archive-mirror preference and a 1,200-second APT
+install allowance inside a 30-minute step. The job grows from 60 to 75 minutes,
+retaining its previous 45-minute allowance outside prerequisites. No Windows
+selection or product deadline changes.
+
+The calibration follows temporary qualification run `44395415654/1` on Ubuntu
+24.04: its package index passed, but downloads exhausted the 600-second install
+budget (exit 124) before any application build or native journey. That failed
+attempt is not evidence of the permanent route running. The maintained mirror
+preference selectively rewrites supported Azure entries, without guaranteeing an
+EC2 mirror replacement. Timeout statuses 124/137 still refuse mirror retry on
+possibly interrupted package state; intentional recovery uses a fresh runner.
+
 ## Normal-app presentation and interface sizing
 
 The fixed manual `presentation` operation in `native-design-compatibility.yml`

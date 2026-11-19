@@ -371,6 +371,22 @@ impl Catalog {
         Ok(())
     }
 
+    pub(crate) fn retain_unrelated_upstream_reviews(&mut self, baseline: &Self, selected: &str) {
+        for port in &mut Arc::make_mut(&mut self.document).ports {
+            if port.id != selected
+                && let Ok(original) = baseline.port(&port.id)
+            {
+                port.upstream_active_reviewed = original.upstream_active_reviewed;
+            }
+        }
+    }
+
+    pub(crate) fn hold_legacy_mod_provider(&mut self, port_id: &str) {
+        if let Some(index) = self.ports().iter().position(|port| port.id == port_id) {
+            Arc::make_mut(&mut self.document).ports[index].legacy_mod_provider_held = true;
+        }
+    }
+
     pub(crate) fn definition_snapshot(
         &self,
         port_id: &str,
@@ -687,6 +703,15 @@ impl Catalog {
             }
         }
         for port in &self.document.ports {
+            if port.upstream_active_reviewed
+                && port.upstream_status != crate::UpstreamStatus::Active
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} declares a reviewed active project with an incompatible upstream status",
+                    port.id
+                )));
+            }
+            crate::provider_binding::validate(port)?;
             crate::managed_runtime_policy::validate_exact_exclusions(port)?;
             crate::archive_data::validate(port)?;
             crate::native_temp::validate(port)?;
@@ -6515,6 +6540,43 @@ mod tests {
             error.message.contains("optional game source"),
             "{}",
             error.message
+        );
+    }
+
+    #[test]
+    fn preserves_the_legacy_upstream_default_without_claiming_review() {
+        use crate::UpstreamStatus;
+
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog
+            .ports()
+            .iter()
+            .find(|port| port.declared_upstream_status().is_none())
+            .unwrap();
+        let mut explicit = serde_json::to_value(port).unwrap();
+        assert_eq!(explicit["upstream_status"], "active");
+        assert!(explicit.get("upstream_active_reviewed").is_none());
+
+        let mut omitted = explicit.clone();
+        omitted.as_object_mut().unwrap().remove("upstream_status");
+        let legacy = serde_json::from_value::<PortDefinition>(explicit.clone()).unwrap();
+        let unknown = serde_json::from_value::<PortDefinition>(omitted).unwrap();
+        assert_eq!(legacy.declared_upstream_status(), None);
+        assert_eq!(unknown.declared_upstream_status(), None);
+        assert_eq!(serde_json::to_value(unknown).unwrap(), explicit);
+
+        explicit["upstream_active_reviewed"] = true.into();
+        let reviewed = serde_json::from_value::<PortDefinition>(explicit).unwrap();
+        assert_eq!(
+            reviewed.declared_upstream_status(),
+            Some(UpstreamStatus::Active)
+        );
+        crate::signed_catalog::validate_installed_port_contract(&reviewed, &legacy).unwrap();
+
+        let retired = catalog.port("paper-mario-recut").unwrap();
+        assert_eq!(
+            retired.declared_upstream_status(),
+            Some(UpstreamStatus::Retired)
         );
     }
 

@@ -51,8 +51,14 @@
     },
     "original_game_title": "Pokémon LeafGreen",
     "recommended_download_channel": "stable",
-    "download_asset_hints": {
-      "windows-x86-64": ["LeafGreenRecomp-windows-x64-", ".zip"]
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-leafgreen",
+      "evidence_urls": [
+        "https://github.com/mstan/FireRedLeafGreenRecomp/releases",
+        "https://github.com/mstan/FireRedLeafGreenRecomp"
+      ],
+      "source_editions": []
     }
   },
   "gba_staged_archive_v1": {
@@ -82,5 +88,6 @@
     "executable_hints": {
       "windows-x86-64": ["LeafGreenRecomp.exe"]
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

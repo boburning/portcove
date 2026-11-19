@@ -14,6 +14,7 @@
 import { createHash } from "node:crypto";
 import { MaintenanceStoreError } from "./maintenance-store.mts";
 import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
+import { isRecord } from "./runtime-values.mts";
 import {
   catalogObservationSources,
   validateCatalogObserverCheckpoint,
@@ -58,11 +59,210 @@ export interface UpstreamObservation {
 
 const failedSubject = "source:upstream-observer-checkpoint";
 
+export interface ManagedReleaseCandidate {
+  candidate_key: string;
+  platform: string;
+  channel: string;
+  release_id: number | null;
+  tag: string;
+  published_at: string | null;
+  state: "eligible" | "pending";
+  hold_reasons: string[];
+}
+
+/** One retained Core result per offered target. A reviewed fallback is a
+ * different artifact and cannot make the current candidate eligible. */
+function managedReleaseCandidates(
+  policy: Record<string, unknown>,
+  source: {
+    provider: string;
+    repositoryId: number;
+    portId: string;
+    channels: readonly string[];
+    release: unknown;
+  },
+): ManagedReleaseCandidate[] | undefined {
+  const { provider, repositoryId, portId, channels, release } = source;
+  if (
+    !["github", "gitlab"].includes(provider) ||
+    !channels.length ||
+    !Array.isArray(policy.projections) ||
+    policy.projections.length > 12
+  )
+    return undefined;
+  const curated = isRecord(release) && isRecord(release.curated) ? release.curated : {};
+  const candidates: ManagedReleaseCandidate[] = [];
+  const targets = new Set<string>();
+  for (const row of policy.projections) {
+    if (
+      !isRecord(row) ||
+      typeof row.platform !== "string" ||
+      !["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"].includes(row.platform) ||
+      Object.hasOwn(curated, row.platform) ||
+      typeof row.channel !== "string" ||
+      !channels.includes(row.channel) ||
+      !isRecord(row.channel_candidate)
+    )
+      continue;
+    const candidate = row.channel_candidate;
+    const { tag, published_at } = candidate;
+    const releaseId =
+      typeof candidate.id === "number" && Number.isSafeInteger(candidate.id) && candidate.id > 0
+        ? candidate.id
+        : null;
+    if (
+      typeof tag !== "string" ||
+      !tag.length ||
+      tag.length > 512 ||
+      /\p{Cc}/u.test(tag) ||
+      (provider === "github" && releaseId === null)
+    )
+      continue;
+    const target = `${row.platform}/${row.channel}`;
+    if (targets.has(target)) return undefined;
+    targets.add(target);
+    const selected = isRecord(row.latest_eligible) ? row.latest_eligible : null;
+    const exact =
+      selected !== null &&
+      isRecord(selected.release) &&
+      selected.release.version === tag &&
+      (provider === "github"
+        ? selected.release_id === releaseId
+        : isRecord(selected.identity) && selected.identity.tag === tag);
+    const holdReasons: unknown[] = Array.isArray(row.hold_reasons) ? row.hold_reasons : [];
+    candidates.push({
+      candidate_key: createHash("sha256")
+        .update(
+          JSON.stringify([
+            portId,
+            provider,
+            repositoryId,
+            releaseId ?? tag,
+            row.platform,
+            row.channel,
+          ]),
+        )
+        .digest("hex"),
+      platform: row.platform,
+      channel: row.channel,
+      release_id: releaseId,
+      tag,
+      published_at:
+        typeof published_at === "string" && Number.isFinite(Date.parse(published_at))
+          ? new Date(published_at).toISOString()
+          : null,
+      state: exact ? "eligible" : "pending",
+      hold_reasons: holdReasons
+        .filter((reason): reason is string => typeof reason === "string" && reason.length <= 512)
+        .slice(0, 16)
+        .sort(),
+    });
+  }
+  return candidates.sort(
+    (left, right) =>
+      left.platform.localeCompare(right.platform) || left.channel.localeCompare(right.channel),
+  );
+}
+
+const eligibilityWindowMs = 30 * 24 * 60 * 60 * 1000;
+
+type RetainedCandidateObservation = Pick<
+  ManagedReleaseCandidate,
+  "state" | "published_at" | "hold_reasons"
+>;
+
+/** Measures retained observer eligibility. The store clock bounds when eligibility
+ * was recorded; it cannot locate the instant of availability to a released client. */
+export function managedReleaseEligibilityWindow(rows: readonly unknown[], now: Date) {
+  const end = now.getTime();
+  const start = end - eligibilityWindowMs;
+  let firstRecorded = Infinity;
+  const series = new Map<
+    string,
+    { latest: RetainedCandidateObservation; recorded: number; eligibleAt: number | null }
+  >();
+  for (const row of rows) {
+    if (
+      !isRecord(row) ||
+      typeof row.candidate_key !== "string" ||
+      !/^[0-9a-f]{64}$/u.test(row.candidate_key) ||
+      (row.state !== "pending" && row.state !== "eligible") ||
+      typeof row.recorded_at !== "string" ||
+      !Array.isArray(row.hold_reasons) ||
+      !row.hold_reasons.every((reason) => typeof reason === "string")
+    )
+      continue;
+    const recorded = Date.parse(row.recorded_at);
+    if (!(recorded >= start && recorded <= end)) continue;
+    firstRecorded = Math.min(firstRecorded, recorded);
+    const candidate: RetainedCandidateObservation = {
+      state: row.state,
+      published_at: typeof row.published_at === "string" ? row.published_at : null,
+      hold_reasons: row.hold_reasons,
+    };
+    const previous = series.get(row.candidate_key);
+    const eligibleTimes = [
+      previous?.eligibleAt ?? null,
+      row.state === "eligible" ? recorded : null,
+    ].filter((value): value is number => value !== null);
+    series.set(row.candidate_key, {
+      latest: previous && previous.recorded > recorded ? previous.latest : candidate,
+      recorded: Math.max(previous?.recorded ?? recorded, recorded),
+      eligibleAt: eligibleTimes.length ? Math.min(...eligibleTimes) : null,
+    });
+  }
+  const recent = [...series.values()].filter(({ latest }) => {
+    const published = latest.published_at ? Date.parse(latest.published_at) : NaN;
+    return published >= start && published <= end;
+  });
+  const eligible = recent.filter(({ latest }) => latest.state === "eligible");
+  const held = recent.filter(({ latest }) => latest.state === "pending");
+  const pendingAges = held.map(({ latest }) => end - Date.parse(latest.published_at!));
+  const lags = eligible
+    .map(({ latest, eligibleAt }) => eligibleAt! - Date.parse(latest.published_at!))
+    .filter((lag) => lag >= 0)
+    .sort((left, right) => left - right);
+  const reasons = new Map<string, number>();
+  for (const { latest } of held)
+    for (const reason of new Set(latest.hold_reasons))
+      reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+  return {
+    from: new Date(start).toISOString(),
+    through: now.toISOString(),
+    first_recorded_evidence_at: Number.isFinite(firstRecorded)
+      ? new Date(firstRecorded).toISOString()
+      : null,
+    distinct_candidates: recent.length,
+    eligible_candidates: eligible.length,
+    pending_candidates: held.length,
+    unknown_publication_times: [...series.values()].filter(
+      ({ latest }) => !latest.published_at || !Number.isFinite(Date.parse(latest.published_at)),
+    ).length,
+    oldest_pending_age_ms: pendingAges.length ? Math.max(...pendingAges) : null,
+    hold_reasons: [...reasons.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([reason, distinct_candidates]) => ({ reason, distinct_candidates })),
+    publication_to_recorded_eligibility_ms: lags.length
+      ? {
+          samples: lags.length,
+          median:
+            (lags[Math.floor((lags.length - 1) / 2)]! + lags[Math.ceil((lags.length - 1) / 2)]!) /
+            2,
+          max: lags.at(-1)!,
+        }
+      : null,
+    released_client_unattended_availability: null,
+    human_interventions: null,
+    signed_automatic_repairs: null,
+    operating_cost: null,
+  };
+}
+
 /**
  * Per-port observer facts and coverage from one catalog checkpoint and the
  * catalog it observed. Each port's payload lists its observation sources with
- * stable facts only; per-observation clocks, sequences, cursors, retry state
- * and Core policy outputs (which embed observation clocks) are never stored.
+ * stable facts only. Retain exact managed candidate identities and their
+ * policy-projected result without copying the full policy or its observation clock.
  * A port is a fact only when every source serving it has a completed policy
  * for it; otherwise it is a coverage gap. The observer also lists a port as
  * held when one of its declarations is not observable while another source
@@ -125,6 +325,16 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
         typeof progress.exception_rule === "string" &&
         partialProgressRules.includes(progress.exception_rule);
       const exceptionKey = routine ? null : progress.exception_key;
+      const candidates =
+        port.kind !== "listing" && progress.repository_id !== null
+          ? managedReleaseCandidates(policy, {
+              provider: source.provider ?? "github",
+              repositoryId: progress.repository_id,
+              portId: port.id,
+              channels: port.channels,
+              release: port.release,
+            })
+          : undefined;
       entries.set(port.id, [
         ...(entries.get(port.id) ?? []),
         {
@@ -141,6 +351,7 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
             typeof policy.catalog_definition_sha256 === "string"
               ? policy.catalog_definition_sha256
               : null,
+          ...(candidates === undefined ? {} : { managed_release_candidates: candidates }),
         },
       ]);
     }
@@ -260,6 +471,7 @@ async function githubTransport(): Promise<UpstreamTransport> {
         credential,
         deadline: Math.min(deadline, performance.now() + 110_000),
         maxBytes,
+        bufferAllowance: "observer-checkpoint",
       }),
   };
 }
@@ -417,6 +629,7 @@ export interface UpstreamSourceFact {
   exception_key: string | null;
   exception_rule: string | null;
   catalog_definition_sha256: string | null;
+  managed_release_candidates?: ManagedReleaseCandidate[];
 }
 
 const storedSources = (payload: unknown) =>

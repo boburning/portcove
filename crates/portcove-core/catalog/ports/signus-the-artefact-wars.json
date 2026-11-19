@@ -50,6 +50,15 @@
           "instruction": "Leave replacement with your package manager or update the separate Windows copy using the matching upstream files. The Linux player also accepts SIGNUS_DATA_DIR when using a separate data location."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "signus-the-artefact-wars",
+      "evidence_urls": [
+        "https://github.com/signus-game/signus/releases/tag/v1.96.1",
+        "https://github.com/signus-game/signus"
+      ],
+      "source_editions": []
     }
   }
 }

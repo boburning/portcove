@@ -1,13 +1,13 @@
 # Maintenance inventory store
 
-This document owns the stable source, identity, coverage and storage contracts
-for the maintainer-facing maintenance application specified in
-[#4129](https://github.com/boburning/portcove/issues/4129). The issue owns the
-executable acceptance and checkpoint evidence; this page is not a backlog.
+This guide explains how the maintenance application identifies its sources,
+records coverage, and stores data. Use
+[#4129](https://github.com/boburning/portcove/issues/4129) for the implementation
+requirements and checkpoint results.
 
-The application is maintainer tooling. Player installation, update, backup and
-launch never depend on it, and it grants no admission, support, qualification,
-publication or credential authority.
+Maintainers use this application. Players can install, update, back up, and
+launch games without it. Use the separate approval paths for admission,
+support, qualification, publication, and credentials.
 
 ## Ownership boundary
 
@@ -339,7 +339,9 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
 - Each source records a collection run. Its coverage is relative to the
   declared sample.
   The catalog observation is bound to the commit. The Core observation is bound
-  to the CLI binary SHA-256, the host platform and the isolation scope. Each
+  to the CLI binary SHA-256, the host platform returned by that executable's
+  isolated `doctor` command and the isolation scope. Legacy keys derived from
+  the launcher's architecture are only reusable with matching producer evidence. Each
   Core run's revision records the binary digest and, with `--targets`, the
   build's recorded source and its `verified` or `unverified` binding ([Core
   target routes](#core-target-routes)). Without `--targets` no source is
@@ -406,8 +408,9 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
     Project, release-health or publication-bundle read records a `failed` run
     with its gap. Prior facts stay current, and every other source still lands.
     `collect` lists such sources in `failed_sources`.
-  - A truncated Project field page fails the issue collection rather than
-    dropping fields.
+  - Issue blockers, Project memberships and Project item fields follow their
+    own continuation cursors. An incomplete page or a changed revision fails
+    the issue collection and retains the prior facts.
 - `--issues` adds the `issues-project` source.
   - It reads the maintained, completeness-verified issue inventory with
     issue-side Project memberships (`RoadmapClient.repositoryIssues`), through a
@@ -449,8 +452,12 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
   - `port:<id>` from authored records, with its canonical issue;
   - `implementation:<key>` from each record's validated lineage history, using
     the lineage contract's own keys (`lineageIdentityKeys`);
-  - `issue:<n>` for issues that name catalog IDs or port keys, so an
-    uncataloged implementation is searchable without a catalog entry;
+  - `upstream:repository:<host>:<id>` for an immutable repository ID from
+    reviewed catalog lineage or a validated hosted intake request. Search for
+    this identity to find the listings it serves and journal requests that
+    observed it. Each listing keeps its own target and Core assessments;
+  - `issue:<n>` for issues named by a catalog record or hosted request, and
+    issues that name catalog IDs or port keys. Closed issues remain searchable;
   - `intake:<request>` with its candidate port keys, candidate upstream URL and
     repository identities, and linked work;
   - `definition:<namespace>/<id>` from the publication source.
@@ -672,7 +679,7 @@ publication has been verified.
   push runs and runs whose export did not retain a snapshot are passed over.
   - It is read through the maintained GitHub client (GET-only, at most 24
     candidate runs and 32 requests) and the in-memory artifact transfer, bounded
-    by the observer's eight-MiB streaming snapshot limit.
+    by the observer's sixteen-MiB streaming snapshot limit.
   - The configuration digest in the artifact name must equal the SHA-256 of
     `release/upstream-observer.json` at the run's head commit, which is how the
     workflow names its snapshot. The archive length and SHA-256 must match
@@ -700,8 +707,23 @@ publication has been verified.
     completed scope and are stored as no exception, so they cause no churn.
   - Per-observation clocks and progress (freshness, completion and due times,
     attempted sequence, retry state, provider progress and cursors), result
-    digests and policy bodies are never stored: Core and listing policies embed
-    observation clocks, so a routine re-observation stays quiet.
+    digests and full policy bodies are omitted so routine re-observation stays
+    quiet. For a hosted managed route, retain the offered platform and channel,
+    exact release identity, publication time, and Core's retained pending or
+    eligible result. A reviewed fallback leaves the current release pending.
+    Curated pins and descriptive listing observations are outside this measure.
+    The identity stays the same when integrity or an asset arrives under the
+    same release. This records upstream candidate evidence for history. Actual
+    client availability, repair publication and human interventions require
+    separate receipts. The JSON report's `managed_release_eligibility` uses
+    the last 30 days of retained complete and partial collection observations.
+    It counts each candidate published in that window once, using its latest
+    recorded state. A missing publication time is reported separately. Pending
+    age uses publication time. Publication-to-recorded-eligibility lag uses
+    the first retained eligible observation. Evidence can start partway through
+    the window. The report's existing source freshness and gaps still describe
+    coverage. Released-client availability, interventions, repairs, and cost
+    stay unknown until their receipts are available.
 - **Gaps:** a port is a fact only when every source serving it has completed
   with a policy for it. Otherwise the run is `partial` and the port is a gap:
   `held` (no observation source serves the port), `unobserved`

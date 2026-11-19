@@ -26,7 +26,16 @@
       "game_slug": "perfect-dark-pc-port",
       "match_kind": "port"
     },
-    "issue_number": 106
+    "issue_number": 106,
+    "original_game": {
+      "format_version": 1,
+      "id": "perfect-dark",
+      "evidence_urls": [
+        "https://github.com/perfect-dark-pc-port/perfect_dark#macos",
+        "https://github.com/perfect-dark-pc-port/perfect_dark"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "rolling",

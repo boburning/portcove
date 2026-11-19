@@ -45,13 +45,21 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["destructionderbyraw-", "-windows-x64.zip"],
-      "linux-x86-64": ["destructionderbyraw-", "-linux-x64.zip"],
       "macos-x86-64": ["destructionderbyraw-", "-macos-x64.zip"],
       "macos-aarch64": ["destructionderbyraw-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "destruction-derby-raw",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp"
+      ],
+      "source_editions": []
+    }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

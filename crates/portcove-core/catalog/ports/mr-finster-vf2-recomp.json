@@ -51,6 +51,15 @@
       "warnings": [
         "Use the exact own-ROM Virtua Fighter 2 set and preserve every active data/ROM root; another arcade title or edition does not establish permission or save compatibility."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "virtua-fighter-2",
+      "evidence_urls": [
+        "https://github.com/mr-finster/vf2-recomp/blob/5e8bb67fa5235e2c0df843c8651049e6a785a89e/README.md",
+        "https://github.com/mr-finster/vf2-recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

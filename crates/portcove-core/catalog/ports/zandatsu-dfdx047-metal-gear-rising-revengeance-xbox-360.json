@@ -35,6 +35,12 @@
       "image_sha256": "9e38ff366692b9e97fa1a5b449033c7256183ab8fcab92d6937867a9549390df",
       "game_slug": "metal-gear-rising-revengeance",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-gear-rising-revengeance-xbox-360",
+      "evidence_urls": ["https://github.com/dfdx047/Zandatsu"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

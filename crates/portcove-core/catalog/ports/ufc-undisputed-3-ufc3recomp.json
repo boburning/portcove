@@ -18,5 +18,10 @@
       "game_slug": "ufc-undisputed-3",
       "match_kind": "underlying-game"
     }
+  },
+  "original_game_review": {
+    "disposition": "unresolved",
+    "reason": "Primary upstream repository/HEAD is unavailable (GitHub API read failed); retained listing only has generic Explore summary and no setup/source facts. Require recovered attributable upstream target evidence before joining the family.",
+    "evidence_urls": ["https://github.com/paulogaab21/ufc3recomp"]
   }
 }

@@ -35,6 +35,12 @@
       "image_sha256": "e007d2c0a609c457c5b0f5f5dc38cdf627621614669f5347db2dc0fe858b5e6a",
       "game_slug": "animaniacs-the-great-edgar-hunt",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "animaniacs-the-great-edgar-hunt",
+      "evidence_urls": ["https://github.com/ant0-blase/ANIMANIACS-GC-RECOMP"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

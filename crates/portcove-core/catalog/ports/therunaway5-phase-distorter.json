@@ -45,6 +45,16 @@
       "warnings": [
         "Select Phase Distorter.exe in the complete Windows v0.5 folder. Keep the separate EarthBound/Mother 2 packs and saves under %APPDATA%/ebsrc/EarthBoundCpp or existing overrides; experimental native-session and snapshot formats are separate."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "earthbound",
+      "evidence_urls": [
+        "https://github.com/TheRunaway5/Phase-Distorter/blob/a15209b0e3f0c791f3929cf03079d0a936cfe2aa/README.md",
+        "https://github.com/TheRunaway5/Phase-Distorter"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "EarthBound"
   }
 }

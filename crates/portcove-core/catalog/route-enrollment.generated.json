@@ -50,6 +50,7 @@
         "data_locations": [
           "Windows Roaming AppData/ECWolf settings and Windows Saved Games/ECWolf progress, including upstream fallback locations",
           "Linux XDG configuration/ecwolf and data/ecwolf/savegames folders",
+          "Mac ~/Library/Preferences/ecwolf.cfg, ~/Documents/ECWolf/Savegames, ~/Library/Application Support/ECWolf and upstream fallback locations",
           "original game files, mods and any explicit --config or --savedir locations"
         ]
       },
@@ -281,6 +282,21 @@
       "managed_native": true
     },
     {
+      "port_id": "teeworlds",
+      "prepared_player": {
+        "executable": "teeworlds.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "Windows %APPDATA%/Teeworlds settings07.cfg, demos, maps and skins",
+          "Linux ~/.local/share/teeworlds, existing ~/.teeworlds or $XDG_DATA_HOME/teeworlds",
+          "Intel Mac ~/Library/Application Support/Teeworlds and any storage.cfg save path",
+          "the save location selected by storage.cfg, and any custom maps or skins kept with the installation"
+        ]
+      },
+      "managed_native": false
+    },
+    {
       "port_id": "tekrantgaming-muppet-racemania-recompiled",
       "prepared_player": {
         "executable": "MuppetRaceMania.exe",
@@ -333,6 +349,20 @@
         "executable": "z2rs.exe"
       },
       "managed_native": true
+    },
+    {
+      "port_id": "warioland4",
+      "prepared_player": {
+        "executable": "wl4-launcher.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "Windows %APPDATA%\\wl4\\wl4.sav and settings.cfg",
+          "the Windows user registry entry for the original ROM path",
+          "Linux ~/.local/share/biorhythmicstudios/warioland4/ and ~/.config/biorhythmicstudios/warioland4/ (or your XDG overrides)"
+        ]
+      },
+      "managed_native": false
     }
   ]
 }

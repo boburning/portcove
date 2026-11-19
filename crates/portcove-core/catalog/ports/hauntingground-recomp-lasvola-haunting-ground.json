@@ -35,6 +35,12 @@
       "image_sha256": "7d1ae0106d7528f69ea8ab510e9a1b35d5b2ed6501d10adc4a43b084883865ff",
       "game_slug": "haunting-ground",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "haunting-ground",
+      "evidence_urls": ["https://github.com/LasVola/hauntingground-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

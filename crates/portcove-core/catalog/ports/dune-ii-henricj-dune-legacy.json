@@ -45,7 +45,13 @@
         }
       ]
     },
-    "download_block_reason": "The release lacks published package digests and bundles gameplay assets that need a redistribution record. Use the upstream project for an external copy."
+    "download_block_reason": "The release lacks published package digests and bundles gameplay assets that need a redistribution record. Use the upstream project for an external copy.",
+    "original_game": {
+      "format_version": 1,
+      "id": "dune-ii",
+      "evidence_urls": ["https://github.com/henricj/dunelegacy"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

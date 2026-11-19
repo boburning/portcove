@@ -45,7 +45,13 @@
         }
       ]
     },
-    "issue_number": 3612
+    "issue_number": 3612,
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-2-n64",
+      "evidence_urls": ["https://github.com/polaco1782/v64recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

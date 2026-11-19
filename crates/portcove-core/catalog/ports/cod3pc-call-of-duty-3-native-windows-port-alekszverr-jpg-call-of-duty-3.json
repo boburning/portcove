@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/alekszverr-jpg/cod3pc"
     },
-    "issue_number": 3229
+    "issue_number": 3229,
+    "original_game": {
+      "format_version": 1,
+      "id": "call-of-duty-3",
+      "evidence_urls": ["https://github.com/alekszverr-jpg/cod3pc"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

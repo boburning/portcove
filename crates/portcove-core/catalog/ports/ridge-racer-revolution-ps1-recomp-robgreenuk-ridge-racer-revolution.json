@@ -35,6 +35,12 @@
       "image_sha256": "2864036d2db11746ebdbd5b767f88cfccb1d6abed4a7b120f068bd43c946b2ca",
       "game_slug": "ridge-racer-revolution",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ridge-racer-revolution",
+      "evidence_urls": ["https://github.com/RobGreenUK/Ridge-Racer-Revolution-PS1-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

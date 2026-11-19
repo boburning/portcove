@@ -7,7 +7,6 @@ import type { PortCapabilityReport, PortStatus } from "../types";
 import { capabilityActionReason } from "../features/port-actions/port-action-presentation";
 import { useAppTranslation } from "../localization";
 import { ExternalLink } from "./ExternalLink";
-import { LaunchBehaviorStages } from "./LaunchBehaviorStages";
 import { Button } from "./ui/button";
 
 /** Catalog feature ids get player labels; an unrecognized id stays visible as data. */
@@ -286,7 +285,26 @@ export function PortCapabilities({
                     : t("capabilities.notice.exact"),
             })}
           </strong>
-          {notice.launch_behavior && <LaunchBehaviorStages behavior={notice.launch_behavior} />}
+          {notice.launch_behavior && (
+            <dl className="my-3 grid grid-cols-2 gap-4">
+              <div className="grid min-w-0 content-start gap-1">
+                <dt className="text-xs text-pc-muted-foreground">
+                  {t("capabilities.launch.first")}
+                </dt>
+                <dd className="font-medium">
+                  {t(`capabilities.launch.${notice.launch_behavior.first_launch}`)}
+                </dd>
+              </div>
+              <div className="grid min-w-0 content-start gap-1">
+                <dt className="text-xs text-pc-muted-foreground">
+                  {t("capabilities.launch.repeat")}
+                </dt>
+                <dd className="font-medium">
+                  {t(`capabilities.launch.${notice.launch_behavior.repeat_launch}`)}
+                </dd>
+              </div>
+            </dl>
+          )}
           <p>{notice.explanation}</p>
           <CapabilityNoticeScope notice={notice} />
           {(notice.release || notice.artifact_sha256 || notice.edition) && (

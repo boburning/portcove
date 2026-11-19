@@ -35,6 +35,12 @@
       "image_sha256": "67d13983cb12bd7f3c32e7a43972aff2fea915c892627491c45611c06c76dc49",
       "game_slug": "hydro-thunder-hurricane",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "hydro-thunder-hurricane",
+      "evidence_urls": ["https://github.com/visibou/htrecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

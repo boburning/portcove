@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useAppTranslation } from "../../localization";
+import { useId, useState } from "react";
 import { platforms } from "../../catalog-values.generated";
 import { platformLabel, releaseChannelPresentation } from "../../view-model";
 import { ChoiceSelect } from "../../components/ChoiceSelect";
@@ -130,6 +131,19 @@ export function GameComparisonControls({ comparison }: { comparison: Comparison 
           </Button>
         )}
       </header>
+      {comparison.enabled && (
+        <p className="text-sm">
+          Comparing{" "}
+          {report?.editions.find((edition) => edition.id === context.edition)?.title ??
+            (report?.editions.length === 1
+              ? report.editions[0]?.title
+              : "the available editions")}{" "}
+          on {context.platform ? platformLabel(context.platform) : "this device"}.{" "}
+          {context.environment
+            ? `Using reports for ${context.environment}.`
+            : "Device-specific test results may be unavailable."}
+        </p>
+      )}
       <p className="text-xs text-pc-muted-foreground">
         Refreshing checks version information. It doesn’t run the game or test your device.
       </p>
@@ -250,6 +264,8 @@ export function GameComparisonEvidence({
   portId: string;
   organization: Organization | undefined;
 }) {
+  const { t } = useAppTranslation("organization");
+  const noticeDescriptionId = useId();
   const disclosureScope = JSON.stringify([comparison.scopeBinding, portId]);
   const [disclosure, setDisclosure] = useState({ scope: disclosureScope, open: false });
   const report = comparison.report;
@@ -277,6 +293,39 @@ export function GameComparisonEvidence({
           ? `Offered version ${port.offered_release.version}`
           : "No confirmed version for this comparison."}
       </p>
+      <p className="text-xs text-pc-muted-foreground">
+        {port.freshness.state === "catalog-pinned"
+          ? "Catalog-pinned identity; not a new upstream check."
+          : `Last checked successfully: ${time(port.freshness.last_successful_resolution_at)}. Latest observation: ${port.freshness.state}.`}
+      </p>
+      {candidate && !comparison.loading && (
+        <div className="grid gap-2 text-sm">
+          {candidate.reasons.map((reason) => (
+            <p key={reason}>
+              {reason === "operation-held" && port.operation.kind === "held"
+                ? `${reasons[reason]} ${port.operation.reason} Open the game to check the next step.`
+                : reasons[reason]}
+            </p>
+          ))}
+          <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+            {candidate.dimensions.map((dimension) => (
+              <div key={dimension.dimension}>
+                <dt className="font-medium">{dimensions[dimension.dimension]}</dt>
+                <dd>
+                  {dimension.state === "known" &&
+                  (dimension.dimension === "controls" || dimension.dimension === "setup")
+                    ? candidate.evidence.find(
+                        (record) =>
+                          record.disposition === "current" &&
+                          record.evidence.dimension === dimension.dimension,
+                      )?.evidence.explanation || dimensionStates.known
+                    : dimensionStates[dimension.state]}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
       <details
         open={disclosure.scope === disclosureScope && disclosure.open}
         onToggle={(event) =>
@@ -292,21 +341,6 @@ export function GameComparisonEvidence({
           ))}
           {candidate ? (
             <>
-              {candidate.reasons.map((reason) => (
-                <p key={reason}>
-                  {reason === "operation-held" && port.operation.kind === "held"
-                    ? `${reasons[reason]} ${port.operation.reason} Open the game to check the next step.`
-                    : reasons[reason]}
-                </p>
-              ))}
-              <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
-                {candidate.dimensions.map((dimension) => (
-                  <div key={dimension.dimension}>
-                    <dt className="font-medium">{dimensions[dimension.dimension]}</dt>
-                    <dd>{dimensionStates[dimension.state]}</dd>
-                  </div>
-                ))}
-              </dl>
               {candidate.evidence.map((record, index) => (
                 <div
                   key={`${record.evidence.id}-${index}`}
@@ -352,11 +386,6 @@ export function GameComparisonEvidence({
                 ? `Offered ${port.offered_release.version} · ${releaseChannelPresentation(port.offered_release.channel).label} · SHA-256 ${port.offered_release.artifact_sha256.slice(0, 12)}`
                 : "We couldn’t confirm a download for this comparison."}
             </p>
-            <p className="text-xs text-pc-muted-foreground">
-              {port.freshness.state === "catalog-pinned"
-                ? "Catalog-pinned identity; not a new upstream check."
-                : `Last checked successfully: ${time(port.freshness.last_successful_resolution_at)}. Latest observation: ${port.freshness.state}.`}
-            </p>
             {port.offered_release?.published_at && (
               <p className="text-xs text-pc-muted-foreground">
                 Upstream publication time: {port.offered_release.published_at}
@@ -391,7 +420,15 @@ export function GameComparisonEvidence({
             size="sm"
             variant={followed ? "selected" : "ghost"}
             aria-pressed={followed}
-            disabled={!organization.snapshot || organization.busy || comparison.loading}
+            aria-describedby={noticeDescriptionId}
+            aria-busy={organization.busy}
+            focusableWhenDisabled={Boolean(organization.snapshot)}
+            disabled={
+              !organization.snapshot ||
+              organization.busy ||
+              Boolean(organization.failure) ||
+              comparison.loading
+            }
             onClick={() =>
               void organization.commit({
                 kind: "set_followed_project",
@@ -401,14 +438,17 @@ export function GameComparisonEvidence({
               })
             }
           >
-            {followed ? `Following ${port.name}` : `Follow ${port.name}`}
+            {t("comparisonNotice.label", { port: port.name })}
           </Button>
+          <span aria-hidden="true" className="self-center text-sm">
+            {followed ? t("comparisonNotice.on") : t("comparisonNotice.off")}
+          </span>
+          <p id={noticeDescriptionId} className="basis-full text-xs text-pc-muted-foreground">
+            {t("comparisonNotice.effect")}
+          </p>
           {port.update_notice && followed && (
             <div role="status" className="basis-full text-sm">
-              <p>
-                New download noticed: {port.update_notice.version}. This doesn’t install it or
-                switch versions.
-              </p>
+              <p>{t("comparisonNotice.available", { version: port.update_notice.version })}</p>
               <Button
                 data-focusable
                 variant="ghost"
@@ -422,7 +462,7 @@ export function GameComparisonEvidence({
                   })
                 }
               >
-                Mark update notice as seen
+                {t("comparisonNotice.markSeen")}
               </Button>
             </div>
           )}

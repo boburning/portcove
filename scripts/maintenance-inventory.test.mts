@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
   chmodSync,
@@ -33,7 +34,9 @@ import {
   readTargetRoutes,
   targetSummary,
   assessmentSubject,
-  hostPlatform,
+  readAssessmentPlatform,
+  isolationScope,
+  capabilityProjectionVersion,
   acknowledgeDigest,
   buildDigest,
   renderDigestMarkdown,
@@ -473,7 +476,10 @@ function stubCli(root: string) {
   writeFileSync(path.join(path.dirname(preferences), "diagnostics", "session-01"), "simulated");
   const reply = (envelope) => { console.log(JSON.stringify({ schema_version: 88, ...envelope })); process.exitCode = envelope.ok ? 0 : 1; };
   if (args.includes("capabilities")) {
-    reply({ ok: true, data: { schema_version: 88, port_capability_schema: 1 }, error: null });
+    reply({ ok: true, data: { schema_version: 88, port_capability_schema: 1,
+      platforms: ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"] }, error: null });
+  } else if (args.includes("doctor")) {
+    reply({ ok: true, data: { platform: responses.hostPlatform ?? "linux-x86-64" }, error: null });
   } else if (args.includes("inspect-targets")) {
     const ids = args.flatMap((value, index) => (args[index - 1] === "--port" ? [value] : []));
     reply({ ok: true, error: null, data: { format_version: responses.targetsFormat ?? 2, scope: "fixture", platforms: ["linux-x86-64"],
@@ -498,6 +504,23 @@ function stubCli(root: string) {
   chmodSync(cli, 0o755);
   return { cli, responses };
 }
+
+void test("reads the producing CLI platform independently of the launcher's architecture", async (context) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-producer-platform-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const { cli, responses } = stubCli(root);
+  const supported = ["linux-x86-64", "macos-aarch64", "macos-x86-64"];
+  // The simulated CLI can be native or translated independently of this runner.
+  for (const hostPlatform of supported) {
+    writeFileSync(responses, JSON.stringify({ hostPlatform }));
+    assert.equal(await readAssessmentPlatform(cli, supported), hostPlatform);
+  }
+  writeFileSync(responses, JSON.stringify({ hostPlatform: "macos-arm64" }));
+  await assert.rejects(
+    readAssessmentPlatform(cli, supported),
+    /did not identify a supported host platform/u,
+  );
+});
 
 void test(
   "declared records flow through Core assessment, the store and a static report",
@@ -563,7 +586,7 @@ void test(
     );
 
     // Changes-only digest: baselines are quiet, the return to an earlier result is flagged.
-    const shipSubject = assessmentSubject("2ship2harkinian", hostPlatform());
+    const shipSubject = assessmentSubject("2ship2harkinian", "linux-x86-64");
     const digest = buildDigest(store.as("report_login"));
     assert.deepEqual(
       digest.entries.map(({ subject_key, previous_state, state, returns_to_earlier_result }) => [
@@ -652,7 +675,7 @@ void test(
       .trim()
       .split("\n")
       .map((line) => JSON.parse(line) as [string, string, string, boolean, boolean]);
-    assert.equal(isolation.length, 8 * 3);
+    assert.equal(isolation.length, 8 * 4);
     assert.equal(new Set(isolation.map(([preferences]) => preferences)).size, isolation.length);
     for (const [preferences, lock, , realRoot, isolatedHome] of isolation) {
       assert.ok(
@@ -946,12 +969,11 @@ void test(
     const { cli, responses } = stubCli(fixture.root);
     const ports = ["2ship2harkinian", "not-a-catalog-port"];
     const on = (platform: string, ship: unknown) => {
-      writeFileSync(responses, JSON.stringify({ "2ship2harkinian": ship }));
+      writeFileSync(responses, JSON.stringify({ "2ship2harkinian": ship, hostPlatform: platform }));
       return collect({
         cli,
         all: true,
         ports,
-        platform,
         environment: store.owner,
         runner: "fixture",
       });
@@ -1720,6 +1742,78 @@ void test(
 );
 
 void test(
+  "published maintenance report reads retained pending-to-eligible history once per candidate",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("managed-eligibility");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    const port = "2ship2harkinian";
+    writeFileSync(responses, JSON.stringify({ [port]: report("automatic") }));
+    const published_at = new Date(Date.now() - 86_400_000).toISOString();
+    const previous = progress("owner/alpha", [port]);
+    let run = 0;
+    const observe = (eligible: boolean) => {
+      const candidate = { id: 100, tag: "v2", published_at };
+      return collect({
+        cli,
+        all: true,
+        ports: [port],
+        upstream: () =>
+          Promise.resolve({
+            revision: `upstream-observer-run:${++run}`,
+            config_sha256: scope,
+            checkpoint: checkpoint({
+              [keyOf("owner/alpha")]: {
+                ...previous,
+                last_complete_policies: [
+                  {
+                    ...previous.last_complete_policies[0],
+                    projections: [
+                      {
+                        platform: "linux-x86-64",
+                        channel: "stable",
+                        channel_candidate: candidate,
+                        latest_eligible: eligible
+                          ? { release_id: candidate.id, release: { version: candidate.tag } }
+                          : null,
+                        hold_reasons: eligible ? [] : ["missing-digest"],
+                      },
+                    ],
+                  },
+                ],
+              },
+            }),
+            catalog: {
+              ports: [{ id: port, channels: ["stable"], release: { repository: "owner/alpha" } }],
+            },
+          }),
+        environment: store.owner,
+        runner: "fixture",
+      });
+    };
+    await observe(false);
+    const pending = buildReport(store.owner).managed_release_eligibility;
+    assert.equal(pending?.distinct_candidates, 1);
+    assert.equal(pending.pending_candidates, 1);
+    await observe(true);
+    const eligible = buildReport(store.owner).managed_release_eligibility;
+    assert.equal(eligible?.distinct_candidates, 1);
+    assert.equal(eligible.eligible_candidates, 1);
+    assert.equal(eligible.pending_candidates, 0);
+    assert.equal(eligible.publication_to_recorded_eligibility_ms?.samples, 1);
+    await observe(true);
+    const repeated = buildReport(store.owner).managed_release_eligibility;
+    assert.equal(repeated?.first_recorded_evidence_at, eligible.first_recorded_evidence_at);
+    assert.deepEqual(
+      repeated.publication_to_recorded_eligibility_ms,
+      eligible.publication_to_recorded_eligibility_ms,
+    );
+  },
+);
+
+void test(
   "upstream observations record coverage, quiet recurrence, attention and failed reads",
   { skip: server.skip ?? false, timeout: 240_000 },
   async (context) => {
@@ -2126,12 +2220,13 @@ void test(
       updated_at: "2026-11-11T00:00:00Z",
       comments_sha256: "c".repeat(64),
     });
-    const collectWith = (requests: HostedRequestStatus[] | Error, platform = "linux-x86-64") =>
-      collect({
+    const collectWith = (requests: HostedRequestStatus[] | Error, platform = "linux-x86-64") => {
+      const previous = JSON.parse(readFileSync(responses, "utf8")) as Record<string, unknown>;
+      writeFileSync(responses, JSON.stringify({ ...previous, hostPlatform: platform }));
+      return collect({
         cli,
         all: true,
         ports: ["2ship2harkinian"],
-        platform,
         hostedIntake: () =>
           requests instanceof Error
             ? Promise.reject(requests)
@@ -2139,6 +2234,7 @@ void test(
         environment: collector,
         runner: "fixture",
       });
+    };
     const states = () =>
       JSON.parse(
         runSql(
@@ -2424,7 +2520,7 @@ void test(
     const { cli, responses } = stubCli(fixture.root);
     const respond = (data: unknown) =>
       writeFileSync(responses, JSON.stringify({ "2ship2harkinian": data }));
-    const subject = assessmentSubject("2ship2harkinian", hostPlatform());
+    const subject = assessmentSubject("2ship2harkinian", "linux-x86-64");
     const current = () =>
       JSON.parse(
         runSql(
@@ -2605,12 +2701,12 @@ void test(
         `SELECT json_object_agg(source, json_build_object('coverage', coverage, 'gap', gaps -> 0 ->> 'subject_key'))
            FROM portcove_maintenance.collection_runs
           WHERE run_id IN (SELECT portcove_maintenance.latest_run(s)
-                             FROM unnest(ARRAY['catalog-records', 'issues-project', 'release-health', 'core-port-capabilities-${hostPlatform()}']) s);`,
+                             FROM unnest(ARRAY['catalog-records', 'issues-project', 'release-health', 'core-port-capabilities-${"linux-x86-64"}']) s);`,
       ),
     ) as Record<string, { coverage: string; gap: string | null }>;
     assert.deepEqual(latest, {
       "catalog-records": { coverage: "complete", gap: null },
-      [`core-port-capabilities-${hostPlatform()}`]: { coverage: "complete", gap: null },
+      [`core-port-capabilities-${"linux-x86-64"}`]: { coverage: "complete", gap: null },
       "issues-project": { coverage: "failed", gap: "source:issues-project" },
       "release-health": { coverage: "failed", gap: "source:release-health-report" },
     });
@@ -2635,7 +2731,7 @@ void test(
       runSql(
         store.owner,
         `SELECT o.payload #>> '{report,port_id}' FROM portcove_maintenance.observations o
-           WHERE o.run_id = portcove_maintenance.latest_run('core-port-capabilities-${hostPlatform()}');`,
+           WHERE o.run_id = portcove_maintenance.latest_run('core-port-capabilities-${"linux-x86-64"}');`,
       ).trim(),
       String.raw`back\slash "quoted" \n`,
     );
@@ -2896,7 +2992,7 @@ void test(
       runSql(
         store.owner,
         `SELECT source_revision FROM portcove_maintenance.collection_runs
-          WHERE run_id = portcove_maintenance.latest_run('core-port-capabilities-${hostPlatform()}');`,
+          WHERE run_id = portcove_maintenance.latest_run('core-port-capabilities-${"linux-x86-64"}');`,
       ).trim(),
       new RegExp(
         `^cli-sha256:[0-9a-f]{64};source=${head};producer-sha256=[0-9a-f]{16};binding=(verified|unverified)$`,
@@ -2932,7 +3028,7 @@ void test(
         store.owner,
         `SELECT json_build_object('binding', o.scope ->> 'cli_source_binding', 'revision', o.input_revision)
              FROM portcove_maintenance.observations o
-            WHERE o.run_id = portcove_maintenance.latest_run('core-port-capabilities-${hostPlatform()}')
+            WHERE o.run_id = portcove_maintenance.latest_run('core-port-capabilities-${"linux-x86-64"}')
               AND o.subject_key = 'port:2ship2harkinian';`,
       ).trim();
       return (row ? JSON.parse(row) : null) as { binding: string; revision: string } | null;
@@ -3560,6 +3656,37 @@ void test("selective reassessment is planned only under the same verified Core s
   assert.equal(keyed({ crates: "t1" }), keyed({ crates: "t1" }));
   assert.notEqual(keyed({ crates: "t1" }), keyed({ crates: "t2" }));
   assert.notEqual(keyed({ crates: "t1" }), keyed({ crates: "t1" }, "windows-x86-64"));
+  const trees = { crates: "t1" };
+  const platform = "macos-x86-64";
+  const legacy = createHash("sha256")
+    .update(
+      canonicalJson({
+        trees,
+        features: [...producer.features],
+        embedded_catalog_sha256: producer.embedded_catalog_sha256,
+        embedded_listings_sha256: producer.embedded_listings_sha256,
+        api: 88,
+        projection: capabilityProjectionVersion,
+        platform,
+        isolation: isolationScope,
+      }),
+    )
+    .digest("hex");
+  const current = keyed(trees, platform);
+  assert.notEqual(current, legacy, "launcher-derived x64 keys cannot authorize Core reuse");
+  for (const [reuse_key, mode] of [
+    [legacy, "full"],
+    [current, "selective"],
+  ] as const) {
+    assert.equal(
+      planReassessment({
+        ...base,
+        reuseKey: current,
+        history: { ...base.history, latest: { coverage: "complete", reuse_key } },
+      }).reassessment.mode,
+      mode,
+    );
+  }
   // A clock-dated observation inside the window forces a full read.
   const catalog = { ports: [{ observations: [{ observed_at: 150 }] }] };
   assert.equal(clockWindowCrossed([catalog], 100, 200), true);

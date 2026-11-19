@@ -1,3 +1,5 @@
+import { focusableControls } from "../../focus";
+import { VirtualCollectionRows } from "./VirtualCollectionRows";
 import { ImplementationFacts } from "./ImplementationFacts";
 import { useGameComparison } from "../recommendations/use-game-comparison";
 import {
@@ -7,12 +9,17 @@ import {
 import { presentPortAction, useOperationPresentation } from "../operations/operation-presentation";
 import type { CollectionLayout } from "./use-collection-layout";
 import type { useFavorites } from "../favorites/use-favorites";
-import { SaveGameButton, type Organization } from "../organization/OrganizationControls";
+import {
+  FavoriteGameButton,
+  FavoritePreferenceFailure,
+  type FavoriteFocusRestore,
+  type Organization,
+} from "../organization/OrganizationControls";
 import type { TFunction } from "i18next";
-import { memo, useCallback, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Trans } from "react-i18next";
 import { useAppTranslation } from "../../localization";
-import { ArrowRight, GitCompareArrows, Heart, Star } from "lucide-react";
+import { ArrowRight, GitCompareArrows } from "lucide-react";
 import { ArtworkFrame, artworkDisplayNotice } from "../../components/Artwork";
 import { useArtwork, useArtworkVisibility, useCompanionCover } from "../../artwork";
 import { ExternalLink } from "../../components/ExternalLink";
@@ -35,19 +42,26 @@ import { availablePlatforms } from "./catalog-entry";
 import type { CatalogEntry } from "./catalog-entry";
 import type { NativeSourceDragState } from "../../native-source-drop";
 import { browsePortPresentation } from "../port-actions/browse-presentation";
-import { BrowsePortObservations } from "../port-actions/BrowsePortObservations";
+import { BrowsePortObservationsContent } from "../port-actions/BrowsePortObservations";
 import { groupCatalog, originalSystems, type GameGroup } from "./original-game";
 import { ImplementationChoice, ownsChoiceFocus } from "./ImplementationChoice";
 import { resolveGameChoice } from "./game-choice";
 
-export function IdentityChips({
-  port,
-  includeUnknown = false,
-}: {
+type IdentityChipsProps = {
   port: CatalogEntry;
   includeUnknown?: boolean;
-}) {
+};
+
+export function IdentityChips(props: IdentityChipsProps) {
   const { t } = useAppTranslation("browsing");
+  return <IdentityChipsContent {...props} t={t} />;
+}
+
+function IdentityChipsContent({
+  port,
+  includeUnknown = false,
+  t,
+}: IdentityChipsProps & { t: TFunction<"browsing"> }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {originalSystems(port)
@@ -78,6 +92,8 @@ export function IdentityChips({
 const idleNativeSourceDrag: NativeSourceDragState = { active: false, pathCount: 0 };
 
 export function GroupedDiscover({
+  resultsReady = true,
+  queryKey = "",
   layout = "covers",
   all,
   onTask,
@@ -86,16 +102,18 @@ export function GroupedDiscover({
   onSelect,
   organization,
   favorites,
-  onFavoriteToggle,
+  restoreAfter,
   nativeSourceDrag = idleNativeSourceDrag,
   devicePlatform,
 }: {
+  resultsReady?: boolean | undefined;
+  queryKey?: string | undefined;
   /** Known only when Core reports this device; otherwise platforms stay listed. */
   devicePlatform?: PortDefinition["platforms"][number] | undefined;
   layout?: CollectionLayout;
   organization?: Organization | undefined;
   favorites?: ReturnType<typeof useFavorites> | undefined;
-  onFavoriteToggle: (portId: string, button: HTMLElement) => void;
+  restoreAfter?: FavoriteFocusRestore | undefined;
   nativeSourceDrag?: NativeSourceDragState | undefined;
   onTask?: ((activityId?: string) => void) | undefined;
   all: readonly CatalogEntry[];
@@ -107,6 +125,7 @@ export function GroupedDiscover({
   const groups = useMemo(() => groupCatalog(all, matching), [all, matching]);
   const descriptionPrefix = useId();
   const [comparisonSelection, setComparison] = useState<GameGroup>();
+  const [comparisonPin, setComparisonPin] = useState<string>();
   const comparison =
     comparisonSelection &&
     groupCatalog(all, all).find((group) =>
@@ -123,7 +142,18 @@ export function GroupedDiscover({
     generation: owner?.generation,
     observationKey: comparisonObservationKey,
   });
-  const origin = useRef<HTMLButtonElement | null>(null);
+  const origin = useRef<
+    | {
+        collection: HTMLElement | null;
+        groupKey: string;
+        originKey: string | undefined;
+        controlKey: string | undefined;
+        controlIndex: number;
+        generation: number | undefined;
+        queryKey: string;
+      }
+    | undefined
+  >(undefined);
   const dialogRoot = useRef<HTMLDivElement>(null);
   const comparisonIntent = useRef({ active: false });
   const currentIntent = comparisonIntent.current;
@@ -131,12 +161,51 @@ export function GroupedDiscover({
   const leaving = useRef(false);
   // Cards are memoized, so these handlers keep their identity until something a
   // card shows changes; otherwise every search or filter change re-renders every card.
-  const compare = useCallback((group: GameGroup, trigger: HTMLButtonElement) => {
-    origin.current = trigger;
-    comparisonIntent.current = { active: true };
-    leaving.current = false;
-    setComparison(group);
-  }, []);
+  const compare = useCallback(
+    (group: GameGroup, trigger: HTMLButtonElement) => {
+      const card = trigger.closest<HTMLElement>("[data-detail-return-group]");
+      origin.current = {
+        collection: trigger.closest<HTMLElement>("[data-virtual-collection]"),
+        groupKey: group.id,
+        originKey: trigger.dataset.detailOrigin,
+        controlKey: trigger.dataset.collectionControl,
+        controlIndex: card ? focusableControls(card).indexOf(trigger) : -1,
+        generation: owner?.generation,
+        queryKey,
+      };
+      comparisonIntent.current = { active: true };
+      leaving.current = false;
+      setComparisonPin(group.id);
+      setComparison(group);
+    },
+    [owner?.generation, queryKey],
+  );
+  useLayoutEffect(() => {
+    const saved = origin.current;
+    if (!saved || (saved.generation === owner?.generation && saved.queryKey === queryKey)) return;
+    comparisonIntent.current.active = false;
+    leaving.current = true;
+    origin.current = undefined;
+    setComparison(undefined);
+    setComparisonPin(undefined);
+  }, [owner?.generation, queryKey]);
+  useLayoutEffect(() => {
+    if (!comparisonPin) return;
+    const release = (event: FocusEvent) => {
+      if (
+        comparisonIntent.current.active ||
+        (event.target instanceof Node && dialogRoot.current?.contains(event.target))
+      )
+        return;
+      document.removeEventListener("focusin", release, true);
+      setComparisonPin(undefined);
+    };
+    // Base UI 1.9 resolves finalFocus in cleanup and focuses in a microtask.
+    // Keep the virtual row until that real focus event transfers its pin to the
+    // collection; releasing on transition completion can detach the return node.
+    document.addEventListener("focusin", release, true);
+    return () => document.removeEventListener("focusin", release, true);
+  }, [comparisonPin]);
   const open = useCallback(
     (port: CatalogEntry, originKey: string) => {
       comparisonIntent.current.active = false;
@@ -146,56 +215,42 @@ export function GroupedDiscover({
     },
     [onSelect],
   );
-  const favoritesAvailable = Boolean(favorites);
-  const favoriteIds = favorites?.ids;
-  const favoritesBusy = favorites?.busy;
-  const favorite = useCallback(
-    (port: CatalogEntry, card = false) =>
-      favoritesAvailable && (
-        <Button
-          data-focusable
-          size="icon-sm"
-          className={card ? "collection-art-action collection-favorite" : undefined}
-          title={
-            favoriteIds?.has(port.id) ? t("discover.favorite.remove") : t("discover.favorite.add")
-          }
-          variant={favoriteIds?.has(port.id) ? "selected" : "ghost"}
-          aria-label={t("discover.favorite.label", { game: gameIdentityLabel(port) })}
-          aria-pressed={favoriteIds?.has(port.id) ?? false}
-          disabled={!favoriteIds || favoritesBusy}
-          onClick={(event) => onFavoriteToggle(port.id, event.currentTarget)}
-        >
-          {card ? <Heart aria-hidden="true" /> : <Star aria-hidden="true" />}
-        </Button>
-      ),
-    [favoritesAvailable, favoriteIds, favoritesBusy, onFavoriteToggle, t],
-  );
   return (
     <>
-      <section
-        aria-label={t("discover.label")}
-        className={`port-grid discover-grid discover-${layout} collection-${layout} @container/collection grid w-full`}
-        data-focus-group
+      <VirtualCollectionRows
+        ready={resultsReady}
+        queryKey={queryKey}
+        groups={groups}
+        layout={layout}
+        generation={owner?.generation}
+        overlayPin={comparisonPin}
+        label={t("discover.label")}
       >
-        {groups.map((group) => (
+        {(group, index) => (
           <DiscoverGameCard
             onTask={onTask}
             key={group.id}
             group={group}
+            position={index + 1}
+            total={groups.length}
             showCompanion={layout === "covers"}
             statuses={statuses}
             descriptionPrefix={descriptionPrefix}
             nativeSourceDrag={nativeSourceDrag}
             devicePlatform={devicePlatform}
             organization={organization}
-            favorite={favorite}
+            favorites={favorites}
+            restoreAfter={restoreAfter}
             open={open}
             compare={compare}
           />
-        ))}
-      </section>
+        )}
+      </VirtualCollectionRows>
       <Dialog
         open={Boolean(comparison)}
+        onOpenChangeComplete={(open) => {
+          if (!open && leaving.current) setComparisonPin(undefined);
+        }}
         onOpenChange={(open) => {
           if (!open) {
             comparisonIntent.current.active = false;
@@ -208,7 +263,47 @@ export function GroupedDiscover({
           reviewSize="large"
           className="port-comparison-dialog"
           initialFocus={heading}
-          finalFocus={() => (leaving.current ? false : origin.current)}
+          finalFocus={() => {
+            const saved = origin.current;
+            if (
+              leaving.current ||
+              saved?.generation !== owner?.generation ||
+              saved?.queryKey !== queryKey
+            )
+              return false;
+            const card = saved?.collection?.isConnected
+              ? saved.collection.querySelector<HTMLElement>(
+                  `[data-detail-return-group="${CSS.escape(saved.groupKey)}"]`,
+                )
+              : null;
+            // Base UI resolves finalFocus in layout cleanup before its passive
+            // aria-hidden cleanup. The dialog's temporary outside masking must
+            // not hide this exact return target from the resolver.
+            const controls = card
+              ? [...card.querySelectorAll<HTMLButtonElement>("button")].filter(
+                  (control) =>
+                    !control.matches(":disabled, [aria-disabled=true], [aria-hidden=true]") &&
+                    !control.closest("[hidden], [inert]") &&
+                    control.getClientRects().length > 0 &&
+                    getComputedStyle(control).visibility !== "hidden",
+                )
+              : [];
+            const target =
+              controls.find((control, index) =>
+                saved?.originKey
+                  ? control.dataset.detailOrigin === saved.originKey
+                  : saved?.controlKey
+                    ? control.dataset.collectionControl === saved.controlKey
+                    : index === saved?.controlIndex,
+              ) ??
+              controls[0] ??
+              null;
+            // Responsive regrouping keeps the return card mounted, but it can
+            // move outside the viewport while focus belongs to the dialog.
+            target?.scrollIntoView({ block: "nearest", inline: "nearest" });
+            if (!target) setComparisonPin(undefined);
+            return target;
+          }}
         >
           {comparison && (
             <>
@@ -220,13 +315,14 @@ export function GroupedDiscover({
                   ? t("discover.compare.single")
                   : t("discover.compare.several", { total: comparison.ports.length })}
               </DialogDescription>
-              <details className="my-4 text-xs text-pc-muted-foreground">
-                <summary data-focusable className="disclosure-pad-2 cursor-pointer">
-                  {t("discover.compare.options")}
-                </summary>
-                <p>{t("discover.compare.optionsIntro")}</p>
-                <GameComparisonControls comparison={evidence} />
-              </details>
+              <FavoriteGameButton
+                port={comparison.matchingPorts[0]!}
+                groupPorts={comparison.ports}
+                favorites={favorites}
+                organization={organization}
+              />
+              <FavoritePreferenceFailure favorites={favorites} organization={organization} />
+              <GameComparisonControls comparison={evidence} />
               <div className="port-comparison-grid">
                 {comparison.ports.map((port) => {
                   const status = statuses.get(port.id);
@@ -288,7 +384,8 @@ export function GroupedDiscover({
                       </div>
                       <div>
                         <h4>{t("discover.compare.status")}</h4>
-                        <BrowsePortObservations
+                        <BrowsePortObservationsContent
+                          t={t}
                           port={port}
                           status={status}
                           observation={observation}
@@ -312,7 +409,6 @@ export function GroupedDiscover({
                             }}
                           />
                         )}
-                        {favorite(port)}
                         <Button
                           data-focusable
                           variant="outline"
@@ -465,6 +561,8 @@ const DiscoverGameCard = memo(DiscoverGameCardView, (previous, next) => {
 
 function DiscoverGameCardView({
   group,
+  position,
+  total,
   showCompanion,
   onTask,
   statuses,
@@ -472,11 +570,14 @@ function DiscoverGameCardView({
   nativeSourceDrag,
   devicePlatform,
   organization,
-  favorite,
+  favorites,
+  restoreAfter,
   open,
   compare,
 }: {
   group: GameGroup;
+  position: number;
+  total: number;
   showCompanion: boolean;
   onTask?: ((activityId?: string) => void) | undefined;
   statuses: ReadonlyMap<string, PortStatus>;
@@ -484,7 +585,8 @@ function DiscoverGameCardView({
   nativeSourceDrag: NativeSourceDragState;
   devicePlatform?: PortDefinition["platforms"][number] | undefined;
   organization?: Organization | undefined;
-  favorite: (port: CatalogEntry, card?: boolean) => ReactNode;
+  favorites?: ReturnType<typeof useFavorites> | undefined;
+  restoreAfter?: FavoriteFocusRestore | undefined;
   open: (port: CatalogEntry, originKey: string) => void;
   compare: (group: GameGroup, trigger: HTMLButtonElement) => void;
 }) {
@@ -494,6 +596,7 @@ function DiscoverGameCardView({
     group,
     statuses,
     organization,
+    devicePlatform,
   );
   const observation = browsePortPresentation(first, status, "catalog");
   const descriptionId = `${descriptionPrefix}:${encodeURIComponent(first.id)}`;
@@ -513,6 +616,8 @@ function DiscoverGameCardView({
   const artworkNotice = artworkDisplayNotice(artwork);
   return (
     <article
+      aria-posinset={position}
+      aria-setsize={total}
       key={group.id}
       className={`discover-game relative min-w-0${dropTarget ? " outline-3 outline-offset-2 outline-pc-ring" : ""}`}
       aria-label={
@@ -578,10 +683,17 @@ function DiscoverGameCardView({
         )}
       </Button>
       <div className="collection-personal-actions">
-        {group.ports.length === 1 && favorite(first, true)}
-        <SaveGameButton card port={first} groupPorts={group.ports} organization={organization} />
+        <FavoriteGameButton
+          card
+          port={first}
+          groupPorts={group.ports}
+          organization={organization}
+          favorites={favorites}
+          restoreAfter={restoreAfter}
+        />
       </div>
       <DiscoverGameMetadata
+        t={t}
         port={first}
         status={status}
         exact={exact}
@@ -589,6 +701,7 @@ function DiscoverGameCardView({
         artworkNotice={artworkNotice}
       />
       <DiscoverGameObservation
+        t={t}
         group={actionGroup}
         first={first}
         status={status}
@@ -598,6 +711,7 @@ function DiscoverGameCardView({
         organization={organization}
       />
       <DiscoverGameActions
+        t={t}
         onTask={onTask}
         group={actionGroup}
         statuses={statuses}
@@ -620,19 +734,20 @@ function DiscoverGameCardView({
 }
 
 function DiscoverGameMetadata({
+  t,
   port,
   status,
   exact,
   devicePlatform,
   artworkNotice,
 }: {
+  t: TFunction<"browsing">;
   port: CatalogEntry;
   status: PortStatus | undefined;
   exact: boolean;
   devicePlatform: PortDefinition["platforms"][number] | undefined;
   artworkNotice: ReturnType<typeof artworkDisplayNotice>;
 }) {
-  const { t } = useAppTranslation("browsing");
   return (
     <div className="discover-game-metadata grid content-start gap-2">
       {artworkNotice && <p className="text-xs text-pc-muted-foreground">{artworkNotice}</p>}
@@ -641,7 +756,8 @@ function DiscoverGameMetadata({
       {/* On a known device, platform chips repeat on every card; show only the
           exception. Without a known device, the platforms stay listed. */}
       {exact && (
-        <IdentityChips
+        <IdentityChipsContent
+          t={t}
           port={{
             ...port,
             ...(devicePlatform ? { platforms: [] } : {}),
@@ -670,12 +786,20 @@ function discoverCardIdentity(
   group: GameGroup,
   statuses: ReadonlyMap<string, PortStatus>,
   organization: Organization | undefined,
+  devicePlatform: PortDefinition["platforms"][number] | undefined,
 ) {
-  const chosen = resolveGameChoice(
+  const choice = resolveGameChoice(
     group,
     statuses,
     organization?.snapshot ? (organization.snapshot.preferred_port_by_game ?? {}) : undefined,
-  ).port;
+  );
+  const platformMatch =
+    devicePlatform && group.matchingPorts.every((port) => availablePlatforms(port).length > 0)
+      ? group.matchingPorts.filter((port) => availablePlatforms(port).includes(devicePlatform))
+      : [];
+  const chosen =
+    choice.port ??
+    (choice.reason === "ambiguous" && platformMatch.length === 1 ? platformMatch[0] : undefined);
   const first = chosen ?? group.matchingPorts[0]!;
   const firstProject = gameProjectLabel(first);
   return {
@@ -692,6 +816,7 @@ function discoverCardIdentity(
 }
 
 function DiscoverGameObservation({
+  t,
   group,
   first,
   status,
@@ -700,6 +825,7 @@ function DiscoverGameObservation({
   firstProject,
   organization,
 }: {
+  t: TFunction<"browsing">;
   group: GameGroup;
   first: CatalogEntry;
   status: PortStatus | undefined;
@@ -708,7 +834,6 @@ function DiscoverGameObservation({
   firstProject: string;
   organization: Organization | undefined;
 }) {
-  const { t } = useAppTranslation("browsing");
   const exact = group.matchingPorts.length === 1;
   return (
     <div className="discover-game-observation grid content-start gap-1">
@@ -723,7 +848,8 @@ function DiscoverGameObservation({
               />
             </p>
           )}
-          <BrowsePortObservations
+          <BrowsePortObservationsContent
+            t={t}
             port={first}
             status={status}
             observation={observation}
@@ -739,6 +865,7 @@ function DiscoverGameObservation({
 }
 
 function DiscoverGameActions({
+  t,
   group,
   onTask,
   statuses,
@@ -751,11 +878,11 @@ function DiscoverGameActions({
   Parameters<typeof DiscoverGameCard>[0],
   "group" | "onTask" | "statuses" | "open" | "compare"
 > & {
+  t: TFunction<"browsing">;
   first: CatalogEntry;
   detailOrigin: string;
   describedBy: string | undefined;
 }) {
-  const { t } = useAppTranslation("browsing");
   const action = presentPortAction(
     useOperationPresentation(),
     first.id,
@@ -792,6 +919,7 @@ function DiscoverGameActions({
           data-focusable
           variant="ghost"
           size="sm"
+          data-collection-control="compare-evidence"
           onClick={(event) => compare(group, event.currentTarget)}
         >
           {t("discover.action.why")}
@@ -802,6 +930,7 @@ function DiscoverGameActions({
           data-focusable
           size="sm"
           variant="ghost"
+          data-collection-control="compare-all"
           onClick={(event) => compare(group, event.currentTarget)}
         >
           <GitCompareArrows aria-hidden="true" />

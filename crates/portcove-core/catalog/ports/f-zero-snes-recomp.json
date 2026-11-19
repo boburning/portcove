@@ -35,6 +35,21 @@
           "instruction": "Keep the original game file separately. Preserve saves/ and config.ini, fzero-video.ini, keybinds.ini and rom.cfg beside the executable when moving your external Windows copy."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "f-zero",
+      "evidence_urls": [
+        "https://github.com/RetroPortingToolKit/F-ZeroForever/releases/tag/v1.8.3",
+        "https://github.com/RetroPortingToolKit/F-ZeroForever",
+        "https://github.com/boburning/portcove/actions/runs/42721674877",
+        "https://github.com/boburning/portcove/actions/runs/42664975992",
+        "https://github.com/RetroPortingToolKit/FZeroSNESRecomp/commit/c70e790e222600a3c4e79081f3f6371732746815",
+        "https://github.com/RetroPortingToolKit/FZeroSNESRecomp/releases/tag/v0.14.1",
+        "https://github.com/boburning/portcove/issues/4784#issuecomment-6886921035",
+        "https://api.github.com/repos/RetroPortingToolKit/F-ZeroForever"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

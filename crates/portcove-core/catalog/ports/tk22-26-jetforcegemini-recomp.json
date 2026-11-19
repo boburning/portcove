@@ -46,6 +46,15 @@
       "warnings": [
         "Keep the prebuilt launcher/runtime unit, exact imported US ROM, profiles and storage-location.txt. Do not attach a finite-probe default or infer campaign/device acceptance from upstream testing mods."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "jet-force-gemini",
+      "evidence_urls": [
+        "https://github.com/TK22-26/JetForceGemini-Recomp/blob/5ec705f7d1575135e7965fe1376666b225f22ee1/README.md",
+        "https://github.com/TK22-26/JetForceGemini-Recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

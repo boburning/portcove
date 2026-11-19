@@ -35,6 +35,12 @@
       "image_sha256": "e6e558f187848bdfc23922eb184d911d4d16db0a4557a667ae3c4d4813be9e8f",
       "game_slug": "dead-or-alive-4",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dead-or-alive-4",
+      "evidence_urls": ["https://github.com/redC0rvus/doa4-recomp-suite"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

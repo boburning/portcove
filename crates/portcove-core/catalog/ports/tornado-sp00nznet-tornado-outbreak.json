@@ -35,6 +35,12 @@
       "image_sha256": "62a4db6c7f54878ed79284b983c37e2d66d0ca8ce2749045cbaa55bf09073b8f",
       "game_slug": "tornado-outbreak",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tornado-outbreak",
+      "evidence_urls": ["https://github.com/sp00nznet/tornado"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

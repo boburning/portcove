@@ -47,6 +47,15 @@
         "The selected release and current source differ. No new package/original/game execution or native gameplay/save/ghost/replay/hardware/installed/protected qualification is claimed. No exact source-to-binary or blanket project/component redistribution grant is established.",
         "No Core acquisition/setup/source conversion/Install/Update/Backup/Rollback/migration/deletion, new SNES-family infrastructure or Supported promotion. Partial translated coverage and Linux limitations remain visible."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "top-gear-snes",
+      "evidence_urls": [
+        "https://github.com/thebradshaw/topgear-pc/blob/b91007aaf1bb95afa4c510d734f74455de48a770/README.md",
+        "https://github.com/thebradshaw/topgear-pc"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

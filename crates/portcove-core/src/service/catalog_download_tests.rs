@@ -621,6 +621,139 @@ fn retained_restricted_pending_setup_survives_a_legacy_current_directory() {
     );
 }
 
+#[test]
+fn catalog_setup_browser_handoff_uses_only_the_matching_retained_record() {
+    let (_temporary, mut service, request) = fixture();
+    let mut listing = service.catalog.listing(&request.port_id).unwrap().clone();
+    let setup = "https://github.com/owner/game/wiki/old-setup";
+    let help = "https://github.com/owner/game/blob/v1/guide.md";
+    listing.setup_url = Some(setup.into());
+    listing.manual_setup = Some(
+        serde_json::from_value(json!({
+            "steps": [{"title":"Set up the game","instruction":"Keep the data folder."}],
+            "warnings": [],
+            "help_url":help
+        }))
+        .unwrap(),
+    );
+    let set_directory = |service: &mut PortcoveService, listing| {
+        service.catalog = Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+            .unwrap()
+            .with_listing_document(crate::CatalogListingDocument {
+                format_version: 1,
+                listings: vec![listing],
+            })
+            .unwrap();
+    };
+    set_directory(&mut service, listing.clone());
+    let (pending, _stage, _) = intent(&service, &request);
+    let replacement = "https://github.com/owner/game/wiki/new-installer";
+    listing.setup_url = Some(replacement.into());
+    listing.manual_setup = None;
+    set_directory(&mut service, listing);
+
+    for url in [setup, help, pending.artifact.release_url.as_str()] {
+        assert!(!service.is_reviewed_resource_url(url).unwrap());
+        assert_eq!(
+            service
+                .pending_setup_resource(&pending.port_id, &pending.id, url)
+                .unwrap(),
+            url,
+        );
+    }
+    for url in [
+        replacement,
+        &pending.artifact.download_url,
+        "https://github.com/owner/game/releases/tag/v2",
+        "https://github.com/owner/another/releases/tag/v1",
+    ] {
+        assert!(
+            service
+                .pending_setup_resource(&pending.port_id, &pending.id, url)
+                .is_err()
+        );
+    }
+    assert!(
+        service
+            .pending_setup_resource(&pending.port_id, "stale-id", setup)
+            .is_err()
+    );
+    assert!(
+        service
+            .pending_setup_resource("other-port", &pending.id, setup)
+            .is_err()
+    );
+    service
+        .forget_pending_setup(&pending.port_id, &pending.id)
+        .unwrap();
+    assert!(
+        service
+            .pending_setup_resource(&pending.port_id, &pending.id, setup)
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn catalog_setup_browser_handoff_rechecks_the_exact_fresh_package() {
+    let (_temporary, service, request) = fixture();
+    let upstream = GithubFixture::new(
+        archive(),
+        Some(format!("sha256:{}", "a".repeat(64))),
+        Some(format!("{}  game.zip\n", "b".repeat(64))),
+    );
+    let provider = CatalogDownloadProvider::Github(upstream.provider.clone());
+    let expected = "https://github.com/owner/game/releases/tag/v1.0";
+    assert!(!service.is_reviewed_resource_url(expected).unwrap());
+    assert_eq!(
+        service
+            .catalog_download_release_notes_inner(
+                &request.port_id,
+                &request.release_id,
+                &request.asset_id,
+                expected,
+                Some(&provider),
+            )
+            .await
+            .unwrap(),
+        expected,
+    );
+    assert_eq!(upstream.requests.load(Ordering::SeqCst), 2);
+    let preview_error = service
+        .catalog_download_preview_with_provider(&request, &upstream.provider)
+        .await
+        .unwrap_err();
+    assert!(
+        preview_error
+            .message
+            .contains("conflicts with its checksum sidecar"),
+        "{preview_error}"
+    );
+    assert!(
+        service
+            .catalog_download_release_notes_inner(
+                &request.port_id,
+                &request.release_id,
+                &request.asset_id,
+                "https://github.com/owner/game/releases/tag/v2",
+                Some(&provider),
+            )
+            .await
+            .is_err()
+    );
+    assert!(
+        service
+            .catalog_download_release_notes_inner(
+                &request.port_id,
+                &request.release_id,
+                &99.into(),
+                expected,
+                Some(&provider),
+            )
+            .await
+            .is_err()
+    );
+}
+
 #[tokio::test]
 async fn authored_download_restriction_blocks_options_preview_and_mutation_before_network() {
     let (_temporary, mut service, request) = fixture();

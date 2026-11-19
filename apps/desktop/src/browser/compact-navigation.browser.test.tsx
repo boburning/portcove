@@ -33,7 +33,9 @@ for (const width of [320, 576]) {
           <App />
         </LocalizationProvider>,
       );
-      await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+      await expect
+        .poll(() => document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize"))
+        .toBe("12");
       const firstArt = document.querySelector<HTMLElement>(".collection-art")!;
       expect(firstArt.getBoundingClientRect().top).toBeLessThan(650);
       const heading = page.getByRole("heading", { name: "Your library", level: 1 }).element();
@@ -139,7 +141,9 @@ it.each([320, 576])(
         <App />
       </LocalizationProvider>,
     );
-    await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+    await expect
+      .poll(() => document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize"))
+      .toBe("12");
     const navigation = page.getByRole("button", { name: "Open navigation", exact: true });
     const firstGame = () => document.querySelector<HTMLButtonElement>(".collection-identity")!;
     firstGame().focus();
@@ -223,7 +227,9 @@ for (const theme of ["light", "dark"]) {
         <App />
       </LocalizationProvider>,
     );
-    await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+    await expect
+      .poll(() => document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize"))
+      .toBe("12");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await expect
       .element(page.getByRole("heading", { name: "Color theme", exact: true }))

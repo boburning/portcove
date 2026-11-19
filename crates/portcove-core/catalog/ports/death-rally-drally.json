@@ -43,6 +43,15 @@
       "warnings": [
         "The upstream alpha omits the original game data and does not offer multiplayer. Setup, runtime replacement and backups are player-managed."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "death-rally",
+      "evidence_urls": [
+        "https://github.com/urxp/dRally/blob/v0.2/README.md",
+        "https://github.com/urxp/dRally"
+      ],
+      "source_editions": []
     }
   }
 }

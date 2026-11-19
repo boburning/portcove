@@ -20,10 +20,6 @@
     "availability": "packages",
     "setup_url": "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md",
     "release_url": "https://github.com/Inkub0/dude/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["dude-0.9.", "-win64.zip"],
-      "linux-x86-64": ["dude-0.9.", "-linux-x86_64.tar.gz"]
-    },
     "recommended_download_channel": "stable",
     "manual_setup": {
       "steps": [
@@ -50,6 +46,15 @@
           "instruction": "Choose the DUDE x86-64 Doom 3 game tarball. The separately named dude-q4 package is a Quake 4 add-on. Extract the complete folder and keep its game libraries and bundled Vulkan loader. The reviewed executable needs glibc 2.34, SDL2, OpenAL and the OpenSSL variant of libcurl. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders. Start ./dude from the prepared directory. Preserve ~/.config/dude and ~/.local/share/dude or their XDG equivalents, plus any custom paths. DUDE can copy the legacy dhewm3 config on first run. Preserve both config trees before opening DUDE. The managed Linux x86-64 copy reads your PK4s from its own runtime and starts with its packaged modules. Use a separate upstream copy for custom paths, native mods or a custom library search path. If a managed first launch would copy a legacy profile, complete that setup in an upstream copy first."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "doom-3-classic",
+      "evidence_urls": [
+        "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md",
+        "https://github.com/Inkub0/dude"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
@@ -64,6 +69,7 @@
     },
     "decisions": []
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

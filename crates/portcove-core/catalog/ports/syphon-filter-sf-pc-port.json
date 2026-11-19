@@ -59,6 +59,16 @@
         }
       ],
       "help_url": "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "syphon-filter",
+      "evidence_urls": [
+        "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16",
+        "https://github.com/Madxbio97/SF-pc-port"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Syphon Filter"
   }
 }

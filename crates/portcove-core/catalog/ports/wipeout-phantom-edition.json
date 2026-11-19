@@ -47,7 +47,16 @@
         }
       ]
     },
-    "original_game_title": "WipeOut"
+    "original_game_title": "WipEout",
+    "original_game": {
+      "format_version": 1,
+      "id": "wipeout",
+      "evidence_urls": [
+        "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition/releases/tag/v1.2.256",
+        "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

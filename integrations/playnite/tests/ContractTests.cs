@@ -427,15 +427,40 @@ internal static class ContractTests
             "API83 is not an operation-event version");
         ProtocolStream.Negotiate(independent83, ConsumerCapability.Library);
         Check(true, "API83 library reader does not require an unused event channel or comparison command");
-        foreach (var privateSchema in new[] { 58, 59, 64, 101 })
+        const string expectedRanges = "42 through 57 or 60 through 63 or 65 through 100";
+        foreach (var boundarySchema in new[] { 57, 58, 59, 60, 63, 64, 65, 100, 101 })
         {
-            var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
-            unsupported["schema_version"] = privateSchema;
-            Reject(() => ProtocolStream.Negotiate(unsupported), "private or future schema " + privateSchema + " rejected");
-            var unsupportedResult = Json.Object(Json.Parse(Result("status", new object[0])));
-            unsupportedResult["schema_version"] = privateSchema;
-            Reject(() => new ProtocolStream("status").Line(Json.Print(unsupportedResult)),
-                "actual result reader refuses private or future schema " + privateSchema);
+            var capabilities = Json.Object(Json.Parse(Json.Print(Capabilities())));
+            capabilities["schema_version"] = boundarySchema;
+            var result = Json.Object(Json.Parse(Result("status", new object[0])));
+            result["schema_version"] = boundarySchema;
+            var boundaryReader = new ProtocolStream("status");
+            if (new[] { 58, 59, 64, 101 }.Contains(boundarySchema))
+            {
+                foreach (Action request in new Action[]
+                {
+                    () => ProtocolStream.Negotiate(capabilities, ConsumerCapability.Library),
+                    () => boundaryReader.Line(Json.Print(result))
+                })
+                {
+                    try
+                    {
+                        request();
+                    }
+                    catch (InvalidOperationException error)
+                    {
+                        Check(error.Message.Contains(expectedRanges), "schema guidance matches compatibility for " + boundarySchema);
+                        continue;
+                    }
+                    throw new Exception("Accepted unsupported schema " + boundarySchema);
+                }
+            }
+            else
+            {
+                ProtocolStream.Negotiate(capabilities, ConsumerCapability.Library);
+                boundaryReader.Line(Json.Print(result));
+                Check(Json.Array(boundaryReader.Finish(0)).Length == 0, "both readers accept schema " + boundarySchema);
+            }
         }
         var contradictoryLegacyEvent = Json.Object(Json.Parse(Json.Print(Capabilities())));
         contradictoryLegacyEvent["operation_event_schema_version"] = 3;

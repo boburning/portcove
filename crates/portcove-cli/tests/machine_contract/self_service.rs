@@ -46,7 +46,9 @@ fn listing_only_selected_runtime_survives_cli_restart_relink_and_registration_re
     let root = tempfile::tempdir().unwrap();
     let library = root.path().join("Selected library ü 日本語");
     let runtime = root.path().join("User owned game ü 日本語");
+    let working = root.path().join("Game working folder Ω");
     std::fs::create_dir(&runtime).unwrap();
+    std::fs::create_dir(&working).unwrap();
     let executable = compile_native_fixture(&runtime);
     let replacement = runtime.join(if cfg!(windows) {
         "updated-game.exe"
@@ -86,7 +88,7 @@ fn listing_only_selected_runtime_survives_cli_restart_relink_and_registration_re
             port,
             executable.to_str().unwrap(),
             "--working-directory",
-            runtime.to_str().unwrap(),
+            working.to_str().unwrap(),
             "--arg=--help",
         ],
     );
@@ -105,7 +107,7 @@ fn listing_only_selected_runtime_survives_cli_restart_relink_and_registration_re
             port,
             executable.to_str().unwrap(),
             "--working-directory",
-            runtime.to_str().unwrap(),
+            working.to_str().unwrap(),
             "--arg=--help",
             "--expected-preview",
             &hash,
@@ -121,6 +123,21 @@ fn listing_only_selected_runtime_survives_cli_restart_relink_and_registration_re
         json_stdout(&status)["data"]["external_runtime"]["id"],
         registration["id"]
     );
+
+    let paths = portcove(&library, &["paths", port]);
+    assert!(paths.status.success(), "{paths:?}");
+    let paths = String::from_utf8(paths.stdout).unwrap();
+    assert!(paths.lines().any(|line| {
+        line.starts_with("Registered working folder:") && line.ends_with("Game working folder Ω")
+    }));
+    assert!(paths.lines().any(|line| {
+        line.starts_with("Selected program:") && line.contains("User owned game ü 日本語")
+    }));
+    assert!(paths.contains("Back up the external profile separately."));
+    assert!(!paths.contains("Future install folder"));
+    let machine_paths = portcove(&library, &["--json", "paths", port]);
+    assert!(!machine_paths.status.success());
+    assert_eq!(json_stdout(&machine_paths)["error"]["code"], "not_found");
 
     // Steam's static manual entry uses the public argument array, without a
     // fixed request UUID or a version-specific game executable.
@@ -165,7 +182,7 @@ fn listing_only_selected_runtime_survives_cli_restart_relink_and_registration_re
             port,
             replacement.to_str().unwrap(),
             "--working-directory",
-            runtime.to_str().unwrap(),
+            working.to_str().unwrap(),
             "--arg=--help",
         ],
     );
@@ -184,7 +201,7 @@ fn listing_only_selected_runtime_survives_cli_restart_relink_and_registration_re
             port,
             replacement.to_str().unwrap(),
             "--working-directory",
-            runtime.to_str().unwrap(),
+            working.to_str().unwrap(),
             "--arg=--help",
             "--expected-preview",
             &hash,

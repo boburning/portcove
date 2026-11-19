@@ -42,11 +42,25 @@
       ]
     },
     "release_url": "https://github.com/HikariLucy/SnowboardKids-Recomp/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["SnowboardKidsRecompiled-", "-Windows-x86_64.zip"],
-      "linux-x86-64": ["SnowboardKidsRecompiled-", "-Linux-x86_64.zip"]
-    },
-    "recommended_download_channel": "beta"
+    "recommended_download_channel": "beta",
+    "original_game": {
+      "format_version": 1,
+      "id": "snowboard-kids",
+      "evidence_urls": [
+        "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/LAUNCHER-INTEGRATION.md",
+        "https://github.com/HikariLucy/SnowboardKids-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "snowboard-kids-nintendo-64",
+          "title": "Snowboard Kids (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -85,5 +99,6 @@
         "executables": ["scripts/build-game-module.py", "snowboardkidsengine"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"]
 }

@@ -417,7 +417,11 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
-        format!("Upstream state: {}", upstream_status(port.upstream_status)),
+        format!(
+            "Upstream state: {}",
+            port.declared_upstream_status()
+                .map_or("unrecorded", upstream_status)
+        ),
     ];
     if let Some(profile_id) = port.source_profile.as_deref() {
         lines.push(format!("Game-file profile ID: {}", clean(profile_id)));
@@ -2687,9 +2691,13 @@ pub(crate) fn preparation_cleanup(
     )
 }
 
-pub(crate) fn paths(paths: &PortPaths, catalog: &portcove_core::Catalog) -> String {
-    format!(
-        "Paths for {}\nLibrary: {}\nSaves and settings: {}\nFuture install folder: {} ({})\nActive: {}\nPrevious: {}\nSaved for later: {}",
+pub(crate) fn paths(
+    paths: &PortPaths,
+    collection_root: Option<&std::path::Path>,
+    catalog: &portcove_core::Catalog,
+) -> String {
+    let mut output = format!(
+        "Paths for {}\nLibrary: {}\nSaves and settings: {} (Portcove data folder)\nFuture install folder: {} ({})\nActive: {}\nPrevious: {}\nSaved for later: {}",
         port_name(catalog, &paths.port_id),
         clean(&paths.library_root.display().to_string()),
         clean(&paths.user_data_root.display().to_string()),
@@ -2704,6 +2712,38 @@ pub(crate) fn paths(paths: &PortPaths, catalog: &portcove_core::Catalog) -> Stri
         optional_path(paths.active_install_root.as_deref()),
         optional_path(paths.previous_install_root.as_deref()),
         optional_path(paths.staged_install_root.as_deref()),
+    );
+    if let Some(root) = collection_root {
+        output.push_str(&format!(
+            "\nBackup collection folder for the active installation: {}",
+            clean(&root.display().to_string())
+        ));
+    } else if paths.active_install_root.is_some() {
+        output.push_str("\nBackup collection folder for the active installation: Unknown");
+    }
+    if paths.active_install_root.is_some() {
+        output.push_str(&format!(
+            "\nUse portcove --json backup list {} to see the backup rules and files eligible for collection. Saves in other profiles may need a separate backup.\nPortcove manages updates for the active installation. Use remove-preview to see what removal keeps.",
+            paths.port_id
+        ));
+    }
+    output
+}
+
+pub(crate) fn external_paths(
+    runtime: &portcove_core::ExternalRuntimeRecord,
+    catalog: &portcove_core::Catalog,
+) -> String {
+    let registered_folder = if runtime.user_selected.is_some() {
+        "Registered working folder"
+    } else {
+        "Registered installation folder"
+    };
+    format!(
+        "Paths for {}\n{registered_folder}: {}\nSelected program: {}\nSaves and settings: Check the project's setup instructions or your game's settings for the actual save location.\nBack up the external profile separately.\nUpstream or you update this installation. Removing the registration keeps its files in place.",
+        port_name(catalog, &runtime.port_id),
+        clean(&runtime.path.display().to_string()),
+        clean(&runtime.executable.display().to_string()),
     )
 }
 
@@ -4037,7 +4077,11 @@ mod tests {
     #[test]
     fn catalog_show_uses_structured_presentation_without_adapter_ids() {
         let catalog = portcove_core::Catalog::embedded().unwrap();
-        let output = catalog_show(catalog.port("shipwright").unwrap());
+        let embedded = catalog.port("shipwright").unwrap();
+        assert!(catalog_show(embedded).contains("Upstream state: unrecorded"));
+        let mut reviewed = embedded.clone();
+        reviewed.upstream_active_reviewed = true;
+        let output = catalog_show(&reviewed);
         assert!(output.contains("Installation: portable upstream package"));
         assert!(output.contains("Game files: The Legend of Zelda: Ocarina of Time source"));
         assert!(output.contains("Check method: Required files and format checks"));
@@ -4068,6 +4112,7 @@ mod tests {
                 key_id: Some("publisher-id".into()),
                 expires_at: Some(42),
                 fallback_reasons: vec!["active catalog expired\rcheck trust".into()],
+                fallback_codes: Vec::new(),
             },
             trusted_keys: vec![CatalogTrustKey {
                 key_id: "trusted-id".into(),
@@ -4110,6 +4155,7 @@ mod tests {
                 key_id: None,
                 expires_at: None,
                 fallback_reasons: Vec::new(),
+                fallback_codes: Vec::new(),
             },
             trusted_keys: Vec::new(),
             highest_sequence: 0,

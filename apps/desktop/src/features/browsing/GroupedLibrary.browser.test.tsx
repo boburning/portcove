@@ -121,7 +121,6 @@ it("shows scoped launch stages beside the matching port in Discover", async () =
         statuses={new Map()}
         devicePlatform="windows-x86-64"
         onSelect={vi.fn()}
-        onFavoriteToggle={vi.fn()}
       />
     </OperationPresentationProvider>,
   );
@@ -134,7 +133,6 @@ it("shows scoped launch stages beside the matching port in Discover", async () =
   await expect.element(project.getByText(/Scope:.*release v1/)).toBeVisible();
   expect(document.body.textContent).not.toContain("Different platform");
 
-  await page.getByText("Comparison options and reports", { exact: true }).click();
   await page.getByText("Comparison settings", { exact: true }).click();
   await page.getByRole("combobox", { name: /Target platform/ }).click();
   await page.getByRole("option", { name: "Linux", exact: true }).click();
@@ -199,6 +197,7 @@ it("requires an acknowledged choice, retains alternatives and targets the chosen
   );
   expect(document.body.textContent).not.toContain("Play First project");
   await page.getByRole("button", { name: "Choose Second project", exact: true }).first().click();
+  expect(write).toHaveBeenCalledTimes(1);
   expect(document.body.textContent).not.toContain("Play Second project");
   accept(false);
   await expect
@@ -314,7 +313,6 @@ it("a completed choice never navigates from a dismissed comparison", async () =>
       matching={[first, second]}
       statuses={new Map()}
       onSelect={select}
-      onFavoriteToggle={vi.fn()}
       organization={{
         snapshot: empty,
         busy: false,
@@ -542,7 +540,6 @@ it("presents grouped Discover cards and the comparison in the active locale", as
         matching={[first, second]}
         statuses={new Map()}
         onSelect={vi.fn()}
-        onFavoriteToggle={vi.fn()}
       />,
     );
     expect(document.querySelector("article")?.getAttribute("aria-label")).toBe(
@@ -578,7 +575,6 @@ it("names a chosen port in a multi-port group with its matching project and acti
         matching={[first]}
         statuses={new Map()}
         onSelect={vi.fn()}
-        onFavoriteToggle={vi.fn()}
       />,
     );
     const identity = () =>
@@ -622,7 +618,6 @@ it("on a known device, replaces Discover platform chips with an exception for ex
       matching={ports}
       statuses={new Map()}
       onSelect={vi.fn()}
-      onFavoriteToggle={vi.fn()}
       devicePlatform="windows-x86-64"
     />,
   );
@@ -635,13 +630,7 @@ it("on a known device, replaces Discover platform chips with an exception for ex
   expect(card("unlisted").textContent).not.toContain("Not available for");
 
   await screen.rerender(
-    <GroupedDiscover
-      all={ports}
-      matching={ports}
-      statuses={new Map()}
-      onSelect={vi.fn()}
-      onFavoriteToggle={vi.fn()}
-    />,
+    <GroupedDiscover all={ports} matching={ports} statuses={new Map()} onSelect={vi.fn()} />,
   );
   // Without a known device, every card keeps listing its platforms.
   expect(platformChips("windows-only")).toEqual(["Windows"]);
@@ -665,7 +654,6 @@ it("names the device exception in the active locale", async () => {
         matching={[linuxOnly]}
         statuses={new Map()}
         onSelect={vi.fn()}
-        onFavoriteToggle={vi.fn()}
         devicePlatform="macos-aarch64"
       />,
     );
@@ -695,7 +683,6 @@ it("omits empty rows from a single-port review while a comparison keeps every ro
       matching={[bare]}
       statuses={new Map([[bare.id, { ...portStatus(), port_id: bare.id }]])}
       onSelect={vi.fn()}
-      onFavoriteToggle={vi.fn()}
     />,
   );
   await page.getByRole("button", { name: "Why this port?", exact: true }).click();
@@ -732,7 +719,6 @@ it("omits empty rows from a single-port review while a comparison keeps every ro
       matching={[described]}
       statuses={new Map([[described.id, installedLaunchStatus()]])}
       onSelect={vi.fn()}
-      onFavoriteToggle={vi.fn()}
     />,
   );
   await page.getByRole("button", { name: "Why this port?", exact: true }).click();
@@ -753,7 +739,6 @@ it("omits empty rows from a single-port review while a comparison keeps every ro
       matching={[optional]}
       statuses={new Map([[optional.id, installedLaunchStatus()]])}
       onSelect={vi.fn()}
-      onFavoriteToggle={vi.fn()}
     />,
   );
   await page.getByRole("button", { name: "Why this port?", exact: true }).click();
@@ -772,7 +757,6 @@ it("omits empty rows from a single-port review while a comparison keeps every ro
       matching={[bare, other]}
       statuses={new Map()}
       onSelect={vi.fn()}
-      onFavoriteToggle={vi.fn()}
     />,
   );
   await page.getByRole("button", { name: "Compare ports", exact: true }).click();
@@ -880,7 +864,6 @@ it.each([
           statuses={statuses}
           organization={organization}
           onSelect={select}
-          onFavoriteToggle={vi.fn()}
         />
       </OperationPresentationProvider>,
     );

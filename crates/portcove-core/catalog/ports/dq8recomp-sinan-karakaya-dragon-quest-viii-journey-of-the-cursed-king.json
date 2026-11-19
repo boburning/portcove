@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/Sinan-Karakaya/DQ8-Recompiled"
     },
-    "issue_number": 2989
+    "issue_number": 2989,
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-quest-viii-journey-of-the-cursed-king",
+      "evidence_urls": ["https://github.com/Sinan-Karakaya/DQ8-Recompiled"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
