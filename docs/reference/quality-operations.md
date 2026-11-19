@@ -801,6 +801,17 @@ capture is capped at 3 MiB per stream. These inert/control suites establish
 their stated contracts; platform skips retain their actual reason and Linux
 wrappers still require their POSIX cases to run there.
 
+The supersession helper runs on same-PR updates, reopenings and transitions to
+ready for review. It scopes the lookup to the source branch, includes pending
+and requested runs, and requires GitHub to associate a run with exactly that
+PR. If GitHub omits the association for a deferred draft, re-run all jobs after
+marking the PR ready.
+
+On events that already refresh the closing inventory, the trusted inventory job
+runs the conventions report as a bounded advisory step before its exact-head
+check. The
+standalone advisory workflow handles conversion to draft and manual dispatch.
+
 Use `just ci-health` to inspect the latest 20 main CI runs, including every rerun
 attempt. GitHub CLI authentication with read access to Actions is required.
 This is an on-demand report, not another required CI job or a planning authority.

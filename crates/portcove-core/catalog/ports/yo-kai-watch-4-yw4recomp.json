@@ -3,14 +3,14 @@
   "listing": {
     "id": "yo-kai-watch-4-yw4recomp",
     "name": "Yo-kai Watch 4++ (YW4Recomp)",
-    "summary": "This Windows port targets Yo-kai Watch 4++ update 2.2.0. Build it from your own extracted files. The project reports starting a game, visiting the house and town, and autosaving. Effects are missing and later areas can crash.",
+    "summary": "Prepare your own Yo-kai Watch 4++ files with update 2.2.0 in the upstream Windows x64 or Linux x86-64 launcher. Earlier upstream testing reached the house and town and autosaved. Effects were missing and later areas could crash. Portcove has yet to qualify setup or gameplay.",
     "original_game_title": "Yo-kai Watch 4++",
     "project_url": "https://github.com/ILFforever/YW4Recomp",
     "listed_at": "2026-10-25",
     "funding_urls": ["https://buymeacoffee.com/ilfforever"],
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/ILFforever/YW4Recomp",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/ILFforever/YW4Recomp/releases/tag/launcher-v1.4.0",
     "artwork": {
       "game_id": 127255,
       "cover_id": 311098,
@@ -20,24 +20,25 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2952,
+    "release_url": "https://github.com/ILFforever/YW4Recomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["YW4-Recomp-Launcher-", "-portable.zip"],
+      "linux-x86-64": ["YW4-Recomp-Launcher-", "-x86_64.AppImage"]
+    },
     "manual_setup": {
-      "help_url": "https://github.com/ILFforever/YW4Recomp",
+      "help_url": "https://github.com/ILFforever/YW4Recomp/releases/tag/launcher-v1.4.0",
       "steps": [
         {
-          "title": "Check your original game files",
-          "instruction": "Use hash-checked ExeFS and RomFS for the 4++ 2.2.0 update. The original Yo-kai Watch 4 requires a different profile. The root guide has no separate instructions for keys or firmware."
+          "title": "Provide the supported game edition",
+          "instruction": "Follow the publisher’s extraction guide for your own Yo-kai Watch 4++ with update 2.2.0. Use the required ExeFS and RomFS for the 4++ edition. The original Yo-kai Watch 4 requires a different profile."
         },
         {
-          "title": "Follow the project’s setup",
-          "instruction": "Follow the project’s Windows x64 source build with Python, Git, Clang, GCC and the Vulkan SDK. The player needs Vulkan 1.3. There is no release package."
+          "title": "Choose a launcher package",
+          "instruction": "Choose the Windows launcher or Linux x86-64 AppImage. Prepare the owned game files through the upstream launcher and use its Update button for game updates. The separately listed game-update ZIP is for an existing launcher installation."
         }
       ],
-      "warnings": [],
-      "references": [
-        {
-          "title": "Version and platform notes",
-          "instruction": "The project reports 30 FPS in early areas. The Linux badge describes a planned route and has no Linux test behind it. No Mac route is documented."
-        }
+      "warnings": [
+        "The publisher’s package metadata establishes download availability. Portcove has not confirmed runtime, save, platform or update behavior."
       ]
     },
     "original_game": {

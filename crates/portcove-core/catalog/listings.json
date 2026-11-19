@@ -14984,7 +14984,7 @@
     {
       "id": "animal-crossing-new-horizons-acnhrecomp",
       "name": "Animal Crossing: New Horizons (ACNHRecomp)",
-      "summary": "Build Animal Crossing: New Horizons locally from your own Switch game and 3.0.2 update. The project reports reaching the island and walking around on Ubuntu Linux. Saving and a full day of play remain unconfirmed, and online play is unavailable.",
+      "summary": "Prepare your own Animal Crossing: New Horizons game and supported update in the experimental ACNHRecomp launcher. Upstream publishes Windows x64, Linux x64 and Apple silicon packages and a separate Android APK. Earlier Ubuntu testing reached the island. Saving, a full day of play and online play remain unverified by Portcove.",
       "original_game_title": "Animal Crossing: New Horizons",
       "project_url": "https://github.com/Nycolazs/ACNHRecomp",
       "listed_at": "2026-10-25",
@@ -14993,9 +14993,13 @@
         "https://ko-fi.com/nycolazs",
         "https://buymeacoffee.com/nycolazs"
       ],
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Nycolazs/ACNHRecomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Nycolazs/ACNHRecomp/releases/tag/v0.11.0",
       "artwork": {
         "game_id": 109462,
         "cover_id": 182224,
@@ -15005,24 +15009,43 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2957,
+      "release_url": "https://github.com/Nycolazs/ACNHRecomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "ACNHRecomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "ACNHRecomp-",
+          "-linux-x64.tar.gz"
+        ],
+        "macos-aarch64": [
+          "ACNHRecomp-",
+          "-macOS-arm64.zip"
+        ]
+      },
       "manual_setup": {
-        "help_url": "https://github.com/Nycolazs/ACNHRecomp",
+        "help_url": "https://github.com/Nycolazs/ACNHRecomp/releases/tag/v0.11.0",
         "steps": [
           {
-            "title": "Check your original game files",
-            "instruction": "Use your own base NSP and 3.0.2 update NSP for title 01006F8002326000, plus prod.keys. The project recommends title.keys and accepts optional owned DLC. Its guide requires no separate firmware folder."
+            "title": "Extract the original game files",
+            "instruction": "Use your own copy of Animal Crossing: New Horizons with update 3.0.3. Following the v0.11.0 release instructions, extract the game’s ExeFS and RomFS for the launcher. Keep the working inputs separate from your original copy."
           },
           {
-            "title": "Follow the project’s setup",
-            "instruction": "Follow the project’s Linux launcher or shell setup. It imports the game and builds locally. On Windows the setup requires WSL2, Linux or a Mac. There is no released player or native Windows build pipeline."
+            "title": "Prepare the selected desktop player",
+            "instruction": "Open the launcher from the package for your computer, choose Prepare the game from your extracted files, and select the files, a writable game folder and its target platforms. Let the launcher finish building before choosing Play."
+          },
+          {
+            "title": "Prepare the Android copy",
+            "instruction": "Use the Android APK and select a game folder with the extracted exefs and romfs directories, or choose Android as a target on your computer and copy the prepared folder to the phone."
+          },
+          {
+            "title": "Keep your saves",
+            "instruction": "Keep the user folder inside the game folder or use the upstream save backup before replacing the player."
           }
         ],
-        "warnings": [],
-        "references": [
-          {
-            "title": "Version and platform notes",
-            "instruction": "The reported Ubuntu x64 test used Iris Xe at 30 FPS. Forcing 60 FPS doubles game speed. Apple silicon scripts are untested and Android is unsupported."
-          }
+        "warnings": [
+          "The publisher describes the v0.11.0 preparation tests as using synthetic input. Game dumps, saves, graphics drivers and gameplay can still behave differently. Portcove has not qualified setup or gameplay."
         ]
       },
       "original_game": {
@@ -38082,10 +38105,12 @@
       "id": "graw-360-recompiled-juansolo457-tom-clancy-s-ghost-recon-advanced-warfighter-xbox-360",
       "name": "Tom Clancy's Ghost Recon Advanced Warfighter (Xbox 360) — GRAW 360 Recompiled (Juansolo457)",
       "original_game_title": "Tom Clancy's Ghost Recon Advanced Warfighter (Xbox 360)",
-      "summary": "Upstream reports menus and Instant Action/co-op loading, but 3D output is black. The campaign menu starts; mission startup remains unfinished. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
+      "summary": "Play the Xbox 360 edition of Ghost Recon Advanced Warfighter using your own disc. The publisher’s v0.6 release provides a native Linux and Steam Deck package and reports campaign play. A full campaign playthrough and gameplay in Portcove remain unverified.",
       "project_url": "https://github.com/Juansolo457/graw360-recomp",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/Juansolo457/graw360-recomp",
       "manual_setup": {
         "steps": [
@@ -38094,12 +38119,12 @@
             "instruction": "Use your own USA or Europe Xbox 360 game, title ID 555307D5. This guide has only an abbreviated default.xex SHA-256, 295ac4de...c023a; check the full upstream requirement before setup. Keep the main, multiplayer and campaign executables together as one game installation."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Follow upstream’s extraction and build scripts for port, port-mp and port-yeti. No release package is confirmed; use the source-build instructions."
+            "title": "Choose the upstream setup route",
+            "instruction": "On Steam Deck or a Linux x86-64 system with AVX2, FMA and Vulkan 1.3, extract the v0.6 Linux ZIP and follow its README.txt to supply your owned disc files. The publisher reports testing on Steam Deck. On Windows, follow the v0.6 source-build instructions. Keep your game files and saves before updating."
           }
         ],
         "warnings": [
-          "Upstream reports menus and Instant Action/co-op loading, but 3D output is black. The campaign menu starts; mission startup remains unfinished.",
+          "Upstream reports campaign missions playable in v0.6. Earlier builds reported black 3D output and unfinished campaign startup. Check the v0.6 release notes for current limitations.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
         "help_url": "https://github.com/Juansolo457/graw360-recomp"
@@ -38121,6 +38146,13 @@
           "https://github.com/Juansolo457/graw360-recomp"
         ],
         "source_editions": []
+      },
+      "release_url": "https://github.com/Juansolo457/graw360-recomp/releases",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "GRAW360-Recompiled-",
+          "-Linux.zip"
+        ]
       }
     },
     {
@@ -42420,10 +42452,13 @@
       "id": "jersey-devil-recompiled-mstan-jersey-devil",
       "name": "Jersey Devil — Jersey Devil Recompiled (mstan)",
       "original_game_title": "Jersey Devil",
-      "summary": "Upstream reports startup, intros, levels and gameplay. This is a new project; Portcove has not confirmed those results. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
+      "summary": "Prepare your own USA Jersey Devil disc with the publisher’s Windows x64 player (v0.3.3) or Linux x86-64 AppImage (v0.3.2). Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/mstan/JerseyDevilRecomp",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/mstan/JerseyDevilRecomp",
       "manual_setup": {
         "steps": [
@@ -42432,8 +42467,8 @@
             "instruction": "Use your own USA SCUS94907 disc with all 45 tracks and boot executable SCUS_949.07."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Build from source using upstream instructions. The README explicitly says no release is offered yet."
+            "title": "Choose the upstream package",
+            "instruction": "On Windows x64, extract the v0.3.3 ZIP. On Linux x86-64, use the v0.3.2 AppImage and check its setup instructions. Start the upstream player and choose the CUE file for your complete disc set. Keep your original disc files separately."
           }
         ],
         "warnings": [
@@ -42459,6 +42494,13 @@
           "https://github.com/mstan/JerseyDevilRecomp"
         ],
         "source_editions": []
+      },
+      "release_url": "https://github.com/mstan/JerseyDevilRecomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "JerseyDevilRecomp-",
+          "-windows-x64.zip"
+        ]
       }
     },
     {
@@ -47239,13 +47281,16 @@
     {
       "id": "mario-kart-8-deluxe-racing-8-dx-recomp",
       "name": "Mario Kart 8 Deluxe (Racing-8-DX-Recomp)",
-      "summary": "Racing-8-DX-Recomp builds a personal Mario Kart 8 Deluxe AppImage on Linux from your own game and 3.0.4 update. The project reports races and four-player play on AMD hardware. Its v0.1.0 tag contains no downloadable player.",
+      "summary": "Racing-8-DX-Recomp uses your own Mario Kart 8 Deluxe game and 3.0.4 update. The project reports races and four-player play on AMD hardware. The BETA-0.2.5 prerelease offered a Linux x86-64 AppImage, and v0.2.4 offered Windows and Linux packages. Portcove has yet to qualify these packages.",
       "original_game_title": "Mario Kart 8 Deluxe",
       "project_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp",
       "listed_at": "2026-10-25",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp/releases",
       "artwork": {
         "game_id": 26764,
         "cover_id": 94741,
@@ -73170,13 +73215,15 @@
     {
       "id": "super-smash-bros-ultimate-ssbu-arena",
       "name": "Super Smash Bros. Ultimate (ssbu-arena)",
-      "summary": "SSBU Arena is an independent Windows fork for competitive one-on-one Super Smash Bros. Ultimate. It uses your own 13.0.4 or 13.0.5 game. The project tested rollback with two windows on one PC. Ranked play and replays are planned.",
+      "summary": "SSBU Arena is an independent Windows fork for competitive one-on-one Super Smash Bros. Ultimate. The v0.2.52 release provides SSBU-Arena.exe to prepare and update the game from your own supported files. Upstream reported testing rollback with two windows on one PC. Portcove has yet to verify setup, matchmaking or gameplay.",
       "original_game_title": "Super Smash Bros. Ultimate",
       "project_url": "https://github.com/SSBUArena/ssbu-arena",
       "listed_at": "2026-10-25",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/SSBUArena/ssbu-arena",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/SSBUArena/ssbu-arena/releases/tag/v0.2.52",
       "artwork": {
         "game_id": 90101,
         "cover_id": 96089,
@@ -73186,24 +73233,26 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2938,
+      "release_url": "https://github.com/SSBUArena/ssbu-arena/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "SSBU-Arena.exe"
+        ]
+      },
       "manual_setup": {
-        "help_url": "https://github.com/SSBUArena/ssbu-arena",
+        "help_url": "https://github.com/SSBUArena/ssbu-arena/releases/tag/v0.2.52",
         "steps": [
           {
-            "title": "Check your original game files",
-            "instruction": "Use your own 13.0.4 or 13.0.5 game dump and keys, with any matching updates or DLC you own. Separate firmware needs are unclear."
+            "title": "Supply your own game files",
+            "instruction": "Follow the instructions for your own Super Smash Bros. Ultimate dump, matching update, and any keys required for the selected build. The project documents 13.0.4 and 13.0.5."
           },
           {
-            "title": "Follow the project’s setup",
-            "instruction": "Check the Windows 10 or 11 x64 guide against the selected release. The README describes a local source install, while v0.2.7 contains SSBU-Arena.exe, a player ZIP and a manifest."
+            "title": "Start the upstream launcher",
+            "instruction": "On Windows x64, choose SSBU-Arena.exe. Let the launcher install or update its companion files. The separate runtime archive and release manifest are for the launcher."
           }
         ],
-        "warnings": [],
-        "references": [
-          {
-            "title": "Version and platform notes",
-            "instruction": "The reported network tests used one computer. Linux and macOS guide links do not establish confirmed gameplay or CPU support there."
-          }
+        "warnings": [
+          "The publisher requires compatible versions for online play. Linux and macOS availability and gameplay have not been verified by Portcove."
         ]
       },
       "original_game": {
@@ -84821,12 +84870,13 @@
       "id": "wipeout-pc-abdelmoumendeghbouche-wipeout-omega-collection",
       "name": "WipEout Omega Collection — wipeout_pc (AbdelmoumenDeghbouche)",
       "original_game_title": "WipEout Omega Collection",
-      "summary": "An experimental Windows port of WipEout Omega Collection using your own PS4 game files. The project reports races in HD and 2048. Its documented US target is CUSA07671 with update 01.07. Linux has a source build, and the collection has no confirmed full playthrough.",
+      "summary": "An experimental port of WipEout Omega Collection for owned PS4 game files, with a documented US target of CUSA07671 and update 01.07. The publisher offers a Windows ZIP and Linux x86-64 AppImage and reports HD and 2048 races. A full collection playthrough remains unconfirmed.",
       "project_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc",
       "manual_setup": {
         "steps": [
@@ -84835,12 +84885,12 @@
             "instruction": "Use your own PS4 WipEout Omega Collection dump. The README names USA CUSA07671 base 01.00 with update 01.07 as its development target; it also names European CUSA05670 without specifying a version. Merge your own base and update files or supply GOW3_PATCH_DIR as documented. GoldHEN folder dumps are also supported by the instructions. The runtime reads your eboot.bin and game files and links your libc, Fios2 and NpToolkit2. One executable serves 2048, HD and Fury. Exact supported executable and asset fingerprints are not established."
           },
           {
-            "title": "Follow upstream setup",
-            "instruction": "Upstream README declares wipeout-windows.zip from Releases. Extract it, run WipEout.exe and select the owned game folder containing eboot.bin. Supply the matching owned base/update data as documented; runtime continues reading original files. Windows source build uses MSYS2 CLANG64/Python and upstream build.sh; Linux has a source-build route without a package or stated CPU matrix. No release asset was downloaded or verified. This manual discovery route is not managed acquisition or runtime qualification."
+            "title": "Choose the upstream player",
+            "instruction": "On Windows use the publisher’s wipeout-windows.zip. On Linux x86-64 use the publisher’s AppImage and check its system requirements. Open the upstream player and select your owned game folder containing eboot.bin. Follow the upstream instructions for your disc edition and update data. Only the publisher’s package listing was reviewed."
           }
         ],
         "warnings": [
-          "Upstream early-development status claims boot/menus/saves and HD/2048 races/results, with 110–150FPS reported in 2048 on RTX 4070 Laptop, not a full collection playthrough. New README reports extra render-resolution patches and experimental PS4 Pro mode GOW3_NEO=1 loading a race with correct picture since v0.2.3; not tested further. All HD/HD Fury/2048 event types are not yet tested, HDR RCAS fix awaits testing and new audio effects may have defects; PSVR is not planned. Linux builds from source without a package; do not infer Linux gameplay/CPU qualification. No Portcove runtime or completion qualification was performed.",
+          "Upstream early-development status claims boot/menus/saves and HD/2048 races/results, with 110–150FPS reported in 2048 on RTX 4070 Laptop, not a full collection playthrough. New README reports extra render-resolution patches and experimental PS4 Pro mode GOW3_NEO=1 loading a race with correct picture since v0.2.3; not tested further. All HD/HD Fury/2048 event types are not yet tested, HDR RCAS fix awaits testing and new audio effects may have defects; PSVR is not planned. The upstream Linux x86-64 AppImage is listed in the release; Linux gameplay and CPU compatibility remain unverified. No Portcove runtime or completion qualification was performed.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
         "help_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc",
@@ -84864,6 +84914,15 @@
         "image_sha256": "0f45789393ff7e10aa1e4f1f0550c1175476019adf78e922e0bc44fe592be8b1",
         "game_slug": "wipeout-omega-collection",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "wipeout-windows.zip"
+        ],
+        "linux-x86-64": [
+          "wipeout-x86_64.AppImage"
+        ]
       }
     },
     {
@@ -87064,16 +87123,19 @@
     {
       "id": "yo-kai-watch-4-yw4recomp",
       "name": "Yo-kai Watch 4++ (YW4Recomp)",
-      "summary": "This Windows port targets Yo-kai Watch 4++ update 2.2.0. Build it from your own extracted files. The project reports starting a game, visiting the house and town, and autosaving. Effects are missing and later areas can crash.",
+      "summary": "Prepare your own Yo-kai Watch 4++ files with update 2.2.0 in the upstream Windows x64 or Linux x86-64 launcher. Earlier upstream testing reached the house and town and autosaved. Effects were missing and later areas could crash. Portcove has yet to qualify setup or gameplay.",
       "original_game_title": "Yo-kai Watch 4++",
       "project_url": "https://github.com/ILFforever/YW4Recomp",
       "listed_at": "2026-10-25",
       "funding_urls": [
         "https://buymeacoffee.com/ilfforever"
       ],
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ILFforever/YW4Recomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/ILFforever/YW4Recomp/releases/tag/launcher-v1.4.0",
       "artwork": {
         "game_id": 127255,
         "cover_id": 311098,
@@ -87083,24 +87145,31 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2952,
+      "release_url": "https://github.com/ILFforever/YW4Recomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "YW4-Recomp-Launcher-",
+          "-portable.zip"
+        ],
+        "linux-x86-64": [
+          "YW4-Recomp-Launcher-",
+          "-x86_64.AppImage"
+        ]
+      },
       "manual_setup": {
-        "help_url": "https://github.com/ILFforever/YW4Recomp",
+        "help_url": "https://github.com/ILFforever/YW4Recomp/releases/tag/launcher-v1.4.0",
         "steps": [
           {
-            "title": "Check your original game files",
-            "instruction": "Use hash-checked ExeFS and RomFS for the 4++ 2.2.0 update. The original Yo-kai Watch 4 requires a different profile. The root guide has no separate instructions for keys or firmware."
+            "title": "Provide the supported game edition",
+            "instruction": "Follow the publisher’s extraction guide for your own Yo-kai Watch 4++ with update 2.2.0. Use the required ExeFS and RomFS for the 4++ edition. The original Yo-kai Watch 4 requires a different profile."
           },
           {
-            "title": "Follow the project’s setup",
-            "instruction": "Follow the project’s Windows x64 source build with Python, Git, Clang, GCC and the Vulkan SDK. The player needs Vulkan 1.3. There is no release package."
+            "title": "Choose a launcher package",
+            "instruction": "Choose the Windows launcher or Linux x86-64 AppImage. Prepare the owned game files through the upstream launcher and use its Update button for game updates. The separately listed game-update ZIP is for an existing launcher installation."
           }
         ],
-        "warnings": [],
-        "references": [
-          {
-            "title": "Version and platform notes",
-            "instruction": "The project reports 30 FPS in early areas. The Linux badge describes a planned route and has no Linux test behind it. No Mac route is documented."
-          }
+        "warnings": [
+          "The publisher’s package metadata establishes download availability. Portcove has not confirmed runtime, save, platform or update behavior."
         ]
       },
       "original_game": {
