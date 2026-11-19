@@ -432,7 +432,8 @@ pub use service::{
     SetupLaunchTargets, StandingSetupFailure, StandingSetupResult,
 };
 pub use signed_catalog::{
-    CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,
+    CatalogFallbackCode, CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope,
+    SignedCatalogPayload,
 };
 pub use source::SourceRelinkPlan;
 pub use source_assessment::*;

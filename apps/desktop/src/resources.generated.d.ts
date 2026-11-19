@@ -476,7 +476,7 @@ export default interface Resources {
       "fallbackGeneric": "A saved catalog could not be used. Portcove continued with the available catalog information.",
       "fallbackNotLoaded": "The selected catalog definition could not be loaded. Portcove continued with the available catalog information.",
       "fallbackReplay": "Portcove couldn’t accept this catalog update. Portcove continued with the available catalog information.",
-      "fallbackSignature": "A saved catalog did not pass signature verification. Portcove continued with the available catalog information.",
+      "fallbackSignature": "Catalog information did not pass signature verification. Portcove kept the available catalog information.",
       "fallbackUntrusted": "A saved catalog was signed by a publisher that is no longer trusted. Portcove continued with the available catalog information.",
       "fingerprint": "Publisher fingerprint",
       "loadingInformation": "Loading catalog information…",
