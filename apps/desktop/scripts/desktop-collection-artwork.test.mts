@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "vite-plus/test";
 import { portDefinition, installedLaunchStatus } from "../src/test-fixtures.ts";
-import { mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import type { OutputDesktopWorkspaceSnapshot } from "../src/transport-types.generated.d.ts";
@@ -14,6 +14,9 @@ import {
   collectionArtworkSubjects,
   collectionThumbnailIdentity,
   verifiedCollectionSurface,
+  collectionCatalogDiagnostic,
+  collectionCatalogDiagnosticJson,
+  collectionCommandDiagnostic,
 } from "./desktop-collection-artwork-test.mts";
 
 const directory = transportValue(
@@ -74,6 +77,111 @@ test("collection observation selects actual listing members and refuses operatio
   }
 });
 
+test("catalog diagnostics distinguish changed values, object-key order and entry order without retaining documents", () => {
+  const original = snapshot();
+  const untouched = structuredClone(original);
+  const before = collectionCatalogDiagnostic(original);
+  const reordered = snapshot();
+  const reorderedCatalog = reordered.listing_catalog;
+  assert.ok(reorderedCatalog);
+  const first = reorderedCatalog.listings[0];
+  assert.ok(first);
+  reorderedCatalog.listings[0] = Object.fromEntries(
+    Object.entries(first).reverse(),
+  ) as typeof first;
+  const order = collectionCatalogDiagnostic(reordered);
+  assert.notEqual(order.listing_catalog.json_sha256, before.listing_catalog.json_sha256);
+  assert.equal(
+    order.listing_catalog.object_keys_sorted_sha256,
+    before.listing_catalog.object_keys_sorted_sha256,
+  );
+  assert.deepEqual(
+    order.listing_catalog.listings.map(({ index, id }) => ({ index, id })),
+    before.listing_catalog.listings.map(({ index, id }) => ({ index, id })),
+  );
+  reorderedCatalog.listings[0].name += " changed";
+  const changed = collectionCatalogDiagnostic(reordered);
+  assert.notEqual(
+    changed.listing_catalog.object_keys_sorted_sha256,
+    before.listing_catalog.object_keys_sorted_sha256,
+  );
+  assert.notEqual(
+    changed.listing_catalog.listings[0]!.object_keys_sorted_sha256,
+    before.listing_catalog.listings[0]!.object_keys_sorted_sha256,
+  );
+  reordered.listing_catalog!.listings.reverse();
+  assert.notEqual(
+    collectionCatalogDiagnostic(reordered).listing_catalog.object_keys_sorted_sha256,
+    changed.listing_catalog.object_keys_sorted_sha256,
+    "Array order remains meaningful",
+  );
+  assert.deepEqual(original, untouched);
+  const report = collectionCatalogDiagnosticJson({ before, after: order });
+  assert.ok(
+    Buffer.byteLength(report) < 2 * 1024 * 1024,
+    "Actual catalog index fits bounded sidecar",
+  );
+  assert.ok(!report.includes(first.summary), "No full listing/prose payload is retained");
+  assert.throws(
+    () => collectionCatalogDiagnosticJson({ oversized: "x".repeat(2 * 1024 * 1024) }),
+    /2MiB/u,
+  );
+});
+
+test("early command diagnostics retain request IDs and rotations, omit payloads and name finite gaps", async () => {
+  const runtime = await mkdtemp(path.join(os.tmpdir(), "collection-commands-"));
+  const directory = path.join(runtime, "diagnostics", "session-00");
+  const timestamp = Date.now() - 60_000;
+  const event = (index: number) =>
+    JSON.stringify({
+      timestamp_ms: timestamp + index,
+      process_id: 12,
+      session_id: "owned-session",
+      fields: {
+        message: "blocking worker queued for get_workspace_snapshot",
+        phase: "accepted",
+        request_id: index,
+        args: { secret: "must-not-be-retained" },
+      },
+    });
+  try {
+    await mkdir(directory, { recursive: true });
+    await writeFile(path.join(directory, "portcove-desktop.jsonl.1"), event(1) + "\n");
+    await writeFile(path.join(directory, "portcove-desktop.jsonl"), event(2) + "\n");
+    const observed = await collectionCommandDiagnostic(runtime, timestamp);
+    assert.equal(observed.complete_available_records, true);
+    assert.equal(observed.matched_records, 2);
+    assert.equal(observed.files.length, 2);
+    assert.ok(!JSON.stringify(observed).includes("must-not-be-retained"));
+    assert.deepEqual(
+      observed.records
+        .map((value) => {
+          assert.ok("request_id" in value && typeof value.request_id === "number");
+          return value.request_id;
+        })
+        .sort((left, right) => left - right),
+      [1, 2],
+    );
+    await writeFile(
+      path.join(directory, "portcove-desktop.jsonl"),
+      Array.from({ length: 1_025 }, (_, index) => event(index)).join("\n") + "\n",
+    );
+    const bounded = await collectionCommandDiagnostic(runtime, timestamp);
+    assert.equal(bounded.records.length, 1_024);
+    assert.equal(bounded.omitted_records, 2);
+    assert.equal(bounded.complete_available_records, false);
+    await writeFile(path.join(directory, "portcove-desktop.jsonl"), "{malformed\n");
+    const malformed = await collectionCommandDiagnostic(runtime, timestamp);
+    assert.equal(malformed.complete_available_records, false);
+    assert.equal(malformed.errors.length, 1);
+    const missing = await collectionCommandDiagnostic(path.join(runtime, "missing"), timestamp);
+    assert.equal(missing.complete_available_records, false);
+    assert.equal(missing.records.length, 0);
+  } finally {
+    await rm(runtime, { recursive: true, force: true });
+  }
+});
+
 test("native collection failure survives receipt and restoration failures without starting thumbnail IPC", async () => {
   const output = await mkdtemp(path.join(os.tmpdir(), "collection-boundary-"));
   const primary = new Error("owned bootstrap failure");
@@ -81,6 +189,7 @@ test("native collection failure survives receipt and restoration failures withou
   const commands: string[] = [];
   try {
     await mkdir(path.join(output, "native-collection-artwork-observations.json"));
+    await mkdir(path.join(output, "native-collection-catalog-diagnostics.json"));
     const browser = {
       executeScript: () =>
         Promise.resolve({

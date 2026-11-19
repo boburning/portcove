@@ -12,6 +12,7 @@ use std::sync::{
 
 struct Provider {
     calls: AtomicUsize,
+    requested_ports: Mutex<Vec<String>>,
     failure: AtomicBool,
     release: Mutex<ResolvedRelease>,
 }
@@ -19,11 +20,12 @@ struct Provider {
 impl ReleaseProvider for Provider {
     async fn resolve(
         &self,
-        _port: &PortDefinition,
+        port: &PortDefinition,
         _channel: ReleaseChannel,
         _platform: Platform,
     ) -> Result<ResolvedRelease> {
         self.calls.fetch_add(1, Ordering::SeqCst);
+        self.requested_ports.lock().unwrap().push(port.id.clone());
         if self.failure.load(Ordering::SeqCst) {
             return Err(PortcoveError::state("synthetic collection failure"));
         }
@@ -99,6 +101,7 @@ fn fixture() -> Fixture {
     let preferences = HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
     let provider = Arc::new(Provider {
         calls: AtomicUsize::new(0),
+        requested_ports: Mutex::new(Vec::new()),
         failure: AtomicBool::new(false),
         release: Mutex::new(ResolvedRelease {
             version: "1.0".into(),
@@ -591,6 +594,7 @@ async fn pinned_real_sm64_relationships_stay_independent_and_sparse_without_fabr
     // must not silently become their offered/qualified replacement.
     let provider = Arc::new(Provider {
         calls: AtomicUsize::new(0),
+        requested_ports: Mutex::new(Vec::new()),
         failure: AtomicBool::new(false),
         release: Mutex::new(ResolvedRelease {
             version: "v1.5.1".into(),
@@ -658,7 +662,13 @@ async fn pinned_real_sm64_relationships_stay_independent_and_sparse_without_fabr
         assert!(row.offered_release.is_none());
         assert!(!row.launch_ready);
     }
-    assert_eq!(provider.calls.load(Ordering::SeqCst), 0);
+    // The complete family also includes Ghostship's managed route. Release
+    // collection stays confined to it, never the user-selected runtime routes.
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        *provider.requested_ports.lock().unwrap(),
+        vec!["ghostship".to_owned()]
+    );
     // A source revision is deliberately not represented as a runtime checksum.
     assert!(evidence["cases"][0]["artifact_identity"].is_null());
     assert_eq!(

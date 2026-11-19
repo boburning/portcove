@@ -45,6 +45,24 @@
           "instruction": "Preserve ~/.config/SnowboardKids2Recompiled on Linux, or your actual custom profile. For Flatpak also keep ~/.var/app/io.github.snowboardkids2recomp.snowboardkids2recomp. Back up the original, saves, mods and settings before replacing an upstream copy."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "snowboard-kids-2",
+      "evidence_urls": [
+        "https://github.com/cdlewis/snowboardkids2-recomp#readme",
+        "https://github.com/cdlewis/snowboardkids2-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "snowboard-kids-2-nintendo-64",
+          "title": "Snowboard Kids 2 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/cdlewis/snowboardkids2-recomp/blob/59d16215526554b9fc51b18cd3612d6ef68bb2a8/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

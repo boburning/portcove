@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import styles from "./Artwork.module.css";
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { Gamepad2 } from "lucide-react";
 import {
   useArtwork,
@@ -204,6 +204,9 @@ export function ArtworkControls({
   port: Pick<PortDefinition, "id"> & { name?: string };
 }) {
   const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<ArtworkSlot>("cover");
+  const panelId = useId();
+  const [visited, setVisited] = useState<ArtworkSlot[]>(["cover"]);
   return (
     <details className="artwork-controls" onToggle={(event) => setOpen(event.currentTarget.open)}>
       <summary className="disclosure-pad-3 cursor-pointer" data-focusable>
@@ -211,9 +214,35 @@ export function ArtworkControls({
       </summary>
       {open && (
         <div className="artwork-slots grid gap-5">
-          <ArtworkSlotControl key={`${port.id}:cover`} port={port} slot="cover" />
-          <ArtworkSlotControl key={`${port.id}:detail`} port={port} slot="detail" />
-          <ArtworkSlotControl key={`${port.id}:landscape`} port={port} slot="landscape" />
+          <div role="group" aria-label="Artwork slot" className="flex flex-wrap gap-2">
+            {(Object.keys(slotCopy) as ArtworkSlot[]).map((slot) => (
+              <Button
+                key={slot}
+                data-focusable
+                variant={selected === slot ? "selected" : "outline"}
+                size="sm"
+                aria-pressed={selected === slot}
+                aria-controls={visited.includes(slot) ? `${panelId}-${slot}` : undefined}
+                onClick={() => {
+                  setSelected(slot);
+                  setVisited((current) => (current.includes(slot) ? current : [...current, slot]));
+                }}
+              >
+                {slotCopy[slot].label}
+              </Button>
+            ))}
+          </div>
+          {visited.map((slot) => (
+            <div
+              id={`${panelId}-${slot}`}
+              key={slot}
+              className="min-w-0"
+              hidden={selected !== slot}
+              inert={selected !== slot}
+            >
+              <ArtworkSlotControl port={port} slot={slot} />
+            </div>
+          ))}
           <DetailArtwork port={port} />
         </div>
       )}
@@ -257,8 +286,10 @@ function ArtworkSlotControl({
     if (pending || !returnFocus.current) return;
     const { target, cache: owner } = returnFocus.current;
     returnFocus.current = null;
-    if (currentIdentity.current.cache === owner)
-      (target?.disabled ? pickerButton.current : target)?.focus();
+    const focus = target?.disabled ? pickerButton.current : target;
+    if (currentIdentity.current.cache === owner && !focus?.closest("[hidden], [inert]")) {
+      focus?.focus();
+    }
   }, [pending]);
 
   const stillInView = () =>

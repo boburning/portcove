@@ -49,7 +49,16 @@
         }
       ]
     },
-    "original_game_title": "Pokémon Ruby"
+    "original_game_title": "Pokémon Ruby",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-ruby",
+      "evidence_urls": [
+        "https://github.com/mstan/RubySapphireRecomp/releases",
+        "https://github.com/mstan/RubySapphireRecomp"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

@@ -1,5 +1,4 @@
 import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
-import { resolveRetcommRevision, retcommTitlePaths } from "./retcomm-index.mts";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -27,6 +26,7 @@ Example:
   process.exit(0);
 }
 
+const { resolveRetcommRevision, retcommTitlePaths } = await import("./retcomm-index.mts");
 const catalogPath = new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url);
 const mappingPath = new URL("./retcomm-psx-upstreams.json", import.meta.url);
 import type {

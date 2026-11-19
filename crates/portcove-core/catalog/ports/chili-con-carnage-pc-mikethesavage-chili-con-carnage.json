@@ -35,6 +35,12 @@
       "image_sha256": "ab4eeec515f39b56578acffc49fdda2fdd1106ae84c7d1e3c7894bbdb53c6f3c",
       "game_slug": "chili-con-carnage",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "chili-con-carnage",
+      "evidence_urls": ["https://github.com/MikeTheSavage/chili-con-carnage-pc"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

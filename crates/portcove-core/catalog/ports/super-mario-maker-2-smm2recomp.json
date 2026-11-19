@@ -38,6 +38,12 @@
           "instruction": "Linux ARM reached the title in a virtual machine. Android evidence comes from emulator tests. The project has not tested Nextendo online on physical hardware."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-maker-2",
+      "evidence_urls": ["https://github.com/smm2recomp/smm2recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

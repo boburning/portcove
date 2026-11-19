@@ -36,8 +36,8 @@ Options:
 
 The escaped envelope must also fit within 16777216 bytes (16 MiB). Clients before
 library writer protocol 60 refuse envelopes above 4194304 bytes (4 MiB); the
-catalog size guard (node scripts/catalog-capacity.mts --check) keeps repository
-catalogs within a margin below that floor.
+catalog size guard (node scripts/catalog-capacity.mts --check) reserves growth
+margin below supported limits.
 Successful signing prints the existing public-key, key-ID, sequence and output JSON summary.
 
 Example:
@@ -123,6 +123,11 @@ const catalog: unknown = JSON.parse(
 if (catalog && typeof catalog === "object" && "ports" in catalog && Array.isArray(catalog.ports)) {
   for (const port of catalog.ports as unknown[]) {
     if (!port || typeof port !== "object") continue;
+    if ("mod_provider_bindings" in port) {
+      throw new Error(
+        "Format-1 signed catalogs cannot deliver mod provider bindings. Use a compatible indexed definition.",
+      );
+    }
     if ("windows_shipwright_persistence" in port && port.windows_shipwright_persistence === true) {
       throw new Error(
         "Format-1 signed catalogs cannot deliver Shipwright working-directory persistence. Use a compatible indexed definition.",

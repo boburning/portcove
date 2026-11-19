@@ -16,7 +16,13 @@
       "game_slug": "virtual-pro-wrestling-64",
       "match_kind": "underlying-game"
     },
-    "issue_number": 91
+    "issue_number": 91,
+    "original_game": {
+      "format_version": 1,
+      "id": "virtual-pro-wrestling-64",
+      "evidence_urls": ["https://github.com/jessetbh/VPW64Recomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

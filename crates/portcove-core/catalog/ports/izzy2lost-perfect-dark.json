@@ -32,6 +32,16 @@
       "warnings": [],
       "help_url": "https://github.com/izzy2lost/perfect_dark/blob/2.0.0/README.md"
     },
-    "release_url": "https://github.com/izzy2lost/perfect_dark/releases"
+    "release_url": "https://github.com/izzy2lost/perfect_dark/releases",
+    "original_game": {
+      "format_version": 1,
+      "id": "perfect-dark",
+      "evidence_urls": [
+        "https://github.com/izzy2lost/perfect_dark/blob/2.0.0/README.md",
+        "https://github.com/izzy2lost/perfect_dark"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Perfect Dark"
   }
 }

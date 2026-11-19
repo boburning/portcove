@@ -505,7 +505,6 @@ it("keeps retained log recovery and manual copy in the actual Activity task deta
     const row = page.elementLocator(
       document.querySelector('[data-activity-id="fixture-retained-harbor"]')!,
     );
-    await row.getByText("Task details", { exact: true }).click();
     await row.getByText("View preparation log", { exact: true }).click();
     await expect
       .element(row.getByRole("textbox", { name: "Preparation standard output", exact: true }))

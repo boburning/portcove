@@ -1,6 +1,7 @@
 @layer components {
   .settings-grid {
     display: grid;
+    container: settings / inline-size;
     max-inline-size: 63rem;
     align-items: start;
     gap: var(--space-4);
@@ -55,6 +56,21 @@
     font-size: var(--text-xl);
     line-height: var(--leading-compact);
     letter-spacing: -0.02em;
+  }
+  @container settings (max-width: 12rem) {
+    .settings-section-index {
+      --settings-category-focus-clearance: 6px;
+      padding-inline: var(--settings-category-focus-clearance);
+    }
+    .settings-section-index > .settings-category {
+      scroll-margin-inline: var(--settings-category-focus-clearance);
+    }
+    .settings-section-index > .settings-category > svg {
+      display: none;
+    }
+    .settings-section-heading h2 {
+      font-size: var(--text-md);
+    }
   }
   .settings-section-description {
     max-inline-size: 65ch;
@@ -227,6 +243,15 @@
     .recovery-action-row {
       grid-template-columns: minmax(0, 1fr) auto;
       column-gap: var(--space-6);
+    }
+  }
+}
+
+@layer utilities {
+  @container settings (max-width: 12rem) {
+    .settings-section-index > .settings-category {
+      padding-inline: 6px;
+      overflow-wrap: break-word;
     }
   }
 }

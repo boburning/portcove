@@ -1,7 +1,7 @@
 import type { WebDriver, WebElement, Locator } from "selenium-webdriver";
 import type { PortDefinition } from "../src/transport-types.generated.js";
 import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
-import { executeBrowserScript } from "./browser-script.mts";
+import { exactButtonXPath, executeBrowserScript } from "./browser-script.mts";
 import { decodeDiscoverPortIds } from "./desktop-review-presentation.mts";
 // Shared native review interactions; visibility waits never bypass product consent.
 import assert from "node:assert/strict";
@@ -9,13 +9,19 @@ import { writeFile } from "node:fs/promises";
 import axe from "axe-core";
 import { By, Key, until } from "selenium-webdriver";
 
-/** Reveal the retained log through its real enclosing disclosure. */
+/** Edit through real keys, releasing the modifier before a separate text command.
+ * WebKitGTK can keep Control held through text after Element Send Keys' NULL.
+ */
+export async function replaceKeyboardText(browser: WebDriver, element: WebElement, text: string) {
+  await clickVisible(browser, element);
+  const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+  await browser.actions().keyDown(modifier).sendKeys("a").keyUp(modifier).perform();
+  await element.sendKeys(Key.BACK_SPACE);
+  if (text.length > 0) await element.sendKeys(text);
+}
+
+/** Find the direct preparation log disclosure in the Activity row. */
 export async function preparationLogControl(browser: WebDriver, row: WebElement) {
-  const taskDetails = await row.findElement(
-    By.xpath('.//summary[normalize-space(.)="Task details"]'),
-  );
-  const details = await taskDetails.findElement(By.xpath(".."));
-  if ((await details.getAttribute("open")) === null) await clickVisible(browser, taskDetails);
   const log = await row.findElement(
     By.xpath('.//summary[normalize-space(.)="View preparation log"]'),
   );
@@ -23,10 +29,26 @@ export async function preparationLogControl(browser: WebDriver, row: WebElement)
   return log;
 }
 
+/** Open the scan workspace from the Game files settings category. */
+export async function openGameFileScan(browser: WebDriver) {
+  const trigger = await browser.wait(
+    until.elementLocated(By.css("[data-open-game-file-scan]")),
+    5_000,
+  );
+  await clickVisible(browser, trigger);
+  await browser.wait(until.elementLocated(By.id("add-games-folders-heading")), 5_000);
+}
+
 /** Reveal the real panel through its tab; scrolling cannot reveal hidden content. */
 export async function revealDetailSection(
   browser: WebDriver,
-  label: "Overview" | "Game files" | "Saves & backups" | "Versions & updates" | "Manage",
+  label:
+    | "Overview"
+    | "Game files"
+    | "Saves & backups"
+    | "Versions & updates"
+    | "Game settings & mods"
+    | "Manage",
 ) {
   const tab = await browser.wait(
     until.elementLocated(
@@ -64,11 +86,7 @@ export async function openCatalogPortAfterRefresh(
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
   await selectPrimaryNavigation(browser, "Discover");
   const search = await browser.findElement(By.id("port-search"));
-  await search.sendKeys(
-    Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
-    Key.BACK_SPACE,
-    query,
-  );
+  await replaceKeyboardText(browser, search, query);
   await clearCatalogFilters(browser);
   await selectCatalogPort(browser, port.id);
 }
@@ -345,7 +363,7 @@ export const setupConfirmButton = () =>
 
 export function reviewControls(browser: WebDriver) {
   return {
-    button: (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`),
+    button: (label: string) => By.xpath(exactButtonXPath(label)),
     click: async (locator: Locator) =>
       clickVisible(browser, await browser.wait(until.elementLocated(locator), 15_000)),
   };

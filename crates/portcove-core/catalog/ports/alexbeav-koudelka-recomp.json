@@ -53,10 +53,17 @@
     "recommended_download_channel": "stable",
     "original_game_title": "Koudelka",
     "download_asset_hints": {
-      "linux-x86-64": ["Koudelka-Recomp-", "-linux-x64.zip"],
       "macos-aarch64": ["Koudelka-Recomp-", "-macos-arm64.zip"],
-      "macos-x86-64": ["Koudelka-Recomp-", "-macos-x64.zip"],
-      "windows-x86-64": ["Koudelka-Recomp-", "-windows-x64.zip"]
+      "macos-x86-64": ["Koudelka-Recomp-", "-macos-x64.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "koudelka",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/koudelka-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/koudelka-recomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {
@@ -159,5 +166,6 @@
     "runtime_source_filename": "runtime-discs",
     "launch_disc_choice": "psx-settings-selected",
     "runtime_source_materialization": "psx-raw-set"
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"]
 }

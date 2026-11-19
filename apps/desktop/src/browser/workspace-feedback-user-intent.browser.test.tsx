@@ -95,7 +95,9 @@ async function startControlledLaunch(layout: "Covers" | "Compact rows" = "Covers
   );
   await expect.element(page.getByRole("button", { name: layout, exact: true })).toBeVisible();
   await page.getByRole("button", { name: layout, exact: true }).click();
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await expect
+    .poll(() => document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize"))
+    .toBe("12");
   const notNow = page.getByRole("button", { name: "Not now", exact: true });
   if (notNow.query()) await notNow.click();
   const origins = [
@@ -302,6 +304,27 @@ it("preserves the current target through concurrent feedback and document-to-wor
   const main = workspace();
   expect(getComputedStyle(main).overflowY).toBe("auto");
   expect(owner()).toBe(main);
+  // Measured collection restoration spans several frames. Observe its visible
+  // result rather than treating two paints as an acknowledgement of completion.
+  const targetState = () => {
+    const targetBounds = running.origin.getBoundingClientRect();
+    const workspaceBounds = main.getBoundingClientRect();
+    return {
+      connected: running.origin.isConnected,
+      focused: document.activeElement === running.origin,
+      workspaceOwner: owner() === main,
+      topVisible: targetBounds.top >= Math.max(0, workspaceBounds.top) - 1,
+      bottomVisible: targetBounds.bottom <= Math.min(innerHeight, workspaceBounds.bottom) + 1,
+    };
+  };
+  const visibleTarget = {
+    connected: true,
+    focused: true,
+    workspaceOwner: true,
+    topVisible: true,
+    bottomVisible: true,
+  };
+  await expect.poll(targetState).toEqual(visibleTarget);
   const current = point(running.origin);
   expect(current.focused).toBe(true);
   const bounds = running.origin.getBoundingClientRect();
@@ -309,6 +332,23 @@ it("preserves the current target through concurrent feedback and document-to-wor
   expect(bounds.top).toBeGreaterThanOrEqual(Math.max(0, viewport.top) - 1);
   expect(bounds.bottom).toBeLessThanOrEqual(Math.min(innerHeight, viewport.bottom) + 1);
   await running.removeNotice();
+  await expect
+    .poll(() => {
+      const observed = point(running.origin);
+      const desired = current.scroll + observed.originDocumentTop - current.originDocumentTop;
+      const attainable = Math.min(observed.maximum, Math.max(0, desired));
+      return {
+        ...targetState(),
+        scrollAtExpectedPosition: Math.abs(observed.scroll - attainable) <= 2,
+        targetAtExpectedPosition:
+          Math.abs(observed.originTop - current.originTop - (desired - attainable)) <= 2,
+      };
+    })
+    .toEqual({
+      ...visibleTarget,
+      scrollAtExpectedPosition: true,
+      targetAtExpectedPosition: true,
+    });
   const returned = point(running.origin);
   expect(returned.focused).toBe(true);
   // Preserve physical position where the new layout has scroll range. If all

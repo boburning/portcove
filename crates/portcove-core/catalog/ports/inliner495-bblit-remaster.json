@@ -43,6 +43,15 @@
     "download_asset_hints": {
       "windows-x86-64": ["BBLIT-Remaster-", ".zip"]
     },
-    "recommended_download_channel": "beta"
+    "recommended_download_channel": "beta",
+    "original_game": {
+      "format_version": 1,
+      "id": "bugs-bunny-lost-in-time",
+      "evidence_urls": [
+        "https://github.com/InLineR495/BBLIT-Remaster#readme",
+        "https://github.com/InLineR495/BBLIT-Remaster"
+      ],
+      "source_editions": []
+    }
   }
 }

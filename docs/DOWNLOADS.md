@@ -21,6 +21,7 @@ GitHub's **Source code** archives require a [source build](../README.md#prerequi
 
 | Channel and version                                                                                               | Published standalone CLI                                    | CLI API |
 | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ------- |
+| [Nightly Preview 8 (0.1.0-preview.8)](https://github.com/boburning/portcove/releases/tag/nightly-0.1.0-preview.8) | Windows x86-64, Linux x86-64, Apple Silicon and Intel macOS | 100     |
 | [Nightly Preview 7 (0.1.0-preview.7)](https://github.com/boburning/portcove/releases/tag/nightly-0.1.0-preview.7) | Windows x86-64                                              | 100     |
 | [Nightly Preview 6 (0.1.0-preview.6)](https://github.com/boburning/portcove/releases/tag/nightly-0.1.0-preview.6) | Windows x86-64                                              | 100     |
 | [Nightly Preview 4 (0.1.0-preview.4)](https://github.com/boburning/portcove/releases/tag/nightly-0.1.0-preview.4) | Windows x86-64                                              | 93      |
@@ -29,20 +30,19 @@ GitHub's **Source code** archives require a [source build](../README.md#prerequi
 | [Alpha 2 (0.1.0-alpha.2)](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2)                      | Windows x86-64, Linux x86-64, Apple Silicon and Intel macOS | 34      |
 | [Alpha 1 (0.1.0-alpha.1)](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.1)                      | Windows x86-64, Linux x86-64, Apple Silicon and Intel macOS | 12      |
 
-All five Preview releases in the table have a Linux Desktop AppImage and a
-universal macOS Desktop disk image. Add or Repair in Steam on those platforms
-requires a compatible CLI, which those releases never published. For Steam,
-choose the CLI for the same Desktop version and processor, even when another
-version reports the same CLI API. Alpha releases name their standalone archives
-`portcove-<os>-<architecture>.zip` or `portcove-<os>-<architecture>.tar.gz`.
+Nightly Preview 8 publishes a Desktop package and a standalone CLI for Windows,
+Linux, Apple Silicon, and Intel macOS. Preview 2 and Nightly Previews 3, 4, 6,
+and 7 publish Linux and macOS Desktop packages, with a matching CLI for Steam on
+Windows only. Choose the CLI for the same Desktop version and processor, even
+when another version reports the same CLI API. Alpha archive filenames begin
+with `portcove-` followed by the operating system and processor.
 
 ## Verify a download
 
-Use the checksum manifest beside the package you selected. Preview releases
-use `SHA256SUMS`. Alpha releases use `SHA256SUMS.txt` or a platform-specific
-`SHA256SUMS-<platform>.txt`. Check the full SHA-256 for the exact filename before
-using the package. A matching checksum confirms agreement with the release
-manifest.
+Open the checksum manifest beside your package. It lists a SHA-256 value for
+each file. Preview releases use `SHA256SUMS`. Alpha releases use
+`SHA256SUMS.txt` or a platform-specific `SHA256SUMS-<platform>.txt`. Before you
+use the package, compare its full SHA-256 to the value for that exact filename.
 
 ## CLI quick start
 

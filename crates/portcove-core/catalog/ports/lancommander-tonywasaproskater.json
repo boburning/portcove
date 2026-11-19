@@ -50,6 +50,15 @@
       "warnings": [
         "Keep the original image, prepared Data and actual Saved Games tree; upstream .mcs import and edition switching can change files or start a successor."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tony-hawk-s-pro-skater",
+      "evidence_urls": [
+        "https://github.com/LANCommander/TonyWasAProSkater/blob/2e9d7f83379307c2ba4a9af257c6be715b672db7/platform/pc/dist/README.txt",
+        "https://github.com/LANCommander/TonyWasAProSkater"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

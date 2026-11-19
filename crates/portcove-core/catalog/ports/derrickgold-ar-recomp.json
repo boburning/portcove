@@ -49,6 +49,15 @@
     },
     "original_game_title": "ActRaiser",
     "release_url": "https://github.com/DerrickGold/ar-recomp/releases",
-    "recommended_download_channel": "beta"
+    "recommended_download_channel": "beta",
+    "original_game": {
+      "format_version": 1,
+      "id": "actraiser",
+      "evidence_urls": [
+        "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/README.md",
+        "https://github.com/DerrickGold/ar-recomp"
+      ],
+      "source_editions": []
+    }
   }
 }

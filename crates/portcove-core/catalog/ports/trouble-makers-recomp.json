@@ -16,7 +16,22 @@
       "game_slug": "mischief-makers",
       "match_kind": "underlying-game"
     },
-    "issue_number": 104
+    "issue_number": 104,
+    "original_game": {
+      "format_version": 1,
+      "id": "mischief-makers",
+      "evidence_urls": ["https://github.com/ThiagoLira/trouble-makers-pc-recomp"],
+      "source_editions": [
+        {
+          "id": "mischief-makers-nintendo-64",
+          "title": "Mischief Makers (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/ThiagoLira/trouble-makers-pc-recomp/blob/ef89277812f31895b2902cf4e61780f2dd021644/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

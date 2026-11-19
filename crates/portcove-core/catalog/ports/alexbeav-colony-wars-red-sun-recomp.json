@@ -52,14 +52,22 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/releases",
     "download_asset_hints": {
-      "linux-x86-64": ["colonywarsredsun-", "-linux-x64.zip"],
       "macos-aarch64": ["colonywarsredsun-", "-macos-arm64.zip"],
-      "macos-x86-64": ["colonywarsredsun-", "-macos-x64.zip"],
-      "windows-x86-64": ["colonywarsredsun-", "-windows-x64.zip"]
+      "macos-x86-64": ["colonywarsredsun-", "-macos-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "colony-wars-red-sun",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

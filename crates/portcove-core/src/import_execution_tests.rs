@@ -644,7 +644,7 @@ fn admitted_post_client_definition_survives_offline_import_with_its_full_graph()
         .retained_catalog(&install)
         .unwrap()
         .unwrap();
-    assert!(retained.definition_selection(&port_id).is_some());
+    let selection = retained.definition_selection(&port_id).unwrap();
     assert_eq!(
         restored.sources().unwrap()[0].profile_id,
         retained
@@ -679,8 +679,16 @@ fn admitted_post_client_definition_survives_offline_import_with_its_full_graph()
         .iter()
         .find(|choice| choice.port_id == port_id && choice.slot == ArtworkSlot::Cover)
         .unwrap();
-    let service = PortcoveService::new(restored).unwrap();
-    assert!(service.catalog().port(&port_id).is_err());
+    let embedded = Catalog::embedded().unwrap();
+    assert!(embedded.listing(&port_id).is_err());
+    let mut service = PortcoveService::new(restored).unwrap();
+    assert_eq!(
+        service.catalog().definition_selection(&port_id),
+        Some(selection)
+    );
+    // Exercise the retained-only renderer path with the bundled catalog while
+    // preserving the imported admission receipt for the installed build.
+    service.replace_catalog_for_test(embedded.clone());
     let artwork = service.artwork(&port_id, ArtworkSlot::Cover).unwrap();
     assert_eq!(&artwork.choice, expected_choice);
     assert_eq!(artwork.availability, crate::ArtworkAvailability::Available);
@@ -704,7 +712,12 @@ fn admitted_post_client_definition_survives_offline_import_with_its_full_graph()
         &image::Rgb([12, 34, 56])
     );
     service.clear_artwork_cache().unwrap();
-    let restarted = PortcoveService::new(service.library().clone()).unwrap();
+    let mut restarted = PortcoveService::new(service.library().clone()).unwrap();
+    assert_eq!(
+        restarted.catalog().definition_selection(&port_id),
+        Some(selection)
+    );
+    restarted.replace_catalog_for_test(embedded);
     let regenerated = restarted
         .artwork_thumbnail(&port_id, ArtworkSlot::Cover, expected_choice.revision)
         .unwrap();

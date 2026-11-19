@@ -42,10 +42,25 @@
         }
       ]
     },
-    "download_asset_hints": {
-      "windows-x86-64": ["BlastCorpsRecompiled-", "-Windows-RelWithDebInfo.zip"]
-    },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "blast-corps",
+      "evidence_urls": [
+        "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/README.md",
+        "https://github.com/SlaveOfIDO/blastcorps-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "blast-corps-nintendo-64",
+          "title": "Blast Corps (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -87,5 +102,6 @@
         "executables": ["blastcorpsrecompiled.exe"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

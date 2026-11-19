@@ -78,7 +78,7 @@ export function InstallBatchPanel({
   onCancelReview?: ((panel: HTMLElement | null) => void) | undefined;
   /** The workspace owner rereads Core and publishes refresh failure independently. */
   onChanged?: (() => Promise<unknown>) | undefined;
-  onDone: () => void;
+  onDone: (panel: HTMLElement | null) => void;
 }) {
   // The parent remounts this panel for each new selection, so a selection
   // starts in review without resetting state from an effect.
@@ -193,7 +193,7 @@ export function InstallBatchPanel({
       if (!accepts(expected)) return;
       if (!ready.length) {
         void refreshChanged(expected);
-        onDone();
+        onDone(panel.current);
         return;
       }
       const batch = await desktopApi.startInstallBatch(
@@ -251,7 +251,7 @@ export function InstallBatchPanel({
           name={name}
           confirming={confirming}
           onConfirm={(review) => void confirm(review)}
-          onCancel={() => (onCancelReview ? onCancelReview(panel.current) : onDone())}
+          onCancel={() => (onCancelReview ?? onDone)(panel.current)}
         />
       )}
       {phase.kind === "running" && (
@@ -281,7 +281,17 @@ export function InstallBatchPanel({
               </li>
             ))}
           </ul>
-          <Button data-focusable className="justify-self-start" onClick={onDone}>
+          <Button
+            data-focusable
+            className="justify-self-start"
+            onClick={() => {
+              if (!portIds?.length) {
+                setError(undefined);
+                setPhase({ kind: "idle" });
+              }
+              onDone(panel.current);
+            }}
+          >
             {t("batch.done")}
           </Button>
         </div>

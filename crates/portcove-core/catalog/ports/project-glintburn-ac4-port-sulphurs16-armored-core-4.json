@@ -35,6 +35,21 @@
       "image_sha256": "f9686dda1cef5648cb84e52aac5ef215d035d00ef5ce8616287bd4063f02f73b",
       "game_slug": "armored-core-4",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "armored-core-4",
+      "evidence_urls": ["https://github.com/SulphurS16/AC4-Port"],
+      "source_editions": [
+        {
+          "id": "armored-core-4-playstation-3",
+          "title": "Armored Core 4 (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/SulphurS16/AC4-Port/blob/aa468df72f7c091fb5efb2331d251b1ddb4dd773/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

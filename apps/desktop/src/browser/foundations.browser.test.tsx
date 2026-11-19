@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { page, userEvent } from "vite-plus/test/browser";
+import { cdp, page, userEvent } from "vite-plus/test/browser";
+import type {} from "vite-plus/test/browser-playwright";
 import { render, cleanup } from "vitest-browser-react";
 import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "../components/ui/dialog";
@@ -76,7 +77,17 @@ afterEach(async () => {
   document.documentElement.removeAttribute("dir");
 });
 for (const theme of ["dark", "light"] as const) {
-  it(`retains the ${theme} bundled font, bounded transitions and pressed action feedback`, async () => {
+  it(`retains the ${theme} bundled font, bounded transitions and pressed action feedback`, async ({
+    onTestFinished,
+  }) => {
+    const media = cdp();
+    onTestFinished(async () => {
+      await media.send("Emulation.setEmulatedMedia", { features: [] });
+    });
+    await media.send("Emulation.setEmulatedMedia", {
+      features: [{ name: "prefers-reduced-motion", value: "no-preference" }],
+    });
+    expect(matchMedia("(prefers-reduced-motion: no-preference)").matches).toBe(true);
     document.documentElement.dataset.theme = theme;
     await render(
       <>

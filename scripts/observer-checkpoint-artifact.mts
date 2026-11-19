@@ -12,7 +12,10 @@ import { rateLimitFromResponse } from "./github-operation.mts";
 import { createGitHubClient } from "./github-client.mts";
 import { readObserverMetadata } from "./upstream-observer.mts";
 import type { GitHubMetadataResponse } from "./github-operation.mts";
-import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
+import {
+  downloadGitHubArtifactArchive,
+  observerCheckpointArchiveLimit,
+} from "./github-artifact-download.mts";
 import { readCompleteRunArtifactInventoryAsync } from "./release-run-artifact-inventory.mts";
 import {
   validateCatalogObserverCheckpoint,
@@ -38,7 +41,7 @@ import {
 
 // One existing response envelope is reserved inside the sixteen-MiB output budget.
 export const observerSnapshotLimit = 4 * 1024 * 1024;
-export const observerStreamingSnapshotLimit = 8 * 1024 * 1024;
+export const observerStreamingSnapshotLimit = observerCheckpointArchiveLimit;
 const repository = "boburning/portcove",
   repositoryId = 1354613114;
 const workflow = ".github/workflows/configured-upstream-observer.yml";
@@ -53,7 +56,7 @@ const maximumAge = 24 * 3600000;
 const member = "checkpoint.json";
 const binarySnapshotMagic = Buffer.from("PORTCOVE-OBSERVER-SNAPSHOT-3\n", "ascii");
 // Already-compressed members can grow slightly under ZIP's deflate framing.
-// Keep that packaging inside the existing four-MiB complete archive budget.
+// Keep that packaging inside each format's complete archive budget.
 const binaryMemberLimit = observerSnapshotLimit - 16 * 1024;
 const streamingMemberLimit = observerStreamingSnapshotLimit - 16 * 1024;
 // One owner-approved fresh baseline after the retained loss. Scheduled history,
@@ -885,7 +888,7 @@ async function initializeApprovedBaseline(
   const documents: Record<string, unknown> = {};
   for (const [key, filename, limit] of [
     ["config", "release/upstream-observer.json", 16384],
-    ["catalog", "crates/portcove-core/catalog/catalog.json", 4 * 1024 * 1024],
+    ["catalog", "crates/portcove-core/catalog/catalog.json", 16 * 1024 * 1024],
     ["listings", "crates/portcove-core/catalog/listings.json", 8 * 1024 * 1024],
   ] as const) {
     await assertOwnedUnlinkedPath(root, path.join(root, filename), "baseline source input");
@@ -921,7 +924,7 @@ async function initializeApprovedBaseline(
   );
   for (const [key, filename, limit] of [
     ["config", "release/upstream-observer.json", 16384],
-    ["catalog", "crates/portcove-core/catalog/catalog.json", 4 * 1024 * 1024],
+    ["catalog", "crates/portcove-core/catalog/catalog.json", 16 * 1024 * 1024],
     ["listings", "crates/portcove-core/catalog/listings.json", 8 * 1024 * 1024],
   ] as const) {
     await assertOwnedUnlinkedPath(root, path.join(root, filename), "baseline source readback");
@@ -1302,6 +1305,7 @@ export async function recoverObserverCheckpointWithSdk({
         credential,
         deadline: Math.min(deadline, performance.now() + timeoutMs),
         maxBytes,
+        bufferAllowance: "observer-checkpoint",
         lookup: { requestTimeoutMs: timeoutMs },
         ...(fetch ? { fetch } : {}),
       }),

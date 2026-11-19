@@ -33,7 +33,16 @@
       "help_url": "https://github.com/craigshaw/FZeroRecomp#readme"
     },
     "original_game_title": "F-Zero",
-    "platforms": ["macos-aarch64"]
+    "platforms": ["macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "f-zero",
+      "evidence_urls": [
+        "https://github.com/craigshaw/FZeroRecomp#readme",
+        "https://github.com/craigshaw/FZeroRecomp"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

@@ -35,6 +35,12 @@
       "image_sha256": "643e910a8a02433964237fe92fa48ad2fc34272f1dd6ba1601eaa0026c51c571",
       "game_slug": "drakengard-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "drakengard-3",
+      "evidence_urls": ["https://github.com/k1gs/Drakengard3Recompile"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -24,7 +24,13 @@
         "Version 0.3.0 is experimental: crashes, latency and occasional race hangs remain. Upstream claims Mac/Linux at 30 FPS with 5x upscale; M1/macOS 15.6 and Ubuntu 22.04.5 VM are the named tests. Windows 11 VM/Intel i7 support is still experimental. Switch 100% career progress is a separate destination observation and is not desktop completion evidence. No Portcove runtime/gameplay qualification.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/laureladastra/mcdub3-nx"
+      "help_url": "https://github.com/laureladastra/mcdub3-nx",
+      "references": [
+        {
+          "title": "Choose the Android package for your own disc edition",
+          "instruction": "The v1.1.0 release has separate ARM64 beta APKs. Open the matching app once, then copy your extracted disc with default.xbe to Android/data/io.github.laureladastra.mcdub3/files/game for DUB Edition or Android/data/io.github.laureladastra.mcdub3remix/files/game for Remix. Press Play in the app. Uninstalling deletes that app’s folder and saves."
+        }
+      ]
     },
     "issue_number": 3459,
     "listed_at": "2026-10-25",
@@ -35,6 +41,12 @@
       "image_sha256": "7423dfe09c380bd3dc83f8bb1e0997ad4e7b617b112584e0673b0a7056df77c8",
       "game_slug": "midnight-club-3-dub-edition",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "midnight-club-3-dub-edition",
+      "evidence_urls": ["https://github.com/laureladastra/mcdub3-nx"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

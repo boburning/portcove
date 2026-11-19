@@ -19,8 +19,6 @@
     "listed_at": "2026-10-23",
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "download_asset_hints": {
-      "windows-x86-64": ["brave-fencer-musashi-recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["brave-fencer-musashi-recomp-", "-linux-x64.zip"],
       "macos-x86-64": ["brave-fencer-musashi-recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["brave-fencer-musashi-recomp-", "-macos-arm64.zip"]
     },
@@ -53,8 +51,18 @@
           "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "brave-fencer-musashi",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp"
+      ],
+      "source_editions": []
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

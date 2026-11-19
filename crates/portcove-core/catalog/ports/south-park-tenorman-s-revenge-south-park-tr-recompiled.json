@@ -50,6 +50,15 @@
       "warnings": [
         "Use this title’s exact purchased package and saved startup settings. Keep game/configuration and actual Documents save roots; settings restarts and upstream updates can replace the selected process."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "south-park-tenormans-revenge",
+      "evidence_urls": [
+        "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled/blob/1de5a89f6db722f922f4ead1a3ca5925da389ebd/README.md",
+        "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

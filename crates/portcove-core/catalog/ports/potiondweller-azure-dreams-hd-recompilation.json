@@ -46,6 +46,15 @@
       "warnings": [
         "Select the native EXE and retain the complete writable player root, all active cards and the current preset choice. Box art is optional; original-disc and overlay-capture rights remain separate."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "azure-dreams",
+      "evidence_urls": [
+        "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation/blob/0081c90ac54704aa92581471b26ee883414dfed9/README.md",
+        "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

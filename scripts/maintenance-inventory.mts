@@ -55,6 +55,7 @@ import {
   readUpstreamObservations,
   upstreamAttention,
   upstreamObservation,
+  managedReleaseEligibilityWindow,
   upstreamSummary,
   type UpstreamInput,
   type UpstreamObservation,
@@ -2245,7 +2246,7 @@ export async function collect(options: {
 
 const corePrefix = "core-port-capabilities-";
 
-const reportQuery = `WITH latest_issue AS (
+const reportQuery = (from: string, through: string) => `WITH latest_issue AS (
     SELECT DISTINCT ON (o.subject_key) o.payload
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
@@ -2384,6 +2385,18 @@ SELECT json_build_object(
                      AS observed_at
               FROM portcove_maintenance.collection_runs
              WHERE coverage <> 'in_progress' GROUP BY source) f),
+  'managed_release_observations', (
+    SELECT coalesce(json_agg(candidate.value || jsonb_build_object('recorded_at', o.observed_at)
+                             ORDER BY o.observed_at, o.observation_id), '[]')
+    FROM portcove_maintenance.observations o
+    JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(o.payload -> 'sources') = 'array'
+          THEN o.payload -> 'sources' ELSE '[]'::jsonb END) AS source(value)
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(source.value -> 'managed_release_candidates') = 'array'
+          THEN source.value -> 'managed_release_candidates' ELSE '[]'::jsonb END) AS candidate(value)
+    WHERE r.source = 'upstream-observations' AND r.coverage IN ('complete', 'partial')
+      AND o.observed_at BETWEEN ${literal(from)}::timestamptz AND ${literal(through)}::timestamptz
+  ),
   'progress', ${progressReportQuery},
   'generation', (SELECT coalesce(max(acquisition), 0) FROM portcove_maintenance.collection_runs
       WHERE coverage <> 'in_progress'),
@@ -2501,6 +2514,7 @@ export interface InventoryReport {
   unsupported_sources: { source: string; reason: string }[];
   runs: unknown[];
   progress?: ReturnType<typeof visibleProgress>;
+  managed_release_eligibility?: ReturnType<typeof managedReleaseEligibilityWindow>;
   /** Per source: when it was last attempted and last read successfully, aged against this report. */
   freshness?: SourceFreshness[];
   subjects: unknown[];
@@ -2755,7 +2769,8 @@ export interface HostedIntakeEntry {
 }
 
 export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): InventoryReport {
-  const data = JSON.parse(runSql(environment, reportQuery).trim()) as {
+  const { from, through } = managedReleaseEligibilityWindow([], now);
+  const data = JSON.parse(runSql(environment, reportQuery(from, through)).trim()) as {
     generation: number;
     universe_inputs: {
       records: Parameters<typeof buildUniverse>[0]["records"];
@@ -2764,6 +2779,7 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     };
     runs: unknown[];
     progress?: StoredProgress[];
+    managed_release_observations: unknown[];
     freshness: {
       source: string;
       attempted_at: string | null;
@@ -2903,6 +2919,10 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       .map(([source, reason]) => ({ source, reason })),
     runs: data.runs,
     progress: visibleProgress(data.progress ?? [], now),
+    managed_release_eligibility: managedReleaseEligibilityWindow(
+      data.managed_release_observations,
+      now,
+    ),
     freshness: sourceFreshness(data.freshness, now),
     subjects: subjects.map((subject) => {
       const target = subject.identity?.target_key;

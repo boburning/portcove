@@ -4,7 +4,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Catalog, CatalogProvenance, CatalogTrustKey, Library, PortcoveError, Result,
+    Catalog, CatalogFallbackCode, CatalogProvenance, CatalogTrustKey, Library, PortcoveError,
+    Result,
     signed_catalog::{self, CatalogOrigin, LEGACY_MAX_CATALOG_BYTES, MAX_CATALOG_BYTES},
 };
 
@@ -99,10 +100,16 @@ impl CatalogState {
                         // signed format continues to select strict definitions.
                         return Ok((value.catalog.with_embedded_listings()?, provenance));
                     }
-                    Ok(_) => {
-                        reasons.push("cached catalog exceeds the recorded replay floor".into())
-                    }
-                    Err(error) => reasons.push(error.message),
+                    Ok(_) => reasons.push((
+                        CatalogFallbackCode::ReplayFloor,
+                        "cached catalog exceeds the recorded replay floor".into(),
+                    )),
+                    Err(error) => reasons.push((
+                        error
+                            .catalog_fallback()
+                            .unwrap_or(CatalogFallbackCode::Unknown),
+                        error.message,
+                    )),
                 }
             }
         }
@@ -148,10 +155,16 @@ impl CatalogState {
                         selected = Some((value, origin));
                         break;
                     }
-                    Some(Ok(_)) => {
-                        reasons.push("cached catalog exceeds the recorded replay floor".into())
-                    }
-                    Some(Err(error)) => reasons.push(error.message.clone()),
+                    Some(Ok(_)) => reasons.push((
+                        CatalogFallbackCode::ReplayFloor,
+                        "cached catalog exceeds the recorded replay floor".into(),
+                    )),
+                    Some(Err(error)) => reasons.push((
+                        error
+                            .catalog_fallback()
+                            .unwrap_or(CatalogFallbackCode::Unknown),
+                        error.message.clone(),
+                    )),
                 }
             }
         }
@@ -209,6 +222,7 @@ fn selected_catalog(
             key_id: None,
             expires_at: Some(expires_at),
             fallback_reasons: provenance.fallback_reasons,
+            fallback_codes: provenance.fallback_codes,
         },
     ))
 }
@@ -231,17 +245,26 @@ pub(crate) fn resolve_before_listings(
     let selected = crate::definition_candidate::selection::load_selected_definition_catalog(
         connection, &baseline, now,
     );
-    match selected {
+    let (mut catalog, provenance) = match selected {
         Ok(Some((catalog, expires_at))) => selected_catalog(catalog, expires_at, provenance),
         Ok(None) => Ok((baseline, provenance)),
         Err(error) => {
-            provenance.fallback_reasons.push(format!(
-                "selected definition was not loaded: {}",
-                error.message
-            ));
+            provenance.push_fallback(
+                error
+                    .catalog_fallback()
+                    .unwrap_or(CatalogFallbackCode::SelectedDefinitionUnavailable),
+                format!("selected definition was not loaded: {}", error.message),
+            );
             Ok((baseline, provenance))
         }
+    }?;
+    let mut statement =
+        connection.prepare("SELECT port_id FROM definition_provider_scope_floor")?;
+    let held_ports = statement.query_map([], |row| row.get::<_, String>(0))?;
+    for port in held_ports {
+        catalog.hold_legacy_mod_provider(&port?);
     }
+    Ok((catalog, provenance))
 }
 
 fn resolve_effective_catalog_from_baseline(
@@ -256,9 +279,12 @@ fn resolve_effective_catalog_from_baseline(
             connection, catalog, now,
         );
     if let Some(reason) = listings.fallback_reason {
-        provenance
-            .fallback_reasons
-            .push(format!("listing directory was not loaded: {reason}"));
+        provenance.push_fallback(
+            listings
+                .fallback_code
+                .unwrap_or(CatalogFallbackCode::ListingDirectoryUnavailable),
+            format!("listing directory was not loaded: {reason}"),
+        );
     }
     Ok((catalog, provenance))
 }

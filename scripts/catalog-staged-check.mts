@@ -122,7 +122,9 @@ export function checkStagedCatalog(cwd = root) {
     cwd,
     input: `${objects.join("\n")}\n`,
     windowsHide: true,
-    maxBuffer: 32 * 1024 * 1024,
+    // This aggregate includes the generated catalog, the listing directory
+    // and their authored inputs, plus independent historical fixtures.
+    maxBuffer: 64 * 1024 * 1024,
   });
   if (batch.error) throw batch.error;
   if (batch.status !== 0) throw new Error("Cannot read indexed catalog blobs");

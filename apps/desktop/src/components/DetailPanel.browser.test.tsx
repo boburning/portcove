@@ -14,6 +14,139 @@ import "../styles/index.css";
 
 afterEach(cleanup);
 
+it.each([
+  { theme: "dark", savedArguments: ["--fullscreen"] },
+  { theme: "light", savedArguments: ["--profile", "", "first\nsecond"] },
+])(
+  "preserves external Manage launch facts and their edit identity in compact RTL $theme",
+  async ({ theme, savedArguments }) => {
+    const oldTheme = document.documentElement.dataset.theme;
+    const oldViewport = { width: innerWidth, height: innerHeight };
+    const port = portDefinition();
+    const executable = String.raw`\\?\C:\Player\External runtime installations\نسخة محفوظة\Original game folder\game.exe`;
+    const directory = String.raw`\\مخدم\ألعاب\External runtime installations\Original game folder`;
+    const record = {
+      id: "manage-selected-runtime",
+      port_id: port.id,
+      path: directory,
+      executable,
+      version: "user-managed",
+      platform: "windows-x86-64" as const,
+      archive_sha256: "",
+      immutable_tree_sha256: "",
+      registered_at: 1,
+      user_selected: { arguments: savedArguments },
+    };
+    const preview = vi
+      .spyOn(desktopApi, "previewUserSelectedRuntimeRelink")
+      .mockRejectedValue(new Error("Read-only consumer fixture: review reached"));
+    const mutations = [
+      vi
+        .spyOn(desktopApi, "registerUserSelectedRuntime")
+        .mockRejectedValue(new Error("Unexpected mutation")),
+      vi
+        .spyOn(desktopApi, "relinkUserSelectedRuntime")
+        .mockRejectedValue(new Error("Unexpected mutation")),
+      vi
+        .spyOn(desktopApi, "removeExternalRuntime")
+        .mockRejectedValue(new Error("Unexpected mutation")),
+      vi.spyOn(desktopApi, "launch").mockRejectedValue(new Error("Unexpected launch")),
+    ];
+    const launch = vi.fn();
+    await page.viewport(430, 896);
+    document.documentElement.dataset.theme = theme;
+    try {
+      await render(
+        <div dir="rtl" style={{ padding: 16 }}>
+          <DetailPanel
+            port={port}
+            status={{ ...portStatus(), external_runtime: record }}
+            sourcePath=""
+            setSourcePath={vi.fn()}
+            actions={{ ...detailActions, launch }}
+            libraryGeneration={19}
+          />
+        </div>,
+      );
+      await page.getByRole("tab", { name: "Manage", exact: true }).click();
+      const heading = page.getByRole("heading", { name: "External installation", exact: true });
+      await expect.element(heading).toBeVisible();
+      const facts = heading.element().closest("section")!.querySelector("dl")!;
+      expect(getComputedStyle(facts).direction).toBe("rtl");
+      expect([...facts.querySelectorAll("dt")].map((label) => label.textContent)).toEqual([
+        "Game program",
+        "Start in folder",
+        "Launch options (advanced)",
+      ]);
+      const paths = [...facts.querySelectorAll<HTMLElement>("dd.path-value")];
+      expect(paths.map((value) => value.textContent)).toEqual([executable, directory]);
+      expect([...facts.querySelectorAll("code")].map((value) => value.textContent)).toEqual(
+        savedArguments.filter(Boolean),
+      );
+      expect(facts.textContent?.includes("Empty argument")).toBe(savedArguments.includes(""));
+      for (const argument of facts.querySelectorAll("code")) {
+        expect(getComputedStyle(argument).whiteSpace).toBe("pre-wrap");
+      }
+      facts.scrollIntoView({ block: "center" });
+      await document.fonts.ready;
+      for (const value of [...paths, ...facts.querySelectorAll("code")]) {
+        expect(value.getAttribute("dir")).toBe("ltr");
+        expect(getComputedStyle(value).direction).toBe("ltr");
+        expect(getComputedStyle(value).unicodeBidi).not.toContain("override");
+        const bounds = value.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(value);
+        for (const rect of [...range.getClientRects()].filter((rect) => rect.width > 0)) {
+          expect(rect.left).toBeGreaterThanOrEqual(0);
+          expect(rect.right).toBeLessThanOrEqual(innerWidth);
+          expect(rect.top).toBeGreaterThanOrEqual(0);
+          expect(rect.bottom).toBeLessThanOrEqual(innerHeight);
+          expect(rect.left).toBeGreaterThanOrEqual(bounds.left - 1);
+          expect(rect.right).toBeLessThanOrEqual(bounds.right + 1);
+        }
+      }
+      const prefix = document.createRange();
+      prefix.setStart(paths[0]!.firstChild!, 0);
+      prefix.setEnd(paths[0]!.firstChild!, 7);
+      expect(prefix.toString()).toBe("\\\\?\\C:\\");
+      expect(prefix.getClientRects()).toHaveLength(1);
+      const serverPrefix = [0, 1, 2].map((index) => {
+        const glyph = document.createRange();
+        glyph.setStart(paths[1]!.firstChild!, index);
+        glyph.setEnd(paths[1]!.firstChild!, index + 1);
+        return glyph.getBoundingClientRect().top;
+      });
+      expect(directory.slice(0, 3)).toBe("\\\\م");
+      expect(Math.max(...serverPrefix) - Math.min(...serverPrefix)).toBeLessThanOrEqual(1);
+      expect(preview).not.toHaveBeenCalled();
+      await captureParityState("detail-manage-selected-launch-facts");
+      await page.getByRole("button", { name: "Edit external launch details", exact: true }).click();
+      await expect
+        .element(page.getByRole("tab", { name: "Game files", exact: true }))
+        .toHaveAttribute("aria-selected", "true");
+      expect(
+        document.querySelector("[data-detail-workspace]")?.getAttribute("data-detail-port-id"),
+      ).toBe(port.id);
+      await page.getByRole("button", { name: "Edit launch details…", exact: true }).click();
+      await expect
+        .element(page.getByRole("textbox", { name: "Start in folder", exact: true }))
+        .toHaveValue(directory);
+      await page.getByRole("button", { name: "Review launch details", exact: true }).click();
+      await expect
+        .poll(() => preview.mock.calls)
+        .toEqual([[port.id, executable, directory, savedArguments, 19]]);
+      for (const mutation of mutations) expect(mutation).not.toHaveBeenCalled();
+      expect(launch).not.toHaveBeenCalled();
+    } finally {
+      preview.mockRestore();
+      for (const mutation of mutations) mutation.mockRestore();
+      if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = oldTheme;
+      await page.viewport(oldViewport.width, oldViewport.height);
+    }
+  },
+);
+
 it.each(["dark", "light"] as const)(
   "aligns all padded disclosure markers to the first wrapped line in %s",
   async (theme) => {
@@ -185,12 +318,19 @@ it.each(
         </div>,
       );
       await document.fonts.ready;
-      for (const [tab, title] of [
-        ["Game files", "Game-file requirements and setup"],
-        ["Manage", "Folder for a future install"],
-        ["Manage", "Technical details"],
-      ] as const) {
-        await page.getByRole("tab", { name: tab, exact: true }).click();
+      await page.getByRole("tab", { name: "Game files", exact: true }).click();
+      const requirements = page.getByText("Current game-file requirements", { exact: true });
+      await expect.element(requirements).toBeVisible();
+      expect(requirements.element().closest("details")).toBeNull();
+      requirements.element().scrollIntoView({ block: "center", behavior: "instant" });
+      const requirementsBounds = requirements.element().getBoundingClientRect();
+      expect(requirementsBounds.top).toBeGreaterThanOrEqual(0);
+      expect(requirementsBounds.bottom).toBeLessThanOrEqual(innerHeight);
+      expect(requirementsBounds.left).toBeGreaterThanOrEqual(0);
+      expect(requirementsBounds.right).toBeLessThanOrEqual(innerWidth);
+      if (direction === "ltr") await captureParityState("detail-current-game-file-requirements");
+      await page.getByRole("tab", { name: "Manage", exact: true }).click();
+      for (const title of ["Folder for a future install", "Technical details"]) {
         const control = page.getByText(title, { exact: true });
         await expect.element(control).toBeVisible();
         const label = control.element();
@@ -207,8 +347,6 @@ it.each(
         expect(details.open).toBe(originalOpen);
         expect(document.activeElement).toBe(summary);
         expectManualSummaryGeometry(label, direction);
-        if (direction === "ltr" && tab === "Game files")
-          await captureParityState("detail-manual-requirements-trailing-chevron");
       }
       await page.getByText("Folder for a future install", { exact: true }).click();
       await expect.element(page.getByText(folderError, { exact: false })).toBeVisible();
@@ -660,7 +798,15 @@ it("keeps an unknown external installation's folder and maintenance facts distin
     .element(facts.getByText(status.external_runtime.path, { exact: true }))
     .toBeVisible();
   await expect
-    .element(facts.getByText("You maintain this folder and its updates.", { exact: true }))
+    .element(facts.getByText(status.external_runtime.executable, { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      facts.getByText(
+        "You maintain this folder and its updates. Review Saves & backups for any data Portcove can protect.",
+        { exact: true },
+      ),
+    )
     .toBeVisible();
   expect(
     document.querySelector('[data-confirmed-play]:not(:disabled):not([aria-disabled="true"])'),
@@ -1032,6 +1178,6 @@ it("keeps a setup-needed game's file details inside a 400% interface-size column
   );
   await userEvent.click(page.getByRole("tab", { name: "Game files" }));
   const column = page.getByTestId("narrow-details-column").element();
-  await expect.poll(() => column.querySelector(".requirements-disclosure") !== null).toBe(true);
+  await expect.poll(() => column.querySelector(".requirements-body") !== null).toBe(true);
   expect(column.scrollWidth).toBeLessThanOrEqual(column.clientWidth);
 });

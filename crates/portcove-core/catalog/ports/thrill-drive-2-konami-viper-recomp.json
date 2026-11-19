@@ -1,0 +1,46 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "thrill-drive-2-konami-viper-recomp",
+    "issue_number": 7073,
+    "name": "Thrill Drive 2 / Konami Viper",
+    "original_game_title": "Thrill Drive 2",
+    "summary": "Build a native Thrill Drive 2 player from your own arcade game and Konami Viper board dumps with the project's setup package.",
+    "project_url": "https://github.com/spita90/konami-viper-recomp",
+    "listed_at": "2026-11-18",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/spita90/konami-viper-recomp/releases/tag/v0.16.2",
+    "setup_url": "https://github.com/spita90/konami-viper-recomp/blob/v0.16.2/README.md#download-and-play",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Build your game once",
+          "instruction": "Extract the package. Put your own supported Thrill Drive 2 EBB, JAA or AAA game files and the kviper board files in roms (941b01.u25 and the ds2430.u3 EEPROM). Include the matching CHD and NVRAM files listed by the project. Run viper-setup.exe on Windows or viper-setup from the package folder on Linux or Mac. Setup builds a player from the files it recognizes."
+        },
+        {
+          "title": "Open the generated player",
+          "instruction": "After setup succeeds, open the player for your original. td2 for EBB, td2j for JAA or td2a for AAA. On Windows the player has an .exe extension. Open the same player on later launches. Use Options for settings. The --classic option starts the arcade mode."
+        }
+      ],
+      "references": [
+        {
+          "title": "Keep saves when replacing the package",
+          "instruction": "Keep the NVRAM saves and settings beside the generated player, including its separate enhanced and classic saves. Back up that folder before replacing the release, then run the upstream setup again for the new version. Portcove does not replace the generated runtime or back up its data."
+        },
+        {
+          "title": "Use the upstream command line",
+          "instruction": "For the default release variant, run viper-setup --prepare --roms with your original-files folder followed by thrild2. Watch the progress lines and wait for success. Then viper-setup --play thrild2 starts the generated player and returns its exit status. Exit code 66 means the upstream setup has no built game for that variant."
+        }
+      ],
+      "warnings": [
+        "The release package contains a builder. You supply the original game files and board BIOS."
+      ]
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["konami-viper-", "-windows-x86_64.zip"],
+      "linux-x86-64": ["konami-viper-", "-linux-x86_64.tar.gz"],
+      "macos-aarch64": ["konami-viper-", "-macos-arm64.zip"]
+    }
+  }
+}

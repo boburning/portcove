@@ -48,6 +48,15 @@
         "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
         "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "quake-ii",
+      "evidence_urls": [
+        "https://github.com/yquake2/yquake2/tree/76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+        "https://github.com/yquake2/yquake2"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

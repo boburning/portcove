@@ -47,15 +47,33 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp/releases",
     "download_asset_hints": {
-      "linux-x86-64": ["Kula-World-Recomp-", "-linux-x64.zip"],
       "macos-aarch64": ["Kula-World-Recomp-", "-macos-arm64.zip"],
-      "macos-x86-64": ["Kula-World-Recomp-", "-macos-x64.zip"],
-      "windows-x86-64": ["Kula-World-Recomp-", "-windows-x64.zip"]
+      "macos-x86-64": ["Kula-World-Recomp-", "-macos-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "Kula World"
+    "original_game_title": "Kula World",
+    "original_game": {
+      "format_version": 1,
+      "id": "kula-world",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/kula-world-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/kula-world-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "kula-world-playstation-europe-sces-01000",
+          "title": "Kula World (Europe, SCES-01000)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/kula-world-recomp#readme",
+            "https://github.com/alexbeavs-ps1-ports/kula-world-recomp"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
