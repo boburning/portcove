@@ -3921,12 +3921,12 @@ impl PortcoveService {
                 && active.id != existing.id
             {
                 self.snapshot_before_version_change(
-                    &port.id,
                     crate::VersionChangeKind::Update,
                     active,
                     Some(&active.version),
                     &existing.version,
                     true,
+                    None,
                 )?;
             }
             reporter.operation.begin_publication()?;
@@ -3978,12 +3978,12 @@ impl PortcoveService {
             // A staged route snapshots at its own activation, so each version
             // change is protected exactly once. Stage-only updates change nothing.
             self.snapshot_before_version_change(
-                &port.id,
                 crate::VersionChangeKind::Update,
                 active,
                 Some(&active.version),
                 &release.version,
                 false,
+                None,
             )?;
         }
         let installed = Installer::with_faults(self.library.clone(), self.faults.clone())?
@@ -4457,12 +4457,12 @@ impl PortcoveService {
                 self.require_portable_rollback_transition(active, &previous)?;
                 // Before any data or version change; a failure stops the rollback.
                 self.snapshot_before_version_change(
-                    port_id,
                     crate::VersionChangeKind::Rollback,
                     active,
                     Some(&active.version),
                     &previous.version,
                     false,
+                    None,
                 )?;
             }
             self.restore_user_data_to(&port, &previous.path)?;
@@ -4676,12 +4676,12 @@ impl PortcoveService {
         if let Some(active) = &status.active {
             // The first mutation follows; a snapshot failure stops the change here.
             self.snapshot_before_version_change(
-                port_id,
                 kind,
                 active,
                 Some(&active.version),
                 &staged.version,
                 true,
+                None,
             )?;
         }
         let mut activation = crate::recovery::ActivationOperation::decode(self, &lifecycle)?;

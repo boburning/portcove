@@ -105,8 +105,10 @@ review or verified defaults.
 A first native upgrade can establish the missing canonical copy from the
 verified old package before it applies the new default. A known runtime edit
 can be carried forward from the exact managed launch when it agrees with the
-new default or the upstream default stayed the same. Portcove records verified
-package omissions separately from files it could not read or parse.
+new default or the upstream default stayed the same. The automatic pre-update
+backup includes that player edit when automatic backups are on. Portcove
+records verified package omissions separately from files it could not read or
+parse.
 
 A reviewed backup restore can record the removal of a declared settings file.
 The receipt requires a snapshot that covers the exact active persistence policy,

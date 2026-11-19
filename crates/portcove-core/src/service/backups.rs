@@ -707,20 +707,6 @@ impl PortcoveService {
         )
     }
 
-    fn create_backup_locked_labeled(
-        &self,
-        port_id: &str,
-        label: crate::AutomaticSnapshotLabel,
-    ) -> Result<BackupRecord> {
-        self.create_backup_snapshot(
-            port_id,
-            Some(label),
-            None,
-            UnknownFileScope::Automatic,
-            None,
-        )
-    }
-
     /// Before removal, keep the unknown player-side files of every version,
     /// which removal would otherwise delete with the version folders. Returns
     /// `None` when there are none; declared data is preserved by removal itself.
@@ -822,15 +808,15 @@ impl PortcoveService {
             self.faults
                 .check(LifecycleFaultPoint::BackupStagingCreated)?;
             let mut stats = BackupStats::default();
-            if !source_exists {
-                // Only unknown files remain to protect; restore sees no saves.
-                fs::create_dir(staging_path.join("data"))?;
-            } else if let Some(overlay) = overlay {
+            if let Some(overlay) = overlay {
                 let merged = staging_path.join("overlay");
                 copy_backup_tree(&source, &merged, &source, &mut BackupStats::default())?;
                 overlay(&merged)?;
                 copy_backup_tree(&merged, &staging_path.join("data"), &merged, &mut stats)?;
                 fs::remove_dir_all(&merged)?;
+            } else if !source_exists {
+                // Only unknown files remain to protect; restore sees no saves.
+                fs::create_dir(staging_path.join("data"))?;
             } else {
                 copy_backup_tree(&source, &staging_path.join("data"), &source, &mut stats)?;
             }
@@ -1954,13 +1940,14 @@ impl PortcoveService {
     /// failure returns an error, so the caller stops before it mutates anything.
     pub(super) fn snapshot_before_version_change(
         &self,
-        port_id: &str,
         kind: VersionChangeKind,
         contract_install: &InstallRecord,
         from_version: Option<&str>,
         to_version: &str,
         collect_first: bool,
+        overlay: Option<&SnapshotOverlay<'_>>,
     ) -> Result<SnapshotOutcome> {
+        let port_id = &contract_install.port_id;
         if !self.library.automatic_snapshots_enabled()? {
             return Ok(SnapshotOutcome::Disabled);
         }
@@ -1996,7 +1983,13 @@ impl PortcoveService {
                 from_version: from_version.map(str::to_owned),
                 to_version: to_version.to_owned(),
             };
-            match self.create_backup_locked_labeled(port_id, label) {
+            match self.create_backup_snapshot(
+                port_id,
+                Some(label),
+                overlay,
+                UnknownFileScope::Automatic,
+                None,
+            ) {
                 Ok(_) => {
                     let pruned = self.prune_automatic_snapshots(port_id);
                     Ok(SnapshotOutcome::Created { pruned })

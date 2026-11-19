@@ -91,6 +91,8 @@ fn settings_fixture_packages(
         .map(|(_, bytes)| hex::encode(Sha256::digest(bytes)));
     let mut port = Catalog::embedded().unwrap().port(PORT).unwrap().clone();
     port.persistent_paths = vec![FILE.into(), "progress.sav".into()];
+    port.presentation.as_mut().unwrap().saves_and_settings =
+        crate::SavesAndSettingsBehavior::PortcoveManaged;
     if partitioned {
         port.adapter = AdapterKind::StagedSourcePortable;
         port.archive_data_compatibility_v1 = Some(crate::ArchiveDataCompatibilityV1 {
@@ -647,6 +649,54 @@ fn exact_launch_allows_owned_runtime_edit_only_if_defaults_are_compatible() {
             fixture.staged.id
         );
     }
+}
+
+#[test]
+fn restoring_pre_update_backup_keeps_the_runtime_only_player_edit() {
+    let fixture = settings_fixture_with_player(false, true, true, OLD);
+    completed_managed_launch(&fixture, PLAYER);
+    let canonical = fixture.library.user_dir(PORT).join(FILE);
+    assert_eq!(fs::read(&canonical).unwrap(), OLD);
+    let mut service =
+        PortcoveService::with_faults(fixture.library.clone(), Arc::new(NoLifecycleFaults)).unwrap();
+    service.replace_catalog_for_test(fixture.catalog.clone());
+    let active = service.activate_staged(PORT).unwrap();
+    let backup = service
+        .list_backups(PORT)
+        .unwrap()
+        .backups
+        .into_iter()
+        .find(|backup| {
+            backup.automatic.as_ref().is_some_and(|label| {
+                label.operation == crate::VersionChangeKind::Activation
+                    && label.from_version.as_deref() == Some(fixture.old.version.as_str())
+                    && label.to_version == fixture.staged.version
+            })
+        })
+        .expect("the settings update must retain its ordinary pre-update snapshot");
+    assert_eq!(
+        fs::read(backup.path.join("data").join(FILE)).unwrap(),
+        PLAYER
+    );
+
+    fs::write(&canonical, NEW).unwrap();
+    fs::write(active.path.join(FILE), NEW).unwrap();
+    let review = service
+        .preview_backup_action(PORT, &backup.id, BackupAction::Restore)
+        .unwrap();
+    let authorization = service
+        .authorize_backup_action(
+            PORT,
+            &backup.id,
+            BackupAction::Restore,
+            &review.preview_sha256,
+        )
+        .unwrap();
+    service
+        .restore_backup(PORT, &backup.id, &authorization.token)
+        .unwrap();
+    assert_eq!(fs::read(&canonical).unwrap(), PLAYER);
+    assert_eq!(fs::read(active.path.join(FILE)).unwrap(), PLAYER);
 }
 
 #[test]

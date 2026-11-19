@@ -1,6 +1,7 @@
 //! Freeze one whole-file default replacement for activation custody.
 //! This preparation does not stage, publish or rename any file.
 
+use super::super::backups::SnapshotOverlay;
 use super::{
     HeldSettingsCopies, activation_deletion::PreparedSettingsDeletion, transaction::custody, *,
 };
@@ -38,6 +39,25 @@ pub(in crate::service) struct HeldDefaultReplacement {
 }
 
 impl PreparedSettingsDefaultActivation {
+    /// Snapshot the same player bytes held for projection. Only runtime-owned
+    /// edits differ from the canonical file already copied by the backup.
+    fn runtime_only_snapshot_bytes(&mut self) -> Result<Option<(String, Vec<u8>)>> {
+        let PreparedSettingsFiles::Replace(files) = &mut self.files else {
+            return Ok(None);
+        };
+        if files.runtime_projection_launch_id.is_none() {
+            return Ok(None);
+        }
+        let changed =
+            || PortcoveError::conflict("runtime settings changed before the update backup");
+        let runtime = files.previous_runtime.as_mut().ok_or_else(changed)?;
+        let bytes = runtime.bytes(self.maximum_bytes)?;
+        if hex::encode(Sha256::digest(&bytes)) != files.canonical.proposed_sha256 {
+            return Err(changed());
+        }
+        Ok(Some((files.canonical.previous_sha256.clone(), bytes)))
+    }
+
     /// Bind custody before staging. The caller keeps these held originals
     /// through checked readback of the newly written lifecycle intent.
     pub(in crate::service) fn bind_journal(
@@ -138,7 +158,7 @@ impl PortcoveService {
         store: &OperationStore,
         mut operation: LifecycleOperation,
         kind: crate::VersionChangeKind,
-        prepared: PreparedSettingsDefaultActivation,
+        mut prepared: PreparedSettingsDefaultActivation,
     ) -> Result<InstallRecord> {
         let writer = store.settings_activation_writer()?.ok_or_else(|| {
             PortcoveError::unsupported(
@@ -147,15 +167,33 @@ impl PortcoveService {
         })?;
         self.require_completed_backup_restore(&operation.port_id)?;
         self.require_completed_backup_deletion(&operation.port_id)?;
-        let excluded = Some(prepared.relative_path.as_str());
+        let player_preimage = prepared.runtime_only_snapshot_bytes()?;
+        let relative_path = prepared.relative_path.as_str();
+        let maximum_bytes = prepared.maximum_bytes;
+        let overlay = player_preimage.map(|(canonical_sha256, bytes)| {
+            move |copy: &Path| {
+                let path = copy.join(relative_path);
+                crate::durability::write_bytes_atomically_checked(&path, &bytes, true, None, || {
+                    let copied =
+                        crate::external_runtime::read_single_link_metadata(&path, maximum_bytes)?;
+                    if hex::encode(Sha256::digest(copied)) != canonical_sha256 {
+                        return Err(PortcoveError::conflict(
+                            "the private update backup has different canonical settings",
+                        ));
+                    }
+                    Ok(())
+                })
+            }
+        });
+        let excluded = Some(relative_path);
         self.collect_active_user_data_except(&operation.port_id, excluded)?;
         self.snapshot_before_version_change(
-            &operation.port_id,
             kind,
             &prepared.previous,
             Some(&prepared.previous.version),
             &prepared.target.version,
             false,
+            overlay.as_ref().map(|apply| apply as &SnapshotOverlay<'_>),
         )?;
         self.prepare_retained_install_data_except(&prepared.target, excluded)?;
         self.carry_unknown_files(&prepared.previous, &prepared.target)?;
