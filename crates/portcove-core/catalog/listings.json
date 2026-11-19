@@ -49125,53 +49125,6 @@
       }
     },
     {
-      "id": "master-of-magic-remom",
-      "name": "Master of Magic / ReMoM",
-      "summary": "Run Master of Magic with ReMoM using the original game data from your own DOS installation.",
-      "project_url": "https://github.com/jbalcomb/ReMoM",
-      "original_game_title": "Master of Magic",
-      "issue_number": 5833,
-      "listed_at": "2026-11-18",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
-      "availability": "packages",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "ReMoM-",
-          "-Windows-AMD64.zip"
-        ],
-        "linux-x86-64": [
-          "ReMoM-",
-          "-Linux-x86_64.tar.gz"
-        ]
-      },
-      "release_url": "https://github.com/jbalcomb/ReMoM/releases/tag/v0.1.0",
-      "setup_url": "https://github.com/jbalcomb/ReMoM/blob/v0.1.0/PLAYING.md",
-      "manual_setup": {
-        "steps": [
-          {
-            "title": "Choose the engine archive",
-            "instruction": "Extract the full Windows ZIP and open ReMoM.exe. On Linux, extract the tarball and run ReMoM with SDL2 and SDL2_mixer installed."
-          },
-          {
-            "title": "Point ReMoM at your own Master of Magic files",
-            "instruction": "ReMoM looks for version 1.31 files in the usual GOG, Steam and CD install locations. If it cannot find them, follow the upstream guide to set game_data in ReMoM.ini, or put the original .LBX files next to the executable. Open the same program again to play."
-          }
-        ],
-        "references": [
-          {
-            "title": "Keep the working save folder",
-            "instruction": "The default save folder is %APPDATA%/ReMoM on Windows or ~/.local/share/ReMoM on Linux. The program can copy SAVE1.GAM through SAVE9.GAM from your original on first run. Keep the working copies before replacing the engine with a newer upstream release."
-          }
-        ],
-        "warnings": [
-          "Portcove does not back up your ReMoM saves."
-        ]
-      }
-    },
-    {
       "id": "marvel-super-heroes-vs-street-fighter-cps2-recomp",
       "name": "Marvel Super Heroes vs. Street Fighter (CPS-2 Recomp)",
       "summary": "Play Marvel Super Heroes vs. Street Fighter in CPS-2 Recomp using your own matching arcade files.",
@@ -49294,6 +49247,53 @@
             "title": "Find saves and update the collection",
             "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
           }
+        ]
+      }
+    },
+    {
+      "id": "master-of-magic-remom",
+      "name": "Master of Magic / ReMoM",
+      "summary": "Run Master of Magic with ReMoM using the original game data from your own DOS installation.",
+      "project_url": "https://github.com/jbalcomb/ReMoM",
+      "original_game_title": "Master of Magic",
+      "issue_number": 5833,
+      "listed_at": "2026-11-18",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "ReMoM-",
+          "-Windows-AMD64.zip"
+        ],
+        "linux-x86-64": [
+          "ReMoM-",
+          "-Linux-x86_64.tar.gz"
+        ]
+      },
+      "release_url": "https://github.com/jbalcomb/ReMoM/releases/tag/v0.1.0",
+      "setup_url": "https://github.com/jbalcomb/ReMoM/blob/v0.1.0/PLAYING.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose the engine archive",
+            "instruction": "Extract the full Windows ZIP and open ReMoM.exe. On Linux, extract the tarball and run ReMoM with SDL2 and SDL2_mixer installed."
+          },
+          {
+            "title": "Point ReMoM at your own Master of Magic files",
+            "instruction": "ReMoM looks for version 1.31 files in the usual GOG, Steam and CD install locations. If it cannot find them, follow the upstream guide to set game_data in ReMoM.ini, or put the original .LBX files next to the executable. Open the same program again to play."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep the working save folder",
+            "instruction": "The default save folder is %APPDATA%/ReMoM on Windows or ~/.local/share/ReMoM on Linux. The program can copy SAVE1.GAM through SAVE9.GAM from your original on first run. Keep the working copies before replacing the engine with a newer upstream release."
+          }
+        ],
+        "warnings": [
+          "Portcove does not back up your ReMoM saves."
         ]
       }
     },
@@ -62820,6 +62820,57 @@
       }
     },
     {
+      "id": "prism-rhythm-openbgi",
+      "name": "Prism Rhythm (OpenBGI)",
+      "original_game_title": "Prism Rhythm",
+      "summary": "Open your existing copy of Prism Rhythm with the OpenBGI preview.",
+      "project_url": "https://github.com/Cytlan/openbgi",
+      "release_url": "https://github.com/Cytlan/openbgi/releases/tag/v0.1-pre",
+      "setup_url": "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running",
+      "issue_number": 7283,
+      "listed_at": "2026-11-18",
+      "availability": "packages",
+      "recommended_download_channel": "beta",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "bgi.exe"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the matching original",
+            "instruction": "Use your own installed copy of Prism Rhythm, product PrismRhythm. The tagged guide identifies engine version 1.494. Keep the game folder together, including its original boot files."
+          },
+          {
+            "title": "Start with the game folder",
+            "instruction": "Use bgi.exe from the upstream preview. It is a 32-bit Windows program. Open it outside a game folder and use Select game to choose your original folder."
+          },
+          {
+            "title": "Open the same game again",
+            "instruction": "Choose the remembered folder in Select game. A frontend can start bgi.exe with the game folder as its working directory to enter directly. Reopen Select game to change the folder or use Advanced to change the launch options."
+          }
+        ],
+        "warnings": [
+          "The project reports extended play. Portcove has not run this original or restored a save."
+        ],
+        "help_url": "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running",
+        "references": [
+          {
+            "title": "Keep saves and settings",
+            "instruction": "OpenBGI writes BGI save files with a .cad extension in the game’s base folder. Keep your game folder and the games.json profile beside bgi.exe or in the game folder before manually replacing the engine."
+          },
+          {
+            "title": "Linux builds",
+            "instruction": "The upstream project documents building the engine for Linux from source. This preview publishes a Windows executable."
+          }
+        ]
+      }
+    },
+    {
       "id": "progear-cps2-recomp",
       "name": "Progear (CPS-2 Recomp)",
       "summary": "Play Progear in CPS-2 Recomp using your own matching arcade files.",
@@ -62878,57 +62929,6 @@
           {
             "title": "Find saves and update the collection",
             "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
-          }
-        ]
-      }
-    },
-    {
-      "id": "prism-rhythm-openbgi",
-      "name": "Prism Rhythm (OpenBGI)",
-      "original_game_title": "Prism Rhythm",
-      "summary": "Open your existing copy of Prism Rhythm with the OpenBGI preview.",
-      "project_url": "https://github.com/Cytlan/openbgi",
-      "release_url": "https://github.com/Cytlan/openbgi/releases/tag/v0.1-pre",
-      "setup_url": "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running",
-      "issue_number": 7283,
-      "listed_at": "2026-11-18",
-      "availability": "packages",
-      "recommended_download_channel": "beta",
-      "platforms": [
-        "windows-x86-64"
-      ],
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "bgi.exe"
-        ]
-      },
-      "manual_setup": {
-        "steps": [
-          {
-            "title": "Use the matching original",
-            "instruction": "Use your own installed copy of Prism Rhythm, product PrismRhythm. The tagged guide identifies engine version 1.494. Keep the game folder together, including its original boot files."
-          },
-          {
-            "title": "Start with the game folder",
-            "instruction": "Use bgi.exe from the upstream preview. It is a 32-bit Windows program. Open it outside a game folder and use Select game to choose your original folder."
-          },
-          {
-            "title": "Open the same game again",
-            "instruction": "Choose the remembered folder in Select game. A frontend can start bgi.exe with the game folder as its working directory to enter directly. Reopen Select game to change the folder or use Advanced to change the launch options."
-          }
-        ],
-        "warnings": [
-          "The project reports extended play. Portcove has not run this original or restored a save."
-        ],
-        "help_url": "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running",
-        "references": [
-          {
-            "title": "Keep saves and settings",
-            "instruction": "OpenBGI writes BGI save files with a .cad extension in the game’s base folder. Keep your game folder and the games.json profile beside bgi.exe or in the game folder before manually replacing the engine."
-          },
-          {
-            "title": "Linux builds",
-            "instruction": "The upstream project documents building the engine for Linux from source. This preview publishes a Windows executable."
           }
         ]
       }
@@ -69466,6 +69466,28 @@
             ]
           }
         ]
+      },
+      "compatibility": {
+        "format_version": 2,
+        "records": [
+          {
+            "id": "queen-queen-entry-linux-x86-64",
+            "feature": "launch",
+            "platform": "linux-x86-64",
+            "route": "upstream-setup",
+            "release": "2026.4.0",
+            "artifact_sha256": "aa5820ed4e6d136dfcc9badf171119cecf94844098d928512987be88a5022af9",
+            "edition": "Freeware floppy edition",
+            "explanation": "Open ScummVM to add the game folder during setup. After setup, use the saved target ID to start the game directly. Opening ScummVM on its own still shows the project launcher.",
+            "provenance": "https://docs.scummvm.org/en/latest/advanced_topics/command_line.html#starting-a-game",
+            "observed_at": 1795043416,
+            "evidence": "upstream-reported",
+            "launch_behavior": {
+              "first_launch": "opens-project-launcher",
+              "repeat_launch": "starts-game-directly"
+            }
+          }
+        ]
       }
     },
     {
@@ -69554,6 +69576,45 @@
               "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
               "https://www.scummvm.org/compatibility/2026.4.0/sky:sky/"
             ]
+          }
+        ]
+      },
+      "compatibility": {
+        "format_version": 2,
+        "records": [
+          {
+            "id": "sky-sky-entry-linux-x86-64",
+            "feature": "launch",
+            "platform": "linux-x86-64",
+            "route": "upstream-setup",
+            "release": "2026.4.0",
+            "artifact_sha256": "aa5820ed4e6d136dfcc9badf171119cecf94844098d928512987be88a5022af9",
+            "edition": "Freeware floppy edition",
+            "explanation": "Open ScummVM to add the game folder during setup. After setup, use the saved target ID to start the game directly. Opening ScummVM on its own still shows the project launcher.",
+            "provenance": "https://docs.scummvm.org/en/latest/advanced_topics/command_line.html#starting-a-game",
+            "observed_at": 1795043416,
+            "evidence": "upstream-reported",
+            "launch_behavior": {
+              "first_launch": "opens-project-launcher",
+              "repeat_launch": "starts-game-directly"
+            }
+          },
+          {
+            "id": "sky-sky-entry-windows-x86-64",
+            "feature": "launch",
+            "platform": "windows-x86-64",
+            "route": "upstream-setup",
+            "release": "2026.4.0",
+            "artifact_sha256": "fb60cfc0828ed86ef24a60c04b9390676493ab85892d81c56d1de90367d56736",
+            "edition": "Freeware floppy edition",
+            "explanation": "Open ScummVM to add the game folder during setup. After setup, use the saved target ID to start the game directly. Opening ScummVM on its own still shows the project launcher.",
+            "provenance": "https://docs.scummvm.org/en/latest/advanced_topics/command_line.html#starting-a-game",
+            "observed_at": 1795043416,
+            "evidence": "upstream-reported",
+            "launch_behavior": {
+              "first_launch": "opens-project-launcher",
+              "repeat_launch": "starts-game-directly"
+            }
           }
         ]
       }

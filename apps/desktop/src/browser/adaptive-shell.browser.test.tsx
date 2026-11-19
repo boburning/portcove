@@ -1,6 +1,6 @@
 import { captureParityState } from "../../test/parity-capture";
 import { afterEach, beforeEach, expect, it } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import App from "../App";
 import { desktopApi } from "../api";
@@ -55,6 +55,47 @@ async function expectUnbrokenAppearanceLabels() {
     const bounds = element.getBoundingClientRect();
     expect(label.left).toBeGreaterThanOrEqual(bounds.left);
     expect(label.right).toBeLessThanOrEqual(bounds.right);
+  }
+}
+
+async function expectSettingsCategoryLabelsFit() {
+  const categories = page.getByRole("navigation", { name: "Settings categories" });
+  const buttons = categories.getByRole("button");
+  const keyboardCategory = categories.getByRole("button", {
+    name: "Keyboard and controller",
+    exact: true,
+  });
+  const destinations = buttons.elements();
+  expect(destinations).toHaveLength(8);
+  buttons.first().element().focus();
+  await userEvent.keyboard("{Tab}{Shift>}{Tab}{/Shift}");
+  for (const button of destinations) {
+    await expect.element(button).toHaveFocus();
+    if (button === keyboardCategory.element()) {
+      await captureParityState("settings-keyboard-category-text-200");
+    }
+    const navigation = categories.element();
+    const strip = navigation.getBoundingClientRect();
+    const left = strip.left + navigation.clientLeft;
+    const right = left + navigation.clientWidth;
+    const top = strip.top + navigation.clientTop;
+    const bottom = top + navigation.clientHeight;
+    const label = document.createRange();
+    label.selectNodeContents(button);
+    const text = label.getBoundingClientRect();
+    expect.soft(text.left).toBeGreaterThanOrEqual(left - 1);
+    expect.soft(text.right).toBeLessThanOrEqual(right + 1);
+    const bounds = button.getBoundingClientRect();
+    const style = getComputedStyle(button);
+    const outlineWidth = Number.parseFloat(style.outlineWidth);
+    const outline = outlineWidth + Number.parseFloat(style.outlineOffset);
+    expect.soft(style.outlineStyle).toBe("solid");
+    expect.soft(outlineWidth).toBeGreaterThan(0);
+    expect.soft(bounds.left - outline).toBeGreaterThanOrEqual(left - 1);
+    expect.soft(bounds.right + outline).toBeLessThanOrEqual(right + 1);
+    expect.soft(bounds.top - outline).toBeGreaterThanOrEqual(top - 1);
+    expect.soft(bounds.bottom + outline).toBeLessThanOrEqual(bottom + 1);
+    await userEvent.keyboard("{Tab}");
   }
 }
 
@@ -277,6 +318,7 @@ for (const theme of ["dark", "light"]) {
       await captureParityState(
         mode === "spacing overrides" ? "settings-spacing-overrides" : "settings-text-200",
       );
+      if (mode === "200% authored text") await expectSettingsCategoryLabelsFit();
     });
   }
 }
