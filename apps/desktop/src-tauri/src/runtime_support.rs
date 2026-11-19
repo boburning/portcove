@@ -16,28 +16,37 @@ fn version_at_least(actual: &str, floor: &str) -> bool {
     )
 }
 
+#[cfg(any(windows, test))]
+fn windows_floor(windows_minimum: Option<&str>) -> Result<&str, String> {
+    windows_minimum
+        .filter(|minimum| minimum.split('.').count() == 4 && version_at_least(minimum, minimum))
+        .ok_or_else(|| "This Portcove build lacks a valid WebView2 runtime minimum.".to_owned())
+}
+
+#[cfg(any(windows, test))]
+fn check_windows_version(version: &str, floor: &str) -> Result<(), String> {
+    if version_at_least(version, floor) {
+        return Ok(());
+    }
+    Err(format!(
+        "Portcove cannot start with WebView runtime {version}. Install or update the WebView2 Evergreen production Runtime to {floor} or later and retain automatic updates."
+    ))
+}
+
 pub fn check(windows_minimum: Option<&str>) -> Result<(), String> {
     #[cfg(windows)]
-    let floor = windows_minimum
-        .filter(|minimum| minimum.split('.').count() == 4 && version_at_least(minimum, minimum))
-        .ok_or_else(|| "This Portcove build lacks a valid WebView2 runtime minimum.".to_owned())?;
+    let floor = windows_floor(windows_minimum)?;
     #[cfg(target_os = "linux")]
-    let floor = {
-        let _ = windows_minimum;
-        LINUX_ENGINE_FLOOR
-    };
+    let _ = windows_minimum;
     let version = tauri::webview_version().map_err(|error| {
         format!("Portcove could not find its required WebView runtime: {error}. Repair the runtime before starting Portcove.")
     })?;
-    if !version_at_least(&version, floor) {
-        #[cfg(windows)]
-        let remedy = format!(
-            "Install or update the WebView2 Evergreen production Runtime to {floor} or later and retain automatic updates."
-        );
-        #[cfg(target_os = "linux")]
-        let remedy = "Use updated Ubuntu 24.04 LTS with WebKitGTK 2.52.6 or later, or a current qualified Portcove AppImage.";
+    #[cfg(windows)]
+    check_windows_version(&version, floor)?;
+    #[cfg(target_os = "linux")]
+    if !version_at_least(&version, LINUX_ENGINE_FLOOR) {
         return Err(format!(
-            "Portcove cannot start with WebView runtime {version}. {remedy}"
+            "Portcove cannot start with WebView runtime {version}. Use updated Ubuntu 24.04 LTS with WebKitGTK 2.52.6 or later, or a current qualified Portcove AppImage."
         ));
     }
     eprintln!("Portcove WebView runtime version: {version}");
@@ -68,20 +77,28 @@ pub fn report_failure(message: &str) {
 
 #[cfg(test)]
 mod tests {
-    use super::version_at_least;
+    use super::{check_windows_version, version_at_least, windows_floor};
 
     #[test]
     fn engine_floor_accepts_exact_and_newer_serviced_versions() {
         for version in ["2.52.6", "2.52.7", "2.54.0", "3.0.0"] {
             assert!(version_at_least(version, "2.52.6"));
         }
-        for (version, accepted) in [
-            ("156.1.2.2", false),
-            ("156.1.2.3", true),
-            ("156.1.3.0", true),
-        ] {
-            assert_eq!(version_at_least(version, "156.1.2.3"), accepted);
-        }
+    }
+
+    #[test]
+    fn changed_bundle_floor_drives_windows_startup() {
+        let config: tauri::utils::config::Config = serde_json::from_str(include_str!(
+            "../../../../scripts/fixtures/changed-webview2-tauri.conf.json"
+        ))
+        .unwrap();
+        let floor =
+            windows_floor(config.bundle.windows.minimum_webview2_version.as_deref()).unwrap();
+        let guidance = check_windows_version("156.2.3.3", floor).unwrap_err();
+        assert!(guidance.contains("156.2.3.3"));
+        assert!(guidance.contains(&format!("to {floor} or later")));
+        assert!(check_windows_version(floor, floor).is_ok());
+        assert!(check_windows_version("156.2.3.5", floor).is_ok());
     }
 
     #[test]

@@ -380,13 +380,13 @@ void test("a changed bundle setting moves the hosted Windows prerequisite", asyn
   await mkdir(config, { recursive: true });
   const copy = path.join(scripts, "prepare-hosted-windows-runtime.ps1");
   await copyFile(helper, copy);
-  const minimum = "156.2.3.4";
-  await writeFile(
-    path.join(config, "tauri.conf.json"),
-    JSON.stringify({
-      bundle: { windows: { minimumWebview2Version: minimum } },
-    }),
-  );
+  const changedConfig = new URL("./fixtures/changed-webview2-tauri.conf.json", import.meta.url);
+  const configDocument: unknown = JSON.parse(await readFile(changedConfig, "utf8"));
+  assert(isRecord(configDocument) && isRecord(configDocument.bundle));
+  assert(isRecord(configDocument.bundle.windows));
+  const minimum = configDocument.bundle.windows.minimumWebview2Version;
+  assert(typeof minimum === "string");
+  await copyFile(changedConfig, path.join(config, "tauri.conf.json"));
   for (const [actual, eligible] of [
     ["156.2.3.3", false],
     [minimum, true],
