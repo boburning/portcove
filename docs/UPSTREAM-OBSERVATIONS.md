@@ -441,8 +441,13 @@ provide no durability guarantee.
 The configured observer’s existing schedule supplies the exact current GitHub
 release and asset selected by Core. A downstream inspection reads only those
 complete source handoffs from the same run and attempt. It compares eligible
-packages for catalog listings with reviewed shape baselines. A listing's stable
-port ID identifies its inspections even when no issue is linked.
+packages for catalog listings with generated reviewed shape baselines first.
+If the same route and platform have no generated entry, Core can compare an
+explicit reviewed layout within the remaining inspection budget. That layout
+covers programs and top-level directories. Differences in those components
+are drift, and a match remains an incomplete comparison because the other
+shape components lack a reviewed baseline. A listing's stable port ID
+identifies its inspections even when no issue is linked.
 An older reviewed fallback stays distinct from the latest candidate. Other
 providers, incomplete scopes and unavailable archives have no current shape
 assessment from this job.
@@ -451,9 +456,10 @@ The read-only inspection verifies size and SHA-256 before comparing the archive
 through `portcove catalog inspect-package-drift`, an alias for the verified
 package-shape inspector. Nothing from the archive runs. The inspection retains a
 bounded report and reuses finished comparisons only for matching package,
-definition, reviewed baseline and built inspector bytes. Failed archive checks remain visible
-and can be retried in a later observation. Installed-state eligibility stays
-with Core.
+definition, reviewed baseline and built inspector bytes. A partial layout
+comparison can be reused when Core confirms both reviewed components matched.
+Its verdict stays incomplete. Failed archive checks remain visible and can be
+retried in a later observation. Installed-state eligibility stays with Core.
 
 A separate main-branch job has only the issue write permission for the notice.
 When a listing links a canonical issue, it records one bot-owned marker comment

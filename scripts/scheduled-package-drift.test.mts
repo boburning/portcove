@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
+import { derivationInputsDigest } from "./package-shape-baselines.mts";
 import {
   collectDriftTargets,
   completedInspections,
   driftNotices,
   driftTargetKey,
+  inspectionFromResponse,
   scanDriftTargets,
+  type DriftTarget,
 } from "./scheduled-package-drift.mts";
 
 const source = { source_commit: "d".repeat(40), run_id: "42", run_attempt: "1" };
@@ -28,16 +31,16 @@ const table = {
   ],
 };
 
-function observation() {
+function observation(portId = "example") {
   return {
     execution: source,
     catalog_policies_scope:
       "complete-current-consumer-projections; managed eligibility remains Core-only",
     unassessed_current_port_ids: [],
-    source_port_ids: ["example"],
+    source_port_ids: [portId],
     catalog_policies: [
       {
-        port_id: "example",
+        port_id: portId,
         repository_id: 900,
         observed_at: new Date(now - 60_000).toISOString(),
         catalog_definition_sha256: "e".repeat(64),
@@ -69,6 +72,51 @@ function observation() {
 
 const collect = (handoffs: unknown[]) =>
   collectDriftTargets(catalog, listings, table, handoffs, source, now);
+
+const layout = { directories: ["data"], executables: ["example.exe"] };
+const layoutPort = {
+  ...catalog.ports[0]!,
+  id: "layout",
+  adapter: "native-portable",
+  reviewed_package_layouts: { [platform]: layout },
+};
+const layoutListings = { listings: [...listings.listings, { id: "layout" }] };
+
+function collectWithLayout(port = layoutPort, shapes = table) {
+  return collectDriftTargets(
+    { ports: [...catalog.ports, port] },
+    layoutListings,
+    shapes,
+    [observation("layout"), observation()],
+    source,
+    now,
+  );
+}
+
+const comparedLayout = {
+  status: "unknown",
+  baseline: { source: "reviewed_layout" },
+  reason: "incomplete_comparison",
+  unknown: [
+    "persistent_parent_children",
+    "persistent_overlap",
+    "config_files",
+    "missing_persistent_parents",
+  ],
+};
+
+const coreResponse = (target: DriftTarget, verdict: unknown) => ({
+  ok: true,
+  command: "catalog.inspect-package-shape",
+  data: {
+    port_id: target.portId,
+    platform: target.platform,
+    sha256: target.asset.sha256,
+    shape_version: target.shapeVersion,
+    derivation_inputs_sha256: target.derivationSha256,
+    verdict,
+  },
+});
 
 void test("binds the inspected managed route to the exact Core projection and canonical issue", () => {
   const candidates = collect([observation(), observation()]);
@@ -116,6 +164,124 @@ void test("excludes fallback, stale, cross-run, noncanonical and unreviewable ro
     collectDriftTargets(catalog, listings, { ...table, entries: [] }, [snapshot], source, now),
     [],
   );
+});
+
+void test("a reviewed layout supplies an issue-free baseline only without a generated entry", () => {
+  const [tableTarget, layoutTarget] = collectWithLayout();
+  assert.deepEqual(tableTarget, collect([observation()])[0]);
+  assert.ok(layoutTarget);
+  assert.equal(layoutTarget.portId, "layout");
+  assert.equal(Object.hasOwn(layoutTarget, "issue"), false);
+  assert.equal(layoutTarget.baselineSource, "reviewed_layout");
+  assert.equal(layoutTarget.derivationSha256, derivationInputsDigest(layoutPort, platform));
+  const [, changed] = collectWithLayout({
+    ...layoutPort,
+    reviewed_package_layouts: { [platform]: { ...layout, directories: [] } },
+  });
+  assert.ok(changed);
+  assert.equal(changed.derivationSha256, layoutTarget.derivationSha256);
+  assert.notEqual(driftTargetKey(changed), driftTargetKey(layoutTarget));
+
+  const generated = { ...table.entries[0]!, port_id: layoutPort.id };
+  const [generatedTarget] = collectWithLayout(layoutPort, {
+    ...table,
+    entries: [...table.entries, generated],
+  });
+  assert.ok(generatedTarget);
+  assert.equal(generatedTarget.portId, "layout");
+  assert.equal(Object.hasOwn(generatedTarget, "baselineSource"), false);
+  assert.equal(generatedTarget.derivationSha256, generated.derivation_inputs_sha256);
+  assert.deepEqual(
+    collectWithLayout(layoutPort, {
+      ...table,
+      entries: [...table.entries, { ...generated, derivation_inputs_sha256: "invalid" }],
+    }),
+    collect([observation()]),
+  );
+  assert.deepEqual(
+    collectWithLayout({ ...layoutPort, adapter: "manual-setup" }),
+    collect([observation()]),
+  );
+});
+
+void test("Core must report the bound explicit layout and only its two known components", () => {
+  const [, target] = collectWithLayout();
+  assert.ok(target);
+  const { baseline } = comparedLayout;
+  const inspect = (verdict: unknown) =>
+    inspectionFromResponse(coreResponse(target, verdict), target);
+  const matched = inspect(comparedLayout);
+  assert.equal(matched.status, "unknown");
+  assert.equal(matched.layoutMatch, true);
+  for (const part of ["programs", "top_directories"]) {
+    const incomplete = inspect({ ...comparedLayout, unknown: [...comparedLayout.unknown, part] });
+    assert.equal(incomplete.status, "unknown");
+    assert.equal(incomplete.layoutMatch, undefined);
+  }
+  assert.deepEqual(
+    inspect({ status: "drifted", baseline, changes: [{ component: "programs" }] }).components,
+    ["programs"],
+  );
+  for (const verdict of [
+    { status: "unknown", reason: "no_baseline" },
+    { status: "compatible", baseline },
+    { status: "drifted", baseline: { source: "generated" }, changes: [{ component: "programs" }] },
+    { status: "drifted", baseline, changes: [{ component: "config_files" }] },
+  ]) {
+    assert.throws(() => inspect(verdict), /explicit reviewed layout/);
+  }
+});
+
+void test("generated comparisons retain priority in the existing shared archive budget", async () => {
+  const [generated, layoutTarget] = collectWithLayout();
+  assert.ok(generated);
+  assert.ok(layoutTarget);
+  const full = { ...generated, asset: { ...generated.asset, size: 768 * 1024 * 1024 } };
+  const second = { ...full, assetId: full.assetId + 1 };
+  const partial = { ...layoutTarget, asset: { ...layoutTarget.asset, size: 512 * 1024 * 1024 } };
+  const last = { ...partial, assetId: partial.assetId + 1 };
+  const targets = [full, second, partial, last];
+  const downloaded: string[] = [];
+  const dependencies = {
+    now: () => now,
+    download: async (asset: DriftTarget["asset"]) => {
+      downloaded.push(asset.name);
+    },
+    inspect: async (_archive: string, target: DriftTarget) =>
+      inspectionFromResponse(
+        coreResponse(target, target.baselineSource ? comparedLayout : { status: "compatible" }),
+        target,
+      ),
+  };
+  const result = await scanDriftTargets(targets, new Map(), now + 1, dependencies);
+  assert.equal(downloaded.length, 3);
+  assert.deepEqual(
+    result.observations.map(({ target }) => target),
+    [full, second, partial],
+  );
+  assert.deepEqual(result.unassessed, [{ target: last, reason: "inspection-budget" }]);
+  assert.equal(result.attempted_bytes, 2 * full.asset.size + partial.asset.size);
+
+  const inspector_sha256 = "a".repeat(64);
+  const cache = { format: 1, inspector_sha256, observations: result.observations };
+  const retained = completedInspections(cache, inspector_sha256);
+  assert.equal(retained.get(driftTargetKey(partial))?.status, "unknown");
+  assert.equal(retained.get(driftTargetKey(partial))?.layoutMatch, true);
+  assert.equal(completedInspections(cache, "b".repeat(64)).size, 0);
+  const repeated = await scanDriftTargets(targets, retained, now + 1, dependencies);
+  assert.equal(downloaded.length, 4);
+  assert.deepEqual(
+    repeated.observations.map(({ target }) => target),
+    targets,
+  );
+  assert.deepEqual(repeated.unassessed, []);
+  assert.equal(repeated.attempted_bytes, last.asset.size);
+
+  const updatedLayout = { ...partial, baselineSha256: "f".repeat(64) };
+  const updated = await scanDriftTargets([updatedLayout], retained, now + 1, dependencies);
+  assert.equal(updated.attempted_bytes, updatedLayout.asset.size);
+  const report = { format: 1, run: source, ...repeated };
+  assert.deepEqual(driftNotices(report, layoutListings, source), []);
 });
 
 void test("inspects issue-free routes and preserves comparison identity when issue links change", async () => {
@@ -255,4 +421,12 @@ void test("a changed inspector binary invalidates otherwise exact cached results
   };
   assert.equal(completedInspections(cache, inspector_sha256).get(key)?.status, "compatible");
   assert.equal(completedInspections(cache, "b".repeat(64)).size, 0);
+  const unknown = { ...cache.observations[0]!.inspection, status: "unknown" };
+  assert.equal(
+    completedInspections(
+      { ...cache, observations: [{ key, inspection: unknown }] },
+      inspector_sha256,
+    ).size,
+    0,
+  );
 });
