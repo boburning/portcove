@@ -34898,6 +34898,45 @@
       }
     },
     {
+      "id": "dungeon-crawl-stone-soup",
+      "project_url": "https://github.com/crawl/crawl",
+      "name": "Dungeon Crawl Stone Soup",
+      "summary": "Play the official Windows Tiles build of the open-source tactical roguelike.",
+      "listed_at": "2026-11-19",
+      "release_url": "https://github.com/crawl/crawl/releases/tag/0.34.1",
+      "original_game_title": "Linley's Dungeon Crawl",
+      "setup_url": "https://crawl.develz.org/wordpress/about",
+      "availability": "packages",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Start the Windows Tiles edition",
+            "instruction": "Install the official Windows package and choose Play. The package already includes the game files."
+          },
+          {
+            "title": "Keep custom settings in the Crawl profile",
+            "instruction": "Place your init.txt in Portcove’s Dungeon Crawl Stone Soup user-data folder. Leave the packaged defaults in the game folder."
+          }
+        ],
+        "warnings": [
+          "A CRAWL_RC environment override keeps using its separate upstream configuration file."
+        ],
+        "help_url": "https://crawl.develz.org/wordpress/about"
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "linleys-dungeon-crawl",
+        "evidence_urls": [
+          "https://crawl.develz.org/wordpress/about",
+          "https://github.com/crawl/crawl/blob/0.34.1/README.md#license-and-history-information"
+        ],
+        "source_editions": []
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
+    },
+    {
       "id": "dungeon-keeper-keeperfx-tux-edition",
       "project_url": "https://github.com/ForkedInTime/keeperfx-tux-edition",
       "name": "Dungeon Keeper / KeeperFX Tux Edition",
