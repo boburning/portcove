@@ -43,9 +43,6 @@
       "help_url": "https://github.com/darkuni/outrun-arcade-recomp/blob/e1c57e065b74e594d38778b05d13fdc895e90d4b/README.md"
     },
     "release_url": "https://github.com/darkuni/outrun-arcade-recomp/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["outrun_arcade-", "-win-amd64.zip"]
-    },
     "recommended_download_channel": "stable",
     "original_game": {
       "format_version": 1,
@@ -93,5 +90,6 @@
         "executables": ["outrun_arcade.exe"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

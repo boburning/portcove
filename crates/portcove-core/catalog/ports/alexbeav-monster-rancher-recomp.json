@@ -52,8 +52,6 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["monster-rancher-", "-windows-x64.zip"],
-      "linux-x86-64": ["monster-rancher-", "-linux-x64.zip"],
       "macos-x86-64": ["monster-rancher-", "-macos-x64.zip"],
       "macos-aarch64": ["monster-rancher-", "-macos-arm64.zip"]
     },
@@ -69,6 +67,7 @@
     }
   },
   "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

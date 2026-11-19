@@ -1,10 +1,11 @@
 # Development tools
 
-Start with [Frontend workflow](#frontend-workflow) for pinned tools and focused
-checks, [Warm single-session workflow](#warm-single-session-workflow) for pickup,
-and [Shared local resources](#shared-local-resources) before heavyweight work.
-[Quality](QUALITY.md#required-hosted-baseline) owns required validation and review;
-the detailed recipes and retained observations below do not add merge gates.
+Use the [Frontend workflow](#frontend-workflow) to install the pinned tools
+and run focused checks. When you pick up work, use the
+[Warm single-session workflow](#warm-single-session-workflow). Before you run
+large jobs, read [Shared local resources](#shared-local-resources).
+[Quality](QUALITY.md#required-hosted-baseline) lists the tests and reviews
+required to merge.
 
 ## Dependency patches
 
@@ -2194,6 +2195,19 @@ just desktop-verify --scenario native-design-system-compatibility
 just desktop-verify --scenario keyboard-layout --scenario accessibility
 just desktop-verify --profile presentation
 ```
+
+`keyboard-layout` reads back the native window and WebView viewport after its
+narrow-size request. A native minimum-width clamp keeps the desktop navigation
+journey active; it does not establish compact drawer coverage. The retained
+`keyboard-layout-navigation.json` records the actual dimensions and explicitly
+marks compact navigation unexercised outside its breakpoint. Where the actual
+viewport is compact, drawer visibility and both navigation landmarks remain
+required. Browser compact-navigation coverage and `native-interface-size` cover
+their own responsive and enlargement contracts separately.
+Native fixture text replacement uses explicit WebDriver select-all actions and
+modifier release before separate Backspace and plain-text commands. This keeps
+real keyboard editing coverage on WebKitGTK drivers that retain the modifier
+across a NULL within one Element Send Keys command; it does not set DOM values.
 
 `native-interface-size` selects presets through the actual Appearance control.
 Before sending its selection keys, it waits for the popup to own focus and

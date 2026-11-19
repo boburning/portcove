@@ -1259,6 +1259,41 @@ function useAppModel(
     () => catalogEntries(catalog, listingCatalog, listingStatuses, pendingSetups),
     [catalog, listingCatalog, listingStatuses, pendingSetups],
   );
+  const [listingAvailabilityTime, setListingAvailabilityTime] = useState(() => Date.now());
+  useEffect(() => {
+    const transitions = entries
+      .filter((entry) => !entry.listing?.availability_override_reason)
+      .flatMap((entry) => {
+        const observation = entry.listing?.upstream_observation;
+        return [
+          Date.parse(observation?.observed_at ?? ""),
+          Date.parse(observation?.fresh_until ?? ""),
+        ];
+      })
+      .filter(Number.isFinite)
+      .sort((left, right) => left - right);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      clearTimeout(timer);
+      const now = Date.now();
+      const next = transitions.find((time) => time > now);
+      if (next !== undefined) {
+        timer = setTimeout(refresh, Math.min(next - now, 2_147_483_647));
+      }
+    };
+    const refresh = () => {
+      setListingAvailabilityTime(Date.now());
+      schedule();
+    };
+    if (transitions.length) {
+      timer = setTimeout(refresh, 0);
+      document.addEventListener("visibilitychange", refresh);
+    }
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [entries]);
   const statusMap = useMemo(
     () => indexStatuses([...listingStatuses.map(({ status }) => status), ...statuses]),
     [statuses, listingStatuses],
@@ -1308,10 +1343,12 @@ function useAppModel(
         "",
         ui.view === "library" ? ui.librarySort : ui.catalogSort,
         queryContext,
+        listingAvailabilityTime,
       ),
     [
       entries,
       statusMap,
+      listingAvailabilityTime,
       ui.view,
       ui.filter,
       ui.libraryReadiness,

@@ -11,10 +11,6 @@
     "availability": "packages",
     "release_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/releases",
     "setup_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/blob/431720eac60bb0508ea5c4b4aec88d47fa7bc79e/README.md",
-    "download_asset_hints": {
-      "windows-x86-64": ["HybridHeaven-", "-windows-x64.zip"],
-      "linux-x86-64": ["HybridHeaven-", "-linux-x86_64.tar.gz"]
-    },
     "recommended_download_channel": "stable",
     "manual_setup": {
       "help_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/blob/431720eac60bb0508ea5c4b4aec88d47fa7bc79e/README.md",
@@ -69,6 +65,7 @@
     },
     "decisions": []
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

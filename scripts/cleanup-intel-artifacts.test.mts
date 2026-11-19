@@ -79,6 +79,36 @@ void test("dry run never deletes; apply checks identity and verifies deletion", 
   assert.equal(deleted, false);
   assert.deepEqual((await cleanup(api, { apply: true, runId: 20 })).deleted, [10]);
 });
+void test("an acknowledged deletion is confirmed through bounded reads without another delete", async () => {
+  for (const becomesAbsent of [true, false]) {
+    let deletions = 0;
+    let readbacks = 0;
+    const waits: number[] = [];
+    const api = operations({
+      removeArtifact: async () => {
+        deletions++;
+      },
+      artifact: async () => {
+        if (deletions) readbacks++;
+        if (becomesAbsent && readbacks === 3)
+          throw Object.assign(new Error("not found"), { status: 404 });
+        return artifact;
+      },
+    });
+    const result = cleanup(api, {
+      apply: true,
+      runId: 20,
+      wait: async (milliseconds) => {
+        waits.push(milliseconds);
+      },
+    });
+    if (becomesAbsent) assert.deepEqual((await result).deleted, [10]);
+    else await assert.rejects(result, /remained readable/u);
+    assert.equal(deletions, 1);
+    assert.equal(readbacks, becomesAbsent ? 3 : 5);
+    assert.deepEqual(waits, becomesAbsent ? [1_000, 2_000] : [1_000, 2_000, 4_000, 8_000]);
+  }
+});
 void test("incomplete inventory and a concurrently restarted run block deletion", async () => {
   const incomplete = operations({
     artifacts: async () => {

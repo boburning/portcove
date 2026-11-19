@@ -20,10 +20,6 @@
     "availability": "packages",
     "setup_url": "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md",
     "release_url": "https://github.com/Inkub0/dude/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["dude-0.9.", "-win64.zip"],
-      "linux-x86-64": ["dude-0.9.", "-linux-x86_64.tar.gz"]
-    },
     "recommended_download_channel": "stable",
     "manual_setup": {
       "steps": [
@@ -73,6 +69,7 @@
     },
     "decisions": []
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

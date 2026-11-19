@@ -50,9 +50,6 @@
         }
       ]
     },
-    "download_asset_hints": {
-      "windows-x86-64": ["H2HoT-Tweaked-", "-win32.zip"]
-    },
     "recommended_download_channel": "beta",
     "original_game": {
       "format_version": 1,
@@ -93,5 +90,6 @@
         "executables": ["glh2.exe"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

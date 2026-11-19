@@ -52,9 +52,6 @@
         }
       ]
     },
-    "download_asset_hints": {
-      "windows-x86-64": ["reflectionhle-win64-", ".zip"]
-    },
     "original_game": {
       "format_version": 1,
       "id": "the-catacomb-apocalypse",
@@ -241,5 +238,6 @@
         "executables": ["reflectionhle.app/contents/macos/reflectionhle"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

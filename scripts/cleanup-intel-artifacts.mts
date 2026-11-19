@@ -1,5 +1,6 @@
 import { isRecord } from "./runtime-values.mts";
 import { fileURLToPath } from "node:url";
+import { setTimeout as delay } from "node:timers/promises";
 import { createGitHubClient, iterateGitHubPages } from "./github-client.mts";
 import type { GitHubClientOptions } from "./github-client.mts";
 import { GitHubApiError, sanitizeOperationError } from "./github-operation.mts";
@@ -175,7 +176,15 @@ export function consumedTransfer(artifact: unknown, run: unknown, jobs: unknown)
 
 export async function cleanup(
   api: CleanupOperations,
-  { apply = false, runId = null }: { apply?: boolean; runId?: number | null } = {},
+  {
+    apply = false,
+    runId = null,
+    wait = delay,
+  }: {
+    apply?: boolean;
+    runId?: number | null;
+    wait?: (milliseconds: number) => Promise<void>;
+  } = {},
 ) {
   if (runId !== null && (!Number.isSafeInteger(runId) || runId <= 0))
     throw new Error("Intel cleanup requires a positive safe workflow run ID");
@@ -245,20 +254,24 @@ export async function cleanup(
     } catch (error) {
       deletionFailure = { error };
     }
-    try {
-      await api.artifact(artifactId);
-    } catch (error) {
-      if (isRecord(error) && error.status === 404) {
-        result.deleted.push(artifactId);
-        continue;
+    // GitHub can still serve the old metadata immediately after an accepted DELETE.
+    // Reconcile that acknowledgement with read-only requests. An uncertain DELETE
+    // retains its original failure if its one immediate readback is still present.
+    const readbackDelays = deletionFailure ? [0] : [0, 1_000, 2_000, 4_000, 8_000];
+    let absenceObserved = false;
+    for (const milliseconds of readbackDelays) {
+      if (milliseconds > 0) await wait(milliseconds);
+      try {
+        await api.artifact(artifactId);
+      } catch (error) {
+        if (!isRecord(error) || error.status !== 404) throw error;
+        absenceObserved = true;
+        break;
       }
-      throw error;
     }
-    if (deletionFailure) {
-      // Preserve the provider's exact rejection, including null/undefined, after readable readback.
-      throw deletionFailure.error;
-    }
-    throw new Error("deleted transfer remained readable");
+    if (absenceObserved) result.deleted.push(artifactId);
+    else if (deletionFailure) throw deletionFailure.error;
+    else throw new Error("deleted transfer remained readable");
   }
   return result;
 }

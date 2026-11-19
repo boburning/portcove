@@ -38,9 +38,6 @@
       ]
     },
     "release_url": "https://github.com/n64hub/rayman-2-recomp/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["Rayman2Recompiled-", "-windows-x64.zip"]
-    },
     "recommended_download_channel": "stable",
     "original_game": {
       "format_version": 1,
@@ -108,5 +105,6 @@
         "executables": ["rayman2recompiled.exe"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

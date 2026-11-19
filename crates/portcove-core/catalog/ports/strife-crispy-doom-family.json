@@ -55,9 +55,6 @@
         }
       ]
     },
-    "download_asset_hints": {
-      "windows-x86-64": ["crispy-strife-", "-win64.zip"]
-    },
     "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "original_game": {
       "format_version": 1,
@@ -196,5 +193,6 @@
       "DOOMWADDIR": "originals"
     },
     "windows_temp_directory": "temp"
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }
