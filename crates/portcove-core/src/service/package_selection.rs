@@ -29,6 +29,13 @@ pub(crate) fn is_package_filename(name: &str) -> bool {
         .any(|extension| name.ends_with(extension))
 }
 
+pub(crate) fn is_server_package(name: &str) -> bool {
+    name.split(|c: char| !c.is_ascii_alphanumeric())
+        .any(|token| {
+            token.eq_ignore_ascii_case("server") || token.eq_ignore_ascii_case("dedicated")
+        })
+}
+
 pub(crate) fn package_platform_match(name: &str, platform: Platform) -> PackagePlatformMatch {
     let name = name.to_ascii_lowercase();
     let tokens = name
@@ -51,7 +58,9 @@ pub(crate) fn package_platform_match(name: &str, platform: Platform) -> PackageP
         || versioned_macos
         || name.ends_with(".dmg")
         || name.ends_with(".pkg");
-    let foreign = has(&["android", "switch", "vita", "wii", "ios"]) || name.ends_with(".apk");
+    // PortMaster packages target handheld Linux firmware, not desktop systems.
+    let foreign =
+        has(&["android", "switch", "vita", "wii", "ios", "portmaster"]) || name.ends_with(".apk");
     match [windows, linux, mac, foreign]
         .into_iter()
         .filter(|named| *named)
@@ -121,11 +130,18 @@ pub(crate) fn assess_package_name(
         && hints
             .iter()
             .all(|hint| name.contains(&hint.to_ascii_lowercase()));
+    let exact_hint = hinted && hints.iter().any(|hint| hint.eq_ignore_ascii_case(&name));
     // Generic managed/platform hints must not turn a debug build into the
     // recommended release. A reviewed debug player needs its whole filename.
-    let reviewed_debug_player = hinted && hints.iter().any(|hint| hint.eq_ignore_ascii_case(&name));
     let finish = |suitability, reason, score| (suitability, reason, score);
     let archive = ARCHIVE_FORMS.iter().any(|ext| name.ends_with(ext));
+    if is_server_package(&name) {
+        return finish(
+            "auxiliary",
+            "This package is labeled as a dedicated server. Choose a game client to play.",
+            None,
+        );
+    }
     if has(&[
         "checksums",
         "checksum",
@@ -134,7 +150,7 @@ pub(crate) fn assess_package_name(
         "symbols",
         "pdb",
         "dsym",
-    ]) || (!reviewed_debug_player && has(&["debug"]))
+    ]) || (!exact_hint && has(&["debug"]))
         || [
             ".sha256",
             ".sha512",
@@ -163,6 +179,13 @@ pub(crate) fn assess_package_name(
         return finish(
             "auxiliary",
             "Checksums, signatures, source code or supporting metadata; not an installable game package.",
+            None,
+        );
+    }
+    if !hints.is_empty() && !hinted && has(&["server"]) {
+        return finish(
+            "auxiliary",
+            "Server download; the catalog's player package hints refer to a different asset.",
             None,
         );
     }
@@ -225,7 +248,17 @@ pub(crate) fn assess_package_name(
             None,
         );
     }
-    let supported_form = can_extract || OTHER_PACKAGE_FORMS.iter().any(|ext| name.ends_with(ext));
+    // Periods in a versioned filename do not imply a file extension. Accept
+    // the Linux platform suffix when the final period belongs to its version.
+    let bare_name = name.rsplit_once('.').is_none_or(|(_, suffix)| {
+        suffix.as_bytes().first().is_some_and(u8::is_ascii_digit)
+            && (suffix.ends_with("-linux-x64") || suffix.ends_with("-linux-x86_64"))
+    });
+    let reviewed_bare_linux_player =
+        exact_hint && platform_match && platform == Platform::LinuxX86_64 && bare_name;
+    let supported_form = can_extract
+        || reviewed_bare_linux_player
+        || OTHER_PACKAGE_FORMS.iter().any(|ext| name.ends_with(ext));
     if !supported_form || (!platform_match && !hinted) {
         return finish(
             "uncertain",
@@ -353,6 +386,40 @@ mod tests {
             recommend_packages(&assets, Platform::WindowsX86_64, &[], false).1,
             None
         );
+    }
+
+    #[test]
+    fn crusader_desktop_listing_recognizes_versioned_player_archives() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let id = "crusader-no-remorse-sebsebseb1982-sdl-port";
+        let listing = catalog.listing(id).unwrap();
+        assert!(catalog.port(id).is_err(), "display only");
+        for version in ["1.41.2", "1.47.0", "1.49.0"] {
+            let mut assets = [
+                asset(1, &format!("crusader-{version}-windows-x64.zip")),
+                asset(2, &format!("crusader-{version}-linux-x64.tar.gz")),
+                asset(3, &format!("crusader-{version}-portmaster-aarch64.zip")),
+                asset(4, &format!("crusader-{version}-source-windows-x64.zip")),
+                asset(5, "SHA256SUMS"),
+            ];
+            assets[1].can_extract = true;
+            for (platform, expected) in
+                [(Platform::WindowsX86_64, 1u64), (Platform::LinuxX86_64, 2)]
+            {
+                let hints = &listing.download_asset_hints[&platform];
+                let (options, recommendation) = recommend_packages(&assets, platform, hints, true);
+                assert_eq!(recommendation, Some(expected.into()));
+                assert!(
+                    assess_package(&assets[expected as usize - 1], platform, hints)
+                        .1
+                        .unwrap()
+                        >= 100
+                );
+                assert_eq!(options[2].suitability, "incompatible");
+                assert_eq!(options[3].suitability, "auxiliary");
+                assert_eq!(options[4].suitability, "auxiliary");
+            }
+        }
     }
 
     #[test]
@@ -861,6 +928,24 @@ mod tests {
     }
 
     #[test]
+    fn portmaster_packages_belong_to_no_desktop_platform() {
+        for platform in [
+            Platform::WindowsX86_64,
+            Platform::LinuxX86_64,
+            Platform::MacosAarch64,
+        ] {
+            assert_eq!(
+                package_platform_match("vurus-portmaster.zip", platform),
+                PackagePlatformMatch::Other
+            );
+        }
+        assert_eq!(
+            package_platform_match("game-linux-portmaster.zip", Platform::LinuxX86_64),
+            PackagePlatformMatch::Ambiguous
+        );
+    }
+
+    #[test]
     fn reviewed_handoff_can_recommend_an_installer_without_running_it_or_hiding_archives() {
         let assets = [
             asset(1, "game-windows-x64.zip"),
@@ -888,6 +973,86 @@ mod tests {
             .1,
             None
         );
+    }
+
+    #[test]
+    fn crash_bandicoot_recommends_reviewed_bare_linux_binary_for_matching_host() {
+        let windows = asset(1, "CrashBandicoot.exe");
+        let linux = asset(2, "CrashBandicoot-Linux");
+        let linux_arm = asset(3, "CrashBandicoot-Linux-arm64");
+        let android = asset(4, "CrashBandicoot-2.6.apk");
+        let windows_arm = asset(5, "CrashBandicoot-arm64.exe");
+        let assets = [windows, linux, linux_arm, android, windows_arm];
+        let catalog = crate::Catalog::embedded().unwrap();
+        let listing = catalog
+            .listing("crash-bandicoot-crashbandicoot-launcher")
+            .unwrap();
+        for (platform, id) in [(Platform::WindowsX86_64, 1_u64), (Platform::LinuxX86_64, 2)] {
+            assert_eq!(
+                recommend_packages(
+                    &assets,
+                    platform,
+                    &listing.download_asset_hints[&platform],
+                    true
+                )
+                .1,
+                Some(id.into())
+            );
+        }
+        assert_eq!(
+            recommend_packages(&assets, Platform::LinuxX86_64, &["linux".into()], true).1,
+            None
+        );
+        assert_eq!(
+            recommend_packages(
+                &assets,
+                Platform::LinuxX86_64,
+                &["CrashBandicoot-Linux-arm64".into()],
+                true,
+            )
+            .1,
+            None
+        );
+    }
+
+    #[test]
+    fn openigi_recommends_versioned_linux_player_over_the_server() {
+        let player = "openigi-game-0.6.9-beta.4-linux-x64";
+        let assets = [
+            asset(1, player),
+            CatalogDownloadCandidate {
+                can_extract: true,
+                ..asset(2, "openigi-server-0.6.9-beta.4-linux-x64.tar.gz")
+            },
+            asset(3, "openigi-game-0.6.9-beta.4-linux-x64-dotnet"),
+            asset(4, "openigi-game-0.6.9-beta.4-win-x64.exe"),
+        ];
+        let catalog = crate::Catalog::embedded().unwrap();
+        let listing = catalog
+            .listing("project-i-g-i-i-m-going-in-openigi")
+            .unwrap();
+        let platform = Platform::LinuxX86_64;
+        let hints = &listing.download_asset_hints[&platform];
+        let (assessments, recommended) = recommend_packages(&assets, platform, hints, true);
+        assert_eq!(recommended, Some(1_u64.into()));
+        assert_eq!(assessments[1].suitability, "auxiliary");
+        assert_eq!(
+            recommend_packages(&assets[1..], platform, hints, true).1,
+            None
+        );
+        assert_eq!(
+            recommend_packages(&assets[1..2], platform, &[], true).1,
+            None
+        );
+        let windows = Platform::WindowsX86_64;
+        let (assessments, recommended) = recommend_packages(
+            &assets,
+            windows,
+            &listing.download_asset_hints[&windows],
+            true,
+        );
+        assert_eq!(assessments[0].suitability, "incompatible");
+        assert_eq!(recommended, Some(4_u64.into()));
     }
 
     #[test]

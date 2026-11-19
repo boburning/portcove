@@ -2,11 +2,19 @@
   "format_version": 1,
   "listing": {
     "id": "skate-2007-skate1recompiled",
+    "artwork": {
+      "game_id": 2585,
+      "cover_id": 302824,
+      "image_id": "co6hns",
+      "image_sha256": "70ecd4b6d0a90821d8cc0c45e86a61f34e44047f4795d3e94afba438920536df",
+      "game_slug": "skate",
+      "match_kind": "underlying-game"
+    },
     "name": "skate (2007) (Skate1Recompiled)",
     "summary": "A skate (2007) Windows player/source route using your own Xbox 360 disc image. Drag it onto Setup.bat to import and build locally. Source examples use Skate. (USA).iso; preserve all extracted files, including default.xex. Exact Windows package architecture and accepted regional executable revision/hashes are unconfirmed. macOS ARM64 source instructions are explicitly untested, and Intel Mac is unsupported. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "skate (2007)",
     "project_url": "https://github.com/cookingwithsimon/Skate1Recompiled",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/cookingwithsimon/Skate1Recompiled",
     "issue_number": 2607,
@@ -37,6 +45,24 @@
       ],
       "warnings": [
         "Keep the full native player and existing portable marker/data. The packaged non-portable AppData note conflicts with the pinned Documents fallback; preserve the actual active and historical roots instead of switching them."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "skate-2007",
+      "evidence_urls": [
+        "https://github.com/cookingwithsimon/Skate1Recompiled/blob/d94ce91e444eb66e068a09f4994eacb71550a84c/README.md",
+        "https://github.com/cookingwithsimon/Skate1Recompiled"
+      ],
+      "source_editions": [
+        {
+          "id": "skate-2007-xbox-360",
+          "title": "skate (2007) (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/cookingwithsimon/Skate1Recompiled/blob/bdbdc251cc4d389b5e3c07f125cfb0f9b609f2eb/README.md"
+          ]
+        }
       ]
     }
   },

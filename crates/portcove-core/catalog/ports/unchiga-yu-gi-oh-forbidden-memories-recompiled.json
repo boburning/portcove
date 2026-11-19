@@ -7,7 +7,7 @@
     "project_url": "https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled",
     "issue_number": 1910,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled",
     "artwork": {
@@ -49,6 +49,22 @@
         }
       ]
     },
-    "download_block_reason": "Fresh bundled-package acquisition remains held for the explicitly excluded upstream decompilation and Konami game/data scope, including the bundled European translation texts. The MIT PC-layer grant does not settle those named components. Resume only with applicable permissions for the exact components or a reviewed compatible package resolving that scope. A conditional independently permitted existing-copy route does not clear this hold."
+    "download_block_reason": "Fresh bundled-package acquisition remains held for the explicitly excluded upstream decompilation and Konami game/data scope, including the bundled European translation texts. The MIT PC-layer grant does not settle those named components. Resume only with applicable permissions for the exact components or a reviewed compatible package resolving that scope. A conditional independently permitted existing-copy route does not clear this hold.",
+    "original_game": {
+      "format_version": 1,
+      "id": "yu-gi-oh-forbidden-memories",
+      "evidence_urls": ["https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled"],
+      "source_editions": [
+        {
+          "id": "yu-gi-oh-forbidden-memories-playstation",
+          "title": "Yu-Gi-Oh! Forbidden Memories (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled/blob/36d499c13522402a83c5b4772714f66046f80357/README.md"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Yu-Gi-Oh! Forbidden Memories"
   }
 }

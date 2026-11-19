@@ -1,6 +1,10 @@
 import { errorMessage, isRecord } from "./runtime-values.mts";
 import type { WorkflowProvenance } from "./workflow-provenance.mts";
 import roadmapConfig from "../.github/roadmap.json" with { type: "json" };
+import ruleset from "../.github/repository-ruleset.json" with { type: "json" };
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
+
 export interface CiRun {
   id: number;
   run_attempt: number;
@@ -16,6 +20,7 @@ export interface CiRun {
   html_url: string;
   workflow_id?: number | null;
   name?: string | null;
+  path?: string;
   pull_requests?: { number?: number; head?: { sha?: string }; base?: { sha?: string } }[];
 }
 export interface CiStep {
@@ -33,6 +38,7 @@ export interface CiJob {
   created_at?: unknown;
   started_at?: unknown;
   completed_at?: unknown;
+  runner_id?: number | null;
   runner_group_name?: string | null;
   labels?: string[];
   steps?: CiStep[];
@@ -109,6 +115,7 @@ function assertRun(value: unknown): asserts value is CiRun {
     !optionalText(value.conclusion) ||
     !optionalText(value.head_branch) ||
     !optionalText(value.name) ||
+    (value.path !== undefined && typeof value.path !== "string") ||
     (value.workflow_id !== undefined &&
       value.workflow_id !== null &&
       typeof value.workflow_id !== "number") ||
@@ -325,6 +332,7 @@ function distribution(values: readonly (number | null)[]) {
   return {
     count: sorted.length,
     p50Seconds: percentile(0.5),
+    p90Seconds: sorted.length >= 10 ? percentile(0.9) : null,
     // Avoid presenting an unstable tail estimate as a useful long-term metric.
     p95Seconds: sorted.length >= 20 ? percentile(0.95) : null,
     maxSeconds: sorted.at(-1) ?? null,
@@ -346,6 +354,9 @@ function sampleCounts<T>(values: readonly T[], key: (value: T) => string): Recor
   }
   return Object.fromEntries(counts);
 }
+/** The ci.yml step that fails a job when its pull request moved to a newer head. */
+export const supersededStopStep = "Stop when a newer head superseded this run";
+
 export function summarizeHistory(attempts: readonly ReturnType<typeof summarizeAttempt>[]) {
   const successful = attempts.filter(
     (attempt) => attempt.status === "completed" && attempt.conclusion === "success",
@@ -454,10 +465,12 @@ export function summarizeHistory(attempts: readonly ReturnType<typeof summarizeA
       successful.filter((attempt) => attempt.attempt > 1).map((attempt) => attempt.seconds),
     ),
     firstAttemptPass: (() => {
-      // Cancelled attempts are superseded work, not evidence about correctness.
+      // Cancelled attempts are superseded work, not evidence about correctness. So is an attempt
+      // one of whose jobs stopped itself because the pull request already had a newer head.
       const decided = attempts.filter(
         (attempt) =>
           attempt.attempt === 1 &&
+          !attempt.failures.some((failure) => failure.steps.includes(supersededStopStep)) &&
           attempt.status === "completed" &&
           (attempt.conclusion === "success" ||
             attempt.conclusion === "failure" ||
@@ -888,6 +901,333 @@ export async function createCiHistoryRequest({
   };
 }
 
+const throughputSampleSize = 40;
+const throughputWindowMs = 2 * 60 * 60_000;
+const throughputHistoryMs = 24 * 60 * 60_000;
+
+function runnerPlatform(labels: readonly string[] = []) {
+  for (const label of labels) {
+    if (/^ubuntu-/u.test(label)) return "Linux";
+    if (/^windows-/u.test(label)) return "Windows";
+    if (/^macos-/u.test(label)) return "macOS";
+  }
+  return "unavailable";
+}
+
+export async function collectThroughput(
+  request: CiRequest,
+  repository: string,
+  observedAt = new Date(),
+) {
+  const root = `repos/${repository}/actions`;
+  const required =
+    ruleset.rules
+      .find((rule) => rule.type === "required_status_checks")
+      ?.parameters?.required_status_checks?.map(({ context }) => context) ?? [];
+  if (!required.length) throw new Error("Repository ruleset has no required check contexts");
+
+  function pageCount(first: unknown) {
+    if (
+      !isRecord(first) ||
+      typeof first.total_count !== "number" ||
+      !Number.isSafeInteger(first.total_count) ||
+      first.total_count < 0
+    )
+      throw new Error("Missing throughput page count");
+    return first.total_count;
+  }
+
+  async function listPages(route: string, first?: unknown) {
+    // GitHub can advertise subsequent pages under its numeric repository URL.
+    // Retain the admitted owner/repo route and verify the full advertised count.
+    first ??= await request(`${route}&page=1`);
+    const count = pageCount(first);
+    if (count > 1_000)
+      throw new Error("Throughput listing exceeds the GitHub search bound (1,000 records)");
+    const pages: unknown[] = [first];
+    for (let page = 2; page <= Math.ceil(count / 100); page++)
+      pages.push(await request(`${route}&page=${page}`));
+    return pages;
+  }
+
+  async function listWindowRuns(fromMs: number, endMs: number): Promise<CiRun[]> {
+    const from = new Date(fromMs).toISOString();
+    // GitHub's seconds-resolution search is inclusive at both endpoints.
+    const to = new Date(endMs - 1_000).toISOString();
+    const query = new URLSearchParams({ created: `${from}..${to}`, per_page: "100" });
+    const route = `${root}/runs?${query.toString()}`;
+    const first = await request(`${route}&page=1`);
+    if (pageCount(first) >= 1_000) {
+      const middle = Math.floor((fromMs + endMs) / 2_000) * 1_000;
+      if (middle <= fromMs)
+        throw new Error("One second exceeds the GitHub workflow run search bound");
+      const left = await listWindowRuns(fromMs, middle);
+      const right = await listWindowRuns(middle, endMs);
+      return [...left, ...right];
+    }
+    return pagedItems(
+      await listPages(route, first),
+      "workflow_runs",
+      (value): value is CiRun => {
+        assertRun(value);
+        const created = typeof value.created_at === "string" ? Date.parse(value.created_at) : NaN;
+        return created >= fromMs && created < endMs;
+      },
+      "Missing or out-of-window workflow run inventory",
+      "Incomplete throughput window",
+    );
+  }
+
+  async function window(observedUntilMs: number) {
+    const endMs = Math.floor(observedUntilMs / 1_000) * 1_000;
+    const fromMs = endMs - throughputWindowMs;
+    const from = new Date(fromMs).toISOString();
+    const to = new Date(endMs - 1_000).toISOString();
+    const runs = await listWindowRuns(fromMs, endMs);
+    runs.sort(
+      (left, right) =>
+        String(right.created_at).localeCompare(String(left.created_at)) || right.id - left.id,
+    );
+    if (new Set(runs.map(({ id }) => id)).size !== runs.length)
+      throw new Error("Duplicate runs in throughput window");
+    const sampleSize = Math.min(runs.length, throughputSampleSize);
+    const sample = Array.from(
+      { length: sampleSize },
+      (_, i) => runs[Math.floor(((i + 0.5) * runs.length) / sampleSize)]!,
+    );
+    const observed: { run: CiRun; jobs: CiJob[] }[] = [];
+    for (let offset = 0; offset < sample.length; offset += 4) {
+      observed.push(
+        ...(await Promise.all(
+          sample.slice(offset, offset + 4).map(async (run) => ({
+            run,
+            jobs: pagedItems(
+              await listPages(
+                `${root}/runs/${run.id}/attempts/${run.run_attempt}/jobs?per_page=100`,
+              ),
+              "jobs",
+              isJob,
+              `Missing throughput jobs for ${run.id}/${run.run_attempt}`,
+              `Incomplete throughput jobs for ${run.id}/${run.run_attempt}`,
+            ),
+          })),
+        )),
+      );
+    }
+    const measuredJobs = observed.flatMap(({ run, jobs }) =>
+      jobs
+        .filter(
+          (job) =>
+            typeof job.runner_id === "number" && job.runner_id > 0 && job.conclusion !== "skipped",
+        )
+        .map((job) => ({
+          runId: run.id,
+          url: job.html_url,
+          name: job.name,
+          platform: runnerPlatform(job.labels),
+          wait: secondsBetween(job.created_at, job.started_at),
+          execution: secondsBetween(job.started_at, job.completed_at),
+          startedAt: job.started_at,
+          completedAt: job.completed_at,
+        })),
+    );
+    const timings = (jobs: readonly (typeof measuredJobs)[number][]) => ({
+      jobCreationToStart: distribution(jobs.map(({ wait }) => wait)),
+      jobExecution: distribution(jobs.map(({ execution }) => execution)),
+    });
+    const workflowCreationToChecks = observed.flatMap(({ run, jobs }) => {
+      if (
+        run.path !== ".github/workflows/ci.yml" ||
+        run.event !== "pull_request" ||
+        run.run_attempt !== 1
+      )
+        return [];
+      const times = required.map((context) => {
+        const matches = jobs.filter(({ name }) => name === context);
+        return matches.length === 1 && matches[0]?.conclusion === "success"
+          ? secondsBetween(run.created_at, matches[0].completed_at)
+          : null;
+      });
+      return times.every((time) => time !== null) ? [Math.max(...times)] : [];
+    });
+    const workflowName = (run: CiRun) => run.path ?? run.name ?? "unavailable";
+    const demand = Object.entries(sampleCounts(runs, workflowName)).sort((a, b) => b[1] - a[1]);
+    const runsById = new Map(runs.map((run) => [run.id, run]));
+    const prNumber = (run: CiRun) =>
+      run.pull_requests?.length === 1 ? run.pull_requests[0]?.number : undefined;
+    const prCi = (run: CiRun) =>
+      run.path === ".github/workflows/ci.yml" && run.event === "pull_request";
+    const staleIntervals = measuredJobs.flatMap(({ runId, execution, startedAt, completedAt }) => {
+      const run = runsById.get(runId);
+      if (
+        !run ||
+        !prCi(run) ||
+        !prNumber(run) ||
+        execution === null ||
+        typeof startedAt !== "string"
+      )
+        return [];
+      const staleAfter = runs.findLast(
+        (later) =>
+          prCi(later) &&
+          prNumber(later) === prNumber(run) &&
+          later.head_sha !== run.head_sha &&
+          (secondsBetween(run.created_at, later.created_at) ?? 0) > 0,
+      )?.created_at;
+      if (typeof staleAfter !== "string") return [];
+      const overlap = secondsBetween(
+        Date.parse(staleAfter) > Date.parse(startedAt) ? staleAfter : startedAt,
+        completedAt,
+      );
+      return overlap !== null && overlap > 0 ? [overlap] : [];
+    });
+    const cancelled = runs.filter(({ conclusion }) => conclusion === "cancelled");
+    return {
+      from,
+      to,
+      runCount: runs.length,
+      sampledRuns: observed.map(({ run }) => ({
+        id: run.id,
+        attempt: run.run_attempt,
+        url: run.html_url,
+        head: run.head_sha,
+      })),
+      outcomes: sampleCounts(runs, ({ conclusion, status }) => conclusion ?? status),
+      sampledRunStates: sampleCounts(sample, ({ status }) => status),
+      jobCoverage: {
+        listed: observed.reduce((total, { jobs }) => total + jobs.length, 0),
+        withoutRunner: observed.reduce(
+          (total, { jobs }) =>
+            total + jobs.filter((job) => job.conclusion !== "skipped" && !job.runner_id).length,
+          0,
+        ),
+        withRunner: measuredJobs.length,
+        withoutExecutionTiming: measuredJobs.filter(({ execution }) => execution === null).length,
+      },
+      workflows: demand.map(([workflow, count]) => {
+        const matching = runs.filter((run) => workflowName(run) === workflow);
+        const jobs = measuredJobs.filter(
+          ({ runId }) => workflowName(runsById.get(runId)!) === workflow,
+        );
+        return {
+          workflow,
+          count,
+          cancellations: matching.filter(({ conclusion }) => conclusion === "cancelled").length,
+          firstAttemptWorkflow: distribution(
+            matching.map((run) =>
+              run.run_attempt === 1 && run.status === "completed"
+                ? secondsBetween(run.created_at, run.updated_at)
+                : null,
+            ),
+          ),
+          sampledJobExecutionSeconds: jobs.reduce<number | null>(
+            (total, { execution }) => (execution === null ? total : (total ?? 0) + execution),
+            null,
+          ),
+        };
+      }),
+      observedPostReplacementExecution: staleIntervals.length
+        ? {
+            jobs: staleIntervals.length,
+            seconds: staleIntervals.reduce((total, seconds) => total + seconds, 0),
+          }
+        : null,
+      retryAttempts: runs.reduce((total, { run_attempt }) => total + run_attempt - 1, 0),
+      firstAttemptWorkflow: distribution(
+        runs.map((run) =>
+          run.run_attempt === 1 && run.status === "completed"
+            ? secondsBetween(run.created_at, run.updated_at)
+            : null,
+        ),
+      ),
+      cancellationElapsed: distribution(
+        cancelled.map((run) =>
+          run.run_attempt === 1 ? secondsBetween(run.created_at, run.updated_at) : null,
+        ),
+      ),
+      cancelledObservedRunnerSeconds: measuredJobs
+        .filter(({ runId }) => cancelled.some(({ id }) => id === runId))
+        .reduce<number | null>(
+          (total, { execution }) => (execution === null ? total : (total ?? 0) + execution),
+          null,
+        ),
+      ...timings(measuredJobs),
+      runnerPlatforms: Object.fromEntries(
+        ["Linux", "Windows", "macOS", "unavailable"].map((platform) => [
+          platform,
+          timings(measuredJobs.filter((job) => job.platform === platform)),
+        ]),
+      ),
+      workflowCreationToChecks: distribution(workflowCreationToChecks),
+      longestObservedJobs: measuredJobs
+        .filter(({ execution }) => execution !== null)
+        .sort((left, right) => (right.execution ?? 0) - (left.execution ?? 0))
+        .slice(0, 10),
+    };
+  }
+
+  const depth = async (status: string) => {
+    const result = await request(`${root}/runs?status=${status}&per_page=1`);
+    return isRecord(result) &&
+      typeof result.total_count === "number" &&
+      Number.isSafeInteger(result.total_count) &&
+      result.total_count >= 0
+      ? result.total_count
+      : null;
+  };
+  const [current, prior, queued, pending, requested, inProgress] = await Promise.all([
+    window(observedAt.getTime()),
+    window(observedAt.getTime() - throughputHistoryMs),
+    depth("queued"),
+    depth("pending"),
+    depth("requested"),
+    depth("in_progress"),
+  ]);
+  return {
+    format: 1,
+    repository,
+    observedAt: observedAt.toISOString(),
+    runDepth: { queued, pending, requested, inProgress },
+    limitations: [
+      "Job delays use API creation and runner start, which do not prove a scheduling cause.",
+      "Run depth is a point observation. GitHub does not report repository runner quota usage or wait reasons here.",
+      "Timings cover a bounded sample of latest attempts. Cancelled execution is observed runner time, not billed or proven stale time.",
+      "Current and prior windows have different time to finish. Use the run-state and job-coverage counts when comparing their timing.",
+      "Post-replacement execution measures overlap after a later different-head CI run of the same uniquely associated PR. It does not know whether a later push restored the original head.",
+      "Required-check latency starts at CI run creation, since exact push receipt and PR commit acceptance time are unavailable.",
+    ],
+    current,
+    prior,
+  };
+}
+
+function renderThroughput(report: Awaited<ReturnType<typeof collectThroughput>>) {
+  const { current, prior, runDepth } = report;
+  return [
+    "## Hosted Actions throughput",
+    "",
+    `Observed ${report.observedAt}. Run depth: ${Object.entries(runDepth)
+      .map(([key, count]) => `${key}=${count ?? "unavailable"}`)
+      .join(", ")}.`,
+    "",
+    "| Two-hour window | Runs | Sampled runs / unassigned jobs | Job creation to start p50 / p90 / p95 | Job execution p50 / p90 | CI creation to five passing checks p50 |",
+    "| --- | ---: | ---: | --- | --- | --- |",
+    ...(
+      [
+        ["Current", current],
+        ["24 hours earlier", prior],
+      ] as const
+    ).map(([label, row]) => {
+      const wait = row.jobCreationToStart;
+      const execution = row.jobExecution;
+      return `| ${label} | ${row.runCount} | ${row.sampledRuns.length} / ${row.jobCoverage.withoutRunner} | ${[wait.p50Seconds, wait.p90Seconds, wait.p95Seconds].map(duration).join(" / ")} | ${[execution.p50Seconds, execution.p90Seconds].map(duration).join(" / ")} | ${duration(row.workflowCreationToChecks.p50Seconds)} |`;
+    }),
+    "",
+    ...report.limitations.map((line) => `- ${line}`),
+    "",
+  ].join("\n");
+}
+
 async function main() {
   const { values } = parseArgs({
     options: {
@@ -897,12 +1237,14 @@ async function main() {
       runs: { type: "string", default: "20" },
       since: { type: "string" },
       json: { type: "boolean", default: false },
+      throughput: { type: "boolean", default: false },
+      output: { type: "string" },
       help: { type: "boolean", default: false },
     },
   });
   if (values.help) {
     console.log(
-      "Usage: node scripts/ci-health.mts [--workflow ci.yml] [--branch main] [--event push] [--runs 20] [--since ISO-date] [--json]\nRead-only GitHub access is required. Push reports default to main; other events cover all branches unless --branch is supplied. All attempts of the selected runs are inspected.",
+      "Usage: node scripts/ci-health.mts [--workflow ci.yml] [--branch main] [--event push] [--runs 20] [--since ISO-date] [--json]\n       node scripts/ci-health.mts --throughput [--output FILE] [--json]\nRead-only GitHub access is required. Push reports default to main; other events cover all branches unless --branch is supplied. All attempts of the selected runs are inspected.",
     );
     return;
   }
@@ -921,6 +1263,17 @@ async function main() {
     deadline,
     credential: localDeveloperCredential({ deadline }),
   });
+  if (values.throughput) {
+    const report = await collectThroughput(request, repository);
+    const json = `${JSON.stringify(report, null, 2)}\n`;
+    if (values.output) {
+      await mkdir(dirname(values.output), { recursive: true });
+      await writeFile(values.output, json, "utf8");
+    }
+    console.log(values.json ? json.trimEnd() : renderThroughput(report));
+    return;
+  }
+  if (values.output) throw new Error("--output requires --throughput");
   const report = await collectHistory(request, {
     repository,
     workflow: values.workflow,

@@ -1,16 +1,42 @@
-import { fixtureValue } from "../../test-fixtures";
+import { fixtureValue, sourceProfile } from "../../test-fixtures";
 import { invoke } from "@tauri-apps/api/core";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../../api";
 import type { OperationEvent } from "../../types";
 import { preparation } from "./scenarios";
+import * as scenarios from "./scenarios";
 import { installInteractiveTransport, recoveryKey } from "./transport";
+
+vi.mock("./scenarios", { spy: true });
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
 afterEach(() => {
   transport?.dispose();
   transport = undefined;
   sessionStorage.removeItem(recoveryKey);
+  vi.mocked(scenarios.workspace).mockReset();
+  vi.restoreAllMocks();
+});
+it("accepts optional known store profile context and refuses malformed context", async () => {
+  const refuse = vi.fn();
+  const snapshot = scenarios.workspace("library");
+  const profile = sourceProfile();
+  snapshot.catalog.source_profiles = [profile];
+  vi.mocked(scenarios.workspace).mockReturnValue(snapshot);
+  transport = installInteractiveTransport("library", refuse);
+  const empty = { checked_stores: [], installs: [], skipped_entries: 0, limited: false };
+  expect(await desktopApi.storeGameInstalls(1)).toEqual(empty);
+  expect(await desktopApi.storeGameInstalls(1, profile.id)).toEqual(empty);
+  expect(refuse).not.toHaveBeenCalled();
+  await expect(desktopApi.storeGameInstalls(1, "unknown")).rejects.toThrow("unknown profile");
+  await expect(desktopApi.storeGameInstalls(2, profile.id)).rejects.toThrow("unexpected arguments");
+  await expect(invoke("get_store_game_installs", { generation: 1, profileId: 42 })).rejects.toThrow(
+    "unknown profile",
+  );
+  await expect(
+    invoke("get_store_game_installs", { generation: 1, profileId: profile.id, extra: true }),
+  ).rejects.toThrow("unexpected arguments");
+  expect(refuse).toHaveBeenCalledTimes(4);
 });
 it("refuses unknown and malformed commands visibly without forwarding IPC", async () => {
   const refuse = vi.fn();
@@ -23,31 +49,43 @@ it("refuses unknown and malformed commands visibly without forwarding IPC", asyn
   expect(refuse).toHaveBeenCalledTimes(3);
 });
 
-it("models metadata-only update queries while refusing consent or repository arguments", async () => {
+it("models application update settings while refusing extra or invalid arguments", async () => {
   const refuse = vi.fn();
   transport = installInteractiveTransport("library", refuse);
-  const before = await desktopApi.applicationUpdatePreferences();
-  const phases: string[] = [];
-  const checked = await desktopApi.checkApplicationUpdate((phase) => phases.push(phase), {
-    channel: "stable",
+  expect(await desktopApi.applicationUpdatePreferences()).toEqual({
+    channel: "beta",
+    automatic_checks: false,
   });
-  expect(checked.checked_channel).toBe("stable");
-  expect(checked.result.staged).toBe(false);
-  expect(phases).toEqual(["checking", "complete"]);
-  expect(await desktopApi.applicationUpdatePreferences()).toEqual(before);
-  await expect(
-    invoke("check_application_update", {
-      request: { channel: "stable", url: "https://invalid.example" },
+  const checked = await desktopApi.checkApplicationUpdate();
+  expect(checked.available).toBeNull();
+  expect(checked.last_checked_unix_seconds).toBe(1);
+  expect(
+    await desktopApi.setApplicationUpdatePreferences({
+      channel: "preview",
+      automatic_checks: true,
     }),
+  ).toEqual({ channel: "preview", automatic_checks: true });
+  expect(await desktopApi.applicationUpdatePreferences()).toEqual({
+    channel: "preview",
+    automatic_checks: true,
+  });
+  await expect(
+    invoke("check_application_update", { url: "https://invalid.example" }),
   ).rejects.toThrow("unexpected arguments");
   await expect(
-    invoke("check_application_update", { request: { channel: "nightly" } }),
-  ).rejects.toThrow("invalid channel");
-  expect(refuse).toHaveBeenCalledTimes(2);
+    invoke("set_application_update_preferences", {
+      preferences: { channel: "nightly", automatic_checks: true },
+    }),
+  ).rejects.toThrow("invalid preferences");
+  await expect(desktopApi.installApplicationUpdate("9.9.9", 1, () => {})).rejects.toThrow(
+    "Unsupported fixture action",
+  );
+  expect(refuse).toHaveBeenCalledTimes(3);
 });
 it("supports current read surfaces without hiding unsupported mutations", async () => {
   const refuse = vi.fn();
   transport = installInteractiveTransport("library", refuse);
+  expect(await invoke("discover_steam_client_roots", { generation: 1 })).toEqual([]);
   expect(await desktopApi.favoritePorts(1)).toEqual([]);
   await desktopApi.setPortFavorite("sample", true, 1);
   expect(await desktopApi.favoritePorts(1)).toEqual(["sample"]);
@@ -61,8 +99,9 @@ it("supports current read surfaces without hiding unsupported mutations", async 
     moves_existing_install: false,
   });
   expect(await desktopApi.applicationUpdateStatus()).toMatchObject({
-    install_eligibility: "not-configured",
-    staged: null,
+    checking: false,
+    installing: false,
+    available: null,
   });
   expect(await desktopApi.catalogStatus()).toMatchObject({
     provenance: { origin: "embedded" },
@@ -72,6 +111,13 @@ it("supports current read surfaces without hiding unsupported mutations", async 
     "Feature details are unavailable in this browser fixture",
   );
   expect(refuse).not.toHaveBeenCalled();
+  await expect(invoke("discover_steam_client_roots", { generation: 2 })).rejects.toThrow(
+    "unexpected arguments",
+  );
+  await expect(invoke("discover_steam_client_roots")).rejects.toThrow("unexpected arguments");
+  await expect(
+    invoke("discover_steam_client_roots", { generation: 1, extra: true }),
+  ).rejects.toThrow("unexpected arguments");
   await expect(desktopApi.resetOutputLocation("sample", "unreviewed", 1)).rejects.toThrow(
     "Unsupported fixture action",
   );

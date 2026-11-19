@@ -7,6 +7,7 @@ import {
 import { metadataFixture } from "./fixtures/release-metadata-fixture.mts";
 import {
   servedNativeBootstrapRenewal,
+  servedV13BootstrapRenewal,
   standaloneBootstrapAdoption,
   standaloneBootstrapForwardAdoption,
   standaloneBootstrapRenewalAdoption,
@@ -373,6 +374,75 @@ void test("one settled standalone bootstrap can seed the app-only cursor without
       validatePublishedMetadataTransition(
         servedBefore,
         { ...servedAfter, now: "2026-11-13T12:28:07.710Z" },
+        operation,
+      ),
+    /expired standalone bootstrap/u,
+  );
+  const v13 = servedV13BootstrapRenewal;
+  const recovered = {
+    ...servedAfter,
+    now: "2026-11-13T03:00:00.000Z",
+    published_metadata: {
+      ...servedAfter.published_metadata,
+      ...{
+        schema_version: 1,
+        root_sha256: "17de1676cd26c4bd2867d3a7941793147b94670d027e7846557d813bc9f43f92",
+        offline_targets_sha256: "377ca58a2535229056afe552ca34035c3c0791fe4b8ac1a3a0b861dfc2782642",
+        repository_sha256: "3f73d720ecaa86faf39ef4dca86d09303bd943a68568d8e2b4863a36734a5111",
+        timestamp_sha256: "2c350953323600794c7ae3424d6cd4406fdfc040c7eb68f8861c6055ea967b65",
+        snapshot_sha256: "f294e7c8b5e0b625b81d9f8ab2280cd5eb34d1a12303d615aa02dc2044873884",
+        records_sha256: "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        versions: {
+          preview: "13",
+          releases: "13",
+          snapshot: "13",
+          stable: "13",
+          targets: "1",
+          timestamp: "13",
+        },
+        expires: {
+          preview: "2026-11-20T00:47:28.285Z",
+          releases: "2027-02-11T00:47:28.285Z",
+          snapshot: "2026-11-20T00:47:28.285Z",
+          stable: "2026-11-20T00:47:28.285Z",
+          targets: "2027-01-30T14:53:29Z",
+          timestamp: "2026-11-15T00:47:28.285Z",
+        },
+      },
+      standalone_bootstrap_run: v13.run_id,
+      publication: {
+        ...servedAfter.published_metadata.publication,
+        remote_identity: `https://github.com/boburning/portcove/actions/runs/${v13.run_id}/job/${v13.feed_job_id}`,
+        site_generation_sha256: v13.generation,
+      },
+    },
+  };
+  validatePublishedMetadataTransition(servedAfter, recovered, operation);
+  assert.equal(currentPublishedSite(recovered)?.generation_sha256, v13.generation);
+  assert.throws(() =>
+    validatePublishedMetadataTransition(
+      servedAfter,
+      {
+        ...recovered,
+        published_metadata: {
+          ...recovered.published_metadata,
+          publication: {
+            ...recovered.published_metadata.publication,
+            remote_identity: servedAfter.published_metadata.publication.remote_identity,
+          },
+        },
+      },
+      operation,
+    ),
+  );
+  assert.throws(
+    () =>
+      validatePublishedMetadataTransition(
+        servedAfter,
+        {
+          ...recovered,
+          now: "2026-11-15T00:47:28.285Z",
+        },
         operation,
       ),
     /expired standalone bootstrap/u,

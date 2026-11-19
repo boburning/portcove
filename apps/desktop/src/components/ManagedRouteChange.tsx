@@ -4,6 +4,7 @@ import { Trans } from "react-i18next";
 import { useAppTranslation } from "../localization";
 import { desktopApi } from "../api";
 import { gameIdentityLabel } from "../port-identity";
+import { authoredManagedSetupReview } from "../features/browsing/managed-setup-review";
 import type { PortDefinition } from "../types";
 import { useActionReview } from "../use-action-review";
 import { failurePresentation, formatBytes, platformLabel } from "../view-model";
@@ -59,7 +60,6 @@ function useManagedRouteChangeDialog({
   const preservesExternalData =
     preview?.external_files_will_be_preserved === true &&
     preview.external_data_will_be_copied === false;
-  const setup = port.presentation?.manual_setup?.steps[0];
   return {
     port,
     generation,
@@ -79,7 +79,6 @@ function useManagedRouteChangeDialog({
     dismiss,
     committed,
     preservesExternalData,
-    setup,
   };
 }
 
@@ -210,6 +209,12 @@ function ManagedRoutePreview({
   model,
 }: Pick<{ model: Omit<ReturnType<typeof useManagedRouteChangeDialog>, "cancel"> }, "model">) {
   const { t } = useAppTranslation("installation");
+  const manualSetup = model.port.presentation?.manual_setup;
+  const review = authoredManagedSetupReview(
+    model.port.id,
+    model.preview?.installation,
+    manualSetup,
+  );
   return (
     model.preview && (
       <div className="grid min-w-0 gap-3 wrap-anywhere">
@@ -229,12 +234,8 @@ function ManagedRoutePreview({
             }}
           />
         </p>
-        <AuthoredSetupWarnings warnings={model.port.presentation?.manual_setup?.warnings} />
-        {model.setup && (
-          <p>
-            <strong>{model.setup.title}.</strong> {model.setup.instruction}
-          </p>
-        )}
+        <AuthoredSetupWarnings warnings={review?.warnings ?? manualSetup?.warnings} />
+        {review && <p>{review.note}</p>}
         {model.preservesExternalData ? (
           <p>{t("managedRoute.preserves")}</p>
         ) : (

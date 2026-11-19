@@ -1,5 +1,15 @@
 {
   "format_version": 1,
+  "managed_setup_platform_warnings": {
+    "macos-aarch64": [
+      "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+      "Portcove has not verified native Mac setup or gameplay."
+    ],
+    "macos-x86-64": [
+      "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+      "Portcove has not verified native Mac setup or gameplay."
+    ]
+  },
   "order": 21,
   "listing": {
     "id": "final-fantasy-vii-recompiled",
@@ -17,7 +27,22 @@
       "game_slug": "final-fantasy-vii",
       "match_kind": "underlying-game"
     },
-    "issue_number": 76
+    "issue_number": 76,
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-vii",
+      "evidence_urls": ["https://github.com/TechnicallyComputers/Final-Fantasy-VII"],
+      "source_editions": [
+        {
+          "id": "final-fantasy-vii-playstation",
+          "title": "Final Fantasy VII (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -72,7 +97,16 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": []
+      }
     }
   }
 }

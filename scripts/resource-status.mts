@@ -178,7 +178,10 @@ export async function collectResourceStatus(options: ResourceStatusOptions = {})
         resource: "host-capacity",
         observation: "recorded",
         verification: "observational-only",
-        ...(await observeCapacity(options.capacityRoot ? { root: options.capacityRoot } : {})),
+        ...(await observeCapacity({
+          passive: true,
+          ...(options.capacityRoot ? { root: options.capacityRoot } : {}),
+        })),
       };
     } catch (error) {
       capacity = {

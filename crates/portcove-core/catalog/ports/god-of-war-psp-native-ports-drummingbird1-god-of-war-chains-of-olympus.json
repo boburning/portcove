@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "god-of-war-psp-native-ports-drummingbird1-god-of-war-chains-of-olympus",
+    "artwork": {
+      "game_id": 552,
+      "cover_id": 157489,
+      "image_id": "co3dip",
+      "image_sha256": "f27631e5feb36c07892e1e97918fef5efcb47f133433e42a1b33ab7e07c8c49a",
+      "game_slug": "god-of-war-chains-of-olympus",
+      "match_kind": "underlying-game"
+    },
     "name": "God of War: Chains of Olympus — God of War PSP native ports (DrummingBird1)",
     "original_game_title": "God of War: Chains of Olympus",
     "summary": "The v1.2.1 launcher builds locally with pinned portable tools. Upstream reports automated tours loading every level, but neither game has a complete playthrough confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/DrummingBird1/gow-psp-recomp"
     },
-    "issue_number": 3004
+    "issue_number": 3004,
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war-chains-of-olympus",
+      "evidence_urls": ["https://github.com/DrummingBird1/gow-psp-recomp"],
+      "source_editions": [
+        {
+          "id": "god-of-war-chains-of-olympus-playstation-portable",
+          "title": "God of War: Chains of Olympus (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/DrummingBird1/gow-psp-recomp/blob/18800afd0cfa84e5018ddb7e515f4b6571bfabe5/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

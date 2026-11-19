@@ -34,6 +34,7 @@ export interface ReviewedPin extends GithubPinScope {
   port_id: string;
   port_contract_sha256: string;
   platform: string;
+  historical_version?: string;
 }
 export interface ReviewedSourceArchive extends GithubSourceArchiveScope {
   port_id: string;
@@ -73,13 +74,18 @@ type HealthPort = Record<string, unknown> &
     >
   > & {
     upstream_status?: string;
+    upstream_active_reviewed?: boolean;
     release?: {
       provider?: string;
       repository?: string;
       direct?: Record<string, Pick<DirectReleaseSpec, "url" | "sha256" | "version" | "size">>;
     };
   };
-type HistoricalIdentity = Pick<SourceEvidenceScope, "port_id" | "upstream_ref" | "artifact_sha256">;
+type HistoricalIdentity = Pick<
+  SourceEvidenceScope,
+  "port_id" | "upstream_ref" | "artifact_sha256"
+> &
+  Partial<Pick<SourceEvidenceScope, "platform">>;
 type Qualification = Record<string, unknown> & { scope: HistoricalIdentity };
 interface HealthCatalog {
   ports: HealthPort[];
@@ -102,6 +108,7 @@ interface LocationRecord {
   release_ref?: string;
   artifact_identities?: ArtifactIdentity[];
   historical_artifact_identities?: HistoricalIdentity[];
+  reviewed_historical_release_ids?: number[];
 }
 type HealthReason = keyof typeof resume;
 type PinAssessment =
@@ -223,6 +230,15 @@ function assertHealthCatalog(value: unknown): asserts value is HealthCatalog {
       throw new Error("Catalog requires unique stable port IDs");
     if (port.project_url !== undefined && typeof port.project_url !== "string")
       throw new Error("Unsupported original upstream location");
+    if (
+      port.upstream_active_reviewed !== undefined &&
+      (typeof port.upstream_active_reviewed !== "boolean" ||
+        (port.upstream_active_reviewed &&
+          port.upstream_status !== undefined &&
+          port.upstream_status !== "active"))
+    ) {
+      throw new Error("Invalid reviewed active upstream status.");
+    }
     if (port.upstream_status !== undefined && typeof port.upstream_status !== "string")
       throw new Error("Unsupported catalog maintenance declaration");
     for (const key of ["automated_tested_platforms", "manually_validated_platforms"] as const) {
@@ -306,7 +322,11 @@ export interface HealthOptions {
   portIds?: string[] | null;
   reviewedAccounting?: unknown;
   lineageRecords?: unknown[];
-  /** Trusted monitor continuation; legacy one-shot collection keeps strict preflight. */
+  /**
+   * Trusted monitor continuation: each operation stops at the 352-request and
+   * 512-new-location batch ceilings. A one-shot collection is never refused by
+   * inventory size; it is bounded by its own forecast, quota, time and bytes.
+   */
   incremental?: boolean;
   resumeObservations?: unknown[];
   operationDeadline?: number;
@@ -472,24 +492,30 @@ function assertHealthAccountingPolicy(policy: unknown): asserts policy is Health
   const identities = new Set();
   const pins: unknown[] = policy.pins;
   for (const pin of pins) {
+    const pinKeys = [
+      "port_id",
+      "port_contract_sha256",
+      "platform",
+      "repository",
+      "tag",
+      "name",
+      "url",
+      "size",
+      "sha256",
+      "repository_id",
+      "archived",
+      "release_id",
+      "release_facts_sha256",
+      "asset_id",
+      "asset_facts_sha256",
+    ];
     if (
-      !objectKeys(pin, [
-        "port_id",
-        "port_contract_sha256",
-        "platform",
-        "repository",
-        "tag",
-        "name",
-        "url",
-        "size",
-        "sha256",
-        "repository_id",
-        "archived",
-        "release_id",
-        "release_facts_sha256",
-        "asset_id",
-        "asset_facts_sha256",
-      ]) ||
+      !(
+        objectKeys(pin, pinKeys) ||
+        (version2 && objectKeys(pin, [...pinKeys, "historical_version"]))
+      ) ||
+      (Object.hasOwn(pin, "historical_version") &&
+        (!historyText(pin.historical_version, 200) || pin.historical_version === pin.tag)) ||
       !port(pin.port_id) ||
       !hash(pin.port_contract_sha256) ||
       !hash(pin.sha256) ||
@@ -873,7 +899,7 @@ function recordHistoricalScope(record: LocationRecord, scope: HistoricalIdentity
     requiredValue(record.historical_artifact_identities).push(scope);
 }
 
-function inventory(catalog: HealthCatalog) {
+function inventory(catalog: HealthCatalog, reviewedPins: readonly ReviewedPin[]) {
   const records = new Map<string, LocationRecord>();
   const directPorts = [];
   const ids = new Set();
@@ -1014,18 +1040,36 @@ function inventory(catalog: HealthCatalog) {
         recordHistoricalScope(record, scope);
       }
       for (const location of repositories) {
-        const key = `${location.provider}:${location.repository}:release:${scope.upstream_ref}`;
+        // Keep the retained version in evidence. Only a reviewed exact match
+        // can supply a different publisher tag for the provider request.
+        const matchingPins = reviewedPins.filter(
+          (pin) =>
+            location.provider === "github" &&
+            pin.port_id === scope.port_id &&
+            pin.platform === scope.platform &&
+            pin.repository === location.repository &&
+            pin.historical_version === scope.upstream_ref &&
+            pin.sha256 === scope.artifact_sha256,
+        );
+        const [matchingPin] = matchingPins;
+        const reviewedPin = matchingPins.length === 1 ? matchingPin : undefined;
+        const releaseRef = reviewedPin?.tag ?? scope.upstream_ref;
+        const key = `${location.provider}:${location.repository}:release:${releaseRef}`;
         if (!records.has(key))
           records.set(key, {
             provider: location.provider,
             repository: location.repository,
-            release_ref: scope.upstream_ref,
+            release_ref: releaseRef,
             historical_artifact_identities: [],
             port_ids: [],
             release_providers: location.release_providers,
           });
         const record = requiredValue(records.get(key));
         if (!record.port_ids.includes(port.id)) record.port_ids.push(port.id);
+        if (reviewedPin) {
+          const releaseIds = (record.reviewed_historical_release_ids ??= []);
+          if (!releaseIds.includes(reviewedPin.release_id)) releaseIds.push(reviewedPin.release_id);
+        }
         recordHistoricalScope(record, scope);
       }
     }
@@ -1115,7 +1159,7 @@ function prepareHealthInventory(input: unknown, accountingInput: unknown) {
   return {
     catalog,
     reviewedAccounting,
-    completeInventory: inventory(catalog),
+    completeInventory: inventory(catalog, reviewedAccounting.pins),
     portById: new Map(catalog.ports.map((port) => [port.id, port])),
   };
 }
@@ -1242,8 +1286,12 @@ function prepareHealthCollection(
   const conditionalArchiveRequests = archiveRecords.length * 2;
   const conservativeRequests =
     networkRecords.length + conditionalPinRequests + conditionalArchiveRequests;
-  const overflow =
-    conservativeRequests > HARD_REQUEST_CEILING || records.length > PRIOR_REPORT_ENTRIES;
+  // The request and observation ceilings size scheduled monitor operations only.
+  // "overflow" tells the monitor's batch planner that a scope needs more than one
+  // operation; a one-shot collection is never refused for it and is bounded by
+  // its own validated forecast, the provider quota reserve and the time and byte
+  // limits instead.
+  const overflow = records.length > PRIOR_REPORT_ENTRIES;
   const requestPlan = Object.freeze({
     method: "validated selected inventory; no speculative reuse credit",
     network_records: networkRecords.length,
@@ -1338,15 +1386,13 @@ export async function collectRepositoryHealth(
     pinBindingConflict,
     declaredPins,
     archiveRules,
-    overflow,
     requestPlan,
   } = prepareHealthCollection(input, portIds, accountingInput);
   const limits = Object.freeze({
     ...resourceLimits,
-    requests:
-      overflow && !incremental
-        ? 0
-        : Math.min(HARD_REQUEST_CEILING, requestPlan.conservative_requests),
+    requests: incremental
+      ? Math.min(HARD_REQUEST_CEILING, requestPlan.conservative_requests)
+      : requestPlan.conservative_requests,
   });
   const lineage = assessedLineage(catalog, lineageRecords);
   const currentPortHashes = healthCatalogPortHashes(catalog, lineageRecords);
@@ -1460,6 +1506,11 @@ export async function collectRepositoryHealth(
       provider: record.provider,
       repository: record.repository,
       release_ref: record.release_ref ?? null,
+      ...(record.reviewed_historical_release_ids && {
+        reviewed_historical_release_ids: record.reviewed_historical_release_ids.toSorted(
+          (left, right) => left - right,
+        ),
+      }),
       artifacts: [...(record.artifact_identities ?? [])].sort((a, b) =>
         observationHash(a).localeCompare(observationHash(b)),
       ),
@@ -1715,6 +1766,16 @@ export async function collectRepositoryHealth(
                 ? "location-reachable; exact-bytes-unverified"
                 : "unclassified-or-actionable";
   };
+  const replayObservation = (
+    retained: HealthObservation,
+    location: LocationRecord,
+    metadataReused: boolean,
+  ): HealthObservation => {
+    const evidence = structuredClone(retained);
+    delete evidence.artifact_identities;
+    delete evidence.historical_artifact_identities;
+    return { ...evidence, ...location, attempted: false, metadata_reused: metadataReused };
+  };
   let operationRecords = 0;
   for (const record of fairRecords) {
     abortSignal?.throwIfAborted();
@@ -1745,12 +1806,7 @@ export async function collectRepositoryHealth(
       ) {
         // A received response is a spent read, including a capped body. Only
         // unattempted budget tails can resume; a new job may observe again.
-        observations.push({
-          ...structuredClone(retained),
-          ...record,
-          attempted: false,
-          metadata_reused: false,
-        });
+        observations.push(replayObservation(retained, record, false));
         reusedHistory.add(locationKey(record));
         continue;
       }
@@ -1760,12 +1816,7 @@ export async function collectRepositoryHealth(
         collected(retained) &&
         started - Date.parse(retained.observed_at) < 24 * 3600000
       ) {
-        observations.push({
-          ...structuredClone(retained),
-          ...record,
-          attempted: false,
-          metadata_reused: true,
-        });
+        observations.push(replayObservation(retained, record, true));
         reusedHistory.add(locationKey(record));
         continue;
       }
@@ -1809,7 +1860,7 @@ export async function collectRepositoryHealth(
         continue;
       }
       // Static no-request failures retain their reasons even when the selected
-      // inventory needs zero calls or preflight refuses the whole collection.
+      // inventory needs zero calls.
       if (record.provider === "unlocated-historical") {
         fail("release-identity-unavailable");
         continue;
@@ -1830,12 +1881,6 @@ export async function collectRepositoryHealth(
         ).size !== 1
       ) {
         fail("identity-mismatch");
-        continue;
-      }
-      if (overflow && !incremental) {
-        fail("budget");
-        result.resume_condition =
-          "The validated request forecast exceeds the fixed hard ceiling; reduce legitimate obligations or deliver a separately reviewed capacity redesign. Partial collections do not establish full health.";
         continue;
       }
       const operationRequests =
@@ -2129,6 +2174,11 @@ export async function collectRepositoryHealth(
             : "unknown; provider supplied no digest";
           if (
             !assets.length ||
+            (record.reviewed_historical_release_ids?.some(
+              (id) => id !== result.observed_release_id,
+            ) ??
+              false) ||
+            (record.reviewed_historical_release_ids && !result.observed_asset_digests.length) ||
             (result.observed_asset_digests.length &&
               requiredValue(record.historical_artifact_identities).some(
                 (identity) =>
@@ -2257,6 +2307,12 @@ export async function collectRepositoryHealth(
         history: lineage.get(port.id)?.history ?? [],
         decisions: lineage.get(port.id)?.decisions ?? [],
         catalog_upstream_status: port.upstream_status ?? "active",
+        declared_upstream_status:
+          port.upstream_active_reviewed === true
+            ? "active"
+            : ["retired", "superseded", "abandoned"].includes(port.upstream_status ?? "")
+              ? port.upstream_status
+              : null,
         authority: "retained reviewed authoring decisions; no new lineage decision",
       },
       accepted_artifact_obtainability: {
@@ -2400,10 +2456,7 @@ export async function collectRepositoryHealth(
     .map((incident) => incident.key);
   return {
     format_version: 3,
-    collection_status:
-      (incremental || !overflow) && observations.every(collected)
-        ? ("complete" as const)
-        : ("partial" as const),
+    collection_status: observations.every(collected) ? ("complete" as const) : ("partial" as const),
     authority:
       "read-only-location-observation; no lineage, artifact, hold or qualification authority",
     catalog_sha256: catalogHash,
@@ -2415,9 +2468,7 @@ export async function collectRepositoryHealth(
         .filter((port) => !selectedPorts.includes(port))
         .map((port) => port.id),
       global_health:
-        portIds === null && !overflow
-          ? "collection attempted; not an installability claim"
-          : "not assessed",
+        portIds === null ? "collection attempted; not an installability claim" : "not assessed",
     },
     port_health: portHealth,
     started_at: new Date(started).toISOString(),
@@ -2492,12 +2543,7 @@ export function renderRepositoryHealth(
     ...(report.scope?.mode === "none"
       ? ["No selected upstream health inputs; no live requests. Global health is not assessed."]
       : []),
-    `Request plan: ${report.request_plan.conservative_requests} conservative calls; ${report.request_plan.conditional_repository_reuses} conditional repository reuses; fixed ceiling ${report.request_plan.hard_ceiling}; ${report.request_plan.status}.`,
-    ...(report.request_plan.status === "overflow"
-      ? [
-          "Preflight overflow: no live requests permitted; selected scope and global health unassessed.",
-        ]
-      : []),
+    `Request plan: ${report.request_plan.conservative_requests} conservative calls; ${report.request_plan.conditional_repository_reuses} conditional repository reuses; scheduled batch ceiling ${report.request_plan.hard_ceiling}; ${report.request_plan.status === "overflow" ? "more locations than one scheduled batch" : "admitted"}.`,
     `Repository reachability: ${coverage.reachable_repositories}/${coverage.repositories} reachable; ${coverage.unknown_repositories} unknown; ${coverage.attempted_repositories} attempted.`,
     `Repository metadata reused within this collection: ${coverage.reused_repositories}; network requests: ${report.consumed.requests}/${report.limits.requests}.`,
     `Coverage: ${coverage.monitored_ports}/${coverage.ports} ports; ${coverage.direct_manifest_port_ids.length} direct-manifest ports included. Accepted bytes remain unverified.`,

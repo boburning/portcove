@@ -1,7 +1,9 @@
 import { controlledAct as act } from "../../test/controlled-react-act";
+import { captureParityState } from "../../test/parity-capture";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { useLayoutEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { copyText } from "../clipboard";
 import type { SourceInspectionReport } from "../types";
 import { focusableControls } from "../focus";
@@ -171,7 +173,25 @@ describe("source identity controls", () => {
       (control) => control.getAttribute("aria-label") ?? control.textContent,
     );
     expect(names).toContain("File details and test results");
+    expect(names).toContain("Test results for this port");
+    expect(names.filter((name) => name === "File details and test results")).toHaveLength(1);
     expect(names).toContain("Copy Calculated SHA256 for normalized content");
     expect(names).toContain("Open reviewed evidence from Sample authority");
+    const incoming = {
+      width: innerWidth,
+      height: innerHeight,
+      theme: document.documentElement.dataset.theme,
+    };
+    try {
+      await page.viewport(960, 640);
+      for (const theme of ["dark", "light"]) {
+        document.documentElement.dataset.theme = theme;
+        await captureParityState("source-identity-disclosure-labels");
+      }
+    } finally {
+      if (incoming.theme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = incoming.theme;
+      await page.viewport(incoming.width, incoming.height);
+    }
   });
 });

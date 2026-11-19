@@ -35,6 +35,21 @@
       "image_sha256": "c8766507012f95801aa20130cd8c097a7505f0804997c488e6e1d04e4f784900",
       "game_slug": "tenchu-z",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tenchu-z",
+      "evidence_urls": ["https://github.com/8bitninja64/TenchuZ-PC"],
+      "source_editions": [
+        {
+          "id": "tenchu-z-xbox-360",
+          "title": "Tenchu Z (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/8bitninja64/TenchuZ-PC/blob/b638841a8a2a46cfa2a531b639022003429bf59d/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

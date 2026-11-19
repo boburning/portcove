@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "hexen-crispy-doom-family",
+    "artwork": {
+      "game_id": 3512,
+      "cover_id": 76354,
+      "image_id": "co1mwy",
+      "image_sha256": "4b88f98af3997f8fb298284318b37aefd24c925bdf7c375c7e92153107c80ecb",
+      "game_slug": "hexen-beyond-heretic",
+      "match_kind": "underlying-game"
+    },
     "name": "Hexen (Crispy Doom family)",
     "summary": "Install the official Crispy Hexen Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
     "original_game_title": "Hexen",
@@ -47,10 +55,16 @@
         }
       ]
     },
-    "download_asset_hints": {
-      "windows-x86-64": ["crispy-hexen-", "-win64.zip"]
-    },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "hexen",
+      "evidence_urls": [
+        "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
+        "https://github.com/fabiangreffrath/crispy-doom"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -175,5 +189,6 @@
       "DOOMWADDIR": "originals"
     },
     "windows_temp_directory": "temp"
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

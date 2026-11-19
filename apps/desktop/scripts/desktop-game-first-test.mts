@@ -473,7 +473,7 @@ export async function gameFirstScenarios({
       );
       assert.deepEqual(
         matchingIds.sort((a, b) => a.localeCompare(b)),
-        [...pair].sort((a, b) => a.localeCompare(b)),
+        pair.toSorted((a, b) => a.localeCompare(b)),
         "Only explicit game identities may form this group; other search matches remain independent",
       );
       for (const port of ports)
@@ -546,7 +546,9 @@ export async function gameFirstScenarios({
       });
       await clickVisible(
         browser,
-        await browser.findElement(By.xpath('//summary[normalize-space(.)="Implementations (2)"]')),
+        await browser.findElement(
+          By.xpath('//summary[normalize-space(.)="Other ports for this game (2)"]'),
+        ),
       );
       for (const port of ports) {
         const alternativeControl = await browser.findElement(

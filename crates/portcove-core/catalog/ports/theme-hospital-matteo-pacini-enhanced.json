@@ -4,12 +4,12 @@
     "id": "theme-hospital-matteo-pacini-enhanced",
     "name": "Theme Hospital / Theme Hospital Enhanced",
     "summary": "Explore Theme Hospital / Theme Hospital Enhanced and follow the upstream project for requirements, downloads and setup.",
-    "project_url": "https://github.com/matteo-pacini/theme-hospital-enhanced",
+    "project_url": "https://github.com/matteo-pacini/theme-hospital-decomp",
     "issue_number": 1950,
     "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "source-only",
-    "setup_url": "https://github.com/matteo-pacini/theme-hospital-enhanced#readme",
+    "setup_url": "https://github.com/matteo-pacini/theme-hospital-decomp#readme",
     "artwork": {
       "game_id": 1624,
       "cover_id": 182013,
@@ -26,13 +26,75 @@
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/matteo-pacini/theme-hospital-enhanced/blob/7993814a4f562a1898b20621dbfa60644f9697d7/README.md",
+      "help_url": "https://github.com/matteo-pacini/theme-hospital-decomp/blob/7993814a4f562a1898b20621dbfa60644f9697d7/README.md",
       "references": [
         {
           "title": "Follow the current DOS build",
           "instruction": "The pinned master revision documents the DOS reconstruction. Use the matching owned GOG installer identified by upstream. After closing DOSBox, preserve build/run, including HOSPITAL.CFG and your saves, and keep the original data it links from orig. The earlier native branch instructions apply to a different revision."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "theme-hospital",
+      "evidence_urls": [
+        "https://github.com/matteo-pacini/theme-hospital-decomp/blob/7993814a4f562a1898b20621dbfa60644f9697d7/README.md",
+        "https://github.com/matteo-pacini/theme-hospital-decomp",
+        "https://github.com/matteo-pacini/theme-hospital-decomp/commit/7993814a4f562a1898b20621dbfa60644f9697d7",
+        "https://api.github.com/repos/matteo-pacini/theme-hospital-enhanced"
+      ],
+      "source_editions": [
+        {
+          "id": "theme-hospital-dos",
+          "title": "Theme Hospital (DOS)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/matteo-pacini/theme-hospital-decomp/blob/7993814a4f562a1898b20621dbfa60644f9697d7/README.md"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Theme Hospital"
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "theme-hospital-pc",
+    "origin": {
+      "project_url": "https://github.com/matteo-pacini/theme-hospital-enhanced"
+    },
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/matteo-pacini/theme-hospital-enhanced"
+        },
+        "to": {
+          "project_url": "https://github.com/matteo-pacini/theme-hospital-decomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1401277649"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The owner matteo-pacini renamed the repository it listed; the same repository answers at matteo-pacini/theme-hospital-decomp. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/matteo-pacini/theme-hospital-decomp/commit/7993814a4f562a1898b20621dbfa60644f9697d7",
+            "note": "The commit this listing's setup guide pins is present in the current repository, authored by matteo-pacini."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/matteo-pacini/theme-hospital-enhanced",
+            "note": "The listed path resolves to matteo-pacini/theme-hospital-decomp, repository ID 1401277649."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "698c06f9fea6e7632b2f83f3ce8f756b5c5e17f95a0d30a148545ec39d4e71f5"
+        }
+      }
+    ]
   }
 }

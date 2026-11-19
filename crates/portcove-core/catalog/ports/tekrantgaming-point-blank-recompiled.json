@@ -5,6 +5,14 @@
     "name": "Point Blank (Point Blank PC Port)",
     "summary": "Attach an independently permitted, prepared Point Blank PlayStation Windows player with your own USA SLUS-00481 CUE/BIN. The current package contains the native player; lightgun hardware, arcade originals and earlier builder packages retain separate scope.",
     "original_game_title": "Point Blank",
+    "artwork": {
+      "game_id": 13899,
+      "cover_id": 182258,
+      "image_id": "co3wmq",
+      "image_sha256": "d282a67d76c82f17572ca69f382c6d924307e9ad359578b9a7d11069ebb5cc38",
+      "game_slug": "point-blank",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/TekRantGaming/point-blank-recompiled",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -37,6 +45,24 @@
       ],
       "warnings": [
         "Use the prepared 1.1.0 PlayStation player and complete USA CUE/BIN. Preserve actual memory-card paths; arcade and physical-lightgun acceptance remain separate."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "point-blank",
+      "evidence_urls": [
+        "https://github.com/TekRantGaming/point-blank-recompiled/blob/cf3b5fc9eb988bd2572964a5774c3828a6dcd635/README.md",
+        "https://github.com/TekRantGaming/point-blank-recompiled"
+      ],
+      "source_editions": [
+        {
+          "id": "point-blank-playstation",
+          "title": "Point Blank (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/TekRantGaming/point-blank-recompiled/blob/15c48788c5d02b0075343f007e282193426cd27b/README.md"
+          ]
+        }
       ]
     }
   },

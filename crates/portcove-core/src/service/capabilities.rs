@@ -448,7 +448,7 @@ mod tests {
         let status = status();
         let mut listing: crate::PortListing = serde_json::from_value(json!({"id":"fixture", "name":"Fixture", "summary":"Fixture", "project_url":"https://example.com/fixture"})).unwrap();
         for value in [
-            json!({ "format_version": 2 }),
+            json!({ "format_version": 3 }),
             json!({ "format_version": 1, "records": "wrong" }),
         ] {
             listing.compatibility = Some(value);
@@ -513,6 +513,44 @@ mod tests {
     }
 
     #[test]
+    fn first_launch_and_repeat_play_require_exact_package_evidence() {
+        let status = status();
+        let mut listing: crate::PortListing = serde_json::from_value(json!({
+            "id":"fixture", "name":"Fixture", "summary":"Fixture",
+            "project_url":"https://example.com/fixture"
+        }))
+        .unwrap();
+        let mut record = json!({
+            "id":"entry-point", "feature":"launch", "platform":crate::Platform::current().unwrap(),
+            "route":"upstream-setup", "release":"v1", "artifact_sha256":"a".repeat(64),
+            "explanation":"Import the original files once.",
+            "provenance":"https://example.com/evidence", "observed_at":1,"evidence":"upstream-reported",
+            "launch_behavior":{"first_launch":"asks-for-game-files", "repeat_launch":"starts-game-directly"}
+        });
+        listing.compatibility = Some(json!({"format_version":2,"records":[record.clone()]}));
+        let mut report = PortCapabilityReport::from_status(&status, &[], None);
+        report.add_advisories(&listing, &status);
+        let notice = serde_json::to_value(&report.advisories[0]).unwrap();
+        assert_eq!(notice["applicability"], "context-required");
+        assert_eq!(
+            notice["notice"]["launch_behavior"]["first_launch"],
+            "asks-for-game-files"
+        );
+        assert_eq!(
+            notice["notice"]["launch_behavior"]["repeat_launch"],
+            "starts-game-directly"
+        );
+        assert_eq!(report.routes[3].features[0].mode, CapabilityMode::Automatic);
+
+        record["artifact_sha256"] = serde_json::Value::Null;
+        listing.compatibility = Some(json!({"format_version":2,"records":[record]}));
+        let mut report = PortCapabilityReport::from_status(&status, &[], None);
+        report.add_advisories(&listing, &status);
+        assert_eq!(report.advisory_state, "invalid");
+        assert!(report.advisories.is_empty());
+    }
+
+    #[test]
     fn the_first_listed_date_needs_format_nine_and_older_exports_omit_it() {
         let listing = |date: Option<&str>| -> crate::PortListing {
             let mut value = json!({"id":"fixture","name":"Fixture","summary":"Fixture","project_url":"https://example.com/fixture"});
@@ -548,7 +586,101 @@ mod tests {
                 .as_deref(),
             Some("2026-11-09")
         );
-        assert!(dated.export_format(10).is_err());
+        assert!(dated.export_format(11).is_ok());
+        assert!(dated.export_format(12).is_ok());
+        assert!(dated.export_format(13).is_err());
+    }
+
+    fn funded_listing(urls: &[&str]) -> crate::PortListing {
+        serde_json::from_value(json!({
+            "id":"fixture","name":"Fixture","summary":"Fixture",
+            "project_url":"https://example.com/fixture","funding_urls":urls
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn funding_links_need_format_ten_and_older_exports_omit_them() {
+        let urls = [
+            "https://github.com/sponsors/example",
+            "https://ko-fi.com/example",
+        ];
+        let document = |format_version| crate::CatalogListingDocument {
+            format_version,
+            listings: vec![funded_listing(&urls)],
+        };
+        assert!(document(10).validate().is_ok());
+        for older in [5, 6, 7, 8, 9] {
+            assert!(document(older).validate().is_err(), "{older}");
+        }
+        let funded = document(10);
+        for version in [5, 6, 7, 8, 9] {
+            assert!(
+                funded.export_format(version).unwrap().listings[0]
+                    .funding_urls
+                    .is_none()
+            );
+        }
+        assert_eq!(
+            funded.export_format(10).unwrap().listings[0]
+                .funding_urls
+                .as_deref(),
+            Some(&urls.map(String::from)[..])
+        );
+    }
+
+    #[test]
+    fn an_explicit_null_funding_key_is_refused_not_read_as_absent() {
+        let value = json!({
+            "id":"fixture","name":"Fixture","summary":"Fixture",
+            "project_url":"https://example.com/fixture","funding_urls":null
+        });
+        assert!(serde_json::from_value::<crate::PortListing>(value).is_err());
+        for format_version in [9, 10] {
+            let document = json!({"format_version":format_version,"listings":[{
+                "id":"fixture","name":"Fixture","summary":"Fixture",
+                "project_url":"https://example.com/fixture","funding_urls":null
+            }]});
+            assert!(
+                crate::CatalogListingDocument::from_json(&document.to_string()).is_err(),
+                "{format_version}"
+            );
+        }
+        let absent: crate::PortListing = serde_json::from_value(json!({
+            "id":"fixture","name":"Fixture","summary":"Fixture",
+            "project_url":"https://example.com/fixture"
+        }))
+        .unwrap();
+        assert!(absent.funding_urls.is_none());
+    }
+
+    #[test]
+    fn funding_links_are_bounded_distinct_public_https_urls() {
+        let many = (0..13)
+            .map(|index| format!("https://example.com/support/{index}"))
+            .collect::<Vec<_>>();
+        let many = many.iter().map(String::as_str).collect::<Vec<_>>();
+        for bad in [
+            &["http://ko-fi.com/example"][..],
+            &["https://user:secret@example.com/support"],
+            &["https://ko-fi.com/example", "https://ko-fi.com/example"],
+            &[" https://ko-fi.com/example"],
+            &["javascript:alert(1)"],
+            &[""],
+            &[],
+            &many,
+        ] {
+            let document = crate::CatalogListingDocument {
+                format_version: 10,
+                listings: vec![funded_listing(bad)],
+            };
+            assert!(document.validate().is_err(), "{bad:?} must be refused");
+        }
+        let document = crate::CatalogListingDocument {
+            format_version: 10,
+            listings: vec![funded_listing(&many[..12])],
+        };
+        assert!(document.validate().is_ok());
     }
 
     #[test]

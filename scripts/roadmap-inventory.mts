@@ -337,7 +337,8 @@ export async function collectRoadmapInventory(
               ).includes(String(node.state))) ||
             (kind === "PullRequest" && typeof node.merged !== "boolean")
           )
-            throw new Error(
+            throw new GitHubApiError(
+              "repository_changed",
               `Issue #${row.number} changed during body hydration: ${String(row.updatedAt)} -> ${String(node.updatedAt)}`,
             );
           // Adopt the whole atomic issue observation, then verify its membership/revision below.

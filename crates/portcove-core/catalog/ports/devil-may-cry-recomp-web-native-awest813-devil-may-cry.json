@@ -4,6 +4,14 @@
     "id": "devil-may-cry-recomp-web-native-awest813-devil-may-cry",
     "name": "Devil May Cry — Devil May Cry Recomp (web/native) (awest813)",
     "original_game_title": "Devil May Cry",
+    "artwork": {
+      "game_id": 134,
+      "cover_id": 436183,
+      "image_id": "co9ck7",
+      "image_sha256": "9d36a30485711695159e534666c5866311270b75024cfb629bddcd6eac11e560",
+      "game_slug": "devil-may-cry",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reports startup through Mission 1 on the dmc-port branch, natively and in a browser at 60 FPS. Gran Turismo 4 and God of War II reports do not establish Devil May Cry coverage. Full-game completion and stability remain unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/awest813/DMC-Recomp",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/awest813/DMC-Recomp"
     },
-    "issue_number": 2996
+    "issue_number": 2996,
+    "original_game": {
+      "format_version": 1,
+      "id": "devil-may-cry",
+      "evidence_urls": ["https://github.com/awest813/DMC-Recomp"],
+      "source_editions": [
+        {
+          "id": "devil-may-cry-playstation-2",
+          "title": "Devil May Cry (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/awest813/DMC-Recomp/blob/6e97a140d7ddf0d219adee629eeccacb367ff915/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

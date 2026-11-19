@@ -4,7 +4,7 @@
   "listing": {
     "id": "alexbeav-blood-omen-legacy-of-kain-recomp",
     "name": "Blood Omen: Legacy of Kain / Alexbeav PSXRecomp",
-    "summary": "Build and play Blood Omen: Legacy of Kain on Windows or Linux with your own matching single-track USA PlayStation disc and bundled OpenBIOS. The Mac setup kit uses upstream preparation.",
+    "summary": "Build and play Blood Omen: Legacy of Kain on Windows or Linux with your own matching single-track USA PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp",
     "original_game_title": "Blood Omen: Legacy of Kain",
     "artwork": {
@@ -19,8 +19,6 @@
     "listed_at": "2026-10-23",
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "download_asset_hints": {
-      "windows-x86-64": ["Blood-Omen-Legacy-of-Kain-Recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["Blood-Omen-Legacy-of-Kain-Recomp-", "-linux-x64.zip"],
       "macos-x86-64": ["Blood-Omen-Legacy-of-Kain-Recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["Blood-Omen-Legacy-of-Kain-Recomp-", "-macos-arm64.zip"]
     },
@@ -36,7 +34,7 @@
         },
         {
           "title": "Supply your original files",
-          "instruction": "Use your original single-track USA disc (SLUS-00027). Use the kit’s included OpenBIOS or follow its guide for a supported retail BIOS. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+          "instruction": "Use your original single-track USA disc (SLUS-00027). Follow the kit’s README-SETUP.txt for the image format and the BIOS it needs."
         },
         {
           "title": "Build and add the prepared player",
@@ -53,8 +51,27 @@
           "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "blood-omen-legacy-of-kain",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "blood-omen-legacy-of-kain-playstation",
+          "title": "Blood Omen: Legacy of Kain (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/blob/b289b9c2d7163968aa679dcc0cb40b2ccf7bb053/game.toml"
+          ]
+        }
+      ]
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -83,7 +100,12 @@
       "config.ini",
       "disc.cfg",
       "bios.cfg",
-      "mods",
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "mods/texture-packs",
       "overlay-captures"
     ],
     "runtime_mutable_paths": [
@@ -104,7 +126,7 @@
     "launch_environment": {
       "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
     },
-    "launch_arguments": ["--no-launcher", "--bios", "bios/openbios.bin"],
+    "launch_arguments": ["--no-launcher"],
     "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
@@ -114,10 +136,27 @@
           "profile_id": "blood-omen-psx",
           "label": "Blood Omen: Legacy of Kain (USA) disc",
           "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
+          "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching single-track CHD for SLUS-00027. The Windows and Linux v0.3.6 routes use bundled OpenBIOS and skip the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
-    }
+      "manual_preparation": "Provide your own matching single-track CHD for SLUS-00027 and retail SCPH-1001 BIOS. The managed Windows and Linux routes build with that BIOS and skip the setup launcher when playing. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": ["Generation, runtime, lifecycle and gameplay are untested."],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp#readme"
+      }
+    },
+    "bios_source_profile": "psx-scph-1001-bios"
   }
 }

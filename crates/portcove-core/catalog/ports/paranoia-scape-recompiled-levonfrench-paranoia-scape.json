@@ -4,6 +4,14 @@
     "id": "paranoia-scape-recompiled-levonfrench-paranoia-scape",
     "name": "Paranoia Scape — Paranoia Scape Recompiled (LevonFrench)",
     "original_game_title": "Paranoia Scape",
+    "artwork": {
+      "game_id": 123266,
+      "cover_id": 131637,
+      "image_id": "co2tkl",
+      "image_sha256": "25296afe126eb84f8a3ef5487c7df3d72c6e831db93d4fd048a87cd7cb3f77f7",
+      "game_slug": "paranoiascape",
+      "match_kind": "underlying-game"
+    },
     "summary": "This early build is reported to boot and reach gameplay. Full-game compatibility is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/LevonFrench/Paranoiascape-Recompiled",
     "listed_at": "2026-10-25",

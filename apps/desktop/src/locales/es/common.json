@@ -33,6 +33,7 @@
     "placeholder": "Buscar juegos y proyectos de adaptación…",
     "show": "Mostrar juegos y adaptaciones"
   },
+  "launchRequestAccepted": "Se solicitó iniciar {{game}}.",
   "navigation": {
     "back": "<key/>: Atrás",
     "gamepadBack": "Botón Atrás: Atrás",

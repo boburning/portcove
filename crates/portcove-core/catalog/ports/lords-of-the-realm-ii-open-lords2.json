@@ -1,0 +1,55 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "lords-of-the-realm-ii-open-lords2",
+    "artwork": {
+      "game_id": 19124,
+      "cover_id": 193649,
+      "image_id": "co45f5",
+      "image_sha256": "5b35a6646aae8ed0ba4fa41118ef0272474a98b862c02c3496fda4151c1c8c03",
+      "game_slug": "lords-of-the-realm-ii",
+      "match_kind": "underlying-game"
+    },
+    "project_url": "https://github.com/brettins/open-lords2",
+    "name": "Lords of the Realm II / Open Lords2",
+    "original_game_title": "Lords of the Realm II",
+    "summary": "Run the upstream engine preview with your own Lords of the Realm II installation.",
+    "issue_number": 6085,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/brettins/open-lords2/releases/tag/v0.1.0-pre.6",
+    "setup_url": "https://github.com/brettins/open-lords2/blob/v0.1.0-pre.6/README.md",
+    "download_block_reason": "Open the publisher’s preview release and choose the Windows ZIP or Linux tar.gz for your computer.",
+    "manual_setup": {
+      "help_url": "https://github.com/brettins/open-lords2/releases/tag/v0.1.0-pre.6",
+      "steps": [
+        {
+          "title": "Locate your original game folder",
+          "instruction": "Keep your installed copy of Lords of the Realm II. The engine looks for L2_maps.dat and either Lords2.exe or L2.eng to recognize the folder, and then reads the required game assets. The publisher tests with GOG’s edition."
+        },
+        {
+          "title": "Start the player for your computer",
+          "instruction": "On Windows x64, run l2-game.exe from the extracted ZIP. It can find your installed copy or open its folder picker. It needs the Microsoft Visual C++ x64 runtime. On Linux x64, extract the tar.gz and run l2-game with the absolute path to your original game folder as one argument. Linux needs glibc 2.34 or later and libasound.so.2. The preview does not provide a Linux folder picker."
+        },
+        {
+          "title": "Keep your save and preference files",
+          "instruction": "Back up the active saves folder with the game closed. It defaults to %APPDATA%/open-lords2/saves on Windows or $XDG_DATA_HOME/open-lords2/saves on Linux, usually ~/.local/share/open-lords2/saves. An explicit LORDS2_SAVES directory takes precedence. Keep prefs.ini and your saves together when replacing an extracted engine copy."
+        }
+      ],
+      "warnings": [
+        "This is the upstream preview. If you use its multiplayer option, both players need the same engine build and their own original game files."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "lords-of-the-realm-ii",
+      "evidence_urls": [
+        "https://github.com/brettins/open-lords2/blob/v0.1.0-pre.6/README.md",
+        "https://github.com/brettins/open-lords2/releases/tag/v0.1.0-pre.6",
+        "https://github.com/brettins/open-lords2"
+      ],
+      "source_editions": []
+    }
+  }
+}

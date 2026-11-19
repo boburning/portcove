@@ -42,6 +42,24 @@
         "Linux and Mac screenshots and the save directory belong to the profile containing the active dunedynasty.cfg. On a regular Linux build, that is normally ~/.config/dunedynasty unless an executable-side config already selects a portable profile. Back up the actual config, save folder and original-data folder. The Flatpak has a separate sandbox profile.",
         "Upstream and the player maintain independent copies and their profiles. Back up the actual data and configuration paths, especially if your environment redirects HOME or the XDG paths."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dune-ii",
+      "evidence_urls": [
+        "https://github.com/gameflorist/dunedynasty/blob/v1.6.4/README.md#installation",
+        "https://github.com/gameflorist/dunedynasty"
+      ],
+      "source_editions": [
+        {
+          "id": "dune-ii-pc",
+          "title": "Dune II (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/gameflorist/dunedynasty/blob/755876a710c0b188075ebe89cb40c068490e08e2/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

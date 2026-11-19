@@ -45,6 +45,24 @@
           "instruction": "Preserve ~/.config/HarvestMoon64Recompiled on Linux, or your actual custom profile. For Flatpak also keep ~/.var/app/io.github.harvestmoon64recomp.harvestmoon64recomp. Back up the original, saves, mods and settings before replacing an upstream copy."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "harvest-moon-64",
+      "evidence_urls": [
+        "https://github.com/HarvestMoon64Recomp/HarvestMoon64Recomp#readme",
+        "https://github.com/HarvestMoon64Recomp/HarvestMoon64Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "harvest-moon-64-nintendo-64",
+          "title": "Harvest Moon 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/HarvestMoon64Recomp/HarvestMoon64Recomp/blob/0470d52f2ed7d038b3098799a77d1d7eab187319/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {
@@ -95,7 +113,17 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Add your original in Portcove",
+            "instruction": "Choose your own Harvest Moon 64 US cartridge dump. Portcove checks the original and places it in the managed game folder. Select Play when setup is complete."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/HarvestMoon64Recomp/HarvestMoon64Recomp#readme"
+      }
     }
   }
 }

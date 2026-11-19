@@ -9,10 +9,52 @@ use crate::{
     ReleaseSource, Result, RuntimeSourceMaterialization, SourceKind, SourceProfile,
 };
 
-mod listings;
+pub(crate) mod listings;
+
+pub(crate) fn validate_cover_collection(
+    covers: Option<&[crate::IgdbArtwork]>,
+    has_individual_cover: bool,
+) -> Result<()> {
+    if let Some(covers) = covers {
+        if has_individual_cover || !(1..=4).contains(&covers.len()) {
+            return Err(PortcoveError::usage(
+                "a cover collection needs one to four members and no individual cover",
+            ));
+        }
+        let mut games = HashSet::new();
+        let mut records = HashSet::new();
+        let mut images = HashSet::new();
+        let mut digests = HashSet::new();
+        if covers.iter().any(|cover| {
+            !games.insert(cover.game_id)
+                || !records.insert(cover.cover_id)
+                || !images.insert(&cover.image_id)
+                || !digests.insert(&cover.image_sha256)
+        }) {
+            return Err(PortcoveError::usage(
+                "cover collection members must be distinct",
+            ));
+        }
+    }
+    Ok(())
+}
 
 // A `static` keeps one copy of the bytes; a `const` may be duplicated per use.
-static EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
+pub(crate) static EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
+
+/// How a port's source profile uses copier-header-optional SNES identities.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SnesCopierHeaderUse {
+    None,
+    All,
+    Mixed,
+}
+
+/// SHA-256 of the catalog compiled into this binary, before any listing merge.
+pub(crate) fn embedded_catalog_sha256() -> String {
+    use sha2::Digest;
+    hex::encode(sha2::Sha256::digest(EMBEDDED_CATALOG.as_bytes()))
+}
 
 /// Inert declaration checks only; neither trust nor artifact/runtime acceptance.
 #[derive(Debug, serde::Serialize, schemars::JsonSchema)]
@@ -117,7 +159,12 @@ impl Catalog {
         repository_authoring: bool,
     ) -> Result<CatalogProposalInspection> {
         use sha2::{Digest, Sha256};
-        let bytes = crate::path::read_bounded_regular(path, 4 * 1024 * 1024)?;
+        // A proposal can be the complete generated catalog, so it shares the
+        // catalog read bound rather than a smaller fixed one.
+        let bytes = crate::path::read_bounded_regular(
+            path,
+            crate::signed_catalog::MAX_CATALOG_BYTES as u64,
+        )?;
         let _: crate::definition_entry::strict_json::UniqueValue = serde_json::from_slice(&bytes)?;
         let value = std::str::from_utf8(&bytes)
             .map_err(|_| PortcoveError::usage("catalog proposal must be valid UTF-8"))?;
@@ -324,6 +371,22 @@ impl Catalog {
         Ok(())
     }
 
+    pub(crate) fn retain_unrelated_upstream_reviews(&mut self, baseline: &Self, selected: &str) {
+        for port in &mut Arc::make_mut(&mut self.document).ports {
+            if port.id != selected
+                && let Ok(original) = baseline.port(&port.id)
+            {
+                port.upstream_active_reviewed = original.upstream_active_reviewed;
+            }
+        }
+    }
+
+    pub(crate) fn hold_legacy_mod_provider(&mut self, port_id: &str) {
+        if let Some(index) = self.ports().iter().position(|port| port.id == port_id) {
+            Arc::make_mut(&mut self.document).ports[index].legacy_mod_provider_held = true;
+        }
+    }
+
     pub(crate) fn definition_snapshot(
         &self,
         port_id: &str,
@@ -400,6 +463,64 @@ impl Catalog {
             .iter()
             .find(|profile| profile.id == id)
             .ok_or_else(|| PortcoveError::not_found(format!("unknown source profile: {id}")))
+    }
+
+    /// Each disc's one exact track count for a managed PS1 `psx-raw-set`
+    /// route, in disc order; `None` for every other route.
+    pub(crate) fn managed_psx_set_track_counts(&self, port: &PortDefinition) -> Option<Vec<u32>> {
+        if port.adapter != AdapterKind::PsxRecompManaged
+            || port.runtime_source_materialization != Some(RuntimeSourceMaterialization::PsxRawSet)
+        {
+            return None;
+        }
+        let profile = self.source_profile(port.source_profile.as_deref()?).ok()?;
+        profile
+            .disc
+            .as_ref()?
+            .discs
+            .iter()
+            .map(|disc| match disc.track_counts.as_slice() {
+                [count] if *count >= 1 => Some(*count),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Whether the port's source profile identifies SNES dumps that may carry a
+    /// copier header. Every active representation must then be of that kind, so
+    /// one materialization fits every admitted file.
+    pub(crate) fn snes_copier_header_profile(&self, port: &PortDefinition) -> SnesCopierHeaderUse {
+        use crate::source_catalog::SourceRepresentationKind as Kind;
+        let Some(profile_id) = port.source_profile.as_deref() else {
+            return SnesCopierHeaderUse::None;
+        };
+        let representations = self
+            .source_catalog()
+            .into_iter()
+            .flat_map(|catalog| &catalog.identities)
+            .filter(|identity| identity.id == profile_id)
+            .flat_map(|identity| &identity.variants)
+            .filter(|variant| !variant.legacy_projection_only)
+            .flat_map(|variant| &variant.representations)
+            .collect::<Vec<_>>();
+        let optional = representations
+            .iter()
+            .filter(|representation| {
+                matches!(representation.kind, Kind::SnesCopierHeaderOptional { .. })
+            })
+            .count();
+        match optional {
+            0 => SnesCopierHeaderUse::None,
+            count if count == representations.len() => SnesCopierHeaderUse::All,
+            _ => SnesCopierHeaderUse::Mixed,
+        }
+    }
+
+    /// A managed PS1 disc set with an audio track needs a reader that keeps
+    /// every track; older readers refuse such a catalog only generically.
+    pub(crate) fn requires_psx_multi_track_set(&self, port: &PortDefinition) -> bool {
+        self.managed_psx_set_track_counts(port)
+            .is_some_and(|counts| counts.iter().any(|count| *count > 1))
     }
 
     pub fn validate(&self) -> Result<()> {
@@ -582,9 +703,20 @@ impl Catalog {
             }
         }
         for port in &self.document.ports {
+            if port.upstream_active_reviewed
+                && port.upstream_status != crate::UpstreamStatus::Active
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} declares a reviewed active project with an incompatible upstream status",
+                    port.id
+                )));
+            }
+            crate::provider_binding::validate(port)?;
+            crate::managed_runtime_policy::validate_exact_exclusions(port)?;
             crate::archive_data::validate(port)?;
             crate::native_temp::validate(port)?;
             validate_portable_marker_file(port)?;
+            validate_accepted_uploaders(port)?;
             if port.release.grant_declared_executable
                 && (!matches!(
                     port.adapter,
@@ -632,7 +764,6 @@ impl Catalog {
                     || !port.setup_executable_hints.is_empty()
                     || !port.setup_arguments.is_empty()
                     || port.source_environment.is_some()
-                    || port.user_data_environment.is_some()
                     || port.managed_shared_preferences.is_some()
                     || port.managed_initialization.is_some())
             {
@@ -812,10 +943,36 @@ impl Catalog {
                         )));
                     }
                 }
-                if let Some(artwork) = &presentation.artwork
-                    && (artwork.game_id == 0
+                if presentation
+                    .companion_cover
+                    .as_ref()
+                    .is_some_and(|companion| {
+                        presentation.artwork.as_ref().is_some_and(|primary| {
+                            primary.game_id == companion.game_id
+                                || primary.image_sha256 == companion.image_sha256
+                                || primary.image_id == companion.image_id
+                        })
+                    })
+                {
+                    return Err(PortcoveError::usage(format!(
+                        "{} needs distinct primary and companion covers",
+                        port.id
+                    )));
+                }
+                validate_cover_collection(
+                    presentation.collection_covers.as_deref(),
+                    presentation.artwork.is_some() || presentation.companion_cover.is_some(),
+                )?;
+                for artwork in presentation
+                    .artwork
+                    .iter()
+                    .chain(&presentation.companion_cover)
+                    .chain(presentation.collection_covers.iter().flatten())
+                {
+                    if artwork.game_id == 0
                         || artwork.cover_id == 0
                         || artwork.image_id.is_empty()
+                        || artwork.image_id.len() > 128
                         || artwork.image_sha256.len() != 64
                         || !artwork
                             .image_sha256
@@ -826,14 +983,16 @@ impl Catalog {
                             .bytes()
                             .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
                         || artwork.game_slug.is_empty()
+                        || artwork.game_slug.len() > 512
                         || !artwork.game_slug.bytes().all(|byte| {
                             byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'
-                        }))
-                {
-                    return Err(PortcoveError::usage(format!(
-                        "{} has an invalid IGDB artwork mapping",
-                        port.id
-                    )));
+                        })
+                    {
+                        return Err(PortcoveError::usage(format!(
+                            "{} has an invalid IGDB artwork mapping",
+                            port.id
+                        )));
+                    }
                 }
                 let expected_requirements = [
                     (
@@ -1384,6 +1543,11 @@ impl Catalog {
                                 || crate::preparation::managed(port)
                                 || port.runtime_data_policy.is_some())
                     }
+                    RuntimeSourceMaterialization::SnesHeaderless => {
+                        port.adapter == AdapterKind::StagedSourcePortable
+                            && source_is_persistent
+                            && self.snes_copier_header_profile(port) == SnesCopierHeaderUse::All
+                    }
                     RuntimeSourceMaterialization::RegaidenGbc => {
                         port.adapter == AdapterKind::StagedSourcePortable
                             && source_is_persistent
@@ -1439,12 +1603,16 @@ impl Catalog {
                                 profile.id == *profile_id
                                     && profile.kind == SourceKind::PsxDisc
                                     && profile.disc.as_ref().is_some_and(|disc| {
+                                        // Managed installation re-checks each
+                                        // extracted disc against one exact count.
                                         disc.discs.len() >= 2
                                             && (port.adapter != AdapterKind::PsxRecompManaged
-                                                || disc
-                                                    .discs
-                                                    .iter()
-                                                    .all(|identity| identity.track_counts == [1]))
+                                                || disc.discs.iter().all(|identity| {
+                                                    matches!(
+                                                        identity.track_counts.as_slice(),
+                                                        [count] if *count >= 1
+                                                    )
+                                                }))
                                     })
                             })
                         })
@@ -1487,6 +1655,12 @@ impl Catalog {
                                 })
                             })
                     }
+                    // Inputs, output identity and the file-set members are checked below.
+                    RuntimeSourceMaterialization::RomPatch => {
+                        port.adapter == AdapterKind::StagedSourcePortable
+                            && source_is_persistent
+                            && port.runtime_rom_patch.is_some()
+                    }
                     RuntimeSourceMaterialization::StfsDirectory => {
                         port.adapter == AdapterKind::StagedSourcePortable
                             && Path::new(filename).extension().is_none()
@@ -1498,7 +1672,13 @@ impl Catalog {
                                 self.document.source_profiles.iter().any(|profile| {
                                     profile.id == *profile_id
                                         && profile.kind == SourceKind::File
-                                        && !profile.accepted_sha256.is_empty()
+                                        // An exact whole-package digest, or an explicitly
+                                        // declared content identity bound by the port.
+                                        && (!profile.accepted_sha256.is_empty()
+                                            || (port.runtime_stfs_package.is_some()
+                                                && crate::source_inspection::stfs_content_declared(
+                                                    self, profile_id,
+                                                )))
                                 })
                             })
                     }
@@ -1525,6 +1705,47 @@ impl Catalog {
                     port.id
                 )));
             }
+            if port.windows_tracked_handoff {
+                let windows = crate::Platform::WindowsX86_64;
+                let executables = port
+                    .executable_hints
+                    .get(&windows)
+                    .into_iter()
+                    .flatten()
+                    .chain(
+                        port.release
+                            .user_prepared
+                            .get(&windows)
+                            .map(|spec| &spec.executable),
+                    )
+                    .collect::<Vec<_>>();
+                // A batch launcher's root is cmd.exe outside the installation;
+                // only a reviewed native Windows executable can own the handoff.
+                if !port.platforms.contains(&windows)
+                    || executables.is_empty()
+                    || executables.iter().any(|executable| {
+                        crate::LaunchKind::for_executable(std::path::Path::new(executable.as_str()))
+                            != crate::LaunchKind::Native
+                    })
+                {
+                    return Err(PortcoveError::usage(format!(
+                        "{} declares a Windows tracked handoff without a native Windows executable launch",
+                        port.id
+                    )));
+                }
+            }
+            if (port.runtime_stfs_package.is_some()
+                || port.source_profile.as_ref().is_some_and(|profile_id| {
+                    crate::source_inspection::stfs_content_declared(self, profile_id)
+                }))
+                && port.runtime_source_materialization
+                    != Some(RuntimeSourceMaterialization::StfsDirectory)
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} declares an STFS package without STFS extraction",
+                    port.id
+                )));
+            }
             if port.runtime_disc_image.is_some()
                 && port
                     .runtime_source_materialization
@@ -1532,6 +1753,26 @@ impl Catalog {
             {
                 return Err(PortcoveError::usage(format!(
                     "{} declares a disc image without disc-image unpacking",
+                    port.id
+                )));
+            }
+            // A header-optional source is only ever written without its header;
+            // copying it whole would hand the runtime a different file.
+            if self.snes_copier_header_profile(port) != SnesCopierHeaderUse::None
+                && port.runtime_source_materialization
+                    != Some(RuntimeSourceMaterialization::SnesHeaderless)
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} identifies copier-header-optional SNES sources without the snes-headerless materialization",
+                    port.id
+                )));
+            }
+            if port.runtime_rom_patch.is_some()
+                && port.runtime_source_materialization
+                    != Some(RuntimeSourceMaterialization::RomPatch)
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} declares a ROM patch without the rom-patch materialization",
                     port.id
                 )));
             }
@@ -1581,6 +1822,14 @@ impl Catalog {
                         )));
                     }
                 }
+                Some(RuntimeSourceMaterialization::RomPatch) => {
+                    if !rom_patch_declaration_is_valid(&self.document.source_profiles, port) {
+                        return Err(PortcoveError::usage(format!(
+                            "{} has an invalid ROM patch declaration",
+                            port.id
+                        )));
+                    }
+                }
                 Some(RuntimeSourceMaterialization::StfsDirectory) => {
                     if port.runtime_source_hashes.is_empty() {
                         return Err(PortcoveError::usage(format!(
@@ -1588,6 +1837,7 @@ impl Catalog {
                             port.id
                         )));
                     }
+                    self.validate_stfs_package(port)?;
                 }
                 Some(materialization) if !port.runtime_source_hashes.is_empty() => {
                     let exact_single_file_identity = matches!(
@@ -1597,6 +1847,7 @@ impl Catalog {
                             | RuntimeSourceMaterialization::RegaidenGbc
                             | RuntimeSourceMaterialization::GamecubeIso
                             | RuntimeSourceMaterialization::Ps2Iso
+                            | RuntimeSourceMaterialization::SnesHeaderless
                     ) && port
                         .runtime_source_filename
                         .as_ref()
@@ -1633,7 +1884,8 @@ impl Catalog {
                     }
                 }
                 None if !port.runtime_source_hashes.is_empty()
-                    && port.managed_initialization.is_none() =>
+                    && port.managed_initialization.is_none()
+                    && !crate::preparation::source::native_relative(port) =>
                 {
                     return Err(PortcoveError::usage(format!(
                         "{} has runtime source identities without materialization",
@@ -1711,7 +1963,8 @@ impl Catalog {
                         && matches_member;
                     let valid = valid
                         && (!relative_set
-                            || (port.managed_initialization.is_some()
+                            || ((port.managed_initialization.is_some()
+                                || crate::preparation::source::native_relative(port))
                                 && target.source_filenames.len() == 1
                                 && target.materialization == RuntimeSourceMaterialization::Copy
                                 && crate::archive::validate_relative_path(
@@ -1895,6 +2148,228 @@ fn is_safe_basename(value: &str) -> bool {
             .all(|component| matches!(component, Component::Normal(_)))
 }
 
+/// A ROM patch combines exactly one original and one patch, both members of the
+/// port's file-set source pinned to one accepted SHA-256, into one runtime file
+/// whose only runtime identity is the exact patched SHA-256.
+fn rom_patch_declaration_is_valid(
+    source_profiles: &[crate::SourceProfile],
+    port: &PortDefinition,
+) -> bool {
+    let (Some(patch), Some(filename)) = (&port.runtime_rom_patch, &port.runtime_source_filename)
+    else {
+        return false;
+    };
+    let names = |filenames: &[String]| {
+        filenames
+            .iter()
+            .map(|value| value.to_ascii_lowercase())
+            .collect::<HashSet<_>>()
+    };
+    let Some(profile) = port.source_profile.as_ref().and_then(|profile_id| {
+        source_profiles
+            .iter()
+            .find(|profile| profile.id == *profile_id)
+    }) else {
+        return false;
+    };
+    let member_is_pinned = |filenames: &[String], sha256: &str| {
+        !filenames.is_empty()
+            && filenames.iter().all(|value| is_safe_basename(value))
+            && is_sha256(sha256)
+            && profile.members.iter().any(|member| {
+                names(&member.accepted_filenames) == names(filenames)
+                    && member
+                        .accepted_sha256
+                        .iter()
+                        .any(|accepted| accepted.eq_ignore_ascii_case(sha256))
+            })
+    };
+    profile.kind == SourceKind::FileSet
+        && member_is_pinned(&patch.original_filenames, &patch.original_sha256)
+        && member_is_pinned(&patch.patch_filenames, &patch.patch_sha256)
+        && names(&patch.original_filenames).is_disjoint(&names(&patch.patch_filenames))
+        && port.runtime_source_hashes.len() == 1
+        && port
+            .runtime_source_hashes
+            .get(filename)
+            .is_some_and(|digest| is_sha256(digest))
+}
+
+/// Port whose file-set source the ROM patch fixtures rebind.
+#[cfg(test)]
+pub(crate) const ROM_PATCH_FIXTURE_PORT: &str = "g-diffuser";
+
+/// Schema-3 catalog document in which one staged-source port declares a complete
+/// ROM patch: its file-set identity holds exactly the original and the patch.
+#[cfg(test)]
+pub(crate) fn rom_patch_fixture_document(
+    original_sha256: &str,
+    patch_sha256: &str,
+    output_sha256: &str,
+) -> CatalogDocument {
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == ROM_PATCH_FIXTURE_PORT)
+        .unwrap();
+    let profile_id = port.source_profile.clone().unwrap();
+    port.runtime_source_set.clear();
+    port.runtime_source_filename = Some("game.sfc".into());
+    port.runtime_source_materialization = Some(RuntimeSourceMaterialization::RomPatch);
+    port.runtime_source_hashes =
+        std::collections::BTreeMap::from([("game.sfc".into(), output_sha256.into())]);
+    port.persistent_paths.push("game.sfc".into());
+    port.runtime_rom_patch = Some(crate::RomPatchProfile {
+        format: crate::RomPatchFormat::Bps,
+        original_filenames: vec!["original.sfc".into()],
+        original_sha256: original_sha256.into(),
+        patch_filenames: vec!["translation.bps".into()],
+        patch_sha256: patch_sha256.into(),
+    });
+    let member = |id: &str, filename: &str, sha256: &str| crate::SourceMemberIdentity {
+        id: id.into(),
+        label: format!("Fixture {id}"),
+        filenames: vec![filename.into()],
+        identities: vec![crate::DigestIdentity {
+            scope: crate::DigestScope::FileSetMember,
+            sha1: None,
+            sha256: Some(sha256.into()),
+            crc32: None,
+        }],
+    };
+    let identity = document
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .identities
+        .iter_mut()
+        .find(|identity| identity.id == profile_id)
+        .unwrap();
+    // The fixture rewrites exactly one representation; a catalog change that adds
+    // another must fail here rather than leave a member set the test did not mean.
+    assert_eq!(identity.variants.len(), 1, "{profile_id} variants");
+    assert_eq!(
+        identity.variants[0].representations.len(),
+        1,
+        "{profile_id} representations"
+    );
+    for variant in &mut identity.variants {
+        for representation in &mut variant.representations {
+            representation.kind = crate::SourceRepresentationKind::FileSet {
+                members: vec![
+                    member("original", "original.sfc", original_sha256),
+                    member("patch", "translation.bps", patch_sha256),
+                ],
+            };
+        }
+    }
+    document
+}
+
+impl Catalog {
+    /// The STFS binding's own limits, and its agreement with a content identity: such an
+    /// identity is admitted only for a port that binds the same titles and content types.
+    fn validate_stfs_package(&self, port: &PortDefinition) -> Result<()> {
+        let invalid = || {
+            PortcoveError::usage(format!(
+                "{} has an invalid STFS package declaration",
+                port.id
+            ))
+        };
+        if let Some(package) = &port.runtime_stfs_package {
+            let unique =
+                |values: &[String]| values.iter().collect::<HashSet<_>>().len() == values.len();
+            if package.title_ids.is_empty()
+                || package.title_ids.len() > 16
+                || !unique(&package.title_ids)
+                || !package
+                    .title_ids
+                    .iter()
+                    .all(|title| crate::source_catalog::is_stfs_header_value(title))
+                || package.content_types.is_empty()
+                || !unique(&package.content_types)
+                || !package.content_types.iter().all(|kind| {
+                    crate::source_catalog::STFS_ACCEPTED_CONTENT_TYPES.contains(&kind.as_str())
+                })
+                || package.max_package_bytes == 0
+                || package.max_package_bytes > crate::stfs::MAX_PACKAGE_BYTES
+            {
+                return Err(invalid());
+            }
+        }
+        let Some(profile_id) = &port.source_profile else {
+            return Ok(());
+        };
+        let content = self
+            .source_catalog()
+            .into_iter()
+            .flat_map(|catalog| &catalog.identities)
+            .filter(|profile| profile.id == *profile_id)
+            .flat_map(|profile| &profile.variants)
+            .filter(|variant| !variant.legacy_projection_only)
+            .flat_map(|variant| &variant.representations)
+            .filter_map(|representation| match &representation.kind {
+                crate::SourceRepresentationKind::StfsContent {
+                    title_ids,
+                    content_types,
+                    ..
+                } => Some((title_ids, content_types)),
+                _ => None,
+            });
+        for (title_ids, content_types) in content {
+            let Some(package) = &port.runtime_stfs_package else {
+                return Err(PortcoveError::usage(format!(
+                    "{} uses an STFS content identity without an STFS package declaration",
+                    port.id
+                )));
+            };
+            if !title_ids
+                .iter()
+                .all(|title| package.title_ids.contains(title))
+                || !content_types
+                    .iter()
+                    .all(|kind| package.content_types.contains(kind))
+            {
+                return Err(invalid());
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Reviewed release uploaders are GitHub account identities: unique, positive
+/// safe-integer IDs with the reviewed login, on a GitHub-provider route. GitHub's
+/// shared deleted-account placeholder (ID 10137) identifies no one.
+fn validate_accepted_uploaders(port: &PortDefinition) -> Result<()> {
+    let accepted = &port.release.accepted_uploaders;
+    if accepted.is_empty() {
+        return Ok(());
+    }
+    let mut ids = HashSet::new();
+    let valid = port.release.provider == ReleaseSource::Github
+        && accepted.iter().all(|uploader| {
+            uploader.id > 0
+                && uploader.id != 10_137
+                && uploader.id <= 9_007_199_254_740_991
+                && ids.insert(uploader.id)
+                && !uploader.login.is_empty()
+                && uploader.login.len() <= 64
+                && uploader
+                    .login
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || b"-[]".contains(&byte))
+        });
+    if valid {
+        Ok(())
+    } else {
+        Err(PortcoveError::usage(format!(
+            "{} declares invalid accepted release uploaders",
+            port.id
+        )))
+    }
+}
+
 /// A named portable marker is one plain file name that the port also declares persistent,
 /// because the engine keeps its own configuration in it.
 fn validate_portable_marker_file(port: &PortDefinition) -> Result<()> {
@@ -1990,7 +2465,146 @@ mod tests {
         }));
     }
 
+    #[test]
+    fn accepted_release_uploaders_are_unique_github_account_identities() {
+        let mut base = Catalog::embedded()
+            .unwrap()
+            .port("shipwright")
+            .unwrap()
+            .clone();
+        assert_eq!(base.release.provider, ReleaseSource::Github);
+        let uploader = |id: u64, login: &str| crate::AcceptedUploader {
+            id,
+            login: login.into(),
+        };
+        base.release.accepted_uploaders = vec![
+            uploader(7, "reviewed-maintainer"),
+            uploader(8, "release-app[bot]"),
+        ];
+        assert!(validate_accepted_uploaders(&base).is_ok());
+        let refused = |change: &dyn Fn(&mut PortDefinition)| {
+            let mut port = base.clone();
+            change(&mut port);
+            let error = validate_accepted_uploaders(&port).unwrap_err();
+            assert!(error.message.contains("invalid accepted release uploaders"));
+        };
+        refused(&|port| port.release.provider = ReleaseSource::Gitlab);
+        refused(&|port| port.release.provider = ReleaseSource::DirectManifest);
+        refused(&|port| port.release.accepted_uploaders[0].id = 0);
+        refused(&|port| port.release.accepted_uploaders[0].id = 9_007_199_254_740_992);
+        refused(&|port| port.release.accepted_uploaders[0].id = 10_137);
+        refused(&|port| port.release.accepted_uploaders[1].id = 7);
+        refused(&|port| port.release.accepted_uploaders[0].login.clear());
+        refused(&|port| port.release.accepted_uploaders[0].login = "x".repeat(65));
+        for login in ["name with space", "caf\u{e9}", "a/b", "a.b"] {
+            refused(&|port| port.release.accepted_uploaders[0].login = login.into());
+        }
+        // Without the field, any provider remains valid.
+        let mut direct = base.clone();
+        direct.release.accepted_uploaders.clear();
+        direct.release.provider = ReleaseSource::DirectManifest;
+        assert!(validate_accepted_uploaders(&direct).is_ok());
+        // The catalog's own validation applies the rule.
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "shipwright")
+            .unwrap()
+            .release
+            .accepted_uploaders = vec![uploader(0, "zero")];
+        assert!(Catalog::from_document(document).is_err());
+    }
+
     use super::*;
+
+    #[test]
+    fn updater_switch_routes_pass_their_complete_upstream_switch() {
+        // The managed route is safe only while the game starts with this switch.
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("blacklabelhq-medievilrecomp").unwrap();
+        assert_eq!(port.launch_arguments, ["--disable-updated"]);
+        let port = catalog.port("opencommunityedition-opence").unwrap();
+        assert_eq!(
+            port.launch_environment
+                .get("HALO_UPDATE_AUTO")
+                .map(String::as_str),
+            Some("false")
+        );
+        assert_eq!(
+            port.launch_environment
+                .get("HALO_SERVER_AUTO_UPDATE")
+                .map(String::as_str),
+            Some("off")
+        );
+    }
+
+    #[test]
+    fn windows_tracked_handoff_is_opt_in_and_requires_a_native_windows_executable() {
+        let catalog = Catalog::embedded().unwrap();
+        // Only reviewed routes opt in; every other embedded port keeps the
+        // original child as its whole session.
+        assert_eq!(
+            catalog
+                .ports()
+                .iter()
+                .filter(|port| port.windows_tracked_handoff)
+                .map(|port| port.id.as_str())
+                .collect::<std::collections::BTreeSet<_>>(),
+            std::collections::BTreeSet::from([
+                "bstoney-yt-mercenaries-2-decompilation",
+                "cdlewis-snowboardkids-recomp",
+                "darkuni-afterburner-climax-recomp",
+                "goldeneye-007-n64-pc-port",
+                "monster-hunter-portable-3rd-hd-yakumo",
+                "opencommunityedition-opence",
+                "snap64-recomp",
+                "vibecodekun-shantaerecomp",
+            ])
+        );
+        let parse = |edit: &dyn Fn(&mut PortDefinition)| {
+            let mut document = catalog.authoritative_document();
+            let port = document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == "zelda64-recomp")
+                .unwrap();
+            port.windows_tracked_handoff = true;
+            edit(port);
+            Catalog::from_json(&serde_json::to_string(&document).unwrap())
+        };
+        let accepted = parse(&|_| {}).unwrap();
+        let port = accepted.port("zelda64-recomp").unwrap();
+        assert!(port.windows_tracked_handoff);
+        assert_eq!(
+            serde_json::to_value(port).unwrap()["windows_tracked_handoff"],
+            serde_json::json!(true)
+        );
+        assert!(
+            serde_json::to_value(catalog.port("zelda64-recomp").unwrap())
+                .unwrap()
+                .get("windows_tracked_handoff")
+                .is_none()
+        );
+        let batch = parse(&|port| {
+            port.executable_hints
+                .insert(Platform::WindowsX86_64, vec!["launch.bat".into()]);
+        })
+        .unwrap_err();
+        assert!(
+            batch.message.contains("Windows tracked handoff"),
+            "{}",
+            batch.message
+        );
+        assert!(
+            parse(&|port| {
+                port.platforms
+                    .retain(|platform| *platform != Platform::WindowsX86_64);
+                port.executable_hints.remove(&Platform::WindowsX86_64);
+            })
+            .is_err()
+        );
+    }
 
     #[test]
     fn bstone_original_offers_keep_complete_editions_and_native4_coordinates_separate() {
@@ -2339,6 +2953,22 @@ mod tests {
             std::fs::write(&path, bytes).unwrap();
             assert!(Catalog::inspect_proposal(&path).is_err());
         }
+        // Past the catalog read bound the file is refused before it is read
+        // whole, never truncated to a parsable prefix.
+        let padded = |length: usize| {
+            let mut bytes = EMBEDDED_CATALOG.to_owned();
+            bytes.push_str(&" ".repeat(length - bytes.len()));
+            bytes
+        };
+        std::fs::write(
+            &path,
+            padded(crate::signed_catalog::LEGACY_MAX_CATALOG_BYTES + 1),
+        )
+        .unwrap();
+        Catalog::inspect_proposal(&path).unwrap();
+        std::fs::write(&path, padded(crate::signed_catalog::MAX_CATALOG_BYTES + 1)).unwrap();
+        let error = Catalog::inspect_proposal(&path).unwrap_err();
+        assert!(error.message.contains("bounded regular file"), "{error:?}");
     }
 
     const SCHEMA_1_ADMISSION_BASELINE: &str =
@@ -2379,6 +3009,13 @@ mod tests {
         ] {
             assert!(!ids.is_empty());
             assert_eq!(ids.iter().collect::<HashSet<_>>().len(), ids.len());
+            // Ascending order lets concurrent additions merge instead of colliding at the end.
+            if let Some(pair) = ids.windows(2).find(|pair| pair[0] >= pair[1]) {
+                panic!(
+                    "keep reviewed legacy addition IDs in ascending order; move {:?} before {:?}",
+                    pair[1], pair[0]
+                );
+            }
             for id in ids {
                 assert!(
                     id.split('-').all(|part| !part.is_empty()
@@ -2590,6 +3227,64 @@ mod tests {
     }
 
     #[test]
+    fn sonic1_v120_settings_files_are_an_additive_data_policy_successor() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("sonic-the-hedgehog-recomp").unwrap();
+        let added = [
+            "sonic1-sound.ini",
+            "sonic1-bug-fixes.ini",
+            "sonic1-easy-access.ini",
+        ];
+        // The settings files are appended, so existing installations keep
+        // their namespace and adopt the files from their active runtime.
+        let predecessor = crate::archive_data::lineage_member_with_paths(
+            port,
+            &port.persistent_paths[..port.persistent_paths.len() - added.len()],
+        )
+        .unwrap();
+        assert_eq!(
+            crate::archive_data::added_paths(&predecessor, port)
+                .unwrap()
+                .unwrap(),
+            added
+        );
+        assert_eq!(
+            predecessor
+                .archive_data_compatibility_v1
+                .as_ref()
+                .unwrap()
+                .shared_paths,
+            ["game.bin", "settings.ini", "rom-Sonic1.cfg"]
+        );
+        // The reviewed packages stay first; v1.2.0 is appended.
+        let contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| contract.id == "sonic-the-hedgehog-recomp-game-source")
+            .unwrap();
+        assert_eq!(
+            contract
+                .applicability
+                .iter()
+                .map(|binding| binding.upstream_ref.as_str())
+                .collect::<Vec<_>>(),
+            ["v0.6.0", "v0.7.3", "v0.8.3", "v1.2.0"]
+        );
+        assert_eq!(
+            contract.applicability[3].artifact_sha256.as_deref(),
+            Some("fa01c42f2e04251e8fbce5c4bd2ec7ff75c2c8b8f3e01df1cf265b08c6c6c3c2")
+        );
+        assert!(
+            contract
+                .evidence_ids
+                .iter()
+                .any(|id| id == "sonic-the-hedgehog-recomp-1-2-0-source-contract")
+        );
+    }
+
+    #[test]
     fn managed_snes_genesis_routes_pin_source_copies_without_inheriting_gameplay() {
         let catalog = Catalog::embedded().unwrap();
         for (id, filename, original_sha256) in [
@@ -2638,11 +3333,13 @@ mod tests {
                 Some(filename),
                 "{id}"
             );
-            assert_eq!(
-                port.runtime_source_materialization,
-                Some(RuntimeSourceMaterialization::Copy),
-                "{id}"
-            );
+            // SNES dumps may carry a copier header; the runtime gets the content.
+            let expected = if filename.ends_with(".sfc") {
+                RuntimeSourceMaterialization::SnesHeaderless
+            } else {
+                RuntimeSourceMaterialization::Copy
+            };
+            assert_eq!(port.runtime_source_materialization, Some(expected), "{id}");
             assert!(
                 port.persistent_paths.iter().any(|path| path == filename),
                 "{id}"
@@ -2658,7 +3355,10 @@ mod tests {
             );
             assert_eq!(
                 port.presentation.as_ref().unwrap().manual_setup.is_some(),
-                matches!(id, "dkc3-recomp" | "sonic-3-and-knuckles-recomp"),
+                matches!(
+                    id,
+                    "dkc3-recomp" | "sonic-3-and-knuckles-recomp" | "super-mario-world-recomp"
+                ),
                 "{id}"
             );
             assert!(port.automated_tested_platforms.is_empty(), "{id}");
@@ -2710,6 +3410,43 @@ mod tests {
         ] {
             assert!(sonic2.persistent_paths.iter().any(|path| path == campaign));
         }
+        // v0.9.23's default-on replay recorder is disposable diagnostics:
+        // adding a persistent path would hold receipt-governed installations.
+        assert!(
+            sonic2
+                .runtime_mutable_paths
+                .iter()
+                .any(|path| path == "logs")
+        );
+        assert!(!sonic2.persistent_paths.iter().any(|path| path == "logs"));
+        // The reviewed v0.8.3 package stays first; v0.9.23 is appended.
+        let sonic2_contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| contract.id == "sonic-the-hedgehog-2-recomp-game-source")
+            .unwrap();
+        assert_eq!(
+            sonic2_contract
+                .applicability
+                .iter()
+                .map(|binding| (
+                    binding.upstream_ref.as_str(),
+                    binding.artifact_sha256.as_deref().unwrap()
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    "v0.8.3",
+                    "c526ad6fbdbcc83619e0daf8711a7c09699d63541003be4cc4bbdef11877901f"
+                ),
+                (
+                    "v0.9.23",
+                    "d6c19d29efa7578afd3468b61495f164358e5bf828ed09fb3e990c10518fd5dc"
+                ),
+            ]
+        );
         assert_eq!(
             serde_json::to_value(&sonic2.persistent_file_patterns).unwrap(),
             serde_json::json!([
@@ -2717,6 +3454,187 @@ mod tests {
                 {"prefix": "sonic2-campaign.sav.", "suffix": ".tmp"}
             ])
         );
+    }
+
+    #[test]
+    fn mstan_snes_bindings_append_newest_releases_without_the_preloaded_mod_state() {
+        let catalog = Catalog::embedded().unwrap();
+        let sources = catalog.source_catalog().unwrap();
+        let bindings = |id: &str| {
+            sources
+                .contracts
+                .iter()
+                .find(|contract| contract.id == id)
+                .unwrap()
+                .applicability
+                .iter()
+                .map(|binding| {
+                    (
+                        binding.upstream_ref.as_str(),
+                        binding.artifact_sha256.as_deref().unwrap(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        // Super Mario World v0.15.9 and A Link to the Past v0.6.6 move their
+        // mod selection to mods/preloaded/state.toml. Declaring it would widen
+        // the persistence scope in every existing ready-archive receipt, and
+        // managed play skips the launcher, so it never changes the selection
+        // from the package default. The newest packages are appended after the
+        // reviewed ones and the pair is declared as disposable runtime output.
+        for (id, contract, rows, evidence) in [
+            (
+                "super-mario-world-recomp",
+                "super-mario-world-recomp-game-source",
+                [
+                    (
+                        "v0.12.0",
+                        "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
+                    ),
+                    (
+                        "v0.15.9",
+                        "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82",
+                    ),
+                    (
+                        "v0.15.10",
+                        "d85a36e2c59d67685a26cb4fa0835079ff732e11720eb080ec0aa74fe09126dc",
+                    ),
+                ]
+                .as_slice(),
+                [
+                    "super-mario-world-recomp-0-12-0-source-contract",
+                    "super-mario-world-recomp-0-15-9-source-contract",
+                    "super-mario-world-recomp-0-15-10-source-contract",
+                ]
+                .as_slice(),
+            ),
+            (
+                "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+                "the-legend-of-zelda-a-link-to-the-past-snes-recomp-game-source",
+                [
+                    (
+                        "v0.6.1",
+                        "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
+                    ),
+                    (
+                        "v0.6.6",
+                        "53b613b86e87bfacc8462f485047c7fd22f82886dac69087aa0f0ef15eca7be2",
+                    ),
+                ]
+                .as_slice(),
+                [
+                    "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-1-source-contract",
+                    "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-6-source-contract",
+                ]
+                .as_slice(),
+            ),
+        ] {
+            let port = catalog.port(id).unwrap();
+            assert!(
+                !port
+                    .persistent_paths
+                    .iter()
+                    .any(|path| path.starts_with("mods/preloaded")),
+                "{id}"
+            );
+            for path in ["mods/state.toml", "mods/state.toml.tmp"] {
+                assert!(
+                    port.persistent_paths.iter().any(|p| p == path),
+                    "{id}: {path}"
+                );
+            }
+            for path in ["mods/preloaded/state.toml", "mods/preloaded/state.toml.tmp"] {
+                assert!(
+                    port.runtime_mutable_paths.iter().any(|p| p == path),
+                    "{id}: {path}"
+                );
+            }
+            assert!(port.archive_data_compatibility_v1.is_none(), "{id}");
+            assert!(port.managed_acquisition_hold.is_none(), "{id}");
+            assert_eq!(bindings(contract), rows, "{id}");
+            let contract = sources
+                .contracts
+                .iter()
+                .find(|candidate| candidate.id == contract)
+                .unwrap();
+            assert_eq!(contract.evidence_ids, evidence, "{id}");
+        }
+        // Super Metroid v0.4.5 keeps the v0.4.2 writer set and is appended after
+        // the reviewed packages; its partitioned data policy is unchanged.
+        let metroid = catalog.port("super-metroid-recomp").unwrap();
+        assert!(metroid.archive_data_compatibility_v1.is_some());
+        assert_eq!(
+            bindings("super-metroid-recomp-game-source"),
+            [
+                (
+                    "v0.3.12",
+                    "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9",
+                ),
+                (
+                    "v0.4.2",
+                    "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531",
+                ),
+                (
+                    "v0.4.5",
+                    "337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314",
+                ),
+            ]
+        );
+        // The v0.4.6 artifacts are excluded because relaunch can create an
+        // untracked successor process.
+        let hold = metroid.managed_acquisition_hold.as_ref().unwrap();
+        assert_eq!(hold.excluded_artifacts.len(), 4);
+        assert!(
+            hold.excluded_artifacts
+                .iter()
+                .all(|artifact| artifact.version == "v0.4.6")
+        );
+        // The Windows packages plus each release's published Linux and Mac
+        // siblings, all matching their release SHA256SUMS.
+        assert_eq!(
+            hold.reviewed_artifacts
+                .iter()
+                .map(|artifact| (artifact.version.as_str(), artifact.sha256.as_str()))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    "v0.4.2",
+                    "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531",
+                ),
+                (
+                    "v0.4.2",
+                    "b2fbc6a301edaab07efd8d52a2b17ea098e4f890d6f6308056c9ce6395acee5a",
+                ),
+                (
+                    "v0.4.2",
+                    "a0b9faa72f8bad0e12d7f9ff49541c0088478f7e79d56ebfaccf8fcd8dfc89a2",
+                ),
+                (
+                    "v0.4.2",
+                    "2e283b20410edb61df3fff7805c06af3bfbeaa842ccf17666d1f59462f7c79f8",
+                ),
+                (
+                    "v0.4.5",
+                    "337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314",
+                ),
+                (
+                    "v0.4.5",
+                    "72e6d67a0de4115a1bd943cd33d9e2e2a282315b6f6bd84199c0d05b83f65cbe",
+                ),
+                (
+                    "v0.4.5",
+                    "938499cd2e2ac3e511e8295cd94f51e0bbcb7315f9dc62cd7073818df4987c14",
+                ),
+                (
+                    "v0.4.5",
+                    "08dbb8cc0eba47bd42a3311bb92d3b695a7339ef37be77c3a45e7f69cc8c9946",
+                ),
+            ]
+        );
+        assert!(hold.reason.contains("Exit, not Quit to launcher"));
+        assert!(!hold.reviewed_artifacts.iter().any(|artifact| {
+            artifact.sha256 == "9a765fdc4ce80ac9cf6147f776f98220b7013ed36210e71f4053463496ec8429"
+        }));
     }
 
     #[test]
@@ -2775,7 +3693,24 @@ mod tests {
             port.executable_hints[&Platform::WindowsX86_64],
             ["FZeroSNESRecomp.exe"]
         );
-        assert!(port.presentation.as_ref().unwrap().manual_setup.is_none());
+        let guide = port
+            .presentation
+            .as_ref()
+            .unwrap()
+            .manual_setup
+            .as_ref()
+            .unwrap();
+        assert_eq!(
+            guide.help_url.as_deref(),
+            Some("https://github.com/RetroPortingToolKit/F-ZeroForever/releases/tag/v1.8.3")
+        );
+        let hold = port.managed_acquisition_hold.as_ref().unwrap();
+        assert_eq!(hold.reviewed_artifacts.len(), 1);
+        assert_eq!(hold.reviewed_artifacts[0].version, "v1.8.3");
+        assert_eq!(
+            hold.reviewed_artifacts[0].sha256,
+            "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658"
+        );
         assert!(port.automated_tested_platforms.is_empty());
         assert!(port.manually_validated_platforms.is_empty());
         assert_eq!(
@@ -2793,7 +3728,7 @@ mod tests {
         assert_eq!(port.runtime_source_filename.as_deref(), Some("fzero.sfc"));
         assert_eq!(
             port.runtime_source_materialization,
-            Some(RuntimeSourceMaterialization::Copy)
+            Some(RuntimeSourceMaterialization::SnesHeaderless)
         );
         assert_eq!(
             port.runtime_source_hashes["fzero.sfc"],
@@ -2804,10 +3739,7 @@ mod tests {
         assert_eq!(port.release.provider, ReleaseSource::Github);
         assert!(port.release.user_prepared.is_empty());
         assert!(port.release.direct.is_empty());
-        assert_eq!(
-            port.release.repository,
-            "RetroPortingToolKit/FZeroSNESRecomp"
-        );
+        assert_eq!(port.release.repository, "RetroPortingToolKit/F-ZeroForever");
         assert_eq!(
             port.release.asset_hints[&Platform::WindowsX86_64],
             ["FZeroSNESRecomp-", "-windows-x64.zip"]
@@ -2883,7 +3815,7 @@ mod tests {
             crate::QualificationEvidenceState::Missing
         );
         let profile = catalog.source_profile("f-zero-snes-usa").unwrap();
-        assert_eq!(profile.accepted_extensions, ["sfc"]);
+        assert_eq!(profile.accepted_extensions, ["sfc", "smc"]);
         assert_eq!(
             profile.accepted_sha1,
             ["d3efd32b68f1fe37a82db9d9929b7ca7cc1a3af4"]
@@ -3014,7 +3946,7 @@ mod tests {
             crate::QualificationEvidenceState::Missing
         );
         let profile = catalog.source_profile("f-zero-snes-usa").unwrap();
-        assert_eq!(profile.accepted_extensions, ["sfc"]);
+        assert_eq!(profile.accepted_extensions, ["sfc", "smc"]);
         assert_eq!(
             profile.accepted_sha1,
             ["d3efd32b68f1fe37a82db9d9929b7ca7cc1a3af4"]
@@ -3026,7 +3958,7 @@ mod tests {
     }
 
     #[test]
-    fn f_zero_snes_recomp_source_binding_admits_only_exact_raw_sfc() {
+    fn f_zero_snes_recomp_admits_its_content_with_or_without_a_copier_header() {
         let mut document = Catalog::embedded().unwrap().authoritative_document();
         let profile = document
             .source_catalog
@@ -3036,26 +3968,44 @@ mod tests {
             .iter_mut()
             .find(|profile| profile.id == "f-zero-snes-usa")
             .unwrap();
-        let crate::SourceRepresentationKind::RawFile { identities } =
+        let crate::SourceRepresentationKind::SnesCopierHeaderOptional { identities } =
             &mut profile.variants[0].representations[0].kind
         else {
-            panic!("F-Zero uses an exact original file, not N64 normalization")
+            panic!("F-Zero identifies its SNES content with an optional copier header")
         };
-        // Exercise this binding with redistributable bytes, never a game ROM.
-        let bytes = b"synthetic headerless source fixture";
-        identities[0].sha1 = Some(hex::encode(sha1::Sha1::digest(bytes)));
-        identities[0].sha256 = Some(hex::encode(Sha256::digest(bytes)));
+        // Exercise this binding with redistributable bytes, never a game ROM. The
+        // content is a whole number of KiB, like a cartridge dump.
+        let content = (0..2048_u32).map(|index| index as u8).collect::<Vec<_>>();
+        identities[0].sha1 = Some(hex::encode(sha1::Sha1::digest(&content)));
+        identities[0].sha256 = Some(hex::encode(Sha256::digest(&content)));
         let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
         let temporary = tempfile::tempdir().unwrap();
-        let source = temporary.path().join("owned.sfc");
-        std::fs::write(&source, bytes).unwrap();
-        let admitted = crate::source_inspection::inspect(&catalog, "f-zero-snes-usa", &source)
-            .unwrap()
-            .require_admitted_record()
-            .unwrap();
-        assert_eq!(admitted.size, bytes.len() as u64);
+        for (name, bytes) in [
+            ("owned.sfc", content.clone()),
+            ("owned.smc", [vec![0xA5_u8; 512], content.clone()].concat()),
+        ] {
+            let source = temporary.path().join(name);
+            std::fs::write(&source, &bytes).unwrap();
+            let admitted = crate::source_inspection::inspect(&catalog, "f-zero-snes-usa", &source)
+                .unwrap()
+                .require_admitted_record()
+                .unwrap();
+            // The record keeps the file's own identity; only matching ignores the header.
+            assert_eq!(admitted.size, bytes.len() as u64, "{name}");
+            assert_eq!(
+                admitted.sha256,
+                hex::encode(Sha256::digest(&bytes)),
+                "{name}"
+            );
+        }
+        let source = temporary.path().join("changed.sfc");
         for changed in [
-            [vec![0_u8; 512], bytes.to_vec()].concat(),
+            // Not 512 more than a multiple of 1024, so no header is recognized.
+            [vec![0_u8; 511], content.clone()].concat(),
+            [vec![0_u8; 1024], content.clone()].concat(),
+            // Two headers are not one header.
+            [vec![0_u8; 1536], content.clone()].concat(),
+            [content.clone(), vec![0_u8; 512]].concat(),
             b"synthetic changed source fixture".to_vec(),
         ] {
             std::fs::write(&source, changed).unwrap();
@@ -3066,6 +4016,40 @@ mod tests {
                     .is_err()
             );
         }
+    }
+
+    #[test]
+    fn copier_header_profiles_require_the_headerless_materialization() {
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "f-zero-snes-recomp")
+            .unwrap();
+        port.runtime_source_materialization = Some(RuntimeSourceMaterialization::Copy);
+        let error = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
+        assert!(
+            error.message.contains("snes-headerless"),
+            "{}",
+            error.message
+        );
+        // Any other scope would identify whole files under the optional-header kind.
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let profile = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .identities
+            .iter_mut()
+            .find(|profile| profile.id == "f-zero-snes-usa")
+            .unwrap();
+        let crate::SourceRepresentationKind::SnesCopierHeaderOptional { identities } =
+            &mut profile.variants[0].representations[0].kind
+        else {
+            panic!("F-Zero identifies its SNES content with an optional copier header")
+        };
+        identities[0].scope = crate::DigestScope::OriginalFile;
+        assert!(Catalog::from_json(&serde_json::to_string(&document).unwrap()).is_err());
     }
 
     #[cfg(feature = "qualification-fixtures")]
@@ -3182,6 +4166,8 @@ mod tests {
         );
         nookery.name = "Animal Crossing — Nookery".into();
         nookery.project_url = "https://github.com/flyngmt/Nookery".into();
+        assert_eq!(nookery.release.repository, "flyngmt/ACGC-PC-Port");
+        nookery.release.repository = "flyngmt/Nookery".into();
         let shipwright = expected_ports
             .iter_mut()
             .find(|port| port.id == "shipwright")
@@ -3521,6 +4507,62 @@ mod tests {
         assert_eq!(mk4.release.repository, "Alexbeav/mortal-kombat-4-recomp");
         mk4.project_url = "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp".into();
         mk4.release.repository = "alexbeavs-ps1-ports/mortal-kombat-4-recomp".into();
+        // The PSXRecomp 031868cc v0.3.6 kits use the reviewed managed PS1
+        // layout: split player mod paths, the runtime writer set and
+        // `--no-launcher`. No current writer uses the frozen `config` and
+        // `*.json` paths. Installations keep their retained definitions.
+        assert!(mk4.persistent_paths.iter().any(|path| path == "mods"));
+        mk4.persistent_paths = [
+            "saves",
+            "settings.toml",
+            "settings.toml.bad",
+            "input.ini",
+            "keybinds.ini",
+            "config.ini",
+            "disc.cfg",
+            "bios.cfg",
+            "mods/installed",
+            "mods/packages",
+            "mods/.staging",
+            "mods/state.toml",
+            "mods/state.toml.tmp",
+            "mods/texture-packs",
+            "overlay-captures",
+            "overlay_captures.json",
+            "overlay_captures.json.d",
+            "overlay_captures.addendum.jsonl",
+            "diagnostics-location.txt",
+        ]
+        .map(String::from)
+        .to_vec();
+        assert!(mk4.runtime_mutable_paths.is_empty());
+        mk4.runtime_mutable_paths = [
+            "cache",
+            "psx_freeze_heartbeat.json",
+            "psx_freeze_heartbeat.json.tmp",
+            "psx_last_run_report.json",
+            "psx_cps_exit_trace.json",
+            "netplay_lan_lobby.txt",
+            "psx_crash.txt",
+        ]
+        .map(String::from)
+        .to_vec();
+        mk4.runtime_mutable_file_patterns = [
+            ("psx_freeze_dump_psx-runtime_", ".json"),
+            ("overlay_captures.json.", ".tmp"),
+        ]
+        .map(|(prefix, suffix)| crate::PersistentFilePattern {
+            prefix: prefix.into(),
+            suffix: suffix.into(),
+            allow_empty_middle: false,
+        })
+        .to_vec();
+        mk4.launch_environment = [(
+            "PSX_OVERLAY_CAPTURES".to_owned(),
+            "build-portcove/overlay-captures/overlay_captures.json".to_owned(),
+        )]
+        .into();
+        mk4.launch_arguments = vec!["--no-launcher".into()];
         for (id, hint) in [
             ("zelda64-recomp", "Linux-X64.zip"),
             ("banjo-recomp", "Linux-X64."),
@@ -4472,12 +5514,19 @@ mod tests {
             contract.authority_ref,
             "42bf10065362daf91a77089a9f5c8147dae60de0"
         );
-        assert_eq!(contract.applicability.len(), 1);
+        // The historical v1.4.3 binding stays first; the exact v1.4.9 package
+        // of the current executable-parent route is appended after it.
+        assert_eq!(contract.applicability.len(), 2);
         assert_eq!(
             contract.applicability[0].artifact_sha256.as_deref(),
             Some(release.sha256.as_str())
         );
         assert_eq!(contract.applicability[0].upstream_ref, "v1.4.3");
+        assert_eq!(contract.applicability[1].upstream_ref, "v1.4.9");
+        assert_eq!(
+            contract.applicability[1].artifact_sha256.as_deref(),
+            Some("74948ebc0dbfd37c95ce5468b9b49dc277098c5141f66d44449ccb33d4b71594")
+        );
         assert!(
             !sources
                 .qualification
@@ -5070,6 +6119,305 @@ mod tests {
         );
     }
 
+    fn stfs_binding_catalog(mutate: impl FnOnce(&mut PortDefinition)) -> Result<Catalog> {
+        let mut document = Catalog::embedded().unwrap().document().clone();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "nocturne-recomp")
+            .unwrap();
+        port.runtime_stfs_package = Some(crate::StfsPackageProfile {
+            content_types: vec!["000D0000".into()],
+            title_ids: vec!["58410A6B".into()],
+            max_package_bytes: 256 * 1024 * 1024,
+        });
+        mutate(port);
+        Catalog::from_document(document)
+    }
+
+    #[test]
+    fn stfs_package_bindings_are_bounded_and_only_valid_with_stfs_extraction() {
+        stfs_binding_catalog(|_| {}).unwrap();
+        type Edit = fn(&mut PortDefinition);
+        let cases: [(&str, Edit); 9] = [
+            ("no titles", |port| {
+                port.runtime_stfs_package
+                    .as_mut()
+                    .unwrap()
+                    .title_ids
+                    .clear()
+            }),
+            ("lowercase title", |port| {
+                port.runtime_stfs_package.as_mut().unwrap().title_ids = vec!["58410a6b".into()]
+            }),
+            ("short title", |port| {
+                port.runtime_stfs_package.as_mut().unwrap().title_ids = vec!["58410A6".into()]
+            }),
+            ("duplicate title", |port| {
+                port.runtime_stfs_package.as_mut().unwrap().title_ids =
+                    vec!["58410A6B".into(), "58410A6B".into()]
+            }),
+            ("title update", |port| {
+                port.runtime_stfs_package.as_mut().unwrap().content_types = vec!["000B0000".into()]
+            }),
+            ("no content type", |port| {
+                port.runtime_stfs_package
+                    .as_mut()
+                    .unwrap()
+                    .content_types
+                    .clear()
+            }),
+            ("zero bound", |port| {
+                port.runtime_stfs_package
+                    .as_mut()
+                    .unwrap()
+                    .max_package_bytes = 0
+            }),
+            ("oversized bound", |port| {
+                port.runtime_stfs_package
+                    .as_mut()
+                    .unwrap()
+                    .max_package_bytes = 17 * 1024 * 1024 * 1024
+            }),
+            ("without stfs extraction", |port| {
+                port.runtime_source_materialization = Some(RuntimeSourceMaterialization::Copy)
+            }),
+        ];
+        for (label, edit) in cases {
+            assert!(stfs_binding_catalog(edit).is_err(), "{label}");
+        }
+    }
+
+    #[test]
+    fn a_content_identity_requires_a_matching_port_binding() {
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let profile = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .identities
+            .iter_mut()
+            .find(|profile| profile.id == "sotn-xbla")
+            .unwrap();
+        let mut variant = profile.variants[0].clone();
+        variant.id = "content-identity".into();
+        variant.representations[0].id = "stfs-content".into();
+        variant.representations[0].kind = crate::SourceRepresentationKind::StfsContent {
+            package_types: vec![crate::StfsPackageType::Live, crate::StfsPackageType::Pirs],
+            title_ids: vec!["58410A6B".into()],
+            content_types: vec!["000D0000".into()],
+            members: vec![crate::StfsContentMember {
+                path: "default.xex".into(),
+                sha256: "26a58b074c5dd6185b77a8111a0012866d11cba674b4b0810d79dbf07ad68aa6".into(),
+            }],
+        };
+        profile.variants.push(variant);
+        let with_binding = |title: Option<&str>| {
+            let mut document = document.clone();
+            let port = document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == "nocturne-recomp")
+                .unwrap();
+            port.runtime_stfs_package = title.map(|title| crate::StfsPackageProfile {
+                content_types: vec!["000D0000".into()],
+                title_ids: vec![title.into()],
+                max_package_bytes: 256 * 1024 * 1024,
+            });
+            Catalog::from_json(&serde_json::to_string(&document).unwrap())
+        };
+        assert!(with_binding(None).is_err());
+        assert!(with_binding(Some("58410A6C")).is_err());
+        let catalog = with_binding(Some("58410A6B")).unwrap();
+        // The content identity projects no digest into the compatibility profile, so the
+        // exact NocturneRecomp package identity is unchanged.
+        assert_eq!(
+            catalog.source_profile("sotn-xbla").unwrap().accepted_sha256,
+            ["efb36098df070c0ddd9e1058ee0c0e1570748b62d0ef93fc691b4c52798bd17c"]
+        );
+
+        for (label, edit) in [
+            (
+                "no members",
+                (|members: &mut Vec<crate::StfsContentMember>| members.clear())
+                    as fn(&mut Vec<crate::StfsContentMember>),
+            ),
+            ("unsafe member", |members| {
+                members[0].path = "../default.xex".into()
+            }),
+            ("bad digest", |members| members[0].sha256 = "00".into()),
+            ("colliding members", |members| {
+                let mut second = members[0].clone();
+                second.path = "DEFAULT.XEX".into();
+                members.push(second)
+            }),
+        ] {
+            let mut document = document.clone();
+            let profile = document
+                .source_catalog
+                .as_mut()
+                .unwrap()
+                .identities
+                .iter_mut()
+                .find(|profile| profile.id == "sotn-xbla")
+                .unwrap();
+            let crate::SourceRepresentationKind::StfsContent { members, .. } =
+                &mut profile.variants[1].representations[0].kind
+            else {
+                unreachable!()
+            };
+            edit(members);
+            let port = document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == "nocturne-recomp")
+                .unwrap();
+            port.runtime_stfs_package = Some(crate::StfsPackageProfile {
+                content_types: vec!["000D0000".into()],
+                title_ids: vec!["58410A6B".into()],
+                max_package_bytes: 256 * 1024 * 1024,
+            });
+            assert!(
+                Catalog::from_json(&serde_json::to_string(&document).unwrap()).is_err(),
+                "{label}"
+            );
+        }
+    }
+
+    #[test]
+    fn no_shipped_port_declares_an_stfs_binding_or_content_identity_yet() {
+        let catalog = Catalog::embedded().unwrap();
+        assert!(
+            catalog
+                .ports()
+                .iter()
+                .all(|port| port.runtime_stfs_package.is_none())
+        );
+        assert!(catalog.ports().iter().all(|port| {
+            port.source_profile.as_ref().is_none_or(|profile| {
+                !crate::source_inspection::stfs_content_declared(&catalog, profile)
+            })
+        }));
+    }
+
+    fn rom_patch_catalog(mutate: impl FnOnce(&mut PortDefinition)) -> Result<Catalog> {
+        let mut document =
+            rom_patch_fixture_document(&"1".repeat(64), &"2".repeat(64), &"3".repeat(64));
+        mutate(
+            document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == ROM_PATCH_FIXTURE_PORT)
+                .unwrap(),
+        );
+        Catalog::from_document(document)
+    }
+
+    #[test]
+    fn a_complete_rom_patch_declaration_is_accepted_through_source_authority() {
+        let catalog = rom_patch_catalog(|_| {}).expect("a complete declaration is valid");
+        let port = catalog.port(ROM_PATCH_FIXTURE_PORT).unwrap();
+        assert!(port.runtime_source_set.is_empty());
+        assert_eq!(port.runtime_source_filename.as_deref(), Some("game.sfc"));
+        let profile = catalog
+            .source_profile(port.source_profile.as_deref().unwrap())
+            .unwrap();
+        assert_eq!(profile.kind, SourceKind::FileSet);
+        assert_eq!(profile.members.len(), 2);
+    }
+
+    #[test]
+    fn rom_patch_inputs_must_come_from_a_basename_file_set() {
+        let document =
+            rom_patch_fixture_document(&"1".repeat(64), &"2".repeat(64), &"3".repeat(64));
+        let catalog = Catalog::from_document(document).unwrap();
+        let port = catalog.port(ROM_PATCH_FIXTURE_PORT).unwrap();
+        let profile = catalog
+            .source_profile(port.source_profile.as_deref().unwrap())
+            .unwrap()
+            .clone();
+        assert!(rom_patch_declaration_is_valid(
+            std::slice::from_ref(&profile),
+            port
+        ));
+        for kind in [SourceKind::File, SourceKind::RelativeFileSet] {
+            let mut other = profile.clone();
+            other.kind = kind;
+            assert!(
+                !rom_patch_declaration_is_valid(std::slice::from_ref(&other), port),
+                "{kind:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn rom_patch_materialization_requires_a_complete_exact_declaration() {
+        rom_patch_catalog(|_| {}).expect("a complete synthetic declaration is valid");
+        type Mutation = fn(&mut PortDefinition);
+        let rejected: [(&str, Mutation); 11] = [
+            ("missing declaration", |port| port.runtime_rom_patch = None),
+            ("declaration without rom-patch", |port| {
+                port.runtime_source_materialization = Some(RuntimeSourceMaterialization::Copy);
+            }),
+            ("original not an accepted member hash", |port| {
+                port.runtime_rom_patch.as_mut().unwrap().original_sha256 = "4".repeat(64);
+            }),
+            ("patch not an accepted member hash", |port| {
+                port.runtime_rom_patch.as_mut().unwrap().patch_sha256 = "1".repeat(64);
+            }),
+            ("original filenames match no member", |port| {
+                port.runtime_rom_patch.as_mut().unwrap().original_filenames =
+                    vec!["other.sfc".into()];
+            }),
+            ("same member for both inputs", |port| {
+                let patch = port.runtime_rom_patch.as_mut().unwrap();
+                patch.patch_filenames = patch.original_filenames.clone();
+                patch.patch_sha256 = patch.original_sha256.clone();
+            }),
+            ("no output identity", |port| {
+                port.runtime_source_hashes.clear()
+            }),
+            ("output identity for another file", |port| {
+                port.runtime_source_hashes =
+                    std::collections::BTreeMap::from([("other.sfc".into(), "3".repeat(64))]);
+            }),
+            ("several output identities", |port| {
+                port.runtime_source_hashes
+                    .insert("extra.sfc".into(), "5".repeat(64));
+            }),
+            ("destination not persistent", |port| {
+                port.persistent_paths.retain(|path| path != "game.sfc");
+            }),
+            ("patch filenames match no member", |port| {
+                port.runtime_rom_patch.as_mut().unwrap().patch_filenames = vec!["other.bps".into()];
+            }),
+        ];
+        for (label, mutate) in rejected {
+            let error = rom_patch_catalog(mutate)
+                .err()
+                .unwrap_or_else(|| panic!("{label} must be rejected"));
+            assert_eq!(
+                error.code,
+                crate::ErrorCode::Usage,
+                "{label}: {}",
+                error.message
+            );
+        }
+    }
+
+    #[test]
+    fn no_shipped_definition_declares_a_rom_patch() {
+        for port in Catalog::embedded().unwrap().ports() {
+            assert!(port.runtime_rom_patch.is_none(), "{}", port.id);
+            assert_ne!(
+                port.runtime_source_materialization,
+                Some(RuntimeSourceMaterialization::RomPatch),
+                "{}",
+                port.id
+            );
+        }
+    }
+
     fn disc_image_catalog(mutate: impl FnOnce(&mut PortDefinition)) -> Result<Catalog> {
         let mut document = Catalog::embedded().unwrap().document().clone();
         let port = document
@@ -5184,12 +6532,51 @@ mod tests {
             .find(|port| port.id == "nocturne-recomp")
             .unwrap()
             .optional_game_source = true;
-        let error = Catalog::from_document(document).err().expect("rejected");
+        let Err(error) = Catalog::from_document(document) else {
+            panic!("rejected");
+        };
         assert_eq!(error.code, crate::ErrorCode::Usage);
         assert!(
             error.message.contains("optional game source"),
             "{}",
             error.message
+        );
+    }
+
+    #[test]
+    fn preserves_the_legacy_upstream_default_without_claiming_review() {
+        use crate::UpstreamStatus;
+
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog
+            .ports()
+            .iter()
+            .find(|port| port.declared_upstream_status().is_none())
+            .unwrap();
+        let mut explicit = serde_json::to_value(port).unwrap();
+        assert_eq!(explicit["upstream_status"], "active");
+        assert!(explicit.get("upstream_active_reviewed").is_none());
+
+        let mut omitted = explicit.clone();
+        omitted.as_object_mut().unwrap().remove("upstream_status");
+        let legacy = serde_json::from_value::<PortDefinition>(explicit.clone()).unwrap();
+        let unknown = serde_json::from_value::<PortDefinition>(omitted).unwrap();
+        assert_eq!(legacy.declared_upstream_status(), None);
+        assert_eq!(unknown.declared_upstream_status(), None);
+        assert_eq!(serde_json::to_value(unknown).unwrap(), explicit);
+
+        explicit["upstream_active_reviewed"] = true.into();
+        let reviewed = serde_json::from_value::<PortDefinition>(explicit).unwrap();
+        assert_eq!(
+            reviewed.declared_upstream_status(),
+            Some(UpstreamStatus::Active)
+        );
+        crate::signed_catalog::validate_installed_port_contract(&reviewed, &legacy).unwrap();
+
+        let retired = catalog.port("paper-mario-recut").unwrap();
+        assert_eq!(
+            retired.declared_upstream_status(),
+            Some(UpstreamStatus::Retired)
         );
     }
 
@@ -5580,6 +6967,90 @@ mod tests {
     }
 
     #[test]
+    fn mortal_kombat_4_binds_its_v0_3_6_kits_on_all_four_platforms_with_split_mods() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("mortal-kombat-4-recompiled").unwrap();
+        assert_eq!(
+            port.platforms,
+            [
+                Platform::WindowsX86_64,
+                Platform::LinuxX86_64,
+                Platform::MacosX86_64,
+                Platform::MacosAarch64
+            ]
+        );
+        assert_eq!(port.launch_arguments, ["--no-launcher"]);
+        assert_eq!(port.runtime_subdirectory.as_deref(), Some("build-portcove"));
+        assert_eq!(
+            port.launch_environment["PSX_OVERLAY_CAPTURES"],
+            "build-portcove/overlay-captures/overlay_captures.json"
+        );
+        for path in [
+            "mods/installed",
+            "mods/packages",
+            "mods/.staging",
+            "mods/state.toml",
+            "mods/state.toml.tmp",
+            "mods/texture-packs",
+        ] {
+            assert!(port.persistent_paths.iter().any(|p| p == path), "{path}");
+        }
+        // The build-staged bundle belongs to each runtime version, and no
+        // PSXRecomp 031868cc or recomp-ui 14799da writer uses the former paths.
+        for path in [
+            "mods",
+            "config",
+            "game_options.json",
+            "graphics.json",
+            "input.json",
+            "sound.json",
+        ] {
+            assert!(!port.persistent_paths.iter().any(|p| p == path), "{path}");
+        }
+        assert!(port.runtime_mutable_paths.iter().any(|p| p == "cache"));
+
+        let document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+        let variant = &document["source_catalog"]["identities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|identity| identity["id"] == "mortal-kombat-4-psx")
+            .unwrap()["variants"][0];
+        assert_eq!(variant["product_codes"], serde_json::json!(["SLUS-00605"]));
+        let kits = [
+            "45b72a23db2286e0bebcdc31bb6a0d72346ccc333346011c711bc9d0b27fdde8",
+            "5f4144ddce73767ca6be36640086d6e28f6223cb1f2e5862444c3c9ada32e9fd",
+            "629c40e6aaa0df4c9a472242e6918f15ee50e9aec65374ee2c697e2d14903e64",
+            "cb8d3533b9cf054a4c0f88094934f0d6d3689b887db915a88ff3b38c8cd8b9a7",
+        ];
+        let source_catalog = catalog.source_catalog().unwrap();
+        let contracts = source_catalog
+            .contracts
+            .iter()
+            .filter(|contract| contract.port_id == port.id)
+            .collect::<Vec<_>>();
+        assert_eq!(contracts.len(), 2);
+        for contract in contracts {
+            assert_eq!(
+                contract.applicability.len(),
+                kits.len(),
+                "{:?}",
+                contract.role
+            );
+            for sha256 in kits {
+                assert!(contract.applies_to_release("v0.3.6", sha256));
+            }
+            assert!(!contract.applies_to_release("v0.3.5", kits[0]));
+            assert!(
+                contract
+                    .evidence_ids
+                    .iter()
+                    .any(|id| id == "mortal-kombat-4-recompiled-v036-static-contract")
+            );
+        }
+    }
+
+    #[test]
     fn dusklight_uses_its_validated_disc_and_persistence_contract() {
         let catalog = Catalog::embedded().expect("catalog should load");
         let profile = catalog.source_profile("twilight-princess").unwrap();
@@ -5869,18 +7340,35 @@ mod tests {
             assert_eq!(contracts.len(), 2);
             for contract in contracts {
                 assert_eq!(contract["admission_mode"], "enforced");
-                assert_eq!(contract["authority_ref"], commit);
-                assert_eq!(
-                    contract["applicability"],
-                    serde_json::json!([
-                        { "upstream_ref": "v0.1.1", "artifact_sha256": sha256 },
-                        {
-                            "upstream_ref": "v0.1.1",
-                            "artifact_sha256": linux_sha256
-                        }
-                    ])
-                );
+                // The game contract keeps the reviewed v0.1.1 kits first and
+                // appends the v0.1.2 and then the v0.1.3 kits. The BIOS
+                // contract names SCPH-1001, which only the v0.1.2 and later
+                // kits select, so it starts with the v0.1.2 kits.
+                let applicability = contract["applicability"].as_array().unwrap();
+                let successors = if contract["role"] == "game" {
+                    assert_eq!(applicability.len(), 6, "{id}");
+                    assert_eq!(
+                        serde_json::json!(applicability[..2]),
+                        serde_json::json!([
+                            { "upstream_ref": "v0.1.1", "artifact_sha256": sha256 },
+                            {
+                                "upstream_ref": "v0.1.1",
+                                "artifact_sha256": linux_sha256
+                            }
+                        ])
+                    );
+                    &applicability[2..]
+                } else {
+                    assert_eq!(applicability.len(), 4, "{id}");
+                    &applicability[..]
+                };
+                for (pair, version) in successors.chunks(2).zip(["v0.1.2", "v0.1.3"]) {
+                    for binding in pair {
+                        assert_eq!(binding["upstream_ref"], version, "{id}");
+                    }
+                }
                 if contract["role"] == "game" {
+                    assert_eq!(contract["authority_ref"], commit);
                     assert_eq!(contract["profile_id"], profile_id);
                     assert_eq!(
                         contract["supported_variant_ids"],
@@ -5888,10 +7376,11 @@ mod tests {
                     );
                 } else {
                     assert_eq!(contract["role"], "bios");
-                    assert_eq!(contract["profile_id"], "psx-scph-5552-bios");
+                    assert_ne!(contract["authority_ref"], commit);
+                    assert_eq!(contract["profile_id"], "psx-scph-1001-bios");
                     assert_eq!(
                         contract["supported_variant_ids"],
-                        serde_json::json!(["europe-v3-0"])
+                        serde_json::json!(["legacy-accepted"])
                     );
                 }
             }
@@ -5955,7 +7444,12 @@ mod tests {
                 "config.ini",
                 "disc.cfg",
                 "bios.cfg",
-                "mods",
+                "mods/installed",
+                "mods/packages",
+                "mods/.staging",
+                "mods/state.toml",
+                "mods/state.toml.tmp",
+                "mods/texture-packs",
                 "overlay-captures",
                 "overlay_captures.json",
                 "overlay_captures.json.d",
@@ -5964,6 +7458,8 @@ mod tests {
                 assert!(port.persistent_paths.iter().any(|p| p == owned));
                 assert!(!port.runtime_mutable_paths.iter().any(|p| p == owned));
             }
+            // Each runtime version keeps its own build-staged mods/bundled.
+            assert!(!port.persistent_paths.iter().any(|p| p == "mods"));
             assert!(port.runtime_mutable_paths.iter().any(|p| p == "cache"));
             let fallback_temp = port
                 .runtime_mutable_file_patterns
@@ -5984,8 +7480,66 @@ mod tests {
             assert!(port.runtime_source_materialization.is_none());
             assert_eq!(
                 port.bios_source_profile.as_deref(),
-                Some("psx-scph-5552-bios")
+                Some("psx-scph-1001-bios")
             );
+        }
+    }
+
+    #[test]
+    fn scph_5500_routes_bind_the_japan_retail_bios_only_to_their_v0_3_7_kits() {
+        let catalog = Catalog::embedded().unwrap();
+        let profile = catalog.source_profile("psx-scph-5500-bios").unwrap();
+        let document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+        let identity = document["source_catalog"]["identities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|identity| identity["id"] == profile.id)
+            .unwrap();
+        assert_eq!(
+            identity["variants"][0]["representations"][0]["identities"][0]["sha256"],
+            "9c0421858e217805f4abe18698afea8d5aa36ff0727eb8484944e00eb5e7eadb"
+        );
+        for id in [
+            "alexbeav-kings-field-recomp",
+            "alexbeav-ace-combat-3-electrosphere-recomp",
+        ] {
+            let port = catalog.port(id).unwrap();
+            assert_eq!(
+                port.bios_source_profile.as_deref(),
+                Some("psx-scph-5500-bios")
+            );
+            assert_eq!(port.launch_arguments, ["--no-launcher"], "{id}");
+            assert!(!port.persistent_paths.iter().any(|path| path == "mods"));
+            assert!(
+                port.persistent_paths
+                    .iter()
+                    .any(|p| p == "mods/texture-packs")
+            );
+            let contracts = document["source_catalog"]["contracts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|contract| contract["port_id"] == id)
+                .collect::<Vec<_>>();
+            assert_eq!(contracts.len(), 2, "{id}");
+            for contract in contracts {
+                let applicability = contract["applicability"].as_array().unwrap();
+                if contract["role"] == "game" {
+                    assert_eq!(applicability.len(), 4, "{id}");
+                    assert_eq!(applicability[0]["upstream_ref"], "v0.3.6", "{id}");
+                } else {
+                    assert_eq!(contract["profile_id"], "psx-scph-5500-bios", "{id}");
+                    assert_eq!(
+                        contract["supported_variant_ids"],
+                        serde_json::json!(["japan-v3-0"])
+                    );
+                    assert_eq!(applicability.len(), 2, "{id}");
+                }
+                for binding in &applicability[applicability.len() - 2..] {
+                    assert_eq!(binding["upstream_ref"], "v0.3.7", "{id}");
+                }
+            }
         }
     }
 
@@ -6106,10 +7660,19 @@ mod tests {
             for contract in contracts {
                 assert_eq!(contract["admission_mode"], "enforced");
                 assert_eq!(contract["authority_ref"], commit);
-                // Historical release-specific source evidence stays exact;
-                // it does not pin the current provider's reusable selection.
+                // Historical release-specific source evidence stays exact and
+                // first; later reviewed releases are appended after it.
+                let applicability = contract["applicability"].as_array().unwrap();
+                assert!(matches!(applicability.len(), 2 | 4), "{id}");
+                if applicability.len() == 4 {
+                    assert_eq!(
+                        applicability[2]["upstream_ref"],
+                        applicability[3]["upstream_ref"]
+                    );
+                    assert_ne!(applicability[2]["upstream_ref"], version);
+                }
                 assert_eq!(
-                    contract["applicability"],
+                    serde_json::json!(applicability[..2]),
                     serde_json::json!([
                         { "upstream_ref": version, "artifact_sha256": digest },
                         {
@@ -6216,7 +7779,23 @@ mod tests {
                 .collect::<Vec<_>>();
             assert_eq!(contracts.len(), 2);
             for contract in contracts {
-                assert_eq!(contract["applicability"].as_array().unwrap().len(), 2);
+                // The historical pair, optionally followed by reviewed
+                // successors, each a Windows and Linux kit pair.
+                let applicability = contract["applicability"].as_array().unwrap();
+                assert!(matches!(applicability.len(), 2 | 4 | 6), "{id}");
+                for pair in applicability[2..].chunks(2) {
+                    assert_eq!(pair[0]["upstream_ref"], pair[1]["upstream_ref"], "{id}");
+                    assert_ne!(pair[0]["upstream_ref"], version, "{id}");
+                }
+                if contract["role"] == "bios" && applicability[0]["upstream_ref"] != version {
+                    // A BIOS contract retargeted to a later kit's retail BIOS
+                    // binds only those later pairs (see the Dino Crisis test).
+                    assert_eq!(
+                        applicability[0]["upstream_ref"],
+                        applicability[1]["upstream_ref"]
+                    );
+                    continue;
+                }
                 assert_eq!(contract["applicability"][1]["artifact_sha256"], sha256);
                 assert!(
                     contract["evidence_ids"]
@@ -6812,6 +8391,56 @@ mod tests {
                 "Snap64 persistence contract is missing {path}"
             );
         }
+        // v1.1.x writes Steam library art into Steam's own folder unless this
+        // switch is set; the remaining writers stay in the SNAP_DATA_DIR user
+        // folder, so no install-tree path is exempted from verification.
+        assert_eq!(
+            port.launch_environment
+                .get("SNAP_NO_STEAM_ART")
+                .map(String::as_str),
+            Some("1")
+        );
+        assert!(port.runtime_mutable_paths.is_empty());
+        let contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| contract.id == "snap64-recomp-game-source")
+            .unwrap();
+        // The qualified v1.0.5 package stays first; later reviewed packages
+        // are appended after it in review order.
+        let bindings = contract
+            .applicability
+            .iter()
+            .map(|binding| {
+                (
+                    binding.upstream_ref.as_str(),
+                    binding.artifact_sha256.as_deref(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            bindings,
+            [
+                (
+                    "v1.0.5",
+                    Some("e3ab514df95d4a8133d2504ddc2ce43c12e376f5be74f076b3f90c09f8baf6b7")
+                ),
+                (
+                    "v1.1.7",
+                    Some("fcf7950f200c3006557aa4c5c54a117552ea194674da5f4d710e704e2ce60c95")
+                ),
+                (
+                    "v1.1.7",
+                    Some("d2ab64531be1b680c4bc995b7056c2e53914772ab0de2630ccf95513c6e5233d")
+                ),
+                (
+                    "v1.1.7",
+                    Some("ad8c54692afbdc8b09d5860afcd34fddf523b11a35f064af9192a1c0c8ed9f50")
+                ),
+            ]
+        );
     }
 
     #[test]
@@ -7213,8 +8842,30 @@ mod tests {
         );
         assert!(port.persistent_paths.iter().any(|path| path == "saves"));
         assert!(!port.persistent_paths.iter().any(|path| path == "disc"));
+        // v0.5.7 stages its built-in mods in mods/bundled, which stays with
+        // each package; only the framework's player mod paths are carried.
+        // Installations created with whole-`mods` keep their definitions.
+        for path in [
+            "settings.toml.bad",
+            "config.ini",
+            "mods/installed",
+            "mods/packages",
+            "mods/.staging",
+            "mods/state.toml",
+            "mods/state.toml.tmp",
+            "mods/texture-packs",
+        ] {
+            assert!(port.persistent_paths.iter().any(|entry| entry == path));
+        }
+        assert!(
+            !port
+                .persistent_paths
+                .iter()
+                .any(|path| path == "mods" || path.starts_with("mods/bundled"))
+        );
         for path in [
             "cache",
+            "mods/cache",
             "disc",
             "overlay_captures.json",
             "overlay_captures.json.d",
@@ -7265,6 +8916,28 @@ mod tests {
         assert!(contract.evidence_ids.iter().any(|evidence_id| {
             evidence_id == "ape-escape-recompiled-windows-lifecycle-2026-09-16"
         }));
+        // The qualified v0.3.0 package stays first; the v0.5.7 package is
+        // appended after a static comparison under the split mod paths.
+        assert_eq!(
+            contract
+                .applicability
+                .iter()
+                .map(|binding| (
+                    binding.upstream_ref.as_str(),
+                    binding.artifact_sha256.as_deref().unwrap()
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    "v0.3.0",
+                    "91e2cde5f16408ff51b4b822ebba8b811c4e591263170cb49f33a486606c58e9"
+                ),
+                (
+                    "v0.5.7",
+                    "d8b14cdc5c654556cf7235359f8450092d2c0946e93fd827c5d5c684a2f7621f"
+                ),
+            ]
+        );
 
         let scope = crate::SourceEvidenceScope {
             port_id: port.id.clone(),
@@ -7500,22 +9173,42 @@ mod tests {
             .find(|contract| contract.id == "cvlod-recomp-game-source")
             .unwrap();
         assert_eq!(contract.supported_variant_ids, ["north-america"]);
-        assert!(
-            contract
-                .applicability
-                .iter()
-                .all(|binding| binding.upstream_ref == "v0.2.26")
-        );
+        // The reviewed v0.2.26 packages stay first; the v0.2.29 Windows,
+        // Linux and macOS packages are appended after a static comparison.
         assert_eq!(
             contract
                 .applicability
                 .iter()
-                .map(|binding| binding.artifact_sha256.as_deref().unwrap())
+                .map(|binding| (
+                    binding.upstream_ref.as_str(),
+                    binding.artifact_sha256.as_deref().unwrap()
+                ))
                 .collect::<Vec<_>>(),
             [
-                "be60fefdbc4a98d1cf2ab6932e69825f39268e5ad1daab950ea7b8a19e53b40a",
-                "c88af33bb3d4d676ca6cd5b3676b9fe99d1a3c39904592e30ddfc06a383cea2f",
-                "0086f1aae522d1934af20cba6d9037e27ed96cf81de93a4be352fcc11cdf1408",
+                (
+                    "v0.2.26",
+                    "be60fefdbc4a98d1cf2ab6932e69825f39268e5ad1daab950ea7b8a19e53b40a"
+                ),
+                (
+                    "v0.2.26",
+                    "c88af33bb3d4d676ca6cd5b3676b9fe99d1a3c39904592e30ddfc06a383cea2f"
+                ),
+                (
+                    "v0.2.26",
+                    "0086f1aae522d1934af20cba6d9037e27ed96cf81de93a4be352fcc11cdf1408"
+                ),
+                (
+                    "v0.2.29",
+                    "68a2ae45bff297583a2e12d0beb41bf1212c98ff57105d6b4d1a31954d142b23"
+                ),
+                (
+                    "v0.2.29",
+                    "0d9e54387efa82fa74ceaa588314596ac7ba77681e30b905dd89feb5f8943aad"
+                ),
+                (
+                    "v0.2.29",
+                    "fdedea70286fff585ec671600ec3e863b8297b27281df44a1ff4b07c8798e1f8"
+                ),
             ]
         );
     }
@@ -7606,19 +9299,27 @@ mod tests {
             .find(|contract| contract.id == "diddy-kong-racing-golden-balloon-game-source")
             .unwrap();
         assert_eq!(contract.supported_variant_ids, ["usa-rev1", "europe-rev1"]);
-        assert!(
-            contract
-                .applicability
-                .iter()
-                .all(|binding| binding.upstream_ref == "v1.7.0")
-        );
+        // The reviewed v1.7.0 package stays first; the v1.8.0 Windows package
+        // is appended after a static comparison.
         assert_eq!(
             contract
                 .applicability
                 .iter()
-                .map(|binding| binding.artifact_sha256.as_deref().unwrap())
+                .map(|binding| (
+                    binding.upstream_ref.as_str(),
+                    binding.artifact_sha256.as_deref().unwrap()
+                ))
                 .collect::<Vec<_>>(),
-            ["23369d7b0b4c2a7794917c8d6205125d32cca53227695f42f0f091517732bba1",]
+            [
+                (
+                    "v1.7.0",
+                    "23369d7b0b4c2a7794917c8d6205125d32cca53227695f42f0f091517732bba1"
+                ),
+                (
+                    "v1.8.0",
+                    "98ab31dd7108e478cc1469b3cbcce05e321b97b16a06035c2ea99c2122f2b0e1"
+                ),
+            ]
         );
     }
 
@@ -7780,12 +9481,25 @@ mod tests {
             declared,
             [
                 "alexbeav-ace-combat-3-electrosphere-recomp",
+                "alexbeav-alone-in-the-dark-the-new-nightmare-recomp",
                 "alexbeav-armored-core-master-of-arena-recomp",
+                "alexbeav-colony-wars-recomp",
                 "alexbeav-fear-effect-2-retro-helix-recomp",
+                "alexbeav-fear-effect-recomp",
+                "alexbeav-final-fantasy-ix-recomp",
+                "alexbeav-final-fantasy-viii-recomp",
+                "alexbeav-g-police-recomp",
+                "alexbeav-galerians-recomp",
+                "alexbeav-in-cold-blood-recomp",
+                "alexbeav-koudelka-recomp",
+                "alexbeav-metal-gear-solid-recomp",
+                "alexbeav-parasite-eve-recomp",
+                "alexbeav-valkyrie-profile-recomp",
             ]
         );
         let arena = "alexbeav-armored-core-master-of-arena-recomp";
-        let broken: [(&str, fn(&mut PortDefinition)); 3] = [
+        type Breakage = (&'static str, fn(&mut PortDefinition));
+        let broken: [Breakage; 3] = [
             // Any other adapter or source materialization.
             ("dr-mario-64-recomp", |port| {
                 port.launch_disc_choice = Some(LaunchDiscChoice::PsxSettingsSelected);
@@ -7808,6 +9522,54 @@ mod tests {
                 error.to_string().contains("PS1 settings disc choice"),
                 "{id}: {error}"
             );
+        }
+    }
+
+    #[test]
+    fn managed_psx_sets_admit_one_exact_track_count_per_disc() {
+        let aitd = "alexbeav-alone-in-the-dark-the-new-nightmare-recomp";
+        let embedded = Catalog::embedded().unwrap();
+        let port = embedded.port(aitd).unwrap();
+        assert_eq!(port.adapter, AdapterKind::PsxRecompManaged);
+        assert_eq!(
+            embedded.managed_psx_set_track_counts(port),
+            Some(vec![2, 2])
+        );
+        assert!(embedded.requires_psx_multi_track_set(port));
+        let colony_wars = embedded.port("alexbeav-colony-wars-recomp").unwrap();
+        assert_eq!(
+            embedded.managed_psx_set_track_counts(colony_wars),
+            Some(vec![2, 2])
+        );
+        assert!(embedded.requires_psx_multi_track_set(colony_wars));
+        let galerians = embedded.port("alexbeav-galerians-recomp").unwrap();
+        assert_eq!(
+            embedded.managed_psx_set_track_counts(galerians),
+            Some(vec![1, 1, 1])
+        );
+        assert!(!embedded.requires_psx_multi_track_set(galerians));
+        // A staged raw set keeps only data tracks and needs no new reader.
+        let severed = embedded.port("severed-chains").unwrap();
+        assert_eq!(embedded.managed_psx_set_track_counts(severed), None);
+
+        for (profile_id, counts, valid) in [
+            ("alexbeav-galerians-recomp-europe-psx", vec![2], true),
+            ("alexbeav-galerians-recomp-europe-psx", vec![1, 2], false),
+            ("alexbeav-galerians-recomp-europe-psx", vec![], false),
+            (
+                "alexbeav-alone-in-the-dark-the-new-nightmare-recomp-europe-psx",
+                vec![2, 1],
+                false,
+            ),
+        ] {
+            let mut catalog = Catalog::embedded().unwrap();
+            let profile = Arc::make_mut(&mut catalog.document)
+                .source_profiles
+                .iter_mut()
+                .find(|profile| profile.id == profile_id)
+                .unwrap();
+            profile.disc.as_mut().unwrap().discs[0].track_counts = counts.clone();
+            assert_eq!(catalog.validate().is_ok(), valid, "{profile_id} {counts:?}");
         }
     }
 
@@ -8232,3 +9994,50 @@ mod tests {
 #[cfg(test)]
 #[path = "catalog_native_pin_tests.rs"]
 mod native_pin_tests;
+#[test]
+fn dhewm3_originals_apply_only_to_the_reviewed_player_packages() {
+    let catalog = Catalog::embedded().unwrap();
+    let corpus: serde_json::Value = serde_json::from_str(include_str!(
+        "testdata/native-engine-adoption-2026-11-02.json"
+    ))
+    .unwrap();
+    for id in [
+        "doom-3-classic-dhewm3",
+        "doom-3-resurrection-of-evil-classic-dhewm3",
+    ] {
+        let contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| contract.port_id == id)
+            .unwrap();
+        assert!(contract.release_policy.is_none());
+        assert_eq!(contract.applicability.len(), 2);
+        let case = corpus["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|case| case["port_id"] == id)
+            .unwrap();
+        let tag = case["release"]["tag_name"].as_str().unwrap();
+        let mut reviewed = 0;
+        for asset in case["release"]["assets"].as_array().unwrap() {
+            let name = asset["name"].as_str().unwrap();
+            let Some(sha256) = asset["digest"]
+                .as_str()
+                .and_then(|value| value.strip_prefix("sha256:"))
+            else {
+                continue;
+            };
+            let expected = matches!(
+                name,
+                "dhewm3-1.5.5_Linux_amd64.tar.gz" | "dhewm3-1.5.5_win32.zip"
+            );
+            reviewed += usize::from(expected);
+            assert_eq!(contract.applies_to_release(tag, sha256), expected, "{name}");
+            assert!(!contract.applies_to_release("1.5.6", sha256));
+        }
+        assert_eq!(reviewed, 2);
+    }
+}

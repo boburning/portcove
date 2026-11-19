@@ -1,4 +1,5 @@
 import { controlledAct as act } from "../../test/controlled-react-act";
+import { captureParityState as captureRenderedState } from "../../test/parity-capture";
 import { cleanup, render as renderComponent, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -126,7 +127,6 @@ beforeEach(async () => {
   settings.mockReset();
   retryRefresh.mockReset().mockResolvedValue(undefined);
   vi.spyOn(desktopApi, "refreshOfficialDefinition").mockResolvedValue(selected);
-  vi.spyOn(desktopApi, "enableOfficialCatalog");
   vi.spyOn(desktopApi, "install");
   vi.spyOn(desktopApi, "importSource");
   vi.spyOn(desktopApi, "cancelOperation").mockResolvedValue({
@@ -139,6 +139,7 @@ afterEach(async () => {
   await cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  delete document.documentElement.dataset.theme;
 });
 
 it("checks only the exact selected identity on explicit intent and reloads setup options", async () => {
@@ -158,7 +159,6 @@ it("checks only the exact selected identity on explicit intent and reloads setup
       ),
     )
     .toBeVisible();
-  expect(desktopApi.enableOfficialCatalog).not.toHaveBeenCalled();
   expect(desktopApi.install).not.toHaveBeenCalled();
   expect(desktopApi.importSource).not.toHaveBeenCalled();
   await click(page.getByRole("button", { name: "Catalog update settings" }));
@@ -204,6 +204,23 @@ it("blocks same-turn duplicates and retains exclusion through authoritative read
   expect(changed).toHaveBeenCalledOnce();
   await act(async () => readback.resolve(undefined));
   await expect.element(checkButton()).toBeEnabled();
+});
+
+it("localizes a nested signature failure and retains the provider diagnostic", async () => {
+  await page.viewport(430, 780);
+  document.documentElement.dataset.theme = "light";
+  const message = "Timestamp signer threshold did not match the admitted repository";
+  vi.mocked(desktopApi.refreshOfficialDefinition).mockRejectedValue({
+    code: "verification",
+    message,
+    details: { catalog_fallback_code: "signature_invalid" },
+  });
+  await render();
+  await click(checkButton());
+  await expect.element(page.getByText(/did not pass signature verification/)).toBeVisible();
+  await page.getByText("Technical details", { exact: true }).click();
+  await expect.element(page.getByText(message, { exact: true })).toBeVisible();
+  await captureRenderedState("catalog-nested-signature-diagnostic-expanded");
 });
 
 it("keeps original partial-commit details and an independent readback failure without replay", async () => {

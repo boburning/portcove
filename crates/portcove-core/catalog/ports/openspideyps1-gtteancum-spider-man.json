@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "openspideyps1-gtteancum-spider-man",
+    "artwork": {
+      "game_id": 3603,
+      "cover_id": 137294,
+      "image_id": "co2xxq",
+      "image_sha256": "e8d0f7ad0d7ff43c0dda1bc8a77da8ba2ee4c5bc7d7ed511439c83351f5fb9ae",
+      "game_slug": "spider-man--5",
+      "match_kind": "underlying-game"
+    },
     "name": "Spider-Man — OpenSpideyPS1 (GTTeancum)",
     "original_game_title": "Spider-Man",
     "summary": "Both games are reported to reach gameplay. Complete playthroughs and long sessions have explicitly not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/GTTeancum/SpideyPS1recomp"
     },
-    "issue_number": 3358
+    "issue_number": 3358,
+    "original_game": {
+      "format_version": 1,
+      "id": "spider-man",
+      "evidence_urls": ["https://github.com/GTTeancum/SpideyPS1recomp"],
+      "source_editions": [
+        {
+          "id": "spider-man-playstation",
+          "title": "Spider-Man (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/GTTeancum/SpideyPS1recomp/blob/6d7a0c38b1856bd35636485181643d3baecb4e49/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -126,6 +126,17 @@ interface CargoExecutionOptions {
   ) => Promise<Pick<HeavyRustLock, "inherited" | "release">>;
   execute?: (command: string, args: string[], options: RunOptions) => Promise<unknown>;
 }
+// The first definition-state action (`select`) compiles the fixture-enabled
+// Core test binary on a cold Windows runner; later actions reuse it.
+// Qualification 43715629646 cut `select` at 20 minutes while the same run's
+// cold Core-inclusive archive build took about 34 minutes, so only `select`
+// gets 40 minutes. With `install` and `revoke` at 20 minutes the phase stays
+// inside the job's 120-minute limit. Other child budgets stay at ten minutes.
+function cargoPhaseBudget(phase: string | undefined, action: string | undefined) {
+  if (phase !== "definition-state") return {};
+  return { timeout: (action === "select" ? 40 : 20) * 60_000 };
+}
+
 export async function executeCargoPhase(
   phase: string | undefined,
   action: string | undefined,
@@ -146,7 +157,10 @@ export async function executeCargoPhase(
   );
   if (!lease.inherited) throw new Error("Cargo phase did not inherit validated admission");
   try {
-    await execute("cargo", args, { env: environment });
+    await execute("cargo", args, {
+      env: environment,
+      ...cargoPhaseBudget(phase, action),
+    });
   } finally {
     await lease.release(); // Existing inherited lease release is a no-op; the parent owns closure.
   }
@@ -207,7 +221,12 @@ export function run(
       const output = Buffer.concat(stdout).toString("utf8").trim();
       const errors = Buffer.concat(stderr).toString("utf8").trim();
       if (timedOut) {
-        finish(reject, new Error(`${command} timed out after ${timeout}ms`));
+        // Keep the buffered tail so a cut shows build progress versus a hang.
+        const tail = (errors || output).slice(-4_000);
+        finish(
+          reject,
+          new Error(`${command} timed out after ${timeout}ms${tail ? `\n${tail}` : ""}`),
+        );
         return;
       }
       if (status !== 0) {
@@ -275,8 +294,11 @@ async function checkReviewedExternal(
     .digest("hex");
   const catalog = object(JSON.parse(await readFile(catalogPath, "utf8")));
   const ports = objects(catalog.ports);
+  // Borrow an existing N64 recomp definition only for its adapter shape. Its
+  // live release route can change (#5380 moved Wave Race 64 to a GitHub
+  // release), so the fixture declares its own user-prepared route below.
   const definition = structuredClone(ports.find((value) => value.id === "wave-race-64-recomp"));
-  assert.ok(definition, "existing user-prepared adapter must be available to the fixture");
+  assert.ok(definition, "existing N64 recomp adapter must be available to the fixture");
   Object.assign(definition, {
     id: port,
     name: "Owned external consent fixture",
@@ -284,6 +306,26 @@ async function checkReviewedExternal(
     presentation: null,
   });
   definition.executable_hints = { "windows-x86-64": ["game.exe"] };
+  // Drop the borrowed port's managed-install fields so later changes to its
+  // managed route cannot reach this user-prepared registration fixture.
+  for (const field of [
+    "portable_marker",
+    "persistent_paths",
+    "runtime_mutable_paths",
+    "runtime_source_filename",
+    "runtime_source_materialization",
+    "runtime_source_hashes",
+  ]) {
+    delete definition[field];
+  }
+  for (const field of Object.keys(definition)) {
+    if (field.startsWith("n64_")) delete definition[field];
+  }
+  definition.release = {
+    provider: "user-prepared",
+    repository: object(definition.release).repository,
+    user_prepared: {},
+  };
   const prepared = object(object(definition.release).user_prepared);
   const preparedRelease = {
     version: "fixture-v1",

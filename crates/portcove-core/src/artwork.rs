@@ -14,7 +14,7 @@ use crate::{Library, PortcoveError, PortcoveService, Result};
 
 mod destination;
 mod igdb_cache;
-mod steamgriddb;
+pub(crate) mod steamgriddb;
 pub use destination::{
     ARTWORK_HANDOFF_SCHEMA, DestinationArtworkBytes, DestinationArtworkContent,
     DestinationArtworkHandoff, DestinationArtworkRole, DestinationArtworkSource,
@@ -22,9 +22,12 @@ pub use destination::{
 };
 pub use igdb_cache::IGDB_ARTWORK_WORK_LIMIT;
 pub use steamgriddb::{
-    STEAMGRIDDB_API_ORIGIN, SteamGridDbAuthor, SteamGridDbCandidate, SteamGridDbFailure,
-    SteamGridDbGame, SteamGridDbKeyStatus, clear_steamgriddb_key, search_steamgriddb_games,
-    set_steamgriddb_key, steamgriddb_candidates, steamgriddb_key_status,
+    STEAMGRIDDB_API_ORIGIN, STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor,
+    SteamGridDbCandidate, SteamGridDbCheckEffect, SteamGridDbCheckStop, SteamGridDbFailure,
+    SteamGridDbGame, SteamGridDbImageCheck, SteamGridDbKeyStatus, SteamGridDbListingReport,
+    SteamGridDbListingResult, SteamGridDbSourceStatus, SteamGridDbUnknownReason,
+    clear_steamgriddb_key, search_steamgriddb_games, set_steamgriddb_key, steamgriddb_candidates,
+    steamgriddb_credit_url, steamgriddb_key_status, steamgriddb_preview,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -32,14 +35,24 @@ pub use steamgriddb::{
 pub enum ArtworkSlot {
     Cover,
     Detail,
+    /// A wide cover, separate from the detail image; Steam's library capsule.
+    Landscape,
 }
 
 impl ArtworkSlot {
+    pub(crate) const ALL: [Self; 3] = [Self::Cover, Self::Detail, Self::Landscape];
+
+    /// The single stored key for each slot; `from_key` is its exact inverse.
     pub(crate) fn key(self) -> &'static str {
         match self {
             Self::Cover => "cover",
             Self::Detail => "detail",
+            Self::Landscape => "landscape",
         }
+    }
+
+    pub(crate) fn from_key(key: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|slot| slot.key() == key)
     }
 }
 
@@ -72,11 +85,83 @@ pub struct ArtworkChoice {
     pub asset_sha256: Option<String>,
 }
 
+/// A remote provider an image was chosen from; a local import has none.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ArtworkProvider {
+    Steamgriddb,
+}
+
+impl ArtworkProvider {
+    pub(crate) fn key(self) -> &'static str {
+        match self {
+            Self::Steamgriddb => "steamgriddb",
+        }
+    }
+}
+
+/// Where a provider image came from and who made it. Recorded per origin, never
+/// replaced by a later identical import, and shown wherever the image is credited.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ArtworkAttribution {
+    pub provider: ArtworkProvider,
+    /// The provider's identity for this image.
+    pub asset_id: u64,
+    /// The provider's game the image was listed under; a proposal, not port identity.
+    pub game_id: u64,
+    pub role: DestinationArtworkRole,
+    pub author_name: String,
+    pub author_steam64: Option<String>,
+    pub source_url: String,
+    pub fetched_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ArtworkProviderRecord {
+    pub asset_sha256: String,
+    pub attribution: ArtworkAttribution,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ArtworkMetadata {
     pub assets: Vec<LocalArtworkAsset>,
     pub choices: Vec<ArtworkChoice>,
+    /// Provider provenance; present only under library metadata schema 8.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub providers: Vec<ArtworkProviderRecord>,
+    /// Assets that exist only because a provider image was chosen; no local import
+    /// of the same bytes was made. Present only under library metadata schema 8.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub provider_only_assets: Vec<String>,
+    /// Confirmed withdrawals of provider records; library metadata schema 10.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub withdrawals: Vec<ArtworkWithdrawalRecord>,
+    /// Provider-only assets whose originals Portcove removed after every record
+    /// was withdrawn. Their files are not carried; schema 10.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evicted_assets: Vec<ArtworkEvictedAsset>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ArtworkWithdrawalRecord {
+    pub asset_sha256: String,
+    pub provider: ArtworkProvider,
+    pub asset_id: u64,
+    pub withdrawn_at: i64,
+    pub signal: ArtworkWithdrawalSignal,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ArtworkEvictedAsset {
+    pub asset_sha256: String,
+    pub evicted_at: i64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -120,6 +205,125 @@ pub struct ArtworkState {
     pub reason: Option<String>,
     pub resolved_source: ArtworkResolvedSource,
     pub generated_fallback: GeneratedArtworkFallback,
+    /// Provider credits for the selected image; empty for a purely local import.
+    pub attribution: Vec<ArtworkAttribution>,
+    /// Recorded listing evidence for the credited images; empty until an image
+    /// is chosen from a provider or checked.
+    pub provider_listing: Vec<ArtworkProviderListing>,
+    /// When Portcove removed the selected image's stored copy because every
+    /// provider that supplied it confirmed a withdrawal. The choice and the
+    /// credit stay; choosing the image again restores the copy.
+    pub evicted_at: Option<i64>,
+}
+
+/// A prepared SteamGridDB listing check: the records it starts from and the
+/// single-flight lock. It holds no library connection or lease.
+pub struct SteamGridDbListingCheck {
+    subjects: Vec<steamgriddb::CheckSubject>,
+    started_from: std::collections::HashMap<(String, u64), (u64, i64)>,
+    /// The library the check was prepared for; it records into no other.
+    library_root: PathBuf,
+    single_flight: crate::PortOperationGuard,
+}
+
+/// A completed network check, ready to be recorded or reported unrecorded.
+pub struct CheckedSteamGridDbListings {
+    report: steamgriddb::SteamGridDbListingReport,
+    server_dates: Vec<Option<steamgriddb::ServerDates>>,
+    started_from: std::collections::HashMap<(String, u64), (u64, i64)>,
+    library_root: PathBuf,
+    single_flight: crate::PortOperationGuard,
+}
+
+impl SteamGridDbListingCheck {
+    /// The network phase, with the player's key. It stops before the next
+    /// request once `cancelled` returns true.
+    pub fn check(self, cancelled: &dyn Fn() -> bool) -> Result<CheckedSteamGridDbListings> {
+        self.check_with(|subjects, now| {
+            steamgriddb::check_stored_listings(subjects, now, cancelled)
+        })
+    }
+
+    pub(crate) fn check_with<R: Into<steamgriddb::ListingRun>>(
+        self,
+        check: impl FnOnce(Vec<steamgriddb::CheckSubject>, i64) -> Result<R>,
+    ) -> Result<CheckedSteamGridDbListings> {
+        let steamgriddb::ListingRun {
+            report,
+            server_dates,
+        } = check(self.subjects, Library::now())?.into();
+        Ok(CheckedSteamGridDbListings {
+            report,
+            server_dates,
+            started_from: self.started_from,
+            library_root: self.library_root,
+            single_flight: self.single_flight,
+        })
+    }
+}
+
+impl CheckedSteamGridDbListings {
+    /// The results as seen, for a host whose library changed before recording.
+    pub fn unrecorded(self) -> steamgriddb::SteamGridDbListingReport {
+        let mut report = self.report;
+        report.recorded = report.images.is_empty();
+        report
+    }
+}
+
+/// Recorded evidence of whether a provider still lists a credited image. A
+/// confirmed withdrawal (`withdrawn_at`) can remove a provider-only copy; see
+/// [`ArtworkState::evicted_at`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ArtworkProviderListing {
+    pub provider: ArtworkProvider,
+    pub asset_id: u64,
+    /// When a check or a choice last established this evidence.
+    pub last_checked_at: i64,
+    pub last_result: steamgriddb::SteamGridDbListingResult,
+    /// When a verified listing first lacked the image; cleared only when it is
+    /// seen listed again.
+    pub not_listed_since: Option<i64>,
+    /// When a later check confirmed the withdrawal; cleared when the image is
+    /// seen listed again or chosen again.
+    pub withdrawn_at: Option<i64>,
+    pub withdrawal_signal: Option<ArtworkWithdrawalSignal>,
+}
+
+/// The second signal that confirmed a withdrawal after a first absence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ArtworkWithdrawalSignal {
+    /// SteamGridDB's image server answered that the file is gone.
+    Gone,
+    /// A check at least 24 hours after the first absence still did not find it.
+    AbsentAgain,
+}
+
+pub(crate) const EVICTED_REASON: &str = "SteamGridDB no longer lists this image, so Portcove removed its copy. Your choice and the credit are kept. Choose it again if it returns, or pick another image.";
+pub(crate) const EVICTED_LISTED_AGAIN_REASON: &str =
+    "SteamGridDB lists this image again. Choose it again to restore Portcove's copy.";
+
+/// The destination role a provider image is chosen for in each local slot.
+pub(crate) fn provider_role(slot: ArtworkSlot) -> DestinationArtworkRole {
+    match slot {
+        ArtworkSlot::Cover => DestinationArtworkRole::PortraitCover,
+        ArtworkSlot::Detail => DestinationArtworkRole::HeroBanner,
+        ArtworkSlot::Landscape => DestinationArtworkRole::LandscapeCover,
+    }
+}
+
+pub(crate) enum IngestOrigin {
+    Local,
+    Provider(ArtworkAttribution),
+}
+
+pub(crate) struct IngestedArtwork<'a> {
+    pub(crate) bytes: &'a [u8],
+    pub(crate) decoded: &'a crate::artwork_image::DecodedArtwork,
+    pub(crate) original_name: String,
+    pub(crate) origin: IngestOrigin,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -170,7 +374,7 @@ impl PortcoveService {
         // User-owned registrations and unfinished setup retain their display
         // identity independently of whether a newer directory still lists it.
         // Their validated snapshots grant no managed lifecycle authority.
-        let mut budget = 8 * 1024 * 1024;
+        let mut budget = crate::library::MAX_RETAINED_REGISTRATION_BYTES;
         if let Some((_, retained)) = self
             .library()
             .external_runtime_with_port_bounded(port_id, &mut budget)?
@@ -193,11 +397,27 @@ impl PortcoveService {
     fn referenced_remote_originals(&self) -> Result<BTreeSet<String>> {
         fn add(referenced: &mut BTreeSet<String>, listing: &crate::PortListing) {
             referenced.extend(listing.artwork.iter().map(|art| art.image_sha256.clone()));
+            referenced.extend(
+                listing
+                    .collection_covers
+                    .iter()
+                    .flatten()
+                    .map(|art| art.image_sha256.clone()),
+            );
             referenced.extend(listing.media.iter().map(|asset| asset.sha256.clone()));
         }
         let mut referenced = BTreeSet::new();
         for listing in self.catalog().listings() {
             add(&mut referenced, listing);
+        }
+        for port in self.catalog().ports() {
+            if let Some(cover) = port
+                .presentation
+                .as_ref()
+                .and_then(|p| p.companion_cover.as_ref())
+            {
+                referenced.insert(cover.image_sha256.clone());
+            }
         }
         let connection = self.library().connection()?;
         let mut retained: BTreeSet<String> = Library::installs_from(&connection)?
@@ -274,6 +494,26 @@ impl PortcoveService {
             .as_deref()
             .map(|id| crate::artwork_store::asset(&transaction, id))
             .transpose()?;
+        let attribution = match &selection {
+            Some(asset) => crate::artwork_store::attributions(&transaction, &asset.sha256)?,
+            None => Vec::new(),
+        };
+        let provider_listing = match &selection {
+            Some(asset) => {
+                crate::artwork_store::asset_listing_evidence(&transaction, &asset.sha256)?
+            }
+            None => Vec::new(),
+        };
+        let evicted_at = match &selection {
+            Some(asset) => crate::artwork_store::evicted_at(&transaction, &asset.sha256)?,
+            None => None,
+        };
+        let withdrawn_records = match &selection {
+            Some(asset) if evicted_at.is_some() => {
+                crate::artwork_store::asset_withdrawals(&transaction, &asset.sha256)?.len()
+            }
+            _ => 0,
+        };
         transaction.commit()?;
         let generated_fallback = generated_fallback(port_id, &port.name, slot)?;
         let (availability, reason, resolved_source) = match &selection {
@@ -292,6 +532,20 @@ impl PortcoveService {
                     ArtworkResolvedSource::GeneratedFallback,
                 ),
             },
+            // The marker decides before any file is read, so a copy still
+            // waiting to be deleted is never shown.
+            Some(_) if evicted_at.is_some() => (
+                ArtworkAvailability::Unavailable,
+                Some(
+                    if withdrawn_records < attribution.len() {
+                        EVICTED_LISTED_AGAIN_REASON
+                    } else {
+                        EVICTED_REASON
+                    }
+                    .into(),
+                ),
+                ArtworkResolvedSource::GeneratedFallback,
+            ),
             Some(asset) => match original_bytes(self.library(), asset) {
                 Ok(_) => (
                     ArtworkAvailability::Available,
@@ -314,6 +568,9 @@ impl PortcoveService {
             reason,
             resolved_source,
             generated_fallback,
+            attribution,
+            provider_listing,
+            evicted_at,
         })
     }
 
@@ -336,8 +593,432 @@ impl PortcoveService {
             .and_then(|name| name.to_str())
             .ok_or_else(|| PortcoveError::usage("artwork needs a Unicode filename"))?
             .to_owned();
+        self.ingest_artwork(
+            &port,
+            slot,
+            IngestedArtwork {
+                bytes: &bytes,
+                decoded: &decoded,
+                original_name,
+                origin: IngestOrigin::Local,
+            },
+            expected_revision,
+        )
+    }
+
+    /// Choose one SteamGridDB image for a port's slot. Cover takes the portrait
+    /// role, Detail the hero role and Landscape the landscape role. The candidate is re-resolved with the
+    /// player's key and fetched before the artwork lock or any transaction is
+    /// taken; the revision checks during ingestion then reject a stale choice.
+    pub fn choose_steamgriddb_artwork(
+        &self,
+        port_id: &str,
+        slot: ArtworkSlot,
+        game_id: u64,
+        candidate_id: u64,
+        expected_revision: u64,
+    ) -> Result<ArtworkState> {
+        let port = self.artwork_port(port_id)?;
+        let fetched =
+            steamgriddb::fetch_chosen_candidate(game_id, provider_role(slot), candidate_id)?;
+        self.choose_fetched_artwork(&port, slot, game_id, fetched, expected_revision)
+    }
+
+    /// Check whether SteamGridDB still lists each stored SteamGridDB image with
+    /// the player's key, and record the evidence beside each provider record. A
+    /// withdrawal confirmed by a second signal removes the stored copy of a
+    /// provider-only image; choices, credits and Steam entries never change. The
+    /// network work holds no artwork lock; only the short recording step does.
+    pub fn check_steamgriddb_listings(&self) -> Result<steamgriddb::SteamGridDbListingReport> {
+        self.check_steamgriddb_listings_until(&|| false)
+    }
+
+    /// As [`Self::check_steamgriddb_listings`], stopping before the next request
+    /// once `cancelled` returns true. A cancelled check records nothing.
+    pub fn check_steamgriddb_listings_until(
+        &self,
+        cancelled: &dyn Fn() -> bool,
+    ) -> Result<steamgriddb::SteamGridDbListingReport> {
+        let checked = self.prepare_steamgriddb_listing_check()?.check(cancelled)?;
+        Ok(self.record_steamgriddb_listings(checked, cancelled))
+    }
+
+    /// The first of three phases a host can run separately: it takes the
+    /// single-flight lock and snapshots the records and their evidence. The
+    /// returned check holds no library connection or lease, so the network phase
+    /// never keeps a library in use; record it with a service for the same library.
+    pub fn prepare_steamgriddb_listing_check(&self) -> Result<SteamGridDbListingCheck> {
+        let single_flight = self.library().try_lock_listing_check()?;
+        // Removals an earlier check left behind are finished whatever this one
+        // finds, even with no key or network; a busy artwork lock defers them.
+        if let Ok(_guard) = self.library().try_lock_artwork() {
+            let _ = crate::artwork_eviction::complete_pending_evictions(
+                self.library(),
+                Some(crate::artwork_eviction::REMOVALS_PER_CHECK),
+            );
+        }
+        // One read transaction gives a consistent snapshot of the records and
+        // their evidence while choices and removals continue.
+        let (metadata, checks) = {
+            let mut connection = self.library().connection()?;
+            let transaction = connection.transaction()?;
+            let metadata = crate::artwork_store::snapshot(&transaction)?;
+            let checks =
+                crate::artwork_store::listing_checks(&transaction, ArtworkProvider::Steamgriddb)?;
+            transaction.commit()?;
+            (metadata, checks)
+        };
+        // Per record: the revision the check started from, and its last check time.
+        let started_from: std::collections::HashMap<(String, u64), (u64, i64)> = checks
+            .into_iter()
+            .map(|row| {
+                (
+                    (row.asset_sha256, row.asset_id),
+                    (row.revision, row.last_checked_at),
+                )
+            })
+            .collect();
+        let subjects = steamgriddb::check_subjects(&metadata, |sha, asset_id| {
+            started_from
+                .get(&(sha.to_owned(), asset_id))
+                .map(|(_, checked_at)| *checked_at)
+        });
+        Ok(SteamGridDbListingCheck {
+            subjects,
+            started_from,
+            library_root: self.library().root().to_path_buf(),
+            single_flight,
+        })
+    }
+
+    /// The last phase: applies a completed check unless it was cancelled. It
+    /// never fails; a check it cannot record is returned with `recorded: false`.
+    /// A withdrawal confirmed by this check evicts provider-only copies: the
+    /// marker is committed with the evidence, then the files are deleted, at most
+    /// [`crate::artwork_eviction::REMOVALS_PER_CHECK`] at a time.
+    pub fn record_steamgriddb_listings(
+        &self,
+        checked: CheckedSteamGridDbListings,
+        cancelled: &dyn Fn() -> bool,
+    ) -> steamgriddb::SteamGridDbListingReport {
+        let CheckedSteamGridDbListings {
+            mut report,
+            server_dates,
+            started_from,
+            library_root,
+            single_flight,
+        } = checked;
+        if report.images.is_empty() {
+            return report;
+        }
+        // A cancelled check may belong to a library that is changing, and a
+        // check prepared for one library never records into another.
+        report.recorded = !cancelled()
+            && report.stopped != Some(steamgriddb::SteamGridDbCheckStop::Cancelled)
+            && self.library().root() == library_root
+            && self
+                .record_listing_report(&mut report, &server_dates, &started_from)
+                .is_ok();
+        if !report.recorded {
+            for image in &mut report.images {
+                image.effect = steamgriddb::SteamGridDbCheckEffect::None;
+            }
+            report.skipped = 0;
+        }
+        // Each image shows the library's state after this check, recorded or
+        // not, and only from the library it was prepared for.
+        if self.library().root() == library_root {
+            let _ = self.read_back_listing_state(&mut report);
+        }
+        drop(single_flight);
+        report
+    }
+
+    fn read_back_listing_state(
+        &self,
+        report: &mut steamgriddb::SteamGridDbListingReport,
+    ) -> Result<()> {
+        let connection = self.library().connection()?;
+        let rows = crate::artwork_store::listing_checks(&connection, ArtworkProvider::Steamgriddb)?;
+        for image in &mut report.images {
+            image.not_listed_since = rows
+                .iter()
+                .find(|row| {
+                    row.asset_sha256 == image.asset_sha256
+                        && row.asset_id == image.attribution.asset_id
+                })
+                .and_then(|row| row.not_listed_since);
+            image.withdrawn_at =
+                crate::artwork_store::asset_withdrawals(&connection, &image.asset_sha256)?
+                    .into_iter()
+                    .find(|(provider, row)| {
+                        provider == image.attribution.provider.key()
+                            && row.asset_id == image.attribution.asset_id
+                    })
+                    .map(|(_, row)| row.withdrawn_at);
+            image.evicted_at = crate::artwork_store::evicted_at(&connection, &image.asset_sha256)?;
+        }
+        Ok(())
+    }
+
+    /// The recording orchestration around one check, separate from the network
+    /// work so it can be exercised with prepared reports.
+    #[cfg(test)]
+    pub(crate) fn run_listing_check<R: Into<steamgriddb::ListingRun>>(
+        &self,
+        cancelled: &dyn Fn() -> bool,
+        check: impl FnOnce(Vec<steamgriddb::CheckSubject>, i64) -> Result<R>,
+    ) -> Result<steamgriddb::SteamGridDbListingReport> {
+        let prepared = self.prepare_steamgriddb_listing_check()?;
+        let checked = prepared.check_with(check)?;
+        Ok(self.record_steamgriddb_listings(checked, cancelled))
+    }
+
+    /// Applies every attempted result in one immediate transaction, then evicts
+    /// what the confirmed withdrawals allow and deletes the files. The artwork
+    /// lock is retried briefly, under a library switch's drain, because
+    /// thumbnails and handoffs take it routinely.
+    fn record_listing_report(
+        &self,
+        report: &mut steamgriddb::SteamGridDbListingReport,
+        server_dates: &[Option<steamgriddb::ServerDates>],
+        started_from: &std::collections::HashMap<(String, u64), (u64, i64)>,
+    ) -> Result<()> {
+        use crate::artwork_store::{Applied, WithdrawalChange};
+        use steamgriddb::{
+            SteamGridDbCheckEffect as Effect, SteamGridDbListingResult as Listing,
+            SteamGridDbSourceStatus as Source,
+        };
+        let mut attempts = 0;
+        let _guard = loop {
+            match self.library().try_lock_artwork() {
+                Ok(guard) => break guard,
+                // Only a busy lock is worth waiting for.
+                Err(error) if error.code == crate::ErrorCode::Conflict && attempts < 8 => {
+                    attempts += 1;
+                    std::thread::sleep(std::time::Duration::from_millis(200));
+                }
+                Err(error) => return Err(error),
+            }
+        };
+        let mut connection = self.library().connection()?;
+        let mut transaction =
+            connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let mut skipped = 0;
+        let mut effects = vec![Effect::None; report.images.len()];
+        // Assets with a record newly confirmed withdrawn in this run.
+        let mut fresh_assets = std::collections::BTreeSet::new();
+        // Per image: written in this run as a verified absence.
+        let mut written_absent = vec![false; report.images.len()];
+        // An asset with a record this run could not write may still carry a
+        // withdrawal that the unwritten result would have cleared.
+        let mut unwritten_assets = std::collections::BTreeSet::new();
+        for (index, image) in report.images.iter().enumerate() {
+            if !image.attempted {
+                continue;
+            }
+            let (result, reason) = match image.listing {
+                Listing::Listed => ("listed", None),
+                Listing::NotListed => ("not_listed", None),
+                Listing::Unknown { reason } => ("unknown", Some(reason)),
+            };
+            let reason = reason
+                .map(|reason| {
+                    serde_json::to_value(reason).map(|value| value.as_str().map(str::to_owned))
+                })
+                .transpose()?
+                .flatten();
+            let source = match image.source {
+                Source::NotChecked => None,
+                Source::Served => Some("served"),
+                Source::Gone => Some("gone"),
+                Source::Unknown => Some("unknown"),
+            };
+            // One savepoint per record, so a record that cannot be written is
+            // skipped, and counted, without losing the rest of the run.
+            let savepoint = transaction.savepoint()?;
+            let applied = crate::artwork_store::apply_listing_check(
+                &savepoint,
+                image.attribution.provider,
+                &image.asset_sha256,
+                image.attribution.asset_id,
+                started_from
+                    .get(&(image.asset_sha256.clone(), image.attribution.asset_id))
+                    .map(|(revision, _)| *revision),
+                &crate::artwork_store::ListingObservation {
+                    result,
+                    unknown_reason: reason.as_deref(),
+                    total: image.listing_total,
+                    source,
+                    server_dates: server_dates
+                        .get(index)
+                        .copied()
+                        .flatten()
+                        .map(|dates| (dates.earliest, dates.latest)),
+                },
+                report.checked_at,
+            );
+            match applied {
+                Ok(applied) => {
+                    savepoint.commit()?;
+                    written_absent[index] =
+                        applied != Applied::Skipped && image.listing == Listing::NotListed;
+                    match applied {
+                        Applied::Recorded(WithdrawalChange::Withdrawn) => {
+                            effects[index] = Effect::Withdrawn;
+                            fresh_assets.insert(image.asset_sha256.clone());
+                        }
+                        Applied::Recorded(WithdrawalChange::Cleared) => {
+                            effects[index] = Effect::ListedAgain;
+                        }
+                        Applied::Recorded(WithdrawalChange::Unchanged) | Applied::Skipped => {}
+                    }
+                }
+                Err(_) => {
+                    skipped += 1;
+                    unwritten_assets.insert(image.asset_sha256.clone());
+                }
+            }
+        }
+        // After every record is applied, inside the same transaction: an asset
+        // is evicted only when every one of its records is withdrawn now. It is
+        // evaluated when a record was newly confirmed, or when every one of its
+        // records in this report was written as a verified absence, so an asset
+        // held back by an earlier write failure is evicted only once fresh
+        // evidence agrees with every stored withdrawal.
+        let mut candidates = fresh_assets.clone();
+        for image in &report.images {
+            if report
+                .images
+                .iter()
+                .enumerate()
+                .filter(|(_, other)| other.asset_sha256 == image.asset_sha256)
+                .all(|(index, _)| written_absent[index])
+            {
+                candidates.insert(image.asset_sha256.clone());
+            }
+        }
+        let mut newly_evicted = std::collections::BTreeSet::new();
+        for asset in candidates.difference(&unwritten_assets) {
+            if crate::artwork_store::evictable(&transaction, asset)? {
+                crate::artwork_store::mark_evicted(&transaction, asset, report.checked_at)?;
+                newly_evicted.insert(asset.clone());
+            }
+        }
+        // A withdrawal confirmed on an asset whose copy is removed, now or by an
+        // earlier check, reads as removed.
+        let mut removed = Vec::with_capacity(report.images.len());
+        for image in report.images.iter() {
+            removed.push(
+                crate::artwork_store::evicted_at(&transaction, &image.asset_sha256)?.is_some(),
+            );
+        }
+        transaction.commit()?;
+        for (index, image) in report.images.iter_mut().enumerate() {
+            // This check removed the copy: its absences report removed, even
+            // when every withdrawal was confirmed by an earlier check.
+            let removed_now = newly_evicted.contains(&image.asset_sha256) && written_absent[index];
+            image.effect = if (effects[index] == Effect::Withdrawn && removed[index]) || removed_now
+            {
+                Effect::Removed
+            } else {
+                effects[index]
+            };
+        }
+        report.skipped = skipped;
+        // The markers are committed; deleting the files can only follow.
+        let counts = crate::artwork_eviction::complete_pending_evictions(
+            self.library(),
+            Some(crate::artwork_eviction::REMOVALS_PER_CHECK),
+        )
+        .unwrap_or_default();
+        report.removed = counts.removed;
+        report.removal_deferred = counts.deferred;
+        report.removal_failed = counts.failed;
+        Ok(())
+    }
+
+    pub(crate) fn choose_fetched_artwork(
+        &self,
+        port: &crate::PortListing,
+        slot: ArtworkSlot,
+        game_id: u64,
+        fetched: steamgriddb::FetchedCandidate,
+        expected_revision: u64,
+    ) -> Result<ArtworkState> {
+        let steamgriddb::FetchedCandidate { candidate, bytes } = fetched;
+        if candidate.role != provider_role(slot) {
+            return Err(PortcoveError::verification(
+                "the SteamGridDB image was listed for a different artwork role",
+            ));
+        }
+        // The shared decode refuses animated PNGs, which also covers images the
+        // provider's static filter missed.
+        let decoded = crate::artwork_image::decode(&bytes)?;
+        let listed_format = match candidate.mime.as_str() {
+            "image/png" => ArtworkImageFormat::Png,
+            "image/jpeg" => ArtworkImageFormat::Jpeg,
+            _ => {
+                return Err(PortcoveError::verification(
+                    "the SteamGridDB image type is not supported",
+                ));
+            }
+        };
+        if decoded.format != listed_format
+            || decoded.width != candidate.width
+            || decoded.height != candidate.height
+        {
+            return Err(PortcoveError::verification(
+                "the SteamGridDB image differs from its listing; the current artwork was kept",
+            ));
+        }
+        let extension = match decoded.format {
+            ArtworkImageFormat::Png => "png",
+            ArtworkImageFormat::Jpeg => "jpg",
+        };
+        let attribution = ArtworkAttribution {
+            provider: ArtworkProvider::Steamgriddb,
+            asset_id: candidate.id,
+            game_id,
+            role: candidate.role,
+            author_name: candidate.author.name,
+            author_steam64: candidate.author.steam64,
+            source_url: candidate.url,
+            fetched_at: Library::now(),
+        };
+        crate::artwork_store::validate_attribution(&attribution)?;
+        let _guard = self.library().try_lock_artwork()?;
+        self.ingest_artwork(
+            port,
+            slot,
+            IngestedArtwork {
+                bytes: &bytes,
+                decoded: &decoded,
+                original_name: format!("steamgriddb-{}.{extension}", candidate.id),
+                origin: IngestOrigin::Provider(attribution),
+            },
+            expected_revision,
+        )
+    }
+
+    /// The single ingestion path for local and provider images. The caller holds
+    /// the artwork lock and has already read and decoded bounded bytes.
+    pub(crate) fn ingest_artwork(
+        &self,
+        port: &crate::PortListing,
+        slot: ArtworkSlot,
+        image: IngestedArtwork<'_>,
+        expected_revision: u64,
+    ) -> Result<ArtworkState> {
+        let port_id = port.id.as_str();
+        let IngestedArtwork {
+            bytes,
+            decoded,
+            original_name,
+            origin,
+        } = image;
         let proposed = LocalArtworkAsset {
-            sha256: crate::signed_catalog::digest(&bytes),
+            sha256: crate::signed_catalog::digest(bytes),
             original_name,
             format: decoded.format,
             byte_size: bytes.len() as u64,
@@ -346,13 +1027,26 @@ impl PortcoveService {
             imported_at: Library::now(),
         };
         crate::artwork_store::validate_asset(&proposed)?;
+        // Removals left over from a check are finished first, so a stale copy of
+        // an evicted image is never mistaken for the one being restored.
+        let _ = crate::artwork_eviction::complete_pending_evictions(
+            self.library(),
+            Some(crate::artwork_eviction::REMOVALS_PER_CHECK),
+        );
         let mut connection = self.library().connection()?;
         let transaction = connection.transaction()?;
         crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
         crate::artwork_store::check_capacity(&transaction, &proposed)?;
+        let existed = crate::artwork_store::asset_exists(&transaction, &proposed.sha256)?;
+        // Restoring an evicted image changes its provenance only after the
+        // original is published again, so a failed restore leaves it as it was.
+        let restoring = crate::artwork_store::evicted_at(&transaction, &proposed.sha256)?.is_some();
         // Reserve durable inventory before publishing bytes. Interruption leaves
         // a tracked unused asset that can be retried or explicitly removed.
         crate::artwork_store::write_asset(&transaction, &proposed)?;
+        if !restoring {
+            self.record_ingested_origin(&transaction, &proposed.sha256, &origin, existed)?;
+        }
         transaction.commit()?;
         let path = original_path(self.library(), &proposed.sha256)?;
         ensure_parent(&path)?;
@@ -369,11 +1063,17 @@ impl PortcoveService {
                 self.library(),
                 &proposed.sha256,
                 &path,
-                &bytes,
+                bytes,
             )?;
         }
         let transaction = connection.transaction()?;
         crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
+        if restoring {
+            // The marker goes first, because it requires the provider-only marker
+            // that a local import removes.
+            crate::artwork_store::clear_eviction(&transaction, &proposed.sha256)?;
+            self.record_ingested_origin(&transaction, &proposed.sha256, &origin, existed)?;
+        }
         crate::artwork_store::write_choice(
             &transaction,
             port_id,
@@ -391,7 +1091,42 @@ impl PortcoveService {
             &proposed.sha256,
             &decoded.thumbnail,
         );
-        self.artwork_for_listing(&port, slot)
+        self.artwork_for_listing(port, slot)
+    }
+
+    /// The provenance an ingestion records: a local import makes the asset the
+    /// player's own; a provider image adds its credit and listed evidence.
+    fn record_ingested_origin(
+        &self,
+        transaction: &rusqlite::Transaction<'_>,
+        sha256: &str,
+        origin: &IngestOrigin,
+        existed: bool,
+    ) -> Result<()> {
+        match origin {
+            IngestOrigin::Local => crate::artwork_store::record_local_origin(transaction, sha256),
+            IngestOrigin::Provider(attribution) => {
+                crate::artwork_store::write_provider(
+                    transaction,
+                    &ArtworkProviderRecord {
+                        asset_sha256: sha256.to_owned(),
+                        attribution: attribution.clone(),
+                    },
+                )?;
+                // The image was just re-resolved from the provider's listing.
+                crate::artwork_store::mark_listed_on_choose(
+                    transaction,
+                    attribution.provider,
+                    sha256,
+                    attribution.asset_id,
+                    attribution.fetched_at,
+                )?;
+                if !existed {
+                    crate::artwork_store::mark_provider_only(transaction, sha256)?;
+                }
+                Ok(())
+            }
+        }
     }
 
     pub fn reset_artwork(
@@ -402,12 +1137,117 @@ impl PortcoveService {
     ) -> Result<ArtworkState> {
         let port = self.artwork_port(port_id)?;
         let _guard = self.library().try_lock_artwork()?;
+        let _ = crate::artwork_eviction::complete_pending_evictions(
+            self.library(),
+            Some(crate::artwork_eviction::REMOVALS_PER_CHECK),
+        );
         let mut connection = self.library().connection()?;
         let transaction = connection.transaction()?;
         crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
         crate::artwork_store::write_choice(&transaction, port_id, slot, expected_revision, None)?;
         transaction.commit()?;
         self.artwork_for_listing(&port, slot)
+    }
+
+    /// Retrieve an admitted collection member only while the player keeps the default cover.
+    pub fn collection_cover_thumbnail(
+        &self,
+        port_id: &str,
+        expected_sha256: &str,
+        expected_revision: u64,
+    ) -> Result<ArtworkThumbnail> {
+        crate::artwork_store::validate_hash(expected_sha256)?;
+        let listing = self.artwork_port(port_id)?;
+        let cover = listing
+            .collection_covers
+            .as_ref()
+            .and_then(|covers| {
+                covers
+                    .iter()
+                    .find(|cover| cover.image_sha256 == expected_sha256)
+            })
+            .ok_or_else(|| {
+                PortcoveError::not_found("this listing has no matching collection cover")
+            })?;
+        listing.validate()?;
+        let require_default = || {
+            let connection = self.library().connection()?;
+            let current = crate::artwork_store::require_revision(
+                &connection,
+                port_id,
+                ArtworkSlot::Cover,
+                expected_revision,
+            )?;
+            if current.asset_sha256.is_some() {
+                return Err(PortcoveError::conflict("the artwork choice changed"));
+            }
+            Ok(())
+        };
+        require_default()?;
+        let mut thumbnail = igdb_thumbnail(self.library(), cover, expected_revision, |original| {
+            let _guard = self.library().try_lock_artwork()?;
+            require_default()?;
+            self.publish_igdb_original(cover, original)
+        })?;
+        require_default()?;
+        thumbnail.asset_sha256 = cover.image_sha256.clone();
+        Ok(thumbnail)
+    }
+
+    /// Retrieve the companion only for the current, unmodified primary cover.
+    pub fn companion_cover_thumbnail(
+        &self,
+        port_id: &str,
+        expected_primary_cache_id: &str,
+        expected_sha256: &str,
+        expected_revision: u64,
+    ) -> Result<ArtworkThumbnail> {
+        let listing = self.artwork_port(port_id)?;
+        let primary = listing
+            .artwork
+            .as_ref()
+            .ok_or_else(|| PortcoveError::not_found("this listing has no primary cover"))?;
+        if igdb_cache_id(primary) != expected_primary_cache_id {
+            return Err(PortcoveError::conflict(
+                "the primary artwork mapping changed",
+            ));
+        }
+        let companion = self
+            .catalog()
+            .port(port_id)?
+            .presentation
+            .as_ref()
+            .filter(|presentation| presentation.artwork.as_ref() == Some(primary))
+            .and_then(|presentation| presentation.companion_cover.as_ref())
+            .filter(|cover| cover.image_sha256 == expected_sha256)
+            .ok_or_else(|| {
+                PortcoveError::not_found("this listing has no matching companion cover")
+            })?;
+        let require_default = || {
+            let connection = self.library().connection()?;
+            let current = crate::artwork_store::require_revision(
+                &connection,
+                port_id,
+                ArtworkSlot::Cover,
+                expected_revision,
+            )?;
+            if current.asset_sha256.is_some() {
+                return Err(PortcoveError::conflict(
+                    "the primary artwork choice changed",
+                ));
+            }
+            Ok(())
+        };
+        require_default()?;
+        let mut thumbnail =
+            igdb_thumbnail(self.library(), companion, expected_revision, |original| {
+                let _guard = self.library().try_lock_artwork()?;
+                require_default()?;
+                self.publish_igdb_original(companion, original)
+            })?;
+        require_default()?;
+        thumbnail.asset_sha256 = companion.image_sha256.clone();
+        Ok(thumbnail)
     }
 
     pub fn artwork_thumbnail(
@@ -419,7 +1259,8 @@ impl PortcoveService {
         let port = self.artwork_port(port_id)?;
         let mapped_cover = match slot {
             ArtworkSlot::Cover => port.artwork.as_ref(),
-            ArtworkSlot::Detail => None,
+            // Catalog defaults are portrait covers; other slots fall back.
+            ArtworkSlot::Detail | ArtworkSlot::Landscape => None,
         };
         if let Some(artwork) = mapped_cover {
             let connection = self.library().connection()?;
@@ -471,6 +1312,9 @@ impl PortcoveService {
             .asset_sha256
             .ok_or_else(|| PortcoveError::not_found("this artwork slot uses the fallback"))?;
         let asset = crate::artwork_store::asset(&connection, &id)?;
+        if crate::artwork_store::evicted_at(&connection, &id)?.is_some() {
+            return Err(PortcoveError::not_found(EVICTED_REASON));
+        }
         let original = original_bytes(self.library(), &asset)?;
         let cache = thumbnail_path(self.library(), &id)?;
         if let Some((expected_hash, expected_size)) =
@@ -497,6 +1341,10 @@ impl PortcoveService {
 
     pub fn clear_artwork_cache(&self) -> Result<ArtworkCacheClear> {
         let _guard = self.library().try_lock_artwork()?;
+        let _ = crate::artwork_eviction::complete_pending_evictions(
+            self.library(),
+            Some(crate::artwork_eviction::REMOVALS_PER_CHECK),
+        );
         let files = cache_files(self.library())?;
         let result = ArtworkCacheClear {
             removed_files: files.len() as u64,
@@ -514,6 +1362,44 @@ impl PortcoveService {
             .execute("DELETE FROM artwork_thumbnails", [])?;
         clear_igdb_requests(self.library())?;
         Ok(result)
+    }
+
+    /// Which of these stored images Portcove removed because every
+    /// SteamGridDB credit behind it was confirmed withdrawn. A destination
+    /// such as Steam uses it to point out copies it holds of those images. It
+    /// is a display fact only: it never authorizes removing anything. Images
+    /// Portcove kept (the player's own import, or one still credited) and
+    /// unknown hashes are not reported. At most 64 hashes are accepted.
+    pub fn evicted_artwork_sources(
+        &self,
+        asset_sha256s: &[String],
+    ) -> Result<Vec<ArtworkEvictedAsset>> {
+        const MAX_SOURCES: usize = 64;
+        if asset_sha256s.len() > MAX_SOURCES {
+            return Err(PortcoveError::usage(
+                "too many artwork sources to look up at once",
+            ));
+        }
+        for id in asset_sha256s {
+            crate::artwork_store::validate_hash(id)?;
+        }
+        let mut connection = self.library().connection()?;
+        let transaction = connection.transaction()?;
+        let mut found = Vec::new();
+        let mut seen = std::collections::BTreeSet::new();
+        for id in asset_sha256s {
+            if !seen.insert(id) {
+                continue;
+            }
+            if let Some(evicted_at) = crate::artwork_store::evicted_at(&transaction, id)? {
+                found.push(ArtworkEvictedAsset {
+                    asset_sha256: id.clone(),
+                    evicted_at,
+                });
+            }
+        }
+        transaction.commit()?;
+        Ok(found)
     }
 
     pub fn unused_local_artwork(&self) -> Result<Vec<LocalArtworkAsset>> {
@@ -535,6 +1421,10 @@ impl PortcoveService {
 
     pub fn remove_unused_local_artwork(&self, asset_sha256: &str) -> Result<()> {
         let _guard = self.library().try_lock_artwork()?;
+        let _ = crate::artwork_eviction::complete_pending_evictions(
+            self.library(),
+            Some(crate::artwork_eviction::REMOVALS_PER_CHECK),
+        );
         let mut connection = self.library().connection()?;
         let transaction = connection.transaction()?;
         let asset = crate::artwork_store::asset(&transaction, asset_sha256)?;
@@ -563,6 +1453,7 @@ impl PortcoveService {
             "DELETE FROM artwork_thumbnails WHERE asset_sha256=?1",
             [asset_sha256],
         )?;
+        crate::artwork_store::remove_asset_provenance(&transaction, asset_sha256)?;
         transaction.execute("DELETE FROM artwork_assets WHERE sha256=?1", [asset_sha256])?;
         transaction.commit()?;
         Ok(())
@@ -1116,7 +2007,7 @@ pub(crate) fn original_path(library: &Library, id: &str) -> Result<PathBuf> {
     Ok(path)
 }
 
-fn thumbnail_path(library: &Library, id: &str) -> Result<PathBuf> {
+pub(crate) fn thumbnail_path(library: &Library, id: &str) -> Result<PathBuf> {
     crate::artwork_store::validate_hash(id)?;
     let path = library
         .root()

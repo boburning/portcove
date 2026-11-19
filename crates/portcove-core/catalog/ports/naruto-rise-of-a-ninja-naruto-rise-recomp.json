@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Naruto: Rise of a Ninja Windows ZIP player directly after upstream setup. Preserve the selected data descriptor, guest saves/content and migration journals; this release offers update notices rather than replacing itself.",
     "original_game_title": "Naruto: Rise of a Ninja",
     "project_url": "https://github.com/jorjbarbosa/naruto-rise-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/jorjbarbosa/naruto-rise-recomp",
     "artwork": {
@@ -19,6 +19,7 @@
     },
     "issue_number": 2695,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://ko-fi.com/jorjbarbosa"],
     "manual_setup": {
       "help_url": "https://github.com/jorjbarbosa/naruto-rise-recomp/blob/421bd5500059cf2d00f37276949d51db767f76b8/README.md",
       "steps": [
@@ -45,6 +46,24 @@
       ],
       "warnings": [
         "Keep active data, explicit guest roots, selection descriptors and migration journals. The media-ID/cryptographic original digest and all native/gameplay observations remain Unknown."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "naruto-rise-of-a-ninja",
+      "evidence_urls": [
+        "https://github.com/jorjbarbosa/naruto-rise-recomp/blob/421bd5500059cf2d00f37276949d51db767f76b8/README.md",
+        "https://github.com/jorjbarbosa/naruto-rise-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "naruto-rise-of-a-ninja-xbox-360",
+          "title": "Naruto: Rise of a Ninja (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/jorjbarbosa/naruto-rise-recomp/blob/4673526152d7789a683c33a56a09e34efa428fc9/README.md"
+          ]
+        }
       ]
     }
   },

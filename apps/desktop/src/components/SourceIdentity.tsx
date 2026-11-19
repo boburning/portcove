@@ -16,6 +16,7 @@ import type {
   ObservedSourceComponent,
   ObservedSourceDigest,
   SourceInspectionReport,
+  SourceRecord,
   SourceRepresentation,
 } from "../types";
 import { platformLabel } from "../view-model";
@@ -39,8 +40,12 @@ export function SourceIdentityPanel({
   report,
   openEvidence,
   openHostTool,
+  recordedSource,
+  evidenceLabel = "File details and test results",
 }: {
   report: SourceInspectionReport;
+  recordedSource?: SourceRecord | undefined;
+  evidenceLabel?: string;
   openEvidence?: ((evidenceId: string) => void) | undefined;
   openHostTool?: ((toolId: string) => void) | undefined;
 }) {
@@ -113,32 +118,29 @@ export function SourceIdentityPanel({
       <p className="source-next m-0 leading-[var(--leading-relaxed)] text-[var(--color-text-muted)]">
         <strong>Next:</strong> {report.next_action}
       </p>
-      <MetadataGrid className="source-identity-summary @max-[30rem]/source:grid-cols-[1fr]">
-        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-          <dt className="m-0 text-xs tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
-            Selected
-          </dt>
-          <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">
-            <code className="inline [overflow-wrap:anywhere] whitespace-normal">
+      {report.dump_identification && (
+        <DumpIdentificationNote identification={report.dump_identification} />
+      )}
+      <MetadataGrid className="source-identity-summary border-t border-pc-border pt-3 @max-[30rem]/source:grid-cols-[1fr]">
+        <div className="min-w-0 sm:col-span-full">
+          <dt className="m-0 text-xs">Selected</dt>
+          <dd className="m-0 mt-0.5">
+            <code dir="ltr" className="saved-file-path">
               {inspection?.path ?? report.registered?.path ?? "No file location saved"}
             </code>
           </dd>
         </div>
-        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-          <dt className="m-0 text-xs tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
-            Format
-          </dt>
-          <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">
-            {identityKindLabel(report.expected_identity?.kind)}
-          </dd>
+        <div className="min-w-0">
+          <dt className="m-0 text-xs">Format</dt>
+          <dd className="m-0 mt-0.5">{identityKindLabel(report.expected_identity?.kind)}</dd>
         </div>
-        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-          <dt className="m-0 text-xs tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
+        <div className="min-w-0">
+          <dt className="m-0 text-xs">
             {report.inspection?.assessment.classification.state === "ambiguous"
               ? "Matches"
               : "Edition"}
           </dt>
-          <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">
+          <dd className="m-0 mt-0.5">
             {variant ? variantLabel(variant) : classificationLabel(report)}
           </dd>
         </div>
@@ -154,9 +156,9 @@ export function SourceIdentityPanel({
       <details className="source-technical border-t border-pc-border">
         <summary
           data-focusable
-          className="cursor-pointer py-3 font-medium text-pc-interactive-foreground"
+          className="disclosure-pad-3 cursor-pointer font-medium text-pc-interactive-foreground"
         >
-          File details and test results
+          {evidenceLabel}
         </summary>
         <div className="grid gap-4 [&_h4]:mt-3 [&_h4]:mb-2">
           <MetadataGrid className="source-identity-summary @max-[30rem]/source:grid-cols-[1fr]">
@@ -167,7 +169,10 @@ export function SourceIdentityPanel({
               <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">{admissionLabel(report)}</dd>
             </div>
           </MetadataGrid>
-          <IdentityDigests report={report} />
+          <IdentityDigests
+            report={report}
+            recordedSource={recordedSource ?? report.registered ?? undefined}
+          />
           <Qualification report={report} />
           {report.evidence.length > 0 && (
             <section>
@@ -204,6 +209,39 @@ export function SourceIdentityPanel({
           </p>
         </div>
       </details>
+    </section>
+  );
+}
+
+type DumpIdentification = NonNullable<SourceInspectionReport["dump_identification"]>;
+
+/** Informational naming from the player's DAT files; never an admission result. */
+function DumpIdentificationNote({ identification }: { identification: DumpIdentification }) {
+  const others = identification.matches.slice(1);
+  return (
+    <section
+      className="source-dump-identification grid gap-1 rounded-pc-md bg-[var(--color-bg-inset)] p-3"
+      aria-label="DAT file match"
+    >
+      <p className="m-0">
+        <strong>DAT files:</strong> {identification.summary}
+      </p>
+      {others.length > 0 && (
+        <ul className="m-0 grid list-none gap-0.5 p-0 text-[length:var(--text-xs)]">
+          {others.map((found, index) => (
+            <li key={`${found.reference_id}:${index}`}>
+              {found.complete ? "Also matches" : "Partly matches"} “{found.entry_name}” in{" "}
+              {found.reference_name}
+            </li>
+          ))}
+        </ul>
+      )}
+      {identification.unavailable_references.map((reference, index) => (
+        <p key={`${reference.id}:${index}`} className="m-0 text-[length:var(--text-xs)]">
+          {reference.name}: {reference.message}
+        </p>
+      ))}
+      <small className="text-[var(--color-text-muted)]">{identification.limitation}</small>
     </section>
   );
 }
@@ -274,9 +312,9 @@ function ApplicationResult({
       <details className="source-technical border-t border-pc-border">
         <summary
           data-focusable
-          className="cursor-pointer py-3 font-medium text-pc-interactive-foreground"
+          className="disclosure-pad-3 cursor-pointer font-medium text-pc-interactive-foreground"
         >
-          File details and test results
+          Test results for this port
         </summary>
         <small className="text-[var(--color-text-muted)]">
           {application.contract.authority_ref}
@@ -296,7 +334,13 @@ function ApplicationResult({
   );
 }
 
-function IdentityDigests({ report }: { report: SourceInspectionReport }) {
+function IdentityDigests({
+  report,
+  recordedSource,
+}: {
+  report: SourceInspectionReport;
+  recordedSource?: SourceRecord | undefined;
+}) {
   const inspection = report.inspection;
   const recognized =
     inspection?.assessment.classification.state === "recognized"
@@ -309,6 +353,17 @@ function IdentityDigests({ report }: { report: SourceInspectionReport }) {
     : (report.expected_identity?.variants ?? []);
   return (
     <section>
+      {recordedSource && (
+        <>
+          <h4>Recorded identity</h4>
+          <dl>
+            <dt>Saved SHA-256</dt>
+            <dd>
+              <code className="break-all">{recordedSource.sha256 || "Not recorded"}</code>
+            </dd>
+          </dl>
+        </>
+      )}
       <h4>Calculated identity</h4>
       {inspection ? (
         <>
@@ -568,6 +623,7 @@ function expectedGroups(
   if (
     representation.kind === "raw-file" ||
     representation.kind === "canonical-n64" ||
+    representation.kind === "snes-copier-header-optional" ||
     representation.kind === "archive-member" ||
     representation.kind === "gamecube-normalized-iso" ||
     representation.kind === "optical-track-set" ||
@@ -817,6 +873,7 @@ function representationKindLabel(value: string) {
   const labels: Record<string, string> = {
     "raw-file": "Original file",
     "canonical-n64": "Normalized N64 file",
+    "snes-copier-header-optional": "SNES file, with or without a copier header",
     "archive-member": "File inside archive",
     "file-set": "Set of files",
     "relative-file-set": "Complete data folder",
@@ -845,6 +902,7 @@ function digestScopeLabel(value: string) {
     "original-container": "original container",
     "normalized-content": "normalized content",
     "canonical-n64-big-endian": "normalized N64 content",
+    "snes-headerless-content": "SNES content without a copier header",
     "archive-member": "file inside archive",
     "gamecube-normalized-iso": "normalized GameCube disc",
     "psx-normalized-track-set": "normalized PlayStation disc tracks",

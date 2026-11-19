@@ -32,6 +32,7 @@
     },
     "compare": {
       "files": "الملفات المطلوبة",
+      "filesOptional": "الملفات الاختيارية",
       "filesUnlisted": "المتطلبات غير مدرجة هنا. راجع تعليمات إعداد المشروع.",
       "instructions": "تعليمات المشروع",
       "noChannel": "لا توجد قناة تحديث مدرجة.",
@@ -63,7 +64,7 @@
     "groupLabel_other": "{{title}}. {{count}} مشروع منفصل؛ {{matching}} مطابقة.",
     "identity": {
       "matching": "{{title}} {{project}}. المنفذ المطابق: {{port}}. {{state}}. {{action}}",
-      "single": "{{title}} {{project}}. {{state}}. {{action}}"
+      "single": "{{identity}}. {{state}}. {{action}}"
     },
     "label": "اكتشاف الألعاب",
     "matchingPort": "المنفذ المطابق: <port />",
@@ -79,7 +80,8 @@
     "separateProjects_two": "مشروعان منفصلان",
     "separateProjects_few": "{{count}} مشاريع منفصلة",
     "separateProjects_many": "{{count}} مشروعًا منفصلًا",
-    "separateProjects_other": "{{count}} مشروع منفصل"
+    "separateProjects_other": "{{count}} مشروع منفصل",
+    "unavailableFor": "غير متاح لـ {{platform}}"
   },
   "hero": {
     "continueLabel": "{{title}} لُعبت مؤخرًا",
@@ -106,6 +108,7 @@
     "chosen": "<name/> · اختيارك",
     "chosenOutside": "<name/> · اختيارك · خارج عوامل التصفية الحالية",
     "independence": "اختيار مشروع لا يحدد إصدارًا ولا ينقل الحفظ ولا يستبدل تثبيتًا آخر.",
+    "label": "عناصر المكتبة",
     "outside": "<name/> · خارج عوامل التصفية الحالية",
     "portCount_zero": "{{count, number}} منفذ",
     "portCount_one": "منفذ واحد ({{count, number}})",
@@ -167,8 +170,16 @@
   },
   "search": {
     "clear": "مسح البحث",
+    "cleared": "تم مسح البحث.",
     "discover": "البحث في الاكتشاف",
     "library": "البحث في مكتبتك",
     "placeholder": "اسم اللعبة أو المنفذ"
+  },
+  "upstreamActivity": {
+    "archived": "أبلغ GitHub في {{checked}} أن مؤلفي المشروع أرشفوه ولم يعودوا يقبلون التغييرات. من غير المرجح صدور إصدارات جديدة.",
+    "label": "نشاط المصدر على GitHub",
+    "quiet": "أبلغ GitHub في {{checked}} أن المشروع لم يتغير منذ {{date}}. من غير المرجح صدور إصدارات جديدة ما لم يُستأنف العمل.",
+    "recent": "أبلغ GitHub في {{checked}} أن آخر تغيير في المشروع كان في {{date}}.",
+    "unknown": "تمت مراجعة GitHub في {{checked}}. تاريخ آخر تغيير غير معروف."
   }
 }

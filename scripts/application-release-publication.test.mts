@@ -142,26 +142,42 @@ function ordinaryFixture(mode = "valid") {
   const version = "0.1.0-alpha.3",
     tree = "d".repeat(40),
     intent = "7".repeat(64);
-  const actor = { name: "Fixture", email: "fixture@example.test", date: "2026-11-04T12:00:00Z" };
+  const sourceActor = {
+    name: "Fixture",
+    email: "fixture@example.test",
+    date: "2026-11-04T12:00:00Z",
+  };
+  const actor = {
+    name: "Portcove version preparation",
+    email: "version-preparation@portcove.invalid",
+    date: sourceActor.date,
+  };
   const seconds = Math.floor(Date.parse(actor.date) / 1000);
+  const sourceHeaders = `tree ${base.custody.source_tree}\nauthor Fixture <fixture@example.test> ${seconds} -0500\ncommitter Fixture <fixture@example.test> ${seconds} -0500`;
+  const sourceMessage = "Original application\n";
+  const rawSource = `${sourceHeaders}\ngpgsig fixture-signature\n\n${sourceMessage}`;
+  const original = createHash("sha1")
+    .update(`commit ${Buffer.byteLength(rawSource)}\0${rawSource}`)
+    .digest("hex");
   const message = `Mechanical fixture\n\nPortcove-Preparation-SHA256: ${intent}`;
-  const rawCommit = `tree ${tree}\nparent ${base.custody.source}\nauthor Fixture <fixture@example.test> ${seconds} +0000\ncommitter Fixture <fixture@example.test> ${seconds} +0000\n\n${message}`;
+  const rawCommit = `tree ${tree}\nparent ${original}\nauthor ${actor.name} <${actor.email}> ${seconds} -0500\ncommitter ${actor.name} <${actor.email}> ${seconds} -0500\n\n${message}\n`;
   const prepared = createHash("sha1")
     .update(`commit ${Buffer.byteLength(rawCommit)}\0${rawCommit}`)
     .digest("hex");
   const custody: ApplicationRunCustody = {
     ...base.custody,
-    opportunity: base.custody.source,
+    source: original,
+    opportunity: original,
     preparation: {
-      source_commit: base.custody.source,
+      source_commit: original,
       source_tree: base.custody.source_tree,
       prepared_commit: prepared,
       prepared_tree: tree,
       version,
       intent_sha256: intent,
       classification: {
-        source_commit: base.custody.source,
-        reviewed_commit: base.custody.source,
+        source_commit: original,
+        reviewed_commit: original,
         base_version: "0.1.0-alpha.2",
         change: "prerelease",
         compatibility: "compatible",
@@ -269,6 +285,19 @@ function ordinaryFixture(mode = "valid") {
               object: { type: "commit", sha: mode === "wrong-tag" ? "f".repeat(40) : prepared },
             })
           : reply({}, 404);
+      if (endpoint.endsWith(`/git/commits/${original}`))
+        return reply({
+          sha: original,
+          tree: { sha: custody.source_tree },
+          parents: [],
+          author: sourceActor,
+          committer: sourceActor,
+          message: sourceMessage,
+          verification: {
+            signature: "fixture-signature",
+            payload: `${sourceHeaders}\n\n${sourceMessage}`,
+          },
+        });
       if (endpoint.endsWith(`/git/commits/${prepared}`))
         return reply({
           sha: prepared,

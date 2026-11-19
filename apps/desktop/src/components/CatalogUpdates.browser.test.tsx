@@ -1,4 +1,6 @@
-import { captureParityState } from "../../test/parity-capture";
+import { captureParityState as captureRenderedState } from "../../test/parity-capture";
+import { prepareCaptureTarget } from "../../test/capture-target";
+import { observeVisibleTarget } from "../../scripts/browser-readiness.mts";
 import { fixtureValue } from "../test-fixtures";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -7,8 +9,9 @@ import { expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
-import type { CatalogStatus, CatalogUpdatePlan } from "../types";
+import type { CatalogStatus, CatalogUpdatePlan, CatalogProvenance, DoctorReport } from "../types";
 import { CatalogSettings } from "./CatalogUpdates";
+import { SettingsView } from "./Chrome";
 
 it("requires explicit review, invalidates changed candidates and uses core provenance after publication", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -177,7 +180,7 @@ it("requires explicit review, invalidates changed candidates and uses core prove
         ).toBeGreaterThanOrEqual(11);
       }
     }
-    await captureParityState("catalog-trust-reviewed-fixture");
+    await captureRenderedState("catalog-trust-reviewed-fixture");
     await click("Review update");
     expect(document.body.textContent).toContain("No port information will change.");
     expect(document.body.querySelector('[aria-label="Affected ports"]')).toBeNull();
@@ -196,7 +199,7 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     await click("Apply catalog update");
     expect(apply).toHaveBeenCalledWith(plan.source, plan.plan_sha256, expect.any(Function));
     expect(document.body.textContent).toContain("Catalog changed; review again");
-    await captureParityState("catalog-update-stale-plan-fixture");
+    await captureRenderedState("catalog-update-stale-plan-fixture");
     expect(button("Apply catalog update")).toBeUndefined();
     expect(refresh).not.toHaveBeenCalled();
     await click("Review update");
@@ -260,10 +263,12 @@ it("requires explicit review, invalidates changed candidates and uses core prove
 
 it("keeps fallback diagnostics in distinct technical disclosures with safe summaries", () => {
   const reasons = [
+    "Publisher trust changed",
+    "Cache dates are inconsistent",
+    "Definition restoration is temporarily unavailable",
+    "Selected definition was rejected: signer threshold unavailable",
+    "A saved listing directory was not selected",
     "catalog signing key is not trusted",
-    "catalog sequence or validity interval is invalid, future-dated, or expired",
-    "selected definition was not loaded: future internal diagnostic",
-    "future cache lease expired during recovery",
     "future opaque catalog diagnostic",
   ];
   const html = renderToStaticMarkup(
@@ -276,22 +281,34 @@ it("keeps fallback diagnostics in distinct technical disclosures with safe summa
         key_id: null,
         expires_at: null,
         fallback_reasons: reasons,
+        fallback_codes: [
+          "untrusted_key",
+          "invalid_validity",
+          "selected_definition_unavailable",
+          "signature_invalid",
+          "listing_directory_unavailable",
+          "unknown",
+        ],
       }}
     />,
   );
   expect(html).toContain("signed by a publisher that is no longer trusted");
   expect(html).toContain("expired or had invalid dates");
   expect(html).toContain("selected catalog definition could not be loaded");
+  expect(html).toContain("did not pass signature verification");
   expect(html).toContain("A saved catalog could not be used");
   const host = document.createElement("div");
   host.innerHTML = html;
   const disclosures = [...host.querySelectorAll(".catalog-fallback-reason details")];
   expect(disclosures).toHaveLength(reasons.length);
   expect(
-    fixtureValue(disclosures[3], "disclosures[3]").parentElement?.querySelector("p")?.textContent,
+    fixtureValue(disclosures[5], "disclosures[5]").parentElement?.querySelector("p")?.textContent,
   ).toBe(
     "A saved catalog could not be used. Portcove continued with the available catalog information.",
   );
+  expect(
+    fixtureValue(disclosures[4], "listing fallback").parentElement?.querySelector("p")?.textContent,
+  ).toBe("Portcove could not use the saved listing directory.");
   for (const [index, reason] of reasons.entries()) {
     expect(html).toContain(
       `aria-label="Technical details for catalog fallback ${index + 1} of ${reasons.length}"`,
@@ -305,6 +322,133 @@ it("keeps fallback diagnostics in distinct technical disclosures with safe summa
 
 vi.mock("../file-picker", { spy: true });
 
+it("renders mounted typed and legacy fallback summaries in the actual Advanced Settings context", async () => {
+  const signature = "Timestamp signer threshold did not match the admitted repository";
+  const unknown = `Opaque future diagnostic: ${"repository-metadata-context/".repeat(8)}`;
+  const variants: {
+    name: string;
+    theme: "dark" | "light";
+    width: number;
+    reasons: string[];
+    summary: string;
+    codes?: CatalogProvenance["fallback_codes"];
+  }[] = [
+    {
+      name: "typed",
+      theme: "dark",
+      width: 960,
+      reasons: [signature],
+      summary:
+        "Catalog information did not pass signature verification. Portcove kept the available catalog information.",
+      codes: ["signature_invalid"],
+    },
+    {
+      name: "unknown-and-legacy",
+      theme: "light",
+      width: 430,
+      reasons: [unknown, "Legacy text-only catalog diagnostic"],
+      summary:
+        "A saved catalog could not be used. Portcove continued with the available catalog information.",
+      codes: ["unknown"],
+    },
+  ];
+  vi.spyOn(desktopApi, "listingDeliveryStatus").mockResolvedValue({
+    delivery_schema: 1,
+    revision: null,
+    selected: false,
+    anchor_sha256: null,
+    repository_root_sha256: null,
+    target_sha256: null,
+    expires_at: null,
+    listing_count: 0,
+    withdrawn_ids: [],
+    fallback_reason: null,
+  });
+  const host = document.body.appendChild(document.createElement("div"));
+  const root = createRoot(host);
+  try {
+    for (const variant of variants) {
+      await page.viewport(variant.width, 800);
+      document.documentElement.dataset.theme = variant.theme;
+      const provenance: CatalogProvenance = {
+        origin: "embedded",
+        catalog_sha256: "a".repeat(64),
+        sequence: null,
+        key_id: null,
+        expires_at: null,
+        fallback_reasons: variant.reasons,
+        ...(variant.codes ? { fallback_codes: variant.codes } : {}),
+      };
+      const doctor: DoctorReport = {
+        platform: "windows-x86-64",
+        library: {
+          library_root: "C:/Fixture library",
+          volume_total_bytes: 1024,
+          volume_available_bytes: 512,
+        },
+        catalog_port_count: 1,
+        catalog_provenance: provenance,
+        installed_port_count: 0,
+        registered_source_count: 0,
+        repair: { generated_at: 1, items: [] },
+        host_tools: [],
+      };
+      await act(async () => root.render(<SettingsView category="advanced" doctor={doctor} />));
+      const section = host.querySelector<HTMLElement>('[data-settings-group="advanced"]')!;
+      const rows = [...section.querySelectorAll<HTMLElement>(".catalog-fallback-reason")];
+      expect(rows).toHaveLength(variant.reasons.length);
+      expect(section.closest(".settings-grid")).not.toBeNull();
+      expect(rows[0]?.closest(".settings-row")).not.toBeNull();
+      expect(rows[0]?.isConnected).toBe(true);
+      expect(rows[0]?.getBoundingClientRect().width).toBeGreaterThan(0);
+      expect(rows.map((row) => row.querySelector("p")?.textContent)).toEqual(
+        variant.reasons.map(() => variant.summary),
+      );
+      await expect
+        .element(
+          page
+            .getByRole("region", { name: "Advanced", exact: true })
+            .getByText(variant.summary, { exact: true })
+            .first(),
+        )
+        .toBeVisible();
+      for (const [index, row] of rows.entries()) {
+        // Identify the real mounted row without assuming its sibling element types.
+        const target = `catalog-fallback-${variant.name}-${index}`;
+        row.dataset.captureFallback = target;
+        const actualSelector = `[data-capture-fallback="${target}"]`;
+        await prepareCaptureTarget({
+          target: actualSelector,
+          label: target,
+          scroll: () => row.scrollIntoView({ block: "center" }),
+          observe: () => observeVisibleTarget(actualSelector, "visual"),
+        });
+        await captureRenderedState(`${target}-collapsed`);
+        const disclosure = row.querySelector<HTMLDetailsElement>("details")!;
+        expect(disclosure.open).toBe(false);
+        await userEvent.click(disclosure.querySelector("summary")!);
+        expect(disclosure.open).toBe(true);
+        expect(disclosure.textContent).toContain(variant.reasons[index]);
+        expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth + 1);
+        await prepareCaptureTarget({
+          target: actualSelector,
+          label: `${target} expanded`,
+          scroll: () => row.scrollIntoView({ block: "center" }),
+          observe: () => observeVisibleTarget(actualSelector, "visual"),
+        });
+        await captureRenderedState(`${target}-expanded`);
+        await userEvent.click(disclosure.querySelector("summary")!);
+        expect(disclosure.open).toBe(false);
+      }
+    }
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    delete document.documentElement.dataset.theme;
+    vi.restoreAllMocks();
+  }
+}, 30_000);
+
 it("refreshes descriptive directory data through Core and reloads the workspace", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const initial = {
@@ -317,19 +461,54 @@ it("refreshes descriptive directory data through Core and reloads the workspace"
     expires_at: null,
     listing_count: 0,
     withdrawn_ids: [],
-    fallback_reason: null,
+    fallback_reason: "The saved listing directory could not be read",
+    fallback_code: "listing_directory_unavailable",
   } satisfies Awaited<ReturnType<typeof desktopApi.listingDeliveryStatus>>;
-  vi.spyOn(desktopApi, "listingDeliveryStatus").mockResolvedValue(initial);
-  const apply = vi
-    .spyOn(desktopApi, "refreshCatalogListings")
-    .mockResolvedValue({ ...initial, revision: 2, selected: true, listing_count: 1 });
+  const read = vi
+    .spyOn(desktopApi, "listingDeliveryStatus")
+    .mockRejectedValueOnce(new Error("Status unavailable"))
+    .mockResolvedValue(initial);
+  const apply = vi.spyOn(desktopApi, "refreshCatalogListings").mockResolvedValue({
+    ...initial,
+    revision: 2,
+    selected: true,
+    listing_count: 1,
+    fallback_reason: null,
+    fallback_code: null,
+  });
   const changed = vi.fn().mockResolvedValue(undefined);
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
   try {
     await act(async () => root.render(<CatalogSettings disabled={false} onChanged={changed} />));
-    await page.getByText("Game listings", { exact: true }).click();
+    await expect
+      .element(page.getByRole("alert"))
+      .toMatchTextContent("Game listing status is unknown");
+    await page.getByRole("button", { name: "Retry listing status", exact: true }).click();
+    const builtIn = page.getByText("Using the built-in directory", { exact: true });
+    await expect.element(builtIn).toBeVisible();
+    expect(builtIn.elements()).toHaveLength(1);
+    await expect
+      .element(
+        page.getByText("Portcove could not use the saved listing directory.", { exact: true }),
+      )
+      .toBeVisible();
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(apply).not.toHaveBeenCalled();
+    const diagnostic = page.getByText(initial.fallback_reason, { exact: true });
+    await expect.element(diagnostic).not.toBeVisible();
+    const details = page.getByText("Technical details", { exact: true });
+    await expect
+      .element(details)
+      .toHaveAttribute("aria-label", "Technical details for catalog fallback 1 of 1");
+    await details.click();
+    await expect.element(diagnostic).toBeVisible();
+    const settings = page.getByText("Listing refresh settings", { exact: true });
+    await expect.element(settings).toBeVisible();
+    expect(settings.element().closest("details")?.open).toBe(false);
+    expect(apply).not.toHaveBeenCalled();
+    await settings.click();
     await page
       .getByRole("textbox", { name: "Catalog metadata address" })
       .fill("https://catalog.example/metadata/");

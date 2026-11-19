@@ -19,8 +19,6 @@
     },
     "release_url": "https://github.com/OpenSC2K/OpenSC2K/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["OpenSC2K-", "windows-x64-portable.zip"],
-      "linux-x86-64": ["OpenSC2K-", "-linux-x64.tar.gz"],
       "macos-x86-64": ["OpenSC2K-", "-macos-universal.dmg"],
       "macos-aarch64": ["OpenSC2K-", "-macos-universal.dmg"]
     },
@@ -60,7 +58,16 @@
       ]
     },
     "original_game_title": "SimCity 2000",
-    "platforms": ["macos-x86-64", "macos-aarch64"]
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "simcity-2000",
+      "evidence_urls": [
+        "https://github.com/OpenSC2K/OpenSC2K/blob/main/docs/install.md",
+        "https://github.com/OpenSC2K/OpenSC2K"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -111,6 +118,7 @@
       }
     ]
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -134,6 +142,16 @@
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "On first Play, select SIMCITY.EXE from your SimCity 2000 Special Edition for Windows 95 (1996), with its companion files. Keep those originals for later pack re-import prompts. Portcove updates this portable runtime and preserves its data folder on Windows and Linux: imported packs, settings and ordinary saved cities, scenarios, scripts and SCURK files. Temporary autosaves in the system temporary folder, custom save/export/pack/SoundFont locations, Godot logs and the original installation remain external and outside these backups. Save cities normally before backup. Runtime rollback keeps current declared data; it does not rewind cities or guarantee older-version compatibility. On Linux, Portcove prepares that directory beside the managed player before Play. Existing external copies keep their own ownership and profiles."
     },
-    "linux_portable_data_directory": "data"
+    "linux_portable_data_directory": "data",
+    "reviewed_package_layouts": {
+      "linux-x86-64": {
+        "directories": ["licenses"],
+        "executables": ["opensc2k.x86_64"]
+      },
+      "windows-x86-64": {
+        "directories": ["data", "licenses"],
+        "executables": ["opensc2k.exe"]
+      }
+    }
   }
 }

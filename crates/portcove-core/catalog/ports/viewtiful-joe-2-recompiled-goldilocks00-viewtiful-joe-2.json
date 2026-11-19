@@ -35,6 +35,21 @@
       "image_sha256": "6da0db8df087a0f2abd05ef693907710616500e7a9823e0f72e1867514c6dca9",
       "game_slug": "viewtiful-joe-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "viewtiful-joe-2",
+      "evidence_urls": ["https://github.com/goldilocks00/viewtiful-joe-2-recompiled"],
+      "source_editions": [
+        {
+          "id": "viewtiful-joe-2-nintendo-gamecube",
+          "title": "Viewtiful Joe 2 (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/goldilocks00/viewtiful-joe-2-recompiled/blob/d1d9c29c7b5a357daa2cbed60926c4c8531ac49d/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

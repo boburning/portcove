@@ -14,6 +14,7 @@ import {
   inspectCompactCapacityOperations,
 } from "./release-capacity.mts";
 import {
+  catalogPagesReadbackId,
   catalogPublicationLifecycle,
   inspectCatalogPublicationDescriptor,
 } from "./release-catalog-publication-contract.mts";
@@ -356,14 +357,12 @@ export async function continueActualCatalogPublication(
         (["succeeded", "recovered"].includes(pages.outcome) && !settled(pages))
       )
         throw new Error("original catalog Pages intent is not eligible for GET-only continuation");
-      if (
-        pages.completed_effects.some(
-          (effect) =>
-            effect.remote_identity !==
-            `github-pages:boburning/portcove:${String(pages.catalog_site_expectation!.site_generation_sha256)}`,
-        )
-      )
-        throw new Error("retained catalog Pages effect differs from exact generation");
+      for (const effect of pages.completed_effects)
+        catalogPagesReadbackId(
+          pages.catalog_site_expectation,
+          effect.remote_identity,
+          settled(pages),
+        );
       const ready = path.join(directory, "ready-coordinator.json");
       await writeFile(
         ready,

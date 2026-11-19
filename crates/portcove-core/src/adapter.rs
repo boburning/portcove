@@ -259,10 +259,10 @@ impl Adapter for StandardAdapter {
         checkpoint()?;
         crate::runtime_data_policy::validate(port)?;
         if port.managed_initialization.is_some() {
-            crate::managed_tfe::validate(port)?;
+            crate::managed_initialization::validate(port)?;
             if platform != Platform::WindowsX86_64 {
                 return Err(PortcoveError::unsupported(
-                    "managed TFE initialization requires Windows",
+                    "managed portable initialization requires Windows",
                 ));
             }
         }
@@ -274,6 +274,7 @@ impl Adapter for StandardAdapter {
         }
         let executable = selected_executable.to_path_buf();
         let user_data = library.user_dir(&port.id);
+        crate::runtime_path_policy::check_user_data_root(port, platform, &user_data)?;
         let library_path = crate::path::unicode(library.root(), "library root")?;
         let user_data_path = crate::path::unicode(&user_data, "user data")?;
         let mut environment = BTreeMap::from([
@@ -282,6 +283,18 @@ impl Adapter for StandardAdapter {
             ("PORTCOVE_USER_DATA".into(), user_data_path.clone()),
         ]);
         environment.extend(port.launch_environment.clone());
+        if self.0 == AdapterKind::NativePortable
+            && matches!(platform, Platform::WindowsX86_64 | Platform::LinuxX86_64)
+            && port.id == "corsixth-corsixth"
+            && port.release.provider == crate::ReleaseSource::Github
+            && port
+                .release
+                .repository
+                .eq_ignore_ascii_case("CorsixTH/CorsixTH")
+        {
+            // CorsixTH's blank player name expects USER or USERNAME before its own PLAYER fallback.
+            environment.insert("USER".into(), "PLAYER".into());
+        }
         crate::native_temp::environment(port, platform, &mut environment)?;
         if let Some(variable) = &port.user_data_environment {
             environment.insert(variable.clone(), user_data_path.clone());
@@ -386,7 +399,11 @@ impl Adapter for StandardAdapter {
             }
             _ => Vec::new(),
         };
-        let mut arguments = port.launch_arguments.clone();
+        let mut arguments = if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::arguments(port, &working_directory, checkpoint)?
+        } else {
+            port.launch_arguments.clone()
+        };
         arguments.extend(adapter_arguments);
         if platform == Platform::LinuxX86_64
             && port.external_profile_policy == Some(crate::ExternalProfilePolicy::Doom3LinuxV1)
@@ -412,6 +429,8 @@ impl Adapter for StandardAdapter {
         }
         Ok(LaunchSpec {
             fixed_arguments_only: port.managed_initialization.is_some()
+                // A portable player's alternate game-folder mode can change where it writes.
+                || (self.0 == AdapterKind::NativePortable && port.user_data_environment.is_some())
                 || port.managed_shared_preferences.is_some()
                 || port.runtime_data_policy.is_some()
                 || crate::native_portable_data::directory_name(port, platform).is_some()
@@ -450,10 +469,10 @@ impl Adapter for StandardAdapter {
         checkpoint()?;
         crate::runtime_data_policy::validate(port)?;
         if port.managed_initialization.is_some() {
-            crate::managed_tfe::validate(port)?;
+            crate::managed_initialization::validate(port)?;
             if platform != Platform::WindowsX86_64 {
                 return Err(PortcoveError::unsupported(
-                    "managed TFE initialization requires Windows",
+                    "managed portable initialization requires Windows",
                 ));
             }
         }
@@ -510,6 +529,23 @@ impl Adapter for StandardAdapter {
         if let Some(name) = &port.portable_marker_file {
             create_missing_portable_marker_file(&working_directory, name)?;
         }
+        if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::inspect(port, &working_directory, checkpoint)?;
+            let record = request.source_record.ok_or_else(|| {
+                PortcoveError::source("Chocolate requires its checked original IWAD")
+            })?;
+            if source != Some(record.path.as_path()) {
+                return Err(PortcoveError::verification(
+                    "Chocolate original changed its selected path",
+                ));
+            }
+            crate::managed_chocolate::require_original(
+                port,
+                &working_directory,
+                record,
+                checkpoint,
+            )?;
+        }
         let sealed_source = crate::preparation::source::sealed(library, port, install_root)?;
         let immutable_managed_psx_source = self.0 == AdapterKind::PsxRecompManaged
             && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::PsxRawSet);
@@ -553,16 +589,26 @@ impl Adapter for StandardAdapter {
                 }
                 None => RuntimeSourceInput::Legacy(source),
             };
-            prepare_runtime_source_input(
-                input,
-                &stored_source,
-                materialization,
-                &port.runtime_source_hashes,
-                None,
-                checkpoint,
-                crate::tool_process::ToolProcessObserver::default(),
-                disc.as_ref(),
-            )?;
+            match (materialization, &port.runtime_rom_patch) {
+                (RuntimeSourceMaterialization::RomPatch, Some(patch)) => prepare_rom_patch_source(
+                    source,
+                    &stored_source,
+                    patch,
+                    &port.runtime_source_hashes,
+                    checkpoint,
+                )?,
+                _ => prepare_runtime_source_input(
+                    input,
+                    &stored_source,
+                    materialization,
+                    &port.runtime_source_hashes,
+                    None,
+                    checkpoint,
+                    crate::tool_process::ToolProcessObserver::default(),
+                    disc.as_ref(),
+                    port.runtime_stfs_package.as_ref(),
+                )?,
+            }
             checkpoint()?;
         }
         (self.0 == AdapterKind::PsxRecompManaged)
@@ -594,7 +640,7 @@ impl Adapter for StandardAdapter {
             )?;
             checkpoint()?;
         }
-        if port.managed_initialization.is_some() {
+        if port.managed_initialization.is_some() && !crate::managed_chocolate::applies(port) {
             let record = request.source_record.ok_or_else(|| {
                 PortcoveError::source("managed original data needs its checked registration")
             })?;
@@ -626,7 +672,7 @@ impl Adapter for StandardAdapter {
         }
         crate::n64_graphics::prepare(port, platform, &working_directory, checkpoint)?;
         if port.managed_initialization.is_some() {
-            crate::managed_tfe::prepare(&working_directory, checkpoint)?;
+            crate::managed_initialization::prepare(port, &working_directory, checkpoint)?;
         }
         self.launch_spec_with_executable(request, checkpoint)
     }
@@ -818,6 +864,7 @@ pub(crate) fn prepare_runtime_source_with_tool(
         checkpoint,
         observer,
         None,
+        None,
     )
 }
 
@@ -891,9 +938,11 @@ pub(crate) fn prepare_disc_runtime_source(
         checkpoint,
         crate::tool_process::ToolProcessObserver::default(),
         Some(disc),
+        None,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn prepare_admitted_runtime_source(
     source: &SourceRecord,
     destination: &Path,
@@ -902,6 +951,7 @@ pub(crate) fn prepare_admitted_runtime_source(
     pinned_host_tool: Option<&Path>,
     checkpoint: &dyn Fn() -> Result<()>,
     observer: crate::tool_process::ToolProcessObserver<'_>,
+    stfs: Option<&crate::StfsPackageProfile>,
 ) -> Result<()> {
     prepare_runtime_source_input(
         RuntimeSourceInput::Admitted(source),
@@ -912,6 +962,7 @@ pub(crate) fn prepare_admitted_runtime_source(
         checkpoint,
         observer,
         None,
+        stfs,
     )
 }
 
@@ -930,6 +981,7 @@ fn prepare_runtime_source_input(
     checkpoint: &dyn Fn() -> Result<()>,
     observer: crate::tool_process::ToolProcessObserver<'_>,
     disc: Option<&DiscUnpack<'_>>,
+    stfs: Option<&crate::StfsPackageProfile>,
 ) -> Result<()> {
     let (source, admitted_zip) = match input {
         RuntimeSourceInput::Legacy(path) => (path, None),
@@ -949,6 +1001,14 @@ fn prepare_runtime_source_input(
     )?;
     if let Some(copy) = &admitted_zip {
         copy.verify_container(&expected.storage_sha256, expected.storage_size)?;
+    }
+    // A declared STFS binding is checked before reuse or extraction, so a package for
+    // another game or a title update never reaches the runtime directory.
+    if materialization == RuntimeSourceMaterialization::StfsDirectory
+        && let Some(profile) = stfs
+    {
+        let header = crate::stfs::read_header_from_path(source)?;
+        crate::stfs::check_binding(&header, std::fs::metadata(source)?.len(), profile)?;
     }
     let destination_ready = match materialization {
         RuntimeSourceMaterialization::PsxBinCue
@@ -1001,7 +1061,7 @@ fn prepare_runtime_source_input(
         RuntimeSourceMaterialization::PsxRawSet => materialize_psx_set(
             source,
             destination,
-            false,
+            None,
             pinned_host_tool,
             checkpoint,
             observer,
@@ -1010,7 +1070,7 @@ fn prepare_runtime_source_input(
             materialize_ps2_iso(source, destination, pinned_host_tool, checkpoint, observer)?
         }
         RuntimeSourceMaterialization::StfsDirectory => {
-            materialize_stfs_directory(source, destination, required_hashes, checkpoint)?
+            materialize_stfs_directory(source, destination, required_hashes, stfs, checkpoint)?
         }
         RuntimeSourceMaterialization::XdvdfsDirectory
         | RuntimeSourceMaterialization::Iso9660Directory => {
@@ -1029,6 +1089,14 @@ fn prepare_runtime_source_input(
             )?;
             // The staged tree was verified before it replaced the runtime; the
             // shared post-step below re-reads only the anchors.
+        }
+        RuntimeSourceMaterialization::RomPatch => {
+            return Err(PortcoveError::usage(
+                "ROM patching requires its catalog patch declaration and a file-set source",
+            ));
+        }
+        RuntimeSourceMaterialization::SnesHeaderless => {
+            write_snes_headerless_source(source, destination, required_hashes, checkpoint)?
         }
     }
     checkpoint()?;
@@ -1214,7 +1282,6 @@ pub(crate) fn prepare_runtime_source_set_member(
         return checkpoint();
     }
 
-    const MAX_RUNTIME_SOURCE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
     let entry = archive
         .by_index(index)
         .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP entry: {error}")))?;
@@ -1234,10 +1301,222 @@ pub(crate) fn prepare_runtime_source_set_member(
     atomic_write_json(&marker_path, &expected)
 }
 
+/// Upper bound for the marker that records which inputs produced a patched file.
+const ROM_PATCH_MARKER_BYTES: u64 = 16 * 1024;
+
+/// Produce the patched runtime file from the original and patch members of a
+/// file-set source (a folder or a ZIP). Both inputs are read once, bounded, and
+/// checked against their pinned SHA-256 before patching, and the output is
+/// checked against its pinned SHA-256 before anything is written. The source is
+/// only read; the destination is replaced atomically, so a failure leaves any
+/// previous file in place.
+fn prepare_rom_patch_source(
+    source_root: &Path,
+    destination: &Path,
+    patch: &crate::RomPatchProfile,
+    required_hashes: &BTreeMap<String, String>,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    let mut outputs = required_hashes.values();
+    let (Some(expected_output), None) = (outputs.next(), outputs.next()) else {
+        return Err(PortcoveError::usage(
+            "ROM patching requires exactly one patched runtime identity",
+        ));
+    };
+    let (original, patch_bytes) = read_rom_patch_inputs(source_root, patch, checkpoint)?;
+    for (role, bytes, expected) in [
+        ("original", &original, &patch.original_sha256),
+        ("patch", &patch_bytes, &patch.patch_sha256),
+    ] {
+        let actual = hex::encode(Sha256::digest(bytes));
+        if !actual.eq_ignore_ascii_case(expected) {
+            return Err(PortcoveError::source(format!(
+                "the {role} for this ROM patch is not the reviewed file"
+            ))
+            .detail("role", role)
+            .detail("expected_sha256", expected)
+            .detail("actual_sha256", actual));
+        }
+    }
+    checkpoint()?;
+    let marker_path = runtime_source_marker_path(destination)?;
+    let canonical =
+        std::fs::canonicalize(source_root).unwrap_or_else(|_| source_root.to_path_buf());
+    let expected = RuntimeSourceMarker {
+        schema_version: 2,
+        source: crate::path::unicode(&canonical, "source")?,
+        source_member: Some(format!(
+            "original:{};patch:{}",
+            patch.original_sha256.to_ascii_lowercase(),
+            patch.patch_sha256.to_ascii_lowercase()
+        )),
+        storage_sha256: aggregate_sha256(&[
+            patch.original_sha256.to_ascii_lowercase(),
+            patch.patch_sha256.to_ascii_lowercase(),
+        ]),
+        storage_size: (original.len() as u64).saturating_add(patch_bytes.len() as u64),
+        materialization: RuntimeSourceMaterialization::RomPatch,
+    };
+    let marker_matches = destination.is_file()
+        && crate::path::read_bounded_regular(&marker_path, ROM_PATCH_MARKER_BYTES)
+            .ok()
+            .and_then(|value| serde_json::from_slice::<RuntimeSourceMarker>(&value).ok())
+            .as_ref()
+            == Some(&expected);
+    if marker_matches {
+        match verify_runtime_source_hashes(destination, required_hashes, checkpoint) {
+            Ok(()) => return checkpoint(),
+            Err(error) if error.code == crate::ErrorCode::Verification => {}
+            Err(error) => return Err(error),
+        }
+    }
+    let output = crate::rom_patch::apply(patch.format, &original, &patch_bytes, checkpoint)?;
+    drop(original);
+    drop(patch_bytes);
+    let actual = hex::encode(Sha256::digest(&output));
+    if !actual.eq_ignore_ascii_case(expected_output) {
+        return Err(
+            PortcoveError::verification("the patched file is not the reviewed result")
+                .detail("expected_sha256", expected_output)
+                .detail("actual_sha256", actual),
+        );
+    }
+    checkpoint()?;
+    let parent = destination
+        .parent()
+        .ok_or_else(|| PortcoveError::state("ROM patch destination has no parent directory"))?;
+    crate::path::refuse_symlink_ancestors(parent)?;
+    std::fs::create_dir_all(parent)?;
+    crate::durability::write_bytes_atomically_with_prefix(
+        destination,
+        &output,
+        true,
+        Some(".portcove-rom-patch-"),
+    )?;
+    verify_runtime_source_hashes(destination, required_hashes, checkpoint)?;
+    atomic_write_json(&marker_path, &expected)
+}
+
+/// Write the content of a raw SNES dump without its optional 512-byte copier
+/// header. The output is verified against its single pinned identity in memory,
+/// before anything replaces the destination, and the original is only read.
+fn write_snes_headerless_source(
+    source: &Path,
+    destination: &Path,
+    required_hashes: &BTreeMap<String, String>,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    checkpoint()?;
+    // Registration follows a symlinked dump to its file, so this does too.
+    let source = &std::fs::canonicalize(source)?;
+    let Some(expected) = required_hashes
+        .values()
+        .next()
+        .filter(|_| required_hashes.len() == 1)
+    else {
+        return Err(PortcoveError::usage(
+            "a headerless SNES runtime file requires exactly one pinned identity",
+        ));
+    };
+    let metadata = std::fs::symlink_metadata(source)?;
+    if !metadata.is_file()
+        || metadata.len() > crate::source_file::MAX_SNES_COPIER_HEADERED_BYTES
+        || source
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"))
+    {
+        return Err(PortcoveError::source(
+            "a headerless SNES runtime file is made from a raw cartridge dump of at most 64 MiB",
+        ));
+    }
+    let bytes = crate::path::read_bounded_regular(
+        source,
+        crate::source_file::MAX_SNES_COPIER_HEADERED_BYTES,
+    )?;
+    let header = crate::source_file::snes_copier_header_bytes(bytes.len() as u64) as usize;
+    let content = &bytes[header..];
+    checkpoint()?;
+    let actual = hex::encode(Sha256::digest(content));
+    if !actual.eq_ignore_ascii_case(expected) {
+        return Err(PortcoveError::verification(
+            "the cartridge content is not the reviewed runtime file",
+        )
+        .detail("expected_sha256", expected.as_str())
+        .detail("actual_sha256", actual));
+    }
+    let parent = destination
+        .parent()
+        .ok_or_else(|| PortcoveError::state("runtime source destination has no parent"))?;
+    crate::path::refuse_symlink_ancestors(parent)?;
+    std::fs::create_dir_all(parent)?;
+    crate::durability::write_bytes_atomically_with_prefix(
+        destination,
+        content,
+        true,
+        Some(".portcove-source-"),
+    )
+}
+
+/// Read the original and patch members of a file-set folder or ZIP, each bounded
+/// by the patch size limit. Members are chosen by their declared filenames,
+/// exactly as file-set admission chose them.
+fn read_rom_patch_inputs(
+    source_root: &Path,
+    patch: &crate::RomPatchProfile,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<(Vec<u8>, Vec<u8>)> {
+    let limit = crate::rom_patch::MAX_ROM_PATCH_BYTES as u64;
+    if source_root.is_dir() {
+        let read = |filenames: &[String]| -> Result<Vec<u8>> {
+            let member = source_set_member_path(source_root, filenames)?;
+            let metadata = std::fs::symlink_metadata(&member)?;
+            if !metadata.is_file() || metadata.len() > limit {
+                return Err(PortcoveError::source(
+                    "a ROM patch input is not a regular file within the patch size limit",
+                )
+                .detail("path", member.display().to_string()));
+            }
+            read_runtime_bytes(File::open(&member)?, limit, checkpoint)
+        };
+        return Ok((
+            read(&patch.original_filenames)?,
+            read(&patch.patch_filenames)?,
+        ));
+    }
+    let is_zip = source_root
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"));
+    if !source_root.is_file() || !is_zip {
+        return Err(PortcoveError::source(format!(
+            "ROM patching expects a folder or ZIP holding the original and the patch: {}",
+            source_root.display()
+        )));
+    }
+    let mut archive = crate::source_zip::runtime_archive(File::open(source_root)?, checkpoint)?;
+    let mut read = |filenames: &[String]| -> Result<Vec<u8>> {
+        let index = source_set_zip_member_index(&mut archive, source_root, filenames, checkpoint)?;
+        let entry = archive.by_index(index).map_err(|error| {
+            PortcoveError::source(format!("invalid ROM patch ZIP entry: {error}"))
+        })?;
+        if entry.size() > limit {
+            return Err(PortcoveError::source(
+                "a ROM patch input is larger than the patch size limit",
+            ));
+        }
+        read_runtime_bytes(entry, limit, checkpoint)
+    };
+    let original = read(&patch.original_filenames)?;
+    let patch_bytes = read(&patch.patch_filenames)?;
+    Ok((original, patch_bytes))
+}
+
 fn materialize_stfs_directory(
     source: &Path,
     destination: &Path,
     required_hashes: &BTreeMap<String, String>,
+    binding: Option<&crate::StfsPackageProfile>,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     let parent = destination
@@ -1245,10 +1524,31 @@ fn materialize_stfs_directory(
         .ok_or_else(|| PortcoveError::state("STFS destination has no parent directory"))?;
     std::fs::create_dir_all(parent)?;
     let temporary = parent.join(format!(".portcove-stfs-{}", Uuid::new_v4()));
-    if let Err(error) = crate::stfs::extract_with_checkpoint(source, &temporary, checkpoint)
-        .and_then(|()| checkpoint())
-        .and_then(|()| verify_runtime_source_hashes(&temporary, required_hashes, checkpoint))
-        .and_then(|()| checkpoint())
+    // The policy is selected by the binding alone. With `runtime_stfs_package` the reader
+    // enforces every integrity check, and catalog validation requires that binding for
+    // any content identity. Without one, catalog validation requires the port's source
+    // profile to carry an exact whole-package SHA-256 (`accepted_sha256`), which
+    // registration verified, so integrity findings are advisories and the reader keeps
+    // only the bounds that prevent unsafe reads and writes.
+    if let Err(error) = crate::stfs::extract_with_checkpoint(
+        source,
+        &temporary,
+        binding,
+        crate::stfs::HashPolicy::Advisory,
+        checkpoint,
+    )
+    .map(|advisories| {
+        if !advisories.is_empty() {
+            tracing::warn!(
+                source = %source.display(),
+                ?advisories,
+                "STFS package extracted with hash-tree advisories; its exact digest was verified"
+            );
+        }
+    })
+    .and_then(|()| checkpoint())
+    .and_then(|()| verify_runtime_source_hashes(&temporary, required_hashes, checkpoint))
+    .and_then(|()| checkpoint())
     {
         let _ = std::fs::remove_dir_all(&temporary);
         return Err(error);
@@ -1310,6 +1610,7 @@ fn materialize_disc_directory(
     // A CHD is first turned into a private ISO beside the destination; it is
     // removed on every path, and is never the registered source.
     let mut staged_iso = None;
+    let mut staged_cd = None;
     let is_chd = source
         .extension()
         .and_then(|value| value.to_str())
@@ -1319,11 +1620,24 @@ fn materialize_disc_directory(
             "only PlayStation 2 and PSP images can be read from a CHD",
         ));
     }
+    let container = if is_chd {
+        crate::disc_filesystem::DiscContainer::Plain
+    } else {
+        crate::disc_filesystem::sniff_container(source)?
+    };
+    let is_cso = container == crate::disc_filesystem::DiscContainer::Cso;
+    if is_cso && format != crate::DiscImageFormat::Iso9660 {
+        return Err(PortcoveError::source(
+            "only PlayStation 2 and PSP images can be read from a CSO",
+        ));
+    }
     let temporary = parent.join(format!(".portcove-disc-{}", Uuid::new_v4()));
     let outcome = (|| -> Result<()> {
-        let image_path = if is_chd {
-            let logical = crate::disc_filesystem::chd_logical_bytes(source)?;
-            if logical
+        let image_path = if is_cso {
+            // A CSO is inflated to a private ISO beside the destination, removed on every
+            // path and never the registered source; the unpack then reads that ISO.
+            let header = crate::disc_filesystem::cso_header(source)?;
+            if header.total_bytes
                 > disc
                     .profile
                     .max_image_bytes
@@ -1334,11 +1648,59 @@ fn materialize_disc_directory(
                 )
                 .with_known_cause(crate::failure::KnownFailureCause::DiscImageLimit));
             }
+            ensure_free_space(parent, header.total_bytes.saturating_mul(2))?;
+            let iso = parent.join(format!(".portcove-disc-{}.iso", Uuid::new_v4()));
+            staged_iso = Some(iso.clone());
+            crate::disc_filesystem::expand_cso(source, &header, &iso, checkpoint)?;
+            iso
+        } else if is_chd {
+            let logical = crate::disc_filesystem::chd_logical_bytes(source)?;
+            let cd = crate::disc_filesystem::chd_is_cd(source)?;
+            // A CD's logical size counts 2448-byte frames; its ISO (2048 per sector) is
+            // bounded exactly when the track is converted, so only a DVD is checked here.
+            if !cd
+                && logical
+                    > disc
+                        .profile
+                        .max_image_bytes
+                        .min(crate::disc_filesystem::MAX_IMAGE_BYTES)
+            {
+                return Err(PortcoveError::source(
+                    "the disc image is larger than this port allows",
+                )
+                .with_known_cause(crate::failure::KnownFailureCause::DiscImageLimit));
+            }
             // The private ISO and the unpacked tree coexist until the ISO is removed.
             ensure_free_space(parent, logical.saturating_mul(2))?;
             let iso = parent.join(format!(".portcove-disc-{}.iso", Uuid::new_v4()));
             staged_iso = Some(iso.clone());
-            extract_chd_dvd(source, &iso, pinned_host_tool, checkpoint, observer)?;
+            if cd {
+                // A CD-type CHD (many PS2 CDs): extract the CD privately, then convert its
+                // first data track to a plain ISO. Both are removed on every path.
+                let scratch = parent.join(format!(".portcove-disc-{}-cd", Uuid::new_v4()));
+                staged_cd = Some(scratch.clone());
+                let cue = materialize_psx_chd_with_tool(
+                    source,
+                    &scratch,
+                    pinned_host_tool,
+                    checkpoint,
+                    observer,
+                )?;
+                let (name, mode) = crate::disc_filesystem::first_cd_track(
+                    &std::fs::read_to_string(&cue).map_err(|_| {
+                        PortcoveError::source("the CD image's cue sheet is not readable")
+                    })?,
+                )?;
+                crate::disc_filesystem::cd_track_to_iso(
+                    &scratch.join(name),
+                    mode,
+                    &iso,
+                    disc.profile.max_image_bytes,
+                    checkpoint,
+                )?;
+            } else {
+                extract_chd_dvd(source, &iso, pinned_host_tool, checkpoint, observer)?;
+            }
             iso
         } else {
             source.to_path_buf()
@@ -1372,6 +1734,9 @@ fn materialize_disc_directory(
     })();
     if let Some(iso) = staged_iso {
         let _ = std::fs::remove_file(iso);
+    }
+    if let Some(scratch) = staged_cd {
+        let _ = std::fs::remove_dir_all(scratch);
     }
     if outcome.is_err() {
         let _ = std::fs::remove_dir_all(&temporary);
@@ -1528,8 +1893,10 @@ fn managed_psx_materialized_discs(
 ///
 /// The count comes from the given (retained, verified) catalog's source
 /// profile, never from the install directory: the catalog admits a
-/// `psx-raw-set` managed route only with at least two single-track discs, and
-/// installation materializes exactly one `disc-NN` pair per profile disc.
+/// `psx-raw-set` managed route only with at least two discs of one exact track
+/// count each, and installation materializes exactly one `disc-NN` cue and
+/// data-track pair per profile disc, with any further tracks as
+/// `disc-NN-tTT.bin`.
 /// Only definitions with a reviewed `launch_disc_choice` offer a choice.
 pub(crate) fn managed_psx_selectable_discs(
     catalog: &crate::Catalog,
@@ -1651,12 +2018,13 @@ pub(crate) fn runtime_source_marker_path(destination: &Path) -> Result<PathBuf> 
     Ok(destination.with_file_name(format!("{name}.portcove-source.json")))
 }
 
+pub(crate) const MAX_RUNTIME_SOURCE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
+
 fn copy_runtime_source(
     source: &Path,
     destination: &Path,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
-    const MAX_RUNTIME_SOURCE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
     checkpoint()?;
     let extension = source
         .extension()
@@ -1764,6 +2132,14 @@ mod source_conversion_tests;
 #[cfg(test)]
 #[path = "disc_materialization_tests.rs"]
 mod disc_materialization_tests;
+
+#[cfg(test)]
+#[path = "rom_patch_materialization_tests.rs"]
+mod rom_patch_materialization_tests;
+
+#[cfg(test)]
+#[path = "psx_cue_set_tests.rs"]
+mod psx_cue_set_tests;
 
 fn materialize_ps2_iso(
     source: &Path,
@@ -2207,21 +2583,37 @@ fn materialize_psx_bin_cue(
     replace_directory_transactional(&temporary, destination)
 }
 
-pub(crate) fn materialize_psx_cue_set(source: &Path, destination: &Path) -> Result<()> {
+/// Managed PS1 readers that keep every track of a multi-track disc set.
+pub(crate) const PSX_MULTI_TRACK_SET_CAPABILITY: u32 = 4;
+
+/// Staged-source reader version that admits SNES dumps with an optional copier
+/// header and writes their headerless content (#6212).
+pub(crate) const SNES_COPIER_HEADER_CAPABILITY: u32 = 36;
+
+/// Extracts a managed disc set with a rewritten cue per disc. `track_counts`
+/// holds each disc's exact catalog track count, in disc order.
+pub(crate) fn materialize_psx_cue_set(
+    source: &Path,
+    destination: &Path,
+    track_counts: &[u32],
+    pinned_tool: Option<&Path>,
+) -> Result<()> {
     materialize_psx_set(
         source,
         destination,
-        true,
-        None,
+        Some(track_counts),
+        pinned_tool,
         &|| Ok(()),
         crate::tool_process::ToolProcessObserver::default(),
     )
 }
 
+/// `retained_tracks` is `None` for a staged set, which keeps only each disc's
+/// data track, and each disc's exact track count for a managed cue set.
 fn materialize_psx_set(
     source: &Path,
     destination: &Path,
-    retain_cues: bool,
+    retained_tracks: Option<&[u32]>,
     pinned_tool: Option<&Path>,
     checkpoint: &dyn Fn() -> Result<()>,
     mut observer: crate::tool_process::ToolProcessObserver<'_>,
@@ -2239,6 +2631,11 @@ fn materialize_psx_set(
             "multi-disc PS1 runtime extraction requires at least two CHDs: {}",
             source.display()
         )));
+    }
+    if retained_tracks.is_some_and(|counts| counts.len() != sources.len()) {
+        return Err(PortcoveError::verification(
+            "managed PS1 disc set does not match its catalog disc count",
+        ));
     }
     let parent = destination
         .parent()
@@ -2274,40 +2671,14 @@ fn materialize_psx_set(
             // A later command cannot erase an earlier uncertain process owner.
             all_tools_quiesced &= command_quiesced;
             let cue = cue?;
-            let (track_count, data_track) = inspect_psx_cue(&cue)?;
-            let bin_name = format!("disc-{:02}.bin", index + 1);
-            let bin_destination = temporary.join(&bin_name);
-            std::fs::rename(&data_track, &bin_destination)?;
-            if retain_cues {
-                if track_count != 1 {
-                    return Err(PortcoveError::source(format!(
-                        "managed PS1 runtime source requires one data track per disc; {} has {track_count}",
-                        source.display()
-                    )));
-                }
-                let cue_body = std::fs::read_to_string(&cue)?;
-                let mut file_lines = 0_u32;
-                let rewritten = cue_body
-                    .lines()
-                    .map(|line| {
-                        if line.trim_start().starts_with("FILE ") {
-                            file_lines += 1;
-                            format!("FILE \"{bin_name}\" BINARY")
-                        } else {
-                            line.to_string()
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                if file_lines != 1 {
-                    return Err(PortcoveError::source(format!(
-                        "managed PS1 cue sheet must contain exactly one FILE entry: {}",
-                        cue.display()
-                    )));
-                }
-                std::fs::write(
-                    temporary.join(format!("disc-{:02}.cue", index + 1)),
-                    format!("{rewritten}\n"),
+            if let Some(track_counts) = retained_tracks {
+                place_psx_cue_disc(&cue, &temporary, index + 1, track_counts[index])
+                    .map_err(|error| error.detail("disc", (index + 1).to_string()))?;
+            } else {
+                let (_, data_track) = inspect_psx_cue(&cue)?;
+                std::fs::rename(
+                    &data_track,
+                    temporary.join(format!("disc-{:02}.bin", index + 1)),
                 )?;
             }
             std::fs::remove_dir_all(&extracted)?;
@@ -3724,7 +4095,7 @@ pub fn recheck_host_tool(
             tool_id: id.to_owned(),
             path,
             state: crate::HostToolProbeState::Invalid,
-            message: "the resolved executable is missing or changed; locate it again to approve the current bytes".into(),
+            message: "the resolved executable is missing, changed, or incompatible; locate a compatible executable".into(),
             sha256: None,
             persisted: false,
             retry_action: format!("locate the {} executable again", status.display_name),
@@ -3745,7 +4116,7 @@ fn resolve_host_tool_path(
     crate::host_tools::require_path(&status, &candidates)
 }
 
-pub(crate) fn inspect_psx_cue(cue: &Path) -> Result<(u32, PathBuf)> {
+fn read_psx_cue(cue: &Path) -> Result<String> {
     let mut body = String::new();
     File::open(cue)?
         .take(64 * 1024 + 1)
@@ -3755,6 +4126,128 @@ pub(crate) fn inspect_psx_cue(cue: &Path) -> Result<(u32, PathBuf)> {
             "cue sheet exceeds its bounded metadata size",
         ));
     }
+    Ok(body)
+}
+
+/// One track file of a managed disc: its extracted name and its runtime name.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct PsxTrackFile {
+    pub extracted: String,
+    pub runtime: String,
+}
+
+/// Rewrites an extracted cue sheet for disc `disc` of a managed set.
+///
+/// Every FILE entry must name a distinct single-component file and carry
+/// exactly one TRACK, and the sheet must hold exactly `expected_tracks`
+/// tracks. The data track becomes `disc-NN.bin` and track TT becomes
+/// `disc-NN-tTT.bin`; every other line, including INDEX, PREGAP and POSTGAP,
+/// is kept in order.
+pub(crate) fn rewrite_psx_cue(
+    body: &str,
+    disc: usize,
+    expected_tracks: u32,
+) -> Result<(String, Vec<PsxTrackFile>)> {
+    let mut files: Vec<PsxTrackFile> = Vec::new();
+    let mut tracks_per_file = Vec::new();
+    let mut tracks = 0_u32;
+    let mut lines = Vec::new();
+    for line in body.lines() {
+        let trimmed = line.trim_start();
+        if let Some(value) = trimmed.strip_prefix("FILE ") {
+            let extracted = value
+                .trim_start()
+                .strip_prefix('"')
+                .and_then(|value| value.split_once('"'))
+                .map(|(name, _)| name)
+                .ok_or_else(|| PortcoveError::source("cue sheet FILE entry is not quoted"))?;
+            if extracted.is_empty()
+                || extracted.contains(['/', '\\', ':'])
+                || matches!(extracted, "." | "..")
+            {
+                return Err(PortcoveError::source(
+                    "cue sheet contains an unsafe FILE path",
+                ));
+            }
+            // Windows names are case-insensitive, so compare ASCII case-free.
+            if files
+                .iter()
+                .any(|file| file.extracted.eq_ignore_ascii_case(extracted))
+            {
+                return Err(PortcoveError::source(
+                    "cue sheet names one track file twice",
+                ));
+            }
+            let runtime = if files.is_empty() {
+                format!("disc-{disc:02}.bin")
+            } else {
+                format!("disc-{disc:02}-t{:02}.bin", files.len() + 1)
+            };
+            lines.push(format!("FILE \"{runtime}\" BINARY"));
+            files.push(PsxTrackFile {
+                extracted: extracted.to_owned(),
+                runtime,
+            });
+            tracks_per_file.push(0_u32);
+            continue;
+        }
+        if trimmed.starts_with("TRACK ") {
+            tracks += 1;
+            match tracks_per_file.last_mut() {
+                Some(count) => *count += 1,
+                None => {
+                    return Err(PortcoveError::source(
+                        "cue sheet has a TRACK before its FILE entry",
+                    ));
+                }
+            }
+        }
+        lines.push(line.to_owned());
+    }
+    if tracks != expected_tracks {
+        return Err(PortcoveError::source(format!(
+            "disc {disc} has {tracks} tracks; the catalog expects {expected_tracks}"
+        )));
+    }
+    if files.is_empty() || tracks_per_file.iter().any(|count| *count != 1) {
+        return Err(PortcoveError::source(
+            "managed PS1 cue sheet must name one file per track",
+        ));
+    }
+    Ok((format!("{}\n", lines.join("\n")), files))
+}
+
+/// Moves one extracted disc's track files into the staged set beside its
+/// rewritten `disc-NN.cue`.
+fn place_psx_cue_disc(
+    cue: &Path,
+    destination: &Path,
+    disc: usize,
+    expected_tracks: u32,
+) -> Result<()> {
+    let (rewritten, files) = rewrite_psx_cue(&read_psx_cue(cue)?, disc, expected_tracks)?;
+    let extracted = cue.parent().unwrap_or_else(|| Path::new(""));
+    for file in &files {
+        let path = extracted.join(&file.extracted);
+        if !std::fs::symlink_metadata(&path).is_ok_and(|metadata| metadata.is_file()) {
+            return Err(PortcoveError::source(format!(
+                "cue track file does not exist: {}",
+                path.display()
+            )));
+        }
+    }
+    for file in &files {
+        std::fs::rename(
+            extracted.join(&file.extracted),
+            destination.join(&file.runtime),
+        )?;
+    }
+    std::fs::write(destination.join(format!("disc-{disc:02}.cue")), rewritten)?;
+    Ok(())
+}
+
+pub(crate) fn inspect_psx_cue(cue: &Path) -> Result<(u32, PathBuf)> {
+    let body = read_psx_cue(cue)?;
     let track_count = body
         .lines()
         .filter(|line| line.trim_start().starts_with("TRACK "))
@@ -3926,6 +4419,68 @@ mod tests {
     use super::*;
     use crate::Catalog;
 
+    #[test]
+    fn managed_corsixth_uses_a_neutral_player_name_without_inheriting_the_account() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("install");
+        std::fs::create_dir(&install).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let corsixth = catalog.port("corsixth-corsixth").unwrap();
+        let mut retained_windows = corsixth.clone();
+        retained_windows.external_profile_policy = None;
+        retained_windows.platforms = vec![Platform::WindowsX86_64];
+        let another_port = catalog.port("dethrace-labs-dethrace").unwrap();
+
+        for (port, platform, executable, expected) in [
+            (
+                corsixth,
+                Platform::LinuxX86_64,
+                "corsix-th.AppImage",
+                Some("PLAYER"),
+            ),
+            (
+                corsixth,
+                Platform::WindowsX86_64,
+                "CorsixTH.exe",
+                Some("PLAYER"),
+            ),
+            (
+                &retained_windows,
+                Platform::WindowsX86_64,
+                "CorsixTH.exe",
+                Some("PLAYER"),
+            ),
+            (another_port, Platform::WindowsX86_64, "dethrace.exe", None),
+        ] {
+            let executable = install.join(executable);
+            std::fs::write(&executable, b"test").unwrap();
+            let spec = standard(port.adapter)
+                .launch_spec_with_executable(
+                    LaunchSpecRequest {
+                        library: &library,
+                        port,
+                        platform,
+                        install_root: &install,
+                        selected_executable: &executable,
+                        source: None,
+                        source_record: None,
+                        disc_progress: None,
+                    },
+                    &|| Ok(()),
+                )
+                .unwrap();
+            let command = ChildProcessPolicy::game_command(&spec.process_spec(), &[]).unwrap();
+            let user = command
+                .get_envs()
+                .find(|(name, _)| *name == "USER")
+                .and_then(|(_, value)| value)
+                .and_then(|value| value.to_str());
+            assert_eq!(user, expected, "{platform:?} {}", port.id);
+            assert!(!command.get_envs().any(|(name, _)| name == "USERNAME"));
+        }
+    }
+
     fn launch_fixture_inventory(root: &Path) -> BTreeMap<PathBuf, Option<Vec<u8>>> {
         fn visit(root: &Path, directory: &Path, entries: &mut BTreeMap<PathBuf, Option<Vec<u8>>>) {
             for entry in std::fs::read_dir(directory).unwrap() {
@@ -4057,32 +4612,7 @@ mod tests {
     }
 
     fn write_stfs_payload_fixture(path: &Path, payload: &[u8]) {
-        let blocks = payload.len().div_ceil(0x1000) as u32;
-        let mut package = vec![0_u8; 0xd000 + blocks as usize * 0x1000];
-        package[..4].copy_from_slice(b"LIVE");
-        package[0x340..0x344].copy_from_slice(&0xad0e_u32.to_be_bytes());
-        package[0x37b] = 1;
-        package[0x37c..0x37e].copy_from_slice(&1_u16.to_le_bytes());
-        package[0x395..0x399].copy_from_slice(&(blocks + 1).to_be_bytes());
-        package[0xb014..0xb018].copy_from_slice(&0x00ff_ffff_u32.to_be_bytes());
-        for block in 1..=blocks {
-            let next = if block == blocks {
-                0x00ff_ffff
-            } else {
-                block + 1
-            };
-            let slot = 0xb000 + block as usize * 24 + 20;
-            package[slot..slot + 4].copy_from_slice(&next.to_be_bytes());
-        }
-        let entry = &mut package[0xc000..0xc040];
-        entry[..11].copy_from_slice(b"default.xex");
-        entry[0x28] = 11;
-        entry[0x29..0x2c].copy_from_slice(&blocks.to_le_bytes()[..3]);
-        entry[0x2f] = 1;
-        entry[0x32..0x34].copy_from_slice(&u16::MAX.to_be_bytes());
-        entry[0x34..0x38].copy_from_slice(&(payload.len() as u32).to_be_bytes());
-        package[0xd000..0xd000 + payload.len()].copy_from_slice(payload);
-        std::fs::write(path, package).unwrap();
+        std::fs::write(path, crate::stfs::fixtures::single_file(payload)).unwrap();
     }
 
     #[test]
@@ -4162,6 +4692,34 @@ mod tests {
         .unwrap();
         assert_eq!(std::fs::read(&marker).unwrap(), accepted_marker);
         assert_eq!(std::fs::read(&source).unwrap(), source_bytes);
+    }
+
+    #[test]
+    fn an_exact_digest_stfs_route_extracts_despite_a_hash_tree_advisory() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let mut package = crate::stfs::fixtures::single_file(b"XEX2");
+        // The level-0 entry of `default.xex` (block 1) no longer matches its block.
+        package[0xb000 + 0x18] ^= 0x01;
+        std::fs::write(&source, &package).unwrap();
+        let destination = temporary.path().join("assets");
+        let required =
+            BTreeMap::from([("default.xex".into(), hex::encode(Sha256::digest(b"XEX2")))]);
+
+        prepare_runtime_source(
+            &source,
+            &destination,
+            RuntimeSourceMaterialization::StfsDirectory,
+            &required,
+            &|| Ok(()),
+        )
+        .unwrap();
+
+        assert_eq!(
+            std::fs::read(destination.join("default.xex")).unwrap(),
+            b"XEX2"
+        );
+        assert_eq!(std::fs::read(&source).unwrap(), package);
     }
 
     #[test]
@@ -4587,6 +5145,13 @@ mod tests {
         let suffix = if cfg!(windows) { ".exe" } else { "" };
         let selected = temporary.path().join(format!("selected-chdman{suffix}"));
         let discovered = temporary.path().join(format!("discovered-chdman{suffix}"));
+        #[cfg(windows)]
+        std::fs::copy(
+            crate::test_fixture::build_probe(temporary.path()),
+            &selected,
+        )
+        .unwrap();
+        #[cfg(not(windows))]
         std::fs::write(&selected, b"selected").unwrap();
         std::fs::write(&discovered, b"discovered").unwrap();
         crate::permissions::normalize_archive_entry(&selected, false, true).unwrap();
@@ -4671,6 +5236,45 @@ mod tests {
         let destination = temporary.path().join("materialized.z64");
         prepare_n64_source(&record.path, &destination, &|| Ok(())).unwrap();
         assert_eq!(std::fs::read(destination).unwrap(), rom);
+    }
+
+    #[test]
+    fn native_portable_user_data_environment_keeps_open_surge_data_outside_the_runtime() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("version");
+        std::fs::create_dir_all(&install).unwrap();
+        let executable = install.join("opensurge.exe");
+        std::fs::write(&executable, b"player").unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("surge-the-rabbit-opensurge").unwrap();
+
+        let spec = AdapterRegistry
+            .get(AdapterKind::NativePortable)
+            .prepare_launch_with_executable(
+                LaunchSpecRequest {
+                    library: &library,
+                    port,
+                    platform: Platform::WindowsX86_64,
+                    install_root: &install,
+                    selected_executable: &executable,
+                    source: None,
+                    source_record: None,
+                    disc_progress: None,
+                },
+                &|| Ok(()),
+            )
+            .unwrap();
+
+        let profile = library.user_dir(&port.id);
+        assert!(profile.is_dir());
+        assert_eq!(spec.working_directory, install);
+        assert_eq!(
+            spec.environment.get("OPENSURGE_USER_PATH"),
+            Some(&profile.to_string_lossy().into_owned())
+        );
+        assert!(spec.fixed_arguments_only);
+        assert!(spec.arguments.is_empty());
     }
 
     #[test]
@@ -5162,8 +5766,10 @@ mod tests {
             .launch_spec_with_executable(request, &|| Ok(()))
             .unwrap();
         assert_eq!(launch_fixture_inventory(temporary.path()), before);
+        // The fixture's Mortal Kombat 4 route skips the setup launcher.
+        assert_eq!(planned.arguments[0], "--no-launcher");
         assert_eq!(
-            &planned.arguments[4..],
+            &planned.arguments[5..],
             &["--bios", psx_launch_path(&bios.path).unwrap().as_str()]
         );
         for _ in 0..2 {
@@ -5349,7 +5955,7 @@ mod tests {
     fn ace_combat_3_japan_uses_generated_runtime_and_registered_bios_coordinates() {
         let temporary = tempfile::tempdir().unwrap();
         let (library, catalog, mut install, bios) =
-            crate::psx::bios_launch_fixture(temporary.path());
+            crate::psx::bios_launch_fixture_for(temporary.path(), "psx-scph-5500-bios");
         let port = catalog
             .port("alexbeav-ace-combat-3-electrosphere-recomp")
             .unwrap();
@@ -5588,6 +6194,52 @@ mod tests {
             prepare_n64_source(&source, &destination, &|| Ok(())).unwrap();
             assert_eq!(std::fs::read(destination).unwrap(), canonical);
         }
+    }
+
+    #[test]
+    fn snes_runtime_sources_are_written_without_a_copier_header() {
+        let temporary = tempfile::tempdir().unwrap();
+        let content = (0..2048_u32)
+            .map(|index| (index * 7) as u8)
+            .collect::<Vec<_>>();
+        let required =
+            BTreeMap::from([("game.sfc".to_owned(), hex::encode(Sha256::digest(&content)))]);
+        let destination = temporary.path().join("runtime/game.sfc");
+        std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        for (name, bytes) in [
+            ("plain.sfc", content.clone()),
+            (
+                "headered.smc",
+                [vec![0xFF_u8; 512], content.clone()].concat(),
+            ),
+        ] {
+            let source = temporary.path().join(name);
+            std::fs::write(&source, &bytes).unwrap();
+            prepare_runtime_source(
+                &source,
+                &destination,
+                RuntimeSourceMaterialization::SnesHeaderless,
+                &required,
+                &|| Ok(()),
+            )
+            .unwrap();
+            assert_eq!(std::fs::read(&destination).unwrap(), content, "{name}");
+            // The original is only read.
+            assert_eq!(std::fs::read(&source).unwrap(), bytes, "{name}");
+        }
+        // Content that is not the pinned identity never replaces the runtime file.
+        let wrong = temporary.path().join("wrong.smc");
+        std::fs::write(&wrong, [vec![0_u8; 512], vec![1_u8; 2048]].concat()).unwrap();
+        let error = prepare_runtime_source(
+            &wrong,
+            &destination,
+            RuntimeSourceMaterialization::SnesHeaderless,
+            &required,
+            &|| Ok(()),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert_eq!(std::fs::read(&destination).unwrap(), content);
     }
 
     #[test]

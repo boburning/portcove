@@ -1,0 +1,59 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "call-to-power-ii-apolyton-edition",
+    "artwork": {
+      "game_id": 11266,
+      "cover_id": 92908,
+      "image_id": "co1zos",
+      "image_sha256": "0aaf53621520405652f71610dfcf37f9d50cfc4b5ce8683b9d3988904ccfdaf7",
+      "game_slug": "call-to-power-ii",
+      "match_kind": "underlying-game"
+    },
+    "project_url": "https://github.com/civctp2/civctp2",
+    "name": "Call to Power II / Apolyton Edition",
+    "original_game_title": "Call to Power II",
+    "summary": "Play your copy of Call to Power II with the Apolyton community edition.",
+    "issue_number": 6125,
+    "listed_at": "2026-11-14",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/civctp2/civctp2/blob/Apolyton-Edition-2025-01-20/README.md#clone-and-complete-your-working-copy",
+    "release_url": "https://github.com/civctp2/civctp2/releases/tag/Apolyton-Edition-2025-01-20",
+    "download_block_reason": "The community packages include game assets whose distribution terms still need review. Use the setup guide with a copy you’re entitled to use. Portcove can offer downloads once the exact package contents are cleared.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep an untouched copy of the original",
+          "instruction": "Make a separate writable copy of your complete Call to Power II installation. Keep your original and your original saves. The Apolyton Edition needs data from the original game."
+        },
+        {
+          "title": "Set up the Windows overlay",
+          "instruction": "Follow the release’s Apolyton_README.txt to overlay the community edition on the separate copy. Open ctp2_program/ctp/ctp2.exe from its folder. This is a 32-bit Windows program. If using the Chinese edition, follow the release notes for its data-directory and language settings."
+        },
+        {
+          "title": "Prepare a Linux copy",
+          "instruction": "For a Linux source build, follow the upstream guide using data from your own game. Copy the map-generation libraries as directed and run ./ctp2 from ctp2_code/ctp. The release’s Debian package contains an x64 player under /opt/ctp2 and needs libavcodec59, libavformat59 and libswscale6. It still needs the original game files and a civpaths.txt configuration."
+        },
+        {
+          "title": "Keep saves before changing versions",
+          "instruction": "Keep the active program folder’s save directory and back up any saves before opening copies in Apolyton. The release instructions say to enter /reloadslic in the game chat once after loading each older save. The upstream Linux guide links a separate converter for old Linux-format saves."
+        }
+      ],
+      "warnings": [
+        "The Apolyton Edition is a community project. Activision did not make or support it."
+      ],
+      "help_url": "https://github.com/civctp2/civctp2/blob/Apolyton-Edition-2025-01-20/README.md#building-on-linux"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "call-to-power-ii",
+      "evidence_urls": [
+        "https://github.com/civctp2/civctp2/blob/Apolyton-Edition-2025-01-20/README.md#clone-and-complete-your-working-copy",
+        "https://github.com/civctp2/civctp2/blob/Apolyton-Edition-2025-01-20/README.md#building-on-linux",
+        "https://github.com/civctp2/civctp2"
+      ],
+      "source_editions": []
+    }
+  }
+}

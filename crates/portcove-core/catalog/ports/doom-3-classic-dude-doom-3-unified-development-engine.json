@@ -2,19 +2,24 @@
   "format_version": 1,
   "listing": {
     "id": "doom-3-classic-dude-doom-3-unified-development-engine",
+    "artwork": {
+      "game_id": 280,
+      "cover_id": 86963,
+      "image_id": "co1v3n",
+      "image_sha256": "20898ef516580905831395d134adc6d7daaa96ddbd56f8ab8a4523b3fb442c19",
+      "game_slug": "doom-3",
+      "match_kind": "underlying-game"
+    },
     "name": "Doom 3 (classic) (DUDE — Doom 3 Unified Development Engine)",
     "summary": "Use the official DUDE Windows player with your own classic Doom 3 files. First Play can copy an existing dhewm3 profile; preserve both profiles before continuing.",
     "original_game_title": "Doom 3 (classic)",
     "project_url": "https://github.com/Inkub0/dude",
     "issue_number": 2565,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://buymeacoffee.com/Inkub0"],
     "availability": "packages",
     "setup_url": "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md",
     "release_url": "https://github.com/Inkub0/dude/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["dude-0.9.", "-win64.zip"],
-      "linux-x86-64": ["dude-0.9.", "-linux-x86_64.tar.gz"]
-    },
     "recommended_download_channel": "stable",
     "manual_setup": {
       "steps": [
@@ -41,6 +46,24 @@
           "instruction": "Choose the DUDE x86-64 Doom 3 game tarball. The separately named dude-q4 package is a Quake 4 add-on. Extract the complete folder and keep its game libraries and bundled Vulkan loader. The reviewed executable needs glibc 2.34, SDL2, OpenAL and the OpenSSL variant of libcurl. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders. Start ./dude from the prepared directory. Preserve ~/.config/dude and ~/.local/share/dude or their XDG equivalents, plus any custom paths. DUDE can copy the legacy dhewm3 config on first run. Preserve both config trees before opening DUDE. The managed Linux x86-64 copy reads your PK4s from its own runtime and starts with its packaged modules. Use a separate upstream copy for custom paths, native mods or a custom library search path. If a managed first launch would copy a legacy profile, complete that setup in an upstream copy first."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "doom-3-classic",
+      "evidence_urls": [
+        "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md",
+        "https://github.com/Inkub0/dude"
+      ],
+      "source_editions": [
+        {
+          "id": "doom-3-classic-pc",
+          "title": "Doom 3 (classic) (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Inkub0/dude/blob/6f171ed8fec8d029e6d5df55d613919bbd1b19d6/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -55,6 +78,7 @@
     },
     "decisions": []
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

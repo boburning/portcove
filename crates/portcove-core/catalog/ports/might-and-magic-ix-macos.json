@@ -1,0 +1,64 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "might-and-magic-ix-macos",
+    "artwork": {
+      "game_id": 7741,
+      "cover_id": 95063,
+      "image_id": "co21cn",
+      "image_sha256": "153c0c5aace95230420b910f2c4cd378070b77a36c03f46aa81e787084d8b77e",
+      "game_slug": "might-and-magic-ix",
+      "match_kind": "underlying-game"
+    },
+    "project_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS",
+    "name": "Might and Magic IX / MM9 Native macOS",
+    "original_game_title": "Might and Magic IX",
+    "summary": "Build the upstream Apple Silicon app from your owned Might and Magic IX GOG installer.",
+    "issue_number": 6109,
+    "listed_at": "2026-11-15",
+    "platforms": ["macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/releases/tag/v1.3",
+    "setup_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/v1.3/README.md",
+    "download_block_reason": "Open the publisher’s v1.3 release and choose the Installer, Updater, or Uninstaller DMG for the operation you need.",
+    "manual_setup": {
+      "help_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/v1.3/README.md",
+      "steps": [
+        {
+          "title": "Prepare the owned GOG installer",
+          "instruction": "On Apple Silicon with macOS 13 or later, download your Might and Magic IX (Writ of Fate) GOG offline Windows installer for version 1.3. Keep any companion files alongside the EXE. The builder checks the hashes of five original engine modules."
+        },
+        {
+          "title": "Build the native app",
+          "instruction": "Open MM9-Native-Installer.dmg from the upstream release and use MM9 Native Installer to choose the owned EXE. Keep the original installer. The build needs Apple’s Command Line Tools, internet access for verified build dependencies, and about 4 GB of free space. Once it completes, open MM9 Native.app from your user Applications folder in Finder."
+        },
+        {
+          "title": "Keep your saves and settings",
+          "instruction": "With the game closed, back up SaveGames, autoexec.cfg, and any HDTextures in ~/Library/Application Support/MM9 Native/game. With its save backup selected, the upstream Updater DMG copies existing saves to ~/Library/Application Support/MM9 Native/backups before an update. Keep your own backup separately."
+        }
+      ],
+      "warnings": [
+        "The upstream Uninstaller DMG can also remove saves and the Wine installation. Leave those choices off to keep them.",
+        "The setup tools have universal Mac executables, but the builder and native game require Apple Silicon. There is no Windows, Linux, Intel Mac, or Android native package from this project."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "might-and-magic-ix",
+      "evidence_urls": [
+        "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/v1.3/README.md",
+        "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS"
+      ],
+      "source_editions": [
+        {
+          "id": "might-and-magic-ix-pc",
+          "title": "Might and Magic IX (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/00ff525d36ab4276901a4e9556e12cab5009461a/README.md"
+          ]
+        }
+      ]
+    }
+  }
+}

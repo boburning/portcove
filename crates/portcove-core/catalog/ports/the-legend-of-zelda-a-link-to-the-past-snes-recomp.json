@@ -16,7 +16,22 @@
       "game_slug": "the-legend-of-zelda-a-link-to-the-past",
       "match_kind": "underlying-game"
     },
-    "issue_number": 151
+    "issue_number": 151,
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-a-link-to-the-past",
+      "evidence_urls": ["https://github.com/mstan/ZeldaAlttPSNESRecomp"],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-a-link-to-the-past-super-nintendo",
+          "title": "The Legend of Zelda: A Link to the Past (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/mstan/ZeldaAlttPSNESRecomp/blob/1c9f0853cd9a81b7c11d98e4ce2bfb6b0e1c340f/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -42,19 +57,19 @@
         {
           "role": "game",
           "profile_id": "a-link-to-the-past-snes-usa",
-          "label": "The Legend of Zelda: A Link to the Past (USA) stock headerless SNES source",
+          "label": "The Legend of Zelda: A Link to the Past (USA) stock SNES source",
           "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own The Legend of Zelda: A Link to the Past (USA) stock headerless SNES ROM. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. The reviewed v0.6.5 package includes the PolyForm Noncommercial 1.0.0 license; retain its license and notices and follow its personal/noncommercial terms."
+      "manual_preparation": "Select your own The Legend of Zelda: A Link to the Past (USA) stock SNES ROM, with or without a copier header. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. The reviewed v0.6.6 package includes the PolyForm Noncommercial 1.0.0 license; retain its license and notices and follow its personal/noncommercial terms."
     },
     "launch_arguments": ["zelda.sfc"],
     "launch_environment": {
       "SNESRECOMP_NO_LAUNCHER": "1"
     },
     "runtime_source_filename": "zelda.sfc",
-    "runtime_source_materialization": "copy",
+    "runtime_source_materialization": "snes-headerless",
     "runtime_source_hashes": {
       "zelda.sfc": "66871d66be19ad2c34c927d6b14cd8eb6fc3181965b6e517cb361f7316009cfb"
     },
@@ -81,7 +96,9 @@
     "runtime_mutable_paths": [
       "last_run_report.json",
       ".snesrecomp_write_probe",
-      "tier2_coverage.json"
+      "tier2_coverage.json",
+      "mods/preloaded/state.toml",
+      "mods/preloaded/state.toml.tmp"
     ]
   }
 }

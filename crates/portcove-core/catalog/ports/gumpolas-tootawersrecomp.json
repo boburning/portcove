@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "gumpolas-tootawersrecomp",
+    "artwork": {
+      "game_id": 2965,
+      "cover_id": 615761,
+      "image_id": "cod74h",
+      "image_sha256": "def5162525d1bda7d9f3e3dd44ccb625fb593b24bdf12835ba72a8d055d349c1",
+      "game_slug": "the-lord-of-the-rings-the-two-towers",
+      "match_kind": "underlying-game"
+    },
     "name": "The Lord of the Rings: The Two Towers — Original Xbox (Two Towers Recomp)",
     "summary": "Use the independently maintained Gumpolas Two Towers Windows player with your own Xbox USA game files. Its direct entry, settings and saves remain separate from Athelas’s embedded port.",
     "original_game_title": "The Lord of the Rings: The Two Towers",
@@ -41,6 +49,24 @@
       ],
       "warnings": [
         "Attach twotowers_recomp.exe after upstream setup. Keep this creating player, saves, old settings and originals separate from Athelas TT-Xbox; no cross-implementation save migration or acceptance is inherited. Optional HD/co-op content remains separate."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-lord-of-the-rings-the-two-towers",
+      "evidence_urls": [
+        "https://github.com/Gumpolas/TooTawersRecomp/blob/ac711ffb8d6c896573a19750250e4ddfa725ae12/README.md",
+        "https://github.com/Gumpolas/TooTawersRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "the-lord-of-the-rings-the-two-towers-xbox",
+          "title": "The Lord of the Rings: The Two Towers (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/Gumpolas/TooTawersRecomp/blob/ba43e2226b6d3eabfead404b55cc008d3b45bc06/README.md"
+          ]
+        }
       ]
     }
   },

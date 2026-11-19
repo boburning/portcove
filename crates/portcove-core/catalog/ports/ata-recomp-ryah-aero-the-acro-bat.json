@@ -6,6 +6,14 @@
     "original_game_title": "Aero the Acro-Bat",
     "summary": "The project reports movement, jumping, landing and music in the first circus stage of v0.1.1. A full campaign, bosses, physical controllers and the complete soundtrack are unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Ryah/ATA-Recomp",
+    "artwork": {
+      "game_id": 5348,
+      "cover_id": 115672,
+      "image_id": "co2h94",
+      "image_sha256": "a6e79fb8befe19650e10fe2562b3df076577b8e39189c9d98206c87babd6caab",
+      "game_slug": "aero-the-acro-bat",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/Ryah/ATA-Recomp"
     },
-    "issue_number": 3562
+    "issue_number": 3562,
+    "original_game": {
+      "format_version": 1,
+      "id": "aero-the-acro-bat",
+      "evidence_urls": ["https://github.com/Ryah/ATA-Recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

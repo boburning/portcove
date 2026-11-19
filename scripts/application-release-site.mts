@@ -18,6 +18,8 @@ import {
   recoveredApplicationBootstrap,
   retainedR55Renewal,
   retainedR56FeedRecovery,
+  retainedV13FeedRecovery,
+  retainedV8ServedRenewal,
 } from "./application-release-run.mts";
 import type {
   createPagesProviderTransport,
@@ -50,6 +52,7 @@ export async function createApplicationFeedReader(token: string, originalDeadlin
         suffix === `git/ref/${standaloneBootstrapRenewalAdoption.feed_ref.slice("refs/".length)}` ||
         suffix === `git/ref/${servedNativeBootstrapRenewal.ref.slice("refs/".length)}` ||
         suffix === `git/ref/${retainedR56FeedRecovery.next_ref.slice("refs/".length)}` ||
+        suffix === `git/ref/${retainedV13FeedRecovery.next_ref.slice("refs/".length)}` ||
         /^deployments\/[1-9][0-9]*$/u.test(suffix) ||
         /^actions\/(?:jobs\/[1-9][0-9]*|runs\/[1-9][0-9]*\/attempts\/[1-3])$/u.test(suffix) ||
         /^git\/ref\/tags\/(?:portcove-production-candidate-(?:[a-f0-9]{40}|[a-f0-9]{64})|v[0-9][A-Za-z0-9.+-]{1,127})$/u.test(
@@ -97,10 +100,15 @@ export async function readActualApplicationPagesState(
   deadline = performance.now() + 120000,
   admission?: FeedAdmission,
   recoverInitialBootstrap = false,
-  recoverR56Feed = false,
+  retainedFeedRecovery: boolean | "v13" = false,
 ) {
   const read = await createApplicationFeedReader(fixedReleaseReaderToken(), deadline);
-  return readApplicationPagesStateAsync(read, admission, recoverInitialBootstrap, recoverR56Feed);
+  return readApplicationPagesStateAsync(
+    read,
+    admission,
+    recoverInitialBootstrap,
+    retainedFeedRecovery,
+  );
 }
 
 /** A SHA status can identify a new effect only for a controller with no
@@ -176,18 +184,18 @@ export function readApplicationPagesStateAsync(
   read: (endpoint: string) => Promise<GitHubMetadataResponse>,
   admission?: FeedAdmission,
   recoverInitialBootstrap = false,
-  recoverR56Feed = false,
+  retainedFeedRecovery: boolean | "v13" = false,
 ) {
   return readPagesAsync(
     read,
-    applicationPagesState(admission, recoverInitialBootstrap, recoverR56Feed),
+    applicationPagesState(admission, recoverInitialBootstrap, retainedFeedRecovery),
   );
 }
 
 function* applicationPagesState(
   admission?: FeedAdmission,
   recoverInitialBootstrap = false,
-  recoverR56Feed = false,
+  retainedFeedRecovery: boolean | "v13" = false,
 ) {
   function* get(suffix: string): PagesRead<unknown> {
     const result = yield* readPagesResponse(suffix);
@@ -204,10 +212,13 @@ function* applicationPagesState(
   );
   const verifyRecoveryPreimage = recoverInitialBootstrap && admission?.selection !== "current";
   const servingIndex = admission?.selection === "serving" ? 1 : 0;
-  assert.ok(!recoverInitialBootstrap || !recoverR56Feed);
-  const verifyR56Preimage = recoverR56Feed && admission?.selection !== "current";
-  if (verifyR56Preimage && admission) assert.equal(admission.ref, retainedR56FeedRecovery.next_ref);
-  const limit = servingIndex + 1 + (verifyRecoveryPreimage ? 2 : verifyR56Preimage ? 1 : 0);
+  assert.ok(!recoverInitialBootstrap || !retainedFeedRecovery);
+  const recovery =
+    retainedFeedRecovery === "v13" ? retainedV13FeedRecovery : retainedR56FeedRecovery;
+  const verifyRetainedFeedPreimage = retainedFeedRecovery && admission?.selection !== "current";
+  if (verifyRetainedFeedPreimage && admission) assert.equal(admission.ref, recovery.next_ref);
+  const limit =
+    servingIndex + 1 + (verifyRecoveryPreimage ? 2 : verifyRetainedFeedPreimage ? 1 : 0);
   const deployments = yield* get(`deployments?environment=github-pages&per_page=${limit}`);
   assert.ok(Array.isArray(deployments) && deployments.length === limit);
   function* actor(raw: unknown) {
@@ -304,8 +315,8 @@ function* applicationPagesState(
     if (!admission) selected = yield* actor(deployments[limit - 1]);
     assert.ok(failed.every((execution) => selected.deployment.id !== execution.admission_id));
   }
-  if (verifyR56Preimage) {
-    const prior = retainedR56FeedRecovery;
+  if (verifyRetainedFeedPreimage) {
+    const prior = recovery;
     const excluded = servingIndex ? yield* actor(deployments[servingIndex]) : current;
     assert.deepEqual(
       [
@@ -320,13 +331,16 @@ function* applicationPagesState(
       [
         prior.failed_admission_id,
         prior.control_commit,
-        retainedR55Renewal.next_ref.slice("refs/tags/".length),
+        (retainedFeedRecovery === "v13"
+          ? retainedV8ServedRenewal.next_ref
+          : retainedR55Renewal.next_ref
+        ).slice("refs/tags/".length),
         prior.failed_admission_status_id,
         "failure",
         "github-pages",
         `https://github.com/boburning/portcove/actions/runs/${prior.run_id}/job/${prior.feed_job_id}`,
       ],
-      "r56 pre-native failed Pages admission changed",
+      "retained pre-native failed Pages admission changed",
     );
     if (!admission) selected = yield* actor(deployments[limit - 1]);
     assert.equal(selected.deployment.id, prior.serving_admission_id);
@@ -404,9 +418,12 @@ export function readApplicationPagesExecution(
   read: (endpoint: string) => Promise<GitHubMetadataResponse>,
   state: Awaited<ReturnType<typeof readApplicationPagesStateAsync>>,
   currentRecovery?: CurrentPagesReadback,
-  recoverR56Feed = false,
+  retainedFeedRecovery: boolean | "v13" = false,
 ) {
-  return readPagesAsync(read, applicationPagesExecution(state, currentRecovery, recoverR56Feed));
+  return readPagesAsync(
+    read,
+    applicationPagesExecution(state, currentRecovery, retainedFeedRecovery),
+  );
 }
 
 type CurrentPagesReadback = {
@@ -420,7 +437,7 @@ type CurrentPagesReadback = {
 function* applicationPagesExecution(
   state: Awaited<ReturnType<typeof readApplicationPagesStateAsync>>,
   currentRecovery?: CurrentPagesReadback,
-  recoverR56Feed = false,
+  retainedFeedRecovery: boolean | "v13" = false,
 ) {
   const match = state.log_url.match(
     /^https:\/\/github\.com\/boburning\/portcove\/actions\/runs\/([1-9][0-9]*)\/job\/([1-9][0-9]*)$/u,
@@ -584,7 +601,7 @@ function* applicationPagesExecution(
     );
   }
   assert.deepEqual(
-    yield* applicationPagesState(undefined, false, recoverR56Feed),
+    yield* applicationPagesState(undefined, false, retainedFeedRecovery),
     state,
     "prior Pages actor changed during discovery",
   );

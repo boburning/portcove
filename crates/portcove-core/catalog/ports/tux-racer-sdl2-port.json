@@ -1,0 +1,122 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tux-racer-sdl2-port",
+    "name": "Tux Racer (SDL2 Port)",
+    "original_game_title": "Tux Racer",
+    "summary": "Race down the original Tux Racer courses in this modern desktop port.",
+    "project_url": "https://github.com/labbej27/tuxracer",
+    "artwork": {
+      "game_id": 93306,
+      "cover_id": 371181,
+      "image_id": "co7yel",
+      "image_sha256": "d3a35d78b7b00f267c64f7e1ae00538b302d7b418fe5e5defc45eb13991fd431",
+      "game_slug": "tux-racer",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 5797,
+    "listed_at": "2026-11-16",
+    "availability": "packages",
+    "release_url": "https://github.com/labbej27/tuxracer/releases/latest",
+    "download_asset_hints": {
+      "windows-x86-64": ["TuxRacer-", "-Windows-x64.zip"],
+      "linux-x86-64": ["TuxRacer-", "-Linux-x86_64.tar.gz"],
+      "macos-x86-64": ["TuxRacer-", "-macOS.zip"],
+      "macos-aarch64": ["TuxRacer-", "-macOS.zip"]
+    },
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Start with the included courses",
+          "instruction": "The package is ready for Play. Press Enter at the title screen, select Practice, choose a course, and select Race. On Linux, install libGLU.so.1 from your distribution if needed."
+        },
+        {
+          "title": "Choose the package for your computer",
+          "instruction": "Use the Windows 10 or 11 x64 ZIP, the Linux x86-64 archive, or the universal macOS 11 or later ZIP for Intel and Apple Silicon. The Linux game needs glibc 2.35 or later and libGLU.so.1. Debian and Ubuntu provide the latter in libglu1-mesa."
+        },
+        {
+          "title": "Extract the whole package and start the game",
+          "instruction": "On Windows, run tuxracer.exe. On Linux, run tuxracer. Keep the data folder next to the player. On macOS, open the complete Tux Racer.app without moving files out of it."
+        },
+        {
+          "title": "Keep your original Tux Racer profile",
+          "instruction": "With the game closed, copy %APPDATA%/TuxRacer on Windows or ~/.tuxracer on Linux and Mac. Keep that backup when replacing your extracted game folder. Extreme Tux Racer uses a different profile."
+        },
+        {
+          "title": "Keep captures you want to retain",
+          "instruction": "The game writes tux_sshot_*.ppm and its optional diagnostic_log.txt beside the player. In an extracted copy, keep those files when replacing the runtime. Move screenshots you want to keep before playing again, because the game restarts screenshot numbering at zero."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Check other platforms",
+          "instruction": "The SDL2 port publishes an x86-64 Linux package and a universal Mac package. Its release page does not offer Linux ARM64 or Android packages."
+        }
+      ],
+      "help_url": "https://github.com/labbej27/tuxracer/blob/main/README.md"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "labbej27/tuxracer",
+      "asset_hints": {
+        "windows-x86-64": ["TuxRacer-", "-Windows-x64.zip"],
+        "linux-x86-64": ["TuxRacer-", "-Linux-x86_64.tar.gz"],
+        "macos-x86-64": ["TuxRacer-", "-macOS.zip"],
+        "macos-aarch64": ["TuxRacer-", "-macOS.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["tuxracer.exe"],
+      "linux-x86-64": ["tuxracer"],
+      "macos-x86-64": ["Tux Racer.app/Contents/MacOS/Tux Racer"],
+      "macos-aarch64": ["Tux Racer.app/Contents/MacOS/Tux Racer"]
+    },
+    "persistent_paths": ["diagnostic_log.txt"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "The package includes the original free Tux Racer courses. On Linux, install libGLU.so.1 from your distribution if needed. Start Play, press Enter at the title screen, then select Practice to choose a route. Portcove manages the runtime. The game keeps your normal profile under %APPDATA%/TuxRacer on Windows or ~/.tuxracer on Linux and Mac. Back up that profile separately with the game closed. The managed runtime keeps tux_sshot_*.ppm captures and the optional diagnostic_log.txt. Manual Portcove backups include those local files. Move screenshots you want to keep before playing again, because the game restarts its numbering at zero."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["data"],
+        "executables": ["tuxracer.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["data"],
+        "executables": ["tuxracer"]
+      },
+      "macos-x86-64": {
+        "directories": ["tux racer.app"],
+        "executables": ["tux racer.app/contents/macos/tux racer"]
+      },
+      "macos-aarch64": {
+        "directories": ["tux racer.app"],
+        "executables": ["tux racer.app/contents/macos/tux racer"]
+      }
+    },
+    "persistent_file_patterns": [
+      {
+        "prefix": "tux_sshot_",
+        "suffix": ".ppm"
+      }
+    ]
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tux-racer-sdl2-port",
+    "origin": {
+      "project_url": "https://github.com/labbej27/tuxracer"
+    },
+    "decisions": []
+  }
+}

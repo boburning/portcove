@@ -5,11 +5,13 @@ import {
   type CatalogQuery,
   type CatalogQueryContext,
 } from "./features/browsing/catalog-query";
+import { assessListingAvailability, availablePlatforms } from "./features/browsing/catalog-entry";
 import type { CatalogEntry } from "./features/browsing/catalog-entry";
 import type {
   ActivityRecord,
   DesktopError,
   OperationEvent,
+  CatalogBrowsingSnapshot,
   PortDefinition,
   PortStatus,
   ReadinessBlocker,
@@ -177,7 +179,7 @@ function operationPresentation(value: string): OperationPresentation {
     install: { label: "Installing game" },
     update: { label: "Updating game" },
     prepare: { label: "Preparing game" },
-    launch: { label: "Starting game" },
+    launch: { label: "Starting game", explanation: "Opening the game now." },
     verify: { label: "Checking files" },
     verify_install: { label: "Checking installed files" },
     verify_source: { label: "Checking game files" },
@@ -220,7 +222,7 @@ function progressDetail(completed: number, total: number, unit: ProgressUnit | u
 }
 
 export type View = "library" | "catalog" | "updates" | "settings";
-export type DetailDestination = "updates" | "saves" | "files";
+export type DetailDestination = "updates" | "saves" | "files" | "manage";
 export type Filter = "all" | "ready" | "setup" | "stable" | "beta" | "rolling";
 export type CatalogSort = "catalog" | "name" | "name-desc" | "recent" | "installed-first";
 export type PortReadiness =
@@ -256,15 +258,20 @@ export interface SourceRequirement {
   }>;
 }
 
-const platformLabels: Record<string, string> = {
+type MachinePlatform = CatalogBrowsingSnapshot["host_platform"];
+const platformLabels: Record<MachinePlatform, string> = {
   "windows-x86-64": "Windows",
   "linux-x86-64": "Linux",
   "macos-x86-64": "macOS Intel",
   "macos-aarch64": "Apple silicon",
 };
 
+export const machinePlatforms = Object.keys(platformLabels) as MachinePlatform[];
+
 export function platformLabel(value: string) {
-  const label = Object.hasOwn(platformLabels, value) ? platformLabels[value] : undefined;
+  const label = Object.hasOwn(platformLabels, value)
+    ? platformLabels[value as MachinePlatform]
+    : undefined;
   return label ?? "Unknown platform";
 }
 
@@ -382,21 +389,31 @@ export function summarizeLibrary(
   };
 }
 
+/**
+ * Whether Play can start without first showing the game: Core reports the
+ * installed game launchable, with no blocker and no pending setup. The launch
+ * itself still rechecks everything.
+ */
+export function directlyPlayable(
+  port: CatalogEntry,
+  status: PortStatus | undefined,
+): status is PortStatus {
+  return Boolean(
+    (status?.active || status?.external_runtime) &&
+    !port.pendingSetup &&
+    status.readiness?.launchable === true &&
+    status.readiness.blockers.length === 0 &&
+    !portActionPresentation(status, "launch").blocked,
+  );
+}
+
 export function mostRecentPort(
   ports: CatalogEntry[],
   statuses: Map<string, PortStatus>,
 ): RecentPort | undefined {
   return ports.reduce<RecentPort | undefined>((recent, port) => {
     const status = statuses.get(port.id);
-    if (
-      (!status?.active && !status?.external_runtime) ||
-      !status.last_launched_at ||
-      port.pendingSetup ||
-      status.readiness?.launchable !== true ||
-      status.readiness.blockers.length > 0 ||
-      portActionPresentation(status, "launch").blocked
-    )
-      return recent;
+    if (!directlyPlayable(port, status) || !status.last_launched_at) return recent;
     if (!recent || status.last_launched_at > (recent.status.last_launched_at ?? 0))
       return { port, status };
     return recent;
@@ -457,6 +474,8 @@ function addSourceNeed(
   requirements.set(profileId, requirement);
 }
 
+const gameNameCollator = new Intl.Collator("en", { sensitivity: "base" });
+
 export function filterPorts(
   ports: CatalogEntry[],
   statuses: Map<string, PortStatus>,
@@ -465,10 +484,10 @@ export function filterPorts(
   query: string,
   catalogSort: CatalogSort = "catalog",
   context: CatalogQueryContext = {},
+  now = Date.now(),
 ) {
   const selectedStatuses =
     typeof filter !== "string" && context.library ? context.library.statuses : statuses;
-  const normalizedQuery = normalizeGameSearchText(query.trim());
   const legacyFilter = typeof filter === "string" ? filter : "all";
   const structuredQuery =
     typeof filter !== "string"
@@ -482,27 +501,34 @@ export function filterPorts(
       visibleInView(port, selectedStatuses, view) &&
       matchesFilter(selectedStatuses.get(port.id), legacyFilter, Boolean(port.pendingSetup)),
   );
-  const visible = evaluateCatalogQuery(candidates, structuredQuery, {
-    ...context,
-    catalogUniverse: context.catalogUniverse ?? ports,
-  }).ports.filter((port) => searchableText(port).includes(normalizedQuery));
+  const { ports: matching } = evaluateCatalogQuery(
+    candidates,
+    structuredQuery,
+    { ...context, catalogUniverse: context.catalogUniverse ?? ports },
+    { includeFacetCounts: false },
+  );
+  const visible = searchCatalogPorts(matching, query);
   if (
     (view !== "catalog" && view !== "library") ||
     (catalogSort === "catalog" && !context.devicePlatform)
   )
     return visible;
   return visible
-    .map((port, index) => ({ port, index }))
+    .map((port, index) => ({
+      port,
+      index,
+      rank:
+        catalogSort === "catalog"
+          ? catalogRank(port, selectedStatuses.get(port.id), context.devicePlatform, now)
+          : 0,
+    }))
     .sort((left, right) => {
       const comparison =
         catalogSort === "catalog"
-          ? catalogRank(left.port, selectedStatuses.get(left.port.id), context.devicePlatform) -
-            catalogRank(right.port, selectedStatuses.get(right.port.id), context.devicePlatform)
+          ? left.rank - right.rank
           : catalogSort === "name" || catalogSort === "name-desc"
             ? (catalogSort === "name-desc" ? -1 : 1) *
-              gameTitle(left.port).localeCompare(gameTitle(right.port), "en", {
-                sensitivity: "base",
-              })
+              gameNameCollator.compare(gameTitle(left.port), gameTitle(right.port))
             : catalogSort === "recent"
               ? (selectedStatuses.get(right.port.id)?.last_launched_at ?? 0) -
                 (selectedStatuses.get(left.port.id)?.last_launched_at ?? 0)
@@ -523,13 +549,22 @@ export function filterPorts(
     .map(({ port }) => port);
 }
 
-function catalogRank(port: CatalogEntry, status: PortStatus | undefined, platform?: string) {
+function catalogRank(
+  port: CatalogEntry,
+  status: PortStatus | undefined,
+  platform: string | undefined,
+  now: number,
+) {
   if (status?.active || status?.external_runtime || port.pendingSetup) return 0;
   if (port.release && !portActionPresentation(status, "install").blocked) return 1;
-  if (port.listing?.availability === "unavailable" || port.listing?.availability === "source-only")
-    return 5;
-  if (port.platforms.some((candidate) => candidate === platform)) return 2;
-  return port.platforms.length ? 4 : 3;
+  const assessment = port.listing ? assessListingAvailability(port.listing, now) : undefined;
+  const observed = assessment?.observedPlatforms ?? [];
+  if (observed.some((candidate) => candidate === platform)) return 2;
+  const authoredAvailability = assessment?.availability;
+  if (authoredAvailability === "unavailable" || authoredAvailability === "source-only") return 5;
+  const authored = availablePlatforms(port);
+  if (authored.some((candidate) => candidate === platform)) return 2;
+  return authored.length ? 4 : 3;
 }
 
 function visibleInView(port: CatalogEntry, statuses: ReadonlyMap<string, PortStatus>, view: View) {
@@ -543,7 +578,7 @@ function visibleInView(port: CatalogEntry, statuses: ReadonlyMap<string, PortSta
 }
 
 /** An explicit add-only Library entry. It is not an installation and never counts as one. */
-export function isSavedLibraryEntry(port: CatalogEntry) {
+function isSavedLibraryEntry(port: CatalogEntry) {
   return Boolean(port.listingStatus?.library_membership);
 }
 
@@ -559,12 +594,20 @@ function matchesFilter(status: PortStatus | undefined, filter: Filter, pendingSe
   return true;
 }
 
+export function searchCatalogPorts(ports: CatalogEntry[], query: string) {
+  const normalizedQuery = normalizeGameSearchText(query.trim());
+  return normalizedQuery
+    ? ports.filter((port) => searchableText(port).includes(normalizedQuery))
+    : ports;
+}
+
 function searchableText(port: CatalogEntry) {
+  const platforms = availablePlatforms(port);
   const installationMethod = port.presentation?.installation_method
     ? installationMethodLabel(port)
     : "";
   return normalizeGameSearchText(
-    `${gameTitle(port)} ${port.name} ${port.presentation?.variant_label ?? ""} ${port.summary} ${port.id} ${installationMethod} ${port.platforms.join(" ")} ${port.platforms.map(platformLabel).join(" ")}`,
+    `${gameTitle(port)} ${port.name} ${port.presentation?.variant_label ?? ""} ${port.summary} ${port.id} ${installationMethod} ${platforms.join(" ")} ${platforms.map(platformLabel).join(" ")}`,
   );
 }
 
@@ -631,6 +674,21 @@ export function preparationRecoveryPort(
 export function isCancellation(error: unknown) {
   return (
     typeof error === "object" && error !== null && "code" in error && error.code === "cancelled"
+  );
+}
+
+/** Core refused a workspace read because the library changed while it was being
+ * assembled. Core keeps refusing inconsistent data; the caller may read again. */
+export function isRetryableStaleSnapshot(error: unknown) {
+  if (typeof error !== "object" || error === null || !("details" in error)) return false;
+  const details = error.details;
+  return (
+    typeof details === "object" &&
+    details !== null &&
+    "workspace_snapshot_stale" in details &&
+    details.workspace_snapshot_stale === "true" &&
+    "retryable" in details &&
+    details.retryable === "true"
   );
 }
 

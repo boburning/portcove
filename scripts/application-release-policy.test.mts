@@ -371,8 +371,11 @@ void test("main qualification can attest public packages but cannot enter the pr
     GITHUB_WORKFLOW_REF:
       "boburning/portcove/.github/workflows/application-release.yml@refs/heads/main",
   };
-  assert.equal(inspectApplicationPackageExecution(fixture).ref, "refs/heads/main");
-  assert.throws(() => inspectApplicationReleaseExecution(fixture));
+  for (const event of ["workflow_dispatch", "schedule"]) {
+    const execution = { ...fixture, GITHUB_EVENT_NAME: event };
+    assert.equal(inspectApplicationPackageExecution(execution).ref, "refs/heads/main");
+    assert.throws(() => inspectApplicationReleaseExecution(execution));
+  }
   for (const change of [
     { GITHUB_EVENT_NAME: "pull_request" },
     { GITHUB_REF: "refs/heads/feature/arbitrary" },

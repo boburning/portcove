@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "wwe-2k16-pc-recomp-by-banshee-itsbybanshee-wwe-2k16",
+    "artwork": {
+      "game_id": 11057,
+      "cover_id": 90331,
+      "image_id": "co1xp7",
+      "image_sha256": "0350bc08c04ed7cca371cb1d6069a04ab100ba3c14e05444fd9feb113f50f007",
+      "game_slug": "wwe-2k16",
+      "match_kind": "underlying-game"
+    },
     "name": "WWE 2K16 — WWE 2K16 PC Recomp (By Banshee) (itsbybanshee)",
     "original_game_title": "WWE 2K16",
     "summary": "The project describes gameplay and entrances at 60 FPS. Broad progression remains unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",

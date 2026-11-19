@@ -193,6 +193,10 @@ pub struct PortPresentation {
     /// release or library identity. Explicit original_game metadata owns display grouping.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub original_game_title: Option<String>,
+    /// Optional descriptive implementation methods and dependencies. Malformed or future
+    /// content is unavailable as explanation and never changes operation authority.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub implementation: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub original_game: Option<OriginalGameIdentity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -206,6 +210,16 @@ pub struct PortPresentation {
     pub manual_setup: Option<ManualSetupGuide>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artwork: Option<IgdbArtwork>,
+    /// Cover for the second game in a combined definition's Discover card.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub companion_cover: Option<IgdbArtwork>,
+    /// Reviewed constituent-game covers for a multi-game project. Display only.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_collection_covers"
+    )]
+    pub collection_covers: Option<Vec<IgdbArtwork>>,
     /// Absent legacy metadata may use the directory; an explicit empty list clears it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub media: Option<Vec<crate::CatalogMediaAsset>>,
@@ -322,6 +336,12 @@ pub enum RuntimeSourceMaterialization {
     XdvdfsDirectory,
     /// Unpack a PS2 or PSP disc image (ISO or CHD) into a verified runtime directory.
     Iso9660Directory,
+    /// Apply an exactly identified patch to an exactly identified original from a
+    /// file-set source and write the verified patched file; older engines reject this value.
+    RomPatch,
+    /// Write a raw SNES dump's content without its optional 512-byte copier header,
+    /// verified before it replaces the runtime file; older engines reject this value.
+    SnesHeaderless,
 }
 
 impl RuntimeSourceMaterialization {
@@ -354,6 +374,47 @@ pub struct DiscImageProfile {
     /// title ID (eight hex digits), the PS2 `SYSTEM.CNF` boot serial or the PSP
     /// `PARAM.SFO` `DISC_ID`. At least one is required.
     pub product_codes: Vec<String>,
+}
+
+/// Port binding for an Xbox 360 STFS package that `stfs-directory` extracts. The
+/// header facts are compared before anything is extracted, so another game, a title
+/// update or downloadable content is refused first. Requires staged-source capability 32.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct StfsPackageProfile {
+    /// Accepted header content types as eight uppercase hex digits; currently only
+    /// `000D0000` (Xbox Live Arcade title).
+    pub content_types: Vec<String>,
+    /// Accepted header title IDs as eight uppercase hex digits. At least one is required.
+    pub title_ids: Vec<String>,
+    /// Explicit bound on the selected package in bytes; at most 16 GiB.
+    pub max_package_bytes: u64,
+}
+
+/// Patch file format applied by the `rom-patch` materialization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum RomPatchFormat {
+    Ips,
+    Bps,
+    Ups,
+}
+
+/// Port declaration for producing a patched runtime file from two members of the
+/// port's file-set source. Both inputs are pinned to one exact SHA-256 each; the
+/// output is pinned by the port's single `runtime_source_hashes` entry.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RomPatchProfile {
+    pub format: RomPatchFormat,
+    /// Accepted filenames of the file-set member holding the unmodified original.
+    pub original_filenames: Vec<String>,
+    /// The one original this patch applies to; also an accepted SHA-256 of its member.
+    pub original_sha256: String,
+    /// Accepted filenames of the file-set member holding the patch file.
+    pub patch_filenames: Vec<String>,
+    /// The one reviewed patch file; also an accepted SHA-256 of its member.
+    pub patch_sha256: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
@@ -674,6 +735,21 @@ pub struct ReleaseSpec {
     pub direct: BTreeMap<Platform, DirectReleaseSpec>,
     #[serde(default)]
     pub user_prepared: BTreeMap<Platform, UserPreparedRuntimeSpec>,
+    /// GitHub accounts a maintainer reviewed and accepted as uploaders of this
+    /// project's release packages, in addition to the repository owner, the
+    /// project's own Actions automation and its established uploaders. Matched by
+    /// numeric account ID; the login records what was reviewed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub accepted_uploaders: Vec<AcceptedUploader>,
+}
+
+/// One reviewed GitHub release uploader. The numeric ID is stable across login
+/// renames; a freed login re-registered by another account does not match.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AcceptedUploader {
+    pub id: u64,
+    pub login: String,
 }
 
 impl ReleaseSpec {
@@ -708,6 +784,8 @@ pub enum ManagedInitialization {
     TfeDarkForces122420,
     #[serde(rename = "tfe-dark-forces-portable-v1")]
     TfeDarkForcesPortableV1,
+    #[serde(rename = "chocolate-family-portable-v1")]
+    ChocolateFamilyPortableV1,
 }
 
 /// Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.
@@ -738,7 +816,9 @@ pub enum ExternalProfilePolicy {
     RecompDirectV1,
     Doom3LinuxV1,
     OpenjkUnixV1,
+    EndlessSkyDesktopV1,
     OpenomfLinuxV1,
+    VcmiWindowsV1,
 }
 
 /// Preserve complete mod package versions without replacing packaged defaults.
@@ -839,6 +919,12 @@ pub struct PortDefinition {
     /// Official Shipwright Windows portable packages write player data in their working directory.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub windows_shipwright_persistence: bool,
+    /// Reviewed Windows tracked handoff: the game can restart into a successor
+    /// from its own process tree, so the session also waits for job members
+    /// whose image lies in the install root. Without it, the original process
+    /// is the whole session.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub windows_tracked_handoff: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mod_package_policy: Option<ModPackagePolicy>,
     /// Optional, release-bound editable configuration. Retained installations
@@ -875,6 +961,14 @@ pub struct PortDefinition {
     /// materializations: image kind, size bound and accepted game identifiers.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_disc_image: Option<DiscImageProfile>,
+    /// Only valid with the `stfs-directory` materialization: accepted header title IDs
+    /// and content types and a size bound, checked before extraction.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_stfs_package: Option<StfsPackageProfile>,
+    /// Required by, and only valid with, the `rom-patch` materialization: the
+    /// patch format and the exact original and patch members it combines.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_rom_patch: Option<RomPatchProfile>,
     /// A disc-image source that is offered but not required: with none registered the
     /// game is not blocked and the runtime and its persistent files are left as they are;
     /// when one is registered it is unpacked as for a required source. Only valid with a
@@ -899,6 +993,17 @@ pub struct PortDefinition {
     pub setup_output_paths: Vec<String>,
     #[serde(default)]
     pub upstream_status: UpstreamStatus,
+    /// An explicit review of an active project. Older serialized definitions
+    /// defaulted to Active, so that value alone cannot prove a declaration.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub upstream_active_reviewed: bool,
+    /// Provider coordinates reviewed alongside the existing mod loader contract.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_provider_bindings: Option<Vec<crate::ModProviderBinding>>,
+    /// A local selection once replaced the compiled provider mapping.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) legacy_mod_provider_held: bool,
     /// Catalog-owned containment for a managed route whose current upstream
     /// release still matches its selector but changed reviewed behavior.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -913,6 +1018,12 @@ pub struct PortDefinition {
 }
 
 impl PortDefinition {
+    /// Catalog-authored upstream state, independent of repository observations.
+    pub fn declared_upstream_status(&self) -> Option<UpstreamStatus> {
+        (self.upstream_status != UpstreamStatus::Active || self.upstream_active_reviewed)
+            .then_some(self.upstream_status)
+    }
+
     /// The runtime subdirectory that applies to `platform`: its own entry, else the default.
     pub fn runtime_subdirectory_for(&self, platform: Platform) -> Option<&str> {
         self.runtime_subdirectory_by_platform
@@ -937,6 +1048,13 @@ impl PortDefinition {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ReviewedPackageLayout {
+    /// Exclude verified macOS shared libraries from this fingerprint.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ignore_verified_macos_libraries: bool,
+    /// Classify Linux executable-mode files by content: only files starting
+    /// with an ELF or `#!` header count, and verified ELF shared libraries do not.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub classify_linux_programs_by_format: bool,
     /// Lowercase top-level directory names of the package root, sorted.
     pub directories: Vec<String>,
     /// Lowercase package-relative paths (with `/`) of every program or script at
@@ -947,7 +1065,7 @@ pub struct ReviewedPackageLayout {
 /// Holds fresh managed acquisition and adoption for one route. Installed copies
 /// keep their retained definition; only the listed reviewed artifacts may still
 /// be activated or recovered.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ManagedAcquisitionHold {
     /// Player-facing explanation for refused Install and Update.
@@ -957,9 +1075,13 @@ pub struct ManagedAcquisitionHold {
     /// Exact reviewed artifacts whose activation remains permitted.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub reviewed_artifacts: Vec<ReviewedHoldArtifact>,
+    /// Exact artifacts unavailable for acquisition or staged activation. An
+    /// empty list preserves the route-wide acquisition hold.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub excluded_artifacts: Vec<ReviewedHoldArtifact>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ReviewedHoldArtifact {
     pub version: String,
@@ -976,6 +1098,32 @@ pub struct CatalogDocument {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub source_profiles: Vec<SourceProfile>,
     pub ports: Vec<PortDefinition>,
+}
+
+/// A present `funding_urls` key must hold a list: an explicit `null` is refused
+/// rather than read as absent, because earlier strict readers refuse the key itself.
+fn present_funding_urls<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<Vec<String>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Vec::<String>::deserialize(deserializer).map(Some)
+}
+
+fn present_collection_covers<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<Vec<IgdbArtwork>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let covers = Vec::<IgdbArtwork>::deserialize(deserializer)?;
+    if !(1..=4).contains(&covers.len()) {
+        return Err(serde::de::Error::custom(
+            "a cover collection needs one to four members",
+        ));
+    }
+    Ok(Some(covers))
 }
 
 /// Descriptive project information. A listing never grants managed installation,
@@ -1001,6 +1149,10 @@ pub struct PortListing {
     pub project_url: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub original_game_title: Option<String>,
+    /// Optional descriptive implementation methods and dependencies. Malformed or future
+    /// content is unavailable as explanation and never changes operation authority.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub implementation: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub original_game: Option<OriginalGameIdentity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1012,6 +1164,16 @@ pub struct PortListing {
     /// Requires listing format 9.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub listed_at: Option<String>,
+    /// Reviewed pages where the upstream developers accept funding, normally taken
+    /// from the project's `FUNDING.yml` at authoring time. Descriptive only: public
+    /// HTTPS links that grant nothing. Requires listing format 10; when present it
+    /// is never empty, so an earlier strict reader never meets an inert empty key.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_funding_urls"
+    )]
+    pub funding_urls: Option<Vec<String>>,
     /// Empty means unknown; it is not an execution compatibility declaration.
     #[serde(default)]
     pub platforms: Vec<Platform>,
@@ -1036,6 +1198,13 @@ pub struct PortListing {
     pub manual_setup: Option<ManualSetupGuide>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artwork: Option<IgdbArtwork>,
+    /// Display samples of a project's constituent games. Requires listing format 11.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_collection_covers"
+    )]
+    pub collection_covers: Option<Vec<IgdbArtwork>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub media: Vec<crate::CatalogMediaAsset>,
 }
@@ -1278,6 +1447,9 @@ pub struct ExternalRuntimeRecord {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortStatus {
+    /// Recorded file preservation during the switch to the current active version.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub carried_files: Option<crate::CarriedFilesStatus>,
     /// Owned archive acquisition, separate from a staged or active runtime.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub acquisition: Option<GameUpdateAcquisition>,
@@ -1844,6 +2016,15 @@ pub struct BackupRecord {
     pub file_count: u64,
     pub size: u64,
     pub sha256: String,
+    /// Unknown player-side files kept in the backup's separate area (#5359).
+    /// They are not counted in `file_count`, and restore does not put them
+    /// back. Omitted when zero.
+    #[serde(default, skip_serializing_if = "is_zero_count")]
+    pub unknown_file_count: u64,
+}
+
+pub(crate) fn is_zero_count(value: &u64) -> bool {
+    *value == 0
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
@@ -2016,6 +2197,61 @@ pub struct GameUpdatePlan {
     pub assessment: crate::PortActionAssessment,
     pub activate: bool,
     pub plan_sha256: String,
+    /// Informational upstream notes for this review. Read from cached provider
+    /// metadata only, excluded from `plan_sha256`, never authority. Absent when
+    /// the provider has no hosted release page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub release_notes: Option<UpdateReleaseNotes>,
+}
+
+/// Upstream releases between the installed version (exclusive) and the offered
+/// version (inclusive), newest first. Notes are untrusted plain text.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct UpdateReleaseNotes {
+    /// The project's release list page. Present only when Desktop may open it: it is
+    /// built by Portcove and passes the same reviewed-link check as other handoffs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub releases_url: Option<String>,
+    /// Empty when the notes are unknown: not cached, or the offered release is not listed.
+    pub entries: Vec<UpdateReleaseNotesEntry>,
+    pub coverage: UpdateReleaseNotesCoverage,
+}
+
+/// How far `UpdateReleaseNotes::entries` reaches toward the installed version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum UpdateReleaseNotesCoverage {
+    /// Every eligible release since the installed version is listed.
+    Complete,
+    /// Only the newest releases are listed; older ones since the installed version exist.
+    Shortened,
+    /// The installed version was not found in the usable cached release list.
+    InstalledNotListed,
+    /// The installed version is newer than the offered one; only the offered release is listed.
+    InstalledNewer,
+    /// A rolling release is republished in place; only its current notes are listed.
+    RollingRelease,
+    /// No notes are known for the offered release.
+    Unavailable,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct UpdateReleaseNotesEntry {
+    /// The release tag, normalized for display.
+    pub version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// Provider timestamp in RFC 3339 shape; absent when missing or malformed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub published_at: Option<String>,
+    /// Normalized plain text; may contain unrendered Markdown or HTML source.
+    pub notes: String,
+    pub notes_truncated: bool,
+    /// This release's page. Present only when Desktop may open it: it is built by
+    /// Portcove under the port's own release repository from a plain tag and passes
+    /// the reviewed-link check.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -2135,6 +2371,11 @@ pub struct LaunchReadiness {
     pub required_source_extension: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<SourceHealth>,
+    /// The saved game-file folder holding this game's missing or unreadable
+    /// original, when that folder is currently unavailable: reconnecting it is
+    /// the fix, and nothing was deleted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_folder_unavailable: Option<std::path::PathBuf>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bios: Option<SourceHealth>,
     /// Descriptive input evidence for this retained installed release. Missing
@@ -2181,6 +2422,38 @@ pub struct ResolvedRelease {
     pub channel: ReleaseChannel,
     pub published_at: Option<String>,
     pub asset: ReleaseAsset,
+    // Why a GitHub release resolution followed this asset's uploader, recorded
+    // with the build so activation, rollback and recovery can apply the same
+    // decision later. Absent for every other provider and for curated releases.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub uploader_continuity: Option<UploaderContinuityRecord>,
+}
+
+// Why uploader continuity allowed a GitHub asset, as observed when it was resolved.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum UploaderContinuityBasis {
+    // Uploaded before the 2026-11-14 baseline.
+    PredatesBaseline,
+    RepositoryOwner,
+    ProjectAutomation,
+    // The uploader also published this project before the baseline.
+    Established,
+    // A maintainer reviewed and accepted this uploader for the integration.
+    Accepted,
+    // The provider response carried no uploader facts (UNKNOWN).
+    NotObserved,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct UploaderContinuityRecord {
+    pub basis: UploaderContinuityBasis,
+    // GitHub account ID of the uploader, when one was observed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub uploader_id: Option<u64>,
+    // The asset's provider `created_at`, when observed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub uploaded_at: Option<String>,
 }
 
 /// What one check of one game is expected to ask of its release provider, computed
@@ -2224,6 +2497,44 @@ pub struct UpdateCheck {
     pub required_runtime: Option<RuntimeIdentity>,
     pub update_available: bool,
     pub release: ResolvedRelease,
+    /// Repository maintenance facts from the provider's most recent observation of
+    /// this port. Absent means unknown, never active. It may be older than
+    /// `checked_at` when this check did not read the repository itself.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upstream_activity: Option<UpstreamActivity>,
+}
+
+/// What the release provider reported about the upstream repository while Portcove
+/// was already reading it to select a release. A maintenance observation only: it
+/// grants or revokes no release, update, install or catalog authority, and it is
+/// not the catalog's reviewed `upstream_status` declaration.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct UpstreamActivity {
+    /// The GitHub `owner/name` repository these facts describe. A port whose
+    /// catalog provider or repository differs no longer owns this observation.
+    /// Empty (an observation without a recorded repository) describes no port.
+    #[serde(default)]
+    pub repository: String,
+    /// Unix seconds when the provider reported these facts.
+    pub observed_at: i64,
+    /// The repository owner archived the repository (read-only upstream).
+    pub archived: bool,
+    /// Unix seconds of the latest push the provider reported, when it reported one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_change_at: Option<i64>,
+}
+
+impl UpstreamActivity {
+    /// Whether the port's current catalog definition still names this repository.
+    /// GitHub owner and repository names are case-insensitive.
+    pub fn describes(&self, port: &PortDefinition) -> bool {
+        port.release.provider == ReleaseSource::Github
+            && !self.repository.is_empty()
+            && port
+                .release
+                .repository
+                .eq_ignore_ascii_case(&self.repository)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -2359,7 +2670,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7, 8, 9],
+            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12],
             port_capability_schema: Some(1),
             artwork_handoff_schema: Some(crate::ARTWORK_HANDOFF_SCHEMA),
             operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,
@@ -2388,6 +2699,14 @@ impl CapabilityDocument {
                 "artwork".into(),
                 "artwork.handoff".into(),
                 "artwork.handoff-bytes".into(),
+                "artwork.steamgriddb".into(),
+                "artwork.steamgriddb.status".into(),
+                "artwork.steamgriddb.set-key".into(),
+                "artwork.steamgriddb.clear-key".into(),
+                "artwork.steamgriddb.search".into(),
+                "artwork.steamgriddb.candidates".into(),
+                "artwork.steamgriddb.choose".into(),
+                "artwork.steamgriddb.check-listings".into(),
                 "catalog".into(),
                 "catalog.listings".into(),
                 "catalog.listing-refresh".into(),
@@ -2413,6 +2732,9 @@ impl CapabilityDocument {
                 "source.reuse".into(),
                 "source.roots".into(),
                 "source.roots.scan".into(),
+                "source.roots.matches".into(),
+                "source.roots.profiles".into(),
+                "source.roots.stores".into(),
                 "source.query".into(),
                 "tool".into(),
                 "status".into(),
@@ -2431,6 +2753,7 @@ impl CapabilityDocument {
                 "reconcile".into(),
                 "install".into(),
                 "installation.review".into(),
+                "installation.runtimes".into(),
                 "installation.retained".into(),
                 "installation.reference".into(),
                 "installation.reference-plan".into(),
@@ -2451,10 +2774,12 @@ impl CapabilityDocument {
                 "games.batch-show".into(),
                 "games.intent".into(),
                 "games.intents".into(),
+                "games.notices".into(),
                 "games.intents-acknowledge".into(),
                 "games.setup-ready".into(),
                 "games.folder-setup".into(),
                 "games.folder-setup-choose".into(),
+                "games.folder-setup-copy".into(),
                 "games.folder-setups".into(),
                 "ensure".into(),
                 "update".into(),

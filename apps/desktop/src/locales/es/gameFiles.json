@@ -96,6 +96,10 @@
       "detail": "Portcove recuerda ahora todos los archivos de esta carpeta y deja esos juegos tal cual, aunque los reconozca después.",
       "label": "Configurar solo los juegos que se añadan después"
     },
+    "keepLocalCopy": {
+      "detail": "Úsalo para una unidad de red o extraíble. Se aplica a los juegos que se configuren a partir de ahora. Solo se copian los archivos que necesita cada juego; no se mueve ni se elimina nada de esta carpeta.",
+      "label": "Guardar una copia de los archivos de cada juego en este equipo"
+    },
     "legend": "Configuración automática desde esta carpeta",
     "off": {
       "detail": "Portcove solo muestra lo que encuentra aquí.",
@@ -118,6 +122,8 @@
       "detail": "Portcove te avisa cuando se puede instalar, y de nuevo solo si cambia su configuración. No se instala nada.",
       "label": "Avisarme cuando esté listo"
     },
+    "readAgain": "Volver a leer",
+    "reading": "Leyendo opciones…",
     "setUpWhenReady": {
       "detail": "Portcove lo instala sin volver a preguntar cuando sus archivos y requisitos están listos. Nunca inicia el juego. Elige otra opción para desactivarlo.",
       "label": "Configurarlo cuando esté listo"
@@ -144,14 +150,24 @@
     "route": "Opción de configuración o inicio"
   },
   "ready": {
-    "dismiss": "Descartar <game/>",
+    "dismiss": "Descartar",
+    "dismissFailed": "No se pudo confirmar que se descartara el aviso. Elige Descartar de nuevo.",
+    "dismissing": "Descartando…",
     "heading": "Listos para ti",
     "installable": "<game/> está listo para instalarse.",
     "label": "Juegos listos para ti",
-    "reviewSetup": "Revisar la configuración de <game/>",
-    "reviewUpdate": "Revisar la actualización de <game/>",
+    "reviewSetup": "Revisar configuración",
+    "reviewUpdate": "Revisar actualización",
     "update": "<game/> tiene una actualización disponible: <version/>. No se descargó ni cambió nada.",
     "updateUnknownVersion": "<game/> tiene una actualización disponible: una versión más reciente. No se descargó ni cambió nada."
+  },
+  "readyNotices": {
+    "control": "Avísame cuando estén listos los juegos de los que elegí recibir avisos",
+    "description": "Desactívalo para dejar de recibir avisos de juegos listos. Tu elección para cada juego y la configuración automática no cambian. Vuelve a activarlo para enterarte de los juegos que están listos y de los que aún no te hemos avisado.",
+    "heading": "Avisos de juegos listos",
+    "readFailed": "No se pudo comprobar el ajuste de avisos de juegos listos.",
+    "retry": "Reintentar",
+    "saveFailed": "No se pudo guardar el ajuste de avisos de juegos listos."
   },
   "reason": {
     "completeCompatibleObservation": "Se encontró un conjunto completo de archivos del juego compatibles para esta opción de configuración o inicio.",

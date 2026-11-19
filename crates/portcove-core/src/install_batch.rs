@@ -505,9 +505,10 @@ impl PortcoveService {
             let Some((port_id, expected)) = claimed else {
                 break;
             };
-            let outcome = self
-                .run_install_batch_item(&port_id, &expected, &mut emit)
-                .await;
+            // Keep the installation future out of every enclosing batch and
+            // standing-setup future on ordinary Windows worker stacks.
+            let outcome =
+                Box::pin(self.run_install_batch_item(&port_id, &expected, &mut emit)).await;
             self.library.update_install_batch(batch_id, |record| {
                 if let Some(item) = record.items.iter_mut().find(|item| {
                     item.port_id == port_id && item.state == InstallBatchItemState::Running
@@ -673,9 +674,46 @@ impl PortcoveService {
                     .to_owned(),
             );
         }
-        Self::require_registered_install_inputs(plan)
-            .err()
-            .map(|error| error.message)
+        if let Err(error) = Self::require_registered_install_inputs(plan) {
+            return Some(error.message);
+        }
+        if plan.plan.action != crate::InstallPlanAction::Download {
+            return None;
+        }
+
+        for requirement in plan
+            .plan
+            .source_requirements
+            .iter()
+            .filter(|source| !source.optional)
+        {
+            let source = match self.library.source(&requirement.profile_id) {
+                Ok(Some(source)) => source,
+                Ok(None) => {
+                    return Some(format!(
+                        "Register and review {} before setting up this game.",
+                        requirement.label
+                    ));
+                }
+                Err(error) => return Some(error.message),
+            };
+            // The install still verifies the original's bytes before using it.
+            if std::fs::metadata(&source.path).is_err() {
+                return Some(
+                    match self
+                        .library
+                        .unavailable_game_file_root_containing(&source.path)
+                    {
+                        Some(root) => format!("Connect {} to set up this game.", root.display()),
+                        None => format!(
+                            "Make the registered {} available to set up this game.",
+                            requirement.label
+                        ),
+                    },
+                );
+            }
+        }
+        None
     }
 }
 

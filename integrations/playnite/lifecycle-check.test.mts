@@ -77,6 +77,24 @@ void test("internal Cargo execution requires a matching inherited lease before s
   assert.equal(executed, false);
 });
 
+void test("only the first definition-state action gets the cold-build budget", async () => {
+  const environment = { PORTCOVE_HEAVY_RUST_LOCK_TOKEN: "owned" };
+  for (const [phase, action, timeout] of [
+    ["cli-build", undefined, undefined],
+    ["definition-state", "select", 2_400_000],
+    ["definition-state", "install", 1_200_000],
+    ["definition-state", "revoke", 1_200_000],
+  ] as const) {
+    await executeCargoPhase(phase, action, {
+      environment,
+      acquire: async () => ({ inherited: true, release: async () => {} }),
+      execute: async (_command, _args, options) => {
+        assert.equal(options.timeout, timeout);
+      },
+    });
+  }
+});
+
 void test("actual private phase refuses a forged inherited token without running Cargo", () => {
   const result = spawnSync(
     process.execPath,

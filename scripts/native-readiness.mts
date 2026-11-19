@@ -86,6 +86,11 @@ export async function observePreparationCompletion<
     started_at,
     finished_at,
   }));
+  // A new preparation that ended without success is the outcome; report it
+  // now instead of waiting out the caller's deadline.
+  const ended = records.find((item) => item.status === "failed" || item.status === "cancelled");
+  if (ended)
+    throw new Error(`The new preparation ${ended.id} ended ${ended.status} before readiness`);
   const terminal = records.find((item) => item.status === "succeeded");
   // Full catalog status hydration performs filesystem/readiness work. Avoid
   // repeating it while the owned mutation is still running. The caller keeps

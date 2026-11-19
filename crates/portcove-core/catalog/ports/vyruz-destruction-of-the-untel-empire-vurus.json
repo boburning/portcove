@@ -1,0 +1,111 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "vyruz-destruction-of-the-untel-empire-vurus",
+    "artwork": {
+      "game_id": 112224,
+      "cover_id": 382135,
+      "image_id": "co86uv",
+      "image_sha256": "59575e65a4aa51b62901ee362317de0999082530001f8ffd920166dc898b02be",
+      "game_slug": "vyruz-destruction-of-the-untel-empire",
+      "match_kind": "underlying-game"
+    },
+    "project_url": "https://github.com/rzrbld/vurus",
+    "name": "Vyruz: Destruction of the Untel Empire / Vurus",
+    "original_game_title": "Vyruz: Destruction of the Untel Empire",
+    "summary": "Run Vyruz in Vurus using your own original disc image or extracted game resources.",
+    "issue_number": 6120,
+    "listed_at": "2026-11-14",
+    "availability": "packages",
+    "setup_url": "https://github.com/rzrbld/vurus/blob/v202610242327-beta/README.md#desktop-and-steam-deck",
+    "release_url": "https://github.com/rzrbld/vurus/releases/tag/v202610242327-beta",
+    "download_asset_hints": {
+      "macos-x86-64": ["vurus-darwin-x86_64.zip"],
+      "macos-aarch64": ["vurus-darwin-arm64.zip"]
+    },
+    "recommended_download_channel": "beta",
+    "manual_setup": {
+      "help_url": "https://github.com/rzrbld/vurus/blob/v202610242327-beta/docs/data_import.md",
+      "steps": [
+        {
+          "title": "Prepare your original game files",
+          "instruction": "Copy your owned Vyruz ISO, or a single-BIN CUE with its BIN, beside the Vurus player, then start it. Keep the CUE and BIN together to import CD music, and keep your original separately. On first start Vurus imports the disc into data/ beside the player and reuses that import later, so you can then delete the copied image. To import a different image after a previous import, use --data with its path."
+        },
+        {
+          "title": "Use the Mac release",
+          "instruction": "On macOS 15 or later, pick desktop release v202610242327-beta, extract the Intel or Apple Silicon archive matching your Mac into a writable folder, and run vurus from a terminal. The Mac builds are unsigned."
+        },
+        {
+          "title": "Keep imports and progress",
+          "instruction": "Keep data/, saves/, slot1.vzs, options.cfg, vz.sco and benchmark-results/ with the player. Portcove keeps them across managed updates. If you keep a copy you manage yourself, back them up before replacing the player. Keep any resource folder, save file or options file you chose with --data, VURUS_DATA_DIR, --save-file or --options-file."
+        }
+      ],
+      "references": [
+        {
+          "title": "Set up the upstream PortMaster build on an ARM64 handheld",
+          "instruction": "Use compatible ARM64 firmware with PortMaster installed, SDL 2.0.18 or newer and native OpenGL ES 3.0. Get vurus-portmaster.zip from https://github.com/rzrbld/vurus/releases/tag/portmaster-v202611031626-beta. Extract Vurus.sh, Vurus Benchmark.sh and vurus/ together into the firmware’s Ports folder."
+        },
+        {
+          "title": "Import and preserve your handheld data",
+          "instruction": "Place your own ISO or single-BIN CUE and its BIN beside vurus.aarch64, or copy an existing data/ import there. Start Vurus from the firmware’s Ports menu. Back up data/, saves/, slot1.vzs, options.cfg and vz.sco before applying an upstream update. Keep these files when updating the engine in place. You manage this copy."
+        }
+      ],
+      "warnings": [
+        "The managed routes use the desktop beta packages. The separate PortMaster package needs compatible handheld firmware. There is no Android APK or general-purpose Linux ARM64 desktop package in this release."
+      ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "rzrbld/vurus",
+      "asset_hints": {
+        "windows-x86-64": ["vurus-windows-amd64.zip"],
+        "linux-x86-64": ["vurus-linux.tar.gz"],
+        "macos-x86-64": ["vurus-darwin-x86_64.zip"],
+        "macos-aarch64": ["vurus-darwin-arm64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["vurus.exe"],
+      "linux-x86-64": ["vurus"],
+      "macos-x86-64": ["vurus"],
+      "macos-aarch64": ["vurus"]
+    },
+    "persistent_paths": [
+      "data",
+      "saves",
+      "slot1.vzs",
+      "options.cfg",
+      "vz.sco",
+      "benchmark-results"
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Before first Play, copy your own Vyruz ISO, or a single-BIN CUE with its BIN, into the managed Vurus folder beside the player. Keep the CUE and BIN together to import CD music, and keep your original separately. On Linux or macOS, if the copied image is marked executable, clear that mark first; Portcove holds launch for an undeclared executable file. On first Play, Vurus shows its own setup screen, imports the disc into data/ beside the player and records the selected import in data/current.txt. Later starts reuse that import, so delete the copied image once the game has started. Without an image or import the game shows Game files not ready. The package is the clean-room engine only and contains no game data. The Linux x86-64 player needs glibc 2.35 or later, libstdc++ from GCC 12 or later, system SDL2 and OpenGL; Portcove starts the vurus program directly rather than launch.sh, which runs the same program with its own folder as the data source. The macOS player needs macOS 15 or later and keeps the same files beside itself as on Linux. Upstream does not notarize it and gives no Gatekeeper steps; if macOS blocks the first start, open System Settings › Privacy & Security and choose Open Anyway. Play has not been tested through Portcove on a Mac. Core preserves data/, saves/, slot1.vzs, options.cfg, vz.sco and benchmark-results/ across updates and backups. Imports from older builds in the home folder are not moved. Paths chosen with --data, VURUS_DATA_DIR (legacy VYRUZ_DATA_DIR), --save-file or --options-file are outside Core backup and removal. Older builds may not read saves written by this build, so rollback keeps current data without rewinding progress or guaranteeing compatibility. Core owns engine replacement; upstream owns disc import, settings and save formats."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["licenses"],
+        "executables": ["vurus-bench.exe", "vurus.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["licenses", "third_party"],
+        "executables": ["launch.sh", "vurus", "vurus-bench"]
+      },
+      "macos-x86-64": {
+        "directories": ["licenses"],
+        "executables": ["vurus", "vurus-bench"]
+      },
+      "macos-aarch64": {
+        "directories": ["licenses"],
+        "executables": ["vurus", "vurus-bench"]
+      }
+    }
+  }
+}

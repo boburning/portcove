@@ -1,0 +1,63 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wing-commander-privateer-openprivateer",
+    "artwork": {
+      "game_id": 794,
+      "cover_id": 119872,
+      "image_id": "co2khs",
+      "image_sha256": "b4cbf3910c2d11a09e17b64edbc86b58b32bcf48b563007dc914b1a09bfe069e",
+      "game_slug": "wing-commander-privateer",
+      "match_kind": "underlying-game"
+    },
+    "project_url": "https://github.com/schlangz/openprivateer-project",
+    "name": "Wing Commander: Privateer / OpenPrivateer",
+    "original_game_title": "Wing Commander: Privateer",
+    "summary": "Fly the Privateer campaign or Righteous Fire in OpenPrivateer using your original game files.",
+    "issue_number": 6119,
+    "listed_at": "2026-11-14",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://openprivateer.org/",
+    "release_url": "https://github.com/schlangz/openprivateer-project/releases/tag/build_20261113_0111",
+    "download_block_reason": "The publisher reports Windows security alerts, and its linked scan does not match the Windows executable in this release. Portcove can offer downloads after the Windows package is cleared. Linux and Mac packages remain available from upstream.",
+    "manual_setup": {
+      "help_url": "https://raw.githubusercontent.com/schlangz/openprivateer-project/build_20261113_0111/manual.pdf",
+      "steps": [
+        {
+          "title": "Choose the upstream desktop player",
+          "instruction": "On Linux, choose the x64 or ARM64 archive matching your computer. On Mac, choose Intel, Apple Silicon, or the universal archive. Extract it and open openprivateer with its bundled SDL3 library alongside it. See the upstream manual for Mac first launch. The publisher lists a separate Windows x64 package."
+        },
+        {
+          "title": "Point OpenPrivateer at your original game files",
+          "instruction": "In Game Data, use Add Folder to use your own PRIV.TRE and INITCFG.PAK in place. Righteous Fire uses RF.TRE and INITRF.PAK. For the GOG or Steam edition, use Extract from GOG/Steam and choose GAME.GOG or GAME.bin. The launcher copies the needed files and leaves the original installation intact."
+        },
+        {
+          "title": "Keep the active user-data folder",
+          "instruction": "Use Files and Diagnostics to find and back up the active data folder, including openprivateer.ini, savegame and any custom content. Portable mode keeps those files beside the player. Keep your backup separate before replacing the program folder or using the launcher’s removal options."
+        }
+      ],
+      "warnings": [
+        "These are upstream alpha builds. Linux and Windows require Vulkan. Mac requires Metal. Open the client named openprivateer for play. The separate openprivateer_server hosts multiplayer."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wing-commander-privateer",
+      "evidence_urls": [
+        "https://raw.githubusercontent.com/schlangz/openprivateer-project/build_20261113_0111/manual.pdf",
+        "https://github.com/schlangz/openprivateer-project"
+      ],
+      "source_editions": [
+        {
+          "id": "wing-commander-privateer-pc",
+          "title": "Wing Commander: Privateer (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/wing-commander-privateer-openprivateer.json"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -31,7 +31,7 @@
     "interrupted": "Si se interrumpe, vuelve a abrir Ajustes y comprueba si la ubicación sigue ahí antes de volver a intentarlo.",
     "keep": "Conservar la ubicación",
     "noInstalled": "Ningún juego instalado depende actualmente de esta ubicación.",
-    "notDeleted": "Eliminar esta ubicación no mueve ni elimina los archivos de la ruta anterior, las versiones de juegos instaladas, las partidas guardadas, las copias de seguridad ni otras ubicaciones guardadas. Solo se elimina la ubicación de esta biblioteca.",
+    "notDeleted": "Eliminar esta ubicación no mueve ni elimina los archivos de la ruta anterior, las versiones de juegos instaladas, las partidas guardadas, las copias de seguridad ni otras ubicaciones guardadas. Solo se elimina la ubicación de esta biblioteca. Las configuraciones que necesiten estos archivos originales te pedirán que los busques de nuevo.",
     "refreshList": "Actualizar la lista de archivos guardados",
     "remove": "Eliminar la ubicación guardada…",
     "removedRefresh": "Se eliminó la ubicación guardada. Actualiza la lista para ver los archivos actuales.",
@@ -41,5 +41,8 @@
     "unavailablePort": "Adaptación no disponible ({{id}})"
   },
   "title": "¿Desinstalar {{identity}}?",
-  "uninstallPort": "Desinstalar {{name}}"
+  "uninstallPort": "Desinstalar {{name}}",
+  "unknownFiles": "Archivos que Portcove no instaló: {{total, number}}. Es posible que el juego los haya creado, por ejemplo como ajustes. Portcove los copia en una copia de seguridad nueva antes de desinstalar. Restaurar una copia de seguridad no los devuelve.",
+  "unknownFilesSize": "Estos archivos ocupan {{size}} en la copia de seguridad, que se conserva hasta que la elimines.",
+  "unknownFilesUnlisted": "Archivos que no se muestran aquí: {{total, number}}"
 }

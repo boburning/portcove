@@ -37,6 +37,7 @@ export async function closingInventoryCheck(repository: string, number: number) 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const repository = process.env.GITHUB_REPOSITORY ?? "";
   const number = Number(process.env.PR_NUMBER);
+  const expectedHead = process.env.EXPECTED_HEAD_SHA ?? "";
   const summary = (line: string) => {
     console.log(line);
     if (process.env.GITHUB_STEP_SUMMARY)
@@ -46,10 +47,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (
       !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(repository) ||
       !Number.isSafeInteger(number) ||
-      number < 1
+      number < 1 ||
+      !/^[a-f0-9]{40}$/u.test(expectedHead)
     )
-      throw new Error("GITHUB_REPOSITORY and a positive PR_NUMBER are required");
+      throw new Error("GITHUB_REPOSITORY, PR_NUMBER and EXPECTED_HEAD_SHA are required");
     const { observation, manual } = await closingInventoryCheck(repository, number);
+    if (observation.head !== expectedHead)
+      throw new Error(`PR head moved from ${expectedHead} to ${observation.head}`);
     summary(
       `Closing inventory for #${number} at ${observation.head}: ${observation.relationships.join(", ") || "none"}.`,
     );

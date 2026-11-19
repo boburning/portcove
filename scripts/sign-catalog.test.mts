@@ -12,6 +12,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
 
 function fixture() {
@@ -206,9 +207,9 @@ void test("offline catalog signer reports input limits without exposing input co
   writeFileSync(item.key, privateKey);
   writeFileSync(item.catalog, "{");
   refuses([], /SyntaxError/u);
-  writeFileSync(item.catalog, Buffer.alloc(4194305, "PRIVATE_INPUT_CANARY"));
-  refuses([], /--catalog.*4194304-byte read limit.*received 4194305 bytes/u);
-  refuses(["--catalog", item.root], /--catalog.*regular file.*directory.*4194304 bytes/u);
+  writeFileSync(item.catalog, Buffer.alloc(16777217, "PRIVATE_INPUT_CANARY"));
+  refuses([], /--catalog.*16777216-byte read limit.*received 16777217 bytes/u);
+  refuses(["--catalog", item.root], /--catalog.*regular file.*directory.*16777216 bytes/u);
   writeFileSync(item.catalog, "{}");
   const wrong = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
   writeFileSync(item.key, wrong.privateKey.export({ format: "pem", type: "pkcs8" }));
@@ -237,12 +238,13 @@ void test("offline catalog signer retains numeric coercion and the inclusive val
 void test("offline catalog signer reports the independent escaped-envelope limit", (t) => {
   const item = fixture();
   t.after(() => rmSync(item.root, { recursive: true, force: true }));
-  const catalog = JSON.stringify({ fixture: '"'.repeat(1100000) });
-  assert.ok(Buffer.byteLength(catalog) < 4194304);
+  // Each quote is two bytes in the catalog and four after envelope escaping.
+  const catalog = JSON.stringify({ fixture: '"'.repeat(4400000) });
+  assert.ok(Buffer.byteLength(catalog) < 16777216);
   writeFileSync(item.catalog, catalog);
   const result = item.run();
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /envelope.*4194304-byte.*received \d+ bytes after JSON escaping/u);
+  assert.match(result.stderr, /envelope.*16777216-byte.*received \d+ bytes after JSON escaping/u);
   assert.equal(result.stdout, "");
   assert.equal(existsSync(item.output), false);
 });
@@ -253,7 +255,7 @@ void test("offline capacity diagnostics count escaped growth and retain the exis
     readFileSync(new URL("../crates/portcove-core/src/signed_catalog.rs", import.meta.url), "utf8"),
     "MAX_CATALOG_BYTES",
   );
-  assert.equal(limit, 4 * 1024 * 1024);
+  assert.equal(limit, 16 * 1024 * 1024);
   const catalog = {
     schema_version: 2,
     ports: [{ id: "one", summary: 'Unicodeé and "quoted" text' }],
@@ -304,6 +306,111 @@ void test("offline capacity diagnostics match the existing publisher envelope by
   assert.equal(report.representative_envelope_bytes, readFileSync(item.output).length);
 });
 
+void test("offline catalog signer accepts an envelope above the legacy 4 MiB floor", async (t) => {
+  const { capacityConstant } = await import("./catalog-capacity.mts");
+  const limit = capacityConstant(
+    readFileSync(new URL("../crates/portcove-core/src/signed_catalog.rs", import.meta.url), "utf8"),
+    "MAX_CATALOG_BYTES",
+  );
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  const catalog = JSON.stringify({ fixture: "x".repeat(4194304) });
+  writeFileSync(item.catalog, catalog);
+  const result = item.run();
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(readFileSync(item.output).length > 4194304);
+  const help = item.run(["--help"]);
+  assert.ok(help.stdout.includes(`at most ${limit} bytes (16 MiB)`));
+  assert.ok(help.stdout.includes(`fit within ${limit} bytes (16 MiB)`));
+  writeFileSync(item.catalog, Buffer.alloc(limit + 1, " "));
+  const refused = item.run(["--output", `${item.output}.over`]);
+  assert.notEqual(refused.status, 0);
+  assert.ok(refused.stderr.includes(`${limit}-byte read limit: received ${limit + 1} bytes`));
+  assert.match(help.stdout, /catalog-capacity\.mts --check/u);
+});
+
+void test("catalog size guard reads Core bounds and fails above its stated margin", async (t) => {
+  const { catalogSizeBounds, catalogSizeGuard, formatCatalogSizeGuard } =
+    await import("./catalog-capacity.mts");
+  const bounds = catalogSizeBounds(
+    readFileSync(new URL("../crates/portcove-core/src/signed_catalog.rs", import.meta.url), "utf8"),
+  );
+  assert.deepEqual(bounds, { current: 16777216, percent: 85 });
+  assert.throws(
+    () =>
+      catalogSizeBounds(
+        "const MAX_CATALOG_BYTES: usize = 4;\nconst CATALOG_SUPPORTED_CAPACITY_PERCENT: usize = 100;",
+      ),
+    /Invalid/u,
+  );
+  const small = { ports: [{ id: "one", summary: 'é "quoted"' }] };
+  const passing = catalogSizeGuard(100, small, bounds);
+  assert.equal(
+    catalogSizeGuard(
+      5 * 1024 * 1024,
+      { ports: [{ id: "one", summary: "a".repeat(5 * 1024 * 1024) }] },
+      bounds,
+    ).ok,
+    true,
+  );
+  assert.equal(passing.ok, true);
+  assert.deepEqual(
+    passing.rows.map((row) => [row.name, row.basis, row.ceiling]),
+    [
+      ["generated catalog.json bytes", "generated input bound", 14260633],
+      ["compact catalog bytes", "catalog input bound", 14260633],
+      ["escaped signed envelope bytes (unsigned placeholder)", "signed envelope bound", 14260633],
+    ],
+  );
+  assert.match(
+    formatCatalogSizeGuard(passing),
+    /^ok {3}compact catalog bytes: \d+ of 14260633 \(85% of the catalog input bound 16777216\); headroom \d+/mu,
+  );
+  // Escaping alone can carry the envelope past the margin while the compact bytes still fit.
+  const escaped = { ports: [{ id: "one", summary: '"'.repeat(3600000) }] };
+  const failing = catalogSizeGuard(100, escaped, bounds);
+  assert.equal(failing.ok, false);
+  assert.deepEqual(
+    failing.rows.map((row) => row.ok),
+    [true, true, false],
+  );
+  assert.ok(failing.rows[2]!.headroom < 0);
+  assert.match(formatCatalogSizeGuard(failing), /^FAIL escaped signed envelope bytes/mu);
+  assert.equal(catalogSizeGuard(14260634, small, bounds).rows[0]!.ok, false);
+
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-size-guard-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const input = path.join(root, "catalog.json");
+  const tool = fileURLToPath(new URL("./catalog-capacity.mts", import.meta.url));
+  writeFileSync(input, JSON.stringify(escaped));
+  const refused = spawnSync(process.execPath, [tool, "--check", "--catalog", input], {
+    encoding: "utf8",
+  });
+  assert.equal(refused.status, 1);
+  assert.match(refused.stdout, /FAIL escaped signed envelope bytes/u);
+  assert.match(refused.stderr, /Catalog size guard failed/u);
+  writeFileSync(input, JSON.stringify(small));
+  const accepted = spawnSync(process.execPath, [tool, "--check", "--catalog", input], {
+    encoding: "utf8",
+  });
+  assert.equal(accepted.status, 0, accepted.stderr);
+  assert.equal(accepted.stdout.trim().split("\n").length, 3);
+});
+
+void test("legacy signer refuses a mod provider withdrawal before key access", (t) => {
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  rmSync(item.key);
+  writeFileSync(
+    item.catalog,
+    JSON.stringify({ ports: [{ id: "shipwright", mod_provider_bindings: [] }] }),
+  );
+  const result = item.run();
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Format-1 signed catalogs cannot deliver mod provider bindings/u);
+  assert.equal(existsSync(item.output), false);
+});
+
 void test("legacy signer refuses Shipwright working-directory persistence before key access", (t) => {
   const item = fixture();
   t.after(() => rmSync(item.root, { recursive: true, force: true }));
@@ -320,6 +427,22 @@ void test("legacy signer refuses Shipwright working-directory persistence before
     result.stderr,
     /Format-1 signed catalogs cannot deliver Shipwright working-directory persistence/u,
   );
+  assert.equal(existsSync(item.output), false);
+});
+
+void test("legacy signer refuses a Windows tracked handoff before key access", (t) => {
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  rmSync(item.key);
+  writeFileSync(
+    item.catalog,
+    JSON.stringify({
+      ports: [{ id: "windows-restart", windows_tracked_handoff: true }],
+    }),
+  );
+  const result = item.run();
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Format-1 signed catalogs cannot deliver a Windows tracked handoff/u);
   assert.equal(existsSync(item.output), false);
 });
 

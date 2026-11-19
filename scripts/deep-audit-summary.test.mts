@@ -278,6 +278,9 @@ void test("real evidence bytes round-trip through timestamped job logs without e
     await writeFile(path.join(native, "library", "private.json"), "never-export");
     await writeFile(path.join(native, "webview", "profile.json"), "never-export");
     await writeFile(path.join(native, "session-startup-0.jsonl"), '{"owned_process":"identity"}\n');
+    for (let index = 0; index < 128; index++) {
+      await writeFile(path.join(native, `presentation-${index}.json`), "{}");
+    }
     const encoded = await encodeBackupEvidence(source);
     const log = encoded
       .split("\n")
@@ -285,7 +288,7 @@ void test("real evidence bytes round-trip through timestamped job logs without e
       .join("\n");
     const recovered = path.join(root, "recovered");
     const names = await recoverBackupEvidence(log, recovered);
-    assert.equal(names.length, 4);
+    assert.equal(names.length, 132);
     assert.ok(!names.some((name) => /library|webview/.test(name)));
     assert.deepEqual(
       await readFile(path.join(recovered, "desktop-verify/one-run/native/success.png")),

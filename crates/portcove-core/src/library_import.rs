@@ -13,6 +13,44 @@ use crate::{
     PortcoveError, PortcoveService, Result,
 };
 
+/// Match the previously offered Windows policy before verifying a retained
+/// embedded install. This comparison leaves the actual retained contract in use.
+fn validate_retained_embedded_port(
+    retained: &crate::PortDefinition,
+    embedded: &crate::PortDefinition,
+) -> Result<()> {
+    let historical_shipwright =
+        embedded.windows_shipwright_persistence && !retained.windows_shipwright_persistence;
+    let historical_snap = embedded.id == "snap64-recomp"
+        && embedded.windows_tracked_handoff
+        && !retained.windows_tracked_handoff;
+    if historical_shipwright || historical_snap {
+        let mut historical = embedded.clone();
+        if historical_shipwright {
+            historical.windows_shipwright_persistence = false;
+        }
+        if historical_snap {
+            historical.windows_tracked_handoff = false;
+        }
+        return crate::signed_catalog::validate_installed_port_contract(retained, &historical);
+    }
+    crate::signed_catalog::validate_installed_port_contract(retained, embedded)
+}
+
+#[cfg(test)]
+#[test]
+fn historical_snap64_embedded_import_preserves_its_launch_policy() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let embedded = catalog.port("snap64-recomp").unwrap();
+    assert!(embedded.windows_tracked_handoff);
+    let mut retained = embedded.clone();
+    retained.windows_tracked_handoff = false;
+    validate_retained_embedded_port(&retained, embedded).unwrap();
+    assert!(!retained.windows_tracked_handoff);
+    retained.persistent_paths.push("unexpected".into());
+    assert!(validate_retained_embedded_port(&retained, embedded).is_err());
+}
+
 pub(crate) struct PortabilityCatalogs {
     embedded: Catalog,
     installs: BTreeMap<String, Catalog>,
@@ -85,23 +123,7 @@ impl PortabilityCatalogs {
                     } else {
                         let retained_port = catalog.port(&install.port_id)?;
                         let embedded_port = embedded.port(&install.port_id)?;
-                        if embedded_port.windows_shipwright_persistence
-                            && !retained_port.windows_shipwright_persistence
-                        {
-                            // Compare the historical contract against the old
-                            // operational shape, leaving the retained bytes intact.
-                            let mut historical = embedded_port.clone();
-                            historical.windows_shipwright_persistence = false;
-                            crate::signed_catalog::validate_installed_port_contract(
-                                retained_port,
-                                &historical,
-                            )?;
-                        } else {
-                            crate::signed_catalog::validate_installed_port_contract(
-                                retained_port,
-                                embedded_port,
-                            )?;
-                        }
+                        validate_retained_embedded_port(retained_port, embedded_port)?;
                     }
                     catalog
                 }
@@ -402,7 +424,7 @@ pub(crate) fn validate_metadata(
     metadata: &LibraryMetadata,
     catalogs: &PortabilityCatalogs,
 ) -> Result<()> {
-    if !matches!(metadata.schema_version, 1..=7) {
+    if !matches!(metadata.schema_version, 1..=12) {
         return Err(PortcoveError::unsupported(
             "unsupported library metadata schema",
         ));
@@ -434,7 +456,31 @@ pub(crate) fn validate_metadata(
         _ => artwork_expected.as_slice(),
     };
     match (&metadata.artwork, metadata.schema_version) {
-        (Some(artwork), 3..=7) => {
+        (Some(artwork), 3..=12) => {
+            if metadata.schema_version < 10
+                && (!artwork.withdrawals.is_empty() || !artwork.evicted_assets.is_empty())
+            {
+                return Err(PortcoveError::verification(
+                    "artwork withdrawals require library metadata schema 10",
+                ));
+            }
+            if metadata.schema_version < 9
+                && artwork
+                    .choices
+                    .iter()
+                    .any(|choice| choice.slot == crate::ArtworkSlot::Landscape)
+            {
+                return Err(PortcoveError::verification(
+                    "a landscape artwork choice requires library metadata schema 9",
+                ));
+            }
+            if metadata.schema_version < 8
+                && (!artwork.providers.is_empty() || !artwork.provider_only_assets.is_empty())
+            {
+                return Err(PortcoveError::verification(
+                    "artwork provider provenance requires library metadata schema 8",
+                ));
+            }
             crate::artwork_store::validate_metadata_with(artwork, |port_id| {
                 catalogs.require_port(port_id)
             })?
@@ -470,6 +516,40 @@ pub(crate) fn validate_metadata(
         {
             return Err(PortcoveError::verification(
                 "metadata has an invalid or repeated source reference",
+            ));
+        }
+    }
+    if !metadata.source_instances.is_empty() && metadata.schema_version < 12 {
+        return Err(PortcoveError::verification(
+            "original instances require library metadata schema 12",
+        ));
+    }
+    let mut identities = metadata
+        .source_references
+        .iter()
+        .map(|source| {
+            crate::source_instances::identity(&crate::profile::bind_original(
+                &source.profile_id,
+                source,
+            ))
+        })
+        .collect::<Result<BTreeSet<_>>>()?;
+    for source in &metadata.source_instances {
+        catalogs.require_source_profile(&source.profile_id)?;
+        if let Some(identity) = &source.observed_identity {
+            identity.validate_for_record(source)?;
+        }
+        let identity = crate::source_instances::identity(&crate::profile::bind_original(
+            &source.profile_id,
+            source,
+        ))?;
+        if !identities.insert(identity)
+            || source.path.as_os_str().is_empty()
+            || !sha256(&source.sha256)
+            || !sha256(&source.storage_sha256)
+        {
+            return Err(PortcoveError::verification(
+                "metadata has an invalid or repeated original instance",
             ));
         }
     }
@@ -554,19 +634,24 @@ pub(crate) fn validate_metadata(
 fn retained_references_by_install(
     metadata: &LibraryMetadata,
 ) -> Result<BTreeMap<&str, Vec<&crate::RetainedBuildReference>>> {
-    if !metadata.profiles.is_empty() && !matches!(metadata.schema_version, 6 | 7) {
+    if !metadata.profiles.is_empty() && !matches!(metadata.schema_version, 6..=12) {
         return Err(PortcoveError::verification(
             "profiles require library metadata schema 6",
         ));
     }
-    if !metadata.library_memberships.is_empty() && metadata.schema_version != 7 {
+    if !metadata.library_memberships.is_empty() && !matches!(metadata.schema_version, 7..=12) {
         return Err(PortcoveError::verification(
             "library memberships require library metadata schema 7",
         ));
     }
     crate::library_membership::validate_export(&metadata.library_memberships)?;
-    crate::profile::validate_export(&metadata.profiles, &metadata.retained_build_references)?;
-    if !metadata.retained_build_references.is_empty() && !matches!(metadata.schema_version, 5..=7) {
+    crate::profile::validate_export(
+        &metadata.profiles,
+        &metadata.retained_build_references,
+        metadata.schema_version >= 11,
+    )?;
+    if !metadata.retained_build_references.is_empty() && !matches!(metadata.schema_version, 5..=12)
+    {
         return Err(PortcoveError::verification(
             "retained build references require library metadata schema 5",
         ));

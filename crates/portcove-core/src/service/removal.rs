@@ -109,10 +109,31 @@ impl RemovalOperation {
 
     /// Inspect the relocated bytes using the original authenticated identities.
     /// A location change never changes the retained manifest or its digest.
+    /// Recovery cannot tell whether unknown files were backed up, so any
+    /// unclaimed generated-cache output still preserves the removal.
     pub(crate) fn require_retained_outputs(
         &self,
         service: &crate::PortcoveService,
         operation: &LifecycleOperation,
+    ) -> Result<()> {
+        self.require_retained_outputs_with(service, operation, false)
+    }
+
+    /// The live removal took a safety backup of every unknown player-side file
+    /// first (#5359), so only hazards preserve the removal.
+    pub(crate) fn require_retained_outputs_after_safety_backup(
+        &self,
+        service: &crate::PortcoveService,
+        operation: &LifecycleOperation,
+    ) -> Result<()> {
+        self.require_retained_outputs_with(service, operation, true)
+    }
+
+    fn require_retained_outputs_with(
+        &self,
+        service: &crate::PortcoveService,
+        operation: &LifecycleOperation,
+        unknown_backed_up: bool,
     ) -> Result<()> {
         if self.original_paths.is_empty()
             && operation
@@ -186,7 +207,12 @@ impl RemovalOperation {
                 let qualification =
                     crate::InstallQualification::from_port(port, crate::Platform::current()?)?;
                 let report = installer.verify_managed(&located, &qualification)?;
-                if !report.valid {
+                let held = if unknown_backed_up {
+                    report.has_hazards()
+                } else {
+                    !report.valid
+                };
+                if held {
                     return Err(PortcoveError::conflict("Generated-cache removal found changed or unclaimed output. Preserve the entire runtime, quarantine and player data for review")
                         .detail("failures", serde_json::to_string(&report.failures)?));
                 }

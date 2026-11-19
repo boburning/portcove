@@ -1,44 +1,17 @@
 // The transport inventory in desktop_contract is one large json! literal.
 #![recursion_limit = "256"]
 mod adoption;
-pub mod application_update;
-pub mod application_update_apply;
-pub mod application_update_commands;
-mod application_update_connectivity;
-pub mod application_update_coordinator;
-pub mod application_update_download;
-pub mod application_update_helper;
-pub mod application_update_host;
-#[cfg(any(target_os = "linux", test))]
-pub mod application_update_linux;
-#[cfg(target_os = "macos")]
-pub mod application_update_macos;
-#[cfg(any(target_os = "macos", test))]
-mod application_update_macos_archive;
-mod application_update_network;
-pub mod application_update_operation;
-pub mod application_update_payload;
-pub mod application_update_preferences;
-#[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
-mod application_update_process_environment;
-mod application_update_recovery;
-pub mod application_update_repository;
-mod application_update_restart;
-pub mod application_update_schedule;
-pub mod application_update_staging;
-pub mod application_update_status;
-mod application_update_storage;
-mod application_update_transport;
-pub mod application_update_trust;
-#[cfg(any(windows, test))]
-pub mod application_update_windows;
+mod application_update;
+mod application_update_admission;
 mod artwork;
+mod atomic_files;
 mod automatic_snapshots;
 mod backup_review;
 mod bug_report;
 mod catalog;
 mod catalog_download;
 mod cli_context;
+mod dat_commands;
 #[doc(hidden)]
 pub mod desktop_contract;
 mod diagnostics;
@@ -54,10 +27,15 @@ mod host_startup;
 mod library_selection;
 mod library_transfer;
 mod managed_install_review;
+mod mod_file_commands;
+mod mod_original_commands;
 mod mod_setup_commands;
 mod organization_commands;
 mod output_location;
+mod portable_saves_commands;
 mod preparation;
+mod ready_notices;
+mod recent_play_shortcuts;
 mod removal;
 #[cfg(any(windows, target_os = "linux"))]
 mod runtime_support;
@@ -65,10 +43,12 @@ mod source_removal;
 pub mod steam_artwork;
 pub mod steam_entries;
 pub mod steam_entry_commands;
+mod steamgriddb;
 mod transport;
 mod webview_boundary;
 #[cfg(feature = "native-compatibility-qualification")]
 mod webview_boundary_qualification;
+mod windows_installation;
 
 use transport::{
     BatchOutcome, BootstrapStatus, DesktopError, DesktopWorkspaceSnapshot, InstallInput,
@@ -108,6 +88,30 @@ type LaunchObserver =
     std::sync::Arc<std::sync::Mutex<Option<std::sync::mpsc::Sender<LaunchObservation>>>>;
 const LAUNCH_ACCEPTANCE_POLL_INTERVAL: Duration = Duration::from_millis(25);
 
+/// A launch being followed: its library, request id, the last relayed progress sequence and the
+/// stamp (modification time, length) of the progress file when it was last read, and whether
+/// recovery of its session was already started.
+type ObservedLaunch = (
+    Library,
+    String,
+    std::cell::Cell<Option<u64>>,
+    std::cell::Cell<Option<(std::time::SystemTime, u64)>>,
+    std::cell::Cell<bool>,
+);
+
+fn new_launch_observation(library: Library, request_id: String) -> ObservedLaunch {
+    // A supervisor already gone when observation begins (Desktop restarted mid-launch) is what
+    // startup recovery handles; only one that ends later is recovered by the observer.
+    let already_lost = library.launch_supervisor_lost(&request_id).unwrap_or(false);
+    (
+        library,
+        request_id,
+        std::cell::Cell::new(None),
+        std::cell::Cell::new(None),
+        std::cell::Cell::new(already_lost),
+    )
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum LaunchObservationState {
     Active,
@@ -134,42 +138,8 @@ struct DesktopState {
 
 type DesktopResult<T> = std::result::Result<T, DesktopError>;
 
-#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-fn report_application_update_qualification_failure(stage: &str, error: &str) {
-    #[cfg(feature = "application-update-qualification")]
-    if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()
-        == Some(std::ffi::OsStr::new("after-reconciliation"))
-    {
-        eprintln!(
-            "Portcove application-update qualification startup failed during {stage}: {error}"
-        );
-    }
-    let _ = (stage, error);
-}
-
-#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-fn report_application_update_qualification_stage(stage: &str) {
-    #[cfg(feature = "application-update-qualification")]
-    if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()
-        == Some(std::ffi::OsStr::new("after-reconciliation"))
-    {
-        eprintln!("Portcove application-update qualification startup reached {stage}");
-        if let Some(path) = std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE") {
-            let report = serde_json::json!({
-                "schema_version": 1,
-                "stage": stage,
-                "process_id": std::process::id(),
-            });
-            if let Ok(bytes) = serde_json::to_vec_pretty(&report) {
-                let _ = std::fs::write(path, bytes);
-            }
-        }
-    }
-    let _ = stage;
-}
-
 #[derive(Default)]
-struct BlockingWorkerState {
+pub(crate) struct BlockingWorkerState {
     active: usize,
     restart_pending: bool,
 }
@@ -187,7 +157,6 @@ impl BlockingWorkerState {
         self.active = self.active.saturating_sub(1);
     }
 
-    #[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
     fn begin_restart(&mut self) -> Result<(), ()> {
         if self.active != 0 || self.restart_pending {
             return Err(());
@@ -197,67 +166,112 @@ impl BlockingWorkerState {
     }
 }
 
-static BLOCKING_WORKERS: std::sync::LazyLock<std::sync::Mutex<BlockingWorkerState>> =
+static BLOCKING_WORKERS: std::sync::LazyLock<BlockingWorkerGate> =
     std::sync::LazyLock::new(|| std::sync::Mutex::new(BlockingWorkerState::default()));
 
-struct ActiveBlockingWorker;
+pub(crate) type BlockingWorkerGate = std::sync::Mutex<BlockingWorkerState>;
+
+struct ActiveBlockingWorker {
+    gate: &'static BlockingWorkerGate,
+}
 
 impl ActiveBlockingWorker {
     fn begin() -> DesktopResult<Self> {
-        let mut state = BLOCKING_WORKERS.lock().map_err(|_| {
+        Self::begin_in(&BLOCKING_WORKERS)
+    }
+
+    fn begin_in(gate: &'static BlockingWorkerGate) -> DesktopResult<Self> {
+        let mut state = gate.lock().map_err(|_| {
             DesktopError::from(PortcoveError::state("Desktop worker state is unavailable."))
         })?;
         state.begin_worker().map_err(|_| {
             DesktopError::from(PortcoveError::conflict(
-                "Portcove is restarting to apply an application update.",
+                "Portcove is installing an application update.",
             ))
         })?;
-        Ok(Self)
+        Ok(Self { gate })
     }
 }
 
 impl Drop for ActiveBlockingWorker {
     fn drop(&mut self) {
-        if let Ok(mut state) = BLOCKING_WORKERS.lock() {
+        if let Ok(mut state) = self.gate.lock() {
             state.finish_worker();
         }
     }
 }
 
-#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-struct BlockingWorkerRestartGuard {
+/// Refuses new backend workers (including game launches) until it is dropped
+/// uncommitted, or for the rest of the process once committed.
+pub(crate) struct BlockingWorkerRestartGuard {
+    gate: &'static BlockingWorkerGate,
     committed: bool,
 }
 
-#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 impl BlockingWorkerRestartGuard {
-    fn commit(mut self) {
+    pub(crate) fn commit(mut self) {
         self.committed = true;
     }
 }
 
-#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 impl Drop for BlockingWorkerRestartGuard {
     fn drop(&mut self) {
         if !self.committed
-            && let Ok(mut state) = BLOCKING_WORKERS.lock()
+            && let Ok(mut state) = self.gate.lock()
         {
             state.restart_pending = false;
         }
     }
 }
 
-#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-fn block_workers_for_restart() -> DesktopResult<BlockingWorkerRestartGuard> {
-    let mut state = BLOCKING_WORKERS.lock().map_err(|_| {
+pub(crate) fn block_workers_for_restart_in(
+    gate: &'static BlockingWorkerGate,
+) -> DesktopResult<BlockingWorkerRestartGuard> {
+    let mut state = gate.lock().map_err(|_| {
         DesktopError::from(PortcoveError::state("Desktop worker state is unavailable."))
     })?;
     state.begin_restart().map_err(|_| {
         DesktopError::from(PortcoveError::conflict(
-            "Portcove is finishing active work. Wait for it to complete before restarting to update.",
+            "Portcove is finishing active work. Wait for it to complete before updating.",
         ))
     })?;
-    Ok(BlockingWorkerRestartGuard { committed: false })
+    Ok(BlockingWorkerRestartGuard {
+        gate,
+        committed: false,
+    })
+}
+
+/// The diagnostics producer, shared so both normal exit and the updater's
+/// Windows `process::exit` path can close it.
+#[derive(Clone)]
+pub(crate) struct ExitDiagnostics(
+    std::sync::Arc<std::sync::Mutex<Option<crate::diagnostics_writer::Guard>>>,
+);
+
+/// Completes this process's diagnostics session when Tauri clears its resource
+/// table, which `cleanup_before_exit` does before a later launch that forwarded
+/// its arguments to the running instance exits.
+#[cfg_attr(not(all(windows, not(test))), allow(dead_code))]
+struct DiagnosticsCloser(ExitDiagnostics);
+
+impl tauri::Resource for DiagnosticsCloser {}
+
+impl Drop for DiagnosticsCloser {
+    fn drop(&mut self) {
+        self.0.shutdown();
+    }
+}
+
+impl ExitDiagnostics {
+    fn new(guard: Option<crate::diagnostics_writer::Guard>) -> Self {
+        Self(std::sync::Arc::new(std::sync::Mutex::new(guard)))
+    }
+
+    pub(crate) fn shutdown(&self) {
+        if let Ok(mut guard) = self.0.lock() {
+            diagnostics::shutdown(&mut guard);
+        }
+    }
 }
 
 fn initialization_snapshot(state: &DesktopState) -> (DesktopResult<ReadyDesktopState>, u64) {
@@ -311,6 +325,9 @@ fn require_no_library_handoff(
     if initialization.as_ref().err().is_some_and(|error| {
         error.details.contains_key("transfer_in_progress")
             || error.details.contains_key("library_switch_in_progress")
+            || error
+                .details
+                .contains_key(application_update::UPDATE_IN_PROGRESS_DETAIL)
     }) {
         return Err(PortcoveError::conflict("a library handoff is already in progress").into());
     }
@@ -477,13 +494,48 @@ where
     F: FnOnce() -> DesktopResult<T> + Send + 'static,
 {
     let active = ActiveBlockingWorker::begin()?;
-    tauri::async_runtime::spawn_blocking(move || {
+    // Debug-only correlation for stalled IPC reads. Only the owning command's
+    // function name is recorded; no arguments, paths or results.
+    let worker = NEXT_BLOCKING_WORKER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let owner = blocking_worker_owner(std::any::type_name::<F>());
+    tracing::debug!(
+        request_id = worker,
+        phase = "accepted",
+        message = format!("blocking worker queued for {owner}")
+    );
+    let queued = std::time::Instant::now();
+    let result = tauri::async_runtime::spawn_blocking(move || {
         let _active = active;
+        tracing::debug!(
+            request_id = worker,
+            phase = "start",
+            elapsed_ms = u64::try_from(queued.elapsed().as_millis()).unwrap_or(u64::MAX),
+            message = "blocking worker started"
+        );
         operation()
     })
-    .await
-    .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))?
+    .await;
+    tracing::debug!(
+        request_id = worker,
+        phase = "complete",
+        success = matches!(result, Ok(Ok(_))),
+        elapsed_ms = u64::try_from(queued.elapsed().as_millis()).unwrap_or(u64::MAX),
+        message = "blocking worker completed"
+    );
+    result.map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))?
 }
+
+/// Names the command function that owns a worker closure, skipping the shared
+/// `blocking_*` wrappers, from a compiler type name.
+fn blocking_worker_owner(type_name: &str) -> &str {
+    type_name
+        .split("::{{closure}}")
+        .filter_map(|chunk| chunk.rsplit([':', '<', ' ', ',']).next())
+        .find(|name| !name.is_empty() && !name.starts_with("blocking_"))
+        .unwrap_or("unknown")
+}
+
+static NEXT_BLOCKING_WORKER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
 async fn confirm_destructive(
     app: &tauri::AppHandle,
@@ -780,8 +832,13 @@ async fn inspect_source(
     profile_id: String,
 ) -> DesktopResult<SourceInspectionReport> {
     let state = state.inner().clone();
+    let preferences = state.preferences.clone();
     blocking_service(state, move |service| {
-        inspect_source_with_service(&service, &profile_id)
+        let mut report = inspect_source_with_service(&service, &profile_id)?;
+        if let Ok(preferences) = &preferences {
+            portcove_core::identify_source_report(preferences, &mut report);
+        }
+        Ok(report)
     })
     .await
 }
@@ -806,8 +863,13 @@ async fn inspect_source_intake(
     paths: Vec<PathBuf>,
 ) -> DesktopResult<SourceIntakeInspection> {
     let state = state.inner().clone();
+    let preferences = state.preferences.clone();
     blocking_service(state, move |service| {
-        inspect_source_intake_with_service(&service, &profile_id, &paths)
+        let mut intake = inspect_source_intake_with_service(&service, &profile_id, &paths)?;
+        if let Ok(preferences) = &preferences {
+            portcove_core::identify_source_intake(preferences, &mut intake);
+        }
+        Ok(intake)
     })
     .await
 }
@@ -1195,7 +1257,7 @@ async fn get_port_intents(
     .await
 }
 
-/// Reassesses remembered choices against current files, catalog and tools. Reads only.
+/// Reassesses remembered choices against current files, catalog and tools, saving scan progress.
 #[tauri::command]
 async fn assess_port_intents(
     state: tauri::State<'_, DesktopState>,
@@ -1259,6 +1321,23 @@ async fn set_root_setup_implementation(
     blocking_service_at_generation(state.inner().clone(), generation, move |service| {
         service
             .set_root_setup_implementation(&root_id, &profile_id, &port_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+/// Chooses whether a folder's automatic setup keeps a local copy of each
+/// game's required files.
+#[tauri::command]
+async fn set_root_setup_local_copy(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    root_id: String,
+    keep_local_copy: bool,
+) -> DesktopResult<portcove_core::RootSetupConsent> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .set_root_setup_local_copy(&root_id, keep_local_copy)
             .map_err(Into::into)
     })
     .await
@@ -1363,14 +1442,80 @@ async fn scan_game_file_roots(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     limits: portcove_core::SourceDiscoveryLimits,
+    finish_scan_id: Option<String>,
     on_event: tauri::ipc::Channel<OperationEvent>,
 ) -> DesktopResult<portcove_core::GameFileScanSnapshot> {
     blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        let emit = |event| {
+            let _ = on_event.send(event);
+        };
+        match finish_scan_id {
+            Some(id) => service.finish_game_file_scan_with_progress(&id, &limits, emit),
+            None => service.scan_game_file_roots_with_progress(&limits, emit),
+        }
+        .map_err(Into::into)
+    })
+    .await
+}
+
+/// One page of the current saved-folder scan's recorded matches. Paging a
+/// scan that has since been replaced is a conflict, so the view reloads.
+#[tauri::command]
+async fn get_game_file_scan_matches(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    query: portcove_core::GameFileScanMatchQuery,
+) -> DesktopResult<portcove_core::GameFileScanMatchPage> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.game_file_scan_matches(&query).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn get_game_file_scan_registered_matches(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    expected: portcove_core::GameFileScanMatchSummary,
+) -> DesktopResult<portcove_core::GameFileScanRegisteredMatches> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
         service
-            .scan_game_file_roots_with_progress(&limits, |event| {
-                let _ = on_event.send(event);
-            })
+            .game_file_scan_registered_matches(&expected)
             .map_err(Into::into)
+    })
+    .await
+}
+
+/// The game-file profiles the current scan matched inside one saved folder,
+/// so its setup choices cover every match. Reads only.
+#[tauri::command]
+async fn get_game_file_root_match_profiles(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    root_id: String,
+) -> DesktopResult<Vec<String>> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .game_file_root_match_profiles(&root_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+/// Game folders Steam, GOG and Epic installed on this computer, as search
+/// suggestions. Reads only; nothing is saved or registered.
+#[tauri::command]
+async fn get_store_game_installs(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    profile_id: Option<String>,
+) -> DesktopResult<portcove_core::StoreGameInstalls> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        match profile_id.as_deref() {
+            Some(profile_id) => service.store_game_installs_for_profile(profile_id),
+            None => service.store_game_installs(),
+        }
+        .map_err(Into::into)
     })
     .await
 }
@@ -1410,7 +1555,7 @@ async fn refresh_game_file_query_at_generation(
     let snapshot = blocking_worker(move || {
         let service = service_at_generation(&worker_state, generation)?;
         service
-            .refresh_game_file_query_with_progress(&request, emit)
+            .refresh_browsing_game_file_query_with_progress(&request, emit)
             .map_err(Into::into)
     })
     .await?;
@@ -1791,13 +1936,14 @@ async fn launch_port(
     generation: u64,
 ) -> DesktopResult<LaunchResult> {
     let worker_state = state.inner().clone();
-    let (library, result) = tauri::async_runtime::spawn_blocking(move || {
+    // A launch is a backend worker: an application update refuses to start
+    // while one is being requested, and no launch starts once it has.
+    let (library, result) = blocking_worker(move || {
         let library = library_at_generation(&worker_state, generation)?;
         let result = request_supervised_launch(&library, port_id, source, arguments, disc)?;
         Ok::<_, DesktopError>((library, result))
     })
-    .await
-    .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))??;
+    .await?;
     observe_launch_completion(&app, state.inner(), library, result.session_id.clone())?;
     Ok(result)
 }
@@ -1819,6 +1965,25 @@ async fn get_launch_failure(
             .filter(|view| view.exit_explanation.is_some());
         require_library_generation(state_generation(&state), generation)?;
         Ok(view)
+    })
+    .await
+}
+
+/// Microsoft runtimes the given installation most likely needs, or `None` once it
+/// is no longer the port's current one. Read on request because it opens program files.
+#[tauri::command]
+async fn get_runtime_prerequisites(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    install_id: String,
+    generation: u64,
+) -> DesktopResult<Option<portcove_core::RuntimePrerequisiteReport>> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let library = library_at_generation(&state, generation)?;
+        let report = library.installation_runtime_prerequisites(&port_id, &install_id)?;
+        require_library_generation(state_generation(&state), generation)?;
+        Ok(report)
     })
     .await
 }
@@ -1849,18 +2014,14 @@ fn observe_launch_completion(
         let (sender, receiver) = std::sync::mpsc::channel::<LaunchObservation>();
         let app = app.clone();
         thread::spawn(move || {
-            let mut pending = Vec::<(Library, String, std::cell::Cell<Option<u64>>)>::new();
+            let mut pending = Vec::<ObservedLaunch>::new();
             let mut last_observation = std::time::Instant::now();
             loop {
                 if pending.is_empty() {
                     // Nothing to observe: wait for the next launch instead of polling.
                     match receiver.recv() {
                         Ok(observation) => {
-                            pending.push((
-                                observation.0,
-                                observation.1,
-                                std::cell::Cell::new(None),
-                            ));
+                            pending.push(new_launch_observation(observation.0, observation.1));
                             last_observation = std::time::Instant::now();
                         }
                         Err(std::sync::mpsc::RecvError) => break,
@@ -1869,11 +2030,7 @@ fn observe_launch_completion(
                     let interval = launch_observation_interval(last_observation.elapsed());
                     match receiver.recv_timeout(interval) {
                         Ok(observation) => {
-                            pending.push((
-                                observation.0,
-                                observation.1,
-                                std::cell::Cell::new(None),
-                            ));
+                            pending.push(new_launch_observation(observation.0, observation.1));
                             last_observation = std::time::Instant::now();
                         }
                         Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
@@ -1883,21 +2040,38 @@ fn observe_launch_completion(
                     }
                 }
                 while let Ok(observation) = receiver.try_recv() {
-                    pending.push((observation.0, observation.1, std::cell::Cell::new(None)));
+                    pending.push(new_launch_observation(observation.0, observation.1));
                 }
                 let completed = retain_launch_observations(
                     &mut pending,
-                    |(library, request_id, last_sequence)| {
+                    |(library, request_id, last_sequence, last_stamp, recovery_started)| {
                         let progress = launch_progress_path(library.root(), request_id);
                         // Preparation progress (for example unpacking a disc image) is
                         // reported by the supervisor process; relay each newer step to
                         // the same operation event the UI already follows.
-                        if let Some(event) = read_launch_progress(&progress, last_sequence.get()) {
-                            last_sequence.set(Some(event.sequence));
-                            emit_operation(&app, event);
+                        // An unchanged file (same modification time and length) is not read
+                        // again on every tick; it only matters when it was rewritten.
+                        let stamp = launch_progress_stamp(&progress);
+                        if stamp.is_some() && stamp != last_stamp.get() {
+                            last_stamp.set(stamp);
+                            if let Some(event) =
+                                read_launch_progress(&progress, last_sequence.get())
+                            {
+                                last_sequence.set(Some(event.sequence));
+                                emit_operation(&app, event);
+                            }
                         }
                         match library.launch_request(request_id) {
                             Ok(Some(request)) if request.outcome.is_none() => {
+                                // A supervisor that ended while Desktop was running never records
+                                // an outcome. Start the same recovery Desktop starts at launch,
+                                // once, and keep following until the outcome it records appears.
+                                if !recovery_started.get()
+                                    && library.launch_supervisor_lost(request_id).unwrap_or(false)
+                                {
+                                    recovery_started.set(true);
+                                    let _ = start_launch_recovery(library.root(), request_id);
+                                }
                                 LaunchObservationState::Active
                             }
                             Ok(_) => {
@@ -1910,6 +2084,7 @@ fn observe_launch_completion(
                 );
                 if completed {
                     let _ = emit_desktop_event::<()>(&app, DESKTOP_EVENT_LIBRARY_CHANGED, ());
+                    recent_play_shortcuts::refresh(app.state::<DesktopState>().inner().clone());
                 }
             }
         });
@@ -1951,6 +2126,7 @@ fn request_supervised_launch(
         .to_owned();
     let directory = library.root().join("launch-requests");
     fs::create_dir_all(&directory).map_err(PortcoveError::from)?;
+    sweep_stale_launch_progress(&directory, std::time::SystemTime::now());
     let request_path = directory.join(format!("{request_id}.json"));
     let response_path = directory.join(format!("{request_id}.response.json"));
     publish_json(
@@ -1967,6 +2143,7 @@ fn request_supervised_launch(
     let executable = std::env::current_exe().map_err(PortcoveError::from)?;
     let mut command =
         ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, &executable)?;
+    copy_launch_preparation_environment(&mut command, std::env::vars_os());
     command
         .arg("--portcove-supervise")
         .arg(&request_path)
@@ -2002,6 +2179,34 @@ fn request_supervised_launch(
         let _ = fs::remove_file(&request_path);
     }
     result
+}
+
+fn copy_launch_preparation_environment(
+    command: &mut std::process::Command,
+    environment: impl IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
+) {
+    // This is the trusted Portcove supervisor, which prepares game files
+    // before spawning the game under the separate child-process policy.
+    const PREPARATION_VARIABLES: &[&str] = &[
+        "PORTCOVE_PREFERENCES",
+        "PORTCOVE_CHDMAN",
+        "PORTCOVE_DOLPHIN_TOOL",
+        "PORTCOVE_TEMP_DIR",
+        "DOLPHIN_HOME",
+        "MAME_HOME",
+        "RETROBAT_ROOT",
+    ];
+    command.envs(environment.into_iter().filter(|(name, _)| {
+        name.to_str().is_some_and(|name| {
+            PREPARATION_VARIABLES.iter().any(|variable| {
+                if cfg!(windows) {
+                    name.eq_ignore_ascii_case(variable)
+                } else {
+                    name == *variable
+                }
+            })
+        })
+    }));
 }
 
 fn wait_for_launch_acceptance<R, S, W>(
@@ -2050,6 +2255,42 @@ fn launch_progress_path(library_root: &Path, request_id: &str) -> PathBuf {
             .join("launch-requests")
             .join(format!("{request_id}.json")),
     )
+}
+
+fn launch_progress_stamp(path: &Path) -> Option<(std::time::SystemTime, u64)> {
+    let metadata = fs::metadata(path).ok()?;
+    Some((metadata.modified().ok()?, metadata.len()))
+}
+
+/// Progress files are ephemeral reporting. One left behind (Desktop closed, or the supervisor
+/// ended, before its launch finished) is removed once it is older than a launch can plausibly
+/// take; a file still being updated is never that old.
+const STALE_LAUNCH_PROGRESS: Duration = Duration::from_secs(24 * 60 * 60);
+
+fn sweep_stale_launch_progress(directory: &Path, now: std::time::SystemTime) {
+    let Ok(entries) = fs::read_dir(directory) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let is_progress = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.ends_with(".progress.json"));
+        if !is_progress {
+            continue;
+        }
+        let stale = entry
+            .metadata()
+            .ok()
+            .filter(|metadata| metadata.is_file())
+            .and_then(|metadata| metadata.modified().ok())
+            .and_then(|modified| now.duration_since(modified).ok())
+            .is_some_and(|age| age > STALE_LAUNCH_PROGRESS);
+        if stale {
+            let _ = fs::remove_file(&path);
+        }
+    }
 }
 
 /// The latest relayed event when it is newer than the last one already shown.
@@ -2106,31 +2347,11 @@ pub fn run_hidden_helper() -> Option<i32> {
                 _ => 2,
             })
         }
-        Some(mode) if application_update_recovery::is_mode(mode) => {
-            Some(application_update_recovery::run(arguments))
-        }
-        #[cfg(all(
-            any(target_os = "linux", target_os = "macos"),
-            feature = "application-update-qualification"
-        ))]
-        Some(mode) if mode == "--portcove-qualify-update-selection" => {
+        Some(mode) if mode == "--portcove-update-eligibility" => {
             Some(if arguments.next().is_none() {
-                qualify_installed_application_selection()
+                application_update::run_eligibility_check()
             } else {
                 2
-            })
-        }
-        #[cfg(all(
-            any(windows, target_os = "linux", target_os = "macos"),
-            feature = "application-update-qualification"
-        ))]
-        Some(mode) if mode == "--portcove-qualify-update-stage" => {
-            let payload = arguments.next().map(PathBuf::from);
-            Some(match payload {
-                Some(payload) if arguments.next().is_none() => {
-                    qualify_installed_application_stage(&payload)
-                }
-                _ => 2,
             })
         }
         Some(mode) if mode == "--portcove-supervise" => {
@@ -2141,6 +2362,35 @@ pub fn run_hidden_helper() -> Option<i32> {
                 }
                 _ => 2,
             })
+        }
+        #[cfg(windows)]
+        Some(mode) if mode == portcove_core::LAUNCH_JOB_KEEPER_MODE => {
+            let library = arguments.next().map(PathBuf::from);
+            let session = arguments.next();
+            let supervisor = arguments
+                .next()
+                .and_then(|value| value.to_str()?.parse::<u32>().ok());
+            Some(
+                match (
+                    library,
+                    session.as_deref().and_then(std::ffi::OsStr::to_str),
+                    supervisor,
+                ) {
+                    (Some(library), Some(session), Some(supervisor))
+                        if arguments.next().is_none() =>
+                    {
+                        run_host_helper(|| {
+                            let result = (|| {
+                                let _runtime = application_runtime_guard()?;
+                                let library = host_startup::open_library_at(&library)?;
+                                portcove_core::run_launch_job_keeper(library, session, supervisor)
+                            })();
+                            i32::from(result.is_err())
+                        })
+                    }
+                    _ => 2,
+                },
+            )
         }
         Some(mode) if mode == "--portcove-recover" => {
             let library = arguments.next().map(PathBuf::from);
@@ -2157,177 +2407,7 @@ pub fn run_hidden_helper() -> Option<i32> {
                 _ => 2,
             })
         }
-        Some(mode) if application_update_restart::is_helper_mode(mode) => {
-            let revision = arguments
-                .next()
-                .as_deref()
-                .and_then(application_update_restart::helper_revision);
-            Some(match revision {
-                Some(revision) if arguments.next().is_none() => {
-                    application_update_restart::run_update_helper(revision)
-                }
-                _ => 2,
-            })
-        }
-        #[cfg(all(windows, feature = "application-update-qualification"))]
-        Some(mode) if mode == "--portcove-stage-update-worker" => {
-            let revision = arguments
-                .next()
-                .as_deref()
-                .and_then(application_update_restart::helper_revision);
-            Some(match revision {
-                Some(revision) if arguments.next().is_none() => {
-                    application_update_restart::stage_qualification_worker(revision)
-                }
-                _ => 2,
-            })
-        }
         _ => None,
-    }
-}
-
-/// Exercise the packaged binary's own installed-context and compiled trust
-/// provider. This test-only entrypoint never downloads, stages, or applies a
-/// candidate; the production renderer cannot select its repository or identity.
-#[cfg(all(
-    any(target_os = "linux", target_os = "macos"),
-    feature = "application-update-qualification"
-))]
-fn qualify_installed_application_selection() -> i32 {
-    use application_update::ApplicationChannel;
-    use application_update_coordinator::ApplicationUpdateChecker;
-    use application_update_host::ApplicationUpdateHostProvider;
-
-    let result = (|| -> Result<_, Box<dyn std::error::Error>> {
-        let provider = ApplicationUpdateHostProvider::compiled()?
-            .ok_or("the packaged update provider is not configured")?;
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()?;
-        let selected = runtime.block_on(provider.check(ApplicationChannel::Preview))?;
-        Ok(serde_json::json!({
-            "state": selected.selection.state,
-            "version": selected.selection.candidate.as_ref().map(|candidate| &candidate.release.version),
-            "sha256": selected.selection.candidate.as_ref().map(|candidate| &candidate.release.artifact.sha256),
-        }))
-    })();
-    match result {
-        Ok(result) => {
-            println!("{result}");
-            0
-        }
-        Err(error) => {
-            eprintln!("installed application update selection failed: {error}");
-            1
-        }
-    }
-}
-
-/// Qualification-only local payload source. The installed binary still selects
-/// the candidate from its compiled repository and verifies these bytes through
-/// the same operation used by the normal desktop commands.
-#[cfg(all(
-    any(windows, target_os = "linux", target_os = "macos"),
-    feature = "application-update-qualification"
-))]
-pub(crate) struct QualificationPayloadSource(pub(crate) PathBuf);
-
-#[cfg(all(
-    any(windows, target_os = "linux", target_os = "macos"),
-    feature = "application-update-qualification"
-))]
-#[async_trait::async_trait]
-impl application_update_operation::ApplicationUpdatePayloadSource for QualificationPayloadSource {
-    async fn open(
-        &self,
-        _candidate: &application_update::SelectedCandidate,
-    ) -> Result<
-        application_update_operation::ApplicationUpdatePayloadReader,
-        application_update_download::PayloadDownloadError,
-    > {
-        let file = tokio::fs::File::open(&self.0).await.map_err(|error| {
-            application_update_download::PayloadDownloadError::InvalidSource(error.to_string())
-        })?;
-        Ok(Box::new(file))
-    }
-}
-
-#[cfg(all(
-    any(windows, target_os = "linux", target_os = "macos"),
-    feature = "application-update-qualification"
-))]
-fn qualify_installed_application_stage(payload: &Path) -> i32 {
-    use application_update::ApplicationChannel;
-    use application_update_coordinator::{
-        ApplicationUpdateCheckEnvironment, ApplicationUpdateCoordinator,
-    };
-    use application_update_host::ApplicationUpdateHostProvider;
-    use application_update_operation::{
-        ApplicationUpdateOperation, ApplicationUpdateOperationOutcome,
-        NoopApplicationUpdateProgressSink,
-    };
-    use application_update_preferences::{
-        ApplicationUpdateChoice, ApplicationUpdateMode, ApplicationUpdatePreferenceStore,
-    };
-    use application_update_schedule::{
-        ApplicationUpdateCheckRequest, MeteredConnection, NetworkAvailability,
-    };
-    use application_update_staging::ApplicationUpdateStagingStore;
-
-    let result = (|| -> Result<_, Box<dyn std::error::Error>> {
-        let provider = ApplicationUpdateHostProvider::compiled()?
-            .ok_or("the packaged update provider is not configured")?;
-        let preferences = ApplicationUpdatePreferenceStore::open_configured()?;
-        let current = preferences.load()?;
-        preferences.save_choice(
-            current.revision,
-            ApplicationUpdateChoice {
-                channel: ApplicationChannel::Preview,
-                mode: ApplicationUpdateMode::Automatic,
-                paused: false,
-            },
-        )?;
-        let staging = ApplicationUpdateStagingStore::open_configured()?;
-        let operation = ApplicationUpdateOperation::new(
-            ApplicationUpdateCoordinator::open_configured()?,
-            staging.clone(),
-        );
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()?;
-        let outcome = runtime.block_on(operation.check_and_stage(
-            ApplicationUpdateCheckEnvironment {
-                request: ApplicationUpdateCheckRequest::Manual,
-                startup_unix_seconds: 0,
-                network: NetworkAvailability::Unknown,
-                metered: MeteredConnection::Unknown,
-            },
-            &provider,
-            &QualificationPayloadSource(payload.to_path_buf()),
-            &NoopApplicationUpdateProgressSink,
-            &tokio_util::sync::CancellationToken::new(),
-        ))?;
-        let ApplicationUpdateOperationOutcome::Checked { staged: true, .. } = outcome else {
-            return Err("installed application did not stage an authenticated candidate".into());
-        };
-        let staged = runtime
-            .block_on(staging.reconcile())?
-            .ok_or("installed application staging did not retain a verified candidate")?;
-        Ok(serde_json::json!({
-            "version": staged.candidate.release.version,
-            "sha256": staged.candidate.release.artifact.sha256,
-            "bytes": staged.candidate.release.artifact.bytes,
-        }))
-    })();
-    match result {
-        Ok(result) => {
-            println!("{result}");
-            0
-        }
-        Err(error) => {
-            eprintln!("installed application update staging failed: {error}");
-            1
-        }
     }
 }
 
@@ -2450,28 +2530,30 @@ fn run_recovery_helper(library_root: &Path, session_id: &str) -> i32 {
 
 fn start_stale_launch_recovery(library: &Library) -> portcove_core::Result<()> {
     let sessions = PortcoveService::new(library.clone())?.stale_launch_sessions()?;
-    if sessions.is_empty() {
-        return Ok(());
-    }
-    let executable = std::env::current_exe()?;
     for session in sessions {
-        let mut command =
-            ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, &executable)?;
-        command
-            .arg("--portcove-recover")
-            .arg(library.root())
-            .arg(&session.id)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
-        configure_independent_process(&mut command);
-        command.spawn().map_err(|error| {
-            PortcoveError::state(format!(
-                "could not start recovery for launch session {}: {error}",
-                session.id
-            ))
-        })?;
+        start_launch_recovery(library.root(), &session.id)?;
     }
+    Ok(())
+}
+
+/// Starts the detached helper that recovers one launch session whose supervisor ended.
+fn start_launch_recovery(library_root: &Path, session_id: &str) -> portcove_core::Result<()> {
+    let executable = std::env::current_exe()?;
+    let mut command =
+        ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, &executable)?;
+    command
+        .arg("--portcove-recover")
+        .arg(library_root)
+        .arg(session_id)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    configure_independent_process(&mut command);
+    command.spawn().map_err(|error| {
+        PortcoveError::state(format!(
+            "could not start recovery for launch session {session_id}: {error}"
+        ))
+    })?;
     Ok(())
 }
 
@@ -2672,14 +2754,10 @@ async fn create_support_bundle(
     diagnostics: tauri::State<'_, diagnostics::HostDiagnostics>,
 ) -> DesktopResult<portcove_core::SupportBundleExport> {
     let state = state.inner().clone();
-    let directory = diagnostics.directory.clone();
+    let diagnostics = diagnostics.inner().clone();
     // Export is available even when service construction fails. Use the same
     // worker/restart guard as other blocking host work, without requiring ready().
-    blocking_worker(move || {
-        let directory = directory?;
-        support_bundle_for_state(&state, &directory)
-    })
-    .await
+    blocking_worker(move || support_bundle_for_state(&state, diagnostics.directory()?)).await
 }
 
 /// Opens the host-chosen diagnostics directory that support reports are written
@@ -2690,8 +2768,8 @@ async fn create_support_bundle(
 async fn open_support_report_folder(
     diagnostics: tauri::State<'_, diagnostics::HostDiagnostics>,
 ) -> DesktopResult<()> {
-    let directory = diagnostics.directory.clone();
-    blocking_worker(move || open_support_report_directory(&directory?)).await
+    let diagnostics = diagnostics.inner().clone();
+    blocking_worker(move || open_support_report_directory(diagnostics.directory()?)).await
 }
 
 fn open_support_report_directory(directory: &Path) -> DesktopResult<()> {
@@ -2815,188 +2893,6 @@ fn initialize_desktop_selection(selection: LibrarySelection) -> DesktopResult<Re
     })
 }
 
-#[cfg(target_os = "linux")]
-fn recover_application_update_after_interrupted_replacement(runtime: &ApplicationRuntimeGuard) {
-    use application_update_linux::LinuxApplicationUpdateRecovery;
-
-    let result = (|| {
-        let apply = application_update_apply::ApplicationUpdateApplyStore::open_configured()
-            .map_err(application_update_linux::LinuxApplicationUpdateError::from)?;
-        let staging = application_update_staging::ApplicationUpdateStagingStore::open_configured()
-            .map_err(application_update_apply::ApplicationUpdateApplyError::from)
-            .map_err(application_update_linux::LinuxApplicationUpdateError::from)?;
-        application_update_linux::recover_linux_application_update_before_startup(
-            runtime, &apply, &staging,
-        )
-    })();
-    match result {
-        Ok(LinuxApplicationUpdateRecovery::RecoveredPreActivation) => tracing::warn!(
-            operation_id = "application-update-recovery",
-            message = "recovered an interrupted Linux AppImage replacement before activation"
-        ),
-        Ok(
-            LinuxApplicationUpdateRecovery::NoAttempt
-            | LinuxApplicationUpdateRecovery::CandidateInstalled,
-        ) => {}
-        Err(error) => {
-            report_application_update_qualification_failure("startup recovery", &error.to_string());
-            tracing::warn!(
-                operation_id = "application-update-recovery",
-                error = %error,
-                message = "retained the interrupted Linux AppImage replacement because startup recovery could not prove safe cleanup"
-            );
-        }
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn recover_application_update_after_interrupted_replacement(runtime: &ApplicationRuntimeGuard) {
-    use application_update_macos::MacosApplicationUpdateRecovery;
-
-    let result = (|| {
-        let apply = application_update_apply::ApplicationUpdateApplyStore::open_configured()
-            .map_err(application_update_macos::MacosApplicationUpdateError::from)?;
-        application_update_macos::recover_macos_application_update_before_startup(runtime, &apply)
-    })();
-    match result {
-        Ok(MacosApplicationUpdateRecovery::RecoveredPreActivation) => tracing::warn!(
-            operation_id = "application-update-recovery",
-            message = "recovered an interrupted macOS bundle extraction before activation"
-        ),
-        Ok(
-            MacosApplicationUpdateRecovery::NoAttempt
-            | MacosApplicationUpdateRecovery::CandidateInstalled,
-        ) => {}
-        Err(error) => {
-            report_application_update_qualification_failure("startup recovery", &error.to_string());
-            tracing::warn!(
-                operation_id = "application-update-recovery",
-                error = %error,
-                message = "retained the interrupted macOS bundle replacement for explicit recovery"
-            );
-        }
-    }
-}
-
-#[cfg(windows)]
-fn reconcile_application_update_after_healthy_startup() {
-    use application_update_windows::WindowsApplicationUpdateReconciliation;
-
-    let result = (|| {
-        let apply = application_update_apply::ApplicationUpdateApplyStore::open_configured()
-            .map_err(application_update_windows::WindowsApplicationUpdateError::from)?;
-        let staging = application_update_staging::ApplicationUpdateStagingStore::open_configured()
-            .map_err(application_update_apply::ApplicationUpdateApplyError::from)
-            .map_err(application_update_windows::WindowsApplicationUpdateError::from)?;
-        application_update_windows::reconcile_windows_application_update(&apply, &staging)
-    })();
-    match result {
-        Ok(WindowsApplicationUpdateReconciliation::Reconciled) => tracing::info!(
-            operation_id = "application-update-reconciliation",
-            message = "confirmed the running Windows application update"
-        ),
-        Ok(WindowsApplicationUpdateReconciliation::CandidateNotInstalled) => {
-            report_application_update_qualification_failure(
-                "reconciliation",
-                "the candidate version is not running",
-            );
-            tracing::info!(
-                operation_id = "application-update-reconciliation",
-                message =
-                    "retained the application update request because the candidate is not running"
-            );
-        }
-        Ok(WindowsApplicationUpdateReconciliation::NoAttempt) => {}
-        Err(error) => {
-            report_application_update_qualification_failure("reconciliation", &error.to_string());
-            tracing::warn!(
-                operation_id = "application-update-reconciliation",
-                error = %error,
-                message = "retained the application update request because startup reconciliation failed"
-            );
-        }
-    }
-}
-
-#[cfg(target_os = "linux")]
-fn reconcile_application_update_after_healthy_startup() {
-    use application_update_linux::LinuxApplicationUpdateReconciliation;
-
-    let result = (|| {
-        let apply = application_update_apply::ApplicationUpdateApplyStore::open_configured()
-            .map_err(application_update_linux::LinuxApplicationUpdateError::from)?;
-        let staging = application_update_staging::ApplicationUpdateStagingStore::open_configured()
-            .map_err(application_update_apply::ApplicationUpdateApplyError::from)
-            .map_err(application_update_linux::LinuxApplicationUpdateError::from)?;
-        application_update_linux::reconcile_linux_application_update(&apply, &staging)
-    })();
-    match result {
-        Ok(LinuxApplicationUpdateReconciliation::NoAttempt) => {}
-        Ok(LinuxApplicationUpdateReconciliation::CandidateNotInstalled) => {
-            report_application_update_qualification_failure(
-                "reconciliation",
-                "the candidate version is not running",
-            );
-            tracing::warn!(
-                operation_id = "application-update-reconciliation",
-                message = "retained the Linux application update request because the candidate is not running"
-            );
-        }
-        Ok(LinuxApplicationUpdateReconciliation::Reconciled) => tracing::info!(
-            operation_id = "application-update-reconciliation",
-            message = "confirmed the running Linux application update"
-        ),
-        Err(error) => {
-            report_application_update_qualification_failure("reconciliation", &error.to_string());
-            tracing::warn!(
-                operation_id = "application-update-reconciliation",
-                error = %error,
-                message = "retained the Linux application update request because startup reconciliation failed"
-            );
-        }
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn reconcile_application_update_after_healthy_startup() {
-    use application_update_macos::MacosApplicationUpdateReconciliation;
-
-    let result = (|| {
-        let apply = application_update_apply::ApplicationUpdateApplyStore::open_configured()
-            .map_err(application_update_macos::MacosApplicationUpdateError::from)?;
-        let staging = application_update_staging::ApplicationUpdateStagingStore::open_configured()
-            .map_err(application_update_apply::ApplicationUpdateApplyError::from)
-            .map_err(application_update_macos::MacosApplicationUpdateError::from)?;
-        application_update_macos::reconcile_macos_application_update(&apply, &staging)
-    })();
-    match result {
-        Ok(MacosApplicationUpdateReconciliation::Reconciled) => tracing::info!(
-            operation_id = "application-update-reconciliation",
-            message = "confirmed the running macOS installed-bundle update"
-        ),
-        Ok(MacosApplicationUpdateReconciliation::CandidateNotInstalled) => {
-            report_application_update_qualification_failure(
-                "reconciliation",
-                "the candidate version is not running",
-            );
-            tracing::warn!(
-                operation_id = "application-update-reconciliation",
-                message =
-                    "retained the macOS bundle update request because the candidate is not running"
-            );
-        }
-        Ok(MacosApplicationUpdateReconciliation::NoAttempt) => {}
-        Err(error) => {
-            report_application_update_qualification_failure("reconciliation", &error.to_string());
-            tracing::warn!(
-                operation_id = "application-update-reconciliation",
-                error = %error,
-                message = "retained the macOS bundle update request because startup reconciliation failed"
-            );
-        }
-    }
-}
-
 const MAIN_WINDOW_INVOKE_REJECTION: &str =
     "Portcove commands are available only to the main window";
 
@@ -3018,6 +2914,10 @@ where
 {
     move |invoke| {
         let label = invoke.message.webview_ref().label().to_owned();
+        tracing::debug!(
+            phase = "command",
+            message = format!("IPC command dispatched: {}", invoke.message.command())
+        );
         #[cfg(feature = "native-compatibility-qualification")]
         if label == MAIN_WINDOW_LABEL
             && webview_boundary_qualification::handles(invoke.message.command())
@@ -3041,8 +2941,6 @@ fn early_startup_message(phase: EarlyStartupPhase, error: &DesktopError) -> Stri
 }
 
 pub fn run() -> std::process::ExitCode {
-    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-    report_application_update_qualification_stage("process entry");
     // Only the host location is resolved here. No preference content, library,
     // database or migration is required to explain an early failure.
     let (host_diagnostics, mut diagnostic_guard) = diagnostics::HostDiagnostics::start();
@@ -3057,8 +2955,12 @@ pub fn run() -> std::process::ExitCode {
             return std::process::ExitCode::FAILURE;
         }
     };
-    let _application_runtime = match application_runtime_guard() {
-        Ok(guard) => guard,
+    // Held for the process lifetime; an update install trades it for the
+    // exclusive lease (see application_update_admission).
+    let application_runtime = match HostPreferenceStore::application_runtime_lock_path()
+        .and_then(|path| application_runtime_guard().map(|guard| (path, guard)))
+    {
+        Ok((path, guard)) => application_update::RuntimeLease::new(path, guard),
         Err(error) => {
             eprintln!(
                 "{}",
@@ -3068,12 +2970,16 @@ pub fn run() -> std::process::ExitCode {
             return std::process::ExitCode::FAILURE;
         }
     };
-    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-    report_application_update_qualification_stage("runtime lease");
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
-    recover_application_update_after_interrupted_replacement(&_application_runtime);
+    let context = tauri::generate_context!();
     #[cfg(any(windows, target_os = "linux"))]
-    if let Err(message) = runtime_support::check() {
+    if let Err(message) = runtime_support::check(
+        context
+            .config()
+            .bundle
+            .windows
+            .minimum_webview2_version
+            .as_deref(),
+    ) {
         tracing::error!(
             component = "startup",
             phase = "runtime_support",
@@ -3085,6 +2991,8 @@ pub fn run() -> std::process::ExitCode {
         diagnostics::shutdown(&mut diagnostic_guard);
         return std::process::ExitCode::FAILURE;
     }
+    // Before any window exists, so every window uses the same taskbar identity.
+    recent_play_shortcuts::adopt_installed_identity();
     let configured_root = std::env::var_os("PORTCOVE_LIBRARY")
         .filter(|path| !path.is_empty())
         .map(PathBuf::from);
@@ -3093,18 +3001,48 @@ pub fn run() -> std::process::ExitCode {
     // state instead of no window at all.
     let initialization = std::sync::Arc::new(std::sync::Mutex::new(Err(startup_pending())));
     let startup_initialization = initialization.clone();
+    let exit_diagnostics = ExitDiagnostics::new(diagnostic_guard.take());
     let startup_preferences = preferences.clone();
-    let builder = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // The single-instance plugin must be registered first. Only the installed
+    // application uses it, so isolated native and development runs stay
+    // independent instances.
+    #[cfg(all(windows, not(test)))]
+    let builder = if recent_play_shortcuts::forwards_later_launches() {
+        // Registered just before the single-instance plugin so a forwarding launch,
+        // which exits during that plugin's setup, still completes its diagnostics.
+        let closer = exit_diagnostics.clone();
+        builder
+            .plugin(
+                tauri::plugin::Builder::<tauri::Wry>::new("portcove-exit-diagnostics")
+                    .setup(move |app, _| {
+                        use tauri::Manager;
+                        app.resources_table().add(DiagnosticsCloser(closer.clone()));
+                        Ok(())
+                    })
+                    .build(),
+            )
+            .plugin(tauri_plugin_single_instance::init(|app, arguments, _| {
+                recent_play_shortcuts::forward_later_launch(app, arguments);
+            }))
+    } else {
+        builder
+    };
+    let builder = builder
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(webview_boundary::init());
     #[cfg(feature = "native-compatibility-qualification")]
     let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
     let application = builder
         .manage(host_diagnostics)
+        .manage(recent_play_shortcuts::StartupPlayRequest::from_arguments(
+            std::env::args_os(),
+        ))
         .manage(frontend_diagnostics::FrontendReports::default())
-        .manage(application_update_commands::configured_state())
-        .manage(application_update_preferences::configured_state())
-        .manage(application_update_status::configured_state())
+        .manage(application_update::ApplicationUpdateState::configured())
+        .manage(application_runtime)
+        .manage(exit_diagnostics.clone())
         .manage(DesktopState {
             initialization,
             preferences,
@@ -3119,38 +3057,56 @@ pub fn run() -> std::process::ExitCode {
             game_settings_commands::get_port_capabilities,
             game_settings_commands::review_game_setting,
             game_settings_commands::apply_game_setting,
+            mod_original_commands::review_mod_setup_original,
+            mod_original_commands::select_mod_setup_original,
+            mod_original_commands::relink_mod_setup_original,
+            mod_file_commands::inspect_mod_file,
+            mod_file_commands::preserve_mod_file,
             mod_setup_commands::get_mod_setups,
             mod_setup_commands::create_default_mod_setup,
             mod_setup_commands::copy_mod_setup,
+            mod_setup_commands::create_clean_mod_setup,
             mod_setup_commands::use_mod_setup,
+            mod_setup_commands::list_mod_setup_revisions,
+            mod_setup_commands::plan_profile_recovery,
+            mod_setup_commands::apply_profile_recovery,
+            mod_setup_commands::list_mod_setup_recovery_builds,
+            mod_setup_commands::preview_mod_setup_retirement,
+            mod_setup_commands::retire_mod_setup_recovery_build,
+            mod_setup_commands::export_mod_recipe,
+            mod_setup_commands::inspect_mod_recipe,
+            mod_setup_commands::acquire_mod_recipe_package,
+            mod_setup_commands::discard_mod_recipe_review,
+            mod_setup_commands::apply_mod_recipe,
             mod_setup_commands::set_mod_package_enabled,
+            mod_setup_commands::remove_mod_package,
+            mod_setup_commands::set_mod_update_policy,
+            mod_setup_commands::check_provider_mod_updates,
             mod_setup_commands::add_mod_package,
             mod_setup_commands::browse_provider_mods,
+            mod_setup_commands::open_provider_mod_project,
             mod_setup_commands::get_provider_project,
             mod_setup_commands::plan_provider_install,
             mod_setup_commands::apply_provider_install,
             mod_setup_commands::discard_provider_install,
+            mod_setup_commands::plan_local_mod_package,
+            mod_setup_commands::apply_local_mod_package,
             mod_setup_commands::review_mod_package_code,
+            dat_commands::get_dat_references,
+            dat_commands::add_dat_reference,
+            dat_commands::remove_dat_reference,
             favorite_commands::get_favorite_ports,
             favorite_commands::set_port_favorite,
             organization_commands::get_library_organization,
             organization_commands::change_library_organization,
             set_locale_preference,
-            application_update_commands::check_application_update,
-            application_update_commands::download_application_update,
-            application_update_commands::cancel_application_update_check,
-            application_update_commands::get_application_update_notice,
-            application_update_commands::dismiss_application_update_notice,
-            application_update_restart::restart_to_apply_application_update,
-            application_update_preferences::get_application_update_preferences,
-            application_update_preferences::get_application_update_production_transition,
-            application_update_preferences::complete_application_update_production_transition,
-            application_update_preferences::set_application_update_preferences,
-            application_update_preferences::reset_application_update_preferences,
-            application_update_preferences::recover_application_update_preferences,
-            application_update_status::get_application_update_status,
-            application_update_status::recover_application_update_state,
+            application_update::get_application_update_status,
+            application_update::check_application_update,
+            application_update::install_application_update,
+            application_update::get_application_update_preferences,
+            application_update::set_application_update_preferences,
             cli_context::get_cli_command_context,
+            steam_entry_commands::discover_steam_client_roots,
             steam_entry_commands::list_steam_profiles,
             steam_entry_commands::preview_steam_entry,
             steam_entry_commands::apply_steam_entry,
@@ -3173,7 +3129,9 @@ pub fn run() -> std::process::ExitCode {
             catalog::get_catalog_status,
             catalog::get_listing_delivery_status,
             catalog::get_official_catalog_review,
-            catalog::enable_official_catalog,
+            catalog::get_official_catalog_automatic_updates,
+            catalog::set_official_catalog_automatic_updates,
+            catalog::refresh_official_catalog_automatically,
             catalog::refresh_official_catalog,
             catalog::refresh_official_definition,
             catalog::refresh_catalog_listings,
@@ -3215,11 +3173,25 @@ pub fn run() -> std::process::ExitCode {
             ghostship_recovery::recover_ghostship_legacy_data,
             artwork::get_artwork,
             artwork::get_artwork_thumbnail,
+            artwork::get_companion_cover_thumbnail,
+            artwork::get_collection_cover_thumbnail,
             artwork::get_catalog_media_thumbnail,
             artwork::import_artwork,
             artwork::reset_artwork,
+            steamgriddb::get_steamgriddb_key_status,
+            steamgriddb::set_steamgriddb_key,
+            steamgriddb::clear_steamgriddb_key,
+            steamgriddb::search_steamgriddb_games,
+            steamgriddb::get_steamgriddb_candidates,
+            steamgriddb::get_steamgriddb_preview,
+            steamgriddb::choose_steamgriddb_artwork,
+            steamgriddb::check_steamgriddb_listings,
             backup_review::restore_backup,
             backup_review::delete_backup,
+            portable_saves_commands::preview_portable_save_export,
+            portable_saves_commands::export_portable_saves,
+            portable_saves_commands::preview_portable_save_import,
+            portable_saves_commands::import_portable_saves,
             inspect_source,
             review_source_reuse,
             inspect_source_intake,
@@ -3245,6 +3217,7 @@ pub fn run() -> std::process::ExitCode {
             run_standing_setup,
             set_root_setup_consent,
             set_root_setup_implementation,
+            set_root_setup_local_copy,
             get_root_setup_consents,
             cancel_install_batch,
             get_install_batch,
@@ -3253,6 +3226,10 @@ pub fn run() -> std::process::ExitCode {
             remove_game_file_root,
             scan_game_file_roots,
             get_game_file_scan_snapshot,
+            get_game_file_scan_matches,
+            get_game_file_scan_registered_matches,
+            get_game_file_root_match_profiles,
+            get_store_game_installs,
             refresh_game_file_query,
             discover_sources,
             open_source_inbox,
@@ -3285,6 +3262,8 @@ pub fn run() -> std::process::ExitCode {
             catalog_download::download_catalog_package,
             catalog_download::forget_pending_setup,
             catalog_download::open_pending_setup_folder,
+            catalog_download::open_pending_setup_resource,
+            catalog_download::open_catalog_download_release_notes,
             external_runtime_commands::preview_external_runtime_relink,
             external_runtime_commands::preview_managed_route_change,
             external_runtime_commands::change_to_managed_runtime,
@@ -3297,9 +3276,14 @@ pub fn run() -> std::process::ExitCode {
             launch_port,
             automatic_snapshots::get_automatic_snapshots,
             automatic_snapshots::set_automatic_snapshots,
+            ready_notices::get_ready_notices_enabled,
+            ready_notices::set_ready_notices_enabled,
+            recent_play_shortcuts::take_startup_play_request,
             bug_report::preview_bug_report,
             bug_report::open_bug_report,
+            bug_report::submit_report,
             get_launch_failure,
+            get_runtime_prerequisites,
             get_doctor_report,
             set_host_tool_path,
             clear_host_tool_path,
@@ -3349,18 +3333,18 @@ pub fn run() -> std::process::ExitCode {
                 })?;
             Ok(())
         })
-        .build(tauri::generate_context!());
+        .build(context);
     match application {
         Ok(application) => application.run(move |_, event| {
             // Tauri exits the process directly, without dropping local guards.
             // ExitRequested can be prevented; only the actual Exit closes the
             // diagnostic producer and waits for its finite best-effort flush.
             if matches!(event, tauri::RunEvent::Exit) {
-                diagnostics::shutdown(&mut diagnostic_guard);
+                exit_diagnostics.shutdown();
             }
         }),
         Err(error) => {
-            diagnostics::shutdown(&mut diagnostic_guard);
+            exit_diagnostics.shutdown();
             eprintln!("Portcove desktop stopped: {error}");
         }
     }
@@ -3429,10 +3413,6 @@ fn initialize_desktop_in_background(
             early_startup_message(EarlyStartupPhase::Library, error)
         );
     }
-    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-    if initialization_result.is_ok() {
-        report_application_update_qualification_stage("desktop initialization");
-    }
     let prepared = prepare(&initialization_result);
     // A failure here exits the app; never show Workspace for that instant.
     publication.value = Some(match &prepared {
@@ -3447,62 +3427,56 @@ fn initialize_desktop_in_background(
 }
 
 /// Work that ran in Tauri setup before any command could be served: observe
-/// launches left running and reconcile a pending application update. It runs
-/// before the library is published, so no frontend read or update command can
-/// race the apply journal or a library switch.
+/// launches left running. It runs before the library is published, so no
+/// frontend read can race a library switch.
 fn prepare_desktop_startup(
     app: &tauri::AppHandle,
     initialization: &DesktopResult<ReadyDesktopState>,
 ) -> StartupResult {
-    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-    report_application_update_qualification_stage("Tauri setup");
-    match initialization {
-        Ok(ready_state) => {
-            let state = app.state::<DesktopState>();
-            for session in ready_state.library.launch_sessions()? {
-                observe_launch_completion(
-                    app,
-                    state.inner(),
-                    ready_state.library.clone(),
-                    session.id,
-                )
+    if let Ok(ready_state) = initialization {
+        let state = app.state::<DesktopState>();
+        for session in ready_state.library.launch_sessions()? {
+            observe_launch_completion(app, state.inner(), ready_state.library.clone(), session.id)
                 .map_err(|error| std::io::Error::other(error.message))?;
-            }
-            #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-            reconcile_application_update_after_healthy_startup();
         }
-        #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-        Err(error) => report_application_update_qualification_failure(
-            "desktop initialization",
-            &error.message,
-        ),
-        #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
-        Err(_) => {}
     }
     Ok(())
 }
 
-/// After publication: the qualification exit and automatic update checks.
+/// After publication: automatic application update checks.
 fn finish_desktop_startup(app: &tauri::AppHandle) -> StartupResult {
-    #[cfg(feature = "application-update-qualification")]
-    if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT").as_deref()
-        == Some(std::ffi::OsStr::new("after-reconciliation"))
-    {
-        app.exit(0);
-        return Ok(());
-    }
-    application_update_commands::start_automatic_checks(
-        app.state::<application_update_commands::ApplicationUpdateCommandState>()
-            .inner()
-            .clone(),
-        app.clone(),
-    );
+    recent_play_shortcuts::refresh(app.state::<DesktopState>().inner().clone());
+    application_update::start_automatic_checks(app.clone());
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn worker_owner_names_the_command_not_the_wrapper() {
+        fn owner_of<F>(_: &F) -> &'static str {
+            blocking_worker_owner(std::any::type_name::<F>())
+        }
+        fn get_backups_like() -> &'static str {
+            let command = || ();
+            let wrapper = move || command();
+            fn blocking_service_like<F: Fn()>(operation: F) -> &'static str {
+                let worker = move || operation();
+                owner_of(&worker)
+            }
+            let _ = &wrapper;
+            blocking_service_like(command)
+        }
+        assert_eq!(get_backups_like(), "get_backups_like");
+        let direct = || ();
+        assert_eq!(
+            owner_of(&direct),
+            "worker_owner_names_the_command_not_the_wrapper"
+        );
+        assert_eq!(blocking_worker_owner("no_closure_here"), "no_closure_here");
+    }
 
     #[test]
     fn early_startup_diagnostics_distinguish_phase_without_private_error_text() {
@@ -3991,6 +3965,47 @@ mod tests {
     }
 
     #[test]
+    fn launch_supervisor_receives_disc_tool_configuration_without_credentials() {
+        let mut command = std::process::Command::new("portcove-desktop");
+        let session = [
+            ("PORTCOVE_PREFERENCES", "isolated-preferences.json"),
+            ("PORTCOVE_CHDMAN", "chdman"),
+            ("PORTCOVE_DOLPHIN_TOOL", "DolphinTool"),
+            ("PORTCOVE_TEMP_DIR", "isolated-temp"),
+            ("DOLPHIN_HOME", "custom-dolphin"),
+            ("MAME_HOME", "custom-mame"),
+            ("RETROBAT_ROOT", "custom-retrobat"),
+        ];
+        let environment = session
+            .into_iter()
+            .chain([
+                ("GITHUB_TOKEN", "credential"),
+                ("PORTCOVE_GITHUB_TOKEN", "credential"),
+                ("PORTCOVE_APPLICATION_UPDATE_METADATA_URL", "unrelated"),
+                ("SDL_DYNAMIC_API", "unrelated"),
+            ])
+            .map(|(key, value)| (key.into(), value.into()));
+        copy_launch_preparation_environment(&mut command, environment);
+
+        let copied = command
+            .get_envs()
+            .collect::<std::collections::BTreeMap<_, _>>();
+        assert_eq!(copied.len(), session.len());
+        for (key, value) in session {
+            assert_eq!(
+                copied.get(std::ffi::OsStr::new(key)),
+                Some(&Some(std::ffi::OsStr::new(value))),
+            );
+        }
+        let mut lowercase = std::process::Command::new("portcove-desktop");
+        copy_launch_preparation_environment(
+            &mut lowercase,
+            [("portcove_chdman".into(), "lowercase".into())],
+        );
+        assert_eq!(lowercase.get_envs().count(), usize::from(cfg!(windows)));
+    }
+
+    #[test]
     fn launch_acceptance_can_arrive_after_the_former_five_minute_deadline() {
         let elapsed = std::cell::Cell::new(Duration::ZERO);
 
@@ -4010,6 +4025,43 @@ mod tests {
 
         assert_eq!(result.session_id, "durable-request");
         assert!(elapsed.get() > Duration::from_secs(300));
+    }
+
+    #[test]
+    fn stale_launch_progress_is_swept_but_nothing_else_or_anything_recent() {
+        let temporary = tempfile::tempdir().unwrap();
+        let directory = temporary.path();
+        let old = directory.join("old.progress.json");
+        let fresh = directory.join("fresh.progress.json");
+        let request = directory.join("old.json");
+        for path in [&old, &fresh, &request] {
+            fs::write(path, b"{}").unwrap();
+        }
+        let later = std::time::SystemTime::now() + STALE_LAUNCH_PROGRESS + Duration::from_secs(60);
+        // Only the file's age matters: "now" is moved forward, the files stay as written.
+        sweep_stale_launch_progress(directory, later);
+        assert!(!old.exists() && !fresh.exists());
+        assert!(
+            request.exists(),
+            "a request or response file is never a progress file"
+        );
+
+        fs::write(&fresh, b"{}").unwrap();
+        sweep_stale_launch_progress(directory, std::time::SystemTime::now());
+        assert!(fresh.exists(), "a file still being written is kept");
+        sweep_stale_launch_progress(&directory.join("missing"), std::time::SystemTime::now());
+    }
+
+    #[test]
+    fn an_unchanged_launch_progress_file_has_the_same_stamp() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("a.progress.json");
+        assert!(launch_progress_stamp(&path).is_none());
+        fs::write(&path, b"{}").unwrap();
+        let first = launch_progress_stamp(&path).unwrap();
+        assert_eq!(launch_progress_stamp(&path), Some(first));
+        fs::write(&path, b"{ }").unwrap();
+        assert_ne!(launch_progress_stamp(&path), Some(first));
     }
 
     #[test]
@@ -4410,7 +4462,7 @@ mod tests {
     fn disc_tool_navigation_uses_only_fixed_registry_ids() {
         assert_eq!(
             host_tool_official_url("chdman").unwrap(),
-            "https://docs.mamedev.org/tools/chdman.html"
+            "https://www.mamedev.org/release.html"
         );
         assert_eq!(
             host_tool_official_url("dolphin_tool").unwrap(),

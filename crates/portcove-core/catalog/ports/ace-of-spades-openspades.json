@@ -1,0 +1,55 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ace-of-spades-openspades",
+    "name": "Ace of Spades / OpenSpades",
+    "original_game_title": "Ace of Spades",
+    "summary": "Play the OpenSpades client on compatible Ace of Spades 0.75 servers.",
+    "project_url": "https://github.com/yvt/openspades",
+    "artwork": {
+      "game_id": 98371,
+      "cover_id": 309650,
+      "image_id": "co6mxe",
+      "image_sha256": "3928a25d7189ed20fd4ef10212ad1baf44d749875d16b51998a7567aba31d6fb",
+      "game_slug": "openspades",
+      "match_kind": "port"
+    },
+    "issue_number": 5755,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/yvt/openspades/releases",
+    "setup_url": "https://openspades.yvt.jp/",
+    "download_block_reason": "Use the publisher’s complete Windows or Intel Mac release, or install the Linux community Flatpak. The old desktop release assets have no publisher SHA-256.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep the complete desktop client",
+          "instruction": "Extract the official 0.1.3 Windows ZIP and start OpenSpades.exe on Windows with 32-bit application support. Keep its DLLs and Resources folder beside it. On Intel Mac, extract the official Mac ZIP and open the complete OpenSpades application. Check the project releases page for a newer compatible package."
+        },
+        {
+          "title": "Install the community Linux package",
+          "instruction": "On x86-64 Linux, install jp.yvt.OpenSpades from Flathub and start the installed launcher. Use Flatpak for updates. A compatible community server is required for online play."
+        },
+        {
+          "title": "Keep your settings and custom resources",
+          "instruction": "Close the client and keep the actual folder containing SPConfig.cfg and any custom resources. Windows normally uses %APPDATA%/OpenSpades/Resources, or UserResources beside the executable if that directory already exists. On Mac keep ~/Library/Application Support/OpenSpades/Resources. The Flatpak keeps its OpenSpades data under ~/.var/app/jp.yvt.OpenSpades."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://openspades.yvt.jp/"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ace-of-spades-openspades",
+    "origin": {
+      "project_url": "https://github.com/yvt/openspades",
+      "repository": {
+        "host": "github.com",
+        "id": "12191592"
+      }
+    },
+    "decisions": []
+  }
+}

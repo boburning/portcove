@@ -79,6 +79,9 @@ export function artworkState(
       initials: "SF",
       palette_index: 4,
     },
+    attribution: [],
+    provider_listing: [],
+    evicted_at: null,
   };
 }
 

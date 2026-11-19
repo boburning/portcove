@@ -1,8 +1,12 @@
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
+import { copyText } from "../clipboard";
 import type { LaunchSessionView, PortStatus } from "../types";
 import { LaunchFailureNotice } from "./LaunchFailureNotice";
+
+vi.mock("../clipboard", () => ({ copyText: vi.fn().mockResolvedValue(undefined) }));
 
 function failure(explained: boolean): LaunchSessionView {
   return {
@@ -46,7 +50,10 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-async function show(load: () => Promise<LaunchSessionView | null>, status?: PortStatus) {
+async function show(
+  load: (portId: string, generation: number) => Promise<LaunchSessionView | null>,
+  status?: PortStatus,
+) {
   await act(async () => {
     await root.rerender(
       <LaunchFailureNotice
@@ -60,6 +67,58 @@ async function show(load: () => Promise<LaunchSessionView | null>, status?: Port
   });
 }
 const buttons = () => [...document.body.querySelectorAll("button")].map((b) => b.textContent);
+
+it("announces a refused exit-code copy and allows a successful retry", async () => {
+  vi.mocked(copyText).mockRejectedValueOnce(new Error("Clipboard denied"));
+  await show(() => Promise.resolve(failure(true)), { active: { id: "i1" } } as PortStatus);
+  await page.getByRole("button", { name: "Copy exit code", exact: true }).click();
+  await expect
+    .element(page.getByRole("alert"))
+    .toHaveTextContent(
+      "The exit code could not be copied. Select and copy the code above, or try again.",
+    );
+  expect(copyText).toHaveBeenCalledWith("0xC0000135");
+  await expect
+    .element(page.getByRole("button", { name: "Copy exit code", exact: true }))
+    .toBeVisible();
+  expect(document.querySelector("code")?.textContent).toBe("0xC0000135");
+  await page.getByRole("button", { name: "Copy exit code", exact: true }).click();
+  await expect.element(page.getByRole("button", { name: "Copied", exact: true })).toBeVisible();
+  expect(document.querySelector('[role="alert"]')).toBeNull();
+});
+
+it("does not apply a late clipboard failure to a new library generation", async () => {
+  let rejectCopy: (reason: Error) => void = () => {};
+  vi.mocked(copyText).mockImplementationOnce(
+    () =>
+      new Promise<void>((_resolve, reject) => {
+        rejectCopy = reject;
+      }),
+  );
+  const load = vi.fn().mockResolvedValue(failure(true));
+  const status = { active: { id: "i1" } } as PortStatus;
+  await show(load, status);
+  await page.getByRole("button", { name: "Copy exit code", exact: true }).click();
+  await expect
+    .element(page.getByRole("button", { name: "Copy exit code", exact: true }))
+    .toBeDisabled();
+  await act(async () => {
+    await root.rerender(
+      <LaunchFailureNotice
+        portId="p"
+        generation={2}
+        status={status}
+        rollback={rollback}
+        load={load}
+      />,
+    );
+  });
+  await act(async () => rejectCopy(new Error("late clipboard rejection")));
+  expect(document.querySelector('[role="alert"]')).toBeNull();
+  await expect
+    .element(page.getByRole("button", { name: "Copy exit code", exact: true }))
+    .toBeEnabled();
+});
 
 it("shows the explanation and raw code, offering rollback only with a retained version", async () => {
   const load = vi.fn().mockResolvedValue(failure(true));
@@ -129,6 +188,32 @@ it("offers Open Activity only when the host can open it, and calls it", async ()
   );
   await act(async () => open?.click());
   expect(openActivity).toHaveBeenCalledOnce();
+});
+
+it("ignores an unfinished notice read from the previously selected game", async () => {
+  let finishFirstRead!: (value: LaunchSessionView) => void;
+  const firstRead = new Promise<LaunchSessionView>((resolve) => {
+    finishFirstRead = resolve;
+  });
+  const load = vi.fn((portId: string) => (portId === "p" ? firstRead : Promise.resolve(null)));
+  const status = { active: { id: "i1" } } as PortStatus;
+  await show(load, status);
+  expect(load).toHaveBeenCalledWith("p", 1);
+
+  await act(async () => {
+    await root.rerender(
+      <LaunchFailureNotice
+        portId="other"
+        generation={1}
+        status={status}
+        rollback={rollback}
+        load={load}
+      />,
+    );
+  });
+  expect(load).toHaveBeenCalledWith("other", 1);
+  await act(async () => finishFirstRead(failure(true)));
+  expect(document.body.querySelector("[data-launch-failure]")).toBeNull();
 });
 
 it("renders the notice chrome in the current language and keeps the exit code verbatim", async () => {

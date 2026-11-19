@@ -1,0 +1,44 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kingzmanh-alien-odyssey-pc",
+    "artwork": {
+      "game_id": 50325,
+      "cover_id": 276356,
+      "image_id": "co5x8k",
+      "image_sha256": "840cfba9d4dad5f1a6099af9cd60336c1c0245273e6fc2d1ecf4011cca01b4be",
+      "game_slug": "alien-odyssey",
+      "match_kind": "underlying-game"
+    },
+    "project_url": "https://github.com/kingzmanh/alien-odyssey-pc",
+    "name": "Alien Odyssey / Windows native",
+    "original_game_title": "Alien Odyssey",
+    "summary": "Prepare the publisher’s Windows preview with your original Alien Odyssey CD.",
+    "issue_number": 6087,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/kingzmanh/alien-odyssey-pc/releases/tag/v0.1.0",
+    "setup_url": "https://github.com/kingzmanh/alien-odyssey-pc/blob/v0.1.0/README.md",
+    "recommended_download_channel": "beta",
+    "download_asset_hints": {
+      "windows-x86-64": ["Alien.Odyssey.PC.Setup.exe"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/kingzmanh/alien-odyssey-pc/blob/v0.1.0/README.md",
+      "steps": [
+        {
+          "title": "Install from your own disc",
+          "instruction": "Open the publisher’s setup and select your original CD, ISO or BIN/CUE image, or a folder containing the extracted disc. Choose a new destination with about 500 MB available. Setup copies the disc and creates a native odyssey.exe entry point. Keep your original separately."
+        },
+        {
+          "title": "Preserve saves and settings before removal",
+          "instruction": "Close the game and keep game/hd/SAVEGAME, game/hd/GAME.CFG and odyssey_pc.ini beside the player. The upstream uninstaller removes the installed game tree and its saves. Keep a separate backup before replacing or uninstalling it."
+        }
+      ],
+      "warnings": [
+        "The original’s sections run within the installed odyssey.exe player. The publisher’s setup and uninstaller own replacement and removal."
+      ]
+    }
+  }
+}

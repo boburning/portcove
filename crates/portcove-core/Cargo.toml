@@ -44,6 +44,7 @@ icu_properties.workspace = true
 image.workspace = true
 keyring.workspace = true
 lzma-turbo.workspace = true
+quick-xml.workspace = true
 reqwest.workspace = true
 rusqlite.workspace = true
 schemars.workspace = true
@@ -56,7 +57,7 @@ sha2.workspace = true
 tar.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
-time = { workspace = true, features = ["formatting"] }
+time = { workspace = true, features = ["formatting", "parsing"] }
 tokio.workspace = true
 tough.workspace = true
 tracing.workspace = true

@@ -51,6 +51,8 @@ struct RetainedUserSelectedListing {
     listing: crate::PortListing,
 }
 
+// Retained registrations can include the escaped catalog and a separate record.
+pub(crate) const MAX_RETAINED_REGISTRATION_BYTES: u64 = 32 * 1024 * 1024;
 const USER_SELECTED_LISTING_FORMAT: &str = "portcove-user-selected-listing";
 
 fn external_runtime_row_sha256(port_id: &str, record: &str, catalog: &str) -> Result<String> {
@@ -72,9 +74,17 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         // selection must preserve. Keeping it would put a field that earlier strict readers
         // do not know inside an envelope version they still accept.
         listing.listed_at = None;
+        // Funding links are directory descriptions for the same reason; the current
+        // directory supplies them again while it lists the project.
+        listing.funding_urls = None;
+        // Implementation explanations are directory-only too. Keep earlier strict
+        // retained-listing readers compatible without changing their launch contract.
+        listing.implementation = None;
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
-            format_version: if listing.compatibility.is_some() {
+            format_version: if listing.collection_covers.is_some() {
+                4
+            } else if listing.compatibility.is_some() {
                 3
             } else if listing
                 .manual_setup
@@ -113,7 +123,9 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
             .manual_setup
             .as_ref()
             .is_some_and(|guide| !guide.references.is_empty());
-        if !matches!(retained.format_version, 1..=3)
+        if !matches!(retained.format_version, 1..=4)
+            || (retained.format_version == 4 && retained.listing.collection_covers.is_none())
+            || (retained.format_version < 4 && retained.listing.collection_covers.is_some())
             || (retained.format_version == 3 && retained.listing.compatibility.is_none())
             || (retained.format_version < 3 && retained.listing.compatibility.is_some())
             || (retained.format_version == 1 && has_references)
@@ -277,6 +289,70 @@ pub struct Library {
     root: PathBuf,
     authorizations: AuthorizationStore,
     _lease: std::sync::Arc<crate::library_access::LibraryLease>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum LockMode {
+    /// Probes and non-port locks refuse at once on any contention.
+    Exclusive,
+    /// Port writers wait briefly for read-only views before refusing.
+    ExclusiveYieldingToReaders,
+    Shared,
+}
+
+/// Longest a writer waits for read-only views that hold a port lock. A single
+/// settings view holds its shared lock across status, retained-catalog and
+/// critical-file verification reads, which took several seconds on the hosted
+/// Windows debug build while capability reads ran 12-16 s (#4879); two seconds
+/// refused uninstall as busy. Player writers show progress while they wait, so
+/// waiting is preferred to refusal, and the wait stays bounded.
+#[cfg(not(test))]
+const READER_YIELD_BUDGET: std::time::Duration = std::time::Duration::from_secs(30);
+/// Unit tests exercise the same waiting and refusal paths on a short budget.
+#[cfg(test)]
+const READER_YIELD_BUDGET: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// Port writers in this process currently waiting for read-only views, by lock
+/// file. New shared readers in this process hold off while one waits, so a
+/// stream of overlapping reads cannot keep a player action refused as busy.
+/// Readers in other processes are not ordered; they still drain or refuse as
+/// before. Every wait remains bounded by [`READER_YIELD_BUDGET`].
+static WAITING_PORT_WRITERS: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::HashMap<PathBuf, usize>>,
+> = std::sync::LazyLock::new(Default::default);
+
+fn waiting_port_writers()
+-> std::sync::MutexGuard<'static, std::collections::HashMap<PathBuf, usize>> {
+    // The map holds only counters, so a panicked holder leaves nothing to repair.
+    WAITING_PORT_WRITERS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// Registers one waiting writer until dropped.
+struct WaitingPortWriter(PathBuf);
+
+impl WaitingPortWriter {
+    fn register(path: PathBuf) -> Self {
+        *waiting_port_writers().entry(path.clone()).or_default() += 1;
+        Self(path)
+    }
+}
+
+impl Drop for WaitingPortWriter {
+    fn drop(&mut self) {
+        let mut waiting = waiting_port_writers();
+        if let Some(count) = waiting.get_mut(&self.0) {
+            *count -= 1;
+            if *count == 0 {
+                waiting.remove(&self.0);
+            }
+        }
+    }
+}
+
+fn port_writer_waiting(path: &Path) -> bool {
+    waiting_port_writers().contains_key(path)
 }
 
 #[derive(Debug)]
@@ -687,8 +763,10 @@ impl Library {
     }
 
     /// Preflights the durable idle conditions required before the desktop
-    /// exits for an explicit application update. The post-exit helper still
-    /// acquires the exclusive library lease and repeats this check.
+    /// installs an explicit application update. This read alone proves nothing
+    /// lasting: the desktop then closes its own library, releases its shared
+    /// lease and acquires [`ApplicationUpdateQuiescenceGuard`], which repeats
+    /// this check under the exclusive library lease held across the install.
     pub fn require_application_update_idle(&self) -> Result<()> {
         require_current_application_update_library(&self.root)?;
         require_application_update_idle(&self.root)
@@ -851,6 +929,19 @@ impl Library {
         self.lock_port(port_id, operation, None, None)
     }
 
+    /// Hold a shared port lock while a read-only view reads durable state. It
+    /// blocks writers for the read, admits other readers, and never replaces
+    /// the owner record, so a writer arriving meanwhile waits briefly instead
+    /// of refusing a player action.
+    pub fn try_read_lock_port(&self, port_id: &str, operation: &str) -> Result<PortOperationGuard> {
+        let key = hex::encode(Sha256::digest(port_id.as_bytes()));
+        let file = self
+            .acquire_lock_mode(&key, port_id, operation, LockMode::Shared)
+            .map_err(|error| error.detail("port_id", port_id))?;
+        self.require_port_unowned_by_recovery_or_launch(port_id, operation, None, None)?;
+        Ok(PortOperationGuard { file })
+    }
+
     /// Hold the port lock while an inventory classifies private paths. The
     /// lock file may be created so a new writer cannot race this scan, but its
     /// owner payload is never replaced. `None` means another operation owns it.
@@ -902,6 +993,21 @@ impl Library {
         })
     }
 
+    /// One SteamGridDB listing check at a time across Portcove processes, so two
+    /// checks never double the request rate. Separate from the artwork lock.
+    pub(crate) fn try_lock_listing_check(&self) -> Result<PortOperationGuard> {
+        crate::path::refuse_symlink_ancestors(
+            &self.locks_dir().join("artwork-listing-check.lock"),
+        )?;
+        Ok(PortOperationGuard {
+            file: self.acquire_lock(
+                "artwork-listing-check",
+                "SteamGridDB listing check",
+                "check-artwork-listings",
+            )?,
+        })
+    }
+
     pub(crate) fn try_lock_curated_cache(&self) -> Result<PortOperationGuard> {
         crate::path::refuse_symlink_ancestors(&self.locks_dir().join("curated-cache.lock"))?;
         Ok(PortOperationGuard {
@@ -913,6 +1019,19 @@ impl Library {
         crate::path::refuse_symlink_ancestors(&self.locks_dir().join("psx-toolchain.lock"))?;
         Ok(PortOperationGuard {
             file: self.acquire_lock("psx-toolchain", "PS1 toolchain", "publish-toolchain")?,
+        })
+    }
+
+    pub(crate) fn try_lock_psx_toolchain_acquisition(&self) -> Result<PortOperationGuard> {
+        crate::path::refuse_symlink_ancestors(
+            &self.locks_dir().join("psx-toolchain-acquire.lock"),
+        )?;
+        Ok(PortOperationGuard {
+            file: self.acquire_lock(
+                "psx-toolchain-acquire",
+                "PS1 toolchain",
+                "acquire-toolchain",
+            )?,
         })
     }
 
@@ -1045,8 +1164,42 @@ impl Library {
     ) -> Result<PortOperationGuard> {
         let key = hex::encode(Sha256::digest(port_id.as_bytes()));
         let mut file = self
-            .acquire_lock(&key, port_id, operation)
+            .acquire_lock_mode(
+                &key,
+                port_id,
+                operation,
+                LockMode::ExclusiveYieldingToReaders,
+            )
             .map_err(|error| error.detail("port_id", port_id))?;
+        self.require_port_unowned_by_recovery_or_launch(
+            port_id,
+            operation,
+            allowed_session_id,
+            allowed_operation_id,
+        )?;
+        let owner = serde_json::json!({
+            "operation": operation,
+            "pid": std::process::id(),
+            "port_id": port_id,
+            "started_at": Self::now(),
+        });
+        file.set_len(0)?;
+        serde_json::to_writer(&mut file, &owner)?;
+        file.write_all(b"\n")?;
+        file.sync_data()?;
+        // Windows denies other processes reads of a locked file, so a refused
+        // writer could not name the owner. Publish the same record beside it.
+        self.publish_lock_owner(&key, &owner);
+        Ok(PortOperationGuard { file })
+    }
+
+    fn require_port_unowned_by_recovery_or_launch(
+        &self,
+        port_id: &str,
+        operation: &str,
+        allowed_session_id: Option<&str>,
+        allowed_operation_id: Option<&str>,
+    ) -> Result<()> {
         self.require_ghostship_recovery_owner(port_id, allowed_operation_id)?;
         self.require_settings_recovery_owner(port_id, allowed_operation_id)?;
         self.require_archive_data_transition_owner(port_id, allowed_operation_id)?;
@@ -1061,36 +1214,127 @@ impl Library {
             .detail("launch_session_id", session.id)
             .detail("launch_phase", session.phase.to_string()));
         }
-        file.set_len(0)?;
-        serde_json::to_writer(
-            &mut file,
-            &serde_json::json!({
-                "operation": operation,
-                "pid": std::process::id(),
-                "port_id": port_id,
-                "started_at": Self::now(),
-            }),
-        )?;
-        file.write_all(b"\n")?;
-        file.sync_data()?;
-        Ok(PortOperationGuard { file })
+        Ok(())
+    }
+
+    /// Best effort: the owner record only explains a later busy refusal and
+    /// never grants lock or recovery authority.
+    fn publish_lock_owner(&self, key: &str, owner: &serde_json::Value) {
+        let target = self.locks_dir().join(format!("{key}.owner"));
+        if crate::path::refuse_symlink_ancestors(&target).is_err()
+            || std::fs::symlink_metadata(&target).is_ok_and(|metadata| !metadata.is_file())
+        {
+            return;
+        }
+        let _ = crate::durability::write_json_atomically(&target, owner, true);
+    }
+
+    /// The most recent port writer's record, when it is a small regular file.
+    fn last_lock_owner(&self, key: &str) -> Option<serde_json::Map<String, serde_json::Value>> {
+        let path = self.locks_dir().join(format!("{key}.owner"));
+        let bytes = crate::external_runtime::read_stable_metadata(&path, 4096).ok()?;
+        match serde_json::from_slice(&bytes).ok()? {
+            serde_json::Value::Object(owner) => Some(owner),
+            _ => None,
+        }
     }
 
     fn acquire_lock(&self, key: &str, target: &str, operation: &str) -> Result<File> {
-        let file = OpenOptions::new()
+        self.acquire_lock_mode(key, target, operation, LockMode::Exclusive)
+    }
+
+    fn open_lock_file(&self, key: &str) -> Result<File> {
+        Ok(OpenOptions::new()
             .create(true)
             .truncate(false)
             .read(true)
             .write(true)
-            .open(self.locks_dir().join(format!("{key}.lock")))?;
-        if let Err(error) = file.try_lock() {
+            .open(self.locks_dir().join(format!("{key}.lock")))?)
+    }
+
+    /// Whether every current holder is a shared reader. A second handle's
+    /// shared lock is admitted only beside other shared locks.
+    fn lock_held_only_by_readers(&self, key: &str) -> bool {
+        let Ok(probe) = self.open_lock_file(key) else {
+            return false;
+        };
+        let admitted = probe.try_lock_shared().is_ok();
+        if admitted {
+            // Release now rather than on close, which Windows may defer.
+            let _ = probe.unlock();
+        }
+        admitted
+    }
+
+    fn acquire_lock_mode(
+        &self,
+        key: &str,
+        target: &str,
+        operation: &str,
+        mode: LockMode,
+    ) -> Result<File> {
+        let file = self.open_lock_file(key)?;
+        let deadline = std::time::Instant::now() + READER_YIELD_BUDGET;
+        let mut refused_by_readers = false;
+        let lock_path = self.locks_dir().join(format!("{key}.lock"));
+        if mode == LockMode::Shared {
+            // Let a waiting writer in this process acquire before admitting
+            // another reader. A reader nested inside one the writer waits for
+            // is delayed at most until that writer's own budget ends.
+            while port_writer_waiting(&lock_path) && std::time::Instant::now() < deadline {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        }
+        let mut waiting_writer = None;
+        let attempt = loop {
+            let attempt = match mode {
+                LockMode::Exclusive | LockMode::ExclusiveYieldingToReaders => file.try_lock(),
+                LockMode::Shared => file.try_lock_shared(),
+            };
+            // Read-only views usually finish quickly; wait them out rather
+            // than refuse. Another writer or probe still refuses at once.
+            if matches!(attempt, Err(std::fs::TryLockError::WouldBlock))
+                && mode == LockMode::ExclusiveYieldingToReaders
+            {
+                refused_by_readers = self.lock_held_only_by_readers(key);
+                if refused_by_readers && std::time::Instant::now() < deadline {
+                    waiting_writer
+                        .get_or_insert_with(|| WaitingPortWriter::register(lock_path.clone()));
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    continue;
+                }
+            }
+            break attempt;
+        };
+        drop(waiting_writer);
+        if let Err(error) = attempt {
             if matches!(error, std::fs::TryLockError::WouldBlock) {
-                return Err(PortcoveError::conflict(format!(
+                let mut refusal = PortcoveError::conflict(format!(
                     "{target} is busy in another Portcove process"
                 ))
                 .with_known_cause(crate::failure::KnownFailureCause::Busy)
                 .detail("resource_id", target)
-                .detail("operation", operation));
+                .detail("operation", operation);
+                // Readers publish no record, so naming the last writer would
+                // misattribute a refusal they caused.
+                if refused_by_readers {
+                    refusal = refusal.detail("held_by", "read_only_views");
+                } else if let Some(owner) = self.last_lock_owner(key) {
+                    for (field, detail) in [
+                        ("operation", "last_owner_operation"),
+                        ("pid", "last_owner_pid"),
+                        ("started_at", "last_owner_started_at"),
+                    ] {
+                        if let Some(value) = owner.get(field) {
+                            let value = value
+                                .as_str()
+                                .map(str::to_owned)
+                                .unwrap_or_else(|| value.to_string());
+                            refusal = refusal.detail(detail, value);
+                        }
+                    }
+                }
+                return Err(refusal);
             }
             return Err(std::io::Error::from(error).into());
         }
@@ -1583,6 +1827,33 @@ impl Library {
         Ok(())
     }
 
+    /// Successful-launch history, newest first, for ports that still have an
+    /// active Portcove-managed installation or a registered external runtime.
+    /// Ties order by port ID so the read is deterministic.
+    pub(crate) fn recently_played_installed_ports(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<(String, i64)>> {
+        let limit = i64::try_from(limit).unwrap_or(i64::MAX);
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT history.port_id, history.last_launched_at FROM launch_history AS history
+             WHERE EXISTS (
+                     SELECT 1 FROM port_settings AS settings
+                     WHERE settings.port_id = history.port_id
+                       AND settings.active_install_id IS NOT NULL
+                   )
+                OR EXISTS (
+                     SELECT 1 FROM external_runtime_registrations AS external
+                     WHERE external.port_id = history.port_id
+                   )
+             ORDER BY history.last_launched_at DESC, history.port_id
+             LIMIT ?1",
+        )?;
+        let rows = statement.query_map([limit], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        rows.collect::<rusqlite::Result<_>>().map_err(Into::into)
+    }
+
     pub(crate) fn create_launch_session(&self, session: &LaunchSessionRecord) -> Result<()> {
         let install_root = crate::path::unicode(&session.install_root, "install")?;
         let mut connection = self.connection()?;
@@ -1632,6 +1903,22 @@ impl Library {
                 phase.to_string(),
                 Self::now()
             ],
+        )?;
+        if changed == 0 {
+            return Err(PortcoveError::state(format!(
+                "launch session {id} was not found"
+            )));
+        }
+        Ok(())
+    }
+
+    /// Replaces the explanation of an unfinished session, for example the game
+    /// processes a tracked handoff still waits for. Finishing replaces it.
+    pub(crate) fn note_active_launch_session(&self, id: &str, message: &str) -> Result<()> {
+        let changed = self.connection()?.execute(
+            "UPDATE launch_sessions SET message=?2, updated_at=?3
+             WHERE id=?1 AND outcome IS NULL",
+            params![id, message, Self::now()],
         )?;
         if changed == 0 {
             return Err(PortcoveError::state(format!(
@@ -1733,8 +2020,26 @@ impl Library {
         row.map(parse_launch_session).transpose()
     }
 
+    /// Whether the request is an active launch session whose recorded supervisor no longer
+    /// exists. Read-only: recovery stays an explicit action, and a session with no recorded
+    /// supervisor identity counts as lost, as it does for `stale_launch_sessions`. A request
+    /// that is unknown or already finished is not lost.
+    pub fn launch_supervisor_lost(&self, id: &str) -> Result<bool> {
+        let Some(session) = self.launch_request(id)? else {
+            return Ok(false);
+        };
+        if session.outcome.is_some() {
+            return Ok(false);
+        }
+        Ok(match session.supervisor_identity.as_deref() {
+            Some(identity) => !crate::launch::process_matches(session.supervisor_pid, identity)?,
+            None => true,
+        })
+    }
+
     /// The most recently finished launch session for a port, if any. Callers
-    /// decide whether its outcome is worth showing.
+    /// decide whether its outcome is worth showing. Insertion order breaks
+    /// ties because launches for a port are serialized and timestamps are seconds.
     pub fn latest_finished_launch_session(
         &self,
         port_id: &str,
@@ -1746,7 +2051,7 @@ impl Library {
                         supervisor_identity, child_pid, child_identity, phase, outcome,
                         exit_code, message, started_at, updated_at, finished_at, owner_kind
                  FROM launch_sessions WHERE port_id=?1 AND outcome IS NOT NULL
-                 ORDER BY finished_at DESC, started_at DESC, id DESC LIMIT 1",
+                 ORDER BY finished_at DESC, started_at DESC, rowid DESC LIMIT 1",
                 [port_id],
                 launch_session_row,
             )
@@ -1826,7 +2131,11 @@ impl Library {
     }
 
     pub(crate) fn register_source(&self, source: &SourceRecord) -> Result<()> {
-        Self::write_source(&self.connection()?, source)
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        Self::write_source(&transaction, source)?;
+        transaction.commit()?;
+        Ok(())
     }
 
     pub(crate) fn write_source(connection: &Connection, source: &SourceRecord) -> Result<()> {
@@ -1857,7 +2166,7 @@ impl Library {
                 observed_identity_json
             ],
         )?;
-        Ok(())
+        crate::source_instances::record(connection, source)
     }
 
     pub fn source(&self, profile_id: &str) -> Result<Option<SourceRecord>> {
@@ -1897,25 +2206,37 @@ impl Library {
         let mut profile_ids = profile_ids.to_vec();
         profile_ids.sort_unstable();
         profile_ids.dedup();
-        let connection = self.connection()?;
-        let sql = format!(
-            "SELECT profile_id, path, sha256, size, storage_sha256, storage_size, updated_at, observed_identity_json
-             FROM sources
-             WHERE profile_id IN ({})
-             ORDER BY profile_id",
-            sql_placeholders(profile_ids.len())
-        );
-        let mut statement = connection.prepare(&sql)?;
-        let rows =
-            statement.query_map(params_from_iter(&profile_ids), StoredSourceRow::from_row)?;
-        rows.map(|row| row?.into_record()).collect()
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        let mut records = Vec::new();
+        for batch in profile_ids.chunks(256) {
+            let sql = format!(
+                "SELECT profile_id, path, sha256, size, storage_sha256, storage_size, updated_at, observed_identity_json
+                 FROM sources
+                 WHERE profile_id IN ({})
+                 ORDER BY profile_id",
+                sql_placeholders(batch.len())
+            );
+            let mut statement = transaction.prepare(&sql)?;
+            let rows = statement.query_map(params_from_iter(batch), StoredSourceRow::from_row)?;
+            for row in rows {
+                records.push(row?.into_record()?);
+            }
+        }
+        transaction.commit()?;
+        Ok(records)
     }
 
     pub(crate) fn remove_source(&self, profile_id: &str) -> Result<bool> {
-        Ok(self
-            .connection()?
-            .execute("DELETE FROM sources WHERE profile_id=?1", [profile_id])?
-            > 0)
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let Some(source) = Self::source_from(&transaction, profile_id)? else {
+            return Ok(false);
+        };
+        crate::source_instances::forget(&transaction, &source)?;
+        transaction.execute("DELETE FROM sources WHERE profile_id=?1", [profile_id])?;
+        transaction.commit()?;
+        Ok(true)
     }
 
     pub fn ensure_settings(&self, port_id: &str, default_channel: ReleaseChannel) -> Result<()> {
@@ -2159,6 +2480,9 @@ impl Library {
         activate: bool,
         expected_external_row_sha256: Option<&str>,
     ) -> Result<()> {
+        if activate {
+            crate::profile_file_preservation::require_idle(self, &install.port_id)?;
+        }
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         if let Some(expected) = expected_external_row_sha256 {
@@ -2213,6 +2537,7 @@ impl Library {
             params![install.port_id, install.channel.to_string()],
         )?;
         if activate {
+            crate::profile::follow_active_install(&transaction, install)?;
             transaction.execute(
                 "UPDATE port_settings SET
                    previous_install_id = CASE WHEN active_install_id = ?2 THEN previous_install_id ELSE active_install_id END,
@@ -2278,6 +2603,7 @@ impl Library {
         install: &InstallRecord,
         original_id: &str,
     ) -> Result<()> {
+        crate::profile_file_preservation::require_idle(self, &install.port_id)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let current: Option<String> = transaction.query_row(
@@ -2294,6 +2620,7 @@ impl Library {
             ));
         }
         Self::write_install(&transaction, install, false)?;
+        crate::profile::follow_active_install(&transaction, install)?;
         transaction.execute(
             "UPDATE port_settings SET
                previous_install_id=CASE WHEN active_install_id=?2 THEN previous_install_id ELSE active_install_id END,
@@ -2316,8 +2643,14 @@ impl Library {
         &self,
         port_id: &str,
     ) -> Result<Option<(ExternalRuntimeRecord, Catalog)>> {
-        let row = self
-            .connection()?
+        Self::external_runtime_with_port_from(&self.connection()?, port_id)
+    }
+
+    pub(crate) fn external_runtime_with_port_from(
+        connection: &Connection,
+        port_id: &str,
+    ) -> Result<Option<(ExternalRuntimeRecord, Catalog)>> {
+        let row = connection
             .query_row(
                 "SELECT record_json, retained_catalog_json FROM external_runtime_registrations
              WHERE port_id=?1",
@@ -2389,7 +2722,7 @@ impl Library {
         port_id: &str,
         budget: &mut u64,
     ) -> Result<Option<(ExternalRuntimeRecord, Catalog)>> {
-        let ceiling = (*budget).min(crate::signed_catalog::MAX_CATALOG_BYTES as u64);
+        let ceiling = (*budget).min(MAX_RETAINED_REGISTRATION_BYTES);
         if ceiling == 0 {
             return Err(PortcoveError::unsupported(
                 "browsing metadata budget reached",
@@ -2834,13 +3167,22 @@ impl Library {
         let ports_per_query = status_ports_per_query(connection)?;
 
         let mut settings = HashMap::new();
+        let mut carry_outcomes = HashMap::new();
         for port_ids in port_ids.chunks(ports_per_query) {
             metrics.record_query();
             let sql = format!(
-                "SELECT port_id, channel, update_policy, active_install_id, previous_install_id
-                 FROM port_settings
-                 WHERE port_id IN ({})",
-                sql_placeholders(port_ids.len())
+                "SELECT s.port_id, s.channel, s.update_policy, s.active_install_id,
+                        s.previous_install_id, c.from_install_id, c.outcome
+                 FROM port_settings s
+                 LEFT JOIN carried_file_outcomes c ON c.port_id=s.port_id
+                    AND c.to_install_id=s.active_install_id AND c.format={}
+                    AND typeof(c.outcome)='text'
+                    AND typeof(c.from_install_id)='text'
+                    AND length(CAST(c.outcome AS BLOB)) <= 65536
+                    AND length(CAST(c.from_install_id AS BLOB)) BETWEEN 1 AND 4096
+                 WHERE s.port_id IN ({})",
+                crate::carry_ledger::ROW_FORMAT,
+                sql_placeholders(port_ids.len()),
             );
             let mut statement = connection.prepare(&sql)?;
             let rows = statement.query_map(params_from_iter(port_ids), |row| {
@@ -2852,11 +3194,18 @@ impl Library {
                         row.get::<_, Option<String>>(3)?,
                         row.get::<_, Option<String>>(4)?,
                     ),
+                    row.get::<_, Option<String>>(5)?,
+                    row.get::<_, Option<String>>(6)?,
                 ))
             })?;
             for row in rows {
-                let (port_id, setting) = row?;
+                let (port_id, setting, from, outcome) = row?;
                 metrics.settings_row_count += 1;
+                if let (Some(from), Some(outcome)) = (from, outcome) {
+                    if let Some(outcome) = crate::carried_files::decode_outcome(&outcome) {
+                        carry_outcomes.insert(port_id.clone(), (from, outcome));
+                    }
+                }
                 settings.insert(port_id, setting);
             }
         }
@@ -2999,7 +3348,26 @@ impl Library {
                     .cloned();
                 let staged = staged.get(port_id).and_then(|id| installs.get(id)).cloned();
                 let history = launch_history.get(port_id).copied();
+                let carried_files = active.as_ref().and_then(|target| {
+                    let (from_id, outcome) = carry_outcomes.get(port_id)?;
+                    if target.port_id != *port_id || from_id == &target.id {
+                        return None;
+                    }
+                    let source = installs
+                        .get(from_id)
+                        .filter(|source| source.port_id == *port_id);
+                    Some(crate::CarriedFilesStatus {
+                        from_install_id: from_id.clone(),
+                        to_install_id: target.id.clone(),
+                        from_version: source.map(|source| source.version.clone()),
+                        from_path: source.map(|source| source.path.clone()),
+                        to_version: target.version.clone(),
+                        to_path: target.path.clone(),
+                        outcome: outcome.clone(),
+                    })
+                });
                 Ok(PortStatus {
+                    carried_files,
                     acquisition: acquisitions.get(port_id).cloned(),
                     port_id: port_id.clone(),
                     user_data_root: Some(self.user_dir(port_id)),
@@ -3117,6 +3485,22 @@ impl Library {
         Ok((installs, metrics))
     }
 
+    pub(crate) fn installs_for_port(&self, port_id: &str) -> Result<Vec<InstallRecord>> {
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT id, port_id, version, path, channel, installed_at, verified, staged,
+                    artifact_name, artifact_sha256, artifact_size, manifest_sha256,
+                    selected_executable, runtime_json
+             FROM installs WHERE port_id=?1 ORDER BY rowid",
+        )?;
+        let rows = statement.query_map([port_id], StoredInstallRow::from_row)?;
+        rows.map(|row| {
+            row.map_err(Into::into)
+                .and_then(StoredInstallRow::into_record)
+        })
+        .collect()
+    }
+
     pub(crate) fn port_install_paths(&self, port_id: &str) -> Result<Vec<PathBuf>> {
         let connection = self.connection()?;
         let mut statement = connection.prepare(
@@ -3130,6 +3514,7 @@ impl Library {
     }
 
     pub fn rollback(&self, port_id: &str) -> Result<InstallRecord> {
+        crate::profile_file_preservation::require_idle(self, port_id)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let (active_id, previous_id): (Option<String>, Option<String>) = transaction
@@ -3143,16 +3528,19 @@ impl Library {
         let previous_id = previous_id.ok_or_else(|| {
             PortcoveError::not_found(format!("{port_id} has no rollback version"))
         })?;
+        let previous = Self::install_by_id(&transaction, Some(&previous_id))?
+            .ok_or_else(|| PortcoveError::state("rollback target disappeared"))?;
+        crate::profile::follow_active_install(&transaction, &previous)?;
         transaction.execute(
             "UPDATE port_settings SET active_install_id=?2, previous_install_id=?3 WHERE port_id=?1",
             params![port_id, previous_id, active_id],
         )?;
         transaction.commit()?;
-        Self::install_by_id(&connection, Some(&previous_id))?
-            .ok_or_else(|| PortcoveError::state("rollback target disappeared"))
+        Ok(previous)
     }
 
     pub fn activate_staged(&self, port_id: &str) -> Result<InstallRecord> {
+        crate::profile_file_preservation::require_idle(self, port_id)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let staged_id: String = transaction
@@ -3163,6 +3551,9 @@ impl Library {
             )
             .optional()?
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
+        let staged = Self::install_by_id(&transaction, Some(&staged_id))?
+            .ok_or_else(|| PortcoveError::state("staged version disappeared during activation"))?;
+        crate::profile::follow_active_install(&transaction, &staged)?;
         transaction.execute(
             "UPDATE port_settings SET
                previous_install_id = CASE WHEN active_install_id=?2 THEN previous_install_id ELSE active_install_id END,
@@ -3177,6 +3568,7 @@ impl Library {
     }
 
     pub fn remove_port(&self, port_id: &str) -> Result<Vec<PathBuf>> {
+        crate::profile_file_preservation::require_idle(self, port_id)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         crate::retained_build::require_no_references(&transaction, port_id)?;
@@ -3314,6 +3706,51 @@ mod tests {
                 .listed_at
                 .is_none()
         );
+    }
+
+    #[test]
+    fn a_retained_selection_does_not_carry_directory_funding_links() {
+        let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
+            "id":"funded-project", "name":"Funded project", "summary":"No operational integration.",
+            "project_url":"https://example.com/upstream",
+            "funding_urls":["https://github.com/sponsors/example"]
+        }))
+        .unwrap();
+        let catalog = Catalog::for_user_selected_listing(listing).unwrap();
+        let content = encode_external_catalog(&catalog, "funded-project").unwrap();
+        // An earlier strict reader must still be able to read the retained entry.
+        assert!(!content.contains("funding_urls"), "{content}");
+        let retained = decode_external_catalog(&content, "funded-project").unwrap();
+        assert!(
+            retained
+                .listing("funded-project")
+                .unwrap()
+                .funding_urls
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn a_retained_selection_does_not_carry_directory_implementation_descriptions() {
+        let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
+            "id":"described-project", "name":"Described project", "summary":"No operational integration.",
+            "project_url":"https://example.com/upstream",
+            "implementation":{"format_version":1,"methods":[{"kind":"source-port","evidence_urls":["https://example.com/source"]}],"dependencies":[]}
+        })).unwrap();
+        let catalog = Catalog::for_user_selected_listing(listing).unwrap();
+        let content = encode_external_catalog(&catalog, "described-project").unwrap();
+        assert!(!content.contains("implementation"), "{content}");
+        let envelope: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(envelope["format_version"], 1);
+        let retained = decode_external_catalog(&content, "described-project").unwrap();
+        assert!(
+            retained
+                .listing("described-project")
+                .unwrap()
+                .implementation
+                .is_none()
+        );
+        assert!(retained.ports().is_empty());
     }
 
     #[test]
@@ -4032,6 +4469,21 @@ mod tests {
             .unwrap();
         assert_eq!(latest.id, "running");
         assert_eq!(latest.outcome, Some(LaunchSessionOutcome::Succeeded));
+
+        library
+            .create_launch_session(&session("z-failed", "alpha", 14))
+            .unwrap();
+        finish("z-failed", "failed", 7, 14);
+        library
+            .create_launch_session(&session("a-succeeded", "alpha", 14))
+            .unwrap();
+        finish("a-succeeded", "succeeded", 0, 14);
+        let latest = library
+            .latest_finished_launch_session("alpha")
+            .unwrap()
+            .unwrap();
+        assert_eq!(latest.id, "a-succeeded");
+        assert_eq!(latest.outcome, Some(LaunchSessionOutcome::Succeeded));
     }
 
     #[test]
@@ -4373,7 +4825,9 @@ mod tests {
                         size: 1,
                         sha256: "a".repeat(64),
                     },
+                    uploader_continuity: None,
                 },
+                upstream_activity: None,
             })
             .unwrap();
 
@@ -4596,6 +5050,11 @@ mod tests {
             library.port_install_paths("target").unwrap(),
             [temporary.path().join("target")]
         );
+        let installs = library.installs_for_port("target").unwrap();
+        assert_eq!(installs.len(), 1);
+        assert_eq!(installs[0].id, "target-install");
+        assert!(library.installs_for_port("absent").unwrap().is_empty());
+        assert!(library.installs_for_port("unrelated").is_err());
         assert!(library.all_installs().is_err());
     }
 
@@ -4678,5 +5137,141 @@ mod tests {
         drop(other);
         drop(lighthouse);
         second.try_lock_port("lighthouse", "update").unwrap();
+    }
+
+    #[test]
+    fn busy_port_refusal_names_the_last_mutating_owner() {
+        let temporary = tempdir().unwrap();
+        let first = Library::open(temporary.path()).unwrap();
+        let second = Library::open(temporary.path()).unwrap();
+        let held = first
+            .try_lock_port("lighthouse", "relocate-output")
+            .unwrap();
+
+        let conflict = second.try_lock_port("lighthouse", "adopt").unwrap_err();
+        assert_eq!(conflict.details["operation"], "adopt");
+        assert_eq!(conflict.details["last_owner_operation"], "relocate-output");
+        assert_eq!(
+            conflict.details["last_owner_pid"],
+            std::process::id().to_string()
+        );
+        assert!(conflict.details.contains_key("last_owner_started_at"));
+
+        // A read-only probe never replaces the record or adds one of its own.
+        drop(held);
+        let probe = second.try_probe_port_lock("starship").unwrap().unwrap();
+        let refused = first.try_lock_port("starship", "update").unwrap_err();
+        assert!(!refused.details.contains_key("last_owner_operation"));
+        drop(probe);
+
+        // A record that is not a regular file is ignored, not followed.
+        let key = hex::encode(Sha256::digest("lighthouse".as_bytes()));
+        let owner = temporary.path().join("locks").join(format!("{key}.owner"));
+        std::fs::remove_file(&owner).unwrap();
+        std::fs::create_dir(&owner).unwrap();
+        let held = first.try_lock_port("lighthouse", "launch").unwrap();
+        let refused = second.try_lock_port("lighthouse", "update").unwrap_err();
+        assert!(!refused.details.contains_key("last_owner_operation"));
+        drop(held);
+    }
+
+    #[test]
+    fn overlapping_in_process_reads_cannot_starve_a_waiting_writer() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        // Two readers alternate so a shared lock is always held unless new
+        // readers hold off for the waiting writer.
+        let readers = (0..2)
+            .map(|offset| {
+                let library = library.clone();
+                let stop = stop.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(offset * 30));
+                    while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+                        if let Ok(guard) =
+                            library.try_read_lock_port("lighthouse", "read-capabilities")
+                        {
+                            std::thread::sleep(std::time::Duration::from_millis(60));
+                            drop(guard);
+                        }
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        let result = library.try_lock_port("lighthouse", "remove");
+        stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        drop(result.as_ref().ok());
+        for reader in readers {
+            reader.join().unwrap();
+        }
+        result.expect("a waiting writer must acquire between overlapping reads");
+        assert!(!port_writer_waiting(&temporary.path().join("locks").join(
+            format!(
+                "{}.lock",
+                hex::encode(Sha256::digest("lighthouse".as_bytes()))
+            )
+        )));
+    }
+
+    #[test]
+    fn writers_wait_out_read_only_views_but_refuse_other_writers() {
+        let temporary = tempdir().unwrap();
+        let first = Library::open(temporary.path()).unwrap();
+        let second = Library::open(temporary.path()).unwrap();
+
+        // Readers admit each other and never publish an owner record.
+        let key = hex::encode(Sha256::digest("lighthouse".as_bytes()));
+        let owner = temporary.path().join("locks").join(format!("{key}.owner"));
+        let reader = first
+            .try_read_lock_port("lighthouse", "read-game-settings")
+            .unwrap();
+        let other_reader = second
+            .try_read_lock_port("lighthouse", "read-game-settings")
+            .unwrap();
+        drop(other_reader);
+        assert!(!owner.exists());
+
+        // A writer arriving during a read waits for it instead of refusing.
+        let started = std::time::Instant::now();
+        let release = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            drop(reader);
+        });
+        let writer = second.try_lock_port("lighthouse", "adopt").unwrap();
+        release.join().unwrap();
+        assert!(started.elapsed() >= std::time::Duration::from_millis(150));
+
+        // While a writer holds the lock, readers and writers refuse at once.
+        let started = std::time::Instant::now();
+        let refused = first
+            .try_read_lock_port("lighthouse", "read-game-settings")
+            .unwrap_err();
+        assert_eq!(refused.code, crate::ErrorCode::Conflict);
+        let refused = first.try_lock_port("lighthouse", "update").unwrap_err();
+        assert_eq!(refused.details["last_owner_operation"], "adopt");
+        assert!(started.elapsed() < READER_YIELD_BUDGET);
+        drop(writer);
+
+        // A read that outlasts the budget still ends in an actionable refusal.
+        let reader = first
+            .try_read_lock_port("lighthouse", "read-game-settings")
+            .unwrap();
+        let started = std::time::Instant::now();
+        let refused = second.try_lock_port("lighthouse", "update").unwrap_err();
+        assert_eq!(refused.code, crate::ErrorCode::Conflict);
+        assert_eq!(refused.details["held_by"], "read_only_views");
+        assert!(!refused.details.contains_key("last_owner_operation"));
+        assert!(started.elapsed() >= READER_YIELD_BUDGET);
+        // Probes never wait for readers.
+        let started = std::time::Instant::now();
+        assert!(second.try_probe_port_lock("lighthouse").unwrap().is_none());
+        assert!(started.elapsed() < READER_YIELD_BUDGET);
+        drop(reader);
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&std::fs::read(&owner).unwrap()).unwrap()["operation"],
+            "adopt"
+        );
     }
 }

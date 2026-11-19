@@ -8,8 +8,9 @@ This contract supersedes the earlier staged UI delivery proposal. The owner requ
 - Identity and the current next action lead. Separate games, stable port IDs and variants. Keep red Play, quiet green checked readiness, blue selection and gold keyboard focus. Keep graphite/warm-light tokens, bundled Geist, Lucide controls and the approved crab assets.
 - Keep whole-image 2:3 collection frames, metadata outside artwork, compact wrapping rows and bounded detail/task artwork. Do not infer ownership, readiness, image crops or eligibility from appearance. Unclassified artwork retains its complete source image.
 - Use the existing workspace scroll owner and native sizing preference. Constrain reading/forms within the available workspace; never constrain its scrollbar to a stale width. Reflow navigation and task actions with no lost functionality at enlargement.
-- Add games offers intentions: choose a game/port, find games in a folder, or use an existing installation. Requirements determine the route; there is no universal six-step wizard. Preserve checked inputs and drafts across navigation.
+- Add games offers routes: Browse games (choosing happens in Discover), Scan a folder, or use an existing installation. Requirements determine the route; there is no universal six-step wizard. Preserve checked inputs and drafts across navigation.
 - Reviews group inputs, changes and running-work consequences. Focused decisions stay in dialogs; complex inventories and task accounts use workspace/disclosure surfaces. Keep full locations and native approval/plan binding. Keep Move materially distinct from keeping a location or copying files.
+- A finished setup or install hands a ready game back with "Title is ready to play." and Play only when current readiness and Core's launch assessment allow it; a successful launch shows no visible notice; one Cancel serves running setup on the game page.
 - Running work can be left where the existing invocation owner survives navigation. Continue browsing closes observation, not the task. Activity keeps the authoritative target and outcome; completion never steals focus from another workspace. Cancellation-requested is not cancellation-settled.
 - Game updates use one explicit immediate choice across detail, notices and Activity. Compact presentation and future policy do not choose a different action. A changed disposition needs a new plan. A staged update is distinct from the current playable version; game, app and catalog updates remain separate.
 - Activity is target-first, with attention/current/recent groupings derived from actual records. A read-only retained-work account exposes facts before a separate cleanup decision. Join only by authoritative operation identity. Do not invent universal retry/resume/rollback actions.
@@ -162,12 +163,23 @@ accepted catalog/listing/pending union. Organization writes preserve unknown
 records, use canonical library identity and compare revisions within the existing
 atomic 64 KiB host preference boundary.
 
-Details retain mounted Game files, Saves, Versions & updates and Manage owners
-alongside Overview. Manage exposes existing artwork, Steam, CLI, output,
-verification, removal and reviewed managed-route controls. First-launch setup
-statements bind the exact managed/external installation and do not grant Core
-launch permission. Notice choices affect Library/sidebar update notices; manual
-update review and staged activation remain available.
+Game Detail keeps the original game, selected port, current version and primary
+play or setup action in its header. Game files shows current requirements and
+file controls directly. Game settings & mods keeps configuration tied to the
+active managed installation. The detail sections stay mounted while the player
+switches between tasks, and Saves & backups puts effective coverage and current
+actions before the history.
+
+Add games owns scan progress, matches, setup reviews and batch installation.
+Settings → Game files keeps saved folders, source health, DAT references and
+disc tools together. Its scan link opens the active or recorded scan in Add
+games and returns to the same Settings action. A game’s Game files section
+continues to use the exact port and library generation for checks and relinking.
+
+Discover uses the original-game grouping identity. The chooser shows setup and
+file requirements, the comparison basis, freshness, and applicable report
+summaries before individual reports. Comparison settings and detailed reports
+remain available.
 
 The recent strip uses actual successful launch history and Core launch eligibility.
 Dedicated immutable update acquisition owns a bounded archive journal and can

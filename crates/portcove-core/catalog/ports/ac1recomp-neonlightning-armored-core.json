@@ -6,7 +6,7 @@
     "original_game_title": "Armored Core",
     "summary": "The project describes settings, controller and mod enhancements. Full-campaign completion is unconfirmed; Portcove has not confirmed these features in play. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/NeonLightning/AC1Recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/NeonLightning/AC1Recomp",
     "manual_setup": {
@@ -35,6 +35,21 @@
       "image_sha256": "d1ddebb5cd67d94c11bf471b292c2b54484b95e8c1446d5d20313dc51441631a",
       "game_slug": "armored-core",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "armored-core",
+      "evidence_urls": ["https://github.com/NeonLightning/AC1Recomp"],
+      "source_editions": [
+        {
+          "id": "armored-core-playstation",
+          "title": "Armored Core (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/NeonLightning/AC1Recomp/blob/9c5d168cca9541de23bd7f03539e30f837c02ae7/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

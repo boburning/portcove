@@ -5,6 +5,14 @@
     "name": "Azure Dreams (Azure Dreams HD Recompilation)",
     "summary": "An Azure Dreams port with a recompiled base game and interpreted overlays unless you separately compile them with compile_overlays.py --static. A release ZIP alone does not establish fully static coverage or a full playthrough. The Windows 10 player/source route downloads its framework toolchain, generates base C from your own USA SLUS-00614 PlayStation disc and rebuilds locally. OpenBIOS is bundled. Other player platforms, exact accepted revision/hashes and further BIOS/firmware requirements are unconfirmed. You and the project manage generated files and updates; Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Azure Dreams",
+    "artwork": {
+      "game_id": 6545,
+      "cover_id": 155244,
+      "image_id": "co3bsc",
+      "image_sha256": "08b8df0d4b5ff787dfe466017caa31efa2bd14b293831337b6d3dd0e1784f7f1",
+      "game_slug": "azure-dreams",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -37,6 +45,24 @@
       ],
       "warnings": [
         "Select the native EXE and retain the complete writable player root, all active cards and the current preset choice. Box art is optional; original-disc and overlay-capture rights remain separate."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "azure-dreams",
+      "evidence_urls": [
+        "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation/blob/0081c90ac54704aa92581471b26ee883414dfed9/README.md",
+        "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation"
+      ],
+      "source_editions": [
+        {
+          "id": "azure-dreams-playstation",
+          "title": "Azure Dreams (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation/blob/0081c90ac54704aa92581471b26ee883414dfed9/README.md"
+          ]
+        }
       ]
     }
   },

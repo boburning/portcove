@@ -36,7 +36,7 @@ function parsedWorkflow(text: string) {
   assert.ok(isRecord(parsed) && isRecord(parsed.jobs));
   return parsed as Record<string, unknown> & { jobs: Record<string, Record<string, unknown>> };
 }
-const reviewedSyftInput = "syft-version: v1.56.0";
+const reviewedSyftInput = "syft-version: v1.57.1";
 const workflowData = parsedWorkflow(workflow);
 function job(name: string) {
   const selected = workflowData.jobs[name];
@@ -261,6 +261,8 @@ void test("cross-built Intel artifacts receive native Intel package and launch v
   assert.match(intelSection, /Architecture x86_64/);
 
   assert.doesNotMatch(macosVerifier, /-acceptlicense/);
+  assert.match(macosVerifier, /"otool" @\("-arch", \$Architecture, "-L", \$executable\)/);
+  assert.match(macosVerifier, /"otool" @\("-arch", \$Architecture, "-l", \$executable\)/);
 });
 
 void test("supplemental macOS packaging source check retains BSD-compatible chmod syntax", () => {
@@ -897,19 +899,23 @@ $last = [Array]::FindIndex($statements, [Predicate[object]]{param($n) $n -is [Ma
 if ($first -lt 0 -or $last -le $first) { throw 'library consumer unavailable' }
 $consumer = [scriptblock]::Create(($statements[$first..($last-1)] | ForEach-Object { $_.Extent.Text }) -join "\n")
 $PlatformLabel = 'windows-x86_64'
+$ExpectedCliApi = 100
 $executable = 'Invoke-FixtureCli'
 function Invoke-FixtureCli {
   $global:LASTEXITCODE = 0
   if ($args[-1] -eq 'capabilities') { return $script:capabilities | ConvertTo-Json -Compress }
   return $script:selection | ConvertTo-Json -Compress
 }
-foreach ($case in @('valid','wrong-library','wrong-provenance','missing-root','missing-exec','missing-show','missing-recover','wrong-capabilities-command')) {
+foreach ($case in @('valid','wrong-library','wrong-provenance','missing-root','missing-exec','missing-show','missing-recover','wrong-capabilities-command','wrong-api-envelope','wrong-api-data','missing-api')) {
   $script:selection = @{ok=$true; command='library.show'; data=@{source='invocation';root=$library}}
-  $script:capabilities = @{ok=$true; command='capabilities'; data=@{raw_stream_commands=@('exec');commands=@('launch.show','launch.recover')}}
+  $script:capabilities = @{ok=$true; command='capabilities'; schema_version=100; data=@{schema_version=100;raw_stream_commands=@('exec');commands=@('launch.show','launch.recover')}}
   if ($case -eq 'missing-exec') { $script:capabilities.data.raw_stream_commands = @() }
   if ($case -eq 'missing-show') { $script:capabilities.data.commands = @('launch.recover') }
   if ($case -eq 'missing-recover') { $script:capabilities.data.commands = @('launch.show') }
   if ($case -eq 'wrong-capabilities-command') { $script:capabilities.command = 'other' }
+  if ($case -eq 'wrong-api-envelope') { $script:capabilities.schema_version = 93 }
+  if ($case -eq 'wrong-api-data') { $script:capabilities.data.schema_version = 93 }
+  if ($case -eq 'missing-api') { $script:capabilities.data.Remove('schema_version') }
   if ($case -eq 'valid') { $script:selection.data.root = "  $library  " }
   if ($case -eq 'wrong-library') { $script:selection.data.root = [IO.Path]::GetTempPath() }
   if ($case -eq 'wrong-provenance') { $script:selection.data.source = 'environment' }

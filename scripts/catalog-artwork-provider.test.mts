@@ -8,6 +8,120 @@ import type { ArtworkPreparationOptions } from "./inspect-igdb-artwork.mts";
 
 import { requiredFixture, text, root } from "./fixtures/catalog-generator-fixtures.mts";
 
+void test("a regional cover refresh refuses a mismatched localization and preserves accepted art", async () => {
+  const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
+  const selection = {
+    game_id: 1,
+    slug: "original",
+    name: "Original",
+    platform_id: 7,
+    localization_id: 2,
+    region_id: 4,
+    cover_id: 9,
+    image_id: "localized",
+  };
+  const mapping = {
+    game_id: 1,
+    game_slug: "original",
+    cover_id: 9,
+    image_id: "localized",
+    image_sha256: "a".repeat(64),
+    match_kind: "underlying-game",
+  };
+  const project_url = "https://github.com/owner/port";
+  const regional = {
+    id: "regional",
+    name: "Regional",
+    project_url,
+    igdb_regional_cover: selection,
+    presentation: { artwork: mapping },
+  };
+  const game = {
+    id: 1,
+    name: "Original",
+    slug: "original",
+    platforms: [7],
+    cover: { id: 8, image_id: "maincover" },
+    game_localizations: [
+      { id: 2, game: 1, region: 3, cover: { id: 9, image_id: "localized", game_localization: 2 } },
+    ],
+  };
+
+  const catalog = { ports: [regional] };
+  const { igdb_regional_cover: _, ...projected } = regional;
+  const inspectedImages: string[] = [];
+  const refreshed = await prepareCatalogArtwork(
+    { ports: [projected] },
+    {
+      acceptedCatalog: catalog,
+      refreshPortIds: ["regional"],
+      inspectGame: () => [game],
+      inspectImage: (id) => {
+        inspectedImages.push(id);
+        throw new Error("Unexpected image");
+      },
+    },
+  );
+  assert.equal(refreshed.records[0]?.reason, "accepted-mapping-retained-after-unavailable-refresh");
+  assert.equal(
+    refreshed.records[0]?.exceptions[0]?.reason,
+    "regional-cover-unavailable-or-mismatched",
+  );
+  assert.deepEqual(refreshed.records[0]?.mapping, mapping);
+  assert.equal(inspectedImages.length, 0);
+
+  const wrongArt = {
+    ...regional,
+    presentation: { artwork: { ...mapping, cover_id: 8, image_id: "maincover" } },
+  };
+  const stale = await prepareCatalogArtwork(
+    { ports: [wrongArt] },
+    {
+      acceptedCatalog: { ports: [wrongArt] },
+      inspectGame: () => [game],
+      inspectImage: (id) => {
+        inspectedImages.push(id);
+        throw new Error("Unexpected image");
+      },
+    },
+  );
+  assert.equal(stale.records[0]?.reason, "generated-fallback");
+  assert.equal(stale.records[0]?.mapping, null);
+  assert.equal(inspectedImages.length, 0);
+
+  const generic = {
+    id: "generic",
+    name: "Generic",
+    project_url,
+    underlying_game: {
+      names: ["Original"],
+      platform_ids: [7],
+      game_id: 1,
+      slug: "original",
+      evidence_url: project_url,
+    },
+  };
+  const ordinary = await prepareCatalogArtwork(
+    { ports: [generic] },
+    {
+      acceptedCatalog: catalog,
+      inspectGame: (identity) => (identity.kind === "port" ? [] : [game]),
+      inspectImage: (id) => {
+        assert.equal(id, "maincover");
+        return {
+          bytes: 100,
+          width: 264,
+          height: 374,
+          sha256: "b".repeat(64),
+          format: "jpeg",
+          validator: "portcove-core",
+        };
+      },
+    },
+  );
+  assert.equal(ordinary.records[0]?.mapping?.image_id, "maincover");
+});
+
 void test("ordinary names require exact attributable project evidence, including shared repositories", async () => {
   const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
   const catalog = {

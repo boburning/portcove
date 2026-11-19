@@ -3,6 +3,11 @@ import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto
 import { closeSync, fstatSync, lstatSync, openSync, readSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 
+// Must equal Core's signed_catalog::MAX_CATALOG_BYTES. This utility runs without
+// repository imports; sign-catalog.test.mts reads Core's constant and checks the
+// refusal limits this utility reports against it.
+const MAX_CATALOG_BYTES = 16 * 1024 * 1024;
+
 const { values } = parseArgs({
   options: {
     help: { type: "boolean" },
@@ -21,7 +26,7 @@ if (values.help) {
 Create a format-1 signed catalog envelope offline using an existing Ed25519 key.
 
 Options:
-  --catalog FILE        Catalog JSON in a regular file, at most 4194304 bytes (4 MiB).
+  --catalog FILE        Catalog JSON in a regular file, at most 16777216 bytes (16 MiB).
   --key FILE            Ed25519 PKCS#8 PEM private key in a regular file, at most 65536 bytes (64 KiB).
   --sequence N          Positive safe integer, at most 9007199254740991.
   --expires-at SECONDS  Integer Unix seconds, later than issuance by at most 366 days.
@@ -29,7 +34,10 @@ Options:
   --issued-at SECONDS   Nonnegative integer Unix seconds; defaults to the current time.
   --help                Show this help without reading inputs or writing output.
 
-The escaped envelope must also fit within 4194304 bytes (4 MiB).
+The escaped envelope must also fit within 16777216 bytes (16 MiB). Clients before
+library writer protocol 60 refuse envelopes above 4194304 bytes (4 MiB); the
+catalog size guard (node scripts/catalog-capacity.mts --check) reserves growth
+margin below supported limits.
 Successful signing prints the existing public-key, key-ID, sequence and output JSON summary.
 
 Example:
@@ -110,14 +118,24 @@ if (expiresAt - issuedAt > 366 * 86400) {
   );
 }
 const catalog: unknown = JSON.parse(
-  readRegular(values.catalog, 4 * 1024 * 1024, "--catalog").toString("utf8"),
+  readRegular(values.catalog, MAX_CATALOG_BYTES, "--catalog").toString("utf8"),
 );
 if (catalog && typeof catalog === "object" && "ports" in catalog && Array.isArray(catalog.ports)) {
   for (const port of catalog.ports as unknown[]) {
     if (!port || typeof port !== "object") continue;
+    if ("mod_provider_bindings" in port) {
+      throw new Error(
+        "Format-1 signed catalogs cannot deliver mod provider bindings. Use a compatible indexed definition.",
+      );
+    }
     if ("windows_shipwright_persistence" in port && port.windows_shipwright_persistence === true) {
       throw new Error(
         "Format-1 signed catalogs cannot deliver Shipwright working-directory persistence. Use a compatible indexed definition.",
+      );
+    }
+    if ("windows_tracked_handoff" in port && port.windows_tracked_handoff === true) {
+      throw new Error(
+        "Format-1 signed catalogs cannot deliver a Windows tracked handoff. Use a compatible indexed definition.",
       );
     }
     if (
@@ -163,9 +181,9 @@ const envelope = JSON.stringify({
   signature: sign(null, message, privateKey).toString("hex"),
 });
 const envelopeBytes = Buffer.byteLength(envelope);
-if (envelopeBytes > 4 * 1024 * 1024)
+if (envelopeBytes > MAX_CATALOG_BYTES)
   throw new Error(
-    `Signed envelope exceeds the 4194304-byte (4 MiB) limit: received ${envelopeBytes} bytes after JSON escaping. Reduce the catalog size.`,
+    `Signed envelope exceeds the 16777216-byte (16 MiB) limit: received ${envelopeBytes} bytes after JSON escaping. Reduce the catalog size.`,
   );
 writeFileSync(values.output, envelope, { flag: "wx" });
 process.stdout.write(

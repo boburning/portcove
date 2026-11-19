@@ -403,6 +403,7 @@ fn fixture_with_catalog(
             size: bytes.len() as u64,
             sha256: crate::signed_catalog::digest(&bytes),
         },
+        uploader_continuity: None,
     };
     let mut service = crate::test_fixture::phase("acquisition fixture: initialize service", || {
         PortcoveService::with_provider(library, Arc::new(Provider(release))).unwrap()

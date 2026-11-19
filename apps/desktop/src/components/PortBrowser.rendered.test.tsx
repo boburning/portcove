@@ -230,6 +230,47 @@ describe("desktop components", () => {
     ).toBe(expectedAvailable);
   });
 
+  it("counts Discover cards as games while Library keeps its separate-port count", () => {
+    const originalGame = {
+      format_version: 1,
+      id: "shared-game",
+      evidence_urls: [],
+      source_editions: [],
+    };
+    const presentation = {
+      ...port.presentation!,
+      original_game_title: "Shared",
+      original_game: originalGame,
+    };
+    const grouped = [
+      { ...port, id: "shared-one", name: "Shared one", presentation },
+      { ...port, id: "shared-two", name: "Shared two", presentation },
+    ];
+    const ungrouped = { ...port, id: "solo", name: "Solo port" };
+    const count = (view: "catalog" | "library", ports: (typeof port)[]) => {
+      const html = renderToStaticMarkup(
+        <PortBrowser
+          view={view}
+          ports={ports}
+          statuses={new Map()}
+          overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+          filter="all"
+          setFilter={vi.fn()}
+          onSelect={vi.fn()}
+          loading={false}
+        />,
+      );
+      return /<p[^>]*aria-label="Search results"[^>]*>([^<]*)<\/p>/u.exec(html)?.[1];
+    };
+    // One card per game: two ports of one game plus one ungrouped port are two games.
+    expect(count("catalog", [...grouped, ungrouped])).toBe("2 games");
+    expect(count("catalog", grouped)).toBe("1 game");
+    expect(count("catalog", [ungrouped])).toBe("1 game");
+    expect(count("library", [...grouped, ungrouped])).toBe(
+      "1 game + 1 ungrouped project · 3 matching ports",
+    );
+  });
+
   it("renders port cards and empty states", () => {
     const overview = { installed: 0, ready: 0, needsSetup: 0, staged: 0 };
     const cards = renderToStaticMarkup(

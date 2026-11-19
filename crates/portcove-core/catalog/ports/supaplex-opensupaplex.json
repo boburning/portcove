@@ -1,0 +1,62 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "supaplex-opensupaplex",
+    "name": "OpenSupaplex",
+    "original_game_title": "Supaplex",
+    "artwork": {
+      "game_id": 14418,
+      "cover_id": 253827,
+      "image_id": "co5fur",
+      "image_sha256": "e996680efe55bd7bd6788d77f091849bbcb43115507a8abd39af6180cd77bbd0",
+      "game_slug": "supaplex",
+      "match_kind": "underlying-game"
+    },
+    "summary": "Guide Murphy through puzzles, collect Infotrons and avoid falling Zonks.",
+    "project_url": "https://github.com/sergiou87/open-supaplex",
+    "issue_number": 5684,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/sergiou87/open-supaplex/releases/tag/v7.2.2",
+    "setup_url": "https://github.com/sergiou87/open-supaplex/blob/v7.2.2/README.md",
+    "download_block_reason": "Use a copy you have permission to use. The publisher packages include original Supaplex resources and community level packs.",
+    "manual_setup": {
+      "help_url": "https://github.com/sergiou87/open-supaplex/blob/v7.2.2/README.md",
+      "steps": [
+        {
+          "title": "Open a Windows or Linux copy",
+          "instruction": "Extract the complete Windows x86-64 or Linux x86-64 ZIP into a writable folder. Open OpenSupaplex.exe on Windows or run OpenSupaplex from the extracted folder on Linux. Keep the packaged level files and audio beside the program. The Linux build needs glibc 2.34 or newer, SDL2 and SDL2_mixer."
+        },
+        {
+          "title": "Open a Mac copy",
+          "instruction": "Open the complete OpenSupaplex.app from the publisher’s macOS ZIP. The inspected build and its bundled frameworks require macOS 10.13 or later on Intel and macOS 11 or later on Apple Silicon."
+        },
+        {
+          "title": "Keep your progress before replacing the game",
+          "instruction": "Back up the working folder on Windows and in the publisher’s Linux ZIP. On Mac, back up ~/Library/Application Support/OpenSupaplex. Keep PLAYER.LST, HALLFAME.LST, SUPAPLEX.CFG, ADVANCED.CFG, any SAVEGAME files and any added levels."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Play the original levels in a separate Linux folder",
+          "instruction": "If you have permission to use both the Linux player and the original Supaplex SpeedFix 6.3 files, keep the original archive and place a working copy of its data files beside the OpenSupaplex executable in a separate writable folder. Run OpenSupaplex from that folder. The old DOS executable is unnecessary. The separate original data does not include the newer player's packaged music."
+        },
+        {
+          "title": "Save and resume an original level",
+          "instruction": "For a single snapshot in the working folder, start OpenSupaplex with --force-savegame-sav. Press Ctrl+W during the level to write SAVEGAME.SAV. Close the game before copying that file. To resume in a fresh folder with the same original data, copy the snapshot there and start with --load-savegame."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "supaplex",
+      "evidence_urls": [
+        "https://github.com/sergiou87/open-supaplex/blob/v7.2.2/README.md",
+        "https://github.com/sergiou87/open-supaplex"
+      ],
+      "source_editions": []
+    }
+  }
+}

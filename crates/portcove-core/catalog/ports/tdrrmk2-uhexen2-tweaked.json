@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "tdrrmk2-uhexen2-tweaked",
+    "artwork": {
+      "game_id": 6637,
+      "cover_id": 123981,
+      "image_id": "co2nnx",
+      "image_sha256": "8cebb6f64cbae0c0fc025f79b1c752fbe67bbf0b225162563779a15060a2ec58",
+      "game_slug": "hexen-ii",
+      "match_kind": "underlying-game"
+    },
     "name": "Hexen II / uHexen2 Tweaked",
     "original_game_title": "Hexen II",
     "summary": "Play Hexen II with the upstream Tweaked OpenGL player and your prepared original game files.",
@@ -9,35 +17,79 @@
     "issue_number": 2747,
     "listed_at": "2026-10-26",
     "availability": "packages",
-    "platforms": ["windows-x86-64"],
     "release_url": "https://github.com/TDRRmk2/uhexen2-tweaked/releases",
     "setup_url": "https://github.com/TDRRmk2/uhexen2-tweaked#readme",
     "manual_setup": {
       "steps": [
         {
-          "title": "Prepare a separate working game copy",
-          "instruction": "Use your own documented Hexen II installation, normally retail 1.11 with data1/pak0.pak and data1/pak1.pak. Keep the original installation recoverable. The test ZIP contains the player and libraries, not original data or the patching tools described in the general Hammer of Thyrion instructions."
+          "title": "Copy your original game data before Play",
+          "instruction": "Copy pak0.pak and pak1.pak from your own retail Hexen II installation, patched to version 1.11, into the data1 folder of the game folder you will play from, and keep your original installation separately. The engine refuses older or mixed pak versions; nothing patches them for you, and the package contains no game data or patching tools."
         },
         {
-          "title": "Select the OpenGL player",
-          "instruction": "Extract the complete Windows test ZIP into that prepared working copy. Select glh2.exe with the working game folder, then choose Play. This is a Win32 OpenGL Hexen II preview, not HexenWorld."
+          "title": "Use a copy you manage yourself",
+          "instruction": "Extract the complete Windows test ZIP into a separate working Hexen II folder that already holds data1. Select glh2.exe with that folder, then choose Play. This is a Win32 OpenGL Hexen II preview, not HexenWorld."
         }
       ],
       "warnings": [
-        "Updates remain upstream/player-owned. Portcove registration does not manage original data, patching, saves or expansion compatibility.",
-        "Back up the complete folder before applying upstream updates, including portals or custom mod folders when used. Portal of Praevus requires its own portals/pak3.pak and the separate launch argument -portals."
+        "The test package bundles ten third-party codec and runtime DLLs without their licence notices. Portcove downloads the package only from the project’s own releases. You need your own original game files.",
+        "Portal of Praevus, HexenWorld and mods are not part of this route; they need other programs, folders or arguments in a copy you manage yourself. Portal of Praevus needs portals/pak3.pak and the -portals argument."
       ],
       "help_url": "https://github.com/TDRRmk2/uhexen2-tweaked#readme",
       "references": [
         {
-          "title": "Preserve the whole working copy",
-          "instruction": "Windows saves, configuration, demos and screenshots use the selected game directory, normally data1. Back up the complete folder before applying upstream updates, including portals or custom mod folders when used. Portal of Praevus requires its own portals/pak3.pak and the separate launch argument -portals."
+          "title": "Keep the game folder's saves and settings",
+          "instruction": "Saves, configuration, demos and screenshots go to data1 inside the working folder, and startup logging can write debug_h2.log beside glh2.exe. Back up the complete folder before replacing the player in a copy you manage yourself."
+        },
+        {
+          "title": "Build a separate Linux demo player",
+          "instruction": "On Linux x86-64, build the test-1 tag from engine/hexen2 with make DEMO=1 h2 and the SDL 1.2, ALSA, libmad and Vorbis development libraries. The OpenGL source target needs a header missing from the tag. Put the resulting hexen2 executable beside the complete data1 folder from Hammer of Thyrion’s November 1997 Linux AMD64 demo package. Use the whole folder, including progs.dat. Open the folder and run ./hexen2."
+        },
+        {
+          "title": "Keep the Linux demo profile",
+          "instruction": "The Linux demo keeps its saves and settings in ~/.hexen2demo, separate from the Windows retail copy. Back up that profile before replacing your Linux build. The Tweaked publisher offers a Windows package. Intel and Apple Silicon Mac binaries and an Android package are unavailable for this fork’s release."
         }
       ]
     },
-    "download_asset_hints": {
-      "windows-x86-64": ["H2HoT-Tweaked-", "-win32.zip"]
+    "recommended_download_channel": "beta",
+    "original_game": {
+      "format_version": 1,
+      "id": "hexen-ii",
+      "evidence_urls": [
+        "https://github.com/TDRRmk2/uhexen2-tweaked#readme",
+        "https://github.com/TDRRmk2/uhexen2-tweaked"
+      ],
+      "source_editions": []
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "TDRRmk2/uhexen2-tweaked",
+      "asset_hints": {
+        "windows-x86-64": ["H2HoT-Tweaked-", "-win32.zip"]
+      }
     },
-    "recommended_download_channel": "beta"
-  }
+    "executable_hints": {
+      "windows-x86-64": ["glh2.exe"]
+    },
+    "windows_runtime_path_policy": "printable-ascii-max-path",
+    "persistent_paths": ["data1", "debug_h2.log"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Before Play, copy pak0.pak and pak1.pak from your own retail Hexen II installation, patched to version 1.11, into data1 in the managed player's folder, and keep your original installation separately. Portcove does not check these files and nothing patches them; the engine refuses older or mixed versions. data1 also receives saves, configuration, demos and screenshots, and Portcove keeps it, together with debug_h2.log when startup logging is enabled, when it updates, backs up or rolls back the player. This Win32 preview runs the base game only; Portal of Praevus, HexenWorld and mods stay in copies you manage yourself. Use a short library path containing plain ASCII characters for this Windows build; Portcove refuses other install folders before downloading."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["glh2.exe"]
+      }
+    }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

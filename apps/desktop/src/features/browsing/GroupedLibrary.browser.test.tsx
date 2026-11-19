@@ -2,7 +2,12 @@ import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
-import { portDefinition, portStatus } from "../../test-fixtures";
+import {
+  fixtureValue,
+  installedLaunchStatus,
+  portDefinition,
+  portStatus,
+} from "../../test-fixtures";
 import type { LibraryOrganization, OrganizationChange } from "../../types";
 import { OrganizationControls, type Organization } from "../organization/OrganizationControls";
 import { GroupedLibrary } from "./GroupedLibrary";
@@ -12,6 +17,9 @@ import { useOrganization } from "../organization/use-organization";
 import { PortBrowser } from "../../components/PortBrowser";
 import { install } from "../../dev-scenarios/interactive/scenarios";
 import { browserFixture } from "../../../test/browser-fixture";
+import { captureParityState } from "../../../test/parity-capture";
+import { OperationPresentationProvider } from "../operations/operation-presentation";
+import { comparisonFixture } from "../recommendations/comparison-test-fixture";
 import "../../styles/index.css";
 
 let fixture: ReturnType<typeof browserFixture>;
@@ -108,6 +116,7 @@ it("requires an acknowledged choice, retains alternatives and targets the chosen
   );
   expect(document.body.textContent).not.toContain("Play First project");
   await page.getByRole("button", { name: "Choose Second project", exact: true }).first().click();
+  expect(write).toHaveBeenCalledTimes(1);
   expect(document.body.textContent).not.toContain("Play Second project");
   accept(false);
   await expect
@@ -223,7 +232,6 @@ it("a completed choice never navigates from a dismissed comparison", async () =>
       matching={[first, second]}
       statuses={new Map()}
       onSelect={select}
-      onFavoriteToggle={vi.fn()}
       organization={{
         snapshot: empty,
         busy: false,
@@ -451,7 +459,6 @@ it("presents grouped Discover cards and the comparison in the active locale", as
         matching={[first, second]}
         statuses={new Map()}
         onSelect={vi.fn()}
-        onFavoriteToggle={vi.fn()}
       />,
     );
     expect(document.querySelector("article")?.getAttribute("aria-label")).toBe(
@@ -487,7 +494,6 @@ it("names a chosen port in a multi-port group with its matching project and acti
         matching={[first]}
         statuses={new Map()}
         onSelect={vi.fn()}
-        onFavoriteToggle={vi.fn()}
       />,
     );
     const identity = () =>
@@ -508,3 +514,377 @@ it("names a chosen port in a multi-port group with its matching project and acti
     await localization.changeLanguage("en");
   }
 });
+
+it("on a known device, replaces Discover platform chips with an exception for excluded ports", async () => {
+  const windowsOnly = { ...portDefinition(), id: "windows-only", name: "Windows only" };
+  const linuxOnly = {
+    ...portDefinition(),
+    id: "linux-only",
+    name: "Linux only",
+    platforms: ["linux-x86-64" as const],
+  };
+  const unlisted = { ...portDefinition(), id: "unlisted", name: "Unlisted", platforms: [] };
+  const ports = [windowsOnly, linuxOnly, unlisted];
+  const card = (id: string) =>
+    [...document.querySelectorAll<HTMLElement>(".discover-game")].find((item) =>
+      (JSON.parse(item.dataset.discoverPortIds!) as string[]).includes(id),
+    )!;
+  const platformChips = (id: string) =>
+    [...card(id).querySelectorAll('[title="Runs on"]')].map((chip) => chip.textContent?.trim());
+  const screen = await render(
+    <GroupedDiscover
+      all={ports}
+      matching={ports}
+      statuses={new Map()}
+      onSelect={vi.fn()}
+      devicePlatform="windows-x86-64"
+    />,
+  );
+  for (const id of ["windows-only", "linux-only", "unlisted"])
+    expect(platformChips(id)).toEqual([]);
+  // Only a port whose listed platforms exclude this device names the exception.
+  expect(card("linux-only").textContent).toContain("Not available for Windows");
+  expect(card("windows-only").textContent).not.toContain("Not available for");
+  // An unlisted platform is unknown, not a known exclusion.
+  expect(card("unlisted").textContent).not.toContain("Not available for");
+
+  await screen.rerender(
+    <GroupedDiscover all={ports} matching={ports} statuses={new Map()} onSelect={vi.fn()} />,
+  );
+  // Without a known device, every card keeps listing its platforms.
+  expect(platformChips("windows-only")).toEqual(["Windows"]);
+  expect(platformChips("linux-only")).toEqual(["Linux"]);
+  expect(document.body.textContent).not.toContain("Not available for");
+});
+
+it("names the device exception in the active locale", async () => {
+  const { initializeLocalization } = await import("../../localization");
+  const localization = initializeLocalization(["en-US"]);
+  const linuxOnly = {
+    ...portDefinition(),
+    id: "linux-only",
+    name: "Linux only",
+    platforms: ["linux-x86-64" as const],
+  };
+  try {
+    await render(
+      <GroupedDiscover
+        all={[linuxOnly]}
+        matching={[linuxOnly]}
+        statuses={new Map()}
+        onSelect={vi.fn()}
+        devicePlatform="macos-aarch64"
+      />,
+    );
+    expect(document.body.textContent).toContain("Not available for Apple silicon");
+    await localization.changeLanguage("es");
+    await expect
+      .poll(() => document.body.textContent)
+      .toContain("No disponible para Apple silicon");
+  } finally {
+    await localization.changeLanguage("en");
+  }
+});
+
+it("omits empty rows from a single-port review while a comparison keeps every row aligned", async () => {
+  const bare = {
+    ...first,
+    platforms: [],
+    channels: [],
+    presentation: { ...first.presentation, source_requirements: [] },
+  };
+  const rows = () => [...document.querySelectorAll("[role=dialog] h4")].map((h) => h.textContent);
+  const dialogText = () => document.querySelector("[role=dialog]")?.textContent ?? "";
+
+  const single = await render(
+    <GroupedDiscover
+      all={[bare]}
+      matching={[bare]}
+      statuses={new Map([[bare.id, { ...portStatus(), port_id: bare.id }]])}
+      onSelect={vi.fn()}
+    />,
+  );
+  await page.getByRole("button", { name: "Why this port?", exact: true }).click();
+  await expect.element(page.getByRole("dialog")).toBeVisible();
+  // No setup method, no listed files and no installation: nothing to show for those rows.
+  expect(rows()).not.toContain("How to set it up");
+  expect(rows()).not.toContain("Required files");
+  expect(rows()).not.toContain("Who handles updates");
+  expect(dialogText()).not.toContain("No platform is listed.");
+  expect(dialogText()).not.toContain("No update channel is listed.");
+  expect(dialogText()).not.toContain("Unavailable in this catalog");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+
+  // A single port with values keeps those rows.
+  const described = {
+    ...first,
+    presentation: {
+      ...first.presentation,
+      installation_method: "portable-package" as const,
+      source_requirements: [
+        {
+          role: "game" as const,
+          profile_id: "fixture-copy",
+          label: "Your fixture copy",
+          verification: "catalog-identity" as const,
+        },
+      ],
+    },
+  };
+  await single.rerender(
+    <GroupedDiscover
+      all={[described]}
+      matching={[described]}
+      statuses={new Map([[described.id, installedLaunchStatus()]])}
+      onSelect={vi.fn()}
+    />,
+  );
+  await page.getByRole("button", { name: "Why this port?", exact: true }).click();
+  await expect.element(page.getByRole("dialog")).toBeVisible();
+  expect(rows()).toEqual(
+    expect.arrayContaining(["How to set it up", "Required files", "Who handles updates"]),
+  );
+  expect(dialogText()).toContain("Download and install");
+  expect(dialogText()).toContain("Your fixture copy");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+
+  // An optional game source is not listed under a heading that says "Required".
+  const optional = { ...described, optional_game_source: true };
+  await single.rerender(
+    <GroupedDiscover
+      all={[optional]}
+      matching={[optional]}
+      statuses={new Map([[optional.id, installedLaunchStatus()]])}
+      onSelect={vi.fn()}
+    />,
+  );
+  await page.getByRole("button", { name: "Why this port?", exact: true }).click();
+  await expect.element(page.getByRole("dialog")).toBeVisible();
+  expect(rows()).toContain("Optional files");
+  expect(rows()).not.toContain("Required files");
+  expect(dialogText()).toContain("Your fixture copy");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+
+  // Two ports keep every row, including the absences, so they line up for comparison.
+  const other = { ...bare, id: "other-port", name: "Other project" };
+  await single.rerender(
+    <GroupedDiscover
+      all={[bare, other]}
+      matching={[bare, other]}
+      statuses={new Map()}
+      onSelect={vi.fn()}
+    />,
+  );
+  await page.getByRole("button", { name: "Compare ports", exact: true }).click();
+  await expect.element(page.getByRole("dialog")).toBeVisible();
+  const headings = rows();
+  for (const row of ["How to set it up", "Required files", "Who handles updates"])
+    expect(headings.filter((heading) => heading === row)).toHaveLength(2);
+  expect(dialogText().split("No platform is listed.")).toHaveLength(3);
+  expect(dialogText().split("No update channel is listed.")).toHaveLength(3);
+  expect(dialogText()).toContain("Unavailable in this catalog");
+  expect(dialogText()).toContain("Requirements are not listed here.");
+});
+
+it.each([
+  { mode: "both", width: 960, theme: "dark", reports: "all", single: false },
+  { mode: "mixed", width: 430, theme: "light", reports: "first", single: false },
+  { mode: "mixed", width: 960, theme: "dark", reports: "first", single: false },
+  { mode: "omitted", width: 960, theme: "dark", reports: "none", single: false },
+  { mode: "bare", width: 430, theme: "light", reports: "none", single: true },
+  { mode: "described", width: 960, theme: "dark", reports: "all", single: true },
+] as const)(
+  "keeps $mode comparison information above status and actions at $width px in $theme",
+  async ({ mode, width, theme, reports, single }) => {
+    await page.viewport(width, width < 600 ? 780 : 800);
+    document.documentElement.dataset.theme = theme;
+    const implementation = {
+      format_version: 1,
+      methods: [
+        {
+          kind: "engine-reimplementation" as const,
+          note: "SYNTHETIC presentation fixture with complete project evidence. ".repeat(5),
+          evidence_urls: ["https://example.com/fixture-method"],
+        },
+      ],
+      dependencies: [],
+    };
+    const ports = (single ? [first] : [first, second]).map((port, index) => {
+      const hasMetadata =
+        mode === "both" || ((mode === "mixed" || mode === "described") && index === 0);
+      return {
+        ...port,
+        name: width < 600 ? `${port.name} with a long wrapped project identity` : port.name,
+        ...(mode === "bare" ? { platforms: [], channels: [] } : {}),
+        presentation: {
+          ...port.presentation,
+          ...(mode === "bare"
+            ? { source_requirements: [] }
+            : {
+                installation_method: "portable-package" as const,
+                source_requirements: [
+                  {
+                    role: "game" as const,
+                    profile_id: "fixture-copy",
+                    label: "Your fixture copy",
+                    verification: "catalog-identity" as const,
+                  },
+                ],
+              }),
+          ...(hasMetadata
+            ? { implementation }
+            : index === 1
+              ? { implementation: { format_version: 999, methods: [], dependencies: [] } }
+              : {}),
+        },
+      };
+    });
+    const reportPorts = reports === "none" ? [] : reports === "first" ? ports.slice(0, 1) : ports;
+    const compare = vi.spyOn(desktopApi, "compareGamePorts").mockResolvedValue(
+      comparisonFixture(ports[0]!.id, {
+        game_id: "original-game",
+        assessment: null,
+        ports: reportPorts.map((port) => ({
+          ...fixtureValue(comparisonFixture(port.id).ports[0], "comparison report port"),
+          name: port.name,
+          offered_release: null,
+        })),
+      }),
+    );
+    const commit = vi.fn(async () => true);
+    const organization: Organization = {
+      snapshot: empty,
+      busy: false,
+      failure: undefined,
+      commit,
+      refresh: async () => true,
+    };
+    const statuses = new Map(
+      ports.map((port) => [
+        port.id,
+        mode === "bare"
+          ? { ...portStatus(), port_id: port.id }
+          : {
+              ...installedLaunchStatus(),
+              port_id: port.id,
+              active: { ...install, id: `fixture-${port.id}`, port_id: port.id },
+            },
+      ]),
+    );
+    const select = vi.fn();
+    await render(
+      <OperationPresentationProvider generation={1} pending={new Map()}>
+        <GroupedDiscover
+          all={ports}
+          matching={ports}
+          statuses={statuses}
+          organization={organization}
+          onSelect={select}
+        />
+      </OperationPresentationProvider>,
+    );
+    await page
+      .getByRole("button", { name: single ? "Why this port?" : "Compare ports", exact: true })
+      .click();
+    await expect.element(page.getByRole("dialog")).toBeVisible();
+    await expect.poll(() => compare.mock.calls.length).toBeGreaterThan(0);
+    await expect
+      .poll(() => document.querySelectorAll('[aria-label^="Reports and updates for "]').length)
+      .toBe(reportPorts.length);
+    await document.fonts.ready;
+    const cards = [...document.querySelectorAll<HTMLElement>(".port-comparison-project")];
+    expect(cards).toHaveLength(ports.length);
+    const geometry = () =>
+      cards.map((card) => {
+        const heading = [...card.querySelectorAll("h4")].find(
+          (item) => item.textContent === "Current status",
+        );
+        const status = fixtureValue(heading?.parentElement, "comparison current status");
+        const footer = fixtureValue(card.lastElementChild, "comparison footer");
+        const actions = [...footer.querySelectorAll<HTMLElement>("button, a")];
+        expect(actions.length).toBeGreaterThan(0);
+        const text = document.createRange();
+        text.selectNodeContents(status);
+        const statusBounds = text.getBoundingClientRect();
+        const firstActionTop = Math.min(
+          ...actions.map((action) => action.getBoundingClientRect().top),
+        );
+        expect(statusBounds.bottom).toBeLessThanOrEqual(firstActionTop);
+        const cardBounds = card.getBoundingClientRect();
+        for (const action of actions) {
+          const bounds = action.getBoundingClientRect();
+          expect(bounds.width).toBeGreaterThan(0);
+          expect(bounds.height).toBeGreaterThan(0);
+          expect(bounds.left).toBeGreaterThanOrEqual(cardBounds.left);
+          expect(bounds.right).toBeLessThanOrEqual(cardBounds.right);
+          expect(bounds.bottom).toBeLessThanOrEqual(cardBounds.bottom);
+        }
+        expect(card.scrollWidth).toBeLessThanOrEqual(card.clientWidth + 1);
+        const projectDetails = [...card.querySelectorAll("details")].filter((details) =>
+          details
+            .querySelector(":scope > summary")
+            ?.textContent?.startsWith("How this project works"),
+        );
+        for (const details of projectDetails) {
+          // An expanded peer must not stretch a closed disclosure into a blank grid track.
+          const children = details.open
+            ? [...details.children]
+            : [fixtureValue(details.querySelector(":scope > summary"), "project summary")];
+          const visible = children
+            .map((child) => child.getBoundingClientRect())
+            .filter((bounds) => bounds.width > 0 && bounds.height > 0);
+          expect(visible.length).toBeGreaterThan(0);
+          const contentHeight =
+            Math.max(...visible.map((bounds) => bounds.bottom)) -
+            Math.min(...visible.map((bounds) => bounds.top));
+          expect(
+            Math.abs(details.getBoundingClientRect().height - contentHeight),
+          ).toBeLessThanOrEqual(1);
+        }
+        return { status, footer, statusTop: statusBounds.top, actionTop: firstActionTop };
+      });
+    const capture = async (state: string) => {
+      const rows = geometry();
+      const aligned = (position: "statusTop" | "actionTop") =>
+        rows.every((row) => Math.abs(row[position] - rows[0]![position]) <= 1);
+      const sharedRow = width === 960 || rows.length === 1;
+      expect(aligned("statusTop")).toBe(sharedRow);
+      expect(aligned("actionTop")).toBe(sharedRow);
+      for (const [index, row] of (width < 600 ? rows : rows.slice(0, 1)).entries()) {
+        row.footer.scrollIntoView({ block: "center", behavior: "instant" });
+        const bounds = row.footer.getBoundingClientRect();
+        expect(row.status.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
+        expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+        expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+        await captureParityState(`comparison-${mode}-${state}-status-actions-${index}`);
+      }
+    };
+    await capture("collapsed");
+    const summaries = cards.flatMap((card) =>
+      [...card.querySelectorAll<HTMLElement>("summary")].filter((summary) =>
+        summary.textContent?.startsWith("How this project works"),
+      ),
+    );
+    expect(summaries).toHaveLength(
+      mode === "both" ? 2 : mode === "mixed" || mode === "described" ? 1 : 0,
+    );
+    for (const summary of summaries.slice(0, 1)) {
+      summary.focus();
+      await userEvent.keyboard("{Enter}");
+      expect(summary.closest("details")!.open).toBe(true);
+      expect(document.activeElement).toBe(summary);
+      await capture("expanded");
+      // Capture scrolling must not transfer keyboard ownership away from the disclosure.
+      expect(document.activeElement).toBe(summary);
+      await userEvent.keyboard("{Enter}");
+      expect(summary.closest("details")!.open).toBe(false);
+      geometry();
+    }
+    expect(cards[0]!.textContent?.includes("How to set it up")).toBe(mode !== "bare");
+    expect(select).not.toHaveBeenCalled();
+    expect(commit).not.toHaveBeenCalled();
+  },
+);

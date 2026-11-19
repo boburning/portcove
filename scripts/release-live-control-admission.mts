@@ -1,4 +1,5 @@
 import { capacityDigest, slice4CapacityResources } from "./release-capacity.mts";
+import { matchesRetainedCatalogReviewRecoverySource } from "./release-retained-catalog-review-resources.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   admitProductionInputReader,
@@ -585,7 +586,10 @@ async function authenticateControlSource(
       ...facts,
       capacity_source: capacity,
       resource_policy_matches_controller:
-        admitted.workflow_sha256 === slice4CapacityResources.aggregate_workflow_sha256,
+        admitted.workflow_sha256 === slice4CapacityResources.aggregate_workflow_sha256 ||
+        (purpose === "catalog-publication" &&
+          phase === "coordinator" &&
+          matchesRetainedCatalogReviewRecoverySource(admitted)),
       facts_sha256: capacityDigest(facts),
       authority: "none",
     };

@@ -3,9 +3,10 @@
 
 use portcove_core::{
     Catalog, ErrorCode, ExternalRuntimeRecord, GhostshipRecoveryResult, GithubDeviceLoginResult,
-    GithubDeviceLoginState, LaunchSessionOutcome, LaunchSessionPhase, LaunchSessionRecord,
+    GithubDeviceLoginState, LaunchSessionOutcome, LaunchSessionPhase, LaunchSessionView,
     LibraryIdentity, LibrarySelection, LibrarySelectionSource, PortcoveError,
-    PreparationCleanupPreview, SourceInboxPaths, SourceInboxResolution, SourceInboxResolutionState,
+    PreparationCleanupPreview, RuntimeInspection, RuntimePrerequisiteReport, RuntimePresence,
+    SourceInboxPaths, SourceInboxResolution, SourceInboxResolutionState, WindowsRuntime,
 };
 use schemars::JsonSchema;
 
@@ -215,6 +216,7 @@ pub(crate) fn artwork_state(state: &portcove_core::ArtworkState, catalog: &Catal
     let slot = match state.choice.slot {
         ArtworkSlot::Cover => "Cover",
         ArtworkSlot::Detail => "Detail image",
+        ArtworkSlot::Landscape => "Landscape image",
     };
     let availability = match state.availability {
         ArtworkAvailability::Fallback => "Generated fallback",
@@ -234,6 +236,9 @@ pub(crate) fn artwork_state(state: &portcove_core::ArtworkState, catalog: &Catal
     if let Some(asset) = &state.selection {
         output.push_str(&format!("\n{}", artwork_asset(asset)));
     }
+    if let Some(credits) = artwork_credits(&state.attribution) {
+        output.push_str(&format!("\n{credits}"));
+    }
     if let Some(reason) = &state.reason {
         output.push_str(&format!(
             "\nReason: {}",
@@ -241,6 +246,29 @@ pub(crate) fn artwork_state(state: &portcove_core::ArtworkState, catalog: &Catal
         ));
     }
     output
+}
+
+/// Provider credits stay with the image wherever it is shown.
+pub(crate) fn artwork_credits(attribution: &[portcove_core::ArtworkAttribution]) -> Option<String> {
+    if attribution.is_empty() {
+        return None;
+    }
+    Some(
+        attribution
+            .iter()
+            .map(|credit| {
+                let provider = match credit.provider {
+                    portcove_core::ArtworkProvider::Steamgriddb => "SteamGridDB",
+                };
+                format!(
+                    "Image by {} on {provider} (image {})",
+                    human::clean(&credit.author_name),
+                    credit.asset_id
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n"),
+    )
 }
 
 pub(crate) fn artwork_handoff(
@@ -285,10 +313,18 @@ pub(crate) fn artwork_handoff(
             DestinationArtworkUnavailableReason::SelectedOriginalUnavailable => {
                 "\nThe selected local original is unavailable."
             }
-            DestinationArtworkUnavailableReason::SelectedImageNotWide => {
-                "\nThe selected detail image is not displayed wider than tall, so it is not offered as a wide role."
-            }
+            DestinationArtworkUnavailableReason::SelectedImageNotWide => match handoff.role {
+                DestinationArtworkRole::LandscapeCover => {
+                    "\nThe selected landscape image is not displayed wider than tall, so it is not offered as a wide role."
+                }
+                _ => {
+                    "\nThe selected detail image is not displayed wider than tall, so it is not offered as a wide role."
+                }
+            },
         }),
+    }
+    if let Some(credits) = artwork_credits(&handoff.attribution) {
+        output.push_str(&format!("\n{credits}"));
     }
     output.push_str("\nThis observation does not grant destination ownership, copyright permission, or consent to write there.");
     output
@@ -321,12 +357,17 @@ pub(crate) fn unused_artwork(assets: &[portcove_core::LocalArtworkAsset]) -> Str
 }
 
 pub(crate) fn launch_record(
-    record: Option<&LaunchSessionRecord>,
+    view: Option<&LaunchSessionView>,
     request_id: &str,
     catalog: Option<&Catalog>,
     technical: bool,
 ) -> String {
-    let Some(record) = record else {
+    let Some(LaunchSessionView {
+        record,
+        exit_explanation,
+        runtime_prerequisites: runtime_report,
+    }) = view
+    else {
         return format!(
             "No launch request was found for {}. No game was started by this read.\nNext step: Check the request ID and use the same --library as the original launch.",
             human::clean(request_id)
@@ -363,12 +404,17 @@ pub(crate) fn launch_record(
     if let Some(exit_code) = record.exit_code {
         output.push_str(&format!("\nGame exit code: {exit_code}"));
     }
-    if let Some(explained) = portcove_core::LaunchSessionView::new(record.clone()).exit_explanation
-    {
+    if let Some(explained) = exit_explanation {
         output.push_str(&format!(
             "\nWhat likely happened: {}\nNext step: {}",
             explained.explanation, explained.next_action
         ));
+    }
+    if let Some(report) = runtime_report
+        && report.missing().next().is_some()
+    {
+        output.push('\n');
+        output.push_str(&runtime_prerequisites(Some(report)));
     }
     if technical && known_catalog.is_none() {
         output.push_str(&format!(
@@ -385,6 +431,90 @@ pub(crate) fn launch_record(
         } else {
             output.push_str("\nUse --technical-details to include redacted recorded details.");
         }
+    }
+    output
+}
+
+fn runtime_name(requirement: &portcove_core::RuntimePrerequisite) -> String {
+    let name = match requirement.runtime {
+        WindowsRuntime::VisualCpp2015OrLater => {
+            "Microsoft Visual C++ Redistributable (2015 or later)".to_owned()
+        }
+        WindowsRuntime::VisualCpp2013 => "Microsoft Visual C++ 2013 Redistributable".to_owned(),
+        WindowsRuntime::VisualCpp2012 => "Microsoft Visual C++ 2012 Redistributable".to_owned(),
+        WindowsRuntime::VisualCpp2010 => "Microsoft Visual C++ 2010 Redistributable".to_owned(),
+        WindowsRuntime::DirectxJune2010 => "DirectX End-User Runtime (June 2010)".to_owned(),
+        WindowsRuntime::Dotnet => {
+            let framework = requirement.framework.as_ref();
+            let product = match framework.map(|framework| framework.name.as_str()) {
+                Some("Microsoft.WindowsDesktop.App") => ".NET Desktop Runtime".to_owned(),
+                Some("Microsoft.AspNetCore.App") => "ASP.NET Core Runtime".to_owned(),
+                Some("Microsoft.NETCore.App") => ".NET Runtime".to_owned(),
+                Some(other) => format!(".NET shared framework {}", human::clean(other)),
+                None => ".NET".to_owned(),
+            };
+            match framework {
+                Some(framework) => format!("{product} {}", human::clean(&framework.version)),
+                None => product,
+            }
+        }
+    };
+    match requirement.architecture {
+        Some(portcove_core::WindowsArchitecture::X86) => format!("{name}, x86"),
+        Some(portcove_core::WindowsArchitecture::X64) => format!("{name}, x64"),
+        Some(portcove_core::WindowsArchitecture::Arm64) => format!("{name}, ARM64"),
+        None => name,
+    }
+}
+
+/// Microsoft runtimes an installed game's program uses. Only a runtime this
+/// Windows host reports absent is called missing.
+pub(crate) fn runtime_prerequisites(report: Option<&RuntimePrerequisiteReport>) -> String {
+    let Some(report) = report else {
+        return "This game has no installation or registered program to check.".to_owned();
+    };
+    match report.inspection {
+        RuntimeInspection::NotWindowsProgram => {
+            return "The game's program isn't a Windows program, so it doesn't use Microsoft's Windows runtimes.".to_owned();
+        }
+        RuntimeInspection::Unreadable => {
+            return "Portcove couldn't read the game's program, so it can't tell which Microsoft runtimes it needs.".to_owned();
+        }
+        RuntimeInspection::Complete | RuntimeInspection::Partial => {}
+    }
+    let mut output = if report.requirements.is_empty() {
+        "The game's program doesn't use any Microsoft runtime Portcove checks for.".to_owned()
+    } else {
+        let mut output = "Microsoft runtimes the game's program uses:".to_owned();
+        for requirement in &report.requirements {
+            let state = match requirement.presence {
+                RuntimePresence::Present => "installed",
+                RuntimePresence::Missing => "most likely missing",
+                RuntimePresence::Unknown => "couldn't check",
+            };
+            output.push_str(&format!("\n- {}: {state}", runtime_name(requirement)));
+            if requirement.presence == RuntimePresence::Missing {
+                output.push_str(&format!(
+                    "\n  Download from Microsoft: {}",
+                    human::clean(&requirement.download_page)
+                ));
+            }
+        }
+        output
+    };
+    if report.inspection == RuntimeInspection::Partial {
+        output.push_str(
+            "\nPortcove couldn't read all of the game's files, so this list may be incomplete.",
+        );
+    }
+    if report.host == portcove_core::RuntimeHostCheck::NotWindows && !report.requirements.is_empty()
+    {
+        output.push_str("\nPortcove checks whether these runtimes are installed only on Windows.");
+    }
+    if report.missing().next().is_some() {
+        output.push_str(
+            "\nNext step: Install the missing runtime from Microsoft's page, then start the game again.",
+        );
     }
     output
 }
@@ -426,6 +556,14 @@ pub(crate) fn error(command: &str, error: &PortcoveError, technical: bool) -> St
         ) => Some((
             "With --non-interactive, auth set-token requires --stdin.",
             "Supply the token through standard input. You can also set PORTCOVE_GITHUB_TOKEN for this environment.",
+            false,
+        )),
+        (
+            ErrorCode::Usage,
+            "artwork steamgriddb set-key requires --stdin under --non-interactive",
+        ) => Some((
+            "With --non-interactive, artwork steamgriddb set-key requires --stdin.",
+            "Supply your SteamGridDB API key through standard input, or run the command without --non-interactive to enter it at a prompt.",
             false,
         )),
         (ErrorCode::Usage, "applying an import requires --expected-plan") => Some((
@@ -487,6 +625,77 @@ pub(crate) fn error(command: &str, error: &PortcoveError, technical: bool) -> St
 #[cfg(test)]
 mod tests {
     use super::*;
+    use portcove_core::LaunchSessionRecord;
+
+    fn view(record: &LaunchSessionRecord) -> LaunchSessionView {
+        LaunchSessionView::new(record.clone())
+    }
+
+    fn runtime_report(value: serde_json::Value) -> RuntimePrerequisiteReport {
+        serde_json::from_value(value).unwrap()
+    }
+
+    #[test]
+    fn runtime_prerequisites_name_only_reported_absences_as_missing() {
+        let report = runtime_report(serde_json::json!({
+            "inspection": "complete", "host": "checked", "requirements": [
+                {"runtime": "visual_cpp_2015_or_later", "architecture": "x64", "presence": "present",
+                 "files": ["vcruntime140.dll"], "download_page": portcove_core::VISUAL_CPP_DOWNLOAD_PAGE},
+                {"runtime": "directx_june_2010", "architecture": "x86", "presence": "missing",
+                 "files": ["d3dx9_43.dll"], "missing_files": ["d3dx9_43.dll"],
+                 "download_page": portcove_core::DIRECTX_DOWNLOAD_PAGE},
+                {"runtime": "dotnet", "architecture": "x64", "presence": "unknown",
+                 "framework": {"name": "Microsoft.WindowsDesktop.App", "version": "8.0.0"},
+                 "download_page": "https://dotnet.microsoft.com/download/dotnet/8.0"}
+            ]
+        }));
+        let text = runtime_prerequisites(Some(&report));
+        assert!(
+            text.contains("Microsoft Visual C++ Redistributable (2015 or later), x64: installed")
+        );
+        assert!(text.contains("DirectX End-User Runtime (June 2010), x86: most likely missing"));
+        assert!(text.contains(&format!(
+            "Download from Microsoft: {}",
+            portcove_core::DIRECTX_DOWNLOAD_PAGE
+        )));
+        assert!(text.contains(".NET Desktop Runtime 8.0.0, x64: couldn't check"));
+        assert!(text.contains("Next step: Install the missing runtime"));
+
+        let unknown = runtime_report(serde_json::json!({
+            "inspection": "partial", "host": "not_windows", "requirements": [
+                {"runtime": "directx_june_2010", "architecture": "x64", "presence": "unknown",
+                 "files": ["xinput1_3.dll"], "download_page": portcove_core::DIRECTX_DOWNLOAD_PAGE}
+            ]
+        }));
+        let text = runtime_prerequisites(Some(&unknown));
+        assert!(!text.contains("missing"), "{text}");
+        assert!(text.contains("only on Windows"));
+        assert!(text.contains("may be incomplete"));
+
+        let mut failed: LaunchSessionRecord = serde_json::from_value(serde_json::json!({
+            "id": "r", "port_id": "unknown", "install_id": "i", "install_root": "/i",
+            "supervisor_pid": 1, "phase": "running", "started_at": 0, "updated_at": 1,
+            "outcome": "failed", "exit_code": -1073741515,
+        }))
+        .unwrap();
+        let mut explained = view(&failed);
+        explained.runtime_prerequisites = Some(report);
+        let text = launch_record(Some(&explained), "r", None, false);
+        assert!(
+            text.contains("DirectX End-User Runtime (June 2010), x86: most likely missing"),
+            "{text}"
+        );
+        assert!(
+            text.contains(portcove_core::DIRECTX_DOWNLOAD_PAGE),
+            "{text}"
+        );
+        explained.runtime_prerequisites = Some(unknown);
+        assert!(!launch_record(Some(&explained), "r", None, false).contains("Microsoft runtimes"));
+        failed.exit_code = Some(3);
+        assert!(
+            !launch_record(Some(&view(&failed)), "r", None, false).contains("Microsoft runtimes")
+        );
+    }
 
     #[test]
     fn launch_readback_explains_failed_exit_codes_without_inventing_causes() {
@@ -496,13 +705,15 @@ mod tests {
             "outcome": "failed", "exit_code": -1073741515,
         }))
         .unwrap();
-        let text = launch_record(Some(&record), "r", None, false);
+        let text = launch_record(Some(&view(&record)), "r", None, false);
         assert!(text.contains("What likely happened: A required DLL"));
         record.exit_code = Some(3);
-        let text = launch_record(Some(&record), "r", None, false);
+        let text = launch_record(Some(&view(&record)), "r", None, false);
         assert!(text.contains("The game closed with an error."));
         record.outcome = Some(LaunchSessionOutcome::Cancelled);
-        assert!(!launch_record(Some(&record), "r", None, false).contains("What likely happened"));
+        assert!(
+            !launch_record(Some(&view(&record)), "r", None, false).contains("What likely happened")
+        );
     }
 
     #[test]
@@ -516,7 +727,7 @@ mod tests {
         }))
         .unwrap();
         let original = serde_json::to_value(&record).unwrap();
-        let running = launch_record(Some(&record), &record.id, Some(&catalog), false);
+        let running = launch_record(Some(&view(&record)), &record.id, Some(&catalog), false);
         assert!(running.contains(&format!("{} ({})", port.name, port.id)));
         assert!(running.contains("No terminal outcome recorded"));
         assert!(!running.contains("Game exit code:"));
@@ -529,7 +740,7 @@ mod tests {
             record.outcome = Some(outcome);
             record.finished_at = Some(2);
             let before = serde_json::to_value(&record).unwrap();
-            let text = launch_record(Some(&record), &record.id, Some(&catalog), false);
+            let text = launch_record(Some(&view(&record)), &record.id, Some(&catalog), false);
             assert!(text.contains(&format!("Outcome: {label}")), "{text}");
             assert!(text.contains("Finished: 1970-01-01T00:00:02Z"));
             assert_eq!(serde_json::to_value(&record).unwrap(), before);
@@ -537,10 +748,10 @@ mod tests {
         record.port_id = "token=private-launch-target".into();
         record.message = Some("token=private-launch-message".into());
         for current_catalog in [Some(&catalog), None] {
-            let text = launch_record(Some(&record), &record.id, current_catalog, false);
+            let text = launch_record(Some(&view(&record)), &record.id, current_catalog, false);
             assert!(text.contains("current catalog name unavailable"));
             assert!(!text.contains("private-launch"), "{text}");
-            let details = launch_record(Some(&record), &record.id, current_catalog, true);
+            let details = launch_record(Some(&view(&record)), &record.id, current_catalog, true);
             assert!(details.contains("Recorded port ID (redacted):"));
             assert!(!details.contains("private-launch"), "{details}");
         }
@@ -574,6 +785,7 @@ mod tests {
             content: DestinationArtworkContent::Unavailable {
                 reason: DestinationArtworkUnavailableReason::SelectedImageNotWide,
             },
+            attribution: Vec::new(),
         };
         let text = artwork_handoff(&handoff, &catalog);
         assert!(

@@ -20,6 +20,7 @@ import { FailureDetails } from "./FailureDetails";
 import { gameUpdateAcquisitionLabel } from "../features/port-updates/acquisition-presentation";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { OperationCancellation } from "./OperationCancellation";
+import { UpdateReleaseNotes } from "./UpdateReleaseNotes";
 import { installPlanActionLabel } from "../install-plan-presentation";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
@@ -795,7 +796,7 @@ function RetainedUpdateArchive({
         install the update separately.
       </p>
       <details className="mt-2 text-xs">
-        <summary data-focusable className="cursor-pointer py-1">
+        <summary data-focusable className="disclosure-pad-1 cursor-pointer">
           Download details
         </summary>
         <dl className="mt-2 grid gap-2 [overflow-wrap:anywhere]">
@@ -1135,6 +1136,9 @@ function GameUpdateReview({
             : gameUpdateHoldReason(plan)}
         </p>
       ) : null}
+      {plan.release_notes && (
+        <UpdateReleaseNotes notes={plan.release_notes} currentVersion={currentVersion} />
+      )}
       {plan.plan.preservation_notices?.map((notice) => (
         <p key={notice} className="col-span-full text-[length:var(--text-sm)]">
           {notice}

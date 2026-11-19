@@ -24,7 +24,152 @@ renaming; this history does not deliver future commands or migrate stored data.
 | Manifest, retained-contract and library writer versions | Installed execution/persistence contracts and private durable state              | Older writers refuse unsupported upgraded state. External clients use public commands rather than interpreting SQLite or rewriting historical representations.                                                 |
 | Signed envelope format                                  | Optional signed catalog delivery                                                 | Implemented format 1 remains distinct from the successor definition-delivery work. Signature verification does not establish artifact, source or gameplay qualification.                                       |
 
+## Optional catalog-port fields
+
+Adding an optional field to a catalog port, or a new value to an existing
+materialization list, is recorded here and does not change `API_SCHEMA_VERSION`:
+an older reader sees the same document without the field, and nothing it relied
+on changes. A change that alters the meaning of an existing field, removes one,
+or makes one required is a catalog or API version change.
+
+The disc-image unpacking work added the optional port fields
+`runtime_disc_image` and `optional_game_source`, and the materializations
+`xdvdfs-directory` and `iso9660-directory`, under this rule. A reader that does
+not know them cannot offer or perform the unpacking, so a port that uses them
+is not usable there; the rest of the catalog is unaffected.
+
+The uploader-continuity guard added the optional release field
+`accepted_uploaders` under this rule. A reader that does not know it has no
+uploader-continuity guard, so it has nothing to relax; an independent entry
+carrying the field fails that reader's complete typed projection check.
+
+ROM patching ([#5405](https://github.com/boburning/portcove/issues/5405)) added the
+optional port field `runtime_rom_patch` and the materialization `rom-patch` under
+the same rule. An indexed definition that uses them also requires staged-source
+capability 33, so an older reader refuses it rather than copying an unpatched file.
+
+SNES copier headers ([#6212](https://github.com/boburning/portcove/issues/6212))
+added the source representation kind `snes-copier-header-optional`, the digest
+scope `snes-headerless-content` and the materialization `snes-headerless` under
+the same rule. An indexed definition that uses them also requires staged-source
+capability 36, so an older reader refuses it rather than copying a headered file.
+
 ## Documented API changes
+
+API 100 extends the exact recipe review with format 3 originals, typed setup
+configuration and reviewed provider acquisitions. Commands advertise support
+for `profile recipe-acquire` and `profile recipe-discard`. Use the advertised
+commands and the new plan digest after a provider check. Recipe formats 1 and 2 remain
+readable. Event schema remains 3.
+
+API 99 changes `games setup-ready` to report the result of the mod pass when the
+game setup queue is unavailable. A successful envelope with
+`data.game_setup_unavailable` means the games could not be assessed, even when
+`data.batches` is empty. The prior API returned an error for this queue failure.
+An independent, optional `profile setups.last_automatic_checks` field reports
+the last bounded check and grants no update permission. Event schema 3 and
+the private library writer protocol are unchanged.
+
+API 98 adds `profile inspect-mod-file` and `profile preserve-mod-file`.
+Inspection records one file and its exact bytes. Preservation requires the
+reviewed plan digest and retains the file outside the game’s mods folder.
+Writer schema 66 coordinates recovery of an interrupted file move. The
+operation-event schema stays 3.
+
+API 97 adds `profile recover-plan` and `profile recover`. The
+`profile_recovery_plan` identifies the exact target revision, holds and policy.
+Applying that plan appends a successor and keeps current progress. `profile
+copy` may copy supported saves after verifying the source digest and the
+destination installation and revision. Writer schema 65 requires clients that
+honor incomplete setup materialization. The operation-event schema stays 3.
+
+The optional `profile create-clean` command returns the existing `Profile`
+result. Use the advertised `profile.create-clean` capability to discover it.
+Creation uses the existing library writer and operation-event contracts.
+
+API96 adds `profile original-instances`, `profile select-original` and
+`profile relink-original`. A customized setup can select a registered
+original's exact content and storage identity in a new revision. Relinking
+rechecks bytes and updates the saved location for that instance. The library
+database moves to writer schema 64 and library exports with additional original
+instances or saved inbox locations use metadata schema 12. Playnite continues
+negotiating its existing command and event requirements.
+
+API95 adds the reviewed `wrappers` collection to Thunderstore `provider-plan`
+results and corresponding `provider-apply` inputs. Preserve the whole plan when
+submitting it. Removing the wrapper review or its populated file observations
+invalidates the bound digest. Earlier Thunderstore plans must be reviewed
+again. GameBanana plans omit the Thunderstore fields. Recipe format 2 separately
+carries exact provider requirements, and library writer schema 63 fences older
+projection writers. Event schema remains 3.
+
+API 94 adds `profile package-plan` and `profile package-apply`. Review binds the
+selected setup revision, file bytes, conflicts and exact code permission. Apply
+consumes the freshly checked plan digest under the existing port lock.
+
+Within API93, the read-only `installation runtimes` command and its
+`runtime_prerequisite_report` result are additive and advertised in
+`capabilities`. The optional `runtime_prerequisites` field on `launch show` and
+`launch recover` results is also additive. No existing field changes meaning,
+and no Library, metadata or handoff schema changes, so `API_SCHEMA_VERSION`
+stays 93. Clients that ignore the field or never call the command see unchanged
+results.
+
+API93 lets `artwork steamgriddb check-listings` confirm a withdrawal and remove
+Portcove's copy. A verified absence is confirmed by a `gone` answer from the image
+server in the same check, or by a second verified absence at least 24 hours later by
+both Portcove's clock and SteamGridDB's `Date`. A provider-only asset whose every
+record is confirmed is evicted: its original and thumbnail are deleted while the
+choice, revision and credit stay. The Library database moves to writer schema 59
+(`artwork_provider_withdrawals`, `artwork_evicted_assets`,
+`artwork_provider_listing_checks.not_listed_since_server`). Library metadata schema
+10 adds `artwork.withdrawals` and `artwork.evicted_assets`; evicted originals are
+not carried, and older readers refuse it. `steamgriddb_listing_report` images gain
+`effect` (`none`, `withdrawn`, `removed` or `listed_again`), `withdrawn_at` and
+`evicted_at`, and the report gains
+`skipped`, `removed`, `removal_deferred` and `removal_failed`. `artwork_state` gains
+`evicted_at`, and each `provider_listing` entry gains `withdrawn_at` and
+`withdrawal_signal`. An evicted selection is `unavailable`, and the destination
+handoff reports `selected_original_unavailable` without reading the file; handoff
+schema 4 and `ArtworkAttribution` are unchanged. Library export and move first
+finish pending removals and stop if a removed original cannot be deleted.
+
+API92 makes `artwork steamgriddb check-listings` record listing evidence: the
+Library database moves to writer schema 58 (`artwork_provider_listing_checks`), and
+older writers refuse the upgraded library. `steamgriddb_listing_report` images replace
+`listing`/`unknown_reason` with a tagged `listing` result (`listed`, `not_listed` or
+`unknown` with `reason`), and gain `attempted`, `listing_total` and `not_listed_since`;
+the report gains `recorded`; `unknown_reason` gains `empty_listing`; `stopped` gains
+`time_limit` and `cancelled`. `artwork_state` gains `provider_listing`. The command
+now records state, so it starts as a recovering command. Library metadata, the
+destination handoff and `ArtworkAttribution` are unchanged.
+
+API91 adds the report-only `artwork steamgriddb check-listings` command and its
+`steamgriddb_listing_report` result: for each stored SteamGridDB image, whether a
+verified listing still includes it (`listed`, `not_listed` or `unknown` with a
+reason) and, when it is absent, what the image server answers for its stored URL.
+The command changes no library, file, export or Steam state; the Library writer,
+metadata and destination handoff schemas are unchanged.
+
+API90 adds the `landscape` artwork slot: `artwork_state.choice.slot` and the CLI
+`--slot` gain the value, and `artwork steamgriddb choose --slot landscape` uses wide
+grid images. The optional destination artwork handoff moves to schema 4: the
+`landscape_cover` role is bound to the Landscape choice under the hero role's wide
+rule, and `role_not_provided` is no longer produced or accepted; schema-3 readers
+must refuse schema 4. The Library database moves to writer schema 57, which rebuilds
+`artwork_choices` to admit the slot; older writers refuse the upgraded library.
+Library metadata exports that contain any landscape choice, including a reset one,
+use metadata schema 9, which older readers refuse.
+
+API89 adds `attribution` to `artwork_state`: provider credits for the selected
+image, empty for purely local imports. The optional destination artwork handoff
+moves to schema 3 with the same required `attribution` array; schema-2 readers must
+refuse it. The new `artwork.steamgriddb.*` commands are advertised separately. The
+Library database moves to writer schema 52 (`artwork_asset_providers` and
+`artwork_provider_only_assets`); older writers refuse the upgraded library. Library
+metadata exports that carry provider provenance use metadata schema 8, which older
+readers refuse; exports without it keep their earlier schema. Consumers that show
+artwork should show its credit and must not treat it as redistribution permission.
 
 API83 adds the shared game comparison request/result and optional named-outcome
 recommendation metadata. Local organization state adds explicit followed projects

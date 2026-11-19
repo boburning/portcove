@@ -7,6 +7,7 @@
     "project_url": "https://github.com/JGRennison/OpenTTD-patches",
     "issue_number": 1859,
     "listed_at": "2026-10-23",
+    "funding_urls": ["https://www.openttd.org/donate.html"],
     "availability": "packages",
     "setup_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp/installation.md",
     "artwork": {
@@ -38,8 +39,17 @@
       ],
       "help_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp/installation.md"
     },
-    "original_game_title": "OpenTTD",
-    "platforms": ["macos-x86-64", "macos-aarch64"]
+    "original_game_title": "Transport Tycoon Deluxe",
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "transport-tycoon-deluxe",
+      "evidence_urls": [
+        "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp/installation.md",
+        "https://github.com/JGRennison/OpenTTD-patches"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

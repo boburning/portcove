@@ -283,6 +283,7 @@ async function sourceFormatContract(subject: Workspace) {
           source: "current",
           blockers: ["incompatible_source"],
           required_source_extension: "z64",
+          pending_setup: false,
         },
         port_actions: [
           { action: "launch", availability: "waiting", reason: "incompatible_source" },
@@ -371,4 +372,21 @@ void test("workspace contracts reject disabled production callback dependencies"
     reject(forwardingContract, ["reconciliation"], disabled);
   for (const disabled of ["installSourceFormatProbe", "restoreSourceFormatProbe"] as const)
     reject(sourceFormatContract, [], disabled);
+});
+
+void test("workspace retry checks exclude earlier startup work and reject repeated mutations", () => {
+  runContract(async (subject) => {
+    const startup = ["run_standing_setup", "refresh_official_catalog_automatically"];
+    const commands = [...startup, "get_workspace_snapshot", "plugin:event|emit"];
+    const retry = commands.slice(startup.length);
+    subject.assertReadOnlyWorkspaceRetry(retry);
+    assert.throws(() => subject.assertReadOnlyWorkspaceRetry([]), assert.AssertionError);
+    for (const operation of [...startup, "discover_orphaned_operations", "install_port"]) {
+      assert.throws(
+        () => subject.assertReadOnlyWorkspaceRetry([...retry, operation]),
+        assert.AssertionError,
+      );
+    }
+    assert.deepEqual(commands.slice(0, startup.length), startup);
+  }, []);
 });

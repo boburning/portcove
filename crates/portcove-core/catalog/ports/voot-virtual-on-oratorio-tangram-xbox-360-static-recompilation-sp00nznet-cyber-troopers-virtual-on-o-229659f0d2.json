@@ -2,8 +2,16 @@
   "format_version": 1,
   "listing": {
     "id": "voot-virtual-on-oratorio-tangram-xbox-360-static-recompilation-sp00nznet-cyber-troopers-virtual-on-o-229659f0d2",
+    "artwork": {
+      "game_id": 9190,
+      "cover_id": 194111,
+      "image_id": "co45rz",
+      "image_sha256": "5d1b21e7c53691cd7d2bce5f67eca4bd6d40c90d097821a58b4d9eeba7110f52",
+      "game_slug": "cyber-troopers-virtual-on-oratorio-tangram",
+      "match_kind": "underlying-game"
+    },
     "name": "Cyber Troopers Virtual-On Oratorio Tangram (Xbox 360) — VOOT - Virtual On: Oratorio Tangram (Xbox 360) Static Recompilation (sp00nznet)",
-    "original_game_title": "Cyber Troopers Virtual-On Oratorio Tangram (Xbox 360)",
+    "original_game_title": "Cyber Troopers Virtual-On Oratorio Tangram",
     "summary": "This is a phase 1 foundation. Full gameplay remains unfinished. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/voot",
     "listed_at": "2026-10-25",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/sp00nznet/voot"
     },
-    "issue_number": 3281
+    "issue_number": 3281,
+    "original_game": {
+      "format_version": 1,
+      "id": "cyber-troopers-virtual-on-oratorio-tangram",
+      "evidence_urls": ["https://github.com/sp00nznet/voot"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

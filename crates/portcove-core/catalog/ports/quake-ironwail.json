@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "quake-ironwail",
+    "artwork": {
+      "game_id": 333,
+      "cover_id": 434745,
+      "image_id": "co9bg9",
+      "image_sha256": "c91124efedaa065907226a47b1d1454f3af1440170c83cf9a7200cb6190156b2",
+      "game_slug": "quake",
+      "match_kind": "underlying-game"
+    },
     "name": "Quake (Ironwail)",
     "summary": "A native Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
     "original_game_title": "Quake",
@@ -23,7 +31,7 @@
         },
         {
           "title": "Run the upstream Linux build",
-          "instruction": "For a separately prepared Linux copy, unpack the official x64 tarball and keep ironwail and ironwail.pak together. Use glibc 2.29 or newer, OpenGL 4.3, SDL2, libcurl, libvorbisfile and libmpg123. Keep your own matching classic Quake id1 data and your external .ironwail profile. Store-selected profiles and migration files stay with your separately prepared copy."
+          "instruction": "For a separately prepared Linux copy, unpack the official x64 tarball and keep ironwail and ironwail.pak together. Use glibc 2.29 or newer, OpenGL 4.3, SDL2, libcurl, libvorbisfile and libmpg123. Back up id1 beside the player and any separate .ironwail profile your copy uses. Keep your original Quake files separately. Store-selected profiles and migration files stay with your separately prepared copy."
         }
       ],
       "warnings": [
@@ -35,6 +43,15 @@
     "release_url": "https://github.com/andrei-drexler/ironwail/releases",
     "download_asset_hints": {
       "linux-x86-64": ["ironwail-", "-linux-x64.tar.gz"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "quake",
+      "evidence_urls": [
+        "https://github.com/andrei-drexler/ironwail/tree/1eabd0df21130e55d94496c7af177e2dcbed75df",
+        "https://github.com/andrei-drexler/ironwail"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
@@ -90,7 +107,7 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Before Play, copy your matching classic Quake id1 folder into the managed player’s working folder. Use lowercase id1 and pak filenames on Linux. Keep your originals separately. Linux needs OpenGL 4.3, SDL2, libcurl, libvorbisfile, libmpg123 and glibc 2.29 or newer. Keep ironwail.pak beside ironwail. Back up the external .ironwail profile separately. The Linux player uses the account home, or HOME when no account home is available. Portcove keeps the profile in place. The Windows runtime continues to keep its listed saves and settings in the managed game folder."
+      "manual_preparation": "Before Play, copy your matching classic Quake id1 folder into the managed player’s working folder. Use lowercase id1 and pak filenames on Linux. Keep your originals separately. Linux needs OpenGL 4.3, SDL2, libcurl, libvorbisfile, libmpg123 and glibc 2.29 or newer. Keep ironwail.pak beside ironwail. The tested Linux v0.8.2 player writes saves and ironwail.cfg under id1 during managed Play. Portcove backs up that folder. If your Linux copy uses a separate .ironwail account profile, back it up separately. On Windows, the listed saves and settings live in the managed game folder."
     },
     "external_profile_policy": "ironwail-linux-v1"
   },
@@ -106,7 +123,7 @@
     "managed_native": {
       "preparation": {
         "title": "Copy your own classic Quake data beside the managed player",
-        "instruction": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside ironwail.exe before Play. Keep the original copy in its existing location. Portcove starts this copy from that local base folder and disables the online add-on server."
+        "instruction": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside the Ironwail program before Play. Keep the original copy in its existing location. Portcove starts this copy from that local base folder and disables the online add-on server."
       },
       "warnings": [
         "For store discovery, rerelease migration, expansions, mods or custom base directories, use a separately prepared copy. The managed route preserves id1 and console history only. Gameplay and real save compatibility across versions remain unverified."

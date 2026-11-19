@@ -1,5 +1,52 @@
 {
   "cases": {
+    "vcmi-vcmi": {
+      "inventory": "vcmi",
+      "repository_id": 18490421,
+      "selected_assets": ["VCMI-Windows.zip", "VCMI-Windows.zip"]
+    },
+    "alexbeav-vib-ribbon-recomp": {
+      "inventory": "alexbeav-vib-ribbon-recomp",
+      "selected_assets": [
+        "vib-ribbon-0.1.3-windows-x64.zip",
+        "vib-ribbon-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "vib-ribbon-0.1.3-linux-x64.zip",
+        "vib-ribbon-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SCES-02873",
+        "track_count": 8,
+        "track_sha1": "a2ba376167bda9ed03ab89a11ade12410d75ede7",
+        "track_sha256": null,
+        "generated_executable": "Vib_Ribbon_Recompiled.exe",
+        "bios_profile": "psx-scph-5552-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
+    "alexbeav-wipeout-xl-recomp": {
+      "inventory": "alexbeav-wipeout-xl-recomp",
+      "selected_assets": [
+        "wipeout-xl-0.1.3-windows-x64.zip",
+        "wipeout-xl-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "wipeout-xl-0.1.3-linux-x64.zip",
+        "wipeout-xl-999.123.456-linux-x64.zip"
+      ],
+      "managed_psx": {
+        "serial": "SCUS-94351",
+        "track_count": 12,
+        "track_sha1": "5694008c30fa9896d17afdd6281e4bebb9f63953",
+        "track_sha256": null,
+        "generated_executable": "Wipeout_XL_Recompiled.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true
+      }
+    },
     "sonic-the-hedgehog-2013-mobile-edition-rsdkv4-decompilation": {
       "inventory": "rsdkv4",
       "repository_id": 321543928,
@@ -302,7 +349,8 @@
         "track_sha256": "7a69101183b76eadf02336963c6a89822b76aca2b3fa6537288d9f13bf6d16ed",
         "generated_executable": "Tony_Hawks_Pro_Skater_2_Recompiled.exe",
         "track_count": 1,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "tony-hawk-s-pro-skater-2-recomp-0.1.3-linux-x64.zip",
@@ -321,7 +369,8 @@
         "track_sha256": "674ac2073877922e9a12dbf1117b80109d5a8c8e262075da60f21f4e861fc485",
         "generated_executable": "Tony_Hawks_Pro_Skater_3_Recompiled.exe",
         "track_count": 1,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "tony-hawk-s-pro-skater-3-recomp-0.1.3-linux-x64.zip",
@@ -340,7 +389,8 @@
         "track_sha256": "c632a348d7013336c2c182f33ea86ac14a7bae0eba3892a7b5f14b9848ddab09",
         "generated_executable": "Tony_Hawks_Pro_Skater_4_Recompiled.exe",
         "track_count": 1,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "tony-hawk-s-pro-skater-4-recomp-0.1.3-linux-x64.zip",
@@ -359,7 +409,8 @@
         "track_sha256": "f1398cd15138a947fb3d49e1d31c7fe2aae9436ec09e32df917c658ccac30da9",
         "generated_executable": "Tony_Hawks_Pro_Skater_Recompiled.exe",
         "track_count": 1,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "tony-hawk-s-pro-skater-recomp-0.1.3-linux-x64.zip",
@@ -379,7 +430,8 @@
         "generated_executable": "Oddworld__Abe_s_Oddysee_Recompiled.exe",
         "revision": "Rev 2",
         "track_count": 1,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "oddworld-abe-s-oddysee-recomp-0.1.3-linux-x64.zip",
@@ -398,7 +450,8 @@
         "track_sha256": "2c36429649e50036fd5c9187bdc3ff23e04039499e7cdf1aba5cfd5a3badcb38",
         "generated_executable": "Syphon_Filter_3_Recompiled.exe",
         "track_count": 1,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "syphon-filter-3-recomp-0.1.3-linux-x64.zip",
@@ -418,7 +471,8 @@
         "generated_executable": "Tenchu_Stealth_Assassins_Recompiled.exe",
         "revision": "Rev 1",
         "track_count": 1,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "tenchu-stealth-assassins-recomp-0.1.3-linux-x64.zip",
@@ -436,7 +490,8 @@
         "track_count": 1,
         "track_sha1": "e7418d1491e1809490b2e5fe20d738cb730e5e22",
         "generated_executable": "Monster_Rancher_2_Recompiled.exe",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "monster-rancher-2-recomp-0.1.3-linux-x64.zip",
@@ -454,7 +509,8 @@
         "track_count": 26,
         "track_sha1": "67d9fb2ab81a54c1129a5a42ec0991c756a2f125",
         "generated_executable": "Nightmare_Creatures_Recompiled.exe",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "nightmare-creatures-recomp-0.1.3-linux-x64.zip",
@@ -471,7 +527,8 @@
         "serial": "SCUS-94424",
         "track_count": 1,
         "track_sha1": "75a13364ae026fe555e9c666c7c3434e5b403cc8",
-        "generated_executable": "Bloody_Roar_II__Recompiled.exe"
+        "generated_executable": "Bloody_Roar_II__Recompiled.exe",
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "bloody-roar-ii-recomp-0.1.2-linux-x64.zip",
@@ -493,7 +550,9 @@
         "track_count": 19,
         "track_sha1": "d52c60282b7ae07639b8fd61b0ab8d35b28a3327",
         "generated_executable": "Destruction_Derby_2_Recompiled.exe",
-        "openbios": true
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-destruction-derby-raw-recomp": {
@@ -510,7 +569,8 @@
         "serial": "SLUS-00912",
         "track_count": 13,
         "track_sha1": "131463c47379b9a38888f548a44f43dcc6e7f959",
-        "generated_executable": "Destruction_Derby_Raw.exe"
+        "generated_executable": "Destruction_Derby_Raw.exe",
+        "split_mod_paths": true
       }
     },
     "alexbeav-armored-core-recomp": {
@@ -528,8 +588,10 @@
         "track_count": 1,
         "track_sha1": "20ad05be52317bce58b251be103f9add03c92609",
         "generated_executable": "Armored_Core_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-blood-omen-legacy-of-kain-recomp": {
@@ -547,8 +609,10 @@
         "track_count": 1,
         "track_sha1": "774ff732cecd0937d052ffcdfb225a7d71d163aa",
         "generated_executable": "Blood_Omen__Legacy_of_Kain_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-digimon-world-2003-recomp": {
@@ -566,8 +630,10 @@
         "track_count": 1,
         "track_sha1": "457cb233349ba841e03b33d8060f8fbcadd45cb3",
         "generated_executable": "Digimon_World_2003_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-driver-recomp": {
@@ -585,8 +651,10 @@
         "track_count": 1,
         "track_sha1": "3df45bb77b9189258dc513d8b161b73bc0b06d6e",
         "generated_executable": "Driver_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-duke-nukem-land-of-the-babes-recomp": {
@@ -604,8 +672,10 @@
         "track_count": 1,
         "track_sha1": "f57c49eac288225fe3602e279bc1379f72f7eea6",
         "generated_executable": "Duke_Nukem__Land_of_the_Babes_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-duke-nukem-time-to-kill-recomp": {
@@ -623,8 +693,10 @@
         "track_count": 1,
         "track_sha1": "a782825520939da0560ef031daa78db8ef720957",
         "generated_executable": "Duke_Nukem__Time_to_Kill_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-fade-to-black-recomp": {
@@ -642,8 +714,10 @@
         "track_count": 1,
         "track_sha1": "cdd0ddbe768bcd89a04132b08d050164b3f13794",
         "generated_executable": "Fade_to_Black_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-ape-escape-recomp": {
@@ -661,10 +735,12 @@
         "track_count": 1,
         "track_sha1": "466cce4bcd6992f57227abd270323bcdad2fb7fc",
         "generated_executable": "Ape_Escape_Recompiled.exe",
-        "openbios": true,
         "crash_diagnostic": true,
         "revision": "Rev 0",
-        "track_sha256": "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a"
+        "track_sha256": "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a",
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-alundra-recomp": {
@@ -682,8 +758,10 @@
         "track_count": 1,
         "track_sha1": "de2bbc3185fa4ce01ad50bcda94899ccec7b7451",
         "generated_executable": "Alundra_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp": {
@@ -702,7 +780,9 @@
         "track_sha1": "9b690c02cdb7754f2fa478c4974ec69600f2f269",
         "generated_executable": "Ace_Combat_3__Electrosphere__USA__Recompiled.exe",
         "crash_diagnostic": true,
-        "openbios": true
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "xena-warrior-princess-xena-recomp": {
@@ -720,7 +800,8 @@
         "track_count": 1,
         "track_sha1": "2f7ee5625aaa02c536938fb66fcf06d4d8f6b422",
         "generated_executable": "Xena__Warrior_Princess_Recompiled.exe",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-colin-mcrae-rally-2-0-recomp": {
@@ -738,8 +819,10 @@
         "track_count": 2,
         "track_sha1": "4d595880ebb6c6f7a2b63d9503b733f44b1ef230",
         "generated_executable": "Colin_McRae_Rally_2_0_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-die-hard-trilogy-recomp": {
@@ -757,9 +840,11 @@
         "track_count": 21,
         "track_sha1": "2d24572e92415e09c37b68c83ba8b8947aee1ce4",
         "generated_executable": "Die_Hard_Trilogy_Recompiled.exe",
-        "openbios": true,
         "crash_diagnostic": true,
-        "revision": "Rev 1"
+        "revision": "Rev 1",
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-kings-field-recomp": {
@@ -777,8 +862,10 @@
         "track_count": 1,
         "track_sha1": "00bfd94ce99bf214b03bdaa07de99b9ca1466550",
         "generated_executable": "King_s_Field_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5500-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-kula-world-recomp": {
@@ -796,8 +883,10 @@
         "track_count": 1,
         "track_sha1": "0bf9fb06b73a9b5353cdcc371e188934369068da",
         "generated_executable": "Kula_World_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-mega-man-legends-recomp": {
@@ -815,9 +904,11 @@
         "track_count": 2,
         "track_sha1": "cf24c99ad6586b1bcba7d67f5dc684864b5e1688",
         "generated_executable": "Mega_Man_Legends_Recompiled.exe",
-        "openbios": true,
         "crash_diagnostic": true,
-        "track_sha256": "91fc12e8ce4485285ab22fbe39a8c3b5a66cab7d129c69a5c22084adbf361391"
+        "track_sha256": "91fc12e8ce4485285ab22fbe39a8c3b5a66cab7d129c69a5c22084adbf361391",
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-men-in-black-the-game-recomp": {
@@ -835,8 +926,10 @@
         "track_count": 1,
         "track_sha1": "060496048fae53cf79706ab3ce611c07701d4814",
         "generated_executable": "Men_in_Black__The_Game_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-the-lost-world-jurassic-park-special-edition-recomp": {
@@ -854,8 +947,10 @@
         "track_count": 3,
         "track_sha1": "1fac6ab6b0d7d3d8f5e70b40bb9fae1d2a2287bc",
         "generated_executable": "The_Lost_World__Jurassic_Park_Special_Edition_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-the-mummy-recomp": {
@@ -873,8 +968,10 @@
         "track_count": 1,
         "track_sha1": "ef266fcac356f05950a81aaa350fbf211defcdd8",
         "generated_executable": "The_Mummy_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-vampire-hunter-d-recomp": {
@@ -892,8 +989,10 @@
         "track_count": 1,
         "track_sha1": "a4b43839e2abd4ac626434c801fbea0a09ab3f88",
         "generated_executable": "Vampire_Hunter_D_Recompiled.exe",
-        "openbios": true,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-vigilante-8-recomp": {
@@ -911,9 +1010,11 @@
         "track_count": 13,
         "track_sha1": "0a39394280555203bf29e33e95e561e4ff50edb1",
         "generated_executable": "Vigilante_8_Recompiled.exe",
-        "openbios": true,
         "crash_diagnostic": true,
-        "track_sha256": "0a303a0d19d2728f1e364afa4fb7ad8e6e5a04800236573e93417a5503fb201e"
+        "track_sha256": "0a303a0d19d2728f1e364afa4fb7ad8e6e5a04800236573e93417a5503fb201e",
+        "retail_bios_from_later_release": true,
+        "bios_profile": "psx-scph-5552-bios",
+        "split_mod_paths": true
       }
     },
     "alexbeav-alien-resurrection-recomp": {
@@ -933,7 +1034,8 @@
         "track_sha256": "af3da8902c6d3f55aaeff960adbeda61c7a630e820e34bc133ffe972cd100237",
         "generated_executable": "Alien_Resurrection_Recompiled.exe",
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-diablo-recomp": {
@@ -953,7 +1055,8 @@
         "track_sha256": null,
         "generated_executable": "Diablo_Recompiled.exe",
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-legacy-of-kain-soul-reaver-recomp": {
@@ -973,7 +1076,8 @@
         "track_sha256": "9ac300d56b879699d15331aab395fa57a137752dfdc2aa5569874445a0b933df",
         "generated_executable": "Legacy_of_Kain__Soul_Reaver_Recompiled.exe",
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-mdk-recomp": {
@@ -993,7 +1097,8 @@
         "track_sha256": "29c584e75668153d48874efa2759e404374d2b48fc694b8ce4240755cb67a253",
         "generated_executable": "MDK_Recompiled.exe",
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-spyro-the-dragon-recomp": {
@@ -1013,7 +1118,8 @@
         "track_sha256": "dfba8b1c19f21ac235347d39b17b1be5633d8d00d57f6b0173caf7b04a21ff8b",
         "generated_executable": "Spyro_the_Dragon_Recompiled.exe",
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-wipeout-recomp": {
@@ -1033,7 +1139,8 @@
         "track_sha256": null,
         "generated_executable": "WipEout_Recompiled.exe",
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       }
     },
     "alexbeav-armored-core-project-phantasma-recomp": {
@@ -1306,11 +1413,11 @@
     "alexbeav-medievil-recomp": {
       "inventory": "alexbeav-medievil-recomp",
       "selected_assets": [
-        "medievil-recomp-0.1.4-windows-x64.zip",
+        "medievil-recomp-0.1.5-windows-x64.zip",
         "medievil-recomp-999.123.456-windows-x64.zip"
       ],
       "linux_selected_assets": [
-        "medievil-recomp-0.1.4-linux-x64.zip",
+        "medievil-recomp-0.1.5-linux-x64.zip",
         "medievil-recomp-999.123.456-linux-x64.zip"
       ],
       "managed_psx": {
@@ -1603,7 +1710,8 @@
         "track_sha256": null,
         "generated_executable": "Quake_II_Recompiled.exe",
         "track_count": 2,
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "quake-ii-recomp-0.1.2-linux-x64.zip",
@@ -1620,8 +1728,10 @@
         "track_sha256": null,
         "generated_executable": "Suikoden_Recompiled.exe",
         "track_count": 1,
-        "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true,
+        "retail_bios_from_later_release": true
       },
       "linux_selected_assets": [
         "suikoden-0.1.1-linux-x64.zip",
@@ -1641,7 +1751,8 @@
         "generated_executable": "Silent_Bomber_Recompiled.exe",
         "track_count": 1,
         "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "crash_diagnostic": true,
+        "split_mod_paths": true
       },
       "linux_selected_assets": [
         "silent-bomber-0.1.1-linux-x64.zip",
@@ -1661,8 +1772,10 @@
         "track_sha256": null,
         "generated_executable": "Mortal_Kombat_Trilogy_Recompiled.exe",
         "track_count": 30,
-        "bios_profile": "psx-scph-5552-bios",
-        "crash_diagnostic": true
+        "bios_profile": "psx-scph-1001-bios",
+        "crash_diagnostic": true,
+        "split_mod_paths": true,
+        "retail_bios_from_later_release": true
       },
       "linux_selected_assets": [
         "mortal-kombat-trilogy-0.1.1-linux-x64.zip",
@@ -1689,9 +1802,328 @@
         "wipeoutxl-0.2.0-linux-x64.zip",
         "wipeoutxl-999.123.456-linux-x64.zip"
       ]
+    },
+    "monster-hunter-portable-3rd-hd-yakumo": {
+      "inventory": "yakumo",
+      "repository_id": 1375755928,
+      "selected_assets": [
+        "yakumo-0.7.5-windows-x86_64-portable.zip",
+        "yakumo-0.7.6-windows-x86_64-portable.zip"
+      ]
+    },
+    "alexbeav-medievil-ii-recomp-setup-kit": {
+      "inventory": "alexbeav-medievil-ii-recomp-setup-kit",
+      "managed_psx": {
+        "serial": "SCUS-94564",
+        "track_count": 2,
+        "track_sha1": "017b855353abd86c22aa516690e852b641e4fa71",
+        "track_sha256": null,
+        "generated_executable": "MediEvil_II__Recompiled.exe",
+        "bios_profile": "psx-scph-1001-bios",
+        "split_mod_paths": true
+      },
+      "selected_assets": [
+        "medievil-ii-recomp-0.2.6-windows-x64.zip",
+        "medievil-ii-recomp-999.123.456-windows-x64.zip"
+      ],
+      "linux_selected_assets": [
+        "medievil-ii-recomp-0.2.6-linux-x64.zip",
+        "medievil-ii-recomp-999.123.456-linux-x64.zip"
+      ]
     }
   },
   "inventories": {
+    "vcmi": [
+      {
+        "id": 370777167,
+        "tag_name": "1.7.5",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-08-15T12:02:44Z",
+        "assets": [
+          {
+            "id": 514815392,
+            "name": "VCMI-Android-arm64-v8a.apk",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Android-arm64-v8a.apk",
+            "size": 37320788,
+            "digest": "sha256:81738076e58c18b050d9b5f46b3dc1455e40afc112292ee439681572f633cbec"
+          },
+          {
+            "id": 514816211,
+            "name": "VCMI-Android-armeabi-v7a.apk",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Android-armeabi-v7a.apk",
+            "size": 33618657,
+            "digest": "sha256:7ccec9f182fa23f86cf12942dec32dfbaacfbf749a039d635ac24cd0b392cf6f"
+          },
+          {
+            "id": 514817261,
+            "name": "VCMI-Android-x86_64.apk",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Android-x86_64.apk",
+            "size": 39265370,
+            "digest": "sha256:f789e99dd9c1ada463583302753c18935dfab0a070e357985c14eef3920537cb"
+          },
+          {
+            "id": 514821256,
+            "name": "VCMI-Linux-arm64.AppImage",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Linux-arm64.AppImage",
+            "size": 51034632,
+            "digest": "sha256:03761a9e9b13a7a4e5fe9cca577c4fb5ce5abba380a8ba2bf5a03a1393879346"
+          },
+          {
+            "id": 514822667,
+            "name": "VCMI-Linux-x64.AppImage",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Linux-x64.AppImage",
+            "size": 53463544,
+            "digest": "sha256:a599ff80a83d0f533c41c810de2c20a657c6df20864f8ea8768796a6e8e918c3"
+          },
+          {
+            "id": 514810021,
+            "name": "VCMI-Sources.tar.gz",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Sources.tar.gz",
+            "size": 19251683,
+            "digest": "sha256:e5822c193348534bb25d14e04ebec2d241058d12fa84beaa8234ee016710eb7a"
+          },
+          {
+            "id": 514824405,
+            "name": "VCMI-Windows-arm64.exe",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Windows-arm64.exe",
+            "size": 36348093,
+            "digest": "sha256:26b694ae708876edffad5baf746d9978926463a35104530ad1bf6b4de0b495dd"
+          },
+          {
+            "id": 514825731,
+            "name": "VCMI-Windows-x64.exe",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Windows-x64.exe",
+            "size": 34381177,
+            "digest": "sha256:3b5fe1fcf74732f22fb07330205b2f02c37333916fc5b01a18d6ed0d55019266"
+          },
+          {
+            "id": 514826676,
+            "name": "VCMI-Windows-x86.exe",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Windows-x86.exe",
+            "size": 29912672,
+            "digest": "sha256:74c423a4eb33a4d52f8d9b612de0b905bc2aaaaa15f10c8a40aa1ede1f210c0d"
+          },
+          {
+            "id": 514813923,
+            "name": "VCMI-Windows.zip",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Windows.zip",
+            "size": 48727777,
+            "digest": "sha256:0a530799085c1a135f9686d49d859beab8741869dcd9fe0877ef428ca0830d88"
+          },
+          {
+            "id": 514812161,
+            "name": "VCMI-iOS.ipa",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-iOS.ipa",
+            "size": 28187923,
+            "digest": "sha256:dd4313a76d79a125ed5405cd0603c34f8ed4155dba22695f1f24a39a7104875c"
+          },
+          {
+            "id": 514818881,
+            "name": "VCMI-macOS-arm.dmg",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-macOS-arm.dmg",
+            "size": 35462171,
+            "digest": "sha256:b56b55d0671ae604effb12d0394b74a552f203426cafa165f82488505fb465e3"
+          },
+          {
+            "id": 514820037,
+            "name": "VCMI-macOS-intel.dmg",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-macOS-intel.dmg",
+            "size": 38897972,
+            "digest": "sha256:613f7e9c2d515e10ff1eae77bab236308cf5bd08b68ff3d1b65cb7a16cde0ef6"
+          },
+          {
+            "id": 515876485,
+            "name": "pdb-arm64.zip",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/pdb-arm64.zip",
+            "size": 340218247,
+            "digest": "sha256:89f0d64cc5832ed2a847333d028e2f11864c1418cf30f00c741b088de458ca71"
+          },
+          {
+            "id": 515883501,
+            "name": "pdb-x64.zip",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/pdb-x64.zip",
+            "size": 299229022,
+            "digest": "sha256:d21eb8f4fd5cf74e177e5acea82f1d42973ef299e3aa027c03086e82f81b8896"
+          },
+          {
+            "id": 515880579,
+            "name": "pdb-x86.zip",
+            "browser_download_url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/pdb-x86.zip",
+            "size": 296044441,
+            "digest": "sha256:d2068bbd09e02b142dffa48ec247865e0a3d9ad4b852a33f656b4105c1b584a5"
+          }
+        ]
+      },
+      {
+        "id": 999880030,
+        "tag_name": "9.99.99",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999880031,
+            "name": "VCMI-Windows.zip",
+            "browser_download_url": "https://downloads.example.invalid/VCMI-Windows.zip",
+            "size": 48727778,
+            "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+          }
+        ]
+      }
+    ],
+    "alexbeav-vib-ribbon-recomp": [
+      {
+        "id": 443996689,
+        "tag_name": "v0.1.3",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-13T08:40:53Z",
+        "assets": [
+          {
+            "id": 742971027,
+            "name": "RELEASE-MANIFEST.json",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases/download/v0.1.3/RELEASE-MANIFEST.json",
+            "size": 3896,
+            "digest": "sha256:ae01e28755ec271a90d690bcedaf2b008ddf54ade992e8f178ec0d519e246eb1"
+          },
+          {
+            "id": 742971029,
+            "name": "SHA256SUMS.txt",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases/download/v0.1.3/SHA256SUMS.txt",
+            "size": 392,
+            "digest": "sha256:c39d9ac2307fa1f774c40e350894c4e8e2b23c8009bfcacda15110ea1862c311"
+          },
+          {
+            "id": 742928286,
+            "name": "vib-ribbon-0.1.3-linux-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases/download/v0.1.3/vib-ribbon-0.1.3-linux-x64.zip",
+            "size": 45747744,
+            "digest": "sha256:592127d16136d4566011b0dc4b9fdcfcf154d36209f9f4ee02c4738c416c11d1"
+          },
+          {
+            "id": 742928281,
+            "name": "vib-ribbon-0.1.3-macos-arm64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases/download/v0.1.3/vib-ribbon-0.1.3-macos-arm64.zip",
+            "size": 44098429,
+            "digest": "sha256:3f8d5adfc3752b3e8d3a24deeaef1481a9d45698cab969526d8d2938ac1692f5"
+          },
+          {
+            "id": 742928282,
+            "name": "vib-ribbon-0.1.3-macos-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases/download/v0.1.3/vib-ribbon-0.1.3-macos-x64.zip",
+            "size": 44887492,
+            "digest": "sha256:c7262bd8a262029362afd717e46b20ef00e640dbc131ef9bc08301b143b51c7d"
+          },
+          {
+            "id": 742928280,
+            "name": "vib-ribbon-0.1.3-windows-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases/download/v0.1.3/vib-ribbon-0.1.3-windows-x64.zip",
+            "size": 47813200,
+            "digest": "sha256:e094bb10827603989dc4144fdea3a8c98e6b46168a94ba934eaaaa9e93204c34"
+          }
+        ]
+      },
+      {
+        "id": 999880001,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999880010,
+            "name": "vib-ribbon-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/vib-ribbon-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "id": 999880011,
+            "name": "vib-ribbon-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/vib-ribbon-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+          }
+        ]
+      }
+    ],
+    "alexbeav-wipeout-xl-recomp": [
+      {
+        "id": 443946886,
+        "tag_name": "v0.1.3",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-13T07:44:00Z",
+        "assets": [
+          {
+            "id": 742783266,
+            "name": "RELEASE-MANIFEST.json",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/releases/download/v0.1.3/RELEASE-MANIFEST.json",
+            "size": 3896,
+            "digest": "sha256:25fb9fb162776e5654991e39cc7c2cdbf3f0422fb33eb7b446d35c07a9d1703a"
+          },
+          {
+            "id": 742783268,
+            "name": "SHA256SUMS.txt",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/releases/download/v0.1.3/SHA256SUMS.txt",
+            "size": 392,
+            "digest": "sha256:66dde818cfb2a0537153ef9610812df8fee8508ee947014abaed471ed9e91228"
+          },
+          {
+            "id": 742761301,
+            "name": "wipeout-xl-0.1.3-linux-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/releases/download/v0.1.3/wipeout-xl-0.1.3-linux-x64.zip",
+            "size": 45749290,
+            "digest": "sha256:ea1d16a1269007b189c3684d107ab6568e70637b36b17a9764af75ac6f4a4e53"
+          },
+          {
+            "id": 742761297,
+            "name": "wipeout-xl-0.1.3-macos-arm64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/releases/download/v0.1.3/wipeout-xl-0.1.3-macos-arm64.zip",
+            "size": 44100602,
+            "digest": "sha256:bdfb91d5707d3503de2619563322119c32162829ff9eb7ec167b6c22c50b4056"
+          },
+          {
+            "id": 742761296,
+            "name": "wipeout-xl-0.1.3-macos-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/releases/download/v0.1.3/wipeout-xl-0.1.3-macos-x64.zip",
+            "size": 44889672,
+            "digest": "sha256:eeb24d9447d335b388436aed19eec675865a23c6a32bbdb01d06d837a7502ebd"
+          },
+          {
+            "id": 742761302,
+            "name": "wipeout-xl-0.1.3-windows-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/releases/download/v0.1.3/wipeout-xl-0.1.3-windows-x64.zip",
+            "size": 47815842,
+            "digest": "sha256:24f566068202d31f2cee7f7068ba8de636168e39cdcf1b95cb7dac43d9c62625"
+          }
+        ]
+      },
+      {
+        "id": 999880002,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999880020,
+            "name": "wipeout-xl-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/wipeout-xl-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          {
+            "id": 999880021,
+            "name": "wipeout-xl-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/wipeout-xl-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          }
+        ]
+      }
+    ],
     "rsdkv4": [
       {
         "id": 259036513,
@@ -7832,53 +8264,53 @@
     ],
     "alexbeav-medievil-recomp": [
       {
-        "id": 416119794,
-        "tag_name": "v0.1.4",
-        "published_at": "2026-10-17T23:02:13Z",
+        "id": 442157651,
+        "tag_name": "v0.1.5",
         "draft": false,
         "prerelease": false,
+        "published_at": "2026-11-11T20:05:27Z",
         "assets": [
           {
-            "id": 651837885,
-            "name": "medievil-recomp-0.1.4-linux-x64.zip",
-            "size": 44267824,
-            "digest": "sha256:26097ec363f6850fbb7575ce2155c7841913f4317b844dca0683ecabc6864d2e",
-            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.4/medievil-recomp-0.1.4-linux-x64.zip"
+            "id": 736832110,
+            "name": "RELEASE-MANIFEST.json",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.5/RELEASE-MANIFEST.json",
+            "size": 2908,
+            "digest": "sha256:ee07a4683f5b0c796ff59e69898fe025ea612d93100e3c1810d002a5c1a57850"
           },
           {
-            "id": 651837886,
-            "name": "medievil-recomp-0.1.4-macos-arm64.zip",
-            "size": 41571960,
-            "digest": "sha256:e7a59fbf44d2aa4bfd198ed6c8390e0877a83234cd1557e3d286d2ebb75308d9",
-            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.4/medievil-recomp-0.1.4-macos-arm64.zip"
-          },
-          {
-            "id": 651837887,
-            "name": "medievil-recomp-0.1.4-macos-x64.zip",
-            "size": 42023338,
-            "digest": "sha256:4c06e0dff6fb83b58867bf498268d049faefd370cafe1285c039a81823751d27",
-            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.4/medievil-recomp-0.1.4-macos-x64.zip"
-          },
-          {
-            "id": 651837888,
-            "name": "medievil-recomp-0.1.4-windows-x64.zip",
-            "size": 46418375,
-            "digest": "sha256:9ce3874f2bdd1ee92b6d91defcf86a35eeccebcb15c5b5fa2e121b22942ef4e2",
-            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.4/medievil-recomp-0.1.4-windows-x64.zip"
-          },
-          {
-            "id": 651837912,
-            "name": "release-manifest.json",
-            "size": 1266,
-            "digest": "sha256:3d716cbfffd23ef865f8455fe848a5bd68d7ade57a8bee8f22faf5d41194285d",
-            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.4/release-manifest.json"
-          },
-          {
-            "id": 651837883,
+            "id": 736832111,
             "name": "SHA256SUMS.txt",
-            "size": 416,
-            "digest": "sha256:a4332727a9e580e70e936e06247c8d968b59c0cec61616fd9f2bd1718f326403",
-            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.4/SHA256SUMS.txt"
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.5/SHA256SUMS.txt",
+            "size": 412,
+            "digest": "sha256:1d4dcfd62dce37e8be0927b894393475b34e2a4fa86e08238071e5213cab2602"
+          },
+          {
+            "id": 736802646,
+            "name": "medievil-recomp-0.1.5-linux-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.5/medievil-recomp-0.1.5-linux-x64.zip",
+            "size": 45590347,
+            "digest": "sha256:ffaaf9076c1dd5cb0b38e869dffbf439ec51cd4b09c5e8127c138919fa936774"
+          },
+          {
+            "id": 736802643,
+            "name": "medievil-recomp-0.1.5-macos-arm64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.5/medievil-recomp-0.1.5-macos-arm64.zip",
+            "size": 42870854,
+            "digest": "sha256:ba12efa15fb971d30f003124789793617af1a3ecd197cc9d843e45de77abb15e"
+          },
+          {
+            "id": 736802641,
+            "name": "medievil-recomp-0.1.5-macos-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.5/medievil-recomp-0.1.5-macos-x64.zip",
+            "size": 43377063,
+            "digest": "sha256:33bcb0d895e1ed8fba8655807888a0d4100dc7bf8eb0a5f3d6b74b820279c59a"
+          },
+          {
+            "id": 736802645,
+            "name": "medievil-recomp-0.1.5-windows-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/releases/download/v0.1.5/medievil-recomp-0.1.5-windows-x64.zip",
+            "size": 47782240,
+            "digest": "sha256:052e33fed7814bdc0c322865b6f1b2e0507c4c5b74dd7f28886097cb7a8d5e7b"
           }
         ]
       },
@@ -9985,9 +10417,239 @@
           }
         ]
       }
+    ],
+    "yakumo": [
+      {
+        "id": 411105161,
+        "tag_name": "v0.7.5",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-13T03:23:39Z",
+        "assets": [
+          {
+            "id": 635739454,
+            "name": "SHA256SUMS",
+            "size": 777,
+            "digest": "sha256:638729c255a8a61e1d6cc8a370b01ac81deaa8bb9740799252e141427474ed39",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/SHA256SUMS"
+          },
+          {
+            "id": 635557890,
+            "name": "SHA256SUMS-android.txt",
+            "size": 97,
+            "digest": "sha256:89f55e16b6d9e1241a3209dc393a65fb00b6c694276906952b91ba4d7e08b3f5",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/SHA256SUMS-android.txt"
+          },
+          {
+            "id": 635509665,
+            "name": "SHA256SUMS-linux.txt",
+            "size": 285,
+            "digest": "sha256:385310564ca5cfec1422d03229ef002e77f8262b2013bbd8993ad410085b80c1",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/SHA256SUMS-linux.txt"
+          },
+          {
+            "id": 635485787,
+            "name": "SHA256SUMS-macos.txt",
+            "size": 190,
+            "digest": "sha256:bd464fd54c88cfff9af48325ea04a7f3451380678daaf17ae6753f13ab0a1a49",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/SHA256SUMS-macos.txt"
+          },
+          {
+            "id": 635479497,
+            "name": "SHA256SUMS-windows.txt",
+            "size": 207,
+            "digest": "sha256:07043ab18aeeedcb5065357c089fdb30d8417de5c024c106d81705009c8a7076",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/SHA256SUMS-windows.txt"
+          },
+          {
+            "id": 635509567,
+            "name": "ffmpeg-7.1.5.tar.xz",
+            "size": 11050340,
+            "digest": "sha256:de668509caf9e35e3cd162473441fdb29538c6d96ed080292b3cf9e6fc5d558f",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/ffmpeg-7.1.5.tar.xz"
+          },
+          {
+            "id": 635556983,
+            "name": "yakumo-0.7.5-android-arm64.apk",
+            "size": 203370327,
+            "digest": "sha256:75b90649a419336d1fa8d9b6d88c9f2226ab1506975f931dad5ac9d53c9bb7aa",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-android-arm64.apk"
+          },
+          {
+            "id": 635508988,
+            "name": "yakumo-0.7.5-linux-x86_64.flatpak",
+            "size": 100104488,
+            "digest": "sha256:9a048b957da2b60cada6591e7d02365ee432f6db015c4e435bf9b6d04498be62",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-linux-x86_64.flatpak"
+          },
+          {
+            "id": 635508010,
+            "name": "yakumo-0.7.5-linux-x86_64.tar.gz",
+            "size": 225155035,
+            "digest": "sha256:9c867fe280657dae757ebe2a7c6aa3f8d1989a4bb74ff3a1c29df6531ee406af",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-linux-x86_64.tar.gz"
+          },
+          {
+            "id": 635484019,
+            "name": "yakumo-0.7.5-macos-arm64.dmg",
+            "size": 111792623,
+            "digest": "sha256:dddf9eec6e208324066c4a2075d7c2a8364f27ea2992cb481dce434c74f86092",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-macos-arm64.dmg"
+          },
+          {
+            "id": 635484644,
+            "name": "yakumo-0.7.5-macos-arm64.zip",
+            "size": 202846463,
+            "digest": "sha256:28749ee93895a11d778107db74fc69818e474f409f4922f5c64009eec9c3641f",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-macos-arm64.zip"
+          },
+          {
+            "id": 635475842,
+            "name": "yakumo-0.7.5-windows-x86_64-portable.zip",
+            "size": 220399914,
+            "digest": "sha256:7927e3f1e30afcd6f908038ced4a9c99ca58c92510920ec9f36a7b2b1d2ed69c",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-windows-x86_64-portable.zip"
+          },
+          {
+            "id": 635477804,
+            "name": "yakumo-0.7.5-windows-x86_64.zip",
+            "size": 220392646,
+            "digest": "sha256:0b792af0fb627831da88a88d90c117fd15f59fb6d940e47054f6e83a703717dd",
+            "browser_download_url": "https://github.com/TeamGDB/Yakumo/releases/download/v0.7.5/yakumo-0.7.5-windows-x86_64.zip"
+          }
+        ]
+      },
+      {
+        "id": 999112000,
+        "tag_name": "v0.7.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-12T00:00:00Z",
+        "assets": [
+          {
+            "id": 999112001,
+            "name": "SHA256SUMS",
+            "browser_download_url": "https://downloads.example.invalid/SHA256SUMS",
+            "size": 220400000,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999112002,
+            "name": "yakumo-0.7.6-linux-x86_64.tar.gz",
+            "browser_download_url": "https://downloads.example.invalid/yakumo-0.7.6-linux-x86_64.tar.gz",
+            "size": 220400001,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999112003,
+            "name": "yakumo-0.7.6-windows-x86_64-portable.zip",
+            "browser_download_url": "https://downloads.example.invalid/yakumo-0.7.6-windows-x86_64-portable.zip",
+            "size": 220400002,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": 999112004,
+            "name": "yakumo-0.7.6-windows-x86_64.zip",
+            "browser_download_url": "https://downloads.example.invalid/yakumo-0.7.6-windows-x86_64.zip",
+            "size": 220400003,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
+    ],
+    "alexbeav-medievil-ii-recomp-setup-kit": [
+      {
+        "id": 442163885,
+        "tag_name": "v0.2.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-11T20:12:04Z",
+        "assets": [
+          {
+            "id": 736821866,
+            "name": "medievil-ii-recomp-0.2.6-linux-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/releases/download/v0.2.6/medievil-ii-recomp-0.2.6-linux-x64.zip",
+            "size": 45589438,
+            "digest": "sha256:54a7351fa7d024986e72e147d340df5199dbf00291b58c878bbce0baf381aa4b"
+          },
+          {
+            "id": 736821870,
+            "name": "medievil-ii-recomp-0.2.6-macos-arm64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/releases/download/v0.2.6/medievil-ii-recomp-0.2.6-macos-arm64.zip",
+            "size": 42867879,
+            "digest": "sha256:4056d6a4784492387157ee78e797eb7f4ff1e5bb8773a96bb31ce929a9e2393e"
+          },
+          {
+            "id": 736821872,
+            "name": "medievil-ii-recomp-0.2.6-macos-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/releases/download/v0.2.6/medievil-ii-recomp-0.2.6-macos-x64.zip",
+            "size": 43376798,
+            "digest": "sha256:9e5f3bad2ddbb8be075bad76b1c81478fca68b276cbf37fe11ba84e6e69a9db0"
+          },
+          {
+            "id": 736821868,
+            "name": "medievil-ii-recomp-0.2.6-windows-x64.zip",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/releases/download/v0.2.6/medievil-ii-recomp-0.2.6-windows-x64.zip",
+            "size": 47782043,
+            "digest": "sha256:15b93eccd3b354601d6903d9baec13a7e0f616d63b80f0c7e2ef139a2ce45b70"
+          },
+          {
+            "id": 736832414,
+            "name": "RELEASE-MANIFEST.json",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/releases/download/v0.2.6/RELEASE-MANIFEST.json",
+            "size": 2938,
+            "digest": "sha256:0dc61f00deca32f5a9054eb256e700617701d6d22a4f5cf81ed8117d5c5e12ca"
+          },
+          {
+            "id": 736832413,
+            "name": "SHA256SUMS.txt",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/releases/download/v0.2.6/SHA256SUMS.txt",
+            "size": 424,
+            "digest": "sha256:be7ab349382fc5cf0b103bdc6174ec4785ee017b20b62bbc3dcbd22243076884"
+          }
+        ]
+      },
+      {
+        "id": 999880120,
+        "tag_name": "v999.123.456",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2027-01-01T00:00:00Z",
+        "assets": [
+          {
+            "id": 999880121,
+            "name": "medievil-ii-recomp-999.123.456-windows-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/medievil-ii-recomp-999.123.456-windows-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "id": 999880122,
+            "name": "medievil-ii-recomp-999.123.456-linux-x64.zip",
+            "browser_download_url": "https://downloads.example.invalid/medievil-ii-recomp-999.123.456-linux-x64.zip",
+            "size": 12345678,
+            "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+          }
+        ]
+      }
     ]
   },
   "other_zip_assets": [
+    {
+      "inventory": "vcmi",
+      "release_index": 0,
+      "asset": "pdb-arm64.zip"
+    },
+    {
+      "inventory": "vcmi",
+      "release_index": 0,
+      "asset": "pdb-x64.zip"
+    },
+    {
+      "inventory": "vcmi",
+      "release_index": 0,
+      "asset": "pdb-x86.zip"
+    },
     {
       "inventory": "rewooled",
       "release_index": 0,
@@ -10851,7 +11513,7 @@
     {
       "inventory": "alexbeav-medievil-recomp",
       "release_index": 0,
-      "asset": "medievil-recomp-0.1.4-macos-x64.zip"
+      "asset": "medievil-recomp-0.1.5-macos-x64.zip"
     },
     {
       "inventory": "alexbeav-medievil-recomp",
@@ -10861,7 +11523,7 @@
     {
       "inventory": "alexbeav-medievil-recomp",
       "release_index": 0,
-      "asset": "medievil-recomp-0.1.4-macos-arm64.zip"
+      "asset": "medievil-recomp-0.1.5-macos-arm64.zip"
     },
     {
       "inventory": "alexbeav-medievil-recomp",
@@ -11152,6 +11814,51 @@
       "inventory": "njh-1001-wipeout2k97xl",
       "release_index": 0,
       "asset": "wipeoutxl-0.2.0-macos-x64.zip"
+    },
+    {
+      "inventory": "yakumo",
+      "release_index": 0,
+      "asset": "yakumo-0.7.5-macos-arm64.zip"
+    },
+    {
+      "inventory": "yakumo",
+      "release_index": 0,
+      "asset": "yakumo-0.7.5-windows-x86_64.zip"
+    },
+    {
+      "inventory": "yakumo",
+      "release_index": 1,
+      "asset": "yakumo-0.7.6-windows-x86_64.zip"
+    },
+    {
+      "inventory": "alexbeav-vib-ribbon-recomp",
+      "release_index": 0,
+      "asset": "vib-ribbon-0.1.3-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-vib-ribbon-recomp",
+      "release_index": 0,
+      "asset": "vib-ribbon-0.1.3-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-wipeout-xl-recomp",
+      "release_index": 0,
+      "asset": "wipeout-xl-0.1.3-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-wipeout-xl-recomp",
+      "release_index": 0,
+      "asset": "wipeout-xl-0.1.3-macos-x64.zip"
+    },
+    {
+      "inventory": "alexbeav-medievil-ii-recomp-setup-kit",
+      "release_index": 0,
+      "asset": "medievil-ii-recomp-0.2.6-macos-arm64.zip"
+    },
+    {
+      "inventory": "alexbeav-medievil-ii-recomp-setup-kit",
+      "release_index": 0,
+      "asset": "medievil-ii-recomp-0.2.6-macos-x64.zip"
     }
   ]
 }

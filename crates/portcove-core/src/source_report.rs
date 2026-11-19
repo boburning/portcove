@@ -59,6 +59,10 @@ pub struct SourceInspectionReport {
     #[serde(default)]
     pub evidence: Vec<SourceEvidenceLink>,
     pub legacy: SourceLegacyCoverage,
+    /// Informational naming from the player's DAT files. It never affects
+    /// `inspection.assessment`; present only when DAT files are saved.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dump_identification: Option<crate::DumpIdentification>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -359,6 +363,7 @@ fn assemble_report(
         expected_identity,
         applications,
         evidence,
+        dump_identification: None,
     })
 }
 
@@ -617,6 +622,7 @@ mod tests {
             catalog,
             None,
             SourceInspection {
+                integrity_advisories: Vec::new(),
                 profile_id: profile_id.into(),
                 path: PathBuf::from("selected.source"),
                 observed_digests: vec![ObservedSourceDigest {

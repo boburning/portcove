@@ -1,11 +1,10 @@
 # Project governance
 
-The public, user-owned
-[Portcove Roadmap](https://github.com/users/boburning/projects/1) is the sole live
-planning authority. Project fields may change freely without a documentation
-rewrite. GitHub issues preserve implementation-ready specifications and evidence;
-repository documentation preserves stable contracts and dated snapshots;
-`catalog.json` preserves actual port support.
+Use the public, user-owned
+[Portcove Roadmap](https://github.com/users/boburning/projects/1) for current
+plans. When a Project field changes, update the Project. Put implementation
+requirements and evidence in GitHub issues. Keep stable rules and dated
+snapshots in the docs. Record actual port support in `catalog.json`.
 
 Do not create a JSON ledger, `STATUS.md`, TODO list, milestone mirror, or second
 planning service. GitHub milestones are not the target-release authority.
@@ -108,7 +107,10 @@ release campaign. Planned work remains selectable without committing speculative
 family-wide enhancement lists.
 
 `capture-port` creates the repository issue immediately, adds it to the Project,
-and initializes neutral Watchlist fields. A public New
+and initializes neutral Watchlist fields. After the creation receipt, it reads the
+exact issue’s active and archived memberships and verifies the selected Project
+item by its REST and opaque IDs. An unconfirmed attachment keeps the receipt for
+`normalize-port` recovery. A public New
 Port form submission enters the same contract when a maintainer runs
 `normalize-port --issue <number>`. Normalization preserves contributor content,
 requires the canonical `[Port]` title plus direct-upstream and lowercase
@@ -119,7 +121,17 @@ and fills neutral values only where fields are unset. Both intake paths preserve
 existing parent relationships and leave unparented issues unparented.
 When a researched port is later admitted to the operational catalog, rerunning
 `normalize-port` links its existing key only when both the exact catalog ID and
-normalized direct upstream match. Listing-only keys, other games sharing an
+normalized direct upstream match. When the research key differs, the
+`normalize-port` CLI command (and the workflow that runs it) links instead when
+exactly one catalog listing records this issue as its `issue_number`, that
+listing's ID is an operational catalog entry whose normalized `project_url`
+matches the issue's direct upstream, and the issue title names the listing's
+original game or listing name. It refuses an issue claimed by several or
+malformed listings, a differing upstream, a title naming another game, or a
+listing claim that contradicts the issue's existing catalog ID. A claim by a
+research-only listing that is not yet in the operational catalog leaves the
+research key unchanged. Discovery and hosted intake do not pass listings and
+use only the exact-key rule. Other listing-only keys, other games sharing an
 upstream and unreviewed upstream changes remain research identities. This does
 not promote Project qualification or change support. Normalization refuses a
 changed issue preimage before publishing its marker update.
@@ -497,7 +509,7 @@ Being Planned is never a reason. For comparably valuable executable candidates, 
 waiting work over repeatedly selecting new small tasks; use existing comments
 and queue order to record repeated deferrals, without a new scheduler or ledger.
 
-Preserve actual host/resource guards, applicable review, acceptance and spending boundaries. Choose a suitable model for the task within existing spending authority.
+Preserve actual host/resource guards, applicable review, acceptance and spending boundaries. Choose models by responsibility from [agent model selection](DEVELOPMENT-TOOLS.md#agent-model-selection) within existing spending authority.
 
 The existing nightly development report leads with accepted beta outcomes advanced,
 delivered port integrations and maintenance, and actual blockers or
@@ -620,9 +632,9 @@ reported once with its effect; it does not suspend safe independent work.
 Preserve [applicable review](QUALITY.md#review-scope), required exact-head hosted
 CI and explicit acceptance. Local validation is optional under
 [QUALITY](QUALITY.md#required-hosted-baseline). Reuse evidence only at permitted matching
-inputs and scope. A bounded reviewer receives the exact diff/head, relevant
-acceptance/contracts, risks and existing evidence; implementers handle findings
-directly. Where independent review is required, its absence leaves a candidate
+inputs and scope. Reviewers receive the packet defined by the
+[review and repair loop](QUALITY.md#review-and-repair-loop); implementers handle
+findings directly. Where independent review is required, its absence leaves a candidate
 awaiting review, never self-approved. Existing narrow dependency exceptions remain unchanged.
 
 Use existing canonical owners for discoveries and narrow blockers. Record fact

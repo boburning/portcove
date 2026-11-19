@@ -22,7 +22,9 @@
           "instruction": "Download the Mac ZIP from the Daggerfall Unity v1.1.1-cve-2025 release. Unpack DaggerfallUnity.app into a permanent folder separate from your DOS Daggerfall game. The current app executable is Intel x64. In the setup wizard choose the compatible game folder containing ARENA2."
         }
       ],
-      "warnings": [],
+      "warnings": [
+        "Use a short library path on Linux. If class names appear as placeholders, keep your existing saves, settings and originals before setting up a copy in a shorter library."
+      ],
       "help_url": "https://github.com/Interkarma/daggerfall-unity/blob/v1.1.1-cve-2025/README.md",
       "references": [
         {
@@ -42,6 +44,24 @@
     "platforms": ["macos-x86-64"],
     "download_asset_hints": {
       "macos-x86-64": ["dfu_mac_universal-", ".zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-elder-scrolls-ii-daggerfall",
+      "evidence_urls": [
+        "https://github.com/Interkarma/daggerfall-unity/blob/v1.1.1-cve-2025/README.md",
+        "https://github.com/Interkarma/daggerfall-unity"
+      ],
+      "source_editions": [
+        {
+          "id": "the-elder-scrolls-ii-daggerfall-pc",
+          "title": "The Elder Scrolls II: Daggerfall (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Interkarma/daggerfall-unity/blob/3d85a283672a4955e32992097ea7719e896dbadb/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {
@@ -70,7 +90,18 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "On first Play, use Daggerfall Unity’s setup wizard to select your compatible original Daggerfall game folder. It validates the game data. The package is a native Unity player and needs no separate game compilation. Keep external originals where they are. Normal saves, settings, logs, screenshots and mod data live in Unity’s Daggerfall Workshop/Daggerfall Unity user-data directory, outside Portcove backups. The reviewed Portable.txt mode uses PortableAppdata beside the player; that folder and the marker are declared. StreamingAssets/Mods and optional StreamingAssets/GameFiles are retained as supported user additions. Other replacements of version-owned assets require manual preservation or external registration. Mods and saves must remain compatible with the selected runtime. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. Linux uses Unity’s external user profile by default, outside Portcove backups. The same declared Portable.txt/PortableAppdata and supported StreamingAssets Mods/GameFiles paths apply. Keep UnityPlayer.so, DaggerfallUnity_Data and their packaged companions together; a Windows package does not establish Linux execution. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run."
+      "manual_preparation": "On first Play, use Daggerfall Unity’s setup wizard to select your compatible original Daggerfall game folder. It validates the game data. The package is a native Unity player and needs no separate game compilation. Keep external originals where they are. Normal saves, settings, logs, screenshots and mod data live in Unity’s Daggerfall Workshop/Daggerfall Unity user-data directory, outside Portcove backups. The reviewed Portable.txt mode uses PortableAppdata beside the player; that folder and the marker are declared. StreamingAssets/Mods and optional StreamingAssets/GameFiles are retained as supported user additions. Other replacements of version-owned assets require manual preservation or external registration. Mods and saves must remain compatible with the selected runtime. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. Linux uses Unity’s external user profile by default, outside Portcove backups. The same declared Portable.txt/PortableAppdata and supported StreamingAssets Mods/GameFiles paths apply. Keep UnityPlayer.so, DaggerfallUnity_Data and their packaged companions together. The Linux v1.1.1 player cannot load the localization settings when the full path to DaggerfallUnity_Data/StreamingAssets/aa/settings.json reaches 260 characters."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["daggerfallunity_data", "monobleedingedge"],
+        "executables": ["daggerfallunity.exe", "unitycrashhandler64.exe"]
+      },
+      "linux-x86-64": {
+        "classify_linux_programs_by_format": true,
+        "directories": ["daggerfallunity_data"],
+        "executables": ["daggerfallunity.x86_64", "linuxplayer_s.debug", "unityplayer_s.debug"]
+      }
     }
   }
 }

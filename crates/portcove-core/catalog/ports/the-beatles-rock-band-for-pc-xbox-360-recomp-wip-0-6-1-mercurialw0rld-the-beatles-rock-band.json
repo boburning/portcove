@@ -2,12 +2,20 @@
   "format_version": 1,
   "listing": {
     "id": "the-beatles-rock-band-for-pc-xbox-360-recomp-wip-0-6-1-mercurialw0rld-the-beatles-rock-band",
+    "artwork": {
+      "game_id": 2693,
+      "cover_id": 89088,
+      "image_id": "co1wqo",
+      "image_sha256": "84f4389339e059d341a3f871c4e06fb66c19ca59819982b3d92a9dbac4e71ebb",
+      "game_slug": "the-beatles-rock-band",
+      "match_kind": "underlying-game"
+    },
     "name": "The Beatles: Rock Band — The Beatles: Rock Band for PC (Xbox 360 recomp) — WIP 0.6.1 (mercurialw0rld)",
     "original_game_title": "The Beatles: Rock Band",
     "summary": "Experimental project. The project reports keyboard guitar and drum play near 60 FPS. Stutter, calibration issues and incomplete DLC and instrument testing remain. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/mercurialw0rld/thebeatlesrockband-pcport",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/mercurialw0rld/thebeatlesrockband-pcport",
     "manual_setup": {
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/mercurialw0rld/thebeatlesrockband-pcport"
     },
-    "issue_number": 3213
+    "issue_number": 3213,
+    "original_game": {
+      "format_version": 1,
+      "id": "the-beatles-rock-band",
+      "evidence_urls": ["https://github.com/mercurialw0rld/thebeatlesrockband-pcport"],
+      "source_editions": [
+        {
+          "id": "the-beatles-rock-band-xbox-360",
+          "title": "The Beatles: Rock Band (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/mercurialw0rld/thebeatlesrockband-pcport/blob/2736d8b4c6282738417789e883fa76203988ec03/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

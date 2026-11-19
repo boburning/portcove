@@ -18,7 +18,22 @@
       "game_slug": "hydro-thunder-hurricane",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2779
+    "issue_number": 2779,
+    "original_game": {
+      "format_version": 1,
+      "id": "hydro-thunder-hurricane",
+      "evidence_urls": ["https://github.com/monscriser/HydroThunderPORT"],
+      "source_editions": [
+        {
+          "id": "hydro-thunder-hurricane-xbox-360",
+          "title": "Hydro Thunder Hurricane (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/monscriser/HydroThunderPORT/blob/e6eef6411588c8fe07db7e6d4bfd89ef06b6f0d9/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

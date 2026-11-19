@@ -3,30 +3,17 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { defaultNoticeProps } from "../../components/rendered-test-fixtures";
 
-describe("desktop components", () => {
-  it("uses semantic shared actions for application update notices", () => {
-    const choice = renderToStaticMarkup(
-      <ApplicationUpdateNotices
-        {...defaultNoticeProps}
-        updateChoiceRequired
-        reviewUpdate={vi.fn()}
-        dismissUpdateChoice={vi.fn()}
-      />,
+describe("application update notice", () => {
+  it("announces an available version with review and hide actions", () => {
+    const html = renderToStaticMarkup(
+      <ApplicationUpdateNotices {...defaultNoticeProps} version="0.2.0" review={vi.fn()} />,
     );
-    const transition = renderToStaticMarkup(
-      <ApplicationUpdateNotices
-        {...defaultNoticeProps}
-        productionTransitionRequired
-        useStable={vi.fn()}
-        keepPreview={vi.fn()}
-        dismissProductionTransition={vi.fn()}
-      />,
-    );
+    expect(html).toContain("Portcove 0.2.0 is available");
+    expect(html).toMatch(/data-variant="primary"[^>]*>Review update<\/button>/u);
+    expect(html).toContain('aria-label="Hide update notice"');
+  });
 
-    expect(choice).toMatch(/data-variant="outline"[^>]*>Review options<\/button>/u);
-    expect(choice).toMatch(/data-variant="ghost"[^>]*>Not now<\/button>/u);
-    expect(transition).toMatch(/data-variant="primary"[^>]*>Use Stable<\/button>/u);
-    expect(transition).toMatch(/data-variant="outline"[^>]*>Keep Preview<\/button>/u);
-    expect(transition).toMatch(/data-variant="ghost"[^>]*>Not now<\/button>/u);
+  it("renders nothing without an available version", () => {
+    expect(renderToStaticMarkup(<ApplicationUpdateNotices {...defaultNoticeProps} />)).toBe("");
   });
 });

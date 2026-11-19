@@ -1,0 +1,54 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "thimbleweed-park-engge2",
+    "artwork": {
+      "game_id": 10232,
+      "cover_id": 89067,
+      "image_id": "co1wq3",
+      "image_sha256": "a75e7a2a6ebc6a6f2bdcf3201b84378663b2f69fb8b27629da0d6e42b2d2bbc9",
+      "game_slug": "thimbleweed-park",
+      "match_kind": "underlying-game"
+    },
+    "project_url": "https://github.com/scemino/engge2",
+    "name": "Thimbleweed Park / engge2",
+    "original_game_title": "Thimbleweed Park",
+    "summary": "Play Thimbleweed Park in engge2 using data from your own copy of the game.",
+    "issue_number": 6114,
+    "listed_at": "2026-11-14",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/scemino/engge2/blob/v2.1/README.MD#how-to-play",
+    "release_url": "https://github.com/scemino/engge2/releases/tag/v2.1",
+    "manual_setup": {
+      "help_url": "https://github.com/scemino/engge2/blob/v2.1/README.MD",
+      "steps": [
+        {
+          "title": "Extract the upstream archive",
+          "instruction": "Choose the Windows x64, Linux x64, or Intel Mac archive. The Mac executable targets macOS 12 or later. The archives contain the engine executable. Have compatible x64 SDL2 and SDL2_mixer libraries available. Use a writable folder separate from your original game."
+        },
+        {
+          "title": "Copy data from your own game",
+          "instruction": "Copy ThimbleweedPark.ggpack1 and ThimbleweedPark.ggpack2 from your original installation into the engine folder, then start the engine from that folder. For the Ransome add-on or Italian voiceover, follow the upstream instructions for the optional ThimbleweedPark.ggpack3."
+        },
+        {
+          "title": "Keep your saves and preferences",
+          "instruction": "The engine uses the folder it starts from for Savegame files, their PNG thumbnails, Save.dat and Prefs.json. Back up that folder before replacing the engine. To try your original game's progress, copy the saves and Save.dat so you keep the originals."
+        }
+      ],
+      "warnings": [
+        "The publisher has not published a license for the engine. The release archives require manual extraction.",
+        "The publisher supplies an Intel Mac executable in v2.1. Apple Silicon through Rosetta has not been verified. There is no Android or Linux ARM64 package in this release."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "thimbleweed-park",
+      "evidence_urls": [
+        "https://github.com/scemino/engge2/blob/v2.1/README.MD",
+        "https://github.com/scemino/engge2"
+      ],
+      "source_editions": []
+    }
+  }
+}

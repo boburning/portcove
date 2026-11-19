@@ -321,7 +321,15 @@ pub(crate) async fn execute(
                 if let Some(reason) = &result.reason {
                     lines.push(human::clean(reason));
                 }
-                lines.push(human::clean(&result.recommendation_reason));
+                if result.refusal == Some(portcove_core::CatalogDownloadRefusal::ManagedRoute) {
+                    lines.push(format!(
+                        "Next: portcove install {}",
+                        human::clean(&result.port_id)
+                    ));
+                }
+                if !result.recommendation_reason.is_empty() {
+                    lines.push(human::clean(&result.recommendation_reason));
+                }
                 if let Some(parent) = &result.default_destination_parent {
                     lines.push(format!("Suggested parent: {}", parent.display()));
                 }

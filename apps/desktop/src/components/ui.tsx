@@ -65,7 +65,7 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <section className="empty-state flex min-h-[18.75rem] flex-col items-center justify-center gap-4 p-10 text-center text-pc-muted-foreground">
+    <section className="empty-state flex min-h-[18.75rem] flex-col items-center justify-center gap-4 p-10 text-center text-pc-muted-foreground max-[32rem]:px-4">
       <EmptyVisual icon={icon} visual={visual} />
       <div>
         {eyebrow && (
@@ -123,7 +123,7 @@ export function NavigationHints({
       )}
       open={controller ? true : undefined}
     >
-      <summary data-focusable className="cursor-pointer py-2">
+      <summary data-focusable className="disclosure-pad-2 cursor-pointer">
         {t("navigation.help")}
       </summary>
       <div

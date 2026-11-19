@@ -42,7 +42,15 @@ void test("automatic qualification selection rejects stale success, foreign iden
     run_attempt: 1,
     authority: "none",
   });
-  const later = { ...run, id: 22, created_at: "2026-11-05T00:02:00Z" };
+  const later = { ...run, id: 22, event: "schedule", created_at: "2026-11-05T00:02:00Z" };
+  assert.equal(selectWindowsApplicationQualificationRun(inventory(run, later), source).run_id, 22);
+  assert.equal(
+    selectWindowsApplicationQualificationRun(
+      inventory(run, { ...later, display_title: "Windows qualification held" }),
+      source,
+    ).run_id,
+    21,
+  );
   assert.deepEqual(
     selectWindowsApplicationQualificationRun(
       inventory(run, {
@@ -109,6 +117,10 @@ void test("canonical Windows qualification requires its exact profile and all pa
   jobs.total_count += names.length;
   const result = inspectWindowsApplicationQualification(canonical, jobs, plan, source);
   assert.deepEqual(result.required_jobs.slice(-names.length), names);
+  assert.deepEqual(
+    inspectWindowsApplicationQualification({ ...canonical, event: "schedule" }, jobs, plan, source),
+    result,
+  );
   for (const name of names) {
     const changed = structuredClone(jobs);
     changed.jobs.find((job) => job.name === name)!.conclusion = "skipped";
@@ -293,6 +305,12 @@ for (const historical of [
     id: 42656355737,
     run_attempt: 2,
     head_sha: "29f33f577dd08888daa308f6534e1ba2e0d10eaf",
+    path: ".github/workflows/application-release.yml",
+  },
+  {
+    id: 43389863363,
+    run_attempt: 1,
+    head_sha: "6de70052a7f3483657bfca27d02624657f3a5bf0",
     path: ".github/workflows/application-release.yml",
   },
 ]) {

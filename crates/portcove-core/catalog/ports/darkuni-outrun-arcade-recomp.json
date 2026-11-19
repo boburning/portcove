@@ -2,19 +2,26 @@
   "format_version": 1,
   "listing": {
     "id": "darkuni-outrun-arcade-recomp",
+    "artwork": {
+      "game_id": 21204,
+      "cover_id": 352378,
+      "image_id": "co7jwa",
+      "image_sha256": "c9d0ec6eabc78a904fbd0bba158c2afe610ae46cbab6deb1404e8adb4138c3ab",
+      "game_slug": "outrun-online-arcade",
+      "match_kind": "underlying-game"
+    },
     "name": "OutRun Online Arcade (darkuni Recomp)",
-    "summary": "Player-managed Windows setup for OutRun Online Arcade using its own Xbox 360 package.",
+    "summary": "Play OutRun Online Arcade with darkuni's Windows recompilation and your own purchased Xbox 360 package.",
     "project_url": "https://github.com/darkuni/outrun-arcade-recomp",
     "original_game_title": "OutRun Online Arcade",
     "issue_number": 4133,
     "listed_at": "2026-11-08",
-    "platforms": ["windows-x86-64"],
-    "availability": "unknown",
+    "availability": "packages",
     "manual_setup": {
       "steps": [
         {
-          "title": "Prepare your original in the upstream folder",
-          "instruction": "With an already permitted Windows x64 copy, keep its files together in a writable folder. Put your own Xbox 360 LIVE package for title 58410968 beside outrun_arcade.exe. The tagged source identifies default.xex 0.0.1.5. Keep the matching media files if using an already extracted assets folder."
+          "title": "Prepare your original beside the program",
+          "instruction": "Copy your own purchased full OutRun Online Arcade Xbox 360 LIVE package (title 58410968, default.xex 0.0.1.5) beside outrun_arcade.exe as the complete 58410968 console export folder (58410968/000D0000/<package>). Keep your original export separately."
         },
         {
           "title": "Use the documented Windows prerequisites",
@@ -22,19 +29,67 @@
         },
         {
           "title": "Complete first-run setup",
-          "instruction": "Start outrun_arcade.exe in that folder and let the upstream program prepare assets. Keep your original export separately."
+          "instruction": "Start outrun_arcade.exe and let it prepare assets from your package on first start."
         },
         {
-          "title": "Preserve the creating folder",
-          "instruction": "Keep the generated assets, outrun_arcade.toml and any game-created profile, saves or diagnostic files alongside the creating version."
+          "title": "Keep your settings and saves",
+          "instruction": "Keep the generated assets, outrun_arcade.toml and the 58410968 folder with the program. Saves and the shader cache stay in Documents\\outrun_arcade."
         }
       ],
       "warnings": [
-        "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
-        "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+        "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own purchased full game package; the program always runs as the full game and does not grant or change an entitlement.",
+        "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
       ],
       "help_url": "https://github.com/darkuni/outrun-arcade-recomp/blob/e1c57e065b74e594d38778b05d13fdc895e90d4b/README.md"
     },
-    "download_block_reason": "Fresh Portcove downloads are held because the selected OutRun Online Arcade executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
-  }
+    "release_url": "https://github.com/darkuni/outrun-arcade-recomp/releases",
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "outrun-online-arcade",
+      "evidence_urls": [
+        "https://github.com/darkuni/outrun-arcade-recomp/blob/e1c57e065b74e594d38778b05d13fdc895e90d4b/README.md",
+        "https://github.com/darkuni/outrun-arcade-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "outrun-online-arcade-xbox-360",
+          "title": "OutRun Online Arcade (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/darkuni/outrun-arcade-recomp/blob/786adf77f430900830d0e50cc27732cdbaa655c2/README.md"
+          ]
+        }
+      ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "darkuni/outrun-arcade-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["outrun_arcade-", "-win-amd64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["outrun_arcade.exe"]
+    },
+    "persistent_paths": ["58410968", "assets", "outrun_arcade.toml"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Before first Play, copy your own purchased full OutRun Online Arcade Xbox 360 LIVE package (title 58410968, default.xex 0.0.1.5) into the managed OutRun Online Arcade folder as the complete 58410968 console export folder (58410968/000D0000/<package>), and keep your original separately. OutRun Online Arcade always runs as the full game; that does not grant or change an entitlement, so use only a full package you own. On first Play, the game finds the package and extracts it into assets beside outrun_arcade.exe; without a package it explains what it needs and closes. This build was made from default.xex 0.0.1.5 and does not check the version, so a different version may not start or may not play correctly. This download is the recompiled program with its runtime and contains no game data; the project license does not cover the recompiled game code. Portcove preserves the 58410968 folder, assets and outrun_arcade.toml across updates and backups. Once the game has started, you can delete the copied 58410968 folder so it is not kept in backups; assets is all the game needs. Logs and crash reports beside the program are diagnostics. Saves and the shader cache are in Documents\\outrun_arcade, outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if the game does not start. Portcove replaces the program; upstream owns package import and save formats."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["licenses"],
+        "executables": ["outrun_arcade.exe"]
+      }
+    }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

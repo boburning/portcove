@@ -6,10 +6,17 @@ import type { GitHubRequestPolicy } from "./github-client.mts";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
-import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
+import {
+  inspectRemoteCommitObject,
+  inspectRemotePreparedCommit,
+} from "./release-coordinator-recovery.mts";
 import { inspectPreparationCommitBytes } from "./release-coordinator-state.mts";
 import { preparedCompilerSourceRequests } from "./release-compiler-source.mts";
-import { classifyApplicationVersion } from "../apps/desktop/scripts/release-version-policy.mts";
+import {
+  classifyApplicationVersion,
+  proposeApplicationVersion,
+} from "../apps/desktop/scripts/release-version-policy.mts";
+import { readApplicationRunNotes } from "./application-release-run.mts";
 import { isRecord } from "./runtime-values.mts";
 
 const base = "repos/boburning/portcove";
@@ -223,7 +230,20 @@ function* publishedSourceRequests(
       !Number.isFinite(Date.parse(value.published_at))
     )
       throw new Error("published source Release differs from exact publication");
-    return { id: value.id, tag: value.tag_name, published_at: value.published_at };
+    const native = readApplicationRunNotes(value.body ?? "")?.custody;
+    if (
+      native &&
+      (value.immutable !== true ||
+        value.prerelease !== true ||
+        value.target_commitish !== native.source ||
+        native.preparation?.qualification?.workflow !==
+          ".github/workflows/application-release.yml" ||
+        native.preparation.version !== publication.version ||
+        native.preparation.prepared_commit !== publication.prepared_commit ||
+        native.preparation.prepared_tree !== publication.prepared_tree)
+    )
+      throw new Error("immutable native publication preparation differs");
+    return { id: value.id, tag: value.tag_name, published_at: value.published_at, native };
   }
   function* publicationTag() {
     const value = yield* get(`git/ref/tags/${encodeURIComponent(`v${publication.version}`)}`);
@@ -263,6 +283,8 @@ function* publishedSourceRequests(
   }
   const firstRelease = yield* release();
   const firstTag = yield* publicationTag();
+  if (firstRelease.native && (!isRecord(firstTag.object) || firstTag.object.type !== "commit"))
+    throw new Error("immutable native publication requires its direct prepared version tag");
   const versionName = `${namespace}-prepared/v${publication.version}`;
   const firstVersion = yield* ref(versionName);
   const preparedBody = yield* get(`git/commits/${publication.prepared_commit}`);
@@ -273,7 +295,8 @@ function* publishedSourceRequests(
     typeof preparedBody.message !== "string"
   )
     throw new Error("actual published commit/tree metadata differs");
-  if (!firstVersion) {
+  const nativePreparation = firstRelease.native?.preparation;
+  if (!firstVersion && !nativePreparation) {
     if (
       preparedBody.message.includes("Portcove-Preparation-SHA256:") ||
       (yield* ref(versionName)) !== null ||
@@ -290,16 +313,21 @@ function* publishedSourceRequests(
     };
     return { ...facts, proof_sha256: capacityDigest(facts), authority: "none" as const };
   }
-  const prepared = inspectRemoteCommitObject(preparedBody, publication.prepared_commit);
-  if (prepared.parents.length !== 1)
+  if (
+    !Array.isArray(preparedBody.parents) ||
+    preparedBody.parents.length !== 1 ||
+    !isRecord(preparedBody.parents[0]) ||
+    typeof preparedBody.parents[0].sha !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(preparedBody.parents[0].sha)
+  )
     throw new Error("published preparation source parent is not exact");
-  const source = inspectRemoteCommitObject(
-    yield* get(`git/commits/${prepared.parents[0]!}`),
-    prepared.parents[0]!,
-  );
+  const sourceId = preparedBody.parents[0].sha;
+  const source = inspectRemoteCommitObject(yield* get(`git/commits/${sourceId}`), sourceId);
+  const prepared = inspectRemotePreparedCommit(preparedBody, publication.prepared_commit, source);
   const sourceName = `${namespace}-prepared-source/${source.object.oid}`;
   const firstSource = yield* ref(sourceName);
-  if (!firstSource) throw new Error("published source preparation receipt missing");
+  if (nativePreparation ? firstSource || firstVersion : !firstSource || !firstVersion)
+    throw new Error("published source preparation receipt missing or unpaired");
   const preparedBytes = Buffer.from(prepared.object.bytes).toString("utf8");
   const intent = preparedBytes.match(/\nPortcove-Preparation-SHA256: ([a-f0-9]{64})\n/u)?.[1];
   if (!intent) throw new Error("published preparation intent absent");
@@ -326,6 +354,22 @@ function* publishedSourceRequests(
     typeof declared.migration_notes !== "string"
   )
     throw new Error("published preparation intent does not bind original source/version");
+  if (
+    nativePreparation &&
+    (nativePreparation.source_commit !== source.object.oid ||
+      nativePreparation.source_tree !== source.tree ||
+      nativePreparation.intent_sha256 !== intent ||
+      text !==
+        JSON.stringify({
+          proposal: proposeApplicationVersion(
+            nativePreparation.classification,
+            nativePreparation.published_versions,
+          ),
+          compatibility: nativePreparation.classification.compatibility,
+          migration_notes: nativePreparation.classification.migration_notes ?? "",
+        }))
+  )
+    throw new Error("immutable native preparation differs from verified source or release intent");
   const preparedRequests = preparedCompilerSourceRequests(
     {
       source_commit: source.object.oid,

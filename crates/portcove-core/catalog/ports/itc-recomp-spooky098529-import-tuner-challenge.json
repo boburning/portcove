@@ -6,7 +6,7 @@
     "original_game_title": "Import Tuner Challenge",
     "summary": "The game uses 30 Hz logic with frame interpolation and slows when the host cannot keep up. The rexglue-removal-project branch continues this implementation; it is not a separate port. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Spooky098529/ITC-Recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Spooky098529/ITC-Recomp",
     "manual_setup": {
@@ -35,6 +35,21 @@
       "image_sha256": "cefba31e2e891bb4346feabe15db0c48d91b05a96df42dad284af3ce0fcc136e",
       "game_slug": "import-tuner-challenge",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "import-tuner-challenge",
+      "evidence_urls": ["https://github.com/Spooky098529/ITC-Recomp"],
+      "source_editions": [
+        {
+          "id": "import-tuner-challenge-xbox-360",
+          "title": "Import Tuner Challenge (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Spooky098529/ITC-Recomp/blob/b322c1d6be1fb01d427d035c18d142d1926ebaae/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

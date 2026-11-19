@@ -1,0 +1,67 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "little-fighter-2-openlf2",
+    "artwork": {
+      "game_id": 8700,
+      "cover_id": 205763,
+      "image_id": "co4ern",
+      "image_sha256": "255b5e8101679f9cc05c4c5e22dd5c5b5f9e42cf37d305bc8d82bc4e4a16b235",
+      "game_slug": "little-fighter-2",
+      "match_kind": "underlying-game"
+    },
+    "name": "Little Fighter 2 / OpenLF2",
+    "summary": "Play Little Fighter 2 in OpenLF2 with the original v2.0a installer as game data.",
+    "project_url": "https://github.com/OpenLF2/OpenLF2",
+    "issue_number": 5830,
+    "listed_at": "2026-11-15",
+    "original_game_title": "Little Fighter 2",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/OpenLF2/OpenLF2/releases/tag/v1.2.0",
+    "manual_setup": {
+      "help_url": "https://github.com/OpenLF2/OpenLF2/blob/v1.2.0/README.md",
+      "steps": [
+        {
+          "title": "Choose the original game data",
+          "instruction": "Use the Little Fighter 2 v2.0a installer offered by the original developers at lf2.net. Keep it as a file. OpenLF2 verifies the file and reads its game data without running the original installer."
+        },
+        {
+          "title": "Install OpenLF2 on Windows",
+          "instruction": "Run the OpenLF2 v1.2.0 setup program for your Windows architecture. If you already have the original, clear the Download the original Little Fighter 2 installer task. OpenLF2 can read your file from %APPDATA%\\OpenLF2 or through the --installer argument. Add the installed openlf2.exe to Portcove after confirming it starts."
+        },
+        {
+          "title": "Set up Linux or macOS",
+          "instruction": "On Linux, make the matching AppImage executable, or let your package manager install the matching Debian package. On macOS 13 or later, extract and keep the complete Intel or Apple Silicon app. Keep the original in the OpenLF2 profile, or launch the player with --installer followed by its absolute path."
+        },
+        {
+          "title": "Add a working desktop copy",
+          "instruction": "Select the existing native player and keep its working directory. If it needs explicit paths, enter --installer and the absolute path to the original as two arguments. Use --config-dir and the creating profile's absolute path as two more arguments if you already use that override. Save the launch details, then choose Play. Removing the registration leaves the player and its profile where you put them."
+        }
+      ],
+      "warnings": [
+        "Back up the original installer, config.json and the recording folder before replacing the player. On removal, the upstream Windows uninstaller can offer to erase the default profile. Decline that option to keep its data.",
+        "Android v1.2.0 packages use the project's public debug signing key. Keep this package family separate from any differently signed Android installation and preserve its data before changing packages."
+      ],
+      "references": [
+        {
+          "title": "Find the desktop profile",
+          "instruction": "The upstream player uses the operating system's OpenLF2 data folder. An explicit --config-dir keeps config.json and the recording directory in that selected folder. Keep the original separately and retain any .lfr recordings and mods you add."
+        },
+        {
+          "title": "Choose an upstream package",
+          "instruction": "The v1.2.0 release includes Windows x86, x64 and ARM64 installers, Linux x86, x64 and ARM64 AppImage and Debian packages, and separate Intel and Apple Silicon Mac apps. Android previews cover ARM32, ARM64, x86 and x64 on API 21 or later. Choose the package for the device's architecture. On Linux, use APPIMAGE_EXTRACT_AND_RUN=1 for a manual AppImage launch if FUSE is unavailable."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "little-fighter-2",
+      "evidence_urls": [
+        "https://github.com/OpenLF2/OpenLF2/blob/v1.2.0/README.md",
+        "https://github.com/OpenLF2/OpenLF2"
+      ],
+      "source_editions": []
+    }
+  }
+}

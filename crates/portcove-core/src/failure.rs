@@ -91,6 +91,7 @@ pub(crate) struct FailureContext {
     preparation_cause: Option<PreparationFailureCause>,
     preparation_target: Option<PreparationTarget>,
     known_cause: Option<KnownFailureCause>,
+    pub(crate) catalog_fallback: Option<crate::CatalogFallbackCode>,
     upstream: Option<UpstreamObservation>,
 }
 
@@ -150,17 +151,25 @@ fn socket_unreachable(error: &(dyn std::error::Error + 'static)) -> bool {
 /// Facts attached at the refusing domain branch, never recovered from diagnostics.
 #[derive(Debug)]
 pub(crate) enum KnownFailureCause {
+    /// No operating-system secure credential store is available on this host.
+    CredentialStoreUnavailable,
+    /// The secure credential store exists but is locked or refused access.
+    CredentialStoreLocked,
     HostLocalCredential {
         path: std::path::PathBuf,
     },
+    RecordedUploaderHold,
+    PackageShapeDrift,
     CatalogValidity,
     CatalogReplay,
+    OriginalEmbeddedInRuntime,
     NewerLibrary,
     IncompleteLibrary,
     Busy,
     CancellationUnavailable,
     OperationInterrupted,
     RequiredRuntimeUnverified,
+    LaunchArgumentsUnsupported,
     SourceChanged,
     AmbiguousAdoption,
     StaleRemoval,
@@ -169,11 +178,26 @@ pub(crate) enum KnownFailureCause {
         failures: Vec<String>,
     },
     PortableDataContractChanged,
+    /// Two copies of a settings file a newer version newly carries differ, so
+    /// Core cannot tell which to keep. `other` is the saved copy, or the new
+    /// version's copy when `other_is_saved` is false.
+    AppendedSettingsDiverged {
+        file: String,
+        installed: std::path::PathBuf,
+        other: std::path::PathBuf,
+        other_is_saved: bool,
+    },
+    /// Something other than an ordinary settings file of at most 16 MiB is at
+    /// a newly declared settings file path.
+    AppendedSettingsPathBlocked {
+        path: std::path::PathBuf,
+    },
     ManagedRouteCommitted {
         version: String,
         previous_path: std::path::PathBuf,
         current_confirmed: bool,
     },
+    NativeModListReview,
     RestoreRecovery,
     BackupDeletionRecovery,
     TfePreparationRecovery {
@@ -184,7 +208,14 @@ pub(crate) enum KnownFailureCause {
     ArchiveLimit,
     UnicodePath,
     RuntimePathRequirement,
+    OpenSurgeUserDataPath,
+    /// The package is not a LIVE or PIRS package in the read-only STFS layout.
     UnsupportedStfs,
+    /// The STFS package is a different game or content type than the port requires.
+    StfsPackageMismatch {
+        found: String,
+        expected: Vec<String>,
+    },
     /// The selected file is not a disc image the read-only readers accept.
     UnsupportedDiscImage,
     /// A disc image exceeded a fixed unpacking safety limit.
@@ -201,6 +232,8 @@ pub(crate) enum KnownFailureCause {
         volume: String,
     },
     DeviceLoginUnavailable,
+    GithubDeviceCodeExpired,
+    GithubDeviceAuthorizationDenied,
     ProviderRequest {
         provider: FailureProvider,
         status: u16,
@@ -232,6 +265,22 @@ impl KnownFailureCause {
                     ),
                 );
             }
+            Self::CredentialStoreUnavailable => (
+                "credential_store_unavailable",
+                "This device has no secure credential storage that Portcove can use, so Portcove can't read or save the credential this task needs. On Linux, sign in to a desktop session where a keyring service such as GNOME Keyring or KWallet is running, then try again.",
+            ),
+            Self::CredentialStoreLocked => (
+                "credential_store_locked",
+                "Secure credential storage on this device is locked or refused access, so Portcove can't read or save the credential this task needs. Unlock it or allow access, for example to your login keyring or keychain, then try again.",
+            ),
+            Self::RecordedUploaderHold => (
+                "recorded_uploader_hold",
+                "Portcove couldn't confirm the uploader for this version. Check for updates to find a version Portcove can confirm.",
+            ),
+            Self::PackageShapeDrift => (
+                "package_shape_drift",
+                "This release changed some of the files or folders Portcove checks before installing. It is waiting for review. You can still use an installed version.",
+            ),
             Self::CatalogValidity => (
                 "catalog_validity_rejected",
                 "The signed catalog sequence or validity period was not accepted. Check the system clock and obtain a current catalog from its configured source.",
@@ -239,6 +288,10 @@ impl KnownFailureCause {
             Self::CatalogReplay => (
                 "catalog_replay_rejected",
                 "This catalog revision has already been seen or is older than the recorded revision. Check for a newer catalog; do not reset the library's trust history.",
+            ),
+            Self::OriginalEmbeddedInRuntime => (
+                "original_embedded_in_runtime",
+                "This runtime already contains prepared game data. Prepare another runtime to use a different original.",
             ),
             Self::NewerLibrary => (
                 "library_version_newer",
@@ -268,6 +321,10 @@ impl KnownFailureCause {
                 "required_runtime_unverified",
                 "This installation's required runtime could not be verified. Review its runtime requirements and current installation; use an offered compatible update or repair when available.",
             ),
+            Self::LaunchArgumentsUnsupported => (
+                "launch_arguments_unsupported",
+                "This launch uses a fixed set of arguments. Run it again without extra arguments.",
+            ),
             Self::AmbiguousAdoption => (
                 "adoption_ambiguous",
                 "More than one matching port was detected in this folder. Select the intended port explicitly and review the adoption again.",
@@ -290,7 +347,7 @@ impl KnownFailureCause {
                 return (
                     "portable_runtime_modified",
                     format!(
-                        "Package files changed, went missing, or unrecognized files were added. This operation stopped and preserved the current files. Back up your changes to a separate folder, then restore changed or missing package files from the accepted package and move unrecognized additions before reviewing and trying again. Declared player data is handled separately. A preserved unknown file is not automatically safe to add to a replacement.\nInstallation: {}\nAffected package paths:\n{}{}",
+                        "Package files changed or went missing, or unrecognized programs, scripts or libraries were added. This operation stopped and preserved the current files. Back up your changes to a separate folder, then restore changed or missing package files from the accepted package and move the added programs, scripts or libraries before reviewing and trying again. Declared player data is handled separately. A preserved unknown file is not automatically safe to add to a replacement.\nInstallation: {}\nAffected package paths:\n{}{}",
                         directory.display(),
                         paths,
                         if remainder > 0 {
@@ -305,6 +362,35 @@ impl KnownFailureCause {
                 "portable_data_contract_changed",
                 "This package changes where player data is stored or how it is located. Portcove stopped the transition and kept the current installation and files. Keep using the current version; use upstream instructions until a compatible package or supported data migration is available.",
             ),
+            Self::AppendedSettingsDiverged {
+                file,
+                installed,
+                other,
+                other_is_saved,
+            } => {
+                let (where_other, other_label) = if *other_is_saved {
+                    ("your saved settings", "Saved copy")
+                } else {
+                    ("the new version", "New version's copy")
+                };
+                return (
+                    "appended_settings_diverged",
+                    format!(
+                        "The settings file {file} is different in the version you're using now and in {where_other}, so Portcove can't tell which one to keep. Both copies were kept. Delete the copy you don't want, then try again.\nCopy in the version you're using now: {}\n{other_label}: {}",
+                        installed.display(),
+                        other.display()
+                    ),
+                );
+            }
+            Self::AppendedSettingsPathBlocked { path } => {
+                return (
+                    "appended_settings_path_blocked",
+                    format!(
+                        "Portcove can't carry over this game's settings because the item at this settings file location is not an ordinary settings file, or is larger than 16 MB. Nothing there was changed. Move that item out of the folder, then try again.\nLocation: {}",
+                        path.display()
+                    ),
+                );
+            }
             Self::ManagedRouteCommitted {
                 version,
                 previous_path,
@@ -325,6 +411,10 @@ impl KnownFailureCause {
                     ),
                 );
             }
+            Self::NativeModListReview => (
+                "native_mod_list_review",
+                "Review the enabled mods and their dependencies in Setups and mods before playing again.",
+            ),
             Self::RestoreRecovery => (
                 "restore_recovery_required",
                 "A backup restore is unfinished. Keep the backup and any safety copy. Reopen Portcove and check the recovery result before playing or backing up saves again.",
@@ -358,14 +448,27 @@ impl KnownFailureCause {
                 "path_not_representable",
                 "Portcove can’t read this file or folder name correctly. Choose a location with a valid Unicode name so Portcove can identify the exact files.",
             ),
+            Self::OpenSurgeUserDataPath => (
+                "opensurge_user_data_path_unsupported",
+                "Open Surge can save to the wrong folder when this Windows library path contains characters outside basic Latin. Use a library path with only basic Latin characters for this game.",
+            ),
             Self::RuntimePathRequirement => (
                 "runtime_path_requirement",
                 "This game port needs a shorter installation folder using basic Latin characters. Choose a folder such as C:\\Games\\Portcove in setup options, then review the installation again. Review the original-file location too when the runtime uses it directly.",
             ),
             Self::UnsupportedStfs => (
                 "stfs_format_unsupported",
-                "This source is not a supported read-only Xbox LIVE STFS package. Select the required original package format and review the source again.",
+                "This source is not a supported Xbox 360 package. Select the original LIVE or PIRS package for this game and review the source again.",
             ),
+            Self::StfsPackageMismatch { found, expected } => {
+                return (
+                    "stfs_package_mismatch",
+                    format!(
+                        "This package is for a different game or is not the full game ({found}; needs {}). Select the original game package.",
+                        expected.join(" or ")
+                    ),
+                );
+            }
             Self::UnsupportedDiscImage => (
                 "disc_image_unsupported",
                 "Portcove can’t read this disc image safely. Select an unmodified original image in a supported format, then review the source again.",
@@ -400,6 +503,14 @@ impl KnownFailureCause {
             Self::DeviceLoginUnavailable => (
                 "device_login_unavailable",
                 "GitHub device sign-in is unavailable in this build. Use the offered token sign-in, or continue anonymously where supported.",
+            ),
+            Self::GithubDeviceCodeExpired => (
+                "github_device_code_expired",
+                "The GitHub sign-in code expired. Choose Sign in with GitHub to get a new code.",
+            ),
+            Self::GithubDeviceAuthorizationDenied => (
+                "github_device_authorization_denied",
+                "GitHub sign-in was cancelled. Choose Sign in with GitHub to try again.",
             ),
             Self::ProviderRequest {
                 provider,
@@ -463,10 +574,14 @@ pub(crate) enum PreparationFailureCause {
 
 impl PortcoveError {
     pub fn report(&self) -> FailureReport {
+        let mut details = self.details.clone();
+        if let Some(code) = self.catalog_fallback() {
+            details.insert("catalog_fallback_code".into(), code.as_str().into());
+        }
         FailureReport {
             code: self.code,
             message: self.message.clone(),
-            details: self.details.clone(),
+            details,
             presentation: Box::new(self.presentation()),
         }
     }
@@ -492,6 +607,17 @@ impl PortcoveError {
     pub(crate) fn with_preparation_cause(mut self, cause: PreparationFailureCause) -> Self {
         self.failure.preparation_cause = Some(cause);
         self
+    }
+
+    pub(crate) fn known_cause(&self) -> Option<&KnownFailureCause> {
+        self.failure.known_cause.as_ref()
+    }
+
+    pub(crate) fn is_recorded_uploader_hold(&self) -> bool {
+        matches!(
+            self.failure.known_cause,
+            Some(KnownFailureCause::RecordedUploaderHold)
+        )
     }
 
     pub(crate) fn with_known_cause(mut self, cause: KnownFailureCause) -> Self {
@@ -656,10 +782,23 @@ impl PortcoveError {
             _ => None,
         };
         let mut recovery_actions = self.failure.recovery_actions.clone();
+        // A credential store that could not be used before anything changed has
+        // a device step in its summary; there is no operation state to review.
+        let nothing_to_review = self.failure.mutation_state == MutationState::NoChanges
+            && matches!(
+                self.failure.known_cause,
+                Some(
+                    KnownFailureCause::CredentialStoreUnavailable
+                        | KnownFailureCause::CredentialStoreLocked
+                )
+            );
         for action in [
             RecoveryAction::ReviewCurrentState,
             RecoveryAction::ViewTechnicalDetails,
         ] {
+            if action == RecoveryAction::ReviewCurrentState && nothing_to_review {
+                continue;
+            }
             if !recovery_actions.contains(&action) {
                 recovery_actions.push(action);
             }

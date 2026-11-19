@@ -1,3 +1,4 @@
+import { observeReviewSettlement } from "./desktop-review-observation.mts";
 import { fixtureObject as object } from "./desktop-scenario-state.mts";
 import type { PreparationContext } from "./desktop-preparation-test.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
@@ -35,6 +36,30 @@ type LiveRecoveryContext = RecoveryBase &
     ordinaryClose?: boolean;
   };
 type SQLRow = Record<string, SQLOutputValue>;
+
+/** Retain the asserted recovery scope, not unrelated catalog payloads. */
+export function preparationWorkspaceEvidence(
+  bootstrap: TransportOutputs["desktop_bootstrap_status"],
+  workspace: TransportOutputs["desktop_workspace_snapshot"],
+  status: PortStatus,
+  activity: ActivityRecord,
+) {
+  const serialized = JSON.stringify(workspace);
+  return {
+    report_kind: "asserted-preparation-workspace-projection",
+    bootstrap,
+    port_id: status.port_id,
+    operation_id: activity.id,
+    status,
+    activity,
+    full_snapshot: {
+      representation: "UTF-8 JSON.stringify of the full validated workspace, not raw wire bytes",
+      sha256: createHash("sha256").update(serialized).digest("hex"),
+      json_bytes: Buffer.byteLength(serialized),
+    },
+  };
+}
+
 function required<Value>(value: Value | null | undefined): Value {
   assert.ok(value !== undefined && value !== null);
   return value;
@@ -81,6 +106,8 @@ import {
   preparationLogControl,
   setupConfirmButton,
   setupReviewButton,
+  revealDetailSection,
+  selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
 
 function insertOwnedRow(
@@ -149,30 +176,6 @@ export async function interruptedPreparationScenario({
   const command = recoveryCommand(commandRaw);
   await scenario("native-interrupted-preparation-recovery", async () => {
     browser = await restartApplication("interrupted-preparation-recovery");
-    const applicationUpdateChoice = By.xpath(
-      '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]',
-    );
-    const dismissApplicationUpdateChoice = async () => {
-      const preferences = await invoke("get_application_update_preferences");
-      assert.equal(preferences.ok, true);
-      if (
-        transportValue("desktop_application_update_preferences", preferences.value).choice !== null
-      )
-        return;
-      await browser.wait(until.elementLocated(applicationUpdateChoice), 15_000);
-      await browser
-        .findElement(
-          By.xpath(
-            '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]//button[normalize-space(.)="Not now"]',
-          ),
-        )
-        .click();
-      await browser.wait(
-        async () => (await browser.findElements(applicationUpdateChoice)).length === 0,
-        15_000,
-      );
-    };
-    await dismissApplicationUpdateChoice();
     assert.equal(path.resolve(library), path.resolve(output, "library"));
     const cliActivities = () => {
       const feed = command(["activity"]);
@@ -349,7 +352,6 @@ export async function interruptedPreparationScenario({
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       15_000,
     );
-    await dismissApplicationUpdateChoice();
     const updatesNavigation = await browser.findElement(
       By.xpath('//nav//button[contains(., "Activity")]'),
     );
@@ -390,7 +392,7 @@ export async function interruptedPreparationScenario({
         : false;
     }, 15_000);
     assert.ok(beforeRestartText);
-    assert.match(beforeRestartText, /Running game setup/);
+    assert.match(beforeRestartText, /Game setup/);
     assert.doesNotMatch(beforeRestartText, /No files were changed|The operation was cancelled/);
     await beforeRestartLog.click();
     await browser.navigate().refresh();
@@ -398,7 +400,6 @@ export async function interruptedPreparationScenario({
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       15_000,
     );
-    await dismissApplicationUpdateChoice();
     const restartedNavigationStatus = await browser.wait(
       until.elementLocated(
         By.xpath('//nav//button[contains(., "Activity")]//*[contains(@class,"nav-status")]'),
@@ -452,7 +453,7 @@ export async function interruptedPreparationScenario({
       await log.click();
     }
     assert.ok(row, "original retained preparation row with incomplete diagnostic capture");
-    assert.match(await row.getText(), /Running game setup/);
+    assert.match(await row.getText(), /Game setup/);
     assert.deepEqual(
       (await activities()).find((item) => item.id === activity.id),
       recovered,
@@ -479,18 +480,20 @@ export async function interruptedPreparationScenario({
     artifacts.push(evidence);
     await executeBrowserScript(browser, 'arguments[0].scrollIntoView({ block: "start" });', row);
     const review = await browser.wait(
-      until.elementLocated(By.css(`[data-recovery-operation="${activity.id}"] > details`)),
+      until.elementLocated(By.css(`[data-recovery-operation="${activity.id}"]`)),
       15_000,
     );
-    await review.findElement(By.css("summary")).click();
+    const recordDetails = await review.findElement(By.css("details"));
+    assert.equal(await recordDetails.getAttribute("open"), null);
     assert.match(await review.getText(), /Unfinished setup files/);
-    assert.ok((await review.getText()).includes(required(privatePath)));
-    assert.match(await review.getText(), /this interrupted setup cannot resume/);
     let controls = reviewControls(browser);
     const cleanupReview = await review.findElement(
       By.xpath('.//button[normalize-space(.)="Review unfinished setup files"]'),
     );
-    assert.equal((await review.findElements(By.css("button,a"))).length, 1);
+    assert.equal(await cleanupReview.isDisplayed(), true);
+    await recordDetails.findElement(By.css("summary")).click();
+    assert.ok((await recordDetails.getText()).includes(required(privatePath)));
+    assert.match(await recordDetails.getText(), /this interrupted setup cannot resume/);
     await executeBrowserScript(browser, 'arguments[0].scrollIntoView({ block: "start" });', review);
     const recoveryAccessibility = await observeAccessibility(browser);
     const recoveryReport = path.join(output, "recovery-review-accessibility.json");
@@ -618,11 +621,20 @@ export async function interruptedPreparationScenario({
     // review. Later stale-review, cancellation, restart, and accepted-cleanup
     // checks remain unchanged.
     setPreparationProcessQuiescence(library, activity.id, 1);
-    await controls.click(controls.button("Review again"));
-    await browser.wait(
-      async () =>
-        (await browser.findElement(cleanupDialog).getText()).includes(required(privatePath)),
-      15_000,
+    await observeReviewSettlement(
+      browser,
+      '[aria-labelledby="preparation-cleanup-title"]',
+      path.join(output, "preparation-quiescence-review-settlement.json"),
+      artifacts,
+      async () => {
+        await controls.click(controls.button("Review again"));
+        await browser.wait(
+          async () =>
+            (await browser.findElement(cleanupDialog).getText()).includes(required(privatePath)),
+          15_000,
+          "The fresh quiesced preparation review must show its retained folder",
+        );
+      },
     );
     await reviewRetainedCleanup(required(privatePath));
     const cleanupActionStyles = await assertDestructiveReviewAction(
@@ -636,7 +648,7 @@ export async function interruptedPreparationScenario({
       "Setup working folder to delete",
       privatePath,
       "Original installation preserved",
-      "Registered source preserved",
+      "Original game files preserved",
       "Saved data preserved",
       "Backups preserved",
       "Logs preserved",
@@ -655,8 +667,25 @@ export async function interruptedPreparationScenario({
     artifacts.push(cleanupImage);
     await controls.click(controls.button("Keep files"));
     await access(required(privatePath));
-
-    await clickVisible(browser, cleanupReview);
+    // Let the dialog close and return focus before reopening. The retained
+    // Windows failure reached these controls but never issued another preview.
+    const reopenedReview = await browser.wait(
+      async () => {
+        if ((await browser.findElements(cleanupDialog)).length !== 0) return false;
+        const trigger = await review.findElement(controls.button("Review unfinished setup files"));
+        return (await executeBrowserScript(
+          browser,
+          "return document.activeElement === arguments[0];",
+          trigger,
+        ))
+          ? trigger
+          : false;
+      },
+      15_000,
+      "Keeping setup files must return focus before the cleanup review can reopen",
+    );
+    assert.ok(reopenedReview);
+    await clickVisible(browser, reopenedReview);
     await browser.wait(until.elementLocated(cleanupDialog), 15_000);
     await browser.wait(until.elementLocated(controls.button("Review cleanup…")), 15_000);
     await reviewRetainedCleanup(required(privatePath));
@@ -686,14 +715,14 @@ export async function interruptedPreparationScenario({
       { dispatch: "dom" },
     );
     await confirmNative(
-      "Confirm retained preparation cleanup",
+      "Delete unfinished setup files?",
       "__observe__",
       required(privatePath),
       "preparation-cleanup-before-consent",
     );
     await access(required(privatePath));
     await confirmNative(
-      "Confirm retained preparation cleanup",
+      "Delete unfinished setup files?",
       "Cancel",
       required(privatePath),
       "preparation-cleanup-cancelled",
@@ -705,26 +734,13 @@ export async function interruptedPreparationScenario({
     await access(required(privatePath));
     browser = await restartApplication("interrupted-preparation-recovery-after-cancel");
     controls = reviewControls(browser);
-    await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
 
-    const recoveredReviewLocator = By.css(`[data-recovery-operation="${activity.id}"] > details`);
-    let recoveredReview = await browser.wait(until.elementLocated(recoveredReviewLocator), 15_000);
-    await recoveredReview.findElement(By.css("summary")).click();
-    await browser.wait(
-      async () => (await recoveredReview.getAttribute("open")) !== null,
-      5_000,
-      "The recovered preparation disclosure must be open before cleanup review",
+    const recoveredReviewLocator = By.css(`[data-recovery-operation="${activity.id}"]`);
+    const recoveredReview = await browser.wait(
+      until.elementLocated(recoveredReviewLocator),
+      15_000,
     );
-    recoveredReview = await browser.findElement(recoveredReviewLocator);
-    if ((await recoveredReview.getAttribute("open")) === null) {
-      await recoveredReview.findElement(By.css("summary")).click();
-      await browser.wait(
-        async () => (await recoveredReview.getAttribute("open")) !== null,
-        5_000,
-        "The current recovered preparation disclosure must be open before cleanup review",
-      );
-    }
     await clickVisible(
       browser,
       await recoveredReview.findElement(
@@ -748,8 +764,8 @@ export async function interruptedPreparationScenario({
       { dispatch: "dom" },
     );
     await confirmNative(
-      "Confirm retained preparation cleanup",
-      "Remove reviewed private files",
+      "Delete unfinished setup files?",
+      "Delete setup working files",
       required(privatePath),
       "preparation-cleanup-confirmed",
     );
@@ -804,11 +820,8 @@ export async function interruptedPreparationScenario({
     assert.deepEqual(command(["status", before.port_id]).active, before.active);
     assert.deepEqual(command(["activity", "log", activity.id]), retained);
     controls = reviewControls(browser);
-    await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
-    const journalOnlyReviewLocator = By.css(
-      `[data-recovery-operation="${journalOnlyId}"] > details`,
-    );
+    const journalOnlyReviewLocator = By.css(`[data-recovery-operation="${journalOnlyId}"]`);
     await browser.wait(until.elementLocated(journalOnlyReviewLocator), 15_000);
     await browser.wait(
       async () =>
@@ -822,22 +835,7 @@ export async function interruptedPreparationScenario({
       15_000,
       "Recovery diagnostics must settle before journal-only cleanup review",
     );
-    let journalOnlyReview = await browser.findElement(journalOnlyReviewLocator);
-    await journalOnlyReview.findElement(By.css("summary")).click();
-    await browser.wait(
-      async () => (await journalOnlyReview.getAttribute("open")) !== null,
-      5_000,
-      "The journal-only recovery disclosure must be open before cleanup review",
-    );
-    journalOnlyReview = await browser.findElement(journalOnlyReviewLocator);
-    if ((await journalOnlyReview.getAttribute("open")) === null) {
-      await journalOnlyReview.findElement(By.css("summary")).click();
-      await browser.wait(
-        async () => (await journalOnlyReview.getAttribute("open")) !== null,
-        5_000,
-        "The current journal-only recovery disclosure must be open before cleanup review",
-      );
-    }
+    const journalOnlyReview = await browser.findElement(journalOnlyReviewLocator);
     const journalOnlyCleanupReview = await journalOnlyReview.findElement(
       By.xpath('.//button[normalize-space(.)="Review unfinished setup files"]'),
     );
@@ -890,8 +888,8 @@ export async function interruptedPreparationScenario({
       { dispatch: "dom" },
     );
     await confirmNative(
-      "Confirm retained preparation cleanup",
-      "Remove empty private state",
+      "Delete unfinished setup files?",
+      "Remove empty setup record",
       required(journalOnlyPath),
       "journal-only-preparation-cleanup-confirmed",
     );
@@ -1194,14 +1192,18 @@ export async function minimizedPreparationScenario({
       5_000,
       "Restore the actual native window without simulated visibility",
     );
-    await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Play"]')),
-      15_000,
+    // Compatibility-unconfirmed owned inputs truthfully use Try launch; both
+    // captions represent this already launchable installation, not another setup.
+    assert.equal(required(prepared.readiness).pending_setup, false);
+    const launchControl = By.xpath(
+      '//section[contains(@class,"detail-panel")]//div[contains(@class,"primary-actions")]//button[normalize-space(.)="Play" or normalize-space(.)="Try launch"]',
     );
+    const launch = await browser.wait(until.elementLocated(launchControl), 15_000);
     await browser.wait(
-      until.elementIsEnabled(
-        await browser.findElement(By.xpath('//button[normalize-space(.)="Play"]')),
-      ),
+      async () =>
+        (await launch.isDisplayed()) &&
+        (await launch.isEnabled()) &&
+        (await launch.getAttribute("aria-disabled")) !== "true",
       15_000,
     );
     assert.equal(
@@ -1370,7 +1372,7 @@ async function observeRecoveredPreparation({
       before.save_sha256,
     );
   }
-  let recoveredWorkspace;
+  let recoveredWorkspace: ReturnType<typeof preparationWorkspaceEvidence> | undefined;
   if (ordinaryClose || process.platform === "linux") {
     const nativeStatus = await status(port.id);
     assert.deepEqual(nativeStatus.active, recoveredStatus.active);
@@ -1384,14 +1386,20 @@ async function observeRecoveredPreparation({
       generation: bootstrapValue.generation,
     });
     assert.equal(workspace.ok, true);
-    recoveredWorkspace = transportValue("desktop_workspace_snapshot", workspace.value);
-    const workspaceStatus = recoveredWorkspace.statuses.find((item) => item.port_id === port.id);
+    const fullWorkspace = transportValue("desktop_workspace_snapshot", workspace.value);
+    const workspaceStatus = fullWorkspace.statuses.find((item) => item.port_id === port.id);
     assert.ok(workspaceStatus);
     assert.deepEqual(workspaceStatus.active, recoveredStatus.active);
     assert.deepEqual(workspaceStatus.readiness, recoveredStatus.readiness);
-    assert.deepEqual(
-      recoveredWorkspace.activities.records.find((item) => item.id === activity.id),
-      recovered,
+    const workspaceActivity = fullWorkspace.activities.records.find(
+      (item) => item.id === activity.id,
+    );
+    assert.deepEqual(workspaceActivity, recovered);
+    recoveredWorkspace = preparationWorkspaceEvidence(
+      bootstrapValue,
+      fullWorkspace,
+      workspaceStatus,
+      required(workspaceActivity),
     );
   }
   return { recovered, repair, recoveredStatus, recoveredWorkspace };
@@ -1614,6 +1622,62 @@ async function livePreparationRecoveryScenario({
     const afterImage = path.join(output, `native-live-preparation-after-${suffix}.png`);
     await writeFile(afterImage, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
     artifacts.push(afterImage);
+    let retry;
+    if (!ordinaryClose && !linux) {
+      assert.equal(required(recovered).status, "failed");
+      const retainedCheckpoint = await readFile(checkpoint);
+      await selectPrimaryNavigation(browser, "Library");
+      const card = await browser.wait(
+        until.elementLocated(By.css(`button[data-detail-game-id="${port.id}"]`)),
+        15_000,
+      );
+      await clickVisible(browser, card);
+      await revealDetailSection(browser, "Game files");
+      const restarted = await beginLivePreparation({
+        browser,
+        activities,
+        library,
+        port,
+        message: "A reviewed retry must start a separate private setup",
+      });
+      assert.notEqual(restarted.activity.id, activity.id);
+      let completed: ActivityRecord | undefined;
+      await browser.wait(
+        async () => {
+          completed = (await activities()).find((item) => item.id === restarted.activity.id);
+          return completed !== undefined && completed.status !== "running";
+        },
+        60_000,
+        "The fresh owned preparation must finish",
+      );
+      assert.equal(required(completed).status, "succeeded");
+      const ready = await status(port.id);
+      assert.equal(required(ready.active).id, restarted.activity.id);
+      assert.equal(required(ready.readiness).launchable, true);
+      assert.equal(
+        await digest(path.join(required(ready.active).path, "OpenGOAL", "jak3", "save.bin")),
+        before.save_sha256,
+      );
+      assert.equal(await digest(source), before.source_sha256);
+      assert.equal(await digest(originalExecutable), before.original_executable_sha256);
+      assert.deepEqual(await readFile(checkpoint), retainedCheckpoint);
+      const originalActivity = (await activities()).find((item) => item.id === activity.id);
+      assert.equal(required(originalActivity).status, "failed");
+      const retryImage = path.join(output, "native-live-preparation-retry.png");
+      await writeFile(retryImage, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(retryImage);
+      retry = {
+        operation_id: restarted.activity.id,
+        activity: completed,
+        status: ready,
+        interrupted_activity: originalActivity,
+        retained_checkpoint_unchanged: true,
+        source_and_save_unchanged: true,
+      };
+    }
     const evidence = path.join(
       output,
       ordinaryClose ? "closed-preparation-preservation.json" : "live-preparation-preservation.json",
@@ -1636,6 +1700,7 @@ async function livePreparationRecoveryScenario({
           observed_operation: operation,
           cleanup_preview: cleanup,
           cleanup_refusal: cleanup.error,
+          retry,
           limits:
             "Owned development fixtures; no OS shutdown, installed package, other operation family, or other platform qualification",
         },

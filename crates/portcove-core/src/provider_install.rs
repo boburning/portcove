@@ -7,24 +7,32 @@
 //! authorization bound to the plan digest, rechecks the staged bytes and the
 //! profile revision under the port lock, then installs through the ordinary
 //! profile path. Bytes that differ from the plan invalidate it.
-use std::fs;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::PathBuf,
+};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    AssetConflict, PortcoveError, PortcoveService, ProfileRevision, ProviderFileCandidate,
-    ProviderFreshness, ProviderPackageRef, RecompExecution, Result, asset_conflicts,
-    inspect_asset_archive,
-    mod_package::extract_packages,
+    AssetConflict, PortcoveError, PortcoveService, ProfileRevision, ProfileUpdatePolicy,
+    ProviderFileCandidate, ProviderFreshness, ProviderPackageRef, ProviderProject,
+    ProviderRequirement, RecompExecution, Result, asset_conflicts, inspect_asset_archive,
+    mod_package::{MAX_EXTRACTED_BYTES, MAX_MEMBERS, extract_provider_packages},
     profile,
-    profile_deploy::{CodePolicy, adapter_extensions, inspect_for_port, sha256_file},
+    profile_deploy::{
+        CodePolicy, Layout, adapter_extensions, inspect_for_port, require_reviewed_or_reordered,
+        sha256_file,
+    },
     provider_client::ProviderClient,
 };
 
 const MAX_DOWNLOAD_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 const MAX_REPORTED_CONFLICTS: usize = 100;
+pub(crate) const RECOMP_REVIEW_BINDING: &str = "recomp_review_binding";
 const STAGED_RETENTION_SECONDS: u64 = 24 * 60 * 60;
 const ACTION: &str = "install_provider_package";
 /// A plan whose packages run code is authorized separately, only when the player
@@ -47,25 +55,6 @@ pub(crate) fn gamebanana_game(port_id: &str) -> Option<u64> {
         .map(|(_, game)| *game)
 }
 
-/// Ports with a reviewed provider binding, for passes that visit each of them.
-pub(crate) fn provider_ports() -> impl Iterator<Item = &'static str> {
-    GAMEBANANA_BINDINGS
-        .iter()
-        .map(|(port, _)| *port)
-        .chain(crate::thunderstore::bound_ports())
-}
-
-/// The provider a port has a reviewed binding for, and its name in messages.
-pub(crate) fn bound_provider(port_id: &str) -> Option<(&'static str, &'static str)> {
-    if gamebanana_game(port_id).is_some() {
-        Some((crate::gamebanana::PROVIDER, "GameBanana"))
-    } else if crate::thunderstore::thunderstore_community(port_id).is_some() {
-        Some((crate::thunderstore::PROVIDER, "Thunderstore"))
-    } else {
-        None
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct PlanMember {
     pub file_name: String,
@@ -75,6 +64,15 @@ pub struct PlanMember {
     /// What the package runs if installed (Recomp code); empty for asset mods.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub runs_code: Vec<RecompExecution>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ProviderWrapper {
+    pub provider: ProviderPackageRef,
+    pub file: ProviderFileCandidate,
+    pub download_sha256: String,
+    pub download_size: u64,
+    pub members: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -90,6 +88,9 @@ pub struct ProviderInstallPlan {
     pub download_sha256: String,
     pub download_size: u64,
     pub members: Vec<PlanMember>,
+    /// Exact Thunderstore wrapper closure in dependency-first order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub wrappers: Vec<ProviderWrapper>,
     /// Entries of the provider's wrapper that are not packages and were not read.
     pub ignored_entries: u32,
     /// Installed packages this plan replaces: the same native ID with different
@@ -100,6 +101,41 @@ pub struct ProviderInstallPlan {
     /// What this plan relies on without verifying.
     pub unverified_claims: Vec<String>,
     pub plan_sha256: String,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ProviderInstallMode<'a> {
+    Reviewed,
+    Automatic,
+    Recipe { identity: &'a str, byte_budget: u64 },
+}
+
+impl ProviderInstallMode<'_> {
+    fn staging_root(self, layout: &Layout) -> PathBuf {
+        let store = layout.store();
+        match self {
+            Self::Reviewed => store.join("staged"),
+            Self::Automatic => store.join("automatic-staged"),
+            Self::Recipe { identity, .. } => store.join("recipe-staged").join(identity),
+        }
+    }
+
+    pub(crate) fn staging(self, layout: &Layout, digest: &str) -> PathBuf {
+        match self {
+            Self::Reviewed => layout.staged(digest),
+            Self::Automatic | Self::Recipe { .. } => self.staging_root(layout).join(digest),
+        }
+    }
+}
+
+pub(crate) fn recomp_review_binding(
+    revision_digest: &str,
+    file: &ProviderFileCandidate,
+) -> Result<String> {
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(&(
+        revision_digest,
+        file,
+    ))?)))
 }
 
 pub(crate) fn digest(plan: &ProviderInstallPlan) -> Result<String> {
@@ -116,6 +152,267 @@ fn target(plan: &ProviderInstallPlan) -> Result<String> {
     ))?)
 }
 
+fn validate_offer(
+    client: &ProviderClient,
+    project: &ProviderProject,
+    file: &ProviderFileCandidate,
+) -> Result<()> {
+    if project.game_id.as_deref() != Some(client.game_id().as_str()) {
+        return Err(PortcoveError::verification(
+            "this project does not belong to the game this port is bound to",
+        ));
+    }
+    if project.status_unknown.is_some() || file.status_unknown.is_some() {
+        return Err(PortcoveError::verification(
+            crate::mod_provider::UNKNOWN_PROVIDER_ELIGIBILITY,
+        ));
+    }
+    if project.obsolete {
+        return Err(PortcoveError::unsupported(
+            "the provider marks this project obsolete",
+        ));
+    }
+    if file.archived {
+        return Err(PortcoveError::unsupported(
+            "the provider archived this file",
+        ));
+    }
+    if file.claimed_scan.as_deref() == Some("infected") {
+        return Err(PortcoveError::unsupported(
+            "the provider's scan reports this file as infected",
+        ));
+    }
+    if !profile::valid_native_id(&file.file_name) {
+        return Err(PortcoveError::unsupported(
+            "the provider's file name is not a plain file name; it cannot be installed",
+        ));
+    }
+    Ok(())
+}
+
+fn matches_dependency_coordinates(
+    recorded: &[ProviderRequirement],
+    offered: &ProviderFileCandidate,
+) -> bool {
+    offered
+        .thunderstore_dependencies
+        .as_ref()
+        .is_some_and(|dependencies| {
+            dependencies.len() == recorded.len()
+                && dependencies.iter().all(|dependency| {
+                    let project = format!("{}-{}", dependency.namespace, dependency.package);
+                    recorded.iter().any(|required| {
+                        required.provider.project == project
+                            && required.provider.file.as_deref()
+                                == Some(dependency.version.as_str())
+                    })
+                })
+        })
+}
+
+/// Only previously reviewed, complete and enabled dependencies can be reused.
+/// A fresh listing must still name the same exact graph before any download.
+fn retained_dependencies(
+    layout: &Layout,
+    revision: &ProfileRevision,
+    project: &str,
+    file: &ProviderFileCandidate,
+    binding: Option<&crate::ModProviderBinding>,
+    observed: Option<&[(ProviderProject, ProviderFileCandidate)]>,
+) -> Result<Vec<ProviderRequirement>> {
+    let changed = || {
+        PortcoveError::unsupported(
+        "the Thunderstore dependency set changed or has no complete prior review; review this update",
+    ).detail("project", project)
+    };
+    let mut roots = revision.packages.iter().filter(|package| {
+        package.provider.as_ref().is_some_and(|provider| {
+            provider.provider == crate::thunderstore::PROVIDER
+                && provider.project == project
+                && provider.binding.as_ref() == binding
+        })
+    });
+    let root = roots.next().ok_or_else(changed)?;
+    if !root.enabled
+        || !matches_dependency_coordinates(&root.provider_requires, file)
+        || roots.any(|package| {
+            !package.enabled
+                || package.provider != root.provider
+                || package.provider_requires != root.provider_requires
+        })
+    {
+        return Err(changed());
+    }
+
+    let mut pending = root.provider_requires.iter().collect::<Vec<_>>();
+    let mut reviewed = BTreeMap::<&str, &ProviderRequirement>::new();
+    let mut remaining_members = MAX_MEMBERS;
+    let mut remaining_bytes = MAX_EXTRACTED_BYTES;
+    while let Some(required) = pending.pop() {
+        if required.provider.provider != crate::thunderstore::PROVIDER
+            || required.provider.binding.as_ref() != binding
+        {
+            return Err(changed());
+        }
+        let name = required.provider.project.as_str();
+        if let Some(previous) = reviewed.get(name) {
+            if *previous != required {
+                return Err(changed());
+            }
+            continue;
+        }
+        if name == project || reviewed.len() >= MAX_MEMBERS {
+            return Err(changed());
+        }
+        let missing = || {
+            PortcoveError::unsupported(
+            "a required Thunderstore package is missing, changed or turned off; review this update",
+        ).detail("project", name)
+            .detail("version", required.provider.version.as_deref().unwrap_or_default())
+        };
+        let packages = revision
+            .packages
+            .iter()
+            .filter(|package| package.provider.as_ref() == Some(&required.provider))
+            .collect::<Vec<_>>();
+        let primary = *packages.first().ok_or_else(missing)?;
+        if packages.len() != required.members.len() {
+            return Err(missing());
+        }
+        remaining_members = remaining_members
+            .checked_sub(packages.len())
+            .ok_or_else(changed)?;
+        for package in packages {
+            remaining_bytes = remaining_bytes
+                .checked_sub(package.size)
+                .ok_or_else(changed)?;
+            if !package.enabled
+                || package.provider_requires != primary.provider_requires
+                || required.members.get(&package.native_id) != Some(&package.sha256)
+            {
+                return Err(missing());
+            }
+            let path = layout.package(&package.sha256, &package.native_id);
+            if !crate::external_runtime::hash_stable_regular(&path, package.size, &|| Ok(()))
+                .is_ok_and(|(digest, size)| size == package.size && digest == package.sha256)
+            {
+                return Err(missing());
+            }
+        }
+        if let Some(observed) = observed {
+            let observation = observed
+                .iter()
+                .find(|(project, file)| {
+                    project.project_id == name
+                        && required.provider.file.as_deref() == Some(file.file_id.as_str())
+                })
+                .map(|(_, file)| file)
+                .ok_or_else(changed)?;
+            if !matches_dependency_coordinates(&primary.provider_requires, observation) {
+                return Err(changed());
+            }
+        }
+        pending.extend(&primary.provider_requires);
+        reviewed.insert(name, required);
+    }
+    Ok(reviewed.into_values().cloned().collect())
+}
+
+pub(crate) struct ReviewedMember<'a> {
+    pub(crate) provider: &'a ProviderPackageRef,
+    pub(crate) requirements: Vec<ProviderRequirement>,
+}
+
+/// Validate that every reviewed native member belongs to exactly one wrapper,
+/// with all exact prerequisites earlier in the same reviewed closure.
+pub(crate) fn wrapper_members<'a>(
+    plan: &'a ProviderInstallPlan,
+    retained: &[ProviderRequirement],
+) -> Result<BTreeMap<&'a str, ReviewedMember<'a>>> {
+    let mut members = BTreeMap::new();
+    if plan.provider.provider != crate::thunderstore::PROVIDER {
+        if !plan.wrappers.is_empty() {
+            return Err(PortcoveError::verification(
+                "unexpected Thunderstore wrapper review",
+            ));
+        }
+        return Ok(members);
+    }
+    let invalid = || {
+        PortcoveError::verification(
+            "the reviewed Thunderstore wrapper set is incomplete or inconsistent; plan again",
+        )
+    };
+    let root = plan.wrappers.last().ok_or_else(invalid)?;
+    if root.provider != plan.provider
+        || root.file != plan.file
+        || root.download_sha256 != plan.download_sha256
+        || root.download_size != plan.download_size
+    {
+        return Err(invalid());
+    }
+    let reviewed = plan
+        .members
+        .iter()
+        .map(|member| (member.file_name.as_str(), &member.sha256))
+        .collect::<BTreeMap<_, _>>();
+    let mut seen = retained
+        .iter()
+        .map(|required| (required.provider.project.as_str(), required.clone()))
+        .collect::<BTreeMap<_, _>>();
+    for wrapper in &plan.wrappers {
+        if wrapper.provider.provider != crate::thunderstore::PROVIDER
+            || wrapper.provider.file.as_ref() != Some(&wrapper.file.file_id)
+            || wrapper.provider.version != wrapper.provider.file
+            || wrapper.members.is_empty()
+        {
+            return Err(invalid());
+        }
+        let mut requirements = Vec::new();
+        for dependency in wrapper
+            .file
+            .thunderstore_dependencies
+            .as_ref()
+            .ok_or_else(invalid)?
+        {
+            let project = format!("{}-{}", dependency.namespace, dependency.package);
+            let required = seen
+                .get(project.as_str())
+                .filter(|required| {
+                    required.provider.file.as_deref() == Some(dependency.version.as_str())
+                })
+                .ok_or_else(invalid)?;
+            requirements.push(required.clone());
+        }
+        let proof = ProviderRequirement {
+            provider: wrapper.provider.clone(),
+            members: wrapper.members.clone(),
+        };
+        if seen.insert(&wrapper.provider.project, proof).is_some() {
+            return Err(invalid());
+        }
+        for (id, hash) in &wrapper.members {
+            if reviewed.get(id.as_str()) != Some(&hash)
+                || members
+                    .insert(
+                        id.as_str(),
+                        ReviewedMember {
+                            provider: &wrapper.provider,
+                            requirements: requirements.clone(),
+                        },
+                    )
+                    .is_some()
+            {
+                return Err(invalid());
+            }
+        }
+    }
+    if members.len() != plan.members.len() {
+        return Err(invalid());
+    }
+    Ok(members)
+}
+
 impl PortcoveService {
     /// Reviews one provider file for one profile without changing anything but a
     /// private staging area. IDs are the provider's own: a GameBanana mod and file
@@ -127,8 +424,20 @@ impl PortcoveService {
         project_id: &str,
         file_id: &str,
     ) -> Result<ProviderInstallPlan> {
-        self.catalog().port(port_id)?;
-        let client = ProviderClient::for_port(&self.library, port_id)?;
+        self.plan_provider_install_for_provider(port_id, profile_id, project_id, file_id, None)
+            .await
+    }
+
+    pub async fn plan_provider_install_for_provider(
+        &self,
+        port_id: &str,
+        profile_id: &str,
+        project_id: &str,
+        file_id: &str,
+        provider: Option<&str>,
+    ) -> Result<ProviderInstallPlan> {
+        let client =
+            ProviderClient::for_definition(&self.library, self.catalog().port(port_id)?, provider)?;
         self.plan_provider_install_via(&client, port_id, profile_id, project_id, file_id)
             .await
     }
@@ -161,86 +470,210 @@ impl PortcoveService {
         project_id: &str,
         file_id: &str,
     ) -> Result<ProviderInstallPlan> {
+        self.plan_provider_install_in_mode(
+            client,
+            port_id,
+            profile_id,
+            project_id,
+            file_id,
+            ProviderInstallMode::Reviewed,
+        )
+        .await
+    }
+
+    pub(crate) async fn plan_provider_install_in_mode(
+        &self,
+        client: &ProviderClient,
+        port_id: &str,
+        profile_id: &str,
+        project_id: &str,
+        file_id: &str,
+        mode: ProviderInstallMode<'_>,
+    ) -> Result<ProviderInstallPlan> {
         let layout = self.deploy_layout(port_id)?;
         let extensions = adapter_extensions(port_id).unwrap_or(&[]);
         let current = profile::current_revision(&self.library.connection()?, port_id, profile_id)?;
-
-        let observed = client.project(project_id).await?;
-        if observed.freshness == ProviderFreshness::Stale {
-            return Err(PortcoveError::network(format!(
-                "{} could not be reached; a plan needs a current observation, not cached data",
-                client.label()
-            )));
-        }
-        let project = observed.value;
-        if project.game_id.as_deref() != Some(client.game_id().as_str()) {
-            return Err(PortcoveError::verification(
-                "this project does not belong to the game this port is bound to",
-            ));
-        }
-        if project.obsolete {
-            return Err(PortcoveError::unsupported(
-                "the provider marks this project obsolete",
-            ));
-        }
-        let file = project
-            .files
-            .iter()
-            .find(|file| file.file_id == file_id)
-            .cloned()
-            .ok_or_else(|| PortcoveError::not_found("the project has no such file"))?;
-        if file.archived {
-            return Err(PortcoveError::unsupported(
-                "the provider archived this file",
-            ));
-        }
-        if file.claimed_scan.as_deref() == Some("infected") {
-            return Err(PortcoveError::unsupported(
-                "the provider's scan reports this file as infected",
-            ));
+        // Staging a recipe input does not choose the setup that will run it.
+        // The complete recipe review verifies its own exact runtime.
+        if !matches!(mode, ProviderInstallMode::Recipe { .. }) {
+            self.profile_loader_binding(&current.build, current.loader.as_ref(), true)?;
         }
 
-        // Decide what the file is before spending bandwidth on it.
-        let wrapper_extension = file
-            .file_name
-            .rsplit_once('.')
-            .map(|(_, extension)| extension.to_ascii_lowercase())
-            .unwrap_or_default();
-        let direct_package = extensions.contains(&wrapper_extension.as_str());
-        if !direct_package && wrapper_extension != "zip" {
-            return Err(PortcoveError::unsupported(
-                "the file is neither a supported package nor a zip wrapper",
-            )
-            .detail("accepted", extensions.join(", ")));
-        }
-        fs::create_dir_all(layout.tmp())?;
-        if !crate::profile::valid_native_id(&file.file_name) {
-            return Err(PortcoveError::unsupported(
-                "the provider's file name is not a plain file name; it cannot be installed",
-            ));
-        }
-        let staging = tempfile::tempdir_in(layout.tmp())?;
-        let download = staging.path().join("download.bin");
-        let (download_sha256, download_size) = client
-            .download(project_id, &file, &download, MAX_DOWNLOAD_BYTES)
-            .await?;
-
-        let members_dir = staging.path().join("members");
-        fs::create_dir(&members_dir)?;
-        let (member_paths, ignored) = if direct_package {
-            let destination = members_dir.join(&file.file_name);
-            fs::rename(&download, &destination)?;
-            (vec![destination], 0)
-        } else {
-            let extracted = extract_packages(&download, &members_dir, extensions)?;
-            (extracted.files, extracted.ignored)
+        let projects = match client {
+            ProviderClient::Thunderstore { client, community } => {
+                let listing = client.community(community).await?;
+                if listing.freshness == ProviderFreshness::Stale {
+                    return Err(PortcoveError::network(
+                        "Thunderstore could not be reached; a plan needs a current observation",
+                    ));
+                }
+                crate::thunderstore::resolve_dependencies(&listing.value, project_id, file_id)?
+                    .into_iter()
+                    .map(|(project, file)| (project.clone(), file.clone()))
+                    .collect::<Vec<_>>()
+            }
+            ProviderClient::GameBanana { .. } => {
+                let observed = client.project(project_id).await?;
+                if observed.freshness == ProviderFreshness::Stale {
+                    return Err(PortcoveError::network(
+                        "GameBanana could not be reached; a plan needs a current observation",
+                    ));
+                }
+                let project = observed.value;
+                let file = project
+                    .files
+                    .iter()
+                    .find(|file| file.file_id == file_id)
+                    .cloned()
+                    .ok_or_else(|| PortcoveError::not_found("the project has no such file"))?;
+                vec![(project, file)]
+            }
         };
-        if member_paths.is_empty() {
+        if mode == ProviderInstallMode::Automatic
+            && current
+                .packages
+                .iter()
+                .filter(|package| package.enabled)
+                .flat_map(|package| &package.provider_requires)
+                .any(|requirement| {
+                    requirement.provider.project == project_id
+                        && requirement.provider.file.as_deref() != Some(file_id)
+                })
+        {
             return Err(PortcoveError::unsupported(
-                "the download contains no package this game can load",
+                "another enabled mod needs the installed Thunderstore version; review the dependent mod first",
             ));
         }
-        let mut recomp_code = std::collections::BTreeMap::<String, Vec<RecompExecution>>::new();
+        let (project, file) = projects
+            .last()
+            .ok_or_else(|| PortcoveError::verification("the provider returned no exact package"))?;
+        let scope = client.binding();
+        let binding = (crate::provider_binding::legacy_binding(port_id, client.provider())
+            .as_ref()
+            != Some(&scope))
+        .then_some(scope);
+        let reuse_dependencies = mode == ProviderInstallMode::Automatic
+            && matches!(client, ProviderClient::Thunderstore { .. });
+        let retained = if reuse_dependencies {
+            retained_dependencies(
+                &layout,
+                &current,
+                project_id,
+                file,
+                binding.as_ref(),
+                Some(&projects),
+            )?
+        } else {
+            Vec::new()
+        };
+        let projects =
+            if reuse_dependencies {
+                std::slice::from_ref(projects.last().ok_or_else(|| {
+                    PortcoveError::state("the exact package changed during review")
+                })?)
+            } else {
+                projects.as_slice()
+            };
+        fs::create_dir_all(layout.tmp())?;
+        let staging = tempfile::tempdir_in(layout.tmp())?;
+        let mut member_paths = Vec::new();
+        let mut source_indices = Vec::new();
+        let mut wrappers = Vec::new();
+        let mut ignored = 0usize;
+        let mut combined_budget = match mode {
+            ProviderInstallMode::Recipe { byte_budget, .. } => byte_budget,
+            _ => u64::MAX,
+        };
+        let mut download_budget = MAX_DOWNLOAD_BYTES;
+        let mut extraction_budget = MAX_EXTRACTED_BYTES;
+        for (index, (project, file)) in projects.iter().enumerate() {
+            validate_offer(client, project, file)?;
+            let extension = file
+                .file_name
+                .rsplit_once('.')
+                .map(|(_, extension)| extension.to_ascii_lowercase())
+                .unwrap_or_default();
+            let direct = extensions.contains(&extension.as_str());
+            if !direct && extension != "zip" {
+                return Err(PortcoveError::unsupported(
+                    "the file is neither a supported package nor a zip wrapper",
+                )
+                .detail("accepted", extensions.join(", ")));
+            }
+            let directory = staging.path().join(index.to_string());
+            fs::create_dir(&directory)?;
+            let download = directory.join("download.bin");
+            let (download_sha256, download_size) = client
+                .download(
+                    &project.project_id,
+                    file,
+                    &download,
+                    download_budget.min(combined_budget),
+                )
+                .await?;
+            download_budget -= download_size;
+            combined_budget -= download_size;
+            let members_dir = directory.join("members");
+            fs::create_dir(&members_dir)?;
+            let paths = if direct {
+                if download_size > extraction_budget.min(combined_budget) {
+                    return Err(PortcoveError::unsupported(
+                        "the package set exceeds its size limit",
+                    ));
+                }
+                extraction_budget -= download_size;
+                combined_budget -= download_size;
+                if member_paths.len() == MAX_MEMBERS {
+                    return Err(PortcoveError::unsupported(
+                        "the package set has too many members",
+                    ));
+                }
+                let destination = members_dir.join(&file.file_name);
+                fs::rename(download, &destination)?;
+                vec![destination]
+            } else {
+                let extracted = extract_provider_packages(
+                    &download,
+                    &members_dir,
+                    extensions,
+                    extraction_budget.min(combined_budget),
+                    MAX_MEMBERS - member_paths.len(),
+                    projects.len(),
+                    matches!(client, ProviderClient::Thunderstore { .. })
+                        .then_some((project.project_id.as_str(), file)),
+                )?;
+                extraction_budget -= extracted.extracted_bytes;
+                combined_budget -= extracted.extracted_bytes;
+                ignored += extracted.ignored;
+                extracted.files
+            };
+            if paths.is_empty() {
+                return Err(PortcoveError::unsupported(
+                    "the download contains no package this game can load",
+                )
+                .detail("project", &project.project_id)
+                .detail("file", &file.file_id));
+            }
+            source_indices.extend(std::iter::repeat_n(index, paths.len()));
+            member_paths.extend(paths);
+            wrappers.push(ProviderWrapper {
+                provider: ProviderPackageRef {
+                    binding: binding.clone(),
+                    provider: client.provider().into(),
+                    project: project.project_id.clone(),
+                    file: Some(file.file_id.clone()),
+                    version: match client {
+                        ProviderClient::Thunderstore { .. } => Some(file.file_id.clone()),
+                        ProviderClient::GameBanana { .. } => project.version.clone(),
+                    },
+                },
+                file: file.clone(),
+                download_sha256,
+                download_size,
+                members: BTreeMap::new(),
+            });
+        }
+        let mut recomp_members = std::collections::BTreeMap::new();
 
         // A loader that names packages by their own manifest (Recomp) is reviewed
         // the way a local install is: named by mod ID, other games refused, and
@@ -250,7 +683,6 @@ impl PortcoveService {
                 let named_dir = staging.path().join("named");
                 fs::create_dir(&named_dir)?;
                 let mut renamed = Vec::new();
-                let mut code = std::collections::BTreeMap::new();
                 for path in &member_paths {
                     let recomp = crate::inspect_recomp_mod(path, game)?;
                     if recomp.holds.contains(&crate::RecompModHold::OtherGame) {
@@ -265,7 +697,7 @@ impl PortcoveService {
                     let name = format!("{}.nrm", recomp.native_id);
                     // Names are compared case-insensitively, as on Windows.
                     if !profile::valid_native_id(&name)
-                        || code
+                        || recomp_members
                             .keys()
                             .any(|used: &String| used.eq_ignore_ascii_case(&name))
                     {
@@ -278,10 +710,9 @@ impl PortcoveService {
                     // so only a true duplicate can collide.
                     let destination = named_dir.join(&name);
                     fs::rename(path, &destination)?;
-                    code.insert(name, recomp.execution);
+                    recomp_members.insert(name, recomp);
                     renamed.push(destination);
                 }
-                recomp_code = code;
                 renamed
             }
             None => member_paths,
@@ -293,7 +724,7 @@ impl PortcoveService {
         let compares_assets = crate::native_mod_list::recomp_game(port_id).is_none();
         let mut members = Vec::new();
         let mut inspections = Vec::new();
-        for path in &member_paths {
+        for (path, index) in member_paths.iter().zip(source_indices) {
             let mut inspection = inspect_asset_archive(path)?;
             if !compares_assets {
                 inspection.asset_paths.clear();
@@ -304,14 +735,17 @@ impl PortcoveService {
                 ))
                 .detail("package", &inspection.file_name));
             }
+            wrappers[index]
+                .members
+                .insert(inspection.file_name.clone(), inspection.sha256.clone());
             members.push(PlanMember {
                 file_name: inspection.file_name.clone(),
                 sha256: inspection.sha256.clone(),
                 size: inspection.size,
                 asset_count: inspection.asset_paths.len(),
-                runs_code: recomp_code
+                runs_code: recomp_members
                     .get(&inspection.file_name)
-                    .cloned()
+                    .map(|recomp| recomp.execution.clone())
                     .unwrap_or_default(),
             });
             inspections.push(inspection);
@@ -320,18 +754,18 @@ impl PortcoveService {
 
         // Conflicts are reported against what the profile has enabled now.
         let mut existing_assets = Vec::new();
-        for package in current
-            .packages
-            .iter()
-            .filter(|package| compares_assets && package.enabled)
-        {
+        for package in current.packages.iter().filter(|package| {
+            compares_assets
+                && package.enabled
+                && !matches!(mode, ProviderInstallMode::Recipe { .. })
+        }) {
             let stored = layout.package(&package.sha256, &package.native_id);
             if let Ok(inspection) = inspect_asset_archive(&stored) {
                 existing_assets.push((package.native_id.clone(), inspection.asset_paths));
             }
         }
         // The checks apply would make, made before anything is authorized.
-        let named = crate::native_mod_list::contract(port_id).is_some();
+        let named = crate::native_mod_list::loader_list(port_id).is_some();
         if named {
             for member in &members {
                 crate::native_mod_list::require_listable(&member.file_name)?;
@@ -355,10 +789,11 @@ impl PortcoveService {
             .packages
             .iter()
             .filter(|package| {
-                members.iter().any(|m| {
-                    same(m, &package.native_id)
-                        && (m.sha256 != package.sha256 || m.file_name != package.native_id)
-                })
+                !matches!(mode, ProviderInstallMode::Recipe { .. })
+                    && members.iter().any(|m| {
+                        same(m, &package.native_id)
+                            && (m.sha256 != package.sha256 || m.file_name != package.native_id)
+                    })
             })
             .map(|package| package.native_id.clone())
             .collect::<Vec<_>>();
@@ -377,26 +812,24 @@ impl PortcoveService {
         let conflicts_truncated = conflicts.len() > MAX_REPORTED_CONFLICTS;
         conflicts.truncate(MAX_REPORTED_CONFLICTS);
 
+        let root = wrappers
+            .last()
+            .ok_or_else(|| PortcoveError::state("missing wrapper review"))?;
         let mut plan = ProviderInstallPlan {
             port_id: port_id.into(),
             profile_id: profile_id.into(),
             expected_revision: current.revision,
-            provider: ProviderPackageRef {
-                provider: client.provider().into(),
-                project: project_id.to_owned(),
-                file: Some(file_id.to_owned()),
-                // A Thunderstore version is the file itself; GameBanana shows one
-                // label for the whole project.
-                version: match client {
-                    ProviderClient::Thunderstore { .. } => Some(file.file_id.clone()),
-                    ProviderClient::GameBanana { .. } => project.version.clone(),
-                },
-            },
+            provider: root.provider.clone(),
             project_name: project.name.clone(),
             file: file.clone(),
-            download_sha256,
-            download_size,
+            download_sha256: root.download_sha256.clone(),
+            download_size: root.download_size,
             members,
+            wrappers: if matches!(client, ProviderClient::Thunderstore { .. }) {
+                wrappers
+            } else {
+                Vec::new()
+            },
             ignored_entries: ignored.try_into().unwrap_or(u32::MAX),
             replaces,
             conflicts,
@@ -415,19 +848,149 @@ impl PortcoveService {
             .collect(),
             plan_sha256: String::new(),
         };
+        let reviewed = wrapper_members(&plan, &retained)?;
+        if !matches!(mode, ProviderInstallMode::Recipe { .. }) && !reviewed.is_empty() {
+            for installed in &current.packages {
+                if !plan
+                    .members
+                    .iter()
+                    .any(|member| same(member, &installed.native_id))
+                    && installed.provider.as_ref().is_some_and(|provider| {
+                        plan.wrappers.iter().any(|wrapper| {
+                            wrapper.provider.project == provider.project
+                                && wrapper.provider.provider == provider.provider
+                        })
+                    })
+                {
+                    return Err(PortcoveError::conflict(
+                        "the reviewed Thunderstore version drops a previously installed member; review its removal first",
+                    ).detail("package", &installed.native_id));
+                }
+            }
+            let disabled = plan
+                .members
+                .iter()
+                .filter(|member| {
+                    current
+                        .packages
+                        .iter()
+                        .any(|package| !package.enabled && same(member, &package.native_id))
+                })
+                .map(|member| member.file_name.as_str())
+                .collect::<BTreeSet<_>>();
+            for (name, member) in &reviewed {
+                if disabled.contains(name) {
+                    continue;
+                }
+                for requirement in &member.requirements {
+                    if let Some(required) = requirement
+                        .members
+                        .keys()
+                        .find(|id| disabled.contains(id.as_str()))
+                    {
+                        return Err(PortcoveError::conflict(
+                            "turn on the required mod in this setup, then review the Thunderstore version again",
+                        ).detail("package", *name).detail("requires", required));
+                    }
+                }
+            }
+            // Existing dependants may still require an older exact package or
+            // bytes. Surface that before the user is asked to authorize.
+            for installed in &current.packages {
+                if plan
+                    .members
+                    .iter()
+                    .any(|member| same(member, &installed.native_id))
+                {
+                    continue;
+                }
+                profile::validate_provider_requirements(
+                    &installed.native_id,
+                    installed.enabled,
+                    &installed.provider_requires,
+                    |provider, id, hash| {
+                        if let Some(member) = plan.members.iter().find(|member| same(member, id)) {
+                            return member.file_name == id
+                                && !disabled.contains(id)
+                                && member.sha256 == hash
+                                && reviewed
+                                    .get(id)
+                                    .is_some_and(|member| member.provider == provider);
+                        }
+                        current.packages.iter().any(|member| {
+                            member.enabled
+                                && member.native_id == id
+                                && member.sha256 == hash
+                                && member.provider.as_ref() == Some(provider)
+                        })
+                    },
+                )?;
+            }
+        }
+        if !recomp_members.is_empty() && !matches!(mode, ProviderInstallMode::Recipe { .. }) {
+            let _guard = self
+                .library
+                .try_read_lock_port(port_id, "plan-provider-recomp")?;
+            let latest =
+                profile::current_revision(&self.library.connection()?, port_id, profile_id)?;
+            if latest.digest != current.digest {
+                return Err(PortcoveError::conflict(
+                    "the setup changed; review the package again",
+                ));
+            }
+            if let Err(error) =
+                self.review_recomp_changes(&layout, &latest, recomp_members.values(), None)
+            {
+                if mode == ProviderInstallMode::Automatic
+                    && error.details.get("review_stage").is_some_and(|stage| {
+                        stage == crate::profile_loader::RECOMP_DEPENDENCY_REVIEW
+                    })
+                {
+                    return Err(error.detail(
+                        RECOMP_REVIEW_BINDING,
+                        recomp_review_binding(&latest.digest, &plan.file)?,
+                    ));
+                }
+                return Err(error);
+            }
+        }
         plan.plan_sha256 = digest(&plan)?;
 
-        self.prune_staged(&layout.store().join("staged"));
-        let staged = layout.staged(&plan.plan_sha256);
-        if staged.exists() {
-            fs::remove_dir_all(&staged)?;
+        let _recipe_lock = if matches!(mode, ProviderInstallMode::Recipe { .. }) {
+            Some(
+                self.library
+                    .try_lock_port(port_id, "stage-recipe-provider-file")?,
+            )
+        } else {
+            None
+        };
+        if matches!(mode, ProviderInstallMode::Recipe { .. }) {
+            self.prune_staged(&layout.store().join("recipe-staged"));
         }
-        fs::create_dir_all(&staged)?;
+        let staging_root = mode.staging_root(&layout);
+        self.prune_staged(&staging_root);
+        fs::create_dir_all(&staging_root)?;
+        let staged = mode.staging(&layout, &plan.plan_sha256);
+        let reviewed = staging.path().join("reviewed");
+        fs::create_dir(&reviewed)?;
         for path in &member_paths {
             let name = path
                 .file_name()
                 .ok_or_else(|| PortcoveError::state("a staged package lost its name"))?;
-            fs::rename(path, staged.join(name))?;
+            fs::rename(path, reviewed.join(name))?;
+        }
+        if let Err(error) = fs::rename(reviewed, &staged) {
+            // A concurrent plan for the same digest can publish the same bytes.
+            if !staged.is_dir() {
+                return Err(error.into());
+            }
+            for member in &plan.members {
+                if sha256_file(&staged.join(&member.file_name))? != member.sha256 {
+                    return Err(PortcoveError::verification(
+                        "the staged review changed; discard it and plan again",
+                    ));
+                }
+            }
         }
         Ok(plan)
     }
@@ -450,10 +1013,27 @@ impl PortcoveService {
         }
     }
 
+    fn require_current_provider_scope(&self, plan: &ProviderInstallPlan) -> Result<()> {
+        let (catalog, _) = self.library.load_catalog()?;
+        let port = catalog.port(&plan.port_id)?;
+        if !crate::provider_binding::reference_matches(port, &plan.provider)
+            || plan.wrappers.iter().any(|wrapper| {
+                wrapper.provider.provider != plan.provider.provider
+                    || !crate::provider_binding::reference_matches(port, &wrapper.provider)
+            })
+        {
+            return Err(PortcoveError::verification(
+                "the plan names a provider scope this port does not accept",
+            ));
+        }
+        Ok(())
+    }
+
     pub fn authorize_provider_install(
         &self,
         plan: &ProviderInstallPlan,
     ) -> Result<crate::DestructiveAuthorization> {
+        self.require_current_provider_scope(plan)?;
         if digest(plan)? != plan.plan_sha256 {
             return Err(PortcoveError::verification(
                 "the plan does not match its recorded digest",
@@ -482,6 +1062,7 @@ impl PortcoveService {
         &self,
         plan: &ProviderInstallPlan,
     ) -> Result<crate::DestructiveAuthorization> {
+        self.require_current_provider_scope(plan)?;
         if digest(plan)? != plan.plan_sha256 {
             return Err(PortcoveError::verification(
                 "the plan does not match its recorded digest",
@@ -507,11 +1088,28 @@ impl PortcoveService {
         plan: &ProviderInstallPlan,
         token: &str,
     ) -> Result<ProfileRevision> {
+        self.apply_provider_install_in_mode(plan, token, ProviderInstallMode::Reviewed)
+    }
+
+    pub(crate) fn apply_automatic_provider_install(
+        &self,
+        plan: &ProviderInstallPlan,
+        token: &str,
+    ) -> Result<ProfileRevision> {
+        self.apply_provider_install_in_mode(plan, token, ProviderInstallMode::Automatic)
+    }
+
+    fn apply_provider_install_in_mode(
+        &self,
+        plan: &ProviderInstallPlan,
+        token: &str,
+        mode: ProviderInstallMode<'_>,
+    ) -> Result<ProfileRevision> {
         let layout = self.deploy_layout(&plan.port_id)?;
         // A plan is caller-supplied data: re-establish what planning established.
-        if bound_provider(&plan.port_id)
-            .is_none_or(|(provider, _)| plan.provider.provider != provider)
-            || plan.members.is_empty()
+        if plan.members.is_empty()
+            || plan.members.len() > MAX_MEMBERS
+            || plan.wrappers.len() > MAX_MEMBERS
             || plan
                 .members
                 .iter()
@@ -524,24 +1122,87 @@ impl PortcoveService {
         let _guard = self
             .library
             .try_lock_port(&plan.port_id, "apply-provider-install")?;
+        self.require_current_provider_scope(plan)?;
         self.recover_switch_locked(&plan.port_id, &layout)?;
+        if mode == ProviderInstallMode::Automatic {
+            let setup = profile::profile_from(
+                &self.library.connection()?,
+                &plan.port_id,
+                &plan.profile_id,
+            )?;
+            if setup.intent.update_policy != ProfileUpdatePolicy::AutomaticEligible
+                || setup.current_revision != plan.expected_revision
+            {
+                return Err(PortcoveError::conflict(
+                    "the setup or its automatic update policy changed; check again",
+                ));
+            }
+        }
         if digest(plan)? != plan.plan_sha256 {
             return Err(PortcoveError::verification(
                 "the plan does not match its recorded digest",
             ));
         }
+        if mode == ProviderInstallMode::Automatic && plan.wrappers.len() > 1 {
+            return Err(PortcoveError::usage(
+                "a Thunderstore dependency set needs explicit permission",
+            ));
+        }
+        if plan.wrappers.len() > 1 {
+            let current = profile::current_revision(
+                &self.library.connection()?,
+                &plan.port_id,
+                &plan.profile_id,
+            )?;
+            if current.revision != plan.expected_revision {
+                return Err(PortcoveError::conflict(
+                    "the setup changed after the dependency review; plan again",
+                ));
+            }
+        }
+        let retained = if mode == ProviderInstallMode::Automatic
+            && plan.provider.provider == crate::thunderstore::PROVIDER
+        {
+            let current = profile::current_revision(
+                &self.library.connection()?,
+                &plan.port_id,
+                &plan.profile_id,
+            )?;
+            retained_dependencies(
+                &layout,
+                &current,
+                &plan.provider.project,
+                &plan.file,
+                plan.provider.binding.as_ref(),
+                None,
+            )?
+        } else {
+            Vec::new()
+        };
+        let wrapper_members = wrapper_members(plan, &retained)?;
         let runs_code = plan
             .members
             .iter()
             .any(|member| !member.runs_code.is_empty());
-        self.library.consume_authorization(
-            token,
-            if runs_code { ACTION_WITH_CODE } else { ACTION },
-            &target(plan)?,
-            &plan.plan_sha256,
-        )?;
+        if mode == ProviderInstallMode::Automatic && runs_code {
+            return Err(PortcoveError::usage(
+                "automatic updates do not grant permission to run mod code",
+            ));
+        }
+        let consume = || {
+            self.library.consume_authorization(
+                token,
+                if runs_code { ACTION_WITH_CODE } else { ACTION },
+                &target(plan)?,
+                &plan.plan_sha256,
+            )
+        };
+        let recomp = crate::native_mod_list::recomp_game(&plan.port_id).is_some();
+        if !recomp {
+            consume()?;
+        }
         let recorded = crate::profile_deploy::consented_code(&layout).unwrap_or_default();
-        let staged_dir = layout.staged(&plan.plan_sha256);
+        let staged_dir = mode.staging(&layout, &plan.plan_sha256);
         let mut staged = Vec::new();
         for member in &plan.members {
             let path = staged_dir.join(&member.file_name);
@@ -555,10 +1216,15 @@ impl PortcoveService {
             // Code is allowed only for packages the authorized plan reported as
             // running code, and only for their reviewed bytes.
             let allowed = (!member.runs_code.is_empty()).then_some(member.sha256.as_str());
-            let item = inspect_for_port(
+            let origin = wrapper_members.get(member.file_name.as_str());
+            let mut item = inspect_for_port(
                 &plan.port_id,
                 path,
-                Some(plan.provider.clone()),
+                Some(
+                    origin
+                        .map_or(&plan.provider, |member| member.provider)
+                        .clone(),
+                ),
                 CodePolicy::Consent {
                     allowed,
                     recorded: &recorded,
@@ -569,7 +1235,22 @@ impl PortcoveService {
                     "the reviewed package bytes changed during inspection; plan again",
                 ));
             }
+            if let Some(origin) = origin {
+                item.provider_requires.clone_from(&origin.requirements);
+            }
             staged.push(item);
+        }
+        if recomp {
+            let connection = self.library.connection()?;
+            let current = profile::current_revision(&connection, &plan.port_id, &plan.profile_id)?;
+            require_reviewed_or_reordered(&connection, &current, plan.expected_revision)?;
+            self.review_recomp_changes(
+                &layout,
+                &current,
+                staged.iter().filter_map(|item| item.recomp.as_ref()),
+                None,
+            )?;
+            consume()?;
         }
         for item in &staged {
             if item.code_consent {
@@ -588,6 +1269,14 @@ impl PortcoveService {
 
     /// Discards a reviewed plan's private staging.
     pub fn discard_provider_install(&self, plan: &ProviderInstallPlan) -> Result<()> {
+        self.discard_provider_install_in_mode(plan, ProviderInstallMode::Reviewed)
+    }
+
+    pub(crate) fn discard_provider_install_in_mode(
+        &self,
+        plan: &ProviderInstallPlan,
+        mode: ProviderInstallMode<'_>,
+    ) -> Result<()> {
         // The plan is caller-supplied: its digest names a directory only when it
         // is the digest of the plan itself.
         if digest(plan)? != plan.plan_sha256 {
@@ -596,7 +1285,7 @@ impl PortcoveService {
             ));
         }
         let layout = self.deploy_layout(&plan.port_id)?;
-        let staged = layout.staged(&plan.plan_sha256);
+        let staged = mode.staging(&layout, &plan.plan_sha256);
         if staged.exists() {
             fs::remove_dir_all(staged)?;
         }

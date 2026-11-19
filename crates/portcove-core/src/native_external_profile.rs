@@ -15,13 +15,17 @@ use crate::{
 
 pub(crate) mod archive_siblings;
 pub(crate) mod doom3_linux;
+pub(crate) mod endless_sky;
 pub(crate) mod openjk;
 pub(crate) mod openmohaa;
 pub(crate) mod openomf;
 pub(crate) mod profile_siblings;
 pub(crate) mod quake_linux;
 pub(crate) mod recomp_direct;
+pub(crate) mod vcmi;
 pub(crate) mod z2rs;
+
+pub(crate) const VCMI_WINDOWS_CAPABILITY: u32 = 31;
 
 pub(crate) fn read_amd64_elf_header(executable: &Path) -> Result<[u8; 20]> {
     let mut file = crate::external_runtime::open_single_link_file(executable)?;
@@ -58,6 +62,8 @@ fn require_arm64_macho(executable: &Path, message: &str) -> Result<()> {
 pub(crate) fn minimum_capability(policy: ExternalProfilePolicy) -> u32 {
     match policy {
         ExternalProfilePolicy::OpenomfLinuxV1 => openomf::NATIVE_CAPABILITY,
+        ExternalProfilePolicy::EndlessSkyDesktopV1 => endless_sky::NATIVE_CAPABILITY,
+        ExternalProfilePolicy::VcmiWindowsV1 => VCMI_WINDOWS_CAPABILITY,
         ExternalProfilePolicy::Z2rsDesktopV1 => z2rs::NATIVE_CAPABILITY,
         ExternalProfilePolicy::RecompDirectV1 => recomp_direct::NATIVE_CAPABILITY,
         ExternalProfilePolicy::Doom3LinuxV1 => doom3_linux::NATIVE_CAPABILITY,
@@ -89,6 +95,10 @@ pub(crate) fn applies_to(policy: ExternalProfilePolicy, platform: Platform) -> b
             profile_siblings::applies_to(policy, platform)
         }
         ExternalProfilePolicy::OpenomfLinuxV1 => platform == Platform::LinuxX86_64,
+        ExternalProfilePolicy::VcmiWindowsV1 => platform == Platform::WindowsX86_64,
+        ExternalProfilePolicy::EndlessSkyDesktopV1 => {
+            matches!(platform, Platform::WindowsX86_64 | Platform::LinuxX86_64)
+        }
         ExternalProfilePolicy::JgrppLinuxV1 => platform == Platform::LinuxX86_64,
         ExternalProfilePolicy::RecompDirectV1 => {
             matches!(platform, Platform::WindowsX86_64 | Platform::LinuxX86_64)
@@ -107,6 +117,13 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
 
 fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Result<()> {
     let (identity, platforms): (_, &[_]) = match policy {
+        ExternalProfilePolicy::VcmiWindowsV1 => {
+            (Some(("vcmi-vcmi", "vcmi/vcmi")), &[Platform::WindowsX86_64])
+        }
+        ExternalProfilePolicy::EndlessSkyDesktopV1 => (
+            Some(("endless-sky", "endless-sky/endless-sky")),
+            &[Platform::WindowsX86_64, Platform::LinuxX86_64],
+        ),
         ExternalProfilePolicy::DuneDynastyAllegroV1 => (
             Some(("dune-ii-dune-dynasty", "gameflorist/dunedynasty")),
             &[Platform::WindowsX86_64, Platform::LinuxX86_64],
@@ -219,6 +236,9 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
             "external profiles require the reviewed upstream portable player and its external data layout",
         ));
     }
+    if policy == ExternalProfilePolicy::VcmiWindowsV1 {
+        vcmi::validate(port)?;
+    }
     if policy == ExternalProfilePolicy::RecompAppimageV1 {
         validate_recomp_appimage_layout(port)?;
     }
@@ -233,6 +253,9 @@ fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Resu
     }
     if policy == ExternalProfilePolicy::OpenomfLinuxV1 {
         openomf::validate(port)?;
+    }
+    if policy == ExternalProfilePolicy::EndlessSkyDesktopV1 {
+        endless_sky::validate(port)?;
     }
     if archive_siblings::applies(policy) {
         archive_siblings::validate(port, policy)?;
@@ -391,7 +414,9 @@ fn linux_root(
         | ExternalProfilePolicy::RecompDirectV1
         | ExternalProfilePolicy::Doom3LinuxV1
         | ExternalProfilePolicy::OpenjkUnixV1
-        | ExternalProfilePolicy::OpenomfLinuxV1 => {
+        | ExternalProfilePolicy::OpenomfLinuxV1
+        | ExternalProfilePolicy::VcmiWindowsV1
+        | ExternalProfilePolicy::EndlessSkyDesktopV1 => {
             return Err(PortcoveError::unsupported(
                 "this profile uses a different upstream layout",
             ));
@@ -456,6 +481,17 @@ fn roots(
     command: &Command,
 ) -> Result<Vec<PathBuf>> {
     match (policy, platform) {
+        #[cfg(target_os = "linux")]
+        (ExternalProfilePolicy::EndlessSkyDesktopV1, Platform::LinuxX86_64) => {
+            Ok(vec![endless_sky::linux_profile_root(
+                environment(command, "XDG_DATA_HOME").as_deref(),
+                environment(command, "HOME").as_deref(),
+            )?])
+        }
+        #[cfg(windows)]
+        (ExternalProfilePolicy::EndlessSkyDesktopV1, Platform::WindowsX86_64) => Ok(vec![
+            crate::external_runtime::shared_preferences::roaming_directory()?.join("endless-sky"),
+        ]),
         #[cfg(any(target_os = "linux", windows))]
         (ExternalProfilePolicy::RecompDirectV1, _) => {
             Ok(vec![recomp_direct::profile_root(command)?])
@@ -489,6 +525,10 @@ fn roots(
             linux_root(command, policy, "XDG_CONFIG_HOME", ".config")?,
             linux_root(command, policy, "XDG_DATA_HOME", ".local/share")?,
         ]),
+        #[cfg(windows)]
+        (ExternalProfilePolicy::VcmiWindowsV1, Platform::WindowsX86_64) => {
+            Ok(vec![vcmi::profile_root()?])
+        }
         (ExternalProfilePolicy::Fheroes2V1, Platform::WindowsX86_64) => {
             if let Some(home) = environment(command, "HOME") {
                 return Ok(vec![
@@ -766,6 +806,9 @@ pub(crate) fn require_external_roots(
             Err(error) => return Err(error.into()),
         }
     }
+    if policy == ExternalProfilePolicy::VcmiWindowsV1 {
+        vcmi::require_default_paths(spec)?;
+    }
     if policy == ExternalProfilePolicy::OpenmohaaUnixV1 {
         openmohaa::require_launch_paths(spec)?;
     }
@@ -795,6 +838,8 @@ pub(crate) fn require_external_roots(
                         | ExternalProfilePolicy::Doom3LinuxV1
                         | ExternalProfilePolicy::OpenjkUnixV1
                         | ExternalProfilePolicy::OpenomfLinuxV1
+                        | ExternalProfilePolicy::VcmiWindowsV1
+                        | ExternalProfilePolicy::EndlessSkyDesktopV1
                 ))
             .then(|| library.root().to_path_buf()),
         )
@@ -845,7 +890,9 @@ pub(crate) fn require_external_roots(
     } else {
         #[cfg(target_os = "linux")]
         if policy == ExternalProfilePolicy::VkquakeLinuxV1
-            || (platform == Platform::LinuxX86_64 && profile_siblings::applies(policy))
+            || (platform == Platform::LinuxX86_64
+                && (profile_siblings::applies(policy)
+                    || policy == ExternalProfilePolicy::EndlessSkyDesktopV1))
         {
             require_appimage_layout(spec)?;
             checkpoint()?;
@@ -1042,6 +1089,61 @@ mod tests {
         assert!(check_appimage_mount_root(&mount, uid, std::slice::from_ref(&root)).is_err());
         std::os::unix::fs::symlink(&root, root.join("vkquake.AppImage.home")).unwrap();
         assert!(require_appimage_layout(&spec).is_err());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn endless_sky_launch_keeps_pilots_and_mount_outside_the_library() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().canonicalize().unwrap();
+        let library = Library::open(root.join("library")).unwrap();
+        let runtime = library.versions_dir().join("endless-sky");
+        fs::create_dir_all(&runtime).unwrap();
+        let data = root.join("player-data");
+        let save = data.join("endless-sky/saves/pilot.txt");
+        fs::create_dir_all(save.parent().unwrap()).unwrap();
+        fs::write(&save, b"saved pilot").unwrap();
+        let spec = LaunchSpec {
+            executable: runtime.join("EndlessSky.AppImage"),
+            install_root: runtime.clone(),
+            working_directory: runtime,
+            environment: Default::default(),
+            arguments: Vec::new(),
+            fixed_arguments_only: true,
+            launch_kind: crate::LaunchKind::Native,
+        };
+        let mut command = ChildProcessPolicy::game_command(&spec.process_spec(), &[]).unwrap();
+        command.env("XDG_DATA_HOME", &data).env("TMPDIR", &root);
+        let check = |command: &Command| {
+            require_external_roots(
+                ExternalProfilePolicy::EndlessSkyDesktopV1,
+                &library,
+                &spec,
+                command,
+                &|| Ok(()),
+            )
+        };
+        check(&command).unwrap();
+        command.env("XDG_DATA_HOME", library.root());
+        assert!(check(&command).unwrap_err().message.contains("overlaps"));
+        command
+            .env("XDG_DATA_HOME", &data)
+            .env("TMPDIR", library.root());
+        assert!(
+            check(&command)
+                .unwrap_err()
+                .message
+                .contains("mount location")
+        );
+        command.env("TMPDIR", &root);
+        fs::create_dir(spec.working_directory.join("EndlessSky.AppImage.home")).unwrap();
+        assert!(
+            check(&command)
+                .unwrap_err()
+                .message
+                .contains("adjacent portable profile")
+        );
+        assert_eq!(fs::read(save).unwrap(), b"saved pilot");
     }
 
     #[test]

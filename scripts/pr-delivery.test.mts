@@ -606,6 +606,250 @@ void test("required context reduction fails closed on missing and duplicate prod
   );
 });
 
+void test("a bound run tolerates only successful duplicate check runs from another run on the same head", () => {
+  const bound = successfulRuns().map((run) => ({ ...run, head_sha: head }));
+  const binding = { head, run: 42, attempt: 1, jobs: workflowJobs() };
+  const foreign = (overrides: Record<string, unknown> = {}) => ({
+    id: 100,
+    name: "rust",
+    status: "completed",
+    conclusion: "success",
+    head_sha: head,
+    html_url: "https://github.test/check/100",
+    ...overrides,
+  });
+  const accepted = requiredCheckContexts([...bound, foreign()], [], required, binding);
+  assert.ok(accepted.every((context) => context.outcome === "success"));
+  assert.equal(
+    requiredFixture(accepted.find((context) => context.context === "rust")).check_run_id,
+    required.indexOf("rust") + 1,
+  );
+  for (const overrides of [{ conclusion: "failure" }, { status: "in_progress", conclusion: null }])
+    assert.throws(
+      () => requiredCheckContexts([...bound, foreign(overrides)], [], required, binding),
+      /unjoined or conflicting observations/u,
+    );
+  assert.throws(
+    () => requiredCheckContexts([...bound, foreign({ head_sha: base })], [], required, binding),
+    /differs from expected head/u,
+  );
+  // A foreign success never stands in for a context the bound run has no job for.
+  const withoutRust = { ...binding, jobs: workflowJobs().filter((job) => job.name !== "rust") };
+  assert.throws(
+    () =>
+      requiredCheckContexts(
+        [...bound.filter((run) => run.name !== "rust"), foreign()],
+        [],
+        required,
+        withoutRust,
+      ),
+    /unjoined or conflicting observations/u,
+  );
+  // The bound job decides: its failure is not hidden and its missing observation refuses.
+  const failing = bound.map((run) =>
+    run.name === "rust" ? { ...run, conclusion: "failure" } : run,
+  );
+  const failingJobs = {
+    ...binding,
+    jobs: workflowJobs().map((job) =>
+      job.name === "rust" ? { ...job, conclusion: "failure" } : job,
+    ),
+  };
+  assert.equal(
+    requiredFixture(
+      requiredCheckContexts([...failing, foreign()], [], required, failingJobs).find(
+        (context) => context.context === "rust",
+      ),
+    ).outcome,
+    "failure",
+  );
+  assert.throws(
+    () =>
+      requiredCheckContexts(
+        [...bound.filter((run) => run.name !== "rust"), foreign()],
+        [],
+        required,
+        binding,
+      ),
+    /job has no check observation/u,
+  );
+  assert.throws(
+    () =>
+      requiredCheckContexts(
+        bound,
+        [{ id: 99, context: "rust", state: "success", target_url: "https://github.test/status" }],
+        required,
+        binding,
+      ),
+    /unjoined or conflicting observations/u,
+  );
+});
+
+function compositionRepository() {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-merge-local-"));
+  const git = (args: string[]) => {
+    const result = spawnHelp(
+      "git",
+      [
+        "-c",
+        "user.name=Delivery fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "-c",
+        "commit.gpgsign=false",
+        ...args,
+      ],
+      {
+        cwd: directory,
+        encoding: "utf8",
+        timeout: 15_000,
+        env: {
+          ...process.env,
+          GIT_CONFIG_NOSYSTEM: "1",
+          GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null",
+        },
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  const save = (name: string, body: string) => {
+    writeFileSync(path.join(directory, name), body);
+    git(["add", name]);
+    git(["commit", "-m", name]);
+    return git(["rev-parse", "HEAD"]);
+  };
+  git(["init", "-b", "main"]);
+  save("shared.txt", "one\ntwo\n");
+  git(["checkout", "-b", "candidate"]);
+  const source = save("candidate.txt", "candidate\n");
+  git(["checkout", "main"]);
+  const previousTarget = save("earlier.txt", "earlier\n");
+  const previewTree = git(["merge-tree", "--write-tree", previousTarget, source]);
+  const preview = git([
+    "commit-tree",
+    previewTree,
+    "-p",
+    previousTarget,
+    "-p",
+    source,
+    "-m",
+    "Historical preview",
+  ]);
+  const target = save("later.txt", "later\n");
+  const tree = git(["merge-tree", "--write-tree", target, source]);
+  git(["checkout", "candidate"]);
+  return { directory, source, previousTarget, preview, previewTree, target, tree };
+}
+
+void test("REST merge verifies a lagging preview locally against the live target", async () => {
+  const repo = compositionRepository();
+  try {
+    const merge = "f".repeat(40);
+    for (const scenario of ["success", "tree", "moved", "strict"] as const) {
+      let mutations = 0;
+      const client = await deliveryFixture(({ endpoint }) => {
+        if (endpoint === "graphql") return Response.json(closingPage({ headRefOid: repo.source }));
+        if (endpoint === "repos/boburning/portcove/pulls/7/commits?per_page=100")
+          return Response.json([{ sha: repo.source, commit: { message: squashMessage.title } }]);
+        if (endpoint === "repos/boburning/portcove/pulls/7")
+          return Response.json(
+            mutations
+              ? pull({
+                  head: { sha: repo.source },
+                  base: { sha: repo.previousTarget, ref: "main" },
+                  merged: true,
+                  state: "closed",
+                  merge_commit_sha: merge,
+                })
+              : pull({
+                  head: { sha: repo.source },
+                  base: { sha: repo.previousTarget, ref: "main" },
+                  merge_commit_sha: repo.preview,
+                }),
+          );
+        if (endpoint.includes("check-runs"))
+          return Response.json({ total_count: required.length, check_runs: successfulRuns() });
+        if (endpoint.includes("/status?")) return Response.json({ total_count: 0, statuses: [] });
+        if (endpoint === `repos/boburning/portcove/git/commits/${repo.preview}`)
+          return Response.json({
+            sha: repo.preview,
+            tree: { sha: repo.previewTree },
+            parents: [{ sha: repo.previousTarget }, { sha: repo.source }],
+          });
+        if (endpoint === "repos/boburning/portcove/branches/main")
+          return Response.json({
+            commit: { sha: scenario === "moved" ? "1".repeat(40) : repo.target },
+          });
+        if (endpoint === "repos/boburning/portcove/pulls/7/merge") {
+          mutations++;
+          return Response.json({ merged: true, sha: merge });
+        }
+        if (endpoint === `repos/boburning/portcove/git/commits/${merge}`)
+          return Response.json({
+            sha: merge,
+            message: `${squashMessage.title}\n\n${squashMessage.body}`,
+            tree: { sha: repo.tree },
+            parents: [{ sha: repo.target }],
+          });
+        throw new Error(`unexpected endpoint ${endpoint}`);
+      });
+      const composition = {
+        target: repo.target,
+        tree: scenario === "tree" ? "1".repeat(40) : repo.tree,
+      };
+      const operation = client.merge(
+        7,
+        repo.source,
+        required,
+        emptyIntent,
+        squashMessage,
+        undefined,
+        composition,
+        scenario === "strict" ? undefined : repo.directory,
+      );
+      if (scenario === "success") {
+        const result = await operation;
+        assert.equal(result.result.sha, merge);
+        assert.equal(result.verified_composition?.method, "local-git-merge-tree");
+        assert.equal(result.verified_composition?.preview_target, repo.previousTarget);
+        assert.equal(mutations, 1);
+      } else {
+        await assert.rejects(
+          operation,
+          scenario === "tree"
+            ? /independently reviewed tree/u
+            : scenario === "moved"
+              ? /target differs/u
+              : /composition differs/u,
+        );
+        assert.equal(mutations, 0, scenario);
+      }
+    }
+  } finally {
+    rmSync(repo.directory, { recursive: true, force: true });
+  }
+});
+
+void test("REST merge local composition requires the reviewed target and tree", async () => {
+  assert.deepEqual(
+    parseArguments([
+      "merge",
+      "--target",
+      base,
+      "--tree",
+      "e".repeat(40),
+      "--verify-local-composition",
+    ]).options["--verify-local-composition"],
+    true,
+  );
+  const client = await deliveryFixture();
+  await assert.rejects(
+    client.merge(7, head, required, emptyIntent, squashMessage, undefined, undefined, "/tmp"),
+    /requires --target and --tree/u,
+  );
+});
+
 void test("required check observation is exact-head and fails closed on ambiguity", async () => {
   const client = await deliveryFixture();
   client.pull = async () => pull();
@@ -871,6 +1115,46 @@ void test("watcher stops on replacement identity, failed workflow, absent gates 
   );
 });
 
+void test("managed watch samples keep queued jobs and absent gates quiet until the original deadline", async () => {
+  let queued = true;
+  const client = {
+    workflowRun: async () =>
+      workflow(
+        queued
+          ? { status: "queued", run_started_at: null }
+          : { status: "completed", conclusion: "success" },
+      ),
+    requiredCheckState: async () => ({
+      ...checkState(),
+      jobs: workflowJobs().map((job) => ({
+        ...job,
+        status: queued ? "queued" : "completed",
+        started_at: queued ? null : "2026-10-01T21:00:03Z",
+      })),
+    }),
+  };
+  const options = { ...watchOptions, sample: true, sleep: async () => assert.fail("one sample") };
+  await assert.rejects(watchRequiredChecks(client, options), (error) => {
+    assert.equal(evidence(error).watch_condition, "pending");
+    assert.equal(evidence(error).job_started_at, undefined);
+    return true;
+  });
+  queued = false;
+  await assert.rejects(watchRequiredChecks(client, options), (error) => {
+    assert.equal(evidence(error).watch_condition, "pending");
+    assert.equal(evidence(error).job_started_at, "2026-10-01T21:00:03Z");
+    return true;
+  });
+  await assert.rejects(
+    watchRequiredChecks(client, { ...options, now: () => Date.parse(options.deadline) }),
+    (error) => {
+      assert.equal(evidence(error).watch_condition, "deadline");
+      assert.equal(evidence(error).deadline, options.deadline);
+      return true;
+    },
+  );
+});
+
 void test("watcher rejects missing identity/deadline before querying and does not accept old green gates while the run is pending", async () => {
   const client = {
     workflowRun: async () => assert.fail("invalid options must stop before API access"),
@@ -962,7 +1246,7 @@ void test("watcher rejects green checks from another run/attempt or incomplete j
   );
 });
 
-void test("check-run pagination admits only this repository's bound numeric-id Link path", async () => {
+void test("check-run pagination follows only this repository's bound numeric-id Link, by owner/name", async () => {
   const repositoryId = 1354613114;
   const runs = successfulRuns();
   const split = Math.ceil(runs.length / 2);
@@ -978,9 +1262,10 @@ void test("check-run pagination admits only this repository's bound numeric-id L
         requests.push(url.pathname + url.search);
         if (url.pathname === `/repos/${repository}`)
           return Response.json({ id: boundId, full_name: fullName });
-        if (url.pathname.startsWith("/repositories/"))
-          return Response.json({ total_count: runs.length, check_runs: runs.slice(split) });
+        assert.ok(!url.pathname.startsWith("/repositories/"), "numeric-id path was requested");
         assert.equal(url.pathname, `/repos/${repository}/commits/${head}/check-runs`);
+        if (url.searchParams.get("page") === "2")
+          return Response.json({ total_count: runs.length, check_runs: runs.slice(split) });
         return Response.json(
           { total_count: runs.length, check_runs: runs.slice(0, split) },
           { headers: { link: `<https://api.github.com${pagePath(linkedId)}>; rel="next"` } },
@@ -994,7 +1279,7 @@ void test("check-run pagination admits only this repository's bound numeric-id L
   assert.deepEqual(admitted.requests, [
     `/repos/${repository}/commits/${head}/check-runs?filter=all&per_page=100`,
     `/repos/${repository}`,
-    pagePath(repositoryId),
+    `/repos/${repository}/commits/${head}/check-runs?filter=all&per_page=100&page=2`,
   ]);
   // The identity is bound once per client; later collections reuse it.
   admitted.requests.length = 0;
@@ -1013,7 +1298,7 @@ void test("check-run pagination admits only this repository's bound numeric-id L
       refused.client.checkRuns(head),
       /outside the admitted scope|identity is incomplete or differs/u,
     );
-    assert.ok(!refused.requests.some((path) => path.startsWith("/repositories/")));
+    assert.ok(!refused.requests.some((path) => path.includes("page=2")));
   }
 });
 
@@ -1347,6 +1632,7 @@ void test("bound merge refuses an attempt change after check and closure collect
     pull: pull(),
     head,
     contexts: requiredCheckContexts(successfulRuns(), [], required),
+    jobs: workflowJobs(),
   });
   client.pullCommits = async () => [{ sha: head, commit: { message: squashMessage.title } }];
   await assert.rejects(
@@ -2529,8 +2815,11 @@ void test("the closing-inventory workflow is the trusted check the REST path acc
   assert.match(workflow, new RegExp(`^ {4}name: ${closingInventoryCheckName}$`, "m"));
   assert.match(workflow, /ref: \$\{\{ github\.sha \}\}/);
   assert.match(workflow, /persist-credentials: false/);
-  const install = workflow.indexOf("run: pnpm install --frozen-lockfile --ignore-scripts");
+  const install = workflow.indexOf(
+    "run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts --ignore-pnpmfile",
+  );
   assert.ok(install > 0 && workflow.indexOf("GH_TOKEN:") > install);
   assert.doesNotMatch(workflow.slice(0, install), /GH_TOKEN:|GITHUB_TOKEN:/u);
+  assert.match(workflow, /EXPECTED_HEAD_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/);
   assert.match(workflow, /run: node scripts\/closing-inventory\.mts$/m);
 });

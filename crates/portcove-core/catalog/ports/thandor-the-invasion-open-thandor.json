@@ -1,0 +1,54 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "thandor-the-invasion-open-thandor",
+    "artwork": {
+      "game_id": 54432,
+      "cover_id": 467799,
+      "image_id": "coa0yf",
+      "image_sha256": "07b0bed4de822a0e6f7219f69b923a6592e02cd83d059f3bd2f7708439ff547d",
+      "game_slug": "thandor-the-invasion",
+      "match_kind": "underlying-game"
+    },
+    "project_url": "https://github.com/idkFoxes/open-thandor",
+    "name": "Thandor: The Invasion / Open Thandor",
+    "original_game_title": "Thandor: The Invasion",
+    "summary": "Use Open Thandor with an installed copy of the original game on Windows.",
+    "issue_number": 6121,
+    "listed_at": "2026-11-14",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/idkFoxes/open-thandor/blob/v1.0.7/README.md#install-and-play",
+    "release_url": "https://github.com/idkFoxes/open-thandor/releases/tag/v1.0.7",
+    "download_block_reason": "The Patch 7 installer contains wizard images made from an original Thandor screenshot and logo. Portcove can offer the package when an asset-clean installer is available or permission covers these images.",
+    "manual_setup": {
+      "help_url": "https://github.com/idkFoxes/open-thandor/blob/v1.0.7/docs/BUILDING.md#patch-installer",
+      "steps": [
+        {
+          "title": "Choose the original game folder",
+          "instruction": "On Windows 10 or 11 x64, use your own installed full game. Find the folder with DATEN.PCK and thandor.exe. Close the game and back up the whole folder, including saves, before using a Patch 7 installer you are already permitted to use."
+        },
+        {
+          "title": "Patch and play through upstream",
+          "instruction": "Check the folder in the upstream patch wizard before proceeding. Patch 7 replaces thandor.exe and adds its SDL3 runtime. The installer can change access permissions on the game and save folders. After setup, open thandor.exe from the patched folder."
+        },
+        {
+          "title": "Keep your original and saves",
+          "instruction": "Keep your independent backup, plus the current save folder and thandor.ini. Patch 7 can retain the prior executable as thandor-1.05.exe. Its own uninstaller attempts to restore it when that backup exists and leaves the changed folder permissions in place."
+        }
+      ],
+      "warnings": [
+        "Use the upstream installer and uninstaller for replacement. The project publishes a Windows x64 route. It supplies no Linux, Mac, or Android build."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "thandor-the-invasion",
+      "evidence_urls": [
+        "https://github.com/idkFoxes/open-thandor/blob/v1.0.7/docs/BUILDING.md#patch-installer",
+        "https://github.com/idkFoxes/open-thandor"
+      ],
+      "source_editions": []
+    }
+  }
+}

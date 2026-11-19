@@ -344,6 +344,7 @@ impl portcove_core::ReleaseProvider for OwnedRelease {
                 size: self.0.artifact.size,
                 sha256: self.0.artifact.sha256.clone(),
             },
+            uploader_continuity: None,
         })
     }
 }

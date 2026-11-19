@@ -57,3 +57,43 @@ export function observeCompletionResultFocus(name: string) {
     ariaLabel: control.getAttribute("aria-label"),
   };
 }
+
+/** Read-only native observation; cannot focus or scroll the control under test. */
+export function observeSetupReviewFocus(scopeSelector: string) {
+  const scope = document.querySelector(scopeSelector);
+  const control = document.activeElement;
+  if (!scope?.isConnected || !control?.isConnected || !scope.contains(control)) return false;
+  if (
+    control.matches(":disabled, [aria-disabled=true]") ||
+    control.closest("[hidden], [inert], [aria-hidden=true]") ||
+    !control.getClientRects().length ||
+    getComputedStyle(control).visibility === "hidden"
+  )
+    return false;
+  const bounds = control.getBoundingClientRect();
+  if (
+    bounds.width <= 0 ||
+    bounds.height <= 0 ||
+    bounds.top < 0 ||
+    bounds.left < 0 ||
+    bounds.bottom > innerHeight ||
+    bounds.right > innerWidth
+  )
+    return false;
+  for (
+    let parent = control.parentElement;
+    parent && parent !== document.body;
+    parent = parent.parentElement
+  ) {
+    if (!/(auto|scroll|overlay)/u.test(getComputedStyle(parent).overflowY)) continue;
+    const box = parent.getBoundingClientRect();
+    const top = box.top + parent.clientTop;
+    if (bounds.top < top || bounds.bottom > top + parent.clientHeight) return false;
+  }
+  return {
+    tag: control.tagName,
+    text: control.textContent?.trim(),
+    top: bounds.top,
+    bottom: bounds.bottom,
+  };
+}

@@ -45,7 +45,7 @@ import {
   type ControllerToolPlatform,
 } from "./release-controller-tools.mts";
 import { isRecord } from "./runtime-values.mts";
-import { slice4CapacityResources } from "./release-capacity.mts";
+import { retainedCatalogReviewRecoveryResources } from "./release-retained-catalog-review-resources.mts";
 import {
   compilerProducerPaths,
   inspectReleaseCompilerSourceClosure,
@@ -1466,7 +1466,7 @@ void test("tool manifest retains the aggregate and per-file byte limits on both 
         (total, file) => total + file.bytes,
         0,
       ),
-      343_932_928,
+      352_321_536,
     );
     files[2]!.bytes++;
     assert.throws(
@@ -1562,6 +1562,87 @@ void test("Core CLI and native WebDriver are mandatory content; changed or missi
       );
   }
 });
+void test("queued controller tool custody requires an exact active receiver on both reads", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-live-receiver-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const f = fixture();
+  let projectedStatus = "queued";
+  const metadata = {
+    ...f.options.metadata,
+    async run(id: string) {
+      return { ...(await f.options.metadata.run(id)), status: projectedStatus };
+    },
+    async attempt(id: string, attempt: number) {
+      return { ...(await f.options.metadata.attempt(id, attempt)), status: projectedStatus };
+    },
+  };
+  const environment = {
+    GH_TOKEN: "inert-test-token",
+    GITHUB_RUN_ID: f.expected.run_id,
+    GITHUB_RUN_ATTEMPT: String(f.expected.run_attempt),
+    GITHUB_SHA: f.expected.controller_revision,
+    GITHUB_REF: f.expected.controller_ref,
+  };
+  const prior = Object.fromEntries(Object.keys(environment).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, environment);
+  t.after(() => {
+    for (const [key, value] of Object.entries(prior)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+  let observations = 0;
+  let settleAfter = Infinity;
+  const started_at = new Date(Date.now() - 1000).toISOString();
+  const liveCoordinator = { id: 91, started_at };
+  const deadline = performance.now() + 20000;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    observations++;
+    if (observations === settleAfter) projectedStatus = "in_progress";
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(
+      url.pathname,
+      `/repos/boburning/portcove/actions/runs/${f.expected.run_id}/attempts/1/jobs`,
+    );
+    assert.equal(init?.method, "GET");
+    return Response.json({
+      total_count: 1,
+      jobs: [
+        {
+          ...liveCoordinator,
+          run_id: Number(f.expected.run_id),
+          run_attempt: f.expected.run_attempt,
+          head_sha: f.expected.controller_revision,
+          name: "Coordinate application release",
+          status: observations > settleAfter ? "completed" : "in_progress",
+        },
+      ],
+    });
+  });
+  await assert.rejects(
+    receiveControllerTools(root, f.expected, f.bundle, { ...f.options, metadata }),
+    { phase: "provider-before" },
+  );
+  await receiveControllerTools(root, f.expected, f.bundle, {
+    ...f.options,
+    metadata,
+    liveCoordinator,
+    deadline,
+  });
+  assert.equal(observations, 2);
+  settleAfter = observations + 1;
+  await assert.rejects(
+    receiveControllerTools(root, f.expected, f.bundle, {
+      ...f.options,
+      metadata,
+      liveCoordinator,
+      deadline,
+    }),
+    { phase: "provider-after" },
+  );
+});
+
 void test("tool acquisition retains the phase deadline before outputs and after provider reads", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-deadline-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -1605,7 +1686,7 @@ void test("tool acquisition retains the phase deadline before outputs and after 
 void test("stored controller tool ZIP metadata admits the fixed archive ceiling before transfer", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tool-zip-bound-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  assert.equal(controllerToolZipMaximumBytes, 344_014_848);
+  assert.equal(controllerToolZipMaximumBytes, 352_403_456);
   const f = fixture();
   const admitted: number[] = [];
   for (const bytes of [controllerToolZipMaximumBytes, controllerToolZipMaximumBytes + 1]) {
@@ -1642,6 +1723,7 @@ void test("fixed tool receiver uses one locked SDK lookup per archive and preser
     process.env.GH_TOKEN = "fixture-fixed-receiver";
     const f = fixture({}, platform);
     const order: string[] = [];
+    let bundleReads = 0;
     const prefix = "/repos/boburning/portcove/";
     const result = await receiveControllerTools(root, f.expected, f.bundle, {
       deadline: performance.now() + 10000,
@@ -1681,6 +1763,8 @@ void test("fixed tool receiver uses one locked SDK lookup per archive and preser
         if (route === "actions/runs/9988/attempts/1")
           return Response.json(await provider.attempt("9988", 1));
         if (route === "actions/jobs/501") return Response.json(await provider.job(501));
+        if (route === "actions/artifacts/100" && bundleReads++ === 0)
+          return Response.json({ message: "Not Found" }, { status: 404 });
         if (route === "actions/artifacts/99" || route === "actions/artifacts/100")
           return Response.json(await provider.artifact(Number(route.split("/").at(-1))));
         assert.fail("unexpected controller tool receiver route");
@@ -1697,6 +1781,7 @@ void test("fixed tool receiver uses one locked SDK lookup per archive and preser
     ];
     assert.deepEqual(order, [
       ...snapshot,
+      "actions/artifacts/100",
       "actions/artifacts/99/zip",
       "/actions-results/99",
       "actions/artifacts/100/zip",
@@ -1871,8 +1956,7 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
     "${{ inputs.publication_purpose == 'application' && 12 || 8 }}",
   );
   const workflowSha = createHash("sha256").update(text).digest("hex");
-  assert.equal(slice4CapacityResources.aggregate_workflow_sha256, workflowSha);
-  assert.equal(slice4CapacityResources.input_workflow_sha256, workflowSha);
+  assert.equal(retainedCatalogReviewRecoveryResources.workflow_sha256, workflowSha);
   const historicalText = await readFile(
     new URL(
       "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
@@ -2282,11 +2366,11 @@ async function windowsRuntimeInputFixture(t: test.TestContext) {
     await import("./qualify-controller-tools-windows.mts");
   const root = await mkdtemp(path.join(os.tmpdir(), "windows-runtime-source-join-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const floor = path.join(root, "apps/desktop/src-tauri/src/runtime_support.rs"),
+  const floor = path.join(root, "apps/desktop/src-tauri/tauri.conf.json"),
     filename = path.join(root, "work/hosted-continuity-evidence/windows-runtime.json");
   await mkdir(path.dirname(floor), { recursive: true });
   await mkdir(path.dirname(filename), { recursive: true });
-  await copyFile(path.join(sourceRoot, "apps/desktop/src-tauri/src/runtime_support.rs"), floor);
+  await copyFile(path.join(sourceRoot, "apps/desktop/src-tauri/tauri.conf.json"), floor);
   const git = (args: string[]) =>
     execFileSync(
       "git",

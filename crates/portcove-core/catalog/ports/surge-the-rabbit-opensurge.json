@@ -1,0 +1,138 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "surge-the-rabbit-opensurge",
+    "name": "Surge the Rabbit",
+    "original_game_title": "Surge the Rabbit",
+    "artwork": {
+      "game_id": 336999,
+      "cover_id": 447320,
+      "image_id": "co9l5k",
+      "image_sha256": "bbdb4700e295fe80fa53df8559b5ac9d1d736600e19838d79ca40542cb980608",
+      "game_slug": "surge-the-rabbit",
+      "match_kind": "underlying-game"
+    },
+    "summary": "Play a retro platformer and build your own levels with the Open Surge engine.",
+    "project_url": "https://github.com/alemart/opensurge",
+    "issue_number": 6493,
+    "listed_at": "2026-11-16",
+    "platforms": ["linux-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/alemart/opensurge/releases/latest",
+    "setup_url": "https://opensurge2d.org/",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install through Portcove on Windows",
+          "instruction": "Install the publisher’s portable game and choose Play on a 64-bit Windows PC. Portcove backs up the bundled game’s preferences, captures and levels stored in its managed data folder. Keep separate backups for custom projects you open from other folders."
+        },
+        {
+          "title": "Install an upstream copy",
+          "instruction": "On Windows, extract the entire publisher ZIP into a folder you can write to and open opensurge.exe. The package includes the game and uses a 32-bit Windows executable. On Linux, install Open Surge from your distribution or install Surge Engine from Flathub for x86-64 or ARM64."
+        },
+        {
+          "title": "Start the bundled adventure",
+          "instruction": "Choose Start Game from the Surge the Rabbit title screen. The package already includes the levels and other game files. No separate game data is needed."
+        },
+        {
+          "title": "Keep your settings and creations",
+          "instruction": "Close the game before copying your files. For a manually extracted Windows copy, back up the extracted game folder. On Linux, copy the Surge the Rabbit folder under ~/.local/share/opensurge, or use the matching path under XDG_DATA_HOME if you set it. For Flatpak, look under ~/.var/app/org.opensurge2d.OpenSurge/data/opensurge. If you set OPENSURGE_USER_PATH, copy the folder it points to for your player data. Also keep any separate folders you use for your own games or levels."
+        }
+      ],
+      "warnings": [
+        "For a Windows installation managed by Portcove, choose a library folder using basic Latin characters. Open Surge 0.6.1.3 can write preferences and saves in a different folder when the library path contains other characters."
+      ],
+      "references": [
+        {
+          "title": "Get the publisher’s Android build",
+          "instruction": "The publisher offers an Android APK for ARM64 and 32-bit ARM in the release downloads. Keep your own copies of any projects you import. The Android app stores its active data in its own app storage."
+        }
+      ],
+      "help_url": "https://wiki.opensurge2d.org/"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "alemart/opensurge",
+      "asset_hints": {
+        "windows-x86-64": ["opensurge-", "-windows.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["opensurge.exe"]
+    },
+    "persistent_paths": [],
+    "user_data_environment": "OPENSURGE_USER_PATH",
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Choose Play to start the included game. Portcove gives this copy its own data folder for preferences, captures and levels. Back up separately any custom project you open from another folder. Keep manually extracted copies and standalone games in their own folders."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [
+          "characters",
+          "fonts",
+          "images",
+          "inputs",
+          "languages",
+          "levels",
+          "licenses",
+          "musics",
+          "quests",
+          "samples",
+          "screenshots",
+          "scripts",
+          "sprites",
+          "src",
+          "themes"
+        ],
+        "executables": [
+          "opensurge.exe",
+          "src/misc/android/scripts/assemble_package.sh",
+          "src/misc/android/scripts/assemble_prepare.sh",
+          "src/misc/android/scripts/build_allegro.sh",
+          "src/misc/android/scripts/build_deps.sh",
+          "src/misc/android/scripts/build_java.sh",
+          "src/misc/android/scripts/build_opensurge.sh",
+          "src/misc/android/scripts/build_surgescript.sh",
+          "src/misc/android/scripts/git_pull.sh",
+          "src/misc/android/scripts/init.sh",
+          "src/misc/android/scripts/pull_allegro.sh",
+          "src/misc/android/scripts/pull_deps.sh",
+          "src/misc/android/scripts/pull_java.sh",
+          "src/misc/android/scripts/pull_opensurge.sh",
+          "src/misc/android/scripts/pull_surgescript.sh",
+          "src/misc/android/scripts/run_apk.sh",
+          "src/misc/android/scripts/set_ndk.sh",
+          "src/misc/android/scripts/set_sdk.sh",
+          "src/misc/android/scripts/sign_apk.sh",
+          "src/misc/android/scripts/stage_allegro.sh",
+          "src/misc/android/scripts/stage_deps.sh",
+          "src/misc/android/scripts/stage_java.sh",
+          "src/misc/android/scripts/stage_opensurge.sh",
+          "src/misc/android/scripts/stage_surgescript.sh",
+          "src/misc/goodies/demo_level.cmd",
+          "src/misc/goodies/import_wizard.cmd",
+          "src/misc/goodies/mobile_mode.cmd",
+          "src/misc/goodies/options_screen.cmd",
+          "src/misc/goodies/verbose_logs.cmd"
+        ]
+      }
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "surge-the-rabbit-opensurge",
+    "origin": {
+      "project_url": "https://github.com/alemart/opensurge"
+    },
+    "decisions": []
+  }
+}

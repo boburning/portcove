@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "south-park-let-s-go-tower-defense-play-south-park-td-recompiled",
+    "artwork": {
+      "game_id": 1260,
+      "cover_id": 125213,
+      "image_id": "co2om5",
+      "image_sha256": "1009f05680aafe27e69a1d183fa9ceca60e93c6f51c1b8ff449e107c310a64e0",
+      "game_slug": "south-park-let-s-go-tower-defense-play",
+      "match_kind": "underlying-game"
+    },
     "name": "South Park: Let's Go Tower Defense Play! (South Park TD Recompiled)",
     "summary": "Attach an independently permitted, prepared South Park: Let’s Go Tower Defense Play! Windows player with its exact owned XBLA data and upstream startup settings already saved. Normal direct play stays in process; preserve separate game, settings and Documents save roots, and finish update/restart changes upstream.",
     "original_game_title": "South Park: Let's Go Tower Defense Play!",
@@ -41,6 +49,25 @@
       ],
       "warnings": [
         "Use this title’s exact purchased package and saved startup settings. Keep game/configuration and actual Documents save roots; settings restarts and upstream updates can replace the selected process."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "south-park-lets-go-tower-defense-play",
+      "evidence_urls": [
+        "https://github.com/TekRantGaming/south-park-tower-defense-recompiled/blob/22175afc62acd3e420af355a42dd31c2018c2165/README.md",
+        "https://github.com/TekRantGaming/south-park-tower-defense-recompiled"
+      ],
+      "source_editions": [
+        {
+          "id": "south-park-lets-go-tower-defense-play-xbox-360",
+          "title": "South Park: Let's Go Tower Defense Play! (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/TekRantGaming/south-park-tower-defense-recompiled/blob/22175afc62acd3e420af355a42dd31c2018c2165/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/south-park-let-s-go-tower-defense-play-south-park-td-recompiled.json"
+          ]
+        }
       ]
     }
   },

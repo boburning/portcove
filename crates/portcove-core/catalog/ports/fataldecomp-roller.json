@@ -6,7 +6,15 @@
     "summary": "Prepared experimental Windows ROLLER player using your own Whiplash/Fatal Racing retail assets. Native setup and data remain upstream/player owned; daily builds do not establish stable or full-game compatibility.",
     "original_game_title": "Whiplash",
     "project_url": "https://github.com/FatalDecomp/ROLLER",
-    "platforms": [],
+    "artwork": {
+      "game_id": 95503,
+      "cover_id": 140534,
+      "image_id": "co30fq",
+      "image_sha256": "ded4a4f4b221a9895363996be38b309ace9640e13f5eef51deb6861cb3f677ee",
+      "game_slug": "whiplash--1",
+      "match_kind": "underlying-game"
+    },
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/FatalDecomp/ROLLER",
     "issue_number": 2792,

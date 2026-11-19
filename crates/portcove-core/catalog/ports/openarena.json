@@ -1,0 +1,63 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "openarena",
+    "artwork": {
+      "game_id": 77358,
+      "cover_id": 258514,
+      "image_id": "co5jgy",
+      "image_sha256": "c649311e6967a8ceb59c75f3ee7aabcbc7dd575cea88897a18e88a2cd37a9b7a",
+      "game_slug": "openarena",
+      "match_kind": "underlying-game"
+    },
+    "name": "OpenArena",
+    "original_game_title": "OpenArena",
+    "summary": "Play OpenArena’s standalone maps and modes with the game data in its own release.",
+    "project_url": "https://sourceforge.net/projects/oarena/",
+    "issue_number": 6385,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "release_url": "https://sourceforge.net/projects/oarena/files/",
+    "setup_url": "https://sourceforge.net/projects/oarena/files/",
+    "download_block_reason": "Use the complete publisher ZIP or the Linux distribution package. These players are installed and updated outside Portcove.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the complete Windows release",
+          "instruction": "Extract openarena-0.8.8.zip into a dedicated folder and keep baseoa and missionpack beside openarena.exe. The full release includes the base game and both patches. The Windows player is 32-bit and needs Windows support for 32-bit applications. Start openarena.exe from that folder."
+        },
+        {
+          "title": "Choose the upstream Linux player",
+          "instruction": "On Debian or Ubuntu, install openarena with your package manager and let it install the engine and map packages. For the older publisher ZIP, extract openarena-0.8.8.zip and run ./openarena.x86_64 from the openarena-0.8.8 folder with baseoa and missionpack beside it. That binary needs SDL 1.2, Vorbis and a working OpenGL driver."
+        },
+        {
+          "title": "Back up your OpenArena profile",
+          "instruction": "Close the game and copy %APPDATA%/OpenArena on Windows or ~/.openarena on Linux, including baseoa/q3config.cfg, custom maps, demos and mods. Keep any custom content you added to the installation separately before replacing it."
+        }
+      ],
+      "warnings": [
+        "Use OpenArena’s own data and add-ons. If you join a server, use the game version and assets the server expects."
+      ],
+      "references": [
+        {
+          "title": "Use the separate Android port",
+          "instruction": "The separately maintained PlayFDroid OpenArena Android release has touchscreen controls and downloads the official game data into app-specific storage on first launch. Follow its release and installation instructions. Desktop profile folders do not apply to that app."
+        },
+        {
+          "title": "Check Mac compatibility",
+          "instruction": "The official 0.8.8 ZIP contains legacy 32-bit Intel and PowerPC Mac binaries. Use those only with a matching legacy Mac environment. Current Intel and Apple Silicon Macs need a separately built player."
+        }
+      ],
+      "help_url": "https://github.com/PlayFDroid/openarena-android/releases"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "openarena",
+    "origin": {
+      "project_url": "https://sourceforge.net/projects/oarena/"
+    },
+    "decisions": []
+  }
+}

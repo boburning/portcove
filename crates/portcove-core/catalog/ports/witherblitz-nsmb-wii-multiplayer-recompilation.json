@@ -4,12 +4,12 @@
     "id": "witherblitz-nsmb-wii-multiplayer-recompilation",
     "name": "New Super Mario Bros. Wii / NSMB Wii Multiplayer Decompilation (WitherBlitz)",
     "summary": "Explore New Super Mario Bros. Wii / NSMB Wii Multiplayer Decompilation (WitherBlitz) and follow the upstream project for requirements, downloads and setup.",
-    "project_url": "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation",
+    "project_url": "https://github.com/WitherBlitz/NSMB-Wii-Recompilation",
     "issue_number": 1847,
     "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation",
+    "setup_url": "https://github.com/WitherBlitz/NSMB-Wii-Recompilation",
     "artwork": {
       "game_id": 2178,
       "cover_id": 95671,
@@ -19,7 +19,7 @@
       "match_kind": "underlying-game"
     },
     "manual_setup": {
-      "help_url": "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation/blob/aa7cf830837358d241e734e94741405c7c824ab2/README.md",
+      "help_url": "https://github.com/WitherBlitz/NSMB-Wii-Recompilation/blob/aa7cf830837358d241e734e94741405c7c824ab2/README.md",
       "steps": [
         {
           "title": "Prepare your own exact Wii game upstream",
@@ -46,5 +46,46 @@
         "Select NSMBW.exe with the complete Windows folder and compat/ retained, using your own extracted USA SMNE01 revision 1. Preserve Documents/MarioWiiSaveData or the existing portable/legacy data root; a CPU handoff can outlive Portcove’s activity."
       ]
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "new-super-mario-bros-wii",
+    "origin": {
+      "project_url": "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation"
+    },
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation"
+        },
+        "to": {
+          "project_url": "https://github.com/WitherBlitz/NSMB-Wii-Recompilation",
+          "repository": {
+            "host": "github.com",
+            "id": "1409011091"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The owner WitherBlitz renamed the repository it listed; the same repository answers at WitherBlitz/NSMB-Wii-Recompilation. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/WitherBlitz/NSMB-Wii-Recompilation/commit/aa7cf830837358d241e734e94741405c7c824ab2",
+            "note": "The commit this listing's setup guide pins is present in the current repository, authored by WitherBlitz."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation",
+            "note": "The listed path resolves to WitherBlitz/NSMB-Wii-Recompilation, repository ID 1409011091."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "d5854af78e5b3a359ed3bf883c16644525ba1143ca570980d93d1c34a95d5e57"
+        }
+      }
+    ]
   }
 }

@@ -5,10 +5,10 @@
     "name": "The Sword of Etheria — Sword-Of-Etheria-PC-Recomp (AncletoCEO)",
     "original_game_title": "The Sword of Etheria",
     "summary": "This experimental build reaches boot, disc access, GS and a frame loop. Gameplay has not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-    "project_url": "https://github.com/AncletoCEO/Sword-Of-Etheria-PC-Recomp",
-    "platforms": [],
+    "project_url": "https://github.com/AncletoCEO/OverEtheria",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/AncletoCEO/Sword-Of-Etheria-PC-Recomp",
+    "setup_url": "https://github.com/AncletoCEO/OverEtheria",
     "manual_setup": {
       "steps": [
         {
@@ -24,7 +24,7 @@
         "This experimental build reaches boot, disc access, GS and a frame loop. Gameplay has not been established.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/AncletoCEO/Sword-Of-Etheria-PC-Recomp"
+      "help_url": "https://github.com/AncletoCEO/OverEtheria"
     },
     "issue_number": 3070,
     "listed_at": "2026-10-25",
@@ -35,6 +35,21 @@
       "image_sha256": "6666bf1fd24a854a974f4cb75c8acf9941ea10313025d13d2b35c51f59a6168a",
       "game_slug": "the-sword-of-etheria",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-sword-of-etheria",
+      "evidence_urls": ["https://github.com/AncletoCEO/OverEtheria"],
+      "source_editions": [
+        {
+          "id": "the-sword-of-etheria-playstation-2",
+          "title": "The Sword of Etheria (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/AncletoCEO/OverEtheria/blob/553686cce5e278d164b4671af9ceeba49e47e4a2/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -47,6 +62,43 @@
         "id": "1385950913"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/AncletoCEO/Sword-Of-Etheria-PC-Recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1385950913"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/AncletoCEO/OverEtheria",
+          "repository": {
+            "host": "github.com",
+            "id": "1385950913"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The owner AncletoCEO renamed the repository it listed; the same repository answers at AncletoCEO/OverEtheria. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1385950913",
+            "note": "Repository ID 1385950913, recorded when this port was listed, resolves to AncletoCEO/OverEtheria."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/AncletoCEO/Sword-Of-Etheria-PC-Recomp",
+            "note": "The listed path resolves to AncletoCEO/OverEtheria, repository ID 1385950913."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "e6c02f05a86ff012a8d8807778043b5aded746f41ae7c95b4315c26d31ebf22a"
+        }
+      }
+    ]
   }
 }

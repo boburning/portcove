@@ -94,6 +94,10 @@
       "detail": "Portcove remembers every file in this folder now and leaves those games alone, even if it recognizes them later.",
       "label": "Only set up games added later"
     },
+    "keepLocalCopy": {
+      "detail": "Use this for a network or removable drive. Applies to games set up from now on. Only the files each game needs are copied; nothing in this folder is moved or deleted.",
+      "label": "Keep a copy of each game's files on this computer"
+    },
     "legend": "Automatic setup from this folder",
     "off": {
       "detail": "Portcove only shows what it finds here.",
@@ -116,6 +120,8 @@
       "detail": "Portcove tells you when it can be installed, and again only if its setup changes. Nothing is installed.",
       "label": "Tell me when it's ready"
     },
+    "readAgain": "Read again",
+    "reading": "Reading choices…",
     "setUpWhenReady": {
       "detail": "Portcove installs it without asking again once its files and requirements are ready. It never starts the game. Choose another option to stop.",
       "label": "Set it up when it's ready"
@@ -142,14 +148,24 @@
     "route": "Setup or launch option"
   },
   "ready": {
-    "dismiss": "Dismiss <game/>",
+    "dismiss": "Dismiss",
+    "dismissFailed": "Couldn’t confirm dismissal. Try Dismiss again.",
+    "dismissing": "Dismissing…",
     "heading": "Ready for you",
     "installable": "<game/> is ready to install.",
     "label": "Games ready for you",
-    "reviewSetup": "Review <game/> setup",
-    "reviewUpdate": "Review <game/> update",
+    "reviewSetup": "Review setup",
+    "reviewUpdate": "Review update",
     "update": "<game/> has an update available: <version/>. Nothing was downloaded or changed.",
     "updateUnknownVersion": "<game/> has an update available: a newer version. Nothing was downloaded or changed."
+  },
+  "readyNotices": {
+    "control": "Tell me when games I chose to hear about are ready",
+    "description": "Turn this off to stop ready-game notices. Your choice for each game and any automatic setup stay as they are. Turn it back on to hear about games that are ready and that you haven't been told about yet.",
+    "heading": "Ready-game notices",
+    "readFailed": "Couldn't check the ready-game notice setting.",
+    "retry": "Try again",
+    "saveFailed": "Couldn't save the ready-game notice setting."
   },
   "reason": {
     "completeCompatibleObservation": "A complete set of compatible game files was found for this setup or launch option.",

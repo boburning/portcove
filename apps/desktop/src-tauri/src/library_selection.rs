@@ -103,6 +103,7 @@ fn switch_library(
                 .generation
                 .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
             drop(initialization);
+            crate::recent_play_shortcuts::refresh(state.clone());
             return Ok(bootstrap_status(state));
         }
         std::mem::replace(
@@ -148,6 +149,7 @@ fn switch_library(
             .generation
             .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
     }
+    crate::recent_play_shortcuts::refresh(state.clone());
     Ok(bootstrap_status(state))
 }
 

@@ -2,34 +2,61 @@
   "format_version": 1,
   "listing": {
     "id": "n64hub-rayman-2-recomp-n64-usa",
+    "artwork": {
+      "game_id": 843,
+      "cover_id": 375214,
+      "image_id": "co81im",
+      "image_sha256": "d6927888c6f6184250267a1bf04115a97b1145679102e7627863df4b5de866d2",
+      "game_slug": "rayman-2-the-great-escape",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/n64hub/rayman-2-recomp",
     "name": "Rayman 2: The Great Escape (n64hub)",
     "summary": "A Windows port of Rayman 2: The Great Escape. Set it up with your original US Nintendo 64 game file.",
     "issue_number": 4335,
     "listed_at": "2026-11-05",
     "original_game_title": "Rayman 2: The Great Escape",
-    "availability": "unknown",
-    "platforms": [],
+    "availability": "packages",
     "setup_url": "https://github.com/n64hub/rayman-2-recomp/blob/4cd56ce325977de3d9014af3e682596fcd664ea9/README.md",
     "manual_setup": {
       "help_url": "https://github.com/n64hub/rayman-2-recomp/blob/4cd56ce325977de3d9014af3e682596fcd664ea9/README.md",
       "steps": [
         {
-          "title": "Prepare your Windows copy",
-          "instruction": "Use a complete Windows x64 copy that you are permitted to use. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open Rayman2Recompiled.exe, choose Load ROM and select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). Choose Start Game."
+          "title": "Prepare the game",
+          "instruction": "Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. On first start, choose Load ROM and select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52), then choose Start Game. The player checks the file and keeps a copy in its profile; keep your original separately."
         }
       ],
       "warnings": [
-        "Keep your current profile and Controller Pak files when replacing the program. The project reports early-game progress. Later levels and save compatibility across releases are unverified."
+        "Keep your current profile and Controller Pak files when replacing the program. The project reports early-game progress. Later levels and save compatibility across releases are unverified.",
+        "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
       ],
       "references": [
         {
-          "title": "Setup instructions for the inspected release",
-          "instruction": "https://github.com/n64hub/rayman-2-recomp/releases/tag/v0.1.4"
+          "title": "Upstream releases and their setup notes",
+          "instruction": "https://github.com/n64hub/rayman-2-recomp/releases"
         }
       ]
     },
-    "download_block_reason": "Portcove downloads are paused until the applicable permission for the bundled Fontworks Chiaro fonts is established or upstream publishes a package with appropriately licensed replacements. You can add a complete copy you are permitted to use."
+    "release_url": "https://github.com/n64hub/rayman-2-recomp/releases",
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "rayman-2-the-great-escape",
+      "evidence_urls": [
+        "https://github.com/n64hub/rayman-2-recomp/blob/4cd56ce325977de3d9014af3e682596fcd664ea9/README.md",
+        "https://github.com/n64hub/rayman-2-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "rayman-2-the-great-escape-nintendo-64",
+          "title": "Rayman 2: The Great Escape (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/n64hub/rayman-2-recomp/blob/86d47fb1855af5a28bbf7f6b2ca04fa3cf67cc5d/README.md"
+          ]
+        }
+      ]
+    }
   },
   "route_facts_v1": {
     "format_version": 1,
@@ -40,6 +67,44 @@
       "data_locations": [
         "%LOCALAPPDATA%/Rayman2Recompiled by default, or the game folder if it already uses portable.txt; saves/controllerpak_1.mpk and other Controller Pak files under that profile"
       ]
+    },
+    "managed_native": {
+      "preparation": {
+        "title": "Set up the managed copy on first Play",
+        "instruction": "Use Load ROM to select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). The player verifies it and keeps a private copy in its profile with settings and Controller Pak files. Back up that profile separately before changing versions."
+      },
+      "warnings": [
+        "Use a separate upstream copy for portable.txt mode. A separately prepared copy without portable.txt uses the same %LOCALAPPDATA%\\Rayman2Recompiled profile as the managed copy."
+      ]
     }
-  }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "n64hub/rayman-2-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["Rayman2Recompiled-", "-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["Rayman2Recompiled.exe"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned"
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["assets"],
+        "executables": ["rayman2recompiled.exe"]
+      }
+    }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

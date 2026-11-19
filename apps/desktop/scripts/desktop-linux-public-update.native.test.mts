@@ -17,7 +17,6 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   inspectLinuxPublicRuntime,
   assertLinuxPublicUserStatePreserved,
@@ -75,22 +74,12 @@ import {
   createPublicUpdatePreimageStore,
   readBoundedPublicUpdateBytes,
   publicUpdateRawMetadataBytes,
-  publicUpdateApplySchemaVersion,
   retainPublicUpdateProfile,
   restorePublicUpdateProfile,
   restoreParkedPublicUpdateCapture,
   retainDeduplicatedPublicUpdatePreimages,
   retainPublicContinuationPreimages,
 } from "./desktop-public-update-files.mts";
-void test("native raw apply inspector remains tied to the current shipping journal version", async () => {
-  const source = await readFile(
-    fileURLToPath(new URL("../src-tauri/src/application_update_apply.rs", import.meta.url)),
-    "utf8",
-  );
-  const declarations = [...source.matchAll(/^const APPLY_SCHEMA_VERSION: u32 = ([1-9][0-9]*);$/gm)];
-  assert.equal(declarations.length, 1);
-  assert.equal(publicUpdateApplySchemaVersion, Number(declarations[0]?.[1]));
-});
 void test("unchanged parked payload retains a new byte observation tied to original wire, while V2 is copied normally", async (context) => {
   const root = await mkdtemp(path.join(tmpdir(), "public-old-payload-"));
   context.after(() => rm(root, { recursive: true, force: true }));

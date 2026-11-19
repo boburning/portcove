@@ -61,6 +61,43 @@ impl ReleaseProvider for CompositeReleaseProvider {
         }
     }
 
+    async fn resolve_shape_fallback(
+        &self,
+        port: &PortDefinition,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        withheld: &ResolvedRelease,
+    ) -> Result<Option<crate::ScopedResolvedRelease>> {
+        if port.release.provider != ReleaseSource::Github {
+            return Ok(None);
+        }
+        if port.release.managed_build.contains_key(&platform) {
+            return Err(crate::cartridge_build::retired_creation());
+        }
+        self.github
+            .resolve_shape_fallback(port, platform, scope, withheld)
+            .await
+    }
+
+    fn cached_release_notes(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        installed: Option<&str>,
+        offered: &str,
+    ) -> Option<crate::UpdateReleaseNotes> {
+        match port.release.provider {
+            ReleaseSource::Github => self
+                .github
+                .cached_release_notes(port, channel, platform, installed, offered),
+            ReleaseSource::Gitlab => self
+                .gitlab
+                .cached_release_notes(port, channel, platform, installed, offered),
+            ReleaseSource::DirectManifest | ReleaseSource::UserPrepared => None,
+        }
+    }
+
     async fn resolve(
         &self,
         port: &PortDefinition,
@@ -118,6 +155,7 @@ pub(crate) fn resolve_direct(
             size: release.size,
             sha256: release.sha256.to_ascii_lowercase(),
         },
+        uploader_continuity: None,
     })
 }
 
@@ -166,6 +204,7 @@ mod tests {
                 grant_declared_executable: false,
                 direct,
                 user_prepared: BTreeMap::new(),
+                accepted_uploaders: Vec::new(),
             },
             bundled_runtime: BTreeMap::new(),
             source_profile: None,
@@ -190,6 +229,7 @@ mod tests {
             mod_package_policy: None,
             game_settings: None,
             windows_shipwright_persistence: false,
+            windows_tracked_handoff: false,
             managed_shared_preferences: None,
             managed_shared_preferences_save_id: None,
             source_environment: None,
@@ -203,6 +243,8 @@ mod tests {
             launch_disc_choice: None,
             runtime_source_hashes: BTreeMap::new(),
             runtime_disc_image: None,
+            runtime_stfs_package: None,
+            runtime_rom_patch: None,
             optional_game_source: false,
             runtime_source_set: Vec::new(),
             launch_from_install_root: false,
@@ -211,6 +253,9 @@ mod tests {
             setup_marker: None,
             setup_output_paths: vec![],
             upstream_status: UpstreamStatus::Retired,
+            upstream_active_reviewed: false,
+            mod_provider_bindings: None,
+            legacy_mod_provider_held: false,
             managed_acquisition_hold: None,
             reviewed_package_layouts: BTreeMap::new(),
             presentation: None,

@@ -1,0 +1,69 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kibertoad-chaos-overlords-new-chrome",
+    "artwork": {
+      "game_id": 629,
+      "cover_id": 543952,
+      "image_id": "cobnps",
+      "image_sha256": "f7c8ab0a4a9775aa53f166b0056fbb2795eb0bfcc8427552004dc1603a8ae2cb",
+      "game_slug": "chaos-overlords",
+      "match_kind": "underlying-game"
+    },
+    "project_url": "https://github.com/kibertoad/chaos-overlords-new-chrome",
+    "name": "Chaos Overlords / New Chrome",
+    "original_game_title": "Chaos Overlords",
+    "summary": "Install the upstream strategy game rebuild and import assets from your own Chaos Overlords copy.",
+    "issue_number": 6081,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/kibertoad/chaos-overlords-new-chrome/releases/tag/0.10.13",
+    "setup_url": "https://github.com/kibertoad/chaos-overlords-new-chrome/blob/0.10.13/README.md",
+    "download_asset_hints": {
+      "windows-x86-64": ["ChaosOverlords-NewChrome-Setup-", ".exe"],
+      "linux-x86-64": ["ChaosOverlords-NewChrome-linux-x64-Setup-", ".deb"],
+      "macos-x86-64": ["ChaosOverlords-NewChrome-osx-x64-Setup-", ".pkg"],
+      "macos-aarch64": ["ChaosOverlords-NewChrome-osx-arm64-Setup-", ".pkg"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/kibertoad/chaos-overlords-new-chrome/blob/0.10.13/README.md",
+      "steps": [
+        {
+          "title": "Install and import on Windows",
+          "instruction": "Run the upstream setup and point it to your own installed GOG Chaos Overlords folder when asked. Setup imports a local asset pack. Keep the original folder separately. To play, open Chaos Overlords New Chrome from the Start menu."
+        },
+        {
+          "title": "Install and import on Linux or Mac",
+          "instruction": "On Linux x86-64 use the upstream Debian-package instructions or the separate extraction instructions for your distribution. On macOS 12 or later select the PKG for Intel or Apple Silicon. Open the installed app, then choose the extracted folder of your own GOG game containing DATA, HELP and MUSIC. On Linux, you can use chaos-overlords-new-chrome-import followed by the quoted original folder if the picker is unavailable."
+        },
+        {
+          "title": "Keep your New Chrome profile before replacing it",
+          "instruction": "Keep the Rechaos Overlords folder in your operating system’s local application data. It holds New Chrome’s preferences, saves and replays. Keep the imported Assets folder separately. Windows setup keeps Game/Assets on upgrade and deletes it on uninstall. Linux and Mac typically keep Assets under the ChaosOverlordsNewChrome application data folder."
+        }
+      ],
+      "warnings": [
+        "Original Chaos Overlords saves are a separate format. Keep the creating New Chrome version with your saves and replays because the upstream development format can change.",
+        "Upstream describes its Mac installers as unsigned. Review the publisher and follow its macOS setup instructions."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "chaos-overlords",
+      "evidence_urls": [
+        "https://github.com/kibertoad/chaos-overlords-new-chrome/blob/0.10.13/README.md",
+        "https://github.com/kibertoad/chaos-overlords-new-chrome"
+      ],
+      "source_editions": [
+        {
+          "id": "chaos-overlords-pc",
+          "title": "Chaos Overlords (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/kibertoad/chaos-overlords-new-chrome/blob/b3b4009ebe9ecbb1d7ae4825a5e250d9ae7beb1b/README.md"
+          ]
+        }
+      ]
+    }
+  }
+}

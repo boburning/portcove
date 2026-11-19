@@ -5,6 +5,31 @@ import { discoveryGitHubScope } from "./discovery-github.mts";
 import { createGitHubClient } from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
 
+void test("hosted inventory has a larger byte allowance with the same time and provider checks", async () => {
+  const now = () => Date.parse("2026-11-13T14:00:00Z");
+  const local = new DiscoveryBudget("cold", undefined, now);
+  const hosted = new DiscoveryBudget("hosted", undefined, now);
+  const operationBytes = 70 * 1024 * 1024;
+  await assert.rejects(
+    local.admit(1, operationBytes),
+    (error) =>
+      error instanceof GitHubApiError &&
+      error.code === "budget_exhausted" &&
+      error.message.includes("bytes needed 73400320, available 67108864"),
+  );
+  await hosted.admit(1, operationBytes);
+  assert.equal(hosted.remaining().milliseconds, local.remaining().milliseconds);
+  hosted.observeProvider({ resource: "core", remaining: 1, resetAt: "2026-11-13T15:00:00Z" });
+  hosted.charge("GET", "rate_limit", 1, 1024, "200");
+  await assert.rejects(
+    hosted.admit(1, 1),
+    (error) =>
+      error instanceof GitHubApiError &&
+      error.code === "budget_exhausted" &&
+      error.message.includes("requests needed 1, available 0"),
+  );
+});
+
 void test("discovery SDK requires its explicit credential and charges actual GraphQL evidence", async () => {
   const budget = new DiscoveryBudget("ordinary");
   assert.throws(() => discoveryGitHubScope(budget, ""), /credential/);

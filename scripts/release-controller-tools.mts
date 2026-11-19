@@ -10,9 +10,11 @@ export const controllerCompilerSourceAsset = "compiler-source-closure.json";
 export const controllerToolSourceAssetMaximumBytes = 128 * 1024;
 // Hosted Linux reached 337,645,161 bytes, with up to about 443 KiB difference
 // between ordinary and protected builds of the same source, and 338,702,629
-// bytes once the CLI gained mod providers and recipes (#5005). The owner chose
-// about 5 MiB of headroom so ordinary CLI growth does not need a recalibration.
-export const controllerToolExpandedMaximumBytes = 328 * 1024 ** 2;
+// bytes once the CLI gained mod providers and recipes (#5005). Hosted Linux then
+// reached 343,951,930 bytes once the CLI gained SteamGridDB withdrawal removal
+// (#5542), 19 KiB over the 328 MiB bound. The owner chose 336 MiB, about 8 MiB of
+// headroom again, so ordinary CLI growth does not need a recalibration.
+export const controllerToolExpandedMaximumBytes = 336 * 1024 ** 2;
 const controllerToolManifestMaximumBytes = 64 * 1024;
 // Protected uploads use ZIP Store. The 41-member r31 archive had 6,686
 // framing bytes. Reserve a finite 16 KiB for the closed member inventory.

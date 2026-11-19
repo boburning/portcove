@@ -8,12 +8,55 @@ use uuid::Uuid;
 
 use crate::{
     ChildProcessClass, ChildProcessPolicy, Library, OperationCoordinator, OperationEvent,
-    OperationResult, Platform, PortcoveError, Result, SourceRecord, adapter::hash_file,
-    archive::extract_archive_with_checkpoint,
+    OperationResult, Platform, PortcoveError, ReleaseAsset, Result, SourceRecord,
+    adapter::hash_file, archive::extract_archive_with_checkpoint,
 };
 
 const TOOLCHAIN_VERSION: &str = "1.0.14";
 const APPLE_SYSTEM_BIN: &str = "/usr/bin";
+const WEBP_DEPENDENCY: &str = "psx_libwebp";
+const WEBP_ARCHIVE: &str = "libwebp-4fa21912338357f89e4fd51cf2368325b59e9bd9.tar.gz";
+const WEBP_SHA256: &str = "923f3382a47a2af185c3240c954cf004428b237bd7317413a95146d01eb4b94b";
+const WEBP_URL: &str = "https://codeload.github.com/webmproject/libwebp/tar.gz/4fa21912338357f89e4fd51cf2368325b59e9bd9";
+const WEBP_SIZE: u64 = 3_834_766;
+const DEPENDENCY_MANIFEST_MAX_BYTES: u64 = 64 * 1024;
+
+/// Recognizes only the reviewed dependency pin in an already verified kit.
+/// The manifest cannot choose a network destination or a local filename.
+pub(crate) fn missing_offline_webp(root: &Path) -> Result<Option<(ReleaseAsset, PathBuf)>> {
+    let directory = root.join("psxrecomp").join("third_party");
+    let manifest = directory.join("deps.manifest");
+    crate::path::refuse_symlink_ancestors(&manifest)?;
+    if !manifest.try_exists()? {
+        return Ok(None);
+    }
+    let bytes = crate::path::read_bounded_regular(&manifest, DEPENDENCY_MANIFEST_MAX_BYTES)?;
+    let text = std::str::from_utf8(&bytes)
+        .map_err(|_| PortcoveError::verification("PS1 dependency manifest is not UTF-8"))?;
+    let mut rows = text
+        .lines()
+        .map(str::split_ascii_whitespace)
+        .filter(|fields| fields.clone().next() == Some(WEBP_DEPENDENCY));
+    let expected = [WEBP_DEPENDENCY, WEBP_ARCHIVE, WEBP_SHA256, WEBP_URL];
+    if !rows.next().is_some_and(|fields| fields.eq(expected)) || rows.next().is_some() {
+        return Ok(None);
+    }
+    let destination = directory.join(WEBP_ARCHIVE);
+    crate::path::refuse_symlink_ancestors(&destination)?;
+    if destination.try_exists()? {
+        // The kit's CMake resolver will independently check its vendored bytes.
+        return Ok(None);
+    }
+    Ok(Some((
+        ReleaseAsset {
+            name: WEBP_ARCHIVE.into(),
+            url: WEBP_URL.into(),
+            size: WEBP_SIZE,
+            sha256: WEBP_SHA256.into(),
+        },
+        destination,
+    )))
+}
 
 #[derive(Debug, Clone)]
 pub struct PsxManagedPreparation {
@@ -21,14 +64,20 @@ pub struct PsxManagedPreparation {
     pub bios: Option<SourceRecord>,
     pub source_paths: Vec<PathBuf>,
     pub runtime_source_directory: Option<PathBuf>,
+    /// Each disc's exact catalog track count, in disc order, for a
+    /// `runtime_source_directory` set; empty otherwise.
+    pub runtime_track_counts: Vec<u32>,
     pub toolchain_root: PathBuf,
     pub executable_basename: String,
+    /// The route persists split player mod paths rather than all of `mods`.
+    pub split_mod_packages: bool,
 }
 
 struct PreparationConfiguration<'a> {
     primary_source: &'a Path,
     source_paths: &'a [PathBuf],
     runtime_source_directory: Option<&'a Path>,
+    runtime_track_counts: &'a [u32],
     executable_basename: &'a str,
 }
 
@@ -69,11 +118,20 @@ impl<'a> PreparationConfiguration<'a> {
                 )
                 .detail("preparation_field", "runtime_source_directory"));
             }
+            if preparation.runtime_track_counts.len() != preparation.source_paths.len()
+                || preparation.runtime_track_counts.contains(&0)
+            {
+                return Err(PortcoveError::verification(
+                    "managed PS1 runtime materialization requires one track count per disc",
+                )
+                .detail("preparation_field", "runtime_track_counts"));
+            }
         }
         Ok(Self {
             primary_source,
             source_paths: &preparation.source_paths,
             runtime_source_directory,
+            runtime_track_counts: &preparation.runtime_track_counts,
             executable_basename: &preparation.executable_basename,
         })
     }
@@ -287,6 +345,45 @@ fn bios_config_value_end(tokens: &[ConfigToken], start: usize) -> Result<usize> 
     Ok(cursor)
 }
 
+/// The catalog BIOS profile a kit's own `[recompiler] bios_config` selects,
+/// when it names one of the reviewed retail images. Unknown or absent
+/// configurations return `None` and are left to the kit.
+fn kit_bios_profile(root: &Path) -> Result<Option<&'static str>> {
+    let Some(config) = bios_config_string(&root.join("game.toml"), "recompiler", "bios_config")?
+    else {
+        return Ok(None);
+    };
+    let stem = Path::new(config.trim())
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .map(str::to_ascii_uppercase);
+    Ok(match stem.as_deref() {
+        Some("SCPH1001") => Some("psx-scph-1001-bios"),
+        Some("SCPH5552" | "SCPH5502") => Some("psx-scph-5552-bios"),
+        Some("SCPH5500") => Some("psx-scph-5500-bios"),
+        _ => None,
+    })
+}
+
+/// A kit configured for one reviewed retail BIOS must not be built with the
+/// image of another. Older frameworks stage whatever file they are given.
+fn require_kit_bios_profile(root: &Path, registered: &str) -> Result<()> {
+    if !matches!(
+        registered,
+        "psx-scph-1001-bios" | "psx-scph-5552-bios" | "psx-scph-5500-bios"
+    ) {
+        return Ok(());
+    }
+    match kit_bios_profile(root)? {
+        Some(expected) if expected != registered => Err(PortcoveError::install(
+            "this PS1 kit is set up for a different BIOS than the one this game needs, so nothing was installed or changed",
+        )
+        .detail("kit_bios_profile", expected)
+        .detail("registered_bios_profile", registered)),
+        _ => Ok(()),
+    }
+}
+
 fn staged_bios_path(root: &Path) -> Result<PathBuf> {
     let profile = bios_config_string(&root.join("game.toml"), "recompiler", "bios_config")?
         .map(|value| value.trim().to_owned())
@@ -402,6 +499,16 @@ where
     F: FnMut(OperationEvent),
 {
     let artifact = toolchain_artifact(platform)?;
+    let _acquisition = loop {
+        operation.checkpoint()?;
+        match library.try_lock_psx_toolchain_acquisition() {
+            Ok(lock) => break lock,
+            Err(error) if error.code == crate::ErrorCode::Conflict => {
+                tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+            }
+            Err(error) => return Err(error),
+        }
+    };
     let destination = library
         .toolchains_dir()
         .join("cmake-clang-v1")
@@ -429,19 +536,14 @@ where
         "https://github.com/TechnicallyComputers/retcomm-toolchains/releases/download/v{TOOLCHAIN_VERSION}/{}",
         artifact.name
     );
-    let client = crate::install::default_download_client()?;
     let asset = crate::ReleaseAsset {
         name: artifact.name.into(),
         url,
         size: artifact.size,
         sha256: artifact.sha256.into(),
     };
-    crate::Installer::download_with_client(
-        &client,
-        &asset,
-        &archive_path,
-        operation,
-        &mut |mut event| {
+    crate::Installer::new(library.clone())?
+        .download_psx_toolchain(&asset, &archive_path, operation, &mut |mut event| {
             if let crate::OperationEventKind::Progress {
                 phase, phase_id, ..
             } = &mut event.event
@@ -450,9 +552,8 @@ where
                 *phase_id = Some(phase.clone());
             }
             emit(event);
-        },
-    )
-    .await?;
+        })
+        .await?;
     let extraction_guard = guard.clone();
     let extraction_operation = operation.clone();
     let extraction_root = unpacked.clone();
@@ -597,6 +698,7 @@ fn prepare_install_inner(
         .bios
         .as_ref()
         .map(|bios| {
+            require_kit_bios_profile(root, &bios.profile_id)?;
             let staged = staged_bios_path(root)?;
             if crate::path::resolve_existing_ancestor(&staged)? == fs::canonicalize(&bios.path)? {
                 return Err(PortcoveError::verification(
@@ -650,6 +752,10 @@ fn prepare_install_inner(
         operation,
         quiesced,
     )?;
+    require_no_fetched_overlay_toolchain(root, &build_dir)?;
+    if preparation.split_mod_packages {
+        require_no_build_staged_player_packages(&build_dir)?;
+    }
     let executable = platform_executable(&build_dir, configuration.executable_basename);
     if !executable.is_file() {
         return Err(PortcoveError::install(format!(
@@ -665,6 +771,8 @@ fn prepare_install_inner(
             relative,
             &preparation.source,
             configuration.source_paths,
+            configuration.runtime_track_counts,
+            None,
         )?
     } else {
         configuration.source_paths.to_vec()
@@ -699,7 +807,7 @@ pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<(
     }
     let body = fs::read_to_string(config)?;
     let (tokens, comments) = config_tokens(&body)?;
-    let (header_end, field) = config_disc_field(&body, &tokens)?;
+    let (header_end, field, companion) = config_disc_field(&body, &tokens)?;
     let newline = if body.contains("\r\n") { "\r\n" } else { "\n" };
     let sources = sources
         .iter()
@@ -712,7 +820,12 @@ pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<(
             )
         })
         .collect::<Result<Vec<_>>>()?;
-    let key = if sources.len() == 1 { "disc" } else { "discs" };
+    // A kit declaring both forms keeps both: the roster and its first disc.
+    let key = if sources.len() == 1 && companion.is_none() {
+        "disc"
+    } else {
+        "discs"
+    };
     let retained_comments = field
         .as_ref()
         .map(|(_, value)| {
@@ -723,12 +836,12 @@ pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<(
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-    let mut value = if sources.len() == 1 {
+    let mut value = if key == "disc" {
         sources[0].clone()
     } else {
         format!("[{newline}")
     };
-    if sources.len() > 1 {
+    if key == "discs" {
         for source in &sources {
             value.push_str(&format!("    {source},{newline}"));
         }
@@ -751,7 +864,18 @@ pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<(
     // the final newline are retained; comments within old values remain in order.
     // This is an editor for the fixed game/disc contract, not a TOML validator.
     let mut output = body.clone();
-    if let Some((old_key, old_value)) = field {
+    if let Some((_, companion_value)) = &companion {
+        // Replace the later span first so earlier offsets stay valid.
+        let (_, old_value) = field.as_ref().expect("a companion has a roster");
+        let mut spans = [
+            (old_value.clone(), value.as_str()),
+            (companion_value.clone(), sources[0].as_str()),
+        ];
+        spans.sort_by_key(|(range, _)| std::cmp::Reverse(range.start));
+        for (range, text) in spans {
+            output.replace_range(range, text);
+        }
+    } else if let Some((old_key, old_value)) = field {
         output.replace_range(old_value, &value);
         if config_key(&body, tokens_for_range(&tokens, &old_key))? != [key] {
             let replacement = match body.as_bytes()[old_key.start] {
@@ -1159,16 +1283,17 @@ fn config_key(body: &str, tokens: &[ConfigToken]) -> Result<Vec<String>> {
     Ok(parts)
 }
 
-type ConfigDiscField = (
-    usize,
-    Option<(std::ops::Range<usize>, std::ops::Range<usize>)>,
-);
+type ConfigDiscEntry = (std::ops::Range<usize>, std::ops::Range<usize>);
+/// The `[game]` header end, the disc field, and for PSXRecomp `7192402` kits
+/// that declare both forms, the singular `disc` beside the `discs` roster.
+type ConfigDiscField = (usize, Option<ConfigDiscEntry>, Option<ConfigDiscEntry>);
 
 fn config_disc_field(body: &str, tokens: &[ConfigToken]) -> Result<ConfigDiscField> {
     let mut cursor = 0;
     let mut in_game = false;
     let mut header_end = None;
-    let mut field = None;
+    let mut singular: Option<ConfigDiscEntry> = None;
+    let mut plural: Option<ConfigDiscEntry> = None;
     while cursor < tokens.len() {
         if tokens[cursor].kind == ConfigTokenKind::Newline {
             cursor += 1;
@@ -1248,20 +1373,28 @@ fn config_disc_field(body: &str, tokens: &[ConfigToken]) -> Result<ConfigDiscFie
                 .first()
                 .is_some_and(|key| matches!(key.as_str(), "disc" | "discs"))
         {
-            if key.len() != 1 || field.is_some() {
+            let is_plural = key[0] == "discs";
+            let slot = if is_plural {
+                &mut plural
+            } else {
+                &mut singular
+            };
+            if key.len() != 1 || slot.is_some() {
                 return Err(config_error("ambiguous disc field"));
             }
-            validate_disc_tokens(&tokens[value_start..cursor], key[0] == "discs")?;
-            field = Some((
+            validate_disc_tokens(&tokens[value_start..cursor], is_plural)?;
+            *slot = Some((
                 tokens[start].span.start..tokens[equals - 1].span.end,
                 tokens[value_start].span.start..tokens[cursor - 1].span.end,
             ));
         }
     }
-    Ok((
-        header_end.ok_or_else(|| config_error("missing game table"))?,
-        field,
-    ))
+    let header_end = header_end.ok_or_else(|| config_error("missing game table"))?;
+    Ok(match (singular, plural) {
+        // PSXRecomp reads `discs` when present; `disc` names disc 1.
+        (Some(singular), Some(plural)) => (header_end, Some(plural), Some(singular)),
+        (field, None) | (None, field) => (header_end, field, None),
+    })
 }
 
 fn validate_disc_tokens(tokens: &[ConfigToken], plural: bool) -> Result<()> {
@@ -1305,12 +1438,14 @@ fn materialize_runtime_raw_set(
     relative: &Path,
     source: &SourceRecord,
     source_paths: &[PathBuf],
+    track_counts: &[u32],
+    pinned_tool: Option<&Path>,
 ) -> Result<Vec<PathBuf>> {
     let relative_text = crate::path::unicode(relative, "managed PS1 runtime source")?;
     let normalized_relative = relative_text.replace('\\', "/");
     crate::archive::validate_relative_path(&normalized_relative, false)?;
     let destination = build_dir.join(relative);
-    crate::adapter::materialize_psx_cue_set(&source.path, &destination)?;
+    crate::adapter::materialize_psx_cue_set(&source.path, &destination, track_counts, pinned_tool)?;
 
     let mut runtime_sources = Vec::with_capacity(source_paths.len());
     let mut hashes = Vec::with_capacity(source_paths.len());
@@ -1327,9 +1462,18 @@ fn materialize_runtime_raw_set(
         hashes.push(sha256);
         total_size = total_size.saturating_add(size);
         let cue_filename = format!("disc-{:02}.cue", index + 1);
-        if !destination.join(&cue_filename).is_file() {
+        let cue = destination.join(&cue_filename);
+        if !cue.is_file() {
             return Err(PortcoveError::verification(format!(
                 "managed PS1 runtime source is missing {cue_filename}"
+            )));
+        }
+        // Only the data track is hash-bound; the cue must still name it first
+        // and carry the disc's exact catalog track count.
+        let (track_count, data_track) = crate::adapter::inspect_psx_cue(&cue)?;
+        if Some(&track_count) != track_counts.get(index) || data_track != materialized {
+            return Err(PortcoveError::verification(format!(
+                "managed PS1 runtime source {cue_filename} does not match its catalog tracks"
             )));
         }
         runtime_sources.push(PathBuf::from(format!(
@@ -1559,6 +1703,7 @@ fn run_cli(
         .env("TEMP", environment_root.join("temp"))
         .env("TMP", environment_root.join("temp"))
         .env("TMPDIR", environment_root.join("temp"));
+    refuse_builder_downloads(&mut command);
     if let Some((sdk, compiler_bin)) = apple_tools {
         command
             .env("CC", compiler_bin.join("clang"))
@@ -1619,6 +1764,81 @@ fn run_cli(
             .detail("output_tail", detail)
             .detail("output_truncated", truncated.to_string()),
     )
+}
+
+/// Closed local proxy for the managed builder. PSXRecomp `7192402` stages an
+/// overlay toolchain on every rebuild by fetching Python (and building tcc on
+/// Linux) through urllib, whatever `--no-toolchain-download` says. Core admits
+/// no executable it has not verified, so every such request is refused at
+/// once; the kit logs the failure, finishes the build and the player
+/// interprets overlays. Environment proxies also take precedence over a
+/// Windows system proxy.
+const BUILDER_REFUSED_PROXY: &str = "http://127.0.0.1:9";
+
+fn refuse_builder_downloads(command: &mut crate::process::NativeToolLaunchSpec) {
+    // Python prefers lowercase names on Unix. Windows names are
+    // case-insensitive, so clear every spelling before setting one.
+    for name in ["https_proxy", "http_proxy", "no_proxy", "NO_PROXY"] {
+        command.env_remove(name);
+    }
+    for name in ["HTTPS_PROXY", "HTTP_PROXY"] {
+        command.env(name, BUILDER_REFUSED_PROXY);
+    }
+}
+
+/// The overlay toolchain folders a PSXRecomp `7192402` rebuild creates. The
+/// refused download leaves them empty; any file means the kit obtained tools
+/// another way (for example a pre-filled cache), which Core does not admit.
+fn require_no_fetched_overlay_toolchain(root: &Path, build_dir: &Path) -> Result<()> {
+    for folder in [
+        build_dir.join("overlay_toolchain"),
+        root.join(".cache").join("overlay-toolchain"),
+    ] {
+        if let Some(path) = first_entry_below(&folder)? {
+            return Err(PortcoveError::install(
+                "PS1 build obtained an unverified overlay toolchain, so nothing was installed or changed",
+            )
+            .detail("path", path.display().to_string()));
+        }
+    }
+    Ok(())
+}
+
+/// A split-scope route keeps player packages in `mods/packages`. A build that
+/// already put its own default packages there would have them collected as
+/// player data and later removed with it, so it is refused before anything is
+/// installed. Kits on the reviewed split frameworks stage defaults in
+/// `mods/bundled` instead.
+fn require_no_build_staged_player_packages(build_dir: &Path) -> Result<()> {
+    if let Some(path) = first_entry_below(&build_dir.join("mods").join("packages"))? {
+        return Err(PortcoveError::install(
+            "this PS1 kit puts its own mod packages where Portcove keeps your installed mods, so nothing was installed or changed",
+        )
+        .detail("path", path.display().to_string()));
+    }
+    Ok(())
+}
+
+/// The first file, link or other non-directory entry below `folder`, if any.
+fn first_entry_below(folder: &Path) -> Result<Option<PathBuf>> {
+    crate::path::refuse_symlink_ancestors(folder)?;
+    let mut pending = vec![folder.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        let entries = match fs::read_dir(&directory) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(error.into()),
+        };
+        for entry in entries {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                pending.push(entry.path());
+            } else {
+                return Ok(Some(entry.path()));
+            }
+        }
+    }
+    Ok(None)
 }
 
 fn macos_toolchain_sdk(
@@ -1998,12 +2218,22 @@ fn locate_pack_root(unpacked: &Path) -> Result<PathBuf> {
 pub(crate) fn bios_launch_fixture(
     root: &Path,
 ) -> (Library, crate::Catalog, crate::InstallRecord, SourceRecord) {
+    bios_launch_fixture_for(root, "psx-scph-1001-bios")
+}
+
+/// The same fixture with the inert BIOS registered under another retail
+/// profile, whose catalog identity is rebound to the fixture bytes.
+#[cfg(test)]
+pub(crate) fn bios_launch_fixture_for(
+    root: &Path,
+    profile_id: &str,
+) -> (Library, crate::Catalog, crate::InstallRecord, SourceRecord) {
     let library = Library::open(root.join("library")).unwrap();
     let path = root.join("original.BIN");
     fs::write(&path, b"inert owned BIOS fixture").unwrap();
     let (digest, size) = hash_file(&path).unwrap();
     let bios = SourceRecord {
-        profile_id: "psx-scph-1001-bios".into(),
+        profile_id: profile_id.into(),
         path,
         sha256: digest.clone(),
         size,
@@ -2374,6 +2604,32 @@ mod tests {
         );
     }
 
+    #[test]
+    fn offline_webp_only_provisions_the_exact_missing_kit_dependency() {
+        let root = tempfile::tempdir().unwrap();
+        assert!(missing_offline_webp(root.path()).unwrap().is_none());
+        let directory = root.path().join("psxrecomp").join("third_party");
+        fs::create_dir_all(&directory).unwrap();
+        let manifest = directory.join("deps.manifest");
+        let row = format!("{WEBP_DEPENDENCY} {WEBP_ARCHIVE} {WEBP_SHA256} {WEBP_URL}");
+        fs::write(
+            &manifest,
+            row.replace(WEBP_URL, "https://example.invalid/other"),
+        )
+        .unwrap();
+        assert!(missing_offline_webp(root.path()).unwrap().is_none());
+        fs::write(&manifest, format!("{row}\n{row}")).unwrap();
+        assert!(missing_offline_webp(root.path()).unwrap().is_none());
+        fs::write(&manifest, format!("# Reviewed dependency\r\n{row}\r\n")).unwrap();
+        let (asset, destination) = missing_offline_webp(root.path()).unwrap().unwrap();
+        assert_eq!(asset.sha256, WEBP_SHA256);
+        assert_eq!(asset.size, WEBP_SIZE);
+        assert_eq!(destination, directory.join(WEBP_ARCHIVE));
+        fs::write(&destination, b"existing package data").unwrap();
+        assert!(missing_offline_webp(root.path()).unwrap().is_none());
+        assert_eq!(fs::read(destination).unwrap(), b"existing package data");
+    }
+
     fn preparation_input_fixture(root: &Path, multi_disc: bool) -> PsxManagedPreparation {
         let source_path = if multi_disc {
             let directory = root.join("owned-discs");
@@ -2403,10 +2659,12 @@ mod tests {
                 observed_identity: None,
             },
             bios: None,
+            runtime_track_counts: vec![1; source_paths.len()],
             source_paths,
             runtime_source_directory: None,
             toolchain_root: root.join("absent-owned-toolchain"),
             executable_basename: "owned-game".into(),
+            split_mod_packages: false,
         }
     }
 
@@ -2494,6 +2752,188 @@ mod tests {
                 &invalid,
                 "runtime_source_directory",
             );
+        }
+    }
+
+    /// A pinned stand-in for `chdman extractcd -sb`: one quoted FILE per track,
+    /// named `discTT.bin` beside the cue, with data bytes naming the input.
+    #[cfg(unix)]
+    fn split_track_chdman(root: &Path, tracks: u32) -> PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+        let script = root.join("chdman-split-tracks");
+        let audio = if tracks == 2 {
+            "printf 'audio' > \"$dir/disc02.bin\"\nprintf 'FILE \"disc02.bin\" BINARY\\n  TRACK 02 AUDIO\\n    INDEX 00 00:00:00\\n    INDEX 01 00:02:00\\n' >> \"$cue\"\n"
+        } else {
+            ""
+        };
+        fs::write(
+            &script,
+            format!(
+                "#!/bin/sh\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n    -i) input=\"$2\"; shift 2;;\n    -o) cue=\"$2\"; shift 2;;\n    *) shift;;\n  esac\ndone\ndir=\"${{cue%/*}}\"\nprintf 'data %s' \"${{input##*/}}\" > \"$dir/disc01.bin\"\nprintf 'FILE \"disc01.bin\" BINARY\\n  TRACK 01 MODE2/2352\\n    INDEX 01 00:00:00\\n' > \"$cue\"\n{audio}"
+            ),
+        )
+        .unwrap();
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
+        script
+    }
+
+    #[cfg(unix)]
+    fn owned_chd_set(root: &Path) -> (SourceRecord, Vec<PathBuf>) {
+        use sha2::Digest as _;
+        let source = root.join("owned-chds");
+        fs::create_dir(&source).unwrap();
+        for disc in 1..=2 {
+            fs::write(source.join(format!("disc-{disc:02}.chd")), b"inert chd").unwrap();
+        }
+        let source_paths = crate::adapter::psx_source_paths(&source, 2).unwrap();
+        // The verified identity covers only each disc's data track.
+        let data = source_paths
+            .iter()
+            .map(|path| {
+                let name = path.file_name().unwrap().to_str().unwrap();
+                format!("data {name}").into_bytes()
+            })
+            .collect::<Vec<_>>();
+        let hashes = data
+            .iter()
+            .map(|bytes| hex::encode(sha2::Sha256::digest(bytes)))
+            .collect::<Vec<_>>();
+        let (storage_sha256, storage_size) =
+            crate::adapter::source_storage_identity(&source).unwrap();
+        let record = SourceRecord {
+            profile_id: "owned-ps1-set".into(),
+            path: source,
+            sha256: crate::adapter::aggregate_sha256(&hashes),
+            size: data.iter().map(|bytes| bytes.len() as u64).sum(),
+            storage_sha256,
+            storage_size,
+            updated_at: Library::now(),
+            observed_identity: None,
+        };
+        (record, source_paths)
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn runtime_raw_sets_keep_every_track_and_hash_only_data_tracks() {
+        for tracks in [1_u32, 2] {
+            let temporary = tempfile::tempdir().unwrap();
+            let root = temporary.path();
+            let tool = split_track_chdman(root, tracks);
+            let (record, source_paths) = owned_chd_set(root);
+            let build = root.join("build-portcove");
+            fs::create_dir(&build).unwrap();
+            let sources = materialize_runtime_raw_set(
+                &build,
+                Path::new("runtime-discs"),
+                &record,
+                &source_paths,
+                &[tracks, tracks],
+                Some(&tool),
+            )
+            .unwrap();
+            assert_eq!(
+                sources,
+                [
+                    PathBuf::from("runtime-discs/disc-01.cue"),
+                    PathBuf::from("runtime-discs/disc-02.cue"),
+                ]
+            );
+            let set = build.join("runtime-discs");
+            let mut names = fs::read_dir(&set)
+                .unwrap()
+                .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+                .collect::<Vec<_>>();
+            names.sort();
+            let mut expected = vec!["disc-01.bin", "disc-01.cue", "disc-02.bin", "disc-02.cue"];
+            if tracks == 2 {
+                expected.extend(["disc-01-t02.bin", "disc-02-t02.bin"]);
+                expected.sort();
+            }
+            assert_eq!(names, expected, "{tracks} tracks");
+            assert_eq!(
+                fs::read(set.join("disc-02.bin")).unwrap(),
+                b"data disc-02.chd"
+            );
+            if tracks == 2 {
+                assert_eq!(fs::read(set.join("disc-01-t02.bin")).unwrap(), b"audio");
+                assert_eq!(
+                    fs::read_to_string(set.join("disc-01.cue")).unwrap(),
+                    "FILE \"disc-01.bin\" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\nFILE \"disc-01-t02.bin\" BINARY\n  TRACK 02 AUDIO\n    INDEX 00 00:00:00\n    INDEX 01 00:02:00\n"
+                );
+            }
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn runtime_raw_sets_refuse_a_track_count_or_data_identity_mismatch() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let (record, source_paths) = owned_chd_set(root);
+        let build = root.join("build-portcove");
+        let set = build.join("runtime-discs");
+        fs::create_dir_all(&set).unwrap();
+        fs::write(set.join("previous"), b"previous set").unwrap();
+        let staged_runtime_files = || {
+            fs::read_dir(&build)
+                .unwrap()
+                .map(|entry| entry.unwrap().path())
+                .filter(|path| path != &set)
+                .flat_map(|staging| fs::read_dir(staging).unwrap())
+                .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+                .filter(|name| name.starts_with("disc-"))
+                .count()
+        };
+
+        // Two tracks against a catalog count of one fails before anything is
+        // staged, and the previous set is untouched.
+        let tool = split_track_chdman(root, 2);
+        let error = materialize_runtime_raw_set(
+            &build,
+            Path::new("runtime-discs"),
+            &record,
+            &source_paths,
+            &[1, 1],
+            Some(&tool),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::SourceInvalid);
+        assert!(error.message.contains("the catalog expects 1"), "{error:?}");
+        assert_eq!(fs::read(set.join("previous")).unwrap(), b"previous set");
+        assert_eq!(staged_runtime_files(), 0);
+
+        // An audio track counted into the identity would no longer match.
+        let mut widened = record.clone();
+        widened.size += 2 * b"audio".len() as u64;
+        let error = materialize_runtime_raw_set(
+            &build,
+            Path::new("runtime-discs"),
+            &widened,
+            &source_paths,
+            &[2, 2],
+            Some(&tool),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+    }
+
+    #[test]
+    fn managed_preparation_requires_one_exact_track_count_per_runtime_disc() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut preparation = preparation_input_fixture(temporary.path(), true);
+        preparation.runtime_source_directory = Some("owned/discs".into());
+        preparation.runtime_track_counts = vec![2, 2];
+        assert_eq!(
+            PreparationConfiguration::from_preparation(&preparation)
+                .unwrap()
+                .runtime_track_counts,
+            [2, 2]
+        );
+        for counts in [vec![], vec![2], vec![2, 0], vec![1, 1, 1]] {
+            let mut invalid = preparation.clone();
+            invalid.runtime_track_counts = counts;
+            assert_invalid_preparation_input(temporary.path(), &invalid, "runtime_track_counts");
         }
     }
 
@@ -2705,6 +3145,135 @@ mod tests {
     #[test]
     fn managed_builder_rebuild_observes_active_cancellation() {
         assert_builder_cancellation("rebuild");
+    }
+
+    #[test]
+    fn managed_builder_refuses_every_download_through_a_closed_local_proxy() {
+        let mut command = crate::process::ChildProcessPolicy::native_tool_spec(
+            crate::process::ChildProcessClass::ManagedBuilder,
+            "python",
+        )
+        .unwrap();
+        command
+            .env("HTTPS_PROXY", "http://proxy.invalid:8080")
+            .env("https_proxy", "http://proxy.invalid:8080")
+            .env("no_proxy", "*")
+            .env("NO_PROXY", "*");
+        refuse_builder_downloads(&mut command);
+        let value = |name: &str| {
+            command
+                .environment
+                .iter()
+                .find(|(key, _)| key.as_os_str() == std::ffi::OsStr::new(name))
+                .map(|(_, value)| value.to_owned())
+        };
+        for name in ["HTTPS_PROXY", "HTTP_PROXY"] {
+            assert_eq!(value(name), Some(BUILDER_REFUSED_PROXY.into()), "{name}");
+        }
+        for name in ["NO_PROXY", "no_proxy", "https_proxy", "http_proxy"] {
+            assert_eq!(value(name), None, "{name}");
+        }
+    }
+
+    #[test]
+    fn split_scope_build_refuses_its_own_packages_in_the_player_folder() {
+        let temporary = tempfile::tempdir().unwrap();
+        let build = temporary.path().join("build-portcove");
+        require_no_build_staged_player_packages(&build).unwrap();
+        fs::create_dir_all(build.join("mods").join("packages").join("default")).unwrap();
+        fs::create_dir_all(build.join("mods").join("bundled").join("default")).unwrap();
+        fs::write(
+            build
+                .join("mods")
+                .join("bundled")
+                .join("default")
+                .join("manifest.toml"),
+            b"build-staged default",
+        )
+        .unwrap();
+        require_no_build_staged_player_packages(&build).unwrap();
+        let file = build
+            .join("mods")
+            .join("packages")
+            .join("default")
+            .join("manifest.toml");
+        fs::write(&file, b"kit default in the player folder").unwrap();
+        let error = require_no_build_staged_player_packages(&build).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Install);
+        assert_eq!(error.details["path"], file.display().to_string());
+    }
+
+    #[test]
+    fn a_kit_configured_for_another_retail_bios_is_refused() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        // No configuration, or an unknown one, is left to the kit.
+        fs::write(root.join("game.toml"), "[game]\nname = 'fixture'\n").unwrap();
+        require_kit_bios_profile(root, "psx-scph-1001-bios").unwrap();
+        fs::write(
+            root.join("game.toml"),
+            "[recompiler]\nbios_config = 'psxrecomp/bios/custom.toml'\n",
+        )
+        .unwrap();
+        require_kit_bios_profile(root, "psx-scph-1001-bios").unwrap();
+        fs::write(
+            root.join("game.toml"),
+            "[recompiler]\nbios_config = 'psxrecomp/bios/SCPH5552.toml'\n",
+        )
+        .unwrap();
+        require_kit_bios_profile(root, "psx-scph-5552-bios").unwrap();
+        let error = require_kit_bios_profile(root, "psx-scph-1001-bios").unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Install);
+        assert_eq!(error.details["kit_bios_profile"], "psx-scph-5552-bios");
+        assert_eq!(
+            error.details["registered_bios_profile"],
+            "psx-scph-1001-bios"
+        );
+        fs::write(
+            root.join("game.toml"),
+            "[recompiler]\nbios_config = 'psxrecomp/bios/SCPH1001.toml'\n",
+        )
+        .unwrap();
+        require_kit_bios_profile(root, "psx-scph-1001-bios").unwrap();
+        assert!(require_kit_bios_profile(root, "psx-scph-5552-bios").is_err());
+        assert!(require_kit_bios_profile(root, "psx-scph-5500-bios").is_err());
+        fs::write(
+            root.join("game.toml"),
+            "[recompiler]\nbios_config = 'psxrecomp/bios/SCPH5500.toml'\n",
+        )
+        .unwrap();
+        require_kit_bios_profile(root, "psx-scph-5500-bios").unwrap();
+        for other in ["psx-scph-1001-bios", "psx-scph-5552-bios"] {
+            let error = require_kit_bios_profile(root, other).unwrap_err();
+            assert_eq!(error.details["kit_bios_profile"], "psx-scph-5500-bios");
+            assert_eq!(error.details["registered_bios_profile"], other);
+        }
+    }
+
+    #[test]
+    fn managed_builder_refuses_any_fetched_overlay_toolchain_file() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let build = root.join("build-portcove");
+        fs::create_dir_all(build.join("overlay_toolchain")).unwrap();
+        fs::create_dir_all(root.join(".cache/overlay-toolchain/tcc_linux_build")).unwrap();
+        require_no_fetched_overlay_toolchain(root, &build).unwrap();
+        fs::remove_dir_all(root.join(".cache")).unwrap();
+        fs::remove_dir_all(build.join("overlay_toolchain")).unwrap();
+        require_no_fetched_overlay_toolchain(root, &build).unwrap();
+        for file in [
+            build.join("overlay_toolchain").join("compiler.txt"),
+            root.join(".cache")
+                .join("overlay-toolchain")
+                .join("python.zip"),
+        ] {
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(&file, b"unverified").unwrap();
+            let error = require_no_fetched_overlay_toolchain(root, &build).unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Install);
+            assert_eq!(error.details["path"], file.display().to_string());
+            fs::remove_file(&file).unwrap();
+        }
     }
 
     #[test]
@@ -3514,12 +4083,35 @@ mod tests {
     }
 
     #[test]
+    fn runtime_config_rewrite_keeps_both_fields_of_a_7192402_kit() {
+        // PSXRecomp 7192402 kits name disc 1 and the roster; the framework
+        // reads `discs` when present. Both are rewritten from verified sources.
+        let kit = "[game]\nname = \"Fixture\"\ndisc = \"disc/Fixture (Disc 1).cue\"\n# roster\ndiscs = [\n    \"disc/Fixture (Disc 1).cue\",\n    \"disc/Fixture (Disc 2).cue\",\n]\ndisc_serials = [\"A\", \"B\"]\n";
+        assert_eq!(
+            rewrite_config_fixture(kit, &["one.cue", "two.cue", "three.cue"]),
+            "[game]\nname = \"Fixture\"\ndisc = \"one.cue\"\n# roster\ndiscs = [\n    \"one.cue\",\n    \"two.cue\",\n    \"three.cue\",\n]\ndisc_serials = [\"A\", \"B\"]\n"
+        );
+        let single = "[game]\ndisc = \"disc/Azure.cue\"\ndiscs = [\"disc/Azure.cue\"]\n";
+        assert_eq!(
+            rewrite_config_fixture(single, &["only.cue"]),
+            "[game]\ndisc = \"only.cue\"\ndiscs = [\n    \"only.cue\",\n]\n"
+        );
+        // Either order works.
+        let reversed = "[game]\ndiscs = ['a.cue']\ndisc = 'a.cue'\n";
+        assert_eq!(
+            rewrite_config_fixture(reversed, &["x.cue", "y.cue"]),
+            "[game]\ndiscs = [\n    \"x.cue\",\n    \"y.cue\",\n]\ndisc = \"x.cue\"\n"
+        );
+    }
+
+    #[test]
     fn runtime_config_rewrite_rejects_ambiguous_or_unbounded_fields_without_writing() {
         let temporary = tempfile::tempdir().unwrap();
         let config = temporary.path().join("game.toml");
         for body in [
             "[runtime]\ndisc='old.cue'\n",
-            "[game]\ndisc='one.cue'\ndiscs=['two.cue']\n",
+            "[game]\ndisc='one.cue'\ndiscs=['two.cue']\ndisc='three.cue'\n",
+            "[game]\ndiscs=['one.cue']\ndisc='two.cue'\ndiscs=['three.cue']\n",
             "[game]\ndisc='one.cue'\n[ 'game' ]\ndisc='two.cue'\n",
             "[game]\ndisc = 42\n",
             "[game]\ndiscs = ['one.cue' 'two.cue']\n",

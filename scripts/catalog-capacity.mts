@@ -125,23 +125,131 @@ export function catalogCapacity(catalog: unknown, limit: number, issuedAt: numbe
   };
 }
 
+export interface CatalogSizeBounds {
+  /** Current signed-catalog, catalog-read and signer-input bound. */
+  current: number;
+  /** Published catalogs stay at or below this share of each guarded bound. */
+  percent: number;
+}
+
+export function catalogSizeBounds(signedCatalogSource: string): CatalogSizeBounds {
+  const bounds = {
+    current: capacityConstant(signedCatalogSource, "MAX_CATALOG_BYTES"),
+    percent: capacityConstant(signedCatalogSource, "CATALOG_SUPPORTED_CAPACITY_PERCENT"),
+  };
+  if (bounds.percent >= 100) throw new Error("Invalid catalog size guard bounds");
+  return bounds;
+}
+
+/**
+ * CI guard for generated, compact and escaped catalog bytes. Core measures
+ * its serialized projection and retained representations in its growth test.
+ */
+export function catalogSizeGuard(
+  sourceBytes: number,
+  catalog: unknown,
+  bounds: CatalogSizeBounds,
+  listingDirectory?: { bytes: number; bound: number },
+) {
+  // A fixed ten-digit issuance time keeps the placeholder envelope deterministic.
+  const report = catalogCapacity(catalog, bounds.current, 4_102_444_800);
+  const ceiling = (bound: number) => Math.floor((bound * bounds.percent) / 100);
+  const measures = [
+    ["generated catalog.json bytes", sourceBytes, bounds.current, "generated input bound"],
+    ["compact catalog bytes", report.compact_catalog_bytes, bounds.current, "catalog input bound"],
+    [
+      "escaped signed envelope bytes (unsigned placeholder)",
+      report.representative_envelope_bytes,
+      bounds.current,
+      "signed envelope bound",
+    ],
+    ...(listingDirectory
+      ? ([
+          [
+            "generated listings.json bytes",
+            listingDirectory.bytes,
+            listingDirectory.bound,
+            "embedded listing directory bound",
+          ],
+        ] as const)
+      : []),
+  ] as const;
+  const rows = measures.map(([name, bytes, bound, basis]) => ({
+    name,
+    bytes,
+    bound,
+    basis,
+    ceiling: ceiling(bound),
+    headroom: ceiling(bound) - bytes,
+    ok: bytes <= ceiling(bound),
+  }));
+  return { ok: rows.every((row) => row.ok), percent: bounds.percent, rows };
+}
+
+export function formatCatalogSizeGuard(result: ReturnType<typeof catalogSizeGuard>) {
+  return result.rows
+    .map(
+      (row) =>
+        `${row.ok ? "ok  " : "FAIL"} ${row.name}: ${row.bytes} of ${row.ceiling} ` +
+        `(${result.percent}% of the ${row.basis} ${row.bound}); headroom ${row.headroom}`,
+    )
+    .join("\n");
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const { values } = parseArgs({
-    options: { catalog: { type: "string" }, help: { type: "boolean" } },
+    options: {
+      catalog: { type: "string" },
+      check: { type: "boolean" },
+      help: { type: "boolean" },
+    },
   });
+  const signedCatalogSource = readFileSync(
+    new URL("../crates/portcove-core/src/signed_catalog.rs", import.meta.url),
+    "utf8",
+  );
   if (values.help)
     process.stdout.write(
-      "Usage: node scripts/catalog-capacity.mts --catalog FILE\nOffline byte/headroom diagnostics; no signing, provider access or admission.\n",
+      "Usage: node scripts/catalog-capacity.mts --catalog FILE\n       node scripts/catalog-capacity.mts --check [--catalog FILE]\nOffline byte/headroom diagnostics; no signing, provider access or admission.\n--check fails when a measure exceeds its stated margin (default: the generated catalog).\n",
     );
-  else {
-    if (!values.catalog) throw new Error("--catalog is required");
-    const limit = capacityConstant(
+  else if (values.check) {
+    const bounds = catalogSizeBounds(signedCatalogSource);
+    const filename =
+      values.catalog ??
+      fileURLToPath(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url));
+    const bytes = boundedInput(filename, bounds.current);
+    const repositoryListings = new URL(
+      "../crates/portcove-core/catalog/listings.json",
+      import.meta.url,
+    );
+    const listingBound = capacityConstant(
       readFileSync(
-        new URL("../crates/portcove-core/src/signed_catalog.rs", import.meta.url),
+        new URL("../crates/portcove-core/src/catalog/listings.rs", import.meta.url),
         "utf8",
       ),
-      "MAX_CATALOG_BYTES",
+      "MAX_LISTING_BYTES",
     );
+    const result = catalogSizeGuard(
+      bytes.length,
+      JSON.parse(bytes.toString("utf8")),
+      bounds,
+      values.catalog
+        ? undefined
+        : {
+            bytes: boundedInput(fileURLToPath(repositoryListings), listingBound).length,
+            bound: listingBound,
+          },
+    );
+    process.stdout.write(`${formatCatalogSizeGuard(result)}\n`);
+    if (!result.ok) {
+      process.stderr.write(
+        "Catalog size guard failed: reduce catalog bytes or resolve the limiting supported consumer (#5894).\n",
+      );
+      process.exitCode = 1;
+    }
+  } else {
+    if (!values.catalog) throw new Error("--catalog is required");
+    const limit = capacityConstant(signedCatalogSource, "MAX_CATALOG_BYTES");
     const library = readFileSync(
       new URL("../crates/portcove-core/src/library.rs", import.meta.url),
       "utf8",

@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 51;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 69;
 
 struct Migration {
     version: i64,
@@ -329,7 +329,427 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_51,
         verify: verify_migration_51,
     },
+    Migration {
+        version: 52,
+        name: "artwork provider provenance",
+        apply: migration_52,
+        verify: verify_migration_52,
+    },
+    Migration {
+        version: 53,
+        name: "game-file observation reuse",
+        apply: migration_53,
+        verify: verify_migration_53,
+    },
+    Migration {
+        version: 54,
+        name: "saved-folder scan match rows",
+        apply: migration_54,
+        verify: verify_migration_54,
+    },
+    Migration {
+        version: 55,
+        name: "folder setup pass position",
+        apply: migration_55,
+        verify: verify_migration_55,
+    },
+    Migration {
+        version: 56,
+        name: "ready notice preference",
+        apply: migration_56,
+        verify: verify_migration_56,
+    },
+    Migration {
+        version: 57,
+        name: "landscape artwork slot",
+        apply: migration_57,
+        verify: verify_migration_57,
+    },
+    Migration {
+        version: 58,
+        name: "artwork listing checks",
+        apply: migration_58,
+        verify: verify_migration_58,
+    },
+    Migration {
+        version: 59,
+        name: "artwork withdrawals",
+        apply: migration_59,
+        verify: verify_migration_59,
+    },
+    Migration {
+        version: 60,
+        name: "larger signed catalog bound writer protocol",
+        apply: migration_60,
+        verify: crate::catalog_store::verify_catalog_bound,
+    },
+    Migration {
+        version: 61,
+        name: "carried unknown-file ledger",
+        apply: migration_61,
+        verify: crate::carry_ledger::verify_schema,
+    },
+    Migration {
+        version: 62,
+        name: "atomic Default runtime revision writer protocol",
+        apply: migration_62,
+        verify: crate::profile::verify_selection_migration,
+    },
+    Migration {
+        version: 63,
+        name: "exact provider dependency writer protocol",
+        apply: migration_63,
+        verify: crate::profile::verify_selection_migration,
+    },
+    Migration {
+        version: 64,
+        name: "retained admitted original instances",
+        apply: crate::source_instances::migrate,
+        verify: verify_migration_64,
+    },
+    Migration {
+        version: 65,
+        name: "guarded exact setup recovery writer protocol",
+        apply: migration_65,
+        verify: crate::profile::verify_selection_migration,
+    },
+    Migration {
+        version: 66,
+        name: "journaled mod file preservation writer protocol",
+        apply: migration_66,
+        verify: crate::profile::verify_selection_migration,
+    },
+    Migration {
+        version: 67,
+        name: "managed mod projection restore writer protocol",
+        apply: migration_67,
+        verify: crate::profile::verify_selection_migration,
+    },
+    Migration {
+        version: 68,
+        name: "remembered game assessment cursors",
+        apply: migration_68,
+        verify: verify_migration_68,
+    },
+    Migration {
+        version: 69,
+        name: "reviewed mod provider scope writer protocol",
+        apply: migration_69,
+        verify: verify_migration_69,
+    },
 ];
+
+fn migration_69(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE definition_provider_scope_floor (
+            port_id TEXT PRIMARY KEY NOT NULL CHECK(length(port_id) BETWEEN 1 AND 255)
+        );",
+    )?;
+    verify_migration_69(transaction)
+}
+
+fn verify_migration_69(connection: &Connection) -> Result<()> {
+    crate::profile::verify_selection_migration(connection)?;
+    require_columns(connection, "definition_provider_scope_floor", &["port_id"])
+}
+
+fn migration_68(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE port_intent_assessment_cursor (
+            purpose TEXT PRIMARY KEY CHECK(purpose IN ('readiness', 'standing_setup')),
+            port_id TEXT NOT NULL,
+            revision INTEGER NOT NULL
+        ) STRICT;",
+    )?;
+    verify_migration_68(transaction)
+}
+
+fn verify_migration_68(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "port_intent_assessment_cursor",
+        &["purpose", "port_id", "revision"],
+    )
+}
+
+fn migration_67(transaction: &Transaction<'_>) -> Result<()> {
+    // Older restore code can publish an unchecked projection or clean up
+    // without the selected setup's bound backup receipt.
+    crate::profile::verify_selection_migration(transaction)
+}
+
+fn migration_66(transaction: &Transaction<'_>) -> Result<()> {
+    // All live writers must honor the reviewed move journal before changing the
+    // selected projection or its stored package references.
+    crate::profile::verify_selection_migration(transaction)
+}
+
+fn migration_63(transaction: &Transaction<'_>) -> Result<()> {
+    // Older clients can replace the canonical mods projection via backup
+    // restore without reading the revision that owns its provider closure.
+    // The exclusive migration lease and ledger fence those writers without
+    // rewriting existing profile revisions or replacing any player files.
+    crate::profile::verify_selection_migration(transaction)
+}
+
+fn migration_65(transaction: &Transaction<'_>) -> Result<()> {
+    // Recovery may commit a newer setup revision before projecting it. Every
+    // writer must honor the pending materialization guard before launch.
+    crate::profile::verify_selection_migration(transaction)
+}
+
+fn verify_migration_64(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "source_instances",
+        &["requirement_id", "instance_id", "source_json"],
+    )
+}
+
+fn migration_62(transaction: &Transaction<'_>) -> Result<()> {
+    // The library lease excludes already-open writers during migration. Once
+    // recorded, older clients reject this ledger before opening the library.
+    // Existing profiles with an older resolved runtime can be refreshed by Core.
+    crate::profile::verify_selection_migration(transaction)
+}
+
+fn migration_61(transaction: &Transaction<'_>) -> Result<()> {
+    // Digests of files Portcove didn't install that a version switch carried
+    // or recorded (#5359 Tier 2). Rows hold no bytes and no restore authority;
+    // they cascade with their installation. Adding the tables changes no file.
+    crate::carry_ledger::migrate_schema(transaction)?;
+    crate::carry_ledger::verify_schema(transaction)
+}
+
+fn migration_60(transaction: &Transaction<'_>) -> Result<()> {
+    // The signed catalog and retained format-1 catalog bounds rise from 4 MiB
+    // to 16 MiB. Older clients enforce 4 MiB and would
+    // refuse larger retained content they read, so the ledger is also the
+    // writer protocol: they refuse this library as newer before reading or
+    // replacing anything. The table rebuild only widens the BLOB checks.
+    crate::catalog_store::migrate_catalog_bound(transaction)
+}
+
+fn migration_59(transaction: &Transaction<'_>) -> Result<()> {
+    // Withdrawal and eviction records beside the provider records. Adding them
+    // changes no asset, choice or file; only a later player-triggered check can.
+    crate::artwork_store::migrate_withdrawals(transaction)?;
+    verify_migration_59(transaction)
+}
+
+fn verify_migration_59(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "artwork_provider_withdrawals",
+        &[
+            "asset_sha256",
+            "provider",
+            "asset_id",
+            "withdrawn_at",
+            "signal",
+        ],
+    )?;
+    require_columns(
+        connection,
+        "artwork_evicted_assets",
+        &["asset_sha256", "evicted_at"],
+    )?;
+    require_columns(
+        connection,
+        "artwork_provider_listing_checks",
+        &["not_listed_since_server"],
+    )?;
+    crate::artwork_store::verify_withdrawals(connection)
+}
+
+fn migration_58(transaction: &Transaction<'_>) -> Result<()> {
+    // Evidence of whether a provider still lists a stored image, beside each
+    // provider record and never inside it. It changes no asset, choice or file.
+    crate::artwork_store::migrate_listing_checks(transaction)?;
+    verify_migration_58(transaction)
+}
+
+fn verify_migration_58(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "artwork_provider_listing_checks",
+        &[
+            "asset_sha256",
+            "provider",
+            "asset_id",
+            "revision",
+            "last_checked_at",
+            "last_result",
+            "unknown_reason",
+            "not_listed_since",
+            "last_listing_total",
+            "last_source_status",
+        ],
+    )?;
+    crate::artwork_store::verify_listing_checks(connection)
+}
+
+fn migration_57(transaction: &Transaction<'_>) -> Result<()> {
+    // SQLite cannot widen a CHECK, so the choice table is rebuilt in this
+    // migration's transaction exactly as migration 24 created it, admitting
+    // only the additional `landscape` slot. Every row and revision is copied.
+    crate::artwork_store::migrate_landscape_slot(transaction)?;
+    verify_migration_57(transaction)
+}
+
+fn verify_migration_57(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "artwork_choices",
+        &["port_id", "slot", "revision", "asset_sha256"],
+    )?;
+    crate::artwork_store::verify_landscape_slot(connection)
+}
+
+fn migration_56(transaction: &Transaction<'_>) -> Result<()> {
+    // One player preference: whether ready notices are shown. No row means
+    // shown. It never records a game choice, consent or authorization.
+    transaction.execute_batch(
+        "CREATE TABLE ready_notice_preference (
+            id INTEGER PRIMARY KEY CHECK(id=1),
+            enabled INTEGER NOT NULL CHECK(enabled IN (0,1)),
+            updated_at INTEGER NOT NULL
+        );",
+    )?;
+    verify_migration_56(transaction)
+}
+
+fn verify_migration_56(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "ready_notice_preference",
+        &["id", "enabled", "updated_at"],
+    )
+}
+
+fn migration_55(transaction: &Transaction<'_>) -> Result<()> {
+    // Where a folder's automatic setup stopped in its scan's matches, so the
+    // next pass continues there. Bookkeeping only, never consent: a different
+    // scan or a new choice starts again from the first match.
+    transaction.execute_batch(
+        "ALTER TABLE game_file_root_setup
+            ADD COLUMN pass_scan_id TEXT CHECK(pass_scan_id IS NULL OR length(pass_scan_id)=36);
+        ALTER TABLE game_file_root_setup
+            ADD COLUMN pass_offset INTEGER NOT NULL DEFAULT 0
+            CHECK(pass_offset BETWEEN 0 AND 100000);",
+    )?;
+    verify_migration_55(transaction)
+}
+
+fn verify_migration_55(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "game_file_root_setup",
+        &[
+            "root_id",
+            "updated_at",
+            "record_json",
+            "pass_scan_id",
+            "pass_offset",
+        ],
+    )
+}
+
+fn migration_54(transaction: &Transaction<'_>) -> Result<()> {
+    // Local, rebuildable evidence of one saved-folder scan's retained matches,
+    // bound to the published scan snapshot. A row is never admission: every
+    // match is re-verified from current bytes before registration or setup.
+    // Kind 0 is an exact source record; kind 1 a preliminary inspection.
+    transaction.execute_batch(
+        "CREATE TABLE game_file_scan_matches (
+            scan_id TEXT NOT NULL CHECK(length(scan_id)=36),
+            kind INTEGER NOT NULL CHECK(kind IN (0,1)),
+            ordinal INTEGER NOT NULL CHECK(ordinal BETWEEN 0 AND 99999),
+            profile_id TEXT NOT NULL CHECK(length(profile_id) BETWEEN 1 AND 256),
+            path TEXT NOT NULL CHECK(length(path) BETWEEN 1 AND 32768),
+            path_key TEXT NOT NULL CHECK(length(path_key) BETWEEN 1 AND 32768),
+            batch INTEGER NOT NULL CHECK(batch >= 1),
+            record_json TEXT NOT NULL CHECK(length(record_json) <= 262144),
+            PRIMARY KEY(scan_id, kind, ordinal),
+            UNIQUE(scan_id, kind, profile_id, path)
+        );
+        CREATE INDEX game_file_scan_matches_path
+            ON game_file_scan_matches(scan_id, path_key);",
+    )?;
+    verify_migration_54(transaction)
+}
+
+fn verify_migration_54(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "game_file_scan_matches",
+        &[
+            "scan_id",
+            "kind",
+            "ordinal",
+            "profile_id",
+            "path",
+            "path_key",
+            "batch",
+            "record_json",
+        ],
+    )?;
+    require_index(connection, "game_file_scan_matches_path")
+}
+
+fn migration_53(transaction: &Transaction<'_>) -> Result<()> {
+    // Local, rebuildable provenance for saved-folder scans. A row only lets a
+    // scan skip rehashing an unchanged file; it never admits a source.
+    transaction.execute_batch(
+        "CREATE TABLE game_file_observations (
+            path_key TEXT NOT NULL CHECK(length(path_key) BETWEEN 1 AND 32768),
+            representation TEXT NOT NULL CHECK(length(representation)<=4096),
+            path TEXT NOT NULL CHECK(length(path) BETWEEN 1 AND 32768),
+            stamp_json TEXT NOT NULL CHECK(length(stamp_json)<=4096),
+            inspector_version INTEGER NOT NULL,
+            identity_json TEXT NOT NULL CHECK(length(identity_json)<=16384),
+            observed_at INTEGER NOT NULL,
+            PRIMARY KEY(path_key, representation)
+        );",
+    )?;
+    verify_migration_53(transaction)
+}
+
+fn verify_migration_53(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "game_file_observations",
+        &[
+            "path_key",
+            "representation",
+            "path",
+            "stamp_json",
+            "inspector_version",
+            "identity_json",
+            "observed_at",
+        ],
+    )
+}
+
+fn migration_52(transaction: &Transaction<'_>) -> Result<()> {
+    // Who made a provider image and where it came from; never a selection,
+    // credential or permission record.
+    crate::artwork_store::migrate_providers(transaction)?;
+    verify_migration_52(transaction)
+}
+
+fn verify_migration_52(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "artwork_asset_providers",
+        &["asset_sha256", "provider", "asset_id", "record_json"],
+    )?;
+    require_columns(
+        connection,
+        "artwork_provider_only_assets",
+        &["asset_sha256"],
+    )
+}
 
 fn migration_51(transaction: &Transaction<'_>) -> Result<()> {
     // Consent policy for automatic setup from one saved folder, with its
@@ -2580,6 +3000,110 @@ mod tests {
     }
 
     #[test]
+    fn provider_dependency_writer_upgrade_requires_exclusive_access() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 62).unwrap();
+        let old_client = crate::library_access::LibraryLease::acquire(root).unwrap();
+        let error = crate::Library::open(root).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&62)
+        );
+
+        drop(old_client);
+        let current = crate::Library::open(root).unwrap();
+        let versions = recorded_versions(&current.connection().unwrap()).unwrap();
+        assert_eq!(versions.last(), Some(&CURRENT_SCHEMA_VERSION));
+        assert!(versions.contains(&63));
+    }
+
+    #[test]
+    fn managed_restore_writer_upgrade_waits_for_schema_66_clients() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 66).unwrap();
+        let old_client = crate::library_access::LibraryLease::acquire(root).unwrap();
+
+        let error = crate::Library::open(root).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&66)
+        );
+
+        drop(old_client);
+        let current = crate::Library::open(root).unwrap();
+        let versions = recorded_versions(&current.connection().unwrap()).unwrap();
+        assert_eq!(versions.last(), Some(&CURRENT_SCHEMA_VERSION));
+        assert!(versions.contains(&67));
+    }
+
+    #[test]
+    fn provider_writer_upgrade_keeps_the_existing_assessment_cursor() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 68).unwrap();
+        connect(root)
+            .unwrap()
+            .execute(
+                "INSERT INTO port_intent_assessment_cursor VALUES ('readiness', 'shipwright', 7)",
+                [],
+            )
+            .unwrap();
+        let library = crate::Library::open(root).unwrap();
+        let connection = library.connection().unwrap();
+        assert_eq!(recorded_versions(&connection).unwrap().last(), Some(&69));
+        let retained = connection.query_row(
+            "SELECT port_id, revision FROM port_intent_assessment_cursor WHERE purpose='readiness'",
+            [],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)),
+        ).unwrap();
+        assert_eq!(retained, ("shipwright".into(), 7));
+        verify_migration_69(&connection).unwrap();
+    }
+
+    #[test]
+    fn assessment_cursor_upgrade_keeps_existing_choices() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 67).unwrap();
+        let existing = serde_json::json!({
+            "format_version": 1,
+            "port_id": "remembered-game",
+            "mode": "notify",
+            "updated_at": 123
+        })
+        .to_string();
+        connect(root)
+            .unwrap()
+            .execute(
+                "INSERT INTO port_intents VALUES (?1, ?2, ?3)",
+                rusqlite::params!["remembered-game", 123, existing],
+            )
+            .unwrap();
+        let library = crate::Library::open(root).unwrap();
+        let choices = library.port_intents().unwrap();
+        assert_eq!(choices.len(), 1);
+        assert_eq!(choices[0].mode, crate::PortIntentMode::Notify);
+        assert_eq!(choices[0].updated_at, 123);
+        let connection = library.connection().unwrap();
+        let cursors: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM port_intent_assessment_cursor",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(cursors, 0);
+    }
+
+    #[test]
     fn selection_writer_protocol_waits_for_schema_25_clients() {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
@@ -2972,6 +3496,479 @@ mod tests {
     }
 
     #[test]
+    fn interrupted_landscape_slot_migration_rolls_back_to_schema_56() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 56).unwrap();
+        let connection = connect(root).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO artwork_choices(port_id,slot,revision) VALUES ('shipwright','detail',4);
+                 CREATE TABLE artwork_choices_v56 (blocker INTEGER);",
+            )
+            .unwrap();
+        drop(connection);
+        // The pre-existing name makes the rename fail inside the migration.
+        assert!(migrate_to(root, 57).is_err());
+        let connection = connect(root).unwrap();
+        let version: i64 = connection
+            .query_row("SELECT MAX(version) FROM schema_migrations", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(version, 56);
+        let kept: (String, i64) = connection
+            .query_row(
+                "SELECT slot,revision FROM artwork_choices WHERE port_id='shipwright'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(kept, ("detail".to_owned(), 4));
+        assert!(crate::artwork_store::verify_landscape_slot(&connection).is_err());
+    }
+
+    #[test]
+    fn interrupted_listing_checks_migration_rolls_back_to_schema_57() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 57).unwrap();
+        let connection = connect(root).unwrap();
+        // A pre-existing name makes the create fail inside the migration.
+        connection
+            .execute_batch("CREATE TABLE artwork_provider_listing_checks (blocker INTEGER);")
+            .unwrap();
+        drop(connection);
+        assert!(migrate_to(root, 58).is_err());
+        let connection = connect(root).unwrap();
+        let version: i64 = connection
+            .query_row("SELECT MAX(version) FROM schema_migrations", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(version, 57);
+        assert!(crate::artwork_store::verify_listing_checks(&connection).is_err());
+    }
+
+    #[test]
+    fn interrupted_withdrawals_migration_rolls_back_to_schema_58() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 58).unwrap();
+        let connection = connect(root).unwrap();
+        // A pre-existing name makes the second create fail inside the migration,
+        // after the first table was created.
+        connection
+            .execute_batch("CREATE TABLE artwork_evicted_assets (blocker INTEGER);")
+            .unwrap();
+        drop(connection);
+        assert!(migrate_to(root, 59).is_err());
+        let connection = connect(root).unwrap();
+        let version: i64 = connection
+            .query_row("SELECT MAX(version) FROM schema_migrations", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(version, 58);
+        let withdrawals: bool = connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='artwork_provider_withdrawals')",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(!withdrawals);
+        crate::artwork_store::verify_listing_checks(&connection).unwrap();
+        assert!(
+            require_columns(
+                &connection,
+                "artwork_provider_listing_checks",
+                &["not_listed_since_server"]
+            )
+            .is_err()
+        );
+    }
+
+    fn catalog_state_row(connection: &Connection) -> (i64, i64, bool, Vec<u8>, Vec<u8>) {
+        connection
+            .query_row(
+                "SELECT revision,highest_sequence,enabled,active,previous FROM catalog_state WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+            )
+            .unwrap()
+    }
+
+    fn accepts_catalog_blob(connection: &Connection, bytes: usize) -> bool {
+        // zeroblob keeps the probe in SQLite instead of allocating it in Rust.
+        connection
+            .execute(
+                "UPDATE catalog_state SET previous=zeroblob(?1) WHERE singleton=1",
+                [bytes as i64],
+            )
+            .is_ok()
+    }
+
+    #[test]
+    fn catalog_bound_migration_preserves_selection_and_raises_only_the_bound() {
+        use crate::catalog_store::CATALOG_BOUND_V60;
+        use crate::signed_catalog::LEGACY_MAX_CATALOG_BYTES;
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 59).unwrap();
+        let connection = connect(root).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO catalog_trust VALUES('key-a','public-a');
+                 UPDATE catalog_state SET revision=7,highest_sequence=3,enabled=1,
+                   active=x'0102',previous=x'0304' WHERE singleton=1;",
+            )
+            .unwrap();
+        // Schema 59 is what every released client created: 4 MiB is its ceiling.
+        assert!(crate::catalog_store::verify_catalog_bound(&connection).is_err());
+        assert!(accepts_catalog_blob(&connection, LEGACY_MAX_CATALOG_BYTES));
+        assert!(!accepts_catalog_blob(
+            &connection,
+            LEGACY_MAX_CATALOG_BYTES + 1
+        ));
+        connection
+            .execute("UPDATE catalog_state SET previous=x'0304'", [])
+            .unwrap();
+        drop(connection);
+
+        migrate_to(root, 60).unwrap();
+        let connection = connect(root).unwrap();
+        assert_eq!(
+            recorded_versions(&connection).unwrap(),
+            (1..=60).collect::<Vec<_>>()
+        );
+        crate::catalog_store::verify_catalog_bound(&connection).unwrap();
+        verify_migration_11(&connection).unwrap();
+        assert_eq!(
+            catalog_state_row(&connection),
+            (7, 3, true, vec![1, 2], vec![3, 4])
+        );
+        let key: (String, String) = connection
+            .query_row("SELECT key_id,public_key FROM catalog_trust", [], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })
+            .unwrap();
+        assert_eq!(key, ("key-a".into(), "public-a".into()));
+        let rebuild_left: bool = connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='catalog_state_rebuild')",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(!rebuild_left);
+        // The singleton and other checks survive the rebuild unchanged.
+        assert!(
+            connection
+                .execute("INSERT INTO catalog_state VALUES(2,0,0,0,NULL,NULL)", [])
+                .is_err()
+        );
+        assert!(
+            connection
+                .execute("UPDATE catalog_state SET enabled=2", [])
+                .is_err()
+        );
+        assert!(accepts_catalog_blob(
+            &connection,
+            LEGACY_MAX_CATALOG_BYTES + 1
+        ));
+        assert!(accepts_catalog_blob(&connection, CATALOG_BOUND_V60));
+        assert!(!accepts_catalog_blob(&connection, CATALOG_BOUND_V60 + 1));
+    }
+
+    #[test]
+    fn schema_60_verification_is_frozen_and_survives_a_later_wider_bound() {
+        use crate::catalog_store::{CATALOG_BOUND_V60, rebuild_catalog_state};
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 60).unwrap();
+        let mut connection = connect(root).unwrap();
+        // A future migration may widen the checks again. Re-verifying recorded
+        // migration 60 on open must still accept the library.
+        let transaction = connection.transaction().unwrap();
+        rebuild_catalog_state(&transaction, CATALOG_BOUND_V60 * 2).unwrap();
+        transaction.commit().unwrap();
+        for migration in MIGRATIONS
+            .iter()
+            .filter(|migration| migration.version <= 60)
+        {
+            (migration.verify)(&connection).unwrap();
+        }
+        assert!(accepts_catalog_blob(&connection, CATALOG_BOUND_V60 + 1));
+        connection
+            .execute("UPDATE catalog_state SET previous=NULL", [])
+            .unwrap();
+        // Narrower than schema 60 is a partially applied migration.
+        let transaction = connection.transaction().unwrap();
+        rebuild_catalog_state(&transaction, CATALOG_BOUND_V60 - 1).unwrap();
+        transaction.commit().unwrap();
+        assert!(crate::catalog_store::verify_catalog_bound(&connection).is_err());
+        drop(connection);
+        assert!(migrate_to(root, CURRENT_SCHEMA_VERSION).is_err());
+    }
+
+    #[test]
+    fn interrupted_catalog_bound_migration_rolls_back_to_schema_59() {
+        use crate::signed_catalog::LEGACY_MAX_CATALOG_BYTES;
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 59).unwrap();
+        let connection = connect(root).unwrap();
+        connection
+            .execute_batch(
+                "UPDATE catalog_state SET revision=4,highest_sequence=2,enabled=1,
+                   active=x'0a',previous=NULL WHERE singleton=1;
+                 CREATE TABLE catalog_state_rebuild (blocker INTEGER);",
+            )
+            .unwrap();
+        drop(connection);
+        assert!(migrate_to(root, 60).is_err());
+        let connection = connect(root).unwrap();
+        assert_eq!(recorded_versions(&connection).unwrap().last(), Some(&59));
+        let (revision, sequence, enabled, active): (i64, i64, bool, Vec<u8>) = connection
+            .query_row(
+                "SELECT revision,highest_sequence,enabled,active FROM catalog_state",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            (revision, sequence, enabled, active),
+            (4, 2, true, vec![10])
+        );
+        assert!(!accepts_catalog_blob(
+            &connection,
+            LEGACY_MAX_CATALOG_BYTES + 1
+        ));
+    }
+
+    #[test]
+    fn withdrawals_verification_rejects_a_weakened_definition() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 59).unwrap();
+        let connection = connect(root).unwrap();
+        crate::artwork_store::verify_withdrawals(&connection).unwrap();
+        // Without the cascade, removing a record would fail on the foreign key.
+        connection
+            .execute_batch(
+                "DROP TABLE artwork_provider_withdrawals;
+                 CREATE TABLE artwork_provider_withdrawals (
+                    asset_sha256 TEXT NOT NULL, provider TEXT NOT NULL, asset_id INTEGER NOT NULL,
+                    withdrawn_at INTEGER NOT NULL CHECK(withdrawn_at>0),
+                    signal TEXT NOT NULL CHECK(signal IN ('gone','absent_again')),
+                    PRIMARY KEY(asset_sha256,provider,asset_id),
+                    FOREIGN KEY(asset_sha256,provider,asset_id) REFERENCES artwork_asset_providers(asset_sha256,provider,asset_id)
+                 );",
+            )
+            .unwrap();
+        assert!(crate::artwork_store::verify_withdrawals(&connection).is_err());
+    }
+
+    #[test]
+    fn eviction_markers_require_a_provider_only_asset_and_records_cascade() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 59).unwrap();
+        let connection = connect(root).unwrap();
+        let asset = "a".repeat(64);
+        connection
+            .execute_batch(&format!(
+                "INSERT INTO artwork_assets(sha256,payload,byte_size) VALUES ('{asset}','{{}}',1);
+                 INSERT INTO artwork_asset_providers(asset_sha256,provider,asset_id,record_json) VALUES ('{asset}','steamgriddb',7,'{{}}');
+                 INSERT INTO artwork_provider_withdrawals(asset_sha256,provider,asset_id,withdrawn_at,signal) VALUES ('{asset}','steamgriddb',7,5,'gone');"
+            ))
+            .unwrap();
+        // Not provider-only: the marker is refused.
+        assert!(
+            connection
+                .execute(
+                    "INSERT INTO artwork_evicted_assets(asset_sha256,evicted_at) VALUES (?1,5)",
+                    [&asset],
+                )
+                .is_err()
+        );
+        connection
+            .execute(
+                "INSERT INTO artwork_provider_only_assets(asset_sha256) VALUES (?1)",
+                [&asset],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO artwork_evicted_assets(asset_sha256,evicted_at) VALUES (?1,5)",
+                [&asset],
+            )
+            .unwrap();
+        // The provider-only marker cannot go while the eviction marker stands.
+        assert!(
+            connection
+                .execute(
+                    "DELETE FROM artwork_provider_only_assets WHERE asset_sha256=?1",
+                    [&asset],
+                )
+                .is_err()
+        );
+        // Removing the record by itself removes its withdrawal (cascade only).
+        connection
+            .execute(
+                "DELETE FROM artwork_asset_providers WHERE asset_sha256=?1",
+                [&asset],
+            )
+            .unwrap();
+        let withdrawals: i64 = connection
+            .query_row(
+                "SELECT count(*) FROM artwork_provider_withdrawals",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(withdrawals, 0);
+    }
+
+    #[test]
+    fn listing_checks_verification_rejects_a_weakened_definition() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 58).unwrap();
+        let connection = connect(root).unwrap();
+        crate::artwork_store::verify_listing_checks(&connection).unwrap();
+        // Without the cascade, removing a record would fail on the foreign key.
+        connection
+            .execute_batch(
+                "DROP TABLE artwork_provider_listing_checks;
+                 CREATE TABLE artwork_provider_listing_checks (
+                    asset_sha256 TEXT NOT NULL, provider TEXT NOT NULL, asset_id INTEGER NOT NULL, revision INTEGER NOT NULL CHECK(revision>=1),
+                    last_checked_at INTEGER NOT NULL, last_result TEXT NOT NULL, unknown_reason TEXT,
+                    not_listed_since INTEGER, last_listing_total INTEGER, last_source_status TEXT,
+                    PRIMARY KEY(asset_sha256,provider,asset_id),
+                    FOREIGN KEY(asset_sha256,provider,asset_id) REFERENCES artwork_asset_providers(asset_sha256,provider,asset_id),
+                    CHECK((last_result='unknown')=(unknown_reason IS NOT NULL)),
+                    CHECK(last_result!='listed' OR not_listed_since IS NULL)
+                 );",
+            )
+            .unwrap();
+        assert!(crate::artwork_store::verify_listing_checks(&connection).is_err());
+    }
+
+    #[test]
+    fn landscape_slot_migration_keeps_every_choice_and_constraint() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 56).unwrap();
+        let connection = connect(root).unwrap();
+        let asset = "a".repeat(64);
+        connection
+            .execute_batch(&format!(
+                "INSERT INTO artwork_assets(sha256,payload,byte_size) VALUES ('{asset}','{{}}',10);
+                 INSERT INTO artwork_choices(port_id,slot,revision,asset_sha256)
+                     VALUES ('shipwright','cover',3,'{asset}'),('shipwright','detail',5,NULL);
+                 INSERT INTO artwork_thumbnails(asset_sha256,format_version,sha256,byte_size)
+                     VALUES ('{asset}',2,'{asset}',4);
+                 INSERT INTO artwork_asset_providers(asset_sha256,provider,asset_id,record_json)
+                     VALUES ('{asset}','steamgriddb',7,'{{}}');
+                 INSERT INTO artwork_provider_only_assets(asset_sha256) VALUES ('{asset}');"
+            ))
+            .unwrap();
+        // Before 57 the stored definition does not admit the landscape slot.
+        assert!(crate::artwork_store::verify_landscape_slot(&connection).is_err());
+        assert!(
+            connection
+                .execute(
+                    "INSERT INTO artwork_choices(port_id,slot,revision) VALUES ('x','landscape',1)",
+                    [],
+                )
+                .is_err()
+        );
+        let read = |connection: &Connection| {
+            connection
+                .prepare(
+                    "SELECT port_id,slot,revision,asset_sha256 FROM artwork_choices ORDER BY slot",
+                )
+                .unwrap()
+                .query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, i64>(2)?,
+                        row.get::<_, Option<String>>(3)?,
+                    ))
+                })
+                .unwrap()
+                .collect::<std::result::Result<Vec<_>, _>>()
+                .unwrap()
+        };
+        let before = read(&connection);
+        drop(connection);
+        migrate_to(root, 57).unwrap();
+        let connection = connect(root).unwrap();
+        assert_eq!(read(&connection), before);
+        crate::artwork_store::verify_landscape_slot(&connection).unwrap();
+        connection
+            .execute(
+                "INSERT INTO artwork_choices(port_id,slot,revision) VALUES ('x','landscape',1)
+                 ON CONFLICT(port_id,slot) DO UPDATE SET revision=excluded.revision+1",
+                [],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO artwork_choices(port_id,slot,revision) VALUES ('x','landscape',1)
+                 ON CONFLICT(port_id,slot) DO UPDATE SET revision=excluded.revision+1",
+                [],
+            )
+            .unwrap();
+        for refused in [
+            "INSERT INTO artwork_choices(port_id,slot,revision) VALUES ('y','banner',1)",
+            "INSERT INTO artwork_choices(port_id,slot,revision) VALUES ('y','cover',0)",
+            "INSERT INTO artwork_choices(port_id,slot,revision,asset_sha256) VALUES ('y','cover',1,'missing')",
+        ] {
+            assert!(connection.execute(refused, []).is_err(), "{refused}");
+        }
+        // The asset is still protected by the rebuilt table's foreign key.
+        assert!(
+            connection
+                .execute("DELETE FROM artwork_assets WHERE sha256=?1", [&asset])
+                .is_err()
+        );
+        let leftover: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE name='artwork_choices_v56'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(leftover, 0);
+        let providers: i64 = connection
+            .query_row("SELECT COUNT(*) FROM artwork_asset_providers", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(providers, 1);
+        let violations: i64 = connection
+            .query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(violations, 0);
+    }
+
+    #[test]
     fn snapshot_setting_migration_keeps_identity_and_defaults_existing_libraries_on() {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
@@ -3009,6 +4006,88 @@ mod tests {
             $(#[test]
             fn $name() { assert_historical_schema_upgrade($version); })+
         };
+    }
+
+    #[test]
+    fn scan_match_rows_migration_preserves_the_scan_snapshot_and_bounds_rows() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 53).unwrap();
+        let connection = connect(root).unwrap();
+        connection
+            .execute(
+                "INSERT INTO game_file_scan_state(singleton,snapshot_json) VALUES (1,'{\"kept\":true}')",
+                [],
+            )
+            .unwrap();
+        drop(connection);
+        migrate(root).unwrap();
+        let connection = connect(root).unwrap();
+        verify_migration_54(&connection).unwrap();
+        let kept: String = connection
+            .query_row(
+                "SELECT snapshot_json FROM game_file_scan_state WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(kept, "{\"kept\":true}");
+        let scan = "00000000-0000-4000-8000-000000000000";
+        let insert = |kind: i64, ordinal: i64, path: &str, batch: i64, record: &str| {
+            connection.execute(
+                "INSERT INTO game_file_scan_matches(scan_id,kind,ordinal,profile_id,path,path_key,batch,record_json)
+                 VALUES (?1,?2,?3,'profile',?4,?4,?5,?6)",
+                rusqlite::params![scan, kind, ordinal, path, batch, record],
+            )
+        };
+        insert(0, 0, "game-a", 1, "{}").unwrap();
+        insert(1, 0, "game-a", 1, "{}").unwrap();
+        // The same profile and path is one row per kind and scan.
+        assert!(insert(0, 1, "game-a", 1, "{}").is_err());
+        assert!(insert(0, 0, "game-b", 1, "{}").is_err());
+        assert!(insert(2, 1, "game-b", 1, "{}").is_err());
+        assert!(insert(0, 100_000, "game-b", 1, "{}").is_err());
+        assert!(insert(0, 1, "game-b", 0, "{}").is_err());
+        assert!(insert(0, 1, "game-b", 1, &"x".repeat(262_145)).is_err());
+        insert(0, 1, "game-b", 2, &"x".repeat(262_144)).unwrap();
+    }
+
+    #[test]
+    fn folder_setup_pass_position_migration_keeps_choices_and_bounds_positions() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 54).unwrap();
+        let connection = connect(root).unwrap();
+        connection
+            .execute(
+                "INSERT INTO game_file_root_setup(root_id,updated_at,record_json) VALUES ('root',1,'{}')",
+                [],
+            )
+            .unwrap();
+        drop(connection);
+        migrate(root).unwrap();
+        let connection = connect(root).unwrap();
+        verify_migration_55(&connection).unwrap();
+        let kept: (String, Option<String>, i64) = connection
+            .query_row(
+                "SELECT record_json,pass_scan_id,pass_offset FROM game_file_root_setup WHERE root_id='root'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(kept, ("{}".to_owned(), None, 0));
+        let set = |scan: &str, offset: i64| {
+            connection.execute(
+                "UPDATE game_file_root_setup SET pass_scan_id=?1, pass_offset=?2 WHERE root_id='root'",
+                rusqlite::params![scan, offset],
+            )
+        };
+        set("00000000-0000-4000-8000-000000000000", 100_000).unwrap();
+        assert!(set("short", 0).is_err());
+        assert!(set("00000000-0000-4000-8000-000000000000", 100_001).is_err());
+        assert!(set("00000000-0000-4000-8000-000000000000", -1).is_err());
     }
 
     historical_schema_tests! {
@@ -3063,6 +4142,24 @@ mod tests {
         schema_48: 48,
         schema_49: 49,
         schema_50: 50,
+        schema_51: 51,
+        schema_52: 52,
+        schema_53: 53,
+        schema_54: 54,
+        schema_55: 55,
+        schema_56: 56,
+        schema_57: 57,
+        schema_58: 58,
+        schema_59: 59,
+        schema_60: 60,
+        schema_61: 61,
+        schema_62: 62,
+        schema_63: 63,
+        schema_64: 64,
+        schema_65: 65,
+        schema_66: 66,
+        schema_67: 67,
+        schema_68: 68,
     }
 
     #[test]

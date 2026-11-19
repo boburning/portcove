@@ -33,6 +33,29 @@ export function recordDesktopCheck(
   );
 }
 
+/**
+ * The harness call sites of a failure. Driver errors such as `script timeout`
+ * carry no location of their own, and only the run's last error prints a stack.
+ */
+export function harnessFrames(error: unknown, limit = 4): string[] {
+  const stack = error instanceof Error && typeof error.stack === "string" ? error.stack : "";
+  const frames: string[] = [];
+  for (const match of stack.matchAll(/apps[\\/]desktop[\\/]scripts[\\/]([\w.-]+\.mts):(\d+)/gu)) {
+    const frame = `${match[1]}:${match[2]}`;
+    if (match[1] === "desktop-scenario-outcomes.mts" || frames.includes(frame)) continue;
+    frames.push(frame);
+    if (frames.length === limit) break;
+  }
+  return frames;
+}
+
+function failureMessage(error: unknown) {
+  const frames = harnessFrames(error);
+  return frames.length
+    ? `${errorMessage(error)}\nHarness frames: ${frames.join(" < ")}`
+    : errorMessage(error);
+}
+
 export async function observeDesktopScenario(
   action: () => unknown,
   effects: {
@@ -57,7 +80,7 @@ export async function observeDesktopScenario(
     effects.record({
       outcome: failed ? "failed" : "passed",
       duration_ms,
-      ...(failed ? { message: errorMessage(failure) } : {}),
+      ...(failed ? { message: failureMessage(failure) } : {}),
     });
     if (failed) await effects.diagnostics();
     if (!untrustworthy) await effects.screenshot();

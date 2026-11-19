@@ -3,38 +3,35 @@
   "listing": {
     "id": "hybrid-heaven-ogdanimal",
     "name": "Hybrid Heaven: Recompiled (ogdanimal)",
-    "summary": "Hybrid Heaven on Windows, Linux and Android, using your own USA cartridge dump. Upstream performs first-launch setup; existing permitted copies keep their own updates and player data.",
+    "summary": "Hybrid Heaven on Windows, Linux and Android, using your own USA cartridge dump. The game checks and copies it on first launch; saves and settings stay in its own profile.",
     "original_game_title": "Hybrid Heaven",
     "project_url": "https://github.com/ogdanimal/HybridHeaven-Recomp",
     "issue_number": 2546,
     "listed_at": "2026-10-25",
     "availability": "packages",
-    "platforms": ["windows-x86-64", "linux-x86-64"],
     "release_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/releases",
     "setup_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/blob/431720eac60bb0508ea5c4b4aec88d47fa7bc79e/README.md",
-    "download_block_reason": "Portcove downloads are paused until redistribution permission for the included Chiaro fonts is established. The reviewed package identifies Fontworks Japan as their owner; the project code license does not establish that separate font grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable grant or publishes a package using appropriately licensed replacement fonts.",
-    "download_asset_hints": {
-      "windows-x86-64": ["HybridHeaven-", "-windows-x64.zip"],
-      "linux-x86-64": ["HybridHeaven-", "-linux-x86_64.tar.gz"]
-    },
     "recommended_download_channel": "stable",
     "manual_setup": {
       "help_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/blob/431720eac60bb0508ea5c4b4aec88d47fa7bc79e/README.md",
       "warnings": [
-        "Portcove downloads are paused until redistribution permission for the included Chiaro fonts is established. The reviewed package identifies Fontworks Japan as their owner; the project code license does not establish that separate font grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable grant or publishes a package using appropriately licensed replacement fonts."
+        "The package includes Chiaro fonts by Fontworks that the project license does not cover, and fan-made launcher background and icon artwork credited in the project README. Portcove downloads the package only from the project’s own releases. You need your own original game files.",
+        "Portcove has not observed native setup, gameplay or saves. On Linux the player needs a Vulkan driver, SDL2 and GTK 3."
       ],
       "steps": [
         {
-          "title": "Keep a permitted complete copy",
-          "instruction": "Keep the complete upstream package in a folder you control. The reviewed Windows player is HybridHeavenRecompiled.exe; on Linux it is HybridHeavenRecompiled and needs Vulkan, SDL2 and GTK 3. Keep assets beside the player and use that folder as its working directory. Android APK installation remains an upstream device setup route."
+          "title": "Supply your original on first Play",
+          "instruction": "Choose Play. First launch asks once for your own ordinary USA Hybrid Heaven cartridge dump (upstream SHA-1 16dbc21620b52deab5c5abf8a309ac60adfbee85). The game checks it and copies it into its own profile, then offers Start Game. No decompression or converter is needed. Keep your original separately."
         },
         {
-          "title": "Add the player, then supply your original on Play",
-          "instruction": "Select your completed player and save its launch details, then choose Play separately. First launch asks once for your own ordinary USA Hybrid Heaven cartridge dump (upstream SHA-1 16dbc21620b52deab5c5abf8a309ac60adfbee85). The game verifies and copies it into its own storage, then offers Start Game. No decompression or converter is needed, and Portcove does not run a discovered helper during setup."
-        },
+          "title": "Keep the complete package",
+          "instruction": "For a copy you manage yourself, keep the complete upstream package in a folder you control and start HybridHeavenRecompiled.exe on Windows or HybridHeavenRecompiled on Linux from that folder, with assets beside it. To add that copy to Portcove, select the player and its folder; removing it from Portcove leaves every file in place. Android APK installation remains an upstream device setup route."
+        }
+      ],
+      "references": [
         {
           "title": "Keep the game profile when updating",
-          "instruction": "You or upstream update this external copy. Close the game and back up its actual profile before changing versions: normally %LOCALAPPDATA%\\HybridHeavenRecompiled on Windows or ~/.config/HybridHeavenRecompiled on Linux. An existing portable copy can use its own folder instead; retain the mode you already use. Keep the ROM, settings, saves and mods together with that profile. The game can import a compatible save through Settings → Saves before starting; its existing save is retained as hybridheaven.us.bin.pre-import.bak. Controller Pak .mpk files are not accepted by that importer. Verify progress in the new copy before retiring the old one. Removing a Portcove registration preserves all external files; it does not provide managed Update, Backup or Rollback."
+          "instruction": "Close the game and back up its profile before changing versions: normally %LOCALAPPDATA%\\HybridHeavenRecompiled on Windows or ~/.config/HybridHeavenRecompiled on Linux. A copy with portable.txt uses its own folder instead, and a Linux copy started with APP_FOLDER_PATH uses the folder that variable names. The profile holds the copied original, settings, saves and mods. The game can import a compatible save through Settings → Saves before starting; its existing save is kept as hybridheaven.us.bin.pre-import.bak. Controller Pak .mpk files are not accepted by that importer. Check progress in the new copy before retiring the old one."
         }
       ]
     },
@@ -45,6 +42,15 @@
       "image_sha256": "bf0007c9b9a4ef9b1d297695a5dcfce8154960e72d9860e15da72cdb89bcf3f5",
       "game_slug": "hybrid-heaven",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "hybrid-heaven",
+      "evidence_urls": [
+        "https://github.com/ogdanimal/HybridHeaven-Recomp/blob/431720eac60bb0508ea5c4b4aec88d47fa7bc79e/README.md",
+        "https://github.com/ogdanimal/HybridHeaven-Recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
@@ -58,5 +64,41 @@
       }
     },
     "decisions": []
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "ogdanimal/HybridHeaven-Recomp",
+      "asset_hints": {
+        "windows-x86-64": ["HybridHeaven-", "-windows-x64.zip"],
+        "linux-x86-64": ["HybridHeaven-", "-linux-x86_64.tar.gz"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["HybridHeavenRecompiled.exe"],
+      "linux-x86-64": ["HybridHeavenRecompiled"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "On first Play, the game asks once for your own USA Hybrid Heaven cartridge dump, checks it and keeps a copy in its profile, together with saves, settings and mods; keep your original separately. The profile is %LOCALAPPDATA%\\HybridHeavenRecompiled on Windows and ~/.config/HybridHeavenRecompiled on Linux. Portcove starts the managed copy without APP_FOLDER_PATH, so a Linux copy you run with APP_FOLDER_PATH keeps a separate profile; a copy you manage yourself without portable.txt or APP_FOLDER_PATH shares the managed profile. Portcove refuses to start a managed copy that contains portable.txt. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. On Linux the player needs a Vulkan driver, SDL2 and GTK 3. Portcove replaces the player; you own the original and the profile."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["assets"],
+        "executables": ["hybridheavenrecompiled.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["assets"],
+        "executables": ["hybridheavenrecompiled"]
+      }
+    }
   }
 }

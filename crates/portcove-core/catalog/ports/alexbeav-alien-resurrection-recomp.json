@@ -19,8 +19,6 @@
     "listed_at": "2026-10-23",
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "download_asset_hints": {
-      "windows-x86-64": ["alien-resurrection-recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["alien-resurrection-recomp-", "-linux-x64.zip"],
       "macos-x86-64": ["alien-resurrection-recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["alien-resurrection-recomp-", "-macos-arm64.zip"]
     },
@@ -54,8 +52,28 @@
           "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "alien-resurrection",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "alien-resurrection-playstation",
+          "title": "Alien Resurrection (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/blob/38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c/game.toml"
+          ]
+        }
+      ]
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
+  "psx_managed_windows_v1": "split-mods",
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -76,45 +94,6 @@
       "windows-x86-64": ["Alien_Resurrection_Recompiled.exe"],
       "linux-x86-64": ["Alien_Resurrection_Recompiled"]
     },
-    "persistent_paths": [
-      "saves",
-      "settings.toml",
-      "settings.toml.bad",
-      "input.ini",
-      "keybinds.ini",
-      "config.ini",
-      "disc.cfg",
-      "bios.cfg",
-      "mods",
-      "overlay-captures",
-      "overlay_captures.json",
-      "overlay_captures.json.d",
-      "overlay_captures.addendum.jsonl"
-    ],
-    "runtime_mutable_paths": [
-      "cache",
-      "psx_freeze_heartbeat.json",
-      "psx_freeze_heartbeat.json.tmp",
-      "psx_last_run_report.json",
-      "psx_cps_exit_trace.json",
-      "netplay_lan_lobby.txt",
-      "psx_crash.txt"
-    ],
-    "runtime_mutable_file_patterns": [
-      {
-        "prefix": "psx_freeze_dump_psx-runtime_",
-        "suffix": ".json"
-      },
-      {
-        "prefix": "overlay_captures.json.",
-        "suffix": ".tmp"
-      }
-    ],
-    "launch_environment": {
-      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
-    },
-    "launch_arguments": ["--no-launcher"],
-    "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
       "source_requirements": [
@@ -132,7 +111,20 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching four-track CHD for Alien Resurrection SLES-02913 (Europe) and a legally obtained retail SCPH-5552 BIOS. Preserve all disc tracks. Portcove verifies the first data track and track count; other tracks and the complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested."
+      "manual_preparation": "Provide your own matching four-track CHD for Alien Resurrection SLES-02913 (Europe) and a legally obtained retail SCPH-5552 BIOS. Preserve all disc tracks. Portcove verifies the first data track and track count; other tracks and the complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Make an in-game save before updating. Upstream warns that save states may be incompatible across versions.",
+          "Generation, runtime, audio, saves, lifecycle and gameplay are untested."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-5552-bios"
   }

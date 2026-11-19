@@ -5,8 +5,17 @@
     "name": "Plants vs. Zombies 2 / PvZ2 Gardendless (Gzh0821)",
     "summary": "Keep your permitted Standard or Lite Gardendless player, export your saves and preserve the data used by that edition.",
     "project_url": "https://github.com/Gzh0821/pvzg_site",
+    "artwork": {
+      "game_id": 361106,
+      "cover_id": 479734,
+      "image_id": "coaa5y",
+      "image_sha256": "636204b03a9331ef9ce886af63538c17fe940de15e8f1158a8a1922d19f6d3e3",
+      "game_slug": "plants-vs-zombies-2-gardendless",
+      "match_kind": "port"
+    },
     "issue_number": 1874,
     "listed_at": "2026-10-23",
+    "funding_urls": ["https://github.com/sponsors/Gzh0821", "https://buymeacoffee.com/gaozih"],
     "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Gzh0821/pvzg_site/blob/0bbd7dc892ca39b302f3492cf02fcafe795f822d/README.md",

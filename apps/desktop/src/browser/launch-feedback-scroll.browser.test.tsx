@@ -3,6 +3,7 @@ import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import App from "../App";
+import { mountLibraryPort } from "./discover-test-helpers";
 import { desktopApi } from "../api";
 import { failureReport } from "../test-fixtures";
 import { initializeLocalization, LocalizationProvider } from "../localization";
@@ -97,7 +98,8 @@ async function reconcileSnapshotConflict(
   expect(announcement?.parentElement).toBe(
     document.querySelector("[data-invocation-announcements]"),
   );
-  expect(announcement?.textContent).toContain(`${invocation.getAttribute("aria-label")}: finished`);
+  const game = invocation.getAttribute("aria-label")?.slice("Launch · ".length);
+  expect(announcement?.textContent).toBe(`Launch requested for ${game}.`);
   allowCurrentRead();
   await controlledAct(async () => {
     window.dispatchEvent(new Event("focus"));
@@ -132,30 +134,37 @@ for (const layout of ["Covers", "Compact rows"] as const) {
             .element(page.getByRole("button", { name: layout, exact: true }))
             .toBeVisible();
           await page.getByRole("button", { name: layout, exact: true }).click();
-          await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+          await expect
+            .poll(() =>
+              document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize"),
+            )
+            .toBe("12");
           // A dismissed first-use choice is not part of this controlled transition.
           const notNow = page.getByRole("button", { name: "Not now", exact: true });
           if (notNow.query()) await notNow.click();
           await painted();
-          const candidates = [
-            ...document.querySelectorAll<HTMLButtonElement>(".collection-actions button"),
-          ].filter(
-            (button) =>
-              button.textContent?.trim() === "Play" &&
-              !button.disabled &&
-              button.getAttribute("aria-disabled") !== "true",
+          // These positions come from the fixture's complete Title A–Z cohort,
+          // not the currently mounted window (which includes only overscan).
+          const portId = position === "bottom" ? "collection-11" : "collection-9";
+          await mountLibraryPort(portId);
+          const origin = document.querySelector<HTMLButtonElement>(
+            `[data-detail-origin="library:card:${portId}:play"]`,
           );
-          const origin =
-            candidates[
-              position === "bottom" ? candidates.length - 1 : Math.floor(candidates.length / 2)
-            ];
-          expect(origin).toBeDefined();
-          if (!origin)
-            throw new Error("Fixture must expose a launchable original collection control");
+          expect(origin).not.toBeNull();
+          if (!origin) throw new Error("Fixture logical position must expose its launch control");
           origin.scrollIntoView({ block: position === "bottom" ? "end" : "center" });
           if (position === "bottom") scrollWorkspaceTo(workspace(), owner().scrollHeight);
           origin.focus({ preventScroll: true });
           await painted();
+          await expect
+            .poll(async () => {
+              await painted();
+              const rect = origin.getBoundingClientRect();
+              return (
+                document.activeElement === origin && rect.top >= 0 && rect.bottom <= innerHeight + 1
+              );
+            })
+            .toBe(true);
           const before = point(origin);
           expect(before.scroll).toBeGreaterThan(0);
           expect(

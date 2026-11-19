@@ -1,6 +1,9 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vite-plus/test";
+import { page, userEvent } from "vite-plus/test/browser";
+import { requireCompleteCaptureTarget } from "../../test/capture-target";
+import { captureParityState } from "../../test/parity-capture";
 import { desktopApi } from "../api";
 import { portDefinition, portStatus } from "../test-fixtures";
 import type { PortCapabilityReport, PortListing } from "../types";
@@ -154,6 +157,10 @@ it("keeps version-specific notices scoped and distinguishes settings support fro
         artifact_sha256: "a".repeat(64),
         edition: "original",
         explanation: "This exact fixture release fails on exit.",
+        launch_behavior: {
+          first_launch: "asks-for-game-files",
+          repeat_launch: "starts-game-directly",
+        },
         provenance: "https://example.com/fixture",
         observed_at: 1,
         evidence: "observed",
@@ -170,6 +177,8 @@ it("keeps version-specific notices scoped and distinguishes settings support fro
     `Scope: windows-x86-64 · Explicit existing-copy selection · release v1 · edition original · artifact ${"a".repeat(64)}.`,
   );
   expect(host.textContent).toContain("Launch · observed · Exact context required");
+  expect(host.textContent).toContain("Asks for game files");
+  expect(host.textContent).toContain("Starts the game directly");
   const scope = [...host.querySelectorAll("p")].find((item) =>
     item.textContent?.startsWith("Scope:"),
   );
@@ -177,7 +186,7 @@ it("keeps version-specific notices scoped and distinguishes settings support fro
     ["windows-x86-64", "v1", "original", "a".repeat(64)],
   );
   expect(host.querySelector("a[href='https://example.com/fixture']")?.textContent).toBe("Source");
-  expect(host.textContent).toContain("Later releases do not inherit a failure or a fix");
+  expect(host.textContent).toContain("These details apply to the scope shown above.");
 });
 
 it("presents feature details, scope and backup state in the active locale", async () => {
@@ -264,3 +273,270 @@ it("labels backup, historical scope and unknown features while keeping ids visib
   expect(host.textContent).toContain("future-feature · reported · Historical / different scope");
   expect(host.textContent).toContain("Scope: linux-x86-64 · Managed setup.");
 });
+
+it("keeps complete advisory and recorded scopes readable in narrow detail columns", async () => {
+  const previousViewport = { width: innerWidth, height: innerHeight };
+  const previousTheme = document.documentElement.dataset.theme;
+  const artifact = "a".repeat(64);
+  const release = `synthetic-release-${"r".repeat(96)}`;
+  const edition = `synthetic-edition-${"e".repeat(96)}`;
+  const recordedScope = {
+    artifact_id: artifact,
+    edition_id: edition,
+    environment_id: "synthetic-recorded-device",
+    game_id: "sample-game",
+    platform: "windows-x86-64" as const,
+    port_id: "sample",
+    release_id: release,
+    route_id: "existing-copy",
+    source_profile_id: "synthetic-original-files",
+  };
+  const value = report();
+  value.advisory_state = "available";
+  value.advisories = [
+    {
+      applicability: "context-required",
+      notice: {
+        id: "synthetic-exact-scope",
+        feature: "launch",
+        platform: "windows-x86-64",
+        route: "existing-copy",
+        release,
+        artifact_sha256: artifact,
+        edition,
+        explanation: "Synthetic exact-context caution, not an assessment of this installation.",
+        provenance: "https://example.com/fixture",
+        observed_at: 1,
+        evidence: "observed",
+        workaround: null,
+      },
+    },
+  ];
+  value.observations = [
+    {
+      id: "synthetic-recorded-scope",
+      dimension: "gameplay",
+      claim: { kind: "unknown" },
+      kind: "artifact-inspected",
+      explanation: "Synthetic recorded scope with no gameplay conclusion.",
+      observed_at: 1,
+      scope: recordedScope,
+      source: "https://example.com/history",
+      supersedes: [],
+    },
+  ];
+  vi.spyOn(desktopApi, "portCapabilities").mockResolvedValue(value);
+  try {
+    document.documentElement.dataset.theme = "light";
+    const { host, render } = await mount();
+    host.className = "detail-evidence";
+    // Match the narrow App's navigation rail and padded detail column.
+    host.style.cssText =
+      "display:grid;grid-template-columns:minmax(0,1fr);width:calc(100% - 60px);margin-inline-start:60px;padding:20px;box-sizing:border-box";
+    await render(1);
+    const scope = [...host.querySelectorAll("p")].find((item) =>
+      item.textContent?.startsWith("Scope:"),
+    )!;
+    const history = [...host.querySelectorAll("summary")].find(
+      (item) => item.textContent === "Historical observations and exact applicability",
+    )!;
+    const assertContained = (element: HTMLElement) => {
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+      expect(host.scrollWidth).toBeLessThanOrEqual(host.clientWidth + 1);
+      const bounds = host.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      for (const rect of range.getClientRects()) {
+        expect(rect.left).toBeGreaterThanOrEqual(bounds.left - 1);
+        expect(rect.right).toBeLessThanOrEqual(bounds.right + 1);
+      }
+    };
+    for (const width of [430, 320]) {
+      await page.viewport(width, 780);
+      await document.fonts.ready;
+      expect(scope.textContent).toContain(release);
+      expect(scope.textContent).toContain(edition);
+      expect(scope.querySelector("code")?.textContent).toBe(artifact);
+      expect(host.textContent).toContain("Launch · observed · Exact context required");
+      scope.scrollIntoView({ block: "center" });
+      assertContained(scope);
+      await captureParityState("capabilities-complete-advisory-scope");
+      history.focus();
+      await userEvent.keyboard("{Enter}");
+      expect(history.parentElement?.hasAttribute("open")).toBe(true);
+      expect(document.activeElement).toBe(history);
+      const introduction = history.parentElement?.querySelector("p");
+      if (!introduction) throw new Error("Expected the historical scope explanation");
+      const focusStyle = getComputedStyle(history);
+      const focusClearance = Math.max(
+        8,
+        Number.parseFloat(focusStyle.outlineWidth) +
+          Number.parseFloat(focusStyle.outlineOffset) +
+          4,
+      );
+      expect(
+        introduction.getBoundingClientRect().top - history.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(focusClearance);
+      const recorded = [...host.querySelectorAll("p")].find(
+        (item) => item.textContent === JSON.stringify(recordedScope),
+      )!;
+      expect(recorded.textContent).toBe(JSON.stringify(recordedScope));
+      expect(host.textContent).toContain("the results remain historical");
+      recorded.scrollIntoView({ block: "center" });
+      assertContained(recorded);
+      assertContained(introduction);
+      const source = history.parentElement?.querySelector("a");
+      if (!source) throw new Error("Expected the historical evidence source");
+      expect(source.getAttribute("href")).toBe("https://example.com/history");
+      expect(source.textContent).toBe("Evidence source");
+      assertContained(source);
+      const historical = history.parentElement;
+      if (!historical) throw new Error("Expected the historical observation disclosure");
+      const historicalBounds = historical.getBoundingClientRect();
+      requireCompleteCaptureTarget(
+        {
+          target: "complete historical observation",
+          target_count: 1,
+          visible: historical.checkVisibility(),
+          rect: {
+            x: historicalBounds.x,
+            y: historicalBounds.y,
+            width: historicalBounds.width,
+            height: historicalBounds.height,
+          },
+          viewport: { width: innerWidth, height: innerHeight },
+        },
+        "complete historical observation",
+      );
+      await captureParityState("capabilities-complete-historical-scope");
+      history.focus();
+      await userEvent.keyboard("{Enter}");
+      expect(history.parentElement?.hasAttribute("open")).toBe(false);
+    }
+  } finally {
+    await page.viewport(previousViewport.width, previousViewport.height);
+    if (previousTheme === undefined) delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = previousTheme;
+  }
+});
+
+it.each(["dark", "light"] as const)(
+  "captures scoped first-launch and repeat Play evidence in %s at compact width",
+  async (theme) => {
+    const previousViewport = { width: innerWidth, height: innerHeight };
+    const previousTheme = document.documentElement.dataset.theme;
+    const artifact = "b".repeat(64);
+    const value = report();
+    value.advisory_state = "available";
+    value.advisories = [
+      {
+        applicability: "context-required",
+        notice: {
+          id: "synthetic-launch-stages",
+          feature: "launch",
+          platform: "windows-x86-64",
+          route: "upstream-setup",
+          release: "synthetic-v1",
+          artifact_sha256: artifact,
+          edition: null,
+          explanation:
+            "Synthetic package evidence: supply your original game files once, then reopen the same prepared copy to play.",
+          launch_behavior: {
+            first_launch: "asks-for-game-files",
+            repeat_launch: "starts-game-directly",
+          },
+          provenance: "https://example.com/launch-stages",
+          observed_at: 1,
+          evidence: "upstream-reported",
+          workaround: null,
+        },
+      },
+    ];
+    const query = vi.spyOn(desktopApi, "portCapabilities").mockResolvedValue(value);
+    const launch = vi.spyOn(desktopApi, "launch");
+    try {
+      await page.viewport(430, 780);
+      document.documentElement.dataset.theme = theme;
+      const { host, render } = await mount();
+      host.className = "detail-evidence";
+      // Match the existing compact App rail and detail content insets.
+      host.style.cssText =
+        "display:grid;grid-template-columns:minmax(0,1fr);width:calc(100% - 60px);margin-inline-start:60px;padding:20px;box-sizing:border-box";
+      await render(1);
+      await document.fonts.ready;
+      const behaviors = [...host.querySelectorAll("dl")].filter(
+        (list) => list.querySelector("dt")?.textContent === "First launch",
+      );
+      expect(behaviors).toHaveLength(1);
+      const behavior = behaviors.at(0);
+      if (!behavior?.parentElement) throw new Error("Expected one launch-behavior notice");
+      const notice = behavior.parentElement;
+      const phases = [...behavior.children];
+      expect(
+        phases.flatMap((phase) =>
+          [...phase.children].map((item) => [item.localName, item.textContent]),
+        ),
+      ).toEqual([
+        ["dt", "First launch"],
+        ["dd", "Asks for game files"],
+        ["dt", "Repeat Play"],
+        ["dd", "Starts the game directly"],
+      ]);
+      expect(phases).toHaveLength(2);
+      const [first, repeat] = phases;
+      if (!first || !repeat) throw new Error("Expected both launch phases");
+      const firstPhase = first.getBoundingClientRect();
+      const repeatPhase = repeat.getBoundingClientRect();
+      expect(repeatPhase.left - firstPhase.right).toBeGreaterThanOrEqual(12);
+      for (const phase of phases) {
+        const label = phase.querySelector("dt");
+        const value = phase.querySelector("dd");
+        if (!label || !value) throw new Error("Expected each launch phase label and value");
+        expect(
+          value.getBoundingClientRect().top - label.getBoundingClientRect().bottom,
+        ).toBeGreaterThanOrEqual(3);
+        expect(Number.parseFloat(getComputedStyle(label).fontSize)).toBeLessThan(
+          Number.parseFloat(getComputedStyle(value).fontSize),
+        );
+        expect(Number.parseFloat(getComputedStyle(value).fontWeight)).toBeGreaterThan(
+          Number.parseFloat(getComputedStyle(label).fontWeight),
+        );
+      }
+      expect(notice.textContent).toContain("Launch · upstream-reported · Exact context required");
+      expect(notice.textContent).toContain(
+        `Scope: windows-x86-64 · Upstream setup and saved downloads · release synthetic-v1 · artifact ${artifact}.`,
+      );
+      expect(notice.textContent).toContain("These details apply to the scope shown above.");
+      expect(notice.querySelector("a")?.getAttribute("href")).toBe(
+        "https://example.com/launch-stages",
+      );
+      notice.scrollIntoView({ block: "center" });
+      const bounds = notice.getBoundingClientRect();
+      requireCompleteCaptureTarget(
+        {
+          target: "first and repeat launch evidence",
+          target_count: behaviors.length,
+          visible: notice.checkVisibility(),
+          rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+          viewport: { width: innerWidth, height: innerHeight },
+        },
+        "first and repeat launch evidence",
+      );
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+      expect(host.scrollWidth).toBeLessThanOrEqual(host.clientWidth + 1);
+      const range = document.createRange();
+      range.selectNodeContents(notice);
+      for (const rect of range.getClientRects()) {
+        expect(rect.left).toBeGreaterThanOrEqual(bounds.left - 1);
+        expect(rect.right).toBeLessThanOrEqual(bounds.right + 1);
+      }
+      expect(query).toHaveBeenCalledExactlyOnceWith("sample", 1);
+      expect(launch).not.toHaveBeenCalled();
+      await captureParityState("capabilities-first-repeat-launch-evidence");
+    } finally {
+      if (previousTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = previousTheme;
+      await page.viewport(previousViewport.width, previousViewport.height);
+    }
+  },
+);

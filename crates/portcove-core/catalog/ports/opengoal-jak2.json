@@ -16,7 +16,22 @@
       "game_slug": "opengoal-jak-ii",
       "match_kind": "port"
     },
-    "issue_number": 115
+    "issue_number": 115,
+    "original_game": {
+      "format_version": 1,
+      "id": "jak-ii",
+      "evidence_urls": ["https://github.com/open-goal/jak-project"],
+      "source_editions": [
+        {
+          "id": "jak-ii-playstation-2",
+          "title": "Jak II (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/open-goal/jak-project/blob/4cd2a71fa15ae214a03925beafa59c7228ec81d3/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

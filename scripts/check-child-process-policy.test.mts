@@ -117,13 +117,13 @@ void test("reviewed extracted subprocess fixtures retain exact paths and denied 
     "crates/portcove-cli/tests/machine_contract/preparation.rs",
     "crates/portcove-cli/tests/machine_contract/self_service.rs",
     "crates/portcove-core/src/definition_publication_connected_tests.rs",
+    "crates/portcove-core/tests/fixtures/windows-tracked-handoff-probe.rs",
     "crates/portcove-diagnostics/src/writer_tests.rs",
     "crates/portcove-release-tools/tests/cli.rs",
     "crates/portcove-release-tools/tests/verification.rs",
     "crates/portcove-release-tools/tests/tuf_repository/isolated/renewal.rs",
     "crates/portcove-release-tools/tests/tuf_repository/isolated.rs",
     "crates/portcove-release-tools/tests/tuf_repository/offline.rs",
-    "apps/desktop/src-tauri/src/application_update_process_environment_tests.rs",
   ];
   for (const file of fixtures) {
     for (const name of [file, file.replaceAll("/", "\\")])
@@ -133,7 +133,7 @@ void test("reviewed extracted subprocess fixtures retain exact paths and denied 
       { path: sibling, line: 1 },
     ]);
   }
-  const production = "apps/desktop/src-tauri/src/application_update_process_environment.rs";
+  const production = "apps/desktop/src-tauri/src/application_update.rs";
   assert.deepEqual(
     findDirectChildProcessCalls([[production, "std::process::Command::new(program)"]]),
     [{ path: production, line: 1 }],

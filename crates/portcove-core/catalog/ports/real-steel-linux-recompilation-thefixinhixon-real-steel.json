@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "real-steel-linux-recompilation-thefixinhixon-real-steel",
+    "artwork": {
+      "game_id": 47447,
+      "cover_id": 157649,
+      "image_id": "co3dn5",
+      "image_sha256": "4bf0095a6f353ab9cf21f36864271b36beddecaa3666fb745dfac212322976f6",
+      "game_slug": "real-steel",
+      "match_kind": "underlying-game"
+    },
     "name": "Real Steel — Real Steel — Linux Recompilation (thefixinhixon)",
     "original_game_title": "Real Steel",
     "summary": "The project reports Linux boot, menus, robot builder and gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",

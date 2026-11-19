@@ -5,8 +5,16 @@
     "name": "Railroad Tycoon (Open Railroad Tycoon)",
     "summary": "Register a prepared Rails Windows remake of Railroad Tycoon using your own DOS assets and preserve its working-directory saves.",
     "original_game_title": "Railroad Tycoon",
+    "artwork": {
+      "game_id": 962,
+      "cover_id": 395884,
+      "image_id": "co8hgs",
+      "image_sha256": "2f8d9cb19b4120d807d9acf2c9cb937c34cdcfa79f9cd6de70ecc4ad97e43842",
+      "game_slug": "sid-meier-s-railroad-tycoon",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/bluddy/rails",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/bluddy/rails",
     "issue_number": 2787,
@@ -40,6 +48,24 @@
         {
           "title": "Preserve working-directory saves and all actual roots",
           "instruction": "The inspected source writes save slots game0.sav through game9.sav relative to the working directory, with transient .tmp files during replacement. These are the remake’s serialized saves, not proven compatible with DOS originals. Preserve the complete creating copy, all saves/temp files/settings, original data, mods, shaders, audio, logs, backups and every custom root. Original-data search can use --data-dir/RAILS_DATA_DIR, working-directory/executable data/ or %APPDATA%/Rails/data; asset search also honors RAILS_ASSETS_DIR and component directories. Do not assume all assets or originals live beside rails.exe."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "railroad-tycoon",
+      "evidence_urls": [
+        "https://github.com/bluddy/rails",
+        "https://github.com/bluddy/rails/blob/3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "railroad-tycoon-pc",
+          "title": "Railroad Tycoon (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/bluddy/rails/blob/38b7fb96e59682f1409f3f3615a626e368d530b4/README.md"
+          ]
         }
       ]
     }

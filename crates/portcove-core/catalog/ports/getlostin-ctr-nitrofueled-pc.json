@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "getlostin-ctr-nitrofueled-pc",
+    "artwork": {
+      "game_id": 113113,
+      "cover_id": 135934,
+      "image_id": "co2wvy",
+      "image_sha256": "dc3e0199d93b20f39ad8e6f7656f1efb7d0ebbb94fab91832b3ff5a3a70ce631",
+      "game_slug": "crash-team-racing-nitro-fueled",
+      "match_kind": "underlying-game"
+    },
     "name": "Crash Team Racing: Nitro-Fueled (CTR-NitroFueled-PC)",
     "summary": "Attach an independently permitted, prepared GetLostIn CTR Nitro-Fueled Windows installation. Its native settings launcher waits for the game runner; upstream owns PS4-data preparation, runtime replacement and the external save/cache roots.",
     "original_game_title": "Crash Team Racing: Nitro-Fueled",
@@ -42,6 +50,15 @@
       "warnings": [
         "Keep independent original base/update copies: upstream’s merged game view can use hard links. Quit the game normally before closing its native launcher."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-team-racing-nitro-fueled",
+      "evidence_urls": [
+        "https://github.com/GetLostIn/CTR-NitroFueled-PC/blob/0cf8def7f676192de4f37a26e08a92ea0cd4674a/README.md",
+        "https://github.com/GetLostIn/CTR-NitroFueled-PC"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

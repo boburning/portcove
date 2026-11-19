@@ -1,0 +1,86 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-settlers-freeserf",
+    "artwork": {
+      "game_id": 124693,
+      "cover_id": 227126,
+      "image_id": "co4v92",
+      "image_sha256": "2a9ba0a6c3e5becfa3315f164e4ac001cde02c41604e4d576cbe3624aa5a010f",
+      "game_slug": "serf-city-life-is-feudal",
+      "match_kind": "underlying-game"
+    },
+    "project_url": "https://github.com/freeserf/freeserf",
+    "name": "The Settlers / FreeSerf",
+    "original_game_title": "The Settlers",
+    "summary": "Build a settlement in FreeSerf using your own DOS or Amiga game data.",
+    "issue_number": 6122,
+    "listed_at": "2026-11-14",
+    "platforms": ["windows-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/freeserf/freeserf/blob/v0.5/README.md#play",
+    "release_url": "https://github.com/freeserf/freeserf/releases/tag/v0.5",
+    "download_asset_hints": {
+      "windows-x86-64": ["FreeSerf-x64-Release.exe"],
+      "macos-aarch64": ["FreeSerf.dmg"]
+    },
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "help_url": "https://github.com/freeserf/freeserf/blob/v0.5/README.md",
+      "steps": [
+        {
+          "title": "Choose data from your original game",
+          "instruction": "Use your original DOS data file SPAE.PA, SPAD.PA, SPAF.PA or SPAU.PA, or the six original Amiga files listed in the upstream guide. Copy them to ~/.local/share/freeserf on Linux or Mac, or to the freeserf folder under %LOCALAPPDATA% on Windows, and keep your originals separate. When launching from a terminal, -g takes the directory containing your data."
+        },
+        {
+          "title": "Install the Windows or Mac release",
+          "instruction": "On Windows x64, use the Release installer. On Apple Silicon with macOS 26 or later, copy FreeSerf.app from the DMG. Set up your original data before opening the player."
+        },
+        {
+          "title": "Keep your saves and settings",
+          "instruction": "FreeSerf keeps saves, including Ctrl+Z quicksaves and the optional autosave, in freeserf/saves under XDG_DATA_HOME on Linux, or in ~/freeserf/saves when XDG_DATA_HOME is unset. On Windows it uses the freeserf folder in your Saved Games folder, and on Mac Library/Application Support/freeserf/saves. Settings are in freeserf.ini: in ~/.local/share/freeserf or under XDG_DATA_HOME on Linux, in %APPDATA%\\freeserf on Windows, and in Library/Application Support/freeserf on Mac. These stay in place when the player is replaced. Use -l with a saved game file to reopen it."
+        }
+      ],
+      "warnings": [
+        "The v0.5 Mac DMG requires Apple Silicon. The publisher does not provide an Intel Mac or Android package in this release."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-settlers",
+      "evidence_urls": [
+        "https://github.com/freeserf/freeserf/blob/v0.5/README.md",
+        "https://github.com/freeserf/freeserf"
+      ],
+      "source_editions": []
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["linux-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "freeserf/freeserf",
+      "asset_hints": {
+        "linux-x86-64": ["FreeSerf-", "-Linux.tar.gz"]
+      }
+    },
+    "executable_hints": {
+      "linux-x86-64": ["FreeSerf"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Before first Play, copy your original DOS data file (SPAE.PA, SPAD.PA, SPAF.PA or SPAU.PA) or the six original Amiga files to ~/.local/share/freeserf, or to freeserf under XDG_DATA_HOME, not into Portcove's install folder, and keep your originals separate. Without them FreeSerf shows Could not find the game data. The package is the GPL-3 engine with a GPL-2 SoundFont and contains no game data. The Linux x86-64 player needs glibc 2.38 and a matching C++ runtime, for example Ubuntu 24.04 or later. FreeSerf keeps saves, including Ctrl+Z quicksaves and the optional autosave, in freeserf/saves under XDG_DATA_HOME or, when that is unset, in ~/freeserf/saves. Settings are in freeserf.ini in ~/.local/share/freeserf or under XDG_DATA_HOME. Those stay outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Portcove replaces the engine; you own the original data, saves and settings."
+    },
+    "reviewed_package_layouts": {
+      "linux-x86-64": {
+        "directories": ["resources"],
+        "executables": ["freeserf"]
+      }
+    }
+  }
+}

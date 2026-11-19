@@ -91,7 +91,7 @@ it.each(["dark", "light"])(
     await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
     expect(document.activeElement).toBe(domToggle);
     expect(saved.get(1)?.has("absent-port")).toBe(true);
-    await userEvent.click(page.getByRole("button", { name: "Favorites 1", exact: true }));
+    await userEvent.click(page.getByRole("button", { name: "Favorites 1 game", exact: true }));
     await expect
       .element(page.getByRole("button", { name: "Favorite Two independent port", exact: true }))
       .not.toBeInTheDocument();
@@ -114,13 +114,16 @@ it.each(["dark", "light"])(
       )
       .not.toBeInTheDocument();
     await expect
-      .element(page.getByRole("button", { name: "Favorites 1", exact: true }))
+      .element(page.getByRole("button", { name: "Favorites 1 game", exact: true }))
       .toHaveAttribute("aria-pressed", "true");
     const details = page.getByRole("button").filter({
       has: page.getByRole("heading", { name: "One independent port", exact: true }),
     });
     await expect.element(details).toHaveAccessibleName(/^One independent port/);
-    await expect.element(details).toHaveAccessibleDescription(/Can't check setup right now/);
+    // Unknown setup stays named as unknown on both the details action and its card.
+    await expect
+      .element(details)
+      .toHaveAccessibleDescription(/Managed setup: Can't check setup right now/);
     await expect
       .element(details.element().closest("article")!)
       .toHaveAccessibleName(/^One independent port.*Can't check right now/);
@@ -130,8 +133,7 @@ it.each(["dark", "light"])(
       .element(page.getByRole("button", { name: "Favorite One independent port", exact: true }))
       .toHaveAttribute("aria-pressed", "true");
     await userEvent.click(page.getByRole("button", { name: "Switch browsing view", exact: true }));
-    await page.getByRole("button", { name: "More actions for One independent port" }).click();
-    await page.getByRole("menuitem", { name: "Remove from favorites", exact: true }).click();
+    await toggle.click();
     await expect
       .poll(() => document.activeElement?.hasAttribute("data-favorites-filter"))
       .toBe(true);
@@ -145,20 +147,16 @@ it.each(["dark", "light"])(
       )
       .toBeVisible();
     flushSync(() => root.render(<Fixture renamed />));
-    await page.getByRole("button", { name: "More actions for Corrected independent name" }).click();
-    await page.getByRole("menuitem", { name: "Add to favorites", exact: true }).click();
+    const renamed = page.getByRole("button", {
+      name: "Favorite Corrected independent name",
+      exact: true,
+    });
+    await renamed.click();
     await expect.poll(() => saved.get(1)?.has("one-port")).toBe(true);
     flushSync(() => root.render(<Fixture generation={2} />));
-    await page.getByRole("button", { name: "More actions for One independent port" }).click();
-    await expect
-      .element(page.getByRole("menuitem", { name: "Add to favorites", exact: true }))
-      .toBeVisible();
-    await userEvent.keyboard("{Escape}");
+    await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
     flushSync(() => root.render(<Fixture generation={1} renamed />));
-    await page.getByRole("button", { name: "More actions for Corrected independent name" }).click();
-    await expect
-      .element(page.getByRole("menuitem", { name: "Remove from favorites", exact: true }))
-      .toBeVisible();
+    await expect.element(renamed).toHaveAttribute("aria-pressed", "true");
   },
 );
 

@@ -149,6 +149,10 @@ async function controllerObservation(probeSource: string) {
               control.getClientRects();
               control.getBoundingClientRect();
             }
+            // The focus reveal's sub-pixel containment measures the revealed control
+            // and its scroller (focus.ts containWithinScroller): one extra read each.
+            dialog.children[0]?.getBoundingClientRect();
+            dialog.getBoundingClientRect();
             // Shell focus/reflow work remains in the global profile and gets its
             // own attribution; it must not turn 1000 controls into 1003 controls.
             for (let index = 0; index < 3; index++) outside.getBoundingClientRect();
@@ -203,12 +207,12 @@ void test("native remainder controller attributes unrelated layout reads and res
   assert.ok(Array.isArray(report.samples));
   const direction: unknown = report.samples[3];
   assert.ok(isRecord(direction));
-  assert.equal(direction.getBoundingClientRect, 1003);
+  assert.equal(direction.getBoundingClientRect, 1005);
   assert.deepEqual(direction.fixture_controls, {
     getClientRects: 1000,
-    getBoundingClientRect: 1000,
+    getBoundingClientRect: 1001,
   });
-  assert.deepEqual(direction.fixture_container, { getClientRects: 1, getBoundingClientRect: 0 });
+  assert.deepEqual(direction.fixture_container, { getClientRects: 1, getBoundingClientRect: 1 });
   assert.deepEqual(direction.outside_fixture, { getClientRects: 0, getBoundingClientRect: 3 });
 });
 
@@ -248,9 +252,9 @@ void test("native remainder controller retains exact control count and rejects u
       assert.deepEqual(navigation,[context.browser]);
       const damaged=structuredClone(original),direction=damaged.samples[3];
       direction.fixture_controls.getBoundingClientRect=1003;
-      direction.getBoundingClientRect=1006;profile=damaged;
-      await assert.rejects(()=>controllerScenario(context),/1003 !== 1000/);
-      direction.fixture_controls.getBoundingClientRect=1000;
+      direction.getBoundingClientRect=1007;profile=damaged;
+      await assert.rejects(()=>controllerScenario(context),/1003 !== 1001/);
+      direction.fixture_controls.getBoundingClientRect=1001;
       await assert.rejects(()=>controllerScenario(context),/Every layout read must retain its receiver attribution/);
       assert.deepEqual(navigation,[context.browser,context.browser,context.browser]);
       assert.deepEqual(context.artifacts,Array.from({length:3},()=>[

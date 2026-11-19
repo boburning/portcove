@@ -6,10 +6,14 @@ const DECLARED_MANAGED_ROUTE_TEST_IDS: &[&str] = &[
     "dune-ii-dune-dynasty",
     "elasota-aerofoil",
     "heroes-of-might-and-magic-ii-fheroes2",
+    "monster-hunter-portable-3rd-hd-yakumo",
+    "n64hub-rayman-2-recomp-n64-usa",
+    "n64hub-super-smash-bros-n64-usa-recomp",
     "nhl-94-genesis-ninety-four",
     "quake-ironwail",
     "quake-vkquake",
     "rustmania-racing-ray-m-w-muppet-racemania",
+    "snprecomp-wootbeer-sin-and-punishment",
     "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
     "troyedwardsjr-z2rs",
 ];
@@ -40,6 +44,21 @@ async fn managed_native_declared_heroes_of_might_and_magic_ii_fheroes2() {
 }
 
 #[tokio::test]
+async fn managed_native_declared_monster_hunter_portable_3rd_hd_yakumo() {
+    assert_declarative_managed_native_route("monster-hunter-portable-3rd-hd-yakumo").await;
+}
+
+#[tokio::test]
+async fn managed_native_declared_n64hub_rayman_2_recomp_n64_usa() {
+    assert_declarative_managed_native_route("n64hub-rayman-2-recomp-n64-usa").await;
+}
+
+#[tokio::test]
+async fn managed_native_declared_n64hub_super_smash_bros_n64_usa_recomp() {
+    assert_declarative_managed_native_route("n64hub-super-smash-bros-n64-usa-recomp").await;
+}
+
+#[tokio::test]
 async fn managed_native_declared_nhl_94_genesis_ninety_four() {
     assert_declarative_managed_native_route("nhl-94-genesis-ninety-four").await;
 }
@@ -57,6 +76,11 @@ async fn managed_native_declared_quake_vkquake() {
 #[tokio::test]
 async fn managed_native_declared_rustmania_racing_ray_m_w_muppet_racemania() {
     assert_declarative_managed_native_route("rustmania-racing-ray-m-w-muppet-racemania").await;
+}
+
+#[tokio::test]
+async fn managed_native_declared_snprecomp_wootbeer_sin_and_punishment() {
+    assert_declarative_managed_native_route("snprecomp-wootbeer-sin-and-punishment").await;
 }
 
 #[tokio::test]

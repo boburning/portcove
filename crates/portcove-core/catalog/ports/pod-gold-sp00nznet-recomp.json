@@ -1,0 +1,55 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pod-gold-sp00nznet-recomp",
+    "artwork": {
+      "game_id": 124943,
+      "cover_id": 84178,
+      "image_id": "co1sya",
+      "image_sha256": "92421e3938af0cb5afd9951b66bf3f6b6b267faefa939b26e1a5a0508ac75823",
+      "game_slug": "pod-gold",
+      "match_kind": "underlying-game"
+    },
+    "project_url": "https://github.com/sp00nznet/pod-recomp",
+    "name": "POD Gold / POD Gold Recomp",
+    "original_game_title": "POD Gold",
+    "summary": "Use the upstream Windows setup to build a player from your own POD Gold disc.",
+    "issue_number": 6091,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/sp00nznet/pod-recomp/releases/tag/v0.1.0",
+    "setup_url": "https://github.com/sp00nznet/pod-recomp/blob/v0.1.0/README.md#quick-start",
+    "download_block_reason": "Use the publisher’s setup outside Portcove. It can install build tools and compiles your owned POD Gold files.",
+    "manual_setup": {
+      "help_url": "https://github.com/sp00nznet/pod-recomp/blob/v0.1.0/README.md#quick-start",
+      "steps": [
+        {
+          "title": "Prepare your owned POD Gold copy",
+          "instruction": "On Windows 10 or 11 x64, supply your POD Gold CD, a complete working copy of its files containing PODMMX.EXE and DATA, or your POD2_0.BIN image with its CUE. The upstream setup can also read an ISO of the supported disc. Retain the originals."
+        },
+        {
+          "title": "Build outside Portcove",
+          "instruction": "Use the upstream installer or tagged Setup.cmd and complete its build first. The installer is a setup program and can install Python, CMake, Ninja, and Visual Studio 2022 Build Tools. Review prerequisite installation in the upstream setup. This produces build/pod.exe in the preparation folder."
+        },
+        {
+          "title": "Register the completed player",
+          "instruction": "Select build/pod.exe with the preparation folder containing build and game as its working directory. Add --run as a separate argument and choose Play. POD Gold (recomp).cmd is the upstream shortcut and starts another process."
+        }
+      ],
+      "warnings": [
+        "Keep a separate backup of the whole game working folder, including game/UbiSoft/Ubi.ini, before rebuilding. The active working copy and generated player belong to your upstream setup.",
+        "The setup application is x64. Its generated game player is Win32 and runs on compatible Windows x64. This release has no native Linux, Mac, or Android setup path."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pod-gold",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/pod-recomp/blob/v0.1.0/README.md#quick-start",
+        "https://github.com/sp00nznet/pod-recomp"
+      ],
+      "source_editions": []
+    }
+  }
+}

@@ -277,7 +277,7 @@ internal static class ContractTests
             .Cast<string>().Concat(new[] { "artwork.handoff", "artwork.handoff-bytes" }).ToArray();
         ProtocolStream.Negotiate(artworkAdditive, ConsumerCapability.Library);
         Check(true, "existing library reader accepts optional artwork handoff without consuming it");
-        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88 })
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             supported["schema_version"] = publicSchema;
@@ -285,7 +285,7 @@ internal static class ContractTests
             ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
             Check(true, "public schema " + publicSchema + " negotiated");
         }
-        foreach (var publicSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88 })
+        foreach (var publicSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100 })
         {
             var relink = Json.Object(Json.Parse(Json.Print(Capabilities())));
             relink["schema_version"] = publicSchema;
@@ -335,6 +335,72 @@ internal static class ContractTests
         stream88.Line(Json.Print(result88));
         Check(Json.Array(stream88.Finish(0)).Length == 0,
             "schema 88 retains status semantics; this client does not consume downloaded-setup identities");
+        var result89 = Json.Object(Json.Parse(Result("status", new object[0])));
+        result89["schema_version"] = 89;
+        var stream89 = new ProtocolStream("status");
+        stream89.Line(Json.Print(result89));
+        Check(Json.Array(stream89.Finish(0)).Length == 0,
+            "schema 89 adds artwork provider attribution without changing status semantics");
+        var result90 = Json.Object(Json.Parse(Result("status", new object[0])));
+        result90["schema_version"] = 90;
+        var stream90 = new ProtocolStream("status");
+        stream90.Line(Json.Print(result90));
+        Check(Json.Array(stream90.Finish(0)).Length == 0,
+            "schema 90 adds the landscape artwork slot without changing status semantics");
+        var result91 = Json.Object(Json.Parse(Result("status", new object[0])));
+        result91["schema_version"] = 91;
+        var stream91 = new ProtocolStream("status");
+        stream91.Line(Json.Print(result91));
+        Check(Json.Array(stream91.Finish(0)).Length == 0,
+            "schema 91 adds the report-only SteamGridDB listing check without changing status semantics");
+        var result92 = Json.Object(Json.Parse(Result("status", new object[0])));
+        result92["schema_version"] = 92;
+        var stream92 = new ProtocolStream("status");
+        stream92.Line(Json.Print(result92));
+        Check(Json.Array(stream92.Finish(0)).Length == 0,
+            "schema 92 records SteamGridDB listing evidence without changing status semantics");
+        var result93 = Json.Object(Json.Parse(Result("status", new object[0])));
+        result93["schema_version"] = 93;
+        var stream93 = new ProtocolStream("status");
+        stream93.Line(Json.Print(result93));
+        Check(Json.Array(stream93.Finish(0)).Length == 0,
+            "schema 93 removes withdrawn SteamGridDB copies without changing status semantics");
+        var result94 = Json.Object(Json.Parse(Result("status", new object[0])));
+        result94["schema_version"] = 94;
+        var stream94 = new ProtocolStream("status");
+        stream94.Line(Json.Print(result94));
+        Check(Json.Array(stream94.Finish(0)).Length == 0,
+            "schema 94 preserves the status contract while adding local mod package review");
+        var result95 = Json.Object(Json.Parse(Result("status", new object[0])));
+        result95["schema_version"] = 95;
+        var stream95 = new ProtocolStream("status");
+        stream95.Line(Json.Print(result95));
+        Check(Json.Array(stream95.Finish(0)).Length == 0,
+            "schema 95 retains status semantics with reviewed Thunderstore dependency wrappers");
+        var result96 = Json.Object(Json.Parse(Result("status", new object[0])));
+        result96["schema_version"] = 96;
+        var stream96 = new ProtocolStream("status");
+        stream96.Line(Json.Print(result96));
+        Check(Json.Array(stream96.Finish(0)).Length == 0,
+            "schema 96 adds exact original-file selection while retaining status semantics");
+        var result97 = Json.Object(Json.Parse(Result("status", new object[0])));
+        result97["schema_version"] = 97;
+        var stream97 = new ProtocolStream("status");
+        stream97.Line(Json.Print(result97));
+        Check(Json.Array(stream97.Finish(0)).Length == 0,
+            "schema 97 retains status semantics with optional setup recovery and progress copying");
+        var result98 = Json.Object(Json.Parse(Result("status", new object[0])));
+        result98["schema_version"] = 98;
+        var stream98 = new ProtocolStream("status");
+        stream98.Line(Json.Print(result98));
+        Check(Json.Array(stream98.Finish(0)).Length == 0,
+            "schema 98 retains status semantics when Core adds reviewed mod-file preservation");
+        var result100 = Json.Object(Json.Parse(Result("status", new object[0])));
+        result100["schema_version"] = 100;
+        var stream100 = new ProtocolStream("status");
+        stream100.Line(Json.Print(result100));
+        Check(Json.Array(stream100.Finish(0)).Length == 0,
+            "schema 100 preserves the status contract while extending exact recipe import");
         var descriptive88 = Json.Object(Json.Parse(Json.Print(Capabilities())));
         descriptive88["schema_version"] = 88;
         descriptive88["port_capability_schema"] = 1;
@@ -361,15 +427,40 @@ internal static class ContractTests
             "API83 is not an operation-event version");
         ProtocolStream.Negotiate(independent83, ConsumerCapability.Library);
         Check(true, "API83 library reader does not require an unused event channel or comparison command");
-        foreach (var privateSchema in new[] { 58, 59, 64, 89 })
+        const string expectedRanges = "42 through 57 or 60 through 63 or 65 through 100";
+        foreach (var boundarySchema in new[] { 57, 58, 59, 60, 63, 64, 65, 100, 101 })
         {
-            var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
-            unsupported["schema_version"] = privateSchema;
-            Reject(() => ProtocolStream.Negotiate(unsupported), "private or future schema " + privateSchema + " rejected");
-            var unsupportedResult = Json.Object(Json.Parse(Result("status", new object[0])));
-            unsupportedResult["schema_version"] = privateSchema;
-            Reject(() => new ProtocolStream("status").Line(Json.Print(unsupportedResult)),
-                "actual result reader refuses private or future schema " + privateSchema);
+            var capabilities = Json.Object(Json.Parse(Json.Print(Capabilities())));
+            capabilities["schema_version"] = boundarySchema;
+            var result = Json.Object(Json.Parse(Result("status", new object[0])));
+            result["schema_version"] = boundarySchema;
+            var boundaryReader = new ProtocolStream("status");
+            if (new[] { 58, 59, 64, 101 }.Contains(boundarySchema))
+            {
+                foreach (Action request in new Action[]
+                {
+                    () => ProtocolStream.Negotiate(capabilities, ConsumerCapability.Library),
+                    () => boundaryReader.Line(Json.Print(result))
+                })
+                {
+                    try
+                    {
+                        request();
+                    }
+                    catch (InvalidOperationException error)
+                    {
+                        Check(error.Message.Contains(expectedRanges), "schema guidance matches compatibility for " + boundarySchema);
+                        continue;
+                    }
+                    throw new Exception("Accepted unsupported schema " + boundarySchema);
+                }
+            }
+            else
+            {
+                ProtocolStream.Negotiate(capabilities, ConsumerCapability.Library);
+                boundaryReader.Line(Json.Print(result));
+                Check(Json.Array(boundaryReader.Finish(0)).Length == 0, "both readers accept schema " + boundarySchema);
+            }
         }
         var contradictoryLegacyEvent = Json.Object(Json.Parse(Json.Print(Capabilities())));
         contradictoryLegacyEvent["operation_event_schema_version"] = 3;
@@ -558,7 +649,7 @@ internal static class ContractTests
         bad["schema_version"] = 80;
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "explicit user-selected execution keeps launch decisions in Core");
-        bad["schema_version"] = 89;
+        bad["schema_version"] = 101;
         Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond the supported execution contract rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
@@ -653,12 +744,12 @@ internal static class ContractTests
         {
             var real = new PublicCli(args[0], args[1]); await real.Connect();
             var capabilities = await real.Read("capabilities", "capabilities");
-            Check(real.ApiSchemaVersion == 88 && Json.Array(Json.Field(capabilities, "engine_templates"))
+            Check(real.ApiSchemaVersion == 100 && Json.Array(Json.Field(capabilities, "engine_templates"))
                 .Any(template => Json.Text(template, "template") == "staged-source-portable"
                     && Json.Number(template, "contract_version") == 18),
-                "compiled API88 producer advertises the prepared directory contract through the actual client");
+                "compiled API100 producer advertises the prepared directory contract through the actual client");
             Check(ProtocolStream.Negotiate(capabilities, ConsumerCapability.Library, ConsumerCapability.Lifecycle) == 3,
-                "compiled API88 capability readback independently negotiates operation-event schema3");
+                "compiled API100 capability readback independently negotiates operation-event schema3");
             var statuses = Json.Array(await real.Read("status", "status"));
             var catalog = Json.Array(await real.Read("catalog.list", "catalog", "list"));
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
@@ -788,6 +879,15 @@ internal static class ContractTests
         value["managed_paths"] = new object[] { @"C:\Portcove\versions\first", @"C:\Portcove\versions\second" };
         value["preview_sha256"] = "unbound";
         Reject(() => ManagedRemovalReview.Read(value, "shape-a"), "unbound removal fingerprint rejected");
+        value["preview_sha256"] = new string('a', 64);
+        Check(!review.Confirmation("Shape A", @"C:\Portcove").Contains("didn't install"),
+            "managed removal without unrecognized files names none");
+        value["unknown_file_count"] = 2;
+        Check(ManagedRemovalReview.Read(value, "shape-a").Confirmation("Shape A", @"C:\Portcove")
+            .Contains("Files Portcove didn't install: 2."), "managed removal names unrecognized files before consent");
+        value["unknown_file_count"] = -1;
+        Reject(() => ManagedRemovalReview.Read(value, "shape-a"), "negative unrecognized-file count rejected");
+        value.Remove("unknown_file_count");
 
         var capabilities = Json.Object(Json.Parse(Json.Print(Capabilities())));
         capabilities["schema_version"] = 56;
@@ -918,12 +1018,12 @@ internal static class ContractTests
         capabilities["schema_version"] = 73;
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "shared-directory schema preserves reviewed external flow");
         capabilities["commands"] = new[] { "external", "external.review", "external.relink" };
-        foreach (var supportedRelinkSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88 })
+        foreach (var supportedRelinkSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100 })
         {
             capabilities["schema_version"] = supportedRelinkSchema;
             Check(ProtocolStream.SupportsExternalRelink(capabilities), "known relink schema preserves reviewed folder change");
         }
-        foreach (var unsupportedRelinkSchema in new[] { 71, 89 })
+        foreach (var unsupportedRelinkSchema in new[] { 71, 101 })
         {
             capabilities["schema_version"] = unsupportedRelinkSchema;
             Check(!ProtocolStream.SupportsExternalRelink(capabilities), "older and unknown relink schemas are refused");
@@ -963,7 +1063,7 @@ internal static class ContractTests
         biosReadiness["blockers"] = new object[0];
         Reject(() => PortActions.ValidateStatus(biosStatus, 69), "legacy recovery schema independently rejects the new BIOS action reason");
         Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 rejects the new BIOS action reason even without new readiness fields");
-        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 89 })
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 101 })
         {
             capabilities["schema_version"] = unsupported;
             Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);

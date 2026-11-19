@@ -307,6 +307,7 @@ impl Fixture {
             channel: ReleaseChannel::Rolling,
             published_at: None,
             asset: asset("game.zip", &game),
+            uploader_continuity: None,
         };
         let server = Archives::new(BTreeMap::from([
             ("game.zip".into(), game),

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "outrun-online-arcade-pc-recompilation-sp00nznet-outrun-online-arcade",
+    "artwork": {
+      "game_id": 21204,
+      "cover_id": 352378,
+      "image_id": "co7jwa",
+      "image_sha256": "c9d0ec6eabc78a904fbd0bba158c2afe610ae46cbab6deb1404e8adb4138c3ab",
+      "game_slug": "outrun-online-arcade",
+      "match_kind": "underlying-game"
+    },
     "name": "OutRun Online Arcade — OutRun Online Arcade — PC Recompilation (sp00nznet)",
     "original_game_title": "OutRun Online Arcade",
     "summary": "The build links, but crashes during guest global initialization before rendering or gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/sp00nznet/outrun"
     },
-    "issue_number": 3299
+    "issue_number": 3299,
+    "original_game": {
+      "format_version": 1,
+      "id": "outrun-online-arcade",
+      "evidence_urls": ["https://github.com/sp00nznet/outrun"],
+      "source_editions": [
+        {
+          "id": "outrun-online-arcade-xbox-360",
+          "title": "OutRun Online Arcade (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/outrun/blob/286656e8d6c1d97930d59359bf26f24036fd9d8e/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

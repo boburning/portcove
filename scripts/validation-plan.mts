@@ -307,6 +307,8 @@ const protectedPolicyFiles = withNodeTestCompanions([
 // is separate. A reviewed test path does not grant ownership to its implementation.
 // New or renamed harness files stay unknown until their ownership is reviewed.
 const nativeScenarioFiles = new Set([
+  "apps/desktop/scripts/desktop-collection-artwork-test.mts",
+  "apps/desktop/scripts/desktop-collection-artwork.test.mts",
   "apps/desktop/scripts/desktop-source-reuse-test.mts",
   "apps/desktop/scripts/desktop-runtime-exit-observation.mts",
   "apps/desktop/scripts/desktop-artwork-observations.mts",
@@ -532,6 +534,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/fixtures/release-metadata-canonical.json",
   "scripts/fixtures/release-metadata-fixture.mts",
   "scripts/release-semantic-review.mts",
+  "scripts/release-semantic-review-evidence.mts",
   "scripts/release-semantic-inputs.mts",
   "scripts/release-semantic-proposal.mts",
   "scripts/release-review-request.mts",
@@ -692,6 +695,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/roadmap-readiness.mts",
   "scripts/runtime-values.mts",
   "scripts/release-coordinator.mts",
+  "scripts/release-opportunity.mts",
   "scripts/release-coordinator-state.mts",
   "scripts/release-coordinator-remote.mts",
   "scripts/release-checkpoint-job-identity.mts",
@@ -782,7 +786,7 @@ function classifyPath(file: string): PathOwnership {
     file.startsWith("release-metadata/") ||
     releaseSecurityFiles.has(file) ||
     file.startsWith("crates/portcove-release-tools/") ||
-    file.startsWith("apps/desktop/src-tauri/src/application_update_");
+    file.startsWith("apps/desktop/src-tauri/src/application_update");
   // Documentation captures are not consumed by the catalog or application.
   // Keep their documentation checks without interpreting a pictured topic as
   // executable catalog/source authority. Other formats and locations retain
@@ -1013,7 +1017,7 @@ function classifyAuditPath(file: string): PathOwnership {
     file.startsWith("release-metadata/") ||
     releaseSecurityFiles.has(file) ||
     file.startsWith("crates/portcove-release-tools/") ||
-    file.startsWith("apps/desktop/src-tauri/src/application_update_");
+    file.startsWith("apps/desktop/src-tauri/src/application_update");
   // Documentation captures are not consumed by the catalog or application.
   // Keep their documentation checks without interpreting a pictured topic as
   // executable catalog/source authority. Other formats and locations retain

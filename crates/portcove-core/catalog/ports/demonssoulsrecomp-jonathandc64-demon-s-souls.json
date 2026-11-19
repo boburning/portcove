@@ -4,12 +4,20 @@
     "id": "demonssoulsrecomp-jonathandc64-demon-s-souls",
     "name": "Demon's Souls — DemonsSoulsRecomp (JonathanDC64)",
     "original_game_title": "Demon's Souls",
+    "artwork": {
+      "game_id": 5619,
+      "cover_id": 103412,
+      "image_id": "co27sk",
+      "image_sha256": "65f71553ad5995532f8dbf93e6b10058f1b05372335ddf0cae4e44f69011bb0b",
+      "game_slug": "demon-s-souls",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reports early play of Boletarian Palace 1-1. Original files and setup are described below. Portcove has not verified setup or gameplay.",
-    "project_url": "https://github.com/JonathanDC64/DemonsSoulsRecomp",
+    "project_url": "https://github.com/JonathanDC64/Soulbrandt",
     "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/JonathanDC64/DemonsSoulsRecomp",
+    "setup_url": "https://github.com/JonathanDC64/Soulbrandt",
     "manual_setup": {
       "steps": [
         {
@@ -25,9 +33,28 @@
         "The project reports early play of Boletarian Palace 1-1.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/JonathanDC64/DemonsSoulsRecomp"
+      "help_url": "https://github.com/JonathanDC64/Soulbrandt"
     },
-    "issue_number": 3321
+    "issue_number": 3321,
+    "original_game": {
+      "format_version": 1,
+      "id": "demon-s-souls",
+      "evidence_urls": [
+        "https://github.com/JonathanDC64/Soulbrandt",
+        "https://api.github.com/repositories/1284347398",
+        "https://api.github.com/repos/JonathanDC64/DemonsSoulsRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "demon-s-souls-playstation-3",
+          "title": "Demon's Souls (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/JonathanDC64/Soulbrandt/blob/a3d260f4757d1af3906f4682654a44fdd3b937ba/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -39,6 +66,43 @@
         "id": "1284347398"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/JonathanDC64/DemonsSoulsRecomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1284347398"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/JonathanDC64/Soulbrandt",
+          "repository": {
+            "host": "github.com",
+            "id": "1284347398"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The owner JonathanDC64 renamed the repository it listed; the same repository answers at JonathanDC64/Soulbrandt. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1284347398",
+            "note": "Repository ID 1284347398, recorded when this port was listed, resolves to JonathanDC64/Soulbrandt."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/JonathanDC64/DemonsSoulsRecomp",
+            "note": "The listed path resolves to JonathanDC64/Soulbrandt, repository ID 1284347398."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "6605748d0d06ded36967ec9cc17c217b827afff177073e0ee2e3781eaccc0a64"
+        }
+      }
+    ]
   }
 }

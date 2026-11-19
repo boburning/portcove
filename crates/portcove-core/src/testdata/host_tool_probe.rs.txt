@@ -125,6 +125,12 @@ fn main() {
             println!("chdman verify extractdvd");
             std::process::exit(1);
         }
+        Some("--help") if env::current_exe().ok()
+            .and_then(|path| path.file_stem().map(|name| name == "portcove-dolphin-help-fixture"))
+            == Some(true) => {
+            eprintln!("usage: dolphin-tool COMMAND -h\n\ncommands supported: [convert, verify, header, extract]");
+            std::process::exit(1);
+        }
         Some("--success") => println!("testtool verify convert"),
         Some("--nonzero") => std::process::exit(7),
         Some("--sleep") => {
@@ -162,6 +168,15 @@ fn main() {
                 thread::sleep(Duration::from_secs(2));
             }
         }
+        Some("--managed-builder-handle-burst") => {
+            let executable = env::current_exe().unwrap();
+            for _ in 0..520 {
+                assert!(Command::new(&executable)
+                    .arg("--managed-builder-handle-child")
+                    .status().unwrap().success());
+            }
+        }
+        Some("--managed-builder-handle-child") => {}
         Some("--closure-fanout") => {
             // Fixed first-party process workload; no shell, game or network.
             fs::write("closure-root-pid", std::process::id().to_string()).unwrap();
@@ -529,7 +544,7 @@ fn owned_preparation(args: &[String]) {
         let positions = args.iter().enumerate().filter(|(_, arg)| *arg == "--owned-fixture-mode").map(|(index, _)| index).collect::<Vec<_>>();
         assert_eq!(positions.len(), 1, "duplicate owned fixture mode");
         let mode = args.get(positions[0] + 1).expect("missing owned fixture mode");
-        assert!(["success", "missing-marker", "unowned-output", "save-change", "executable-change", "failure", "wait"].contains(&mode.as_str()), "unknown owned fixture mode");
+        assert!(["success", "missing-marker", "unowned-output", "save-change", "executable-change", "failure", "wait", "hold"].contains(&mode.as_str()), "unknown owned fixture mode");
         mode.clone()
     } else {
         let Ok(mode) = fs::read_to_string("owned-setup-mode") else {
@@ -559,6 +574,12 @@ fn owned_preparation(args: &[String]) {
         "wait" => {
             fs::write("data/out/setup-ready", b"ready").unwrap();
             std::thread::sleep(Duration::from_secs(30));
+        }
+        // Held for a scenario that cancels after slower native steps; a cancellation
+        // stops it long before it would finish.
+        "hold" => {
+            fs::write("data/out/setup-ready", b"ready").unwrap();
+            std::thread::sleep(Duration::from_secs(180));
         }
         _ => panic!("unknown owned fixture mode"),
     }

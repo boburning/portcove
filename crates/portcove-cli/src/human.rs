@@ -417,7 +417,11 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
-        format!("Upstream state: {}", upstream_status(port.upstream_status)),
+        format!(
+            "Upstream state: {}",
+            port.declared_upstream_status()
+                .map_or("unrecorded", upstream_status)
+        ),
     ];
     if let Some(profile_id) = port.source_profile.as_deref() {
         lines.push(format!("Game-file profile ID: {}", clean(profile_id)));
@@ -580,7 +584,14 @@ fn backup_history(port_id: &str, inventory: &BackupInventory) -> String {
             vec![
                 backup.id.clone(),
                 utc_time(backup.created_at),
-                backup.file_count.to_string(),
+                if backup.unknown_file_count > 0 {
+                    format!(
+                        "{} (+{} unrecognized)",
+                        backup.file_count, backup.unknown_file_count
+                    )
+                } else {
+                    backup.file_count.to_string()
+                },
                 format_bytes(backup.size),
                 backup_kind(backup),
                 backup.path.display().to_string(),
@@ -1020,6 +1031,24 @@ pub(crate) fn port_intent(intent: &portcove_core::PortIntent) -> String {
     text
 }
 
+pub(crate) fn mod_update_outcome(outcome: &portcove_core::ProviderAutoUpdateOutcome) -> String {
+    match outcome {
+        portcove_core::ProviderAutoUpdateOutcome::Applied { file_id, .. } => format!(
+            "updated to provider file {}; the earlier version stays recoverable",
+            clean(file_id)
+        ),
+        portcove_core::ProviderAutoUpdateOutcome::Held { reason } => {
+            format!("a mod update waits for your review - {}", clean(reason))
+        }
+        portcove_core::ProviderAutoUpdateOutcome::Deferred { reason } => {
+            format!("a mod update will be tried again later - {}", clean(reason))
+        }
+        portcove_core::ProviderAutoUpdateOutcome::Unavailable { reason } => {
+            format!("couldn't check for mod updates - {}", clean(reason))
+        }
+    }
+}
+
 fn port_readiness_line(assessment: &portcove_core::PortIntentAssessment) -> String {
     use portcove_core::PortReadiness;
     let state = match &assessment.readiness {
@@ -1083,16 +1112,26 @@ fn port_readiness_line(assessment: &portcove_core::PortIntentAssessment) -> Stri
     line
 }
 
+pub(crate) fn ready_notices(enabled: bool) -> String {
+    if enabled {
+        "Ready notices are on. Games you chose to be told about are reported when they become ready."
+            .to_owned()
+    } else {
+        "Ready notices are off. No game is reported as newly ready, and no game's choice or automatic setup changed. Turn them back on with `portcove games notices on`."
+            .to_owned()
+    }
+}
+
 pub(crate) fn port_intent_assessments(value: &portcove_core::PortIntentAssessments) -> String {
     if value.assessments.is_empty() && value.not_assessed == 0 {
         return "No game has a notify or set-up-when-ready choice. Discover-only is the default."
             .to_owned();
     }
-    let mut lines = value
-        .assessments
-        .iter()
-        .map(port_readiness_line)
-        .collect::<Vec<_>>();
+    let mut lines = Vec::new();
+    if !value.ready_notices_enabled {
+        lines.push(ready_notices(false));
+    }
+    lines.extend(value.assessments.iter().map(port_readiness_line));
     if value.not_assessed > 0 {
         lines.push(format!(
             "{} more choices were not assessed; one pass covers the first 512 choices by game ID.",
@@ -1112,8 +1151,13 @@ pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> Stri
         .iter()
         .map(port_readiness_line)
         .collect::<Vec<_>>();
-    if value.batches.is_empty() {
-        lines.push("No game was ready for automatic setup, so nothing was installed.".to_owned());
+    if let Some(reason) = &value.game_setup_unavailable {
+        lines.push(format!(
+            "Couldn't read the automatic game setup queue - {}",
+            clean(reason)
+        ));
+    } else if value.batches.is_empty() {
+        lines.push("No game was ready for automatic setup, so no games were installed.".to_owned());
     }
     for batch in &value.batches {
         lines.push(install_batch(batch));
@@ -1154,30 +1198,10 @@ pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> Stri
                     .join(", ")
             )
         };
-        lines.push(match &update.outcome {
-            portcove_core::ProviderAutoUpdateOutcome::Applied { file_id, .. } => format!(
-                "{subject}: updated to GameBanana file {}; the earlier version stays recoverable",
-                clean(file_id)
-            ),
-            portcove_core::ProviderAutoUpdateOutcome::Held { reason } => {
-                format!(
-                    "{subject}: a mod update waits for your review - {}",
-                    clean(reason)
-                )
-            }
-            portcove_core::ProviderAutoUpdateOutcome::Deferred { reason } => {
-                format!(
-                    "{subject}: a mod update will be tried again later - {}",
-                    clean(reason)
-                )
-            }
-            portcove_core::ProviderAutoUpdateOutcome::Unavailable { reason } => {
-                format!(
-                    "{subject}: couldn't check for mod updates - {}",
-                    clean(reason)
-                )
-            }
-        });
+        lines.push(format!(
+            "{subject}: {}",
+            mod_update_outcome(&update.outcome)
+        ));
     }
     if value.not_assessed > 0 {
         lines.push(format!(
@@ -1206,6 +1230,12 @@ pub(crate) fn root_setup_consent(value: Option<&portcove_core::RootSetupConsent>
         "Automatic setup is on for folder {}: {scope}. Run `portcove games setup-ready` to set up what is ready now; no game is launched.",
         clean(&consent.root_id)
     )];
+    if consent.keep_local_copy {
+        lines.push(
+            "Each game's required files are copied into Portcove's game-file folder; originals stay in this folder."
+                .to_owned(),
+        );
+    }
     for choice in &consent.implementations {
         lines.push(format!(
             "{} files set up {}",
@@ -1260,6 +1290,78 @@ pub(crate) fn game_file_roots(roots: &[GameFileRoot]) -> String {
     )
 }
 
+fn store_label(store: portcove_core::GameStore) -> &'static str {
+    match store {
+        portcove_core::GameStore::Steam => "Steam",
+        portcove_core::GameStore::Gog => "GOG",
+        portcove_core::GameStore::Epic => "Epic",
+    }
+}
+
+fn store_list(stores: &[portcove_core::GameStore]) -> String {
+    let labels = stores
+        .iter()
+        .map(|store| store_label(*store))
+        .collect::<Vec<_>>();
+    match labels.split_last() {
+        None => String::new(),
+        Some((last, [])) => (*last).to_owned(),
+        Some((last, rest)) => format!("{} or {last}", rest.join(", ")),
+    }
+}
+
+pub(crate) fn store_game_installs(report: &portcove_core::StoreGameInstalls) -> String {
+    use portcove_core::GameStore;
+    let unchecked = [GameStore::Steam, GameStore::Gog, GameStore::Epic]
+        .into_iter()
+        .filter(|store| !report.checked_stores.contains(store))
+        .collect::<Vec<_>>();
+    let mut output = if report.checked_stores.is_empty() {
+        "Portcove can't check Steam, GOG or Epic games on this system.".to_owned()
+    } else if report.installs.is_empty() {
+        format!(
+            "No games installed by {} were found on this computer.",
+            store_list(&report.checked_stores)
+        )
+    } else {
+        let rows = report
+            .installs
+            .iter()
+            .map(|install| {
+                vec![
+                    store_label(install.store).into(),
+                    install.title.clone(),
+                    install.saved_root_id.clone().unwrap_or_else(|| "-".into()),
+                    install.path.display().to_string(),
+                ]
+            })
+            .collect();
+        format!(
+            "Games installed by Steam, GOG or Epic ({})\n{}\nSearch one with source discover --root PATH --profile PROFILE_ID, or save it with source roots add PATH. Portcove only reads these folders.",
+            report.installs.len(),
+            table(&["STORE", "TITLE", "SAVED FOLDER", "PATH"], rows)
+        )
+    };
+    if !unchecked.is_empty() && !report.checked_stores.is_empty() {
+        output.push_str(&format!(
+            "\nPortcove can't check {} games on this system.",
+            store_list(&unchecked)
+        ));
+    }
+    if report.limited {
+        output.push_str(
+            "\nThe list stopped at a safety limit, so some installed games may be missing.",
+        );
+    }
+    if report.skipped_entries > 0 {
+        output.push_str(&format!(
+            "\n{} store entries were skipped because their details couldn't be read or their folder is missing.",
+            report.skipped_entries
+        ));
+    }
+    output
+}
+
 pub(crate) fn game_file_scan_snapshot(snapshot: &Option<GameFileScanSnapshot>) -> String {
     let Some(snapshot) = snapshot else {
         return "No completed game-file folder scan is available.".into();
@@ -1268,6 +1370,18 @@ pub(crate) fn game_file_scan_snapshot(snapshot: &Option<GameFileScanSnapshot>) -
 }
 
 pub(crate) fn game_file_scan(snapshot: &GameFileScanSnapshot) -> String {
+    let (candidates, preliminary) = snapshot.matches.as_ref().map_or(
+        (
+            snapshot.report.candidates.len(),
+            snapshot.report.preliminary_selections.len(),
+        ),
+        |matches| {
+            (
+                matches.exact_matches as usize,
+                matches.preliminary_selections as usize,
+            )
+        },
+    );
     let mut output = format!(
         "Game-file folder scan\nFreshness: {}\nCompleted: {}\nFolders: {}\nCandidates: {}\nEntries examined: {}\nFiles hashed: {}",
         match snapshot.freshness {
@@ -1276,10 +1390,26 @@ pub(crate) fn game_file_scan(snapshot: &GameFileScanSnapshot) -> String {
         },
         utc_time(snapshot.completed_at),
         snapshot.roots.len(),
-        snapshot.report.candidates.len(),
+        candidates,
         snapshot.report.entries_examined,
         snapshot.report.files_hashed,
     );
+    if preliminary > 0 {
+        output.push_str(&format!(
+            "\nPreliminary selections: {preliminary}. These are not exact matches; validation has not run."
+        ));
+    }
+    if snapshot
+        .matches
+        .as_ref()
+        .is_some_and(|matches| !matches.preview_complete)
+    {
+        output.push_str(&format!(
+            "\nThe recorded scan shows the first {} of {} matches; use source roots matches to read every match.",
+            snapshot.report.candidates.len() + snapshot.report.preliminary_selections.len(),
+            candidates + preliminary,
+        ));
+    }
     output.push_str(match snapshot.freshness {
         portcove_core::GameFileScanFreshness::InputsMatch => {
             "\nRecorded inputs match; file contents were not revalidated by this readback."
@@ -1299,9 +1429,10 @@ pub(crate) fn game_file_scan(snapshot: &GameFileScanSnapshot) -> String {
     }
     if let Some(coverage) = &snapshot.coverage {
         output.push_str(&format!(
-            "\nScan batches: {}; this batch examined {} entries, re-listed {} entries, and made {} metadata checks.\nPrior-batch file-set members rehashed: {}.\nPending directories: {}. Remaining entries: {}.",
+            "\nScan batches: {}; this batch examined {} entries, re-listed {} entries, and made {} metadata checks.\nPrior-batch file-set members rehashed: {}.\nSaved file identities reused without rehashing: {}.\nPending directories: {}. Remaining entries: {}.",
             coverage.batches, coverage.batch_entries_examined, coverage.entries_relisted,
-            coverage.metadata_checks, coverage.prior_member_rechecks, coverage.pending_directories,
+            coverage.metadata_checks, coverage.prior_member_rechecks, coverage.observations_reused,
+            coverage.pending_directories,
             coverage.remaining_entries.map_or_else(|| "unknown".into(), |count| count.to_string()),
         ));
         output.push_str(if coverage.restart_required {
@@ -1310,6 +1441,12 @@ pub(crate) fn game_file_scan(snapshot: &GameFileScanSnapshot) -> String {
             "\nRepeat source roots scan with the same limits to resume the saved checkpoint."
         } else if coverage.frontier_exhausted {
             "\nRecorded directory frontier exhausted; limits and issues may still leave coverage incomplete."
+        } else if snapshot
+            .report
+            .limits_reached
+            .contains(&portcove_core::SourceDiscoveryLimit::Candidates)
+        {
+            "\nScan stopped at its safety limit for retained matches; select narrower folders and scan again."
         } else {
             "\nScan stopped at a terminal safety limit; a new scan starts fresh."
         });
@@ -1360,6 +1497,90 @@ pub(crate) fn game_file_scan(snapshot: &GameFileScanSnapshot) -> String {
     output
 }
 
+pub(crate) fn game_file_root_match_profiles(
+    profiles: &[String],
+    catalog: &portcove_core::Catalog,
+) -> String {
+    if profiles.is_empty() {
+        return "The last scan matched no game files in this folder.".to_owned();
+    }
+    let mut lines = vec!["Game files the last scan matched in this folder:".to_owned()];
+    for profile in profiles {
+        let games = catalog
+            .ports()
+            .iter()
+            .filter(|port| port.source_profile.as_deref() == Some(profile.as_str()))
+            .count();
+        lines.push(if games > 1 {
+            format!(
+                "- {} ({games} games can use these files; choose one with games folder-setup-choose)",
+                profile_name(catalog, profile)
+            )
+        } else {
+            format!("- {}", profile_name(catalog, profile))
+        });
+    }
+    lines.join("\n")
+}
+
+pub(crate) fn game_file_scan_matches(
+    page: &portcove_core::GameFileScanMatchPage,
+    catalog: &portcove_core::Catalog,
+) -> String {
+    let kind = match page.kind {
+        portcove_core::GameFileScanMatchKind::Exact => "Matching candidates",
+        portcove_core::GameFileScanMatchKind::Preliminary => "Preliminary selections",
+    };
+    let shown = page.candidates.len() + page.preliminary_selections.len();
+    let mut lines = vec![if shown == 0 {
+        format!("{kind}: none on this page ({} in total).", page.total)
+    } else {
+        format!(
+            "{kind} {}-{} of {}",
+            page.offset as usize + 1,
+            page.offset as usize + shown,
+            page.total
+        )
+    }];
+    for candidate in &page.candidates {
+        lines.extend([
+            format!(
+                "Candidate: {}",
+                profile_name(catalog, &candidate.profile_id)
+            ),
+            format!("Path: {}", clean(&candidate.path.display().to_string())),
+            format!("Content SHA-256: {}", clean(&candidate.sha256)),
+        ]);
+    }
+    for selection in &page.preliminary_selections {
+        lines.extend([
+            format!(
+                "Preliminary selection: {}",
+                profile_name(catalog, &selection.profile_id)
+            ),
+            format!("Path: {}", clean(&selection.path.display().to_string())),
+        ]);
+    }
+    if let Some(next) = page.next_offset {
+        // Repeat the page's own selection, so following the hint pages the same set.
+        let kind = match page.kind {
+            portcove_core::GameFileScanMatchKind::Exact => "exact",
+            portcove_core::GameFileScanMatchKind::Preliminary => "preliminary",
+        };
+        let scan = page
+            .scan_id
+            .as_deref()
+            .map_or_else(String::new, |id| format!(" --scan-id {}", clean(id)));
+        lines.push(format!(
+            "More matches remain; use source roots matches --kind {kind}{scan} --offset {next} (with the same --root, if any) for the next page."
+        ));
+    }
+    lines.push(
+        "Recorded matches are re-verified from current bytes before registration or setup.".into(),
+    );
+    lines.join("\n")
+}
+
 pub(crate) fn source_inspection(report: &SourceInspectionReport) -> String {
     let mut lines = vec![
         format!(
@@ -1374,6 +1595,9 @@ pub(crate) fn source_inspection(report: &SourceInspectionReport) -> String {
         format!("State: {}", clean(&report.state_code)),
         clean(&report.summary),
     ];
+    if let Some(identification) = &report.dump_identification {
+        dump_identification(&mut lines, identification);
+    }
     if let Some(inspection) = &report.inspection {
         lines.push(format!(
             "Path: {}",
@@ -1552,6 +1776,7 @@ fn digest_scope(scope: portcove_core::DigestScope) -> &'static str {
         DigestScope::OriginalContainer => "original container",
         DigestScope::NormalizedContent => "normalized content",
         DigestScope::CanonicalN64BigEndian => "normalized N64 content",
+        DigestScope::SnesHeaderlessContent => "SNES content without a copier header",
         DigestScope::ArchiveMember => "archive member",
         DigestScope::GamecubeNormalizedIso => "normalized GameCube disc",
         DigestScope::PsxNormalizedTrackSet => "normalized PlayStation track set",
@@ -1670,6 +1895,13 @@ pub(crate) fn statuses(statuses: &[PortStatus], catalog: &portcove_core::Catalog
         format!("{summary}\nActions:\n{actions}")
     };
     for status in statuses {
+        if let Some(carried) = &status.carried_files {
+            output.push_str(&format!(
+                "\nFiles kept during the version switch for {}:\n{}",
+                port_name(catalog, &status.port_id),
+                carried_files(carried),
+            ));
+        }
         if let Some(readiness) = &status.readiness {
             if readiness.blockers.contains(&LaunchBlocker::MissingRuntime) {
                 output.push_str(&format!("\nNext step for {}: Using the same library, run portcove update {} to acquire the required catalog runtime. Core checks current eligibility before applying it.", port_name(catalog, &status.port_id), clean(&status.port_id)));
@@ -1683,6 +1915,101 @@ pub(crate) fn statuses(statuses: &[PortStatus], catalog: &portcove_core::Catalog
         }
     }
     output
+}
+
+fn carried_files(status: &portcove_core::CarriedFilesStatus) -> String {
+    let outcome = &status.outcome;
+    let mut lines = vec![format!("  Active version: {}", clean(&status.to_version))];
+    if let Some(version) = &status.from_version {
+        lines.push(format!("  Version before the switch: {}", clean(version)));
+    }
+    if outcome.source_modified {
+        lines.push(
+            "  Files were left with the earlier version because its installation had changed."
+                .into(),
+        );
+    }
+    if outcome.insufficient_space {
+        lines.push(
+            "  Files were left with the earlier version because there was not enough free space."
+                .into(),
+        );
+        if let Some(count) = outcome.not_carried_count {
+            lines.push(format!("  Files left because of low space: {count}"));
+        }
+    }
+    for (label, examples, count) in [
+        (
+            "Copied",
+            &outcome.carried,
+            outcome.counts.as_ref().map(|counts| counts.carried),
+        ),
+        (
+            "Unchanged copies removed",
+            &outcome.removed,
+            outcome.counts.as_ref().map(|counts| counts.removed),
+        ),
+        (
+            "Different copies kept separately",
+            &outcome.kept_separately,
+            outcome.counts.as_ref().map(|counts| counts.kept_separately),
+        ),
+        (
+            "Could not be read",
+            &outcome.source_unreadable,
+            outcome
+                .counts
+                .as_ref()
+                .map(|counts| counts.source_unreadable),
+        ),
+        (
+            "Supplied by the new version",
+            &outcome.new_version_ships_file,
+            outcome
+                .counts
+                .as_ref()
+                .map(|counts| counts.new_version_ships_file),
+        ),
+    ] {
+        if count == Some(0) && examples.is_empty() {
+            continue;
+        }
+        lines.push(format!(
+            "  {label}: {}",
+            count.map_or_else(
+                || "complete count not recorded".into(),
+                |count| count.to_string()
+            )
+        ));
+        lines.extend(examples.iter().map(|path| format!("    {}", clean(path))));
+        if count.is_none_or(|count| count > examples.len() as u64) {
+            lines.push("    Only recorded path examples are listed.".into());
+        }
+    }
+    for (label, bytes) in [
+        ("Bytes copied", outcome.carried_bytes),
+        ("Space required at the switch", outcome.required_bytes),
+        ("Space available at the switch", outcome.available_bytes),
+    ] {
+        if let Some(bytes) = bytes {
+            lines.push(format!("  {label}: {}", format_bytes(bytes)));
+        }
+    }
+    if let Some(path) = &status.from_path {
+        lines.push(format!(
+            "  Earlier version folder: {}",
+            clean(&path.display().to_string())
+        ));
+    } else {
+        lines.push(
+            "  The earlier version is no longer recorded; its files were not rechecked.".into(),
+        );
+    }
+    lines.push(format!(
+        "  Active version folder: {}",
+        clean(&status.to_path.display().to_string())
+    ));
+    lines.join("\n")
 }
 
 pub(crate) fn definition_reason(
@@ -2065,6 +2392,72 @@ pub(crate) fn host_tools(tools: &[HostToolStatus]) -> String {
     )
 }
 
+pub(crate) fn dat_references(references: &[portcove_core::DatReferenceStatus]) -> String {
+    let rows = references
+        .iter()
+        .map(|reference| {
+            vec![
+                clean(&reference.id),
+                format!(
+                    "{}{}",
+                    clean(&reference.name),
+                    reference
+                        .version
+                        .as_deref()
+                        .map_or_else(String::new, |version| format!(" ({})", clean(version)))
+                ),
+                match reference.state {
+                    portcove_core::DatReferenceState::Ready => "ready",
+                    portcove_core::DatReferenceState::Missing => "missing",
+                    portcove_core::DatReferenceState::Changed => "changed",
+                    portcove_core::DatReferenceState::Unreadable => "unreadable",
+                }
+                .into(),
+                reference.entry_count.to_string(),
+                clean(&reference.path.display().to_string()),
+            ]
+        })
+        .collect();
+    let notes = references
+        .iter()
+        .filter(|reference| reference.state != portcove_core::DatReferenceState::Ready)
+        .map(|reference| format!("{}: {}\n", clean(&reference.id), clean(&reference.message)))
+        .collect::<String>();
+    format!(
+        "DAT files ({})\n{}\n{}DAT files only name selected original game files. They don’t change which files a game accepts.",
+        references.len(),
+        table(&["ID", "NAME", "STATUS", "ENTRIES", "PATH"], rows),
+        notes,
+    )
+}
+
+fn dump_identification(
+    lines: &mut Vec<String>,
+    identification: &portcove_core::DumpIdentification,
+) {
+    lines.push(format!("DAT files: {}", clean(&identification.summary)));
+    for found in identification.matches.iter().skip(1) {
+        lines.push(format!(
+            "- Also {}: “{}” in {}",
+            if found.complete {
+                "matches"
+            } else {
+                "partly matches"
+            },
+            clean(&found.entry_name),
+            clean(&found.reference_name)
+        ));
+    }
+    for reference in &identification.unavailable_references {
+        lines.push(format!(
+            "- {}: {}",
+            clean(&reference.name),
+            clean(&reference.message)
+        ));
+    }
+    lines.push(clean(&identification.limitation));
+}
+
 pub(crate) fn host_tool(tool: &HostToolStatus) -> String {
     host_tools(std::slice::from_ref(tool))
 }
@@ -2298,9 +2691,13 @@ pub(crate) fn preparation_cleanup(
     )
 }
 
-pub(crate) fn paths(paths: &PortPaths, catalog: &portcove_core::Catalog) -> String {
-    format!(
-        "Paths for {}\nLibrary: {}\nSaves and settings: {}\nFuture install folder: {} ({})\nActive: {}\nPrevious: {}\nSaved for later: {}",
+pub(crate) fn paths(
+    paths: &PortPaths,
+    collection_root: Option<&std::path::Path>,
+    catalog: &portcove_core::Catalog,
+) -> String {
+    let mut output = format!(
+        "Paths for {}\nLibrary: {}\nSaves and settings: {} (Portcove data folder)\nFuture install folder: {} ({})\nActive: {}\nPrevious: {}\nSaved for later: {}",
         port_name(catalog, &paths.port_id),
         clean(&paths.library_root.display().to_string()),
         clean(&paths.user_data_root.display().to_string()),
@@ -2315,6 +2712,38 @@ pub(crate) fn paths(paths: &PortPaths, catalog: &portcove_core::Catalog) -> Stri
         optional_path(paths.active_install_root.as_deref()),
         optional_path(paths.previous_install_root.as_deref()),
         optional_path(paths.staged_install_root.as_deref()),
+    );
+    if let Some(root) = collection_root {
+        output.push_str(&format!(
+            "\nBackup collection folder for the active installation: {}",
+            clean(&root.display().to_string())
+        ));
+    } else if paths.active_install_root.is_some() {
+        output.push_str("\nBackup collection folder for the active installation: Unknown");
+    }
+    if paths.active_install_root.is_some() {
+        output.push_str(&format!(
+            "\nUse portcove --json backup list {} to see the backup rules and files eligible for collection. Saves in other profiles may need a separate backup.\nPortcove manages updates for the active installation. Use remove-preview to see what removal keeps.",
+            paths.port_id
+        ));
+    }
+    output
+}
+
+pub(crate) fn external_paths(
+    runtime: &portcove_core::ExternalRuntimeRecord,
+    catalog: &portcove_core::Catalog,
+) -> String {
+    let registered_folder = if runtime.user_selected.is_some() {
+        "Registered working folder"
+    } else {
+        "Registered installation folder"
+    };
+    format!(
+        "Paths for {}\n{registered_folder}: {}\nSelected program: {}\nSaves and settings: Check the project's setup instructions or your game's settings for the actual save location.\nBack up the external profile separately.\nUpstream or you update this installation. Removing the registration keeps its files in place.",
+        port_name(catalog, &runtime.port_id),
+        clean(&runtime.path.display().to_string()),
+        clean(&runtime.executable.display().to_string()),
     )
 }
 
@@ -2760,6 +3189,13 @@ fn readiness(status: &PortStatus) -> String {
         })
         .collect::<Vec<_>>()
         .join(", ");
+    let blockers = match &readiness.source_folder_unavailable {
+        Some(folder) => format!(
+            "{blockers}; connect {} to play",
+            clean(&folder.display().to_string())
+        ),
+        None => blockers,
+    };
     match readiness.required_source_extension.as_deref() {
         Some(extension) => format!("{blockers}; requires uncompressed .{extension} original file"),
         None => blockers,
@@ -2853,6 +3289,42 @@ fn optional_path(path: Option<&Path>) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn source_inspection_lists_dat_matches_problems_and_the_admission_boundary() {
+        let identification: portcove_core::DumpIdentification =
+            serde_json::from_value(serde_json::json!({
+                "state_code": "identified",
+                "summary": "Matches “Example (Europe)” in Example - Console.",
+                "limitation": "DAT files only name the selected original game files.",
+                "checked_reference_count": 1,
+                "match_count": 2,
+                "matches": [
+                    {"reference_id": "0123456789abcdef", "reference_name": "Example - Console",
+                     "entry_name": "Example (Europe)", "complete": true, "entry_file_count": 1,
+                     "matched_files": [{"file_name": "a.bin", "algorithm": "sha1", "scope": "original-file"}]},
+                    {"reference_id": "0123456789abcdef", "reference_name": "Example - Console",
+                     "entry_name": "Example (Europe) (Rev 1)", "complete": false, "entry_file_count": 2,
+                     "matched_files": [{"file_name": "b.bin", "algorithm": "sha1", "scope": "original-file"}]}
+                ],
+                "unavailable_references": [
+                    {"id": "fedcba9876543210", "path": "/dats/old.dat", "name": "Old\u{1b}[31m DAT",
+                     "entry_count": 1, "file_count": 1, "state": "changed",
+                     "message": "This DAT file changed after you added it."}
+                ]
+            }))
+            .unwrap();
+        let mut lines = Vec::new();
+        super::dump_identification(&mut lines, &identification);
+        let text = lines.join("\n");
+        assert!(text.starts_with("DAT files: Matches “Example (Europe)” in Example - Console."));
+        assert!(
+            text.contains("- Also partly matches: “Example (Europe) (Rev 1)” in Example - Console")
+        );
+        assert!(text.contains("This DAT file changed after you added it."));
+        assert!(text.ends_with("DAT files only name the selected original game files."));
+        assert!(!text.contains('\u{1b}'), "terminal controls are removed");
+    }
+
     #[test]
     fn preparation_failure_guidance_is_read_only_and_keeps_the_originating_library_selection() {
         use portcove_core::{FailureRecoveryTarget, MutationState, PortcoveError, RecoveryAction};
@@ -3107,6 +3579,7 @@ mod tests {
         report.issues = vec![SourceDiscoveryIssue {
             path: None,
             profile_id: Some("future\nprofile".into()),
+            direct_check_profiles: Vec::new(),
             message: "Cannot read\nfile token=owned-secret\u{1b}[31m".into(),
         }];
         report.issues_omitted = 7;
@@ -3212,6 +3685,7 @@ mod tests {
                 issues: vec![portcove_core::SourceDiscoveryIssue {
                     path: Some(PathBuf::from("/private/fixture-path")),
                     profile_id: None,
+                    direct_check_profiles: Vec::new(),
                     message: "token=fixture-secret\u{1b}[2J\rprivate diagnostic".into(),
                 }],
                 issues_omitted: 7,
@@ -3220,7 +3694,66 @@ mod tests {
             freshness: GameFileScanFreshness::InputsMatch,
             coverage: None,
             continuation: None,
+            matches: None,
         }
+    }
+
+    #[test]
+    fn saved_scan_counts_every_stored_match_and_points_to_the_pages() {
+        let mut snapshot = scan_snapshot_fixture();
+        snapshot.matches = Some(portcove_core::GameFileScanMatchSummary {
+            scan_id: "00000000-0000-4000-8000-000000000000".into(),
+            exact_matches: 600,
+            preliminary_selections: 2,
+            preview_complete: false,
+        });
+        snapshot.coverage = Some(portcove_core::GameFileScanCoverage {
+            batches: 3,
+            ..Default::default()
+        });
+        snapshot.report.limits_reached = vec![portcove_core::SourceDiscoveryLimit::Candidates];
+        let output = super::game_file_scan(&snapshot);
+        assert!(output.contains("\nCandidates: 600\n"));
+        assert!(output.contains("Preliminary selections: 2."));
+        assert!(output.contains("shows the first 0 of 602 matches; use source roots matches"));
+        assert!(output.contains("safety limit for retained matches"));
+    }
+
+    #[test]
+    fn scan_match_pages_name_their_range_and_next_offset() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let page = portcove_core::GameFileScanMatchPage {
+            scan_id: Some("00000000-0000-4000-8000-000000000000".into()),
+            kind: portcove_core::GameFileScanMatchKind::Exact,
+            offset: 64,
+            total: 130,
+            candidates: vec![portcove_core::SourceRecord {
+                profile_id: "fixture-profile".into(),
+                path: PathBuf::from("/games/fixture.z64"),
+                sha256: "b".repeat(64),
+                size: 4,
+                storage_sha256: "b".repeat(64),
+                storage_size: 4,
+                updated_at: 0,
+                observed_identity: None,
+            }],
+            preliminary_selections: Vec::new(),
+            next_offset: Some(65),
+        };
+        let output = super::game_file_scan_matches(&page, &catalog);
+        assert!(output.starts_with("Matching candidates 65-65 of 130"));
+        assert!(output.contains("Path: /games/fixture.z64"));
+        assert!(output.contains(
+            "source roots matches --kind exact --scan-id 00000000-0000-4000-8000-000000000000 --offset 65"
+        ));
+        let empty = portcove_core::GameFileScanMatchPage {
+            candidates: Vec::new(),
+            next_offset: None,
+            ..page
+        };
+        let output = super::game_file_scan_matches(&empty, &catalog);
+        assert!(output.starts_with("Matching candidates: none on this page (130 in total)."));
+        assert!(!output.contains("--offset"));
     }
 
     #[test]
@@ -3308,11 +3841,13 @@ mod tests {
             entries_relisted: 3,
             metadata_checks: 8,
             prior_member_rechecks: 1,
+            observations_reused: 4,
             pending_directories: 2,
             can_resume: true,
             ..Default::default()
         });
         let output = super::game_file_scan(&snapshot);
+        assert!(output.contains("Saved file identities reused without rehashing: 4."));
         assert!(output.contains("Scan batches: 2; this batch examined 1 entries"));
         assert!(output.contains("Remaining entries: unknown"));
         assert!(output.contains("same limits to resume"));
@@ -3542,7 +4077,11 @@ mod tests {
     #[test]
     fn catalog_show_uses_structured_presentation_without_adapter_ids() {
         let catalog = portcove_core::Catalog::embedded().unwrap();
-        let output = catalog_show(catalog.port("shipwright").unwrap());
+        let embedded = catalog.port("shipwright").unwrap();
+        assert!(catalog_show(embedded).contains("Upstream state: unrecorded"));
+        let mut reviewed = embedded.clone();
+        reviewed.upstream_active_reviewed = true;
+        let output = catalog_show(&reviewed);
         assert!(output.contains("Installation: portable upstream package"));
         assert!(output.contains("Game files: The Legend of Zelda: Ocarina of Time source"));
         assert!(output.contains("Check method: Required files and format checks"));
@@ -3550,10 +4089,15 @@ mod tests {
         assert!(output.contains("Saves and settings: managed by Portcove"));
         assert!(output.contains("Upstream state: active"));
         assert!(!output.contains("libultraship-portable"));
-        let external = catalog_show(catalog.port("wave-race-64-recomp").unwrap());
-        assert!(external.contains("Preparation: Extract the official v1.0.2 Windows ZIP"));
-        assert!(external.contains("create an empty portable.txt"));
+        let external = catalog_show(catalog.port("dkc2-recomp").unwrap());
+        assert!(
+            external.contains("Preparation: Prepare the exact official v0.0.2 Windows runtime")
+        );
+        assert!(external.contains("omitting assets/img/boxart.tga"));
         assert!(external.contains("Saves and settings: user-owned"));
+        let managed = catalog_show(catalog.port("wave-race-64-recomp").unwrap());
+        assert!(managed.contains("creates portable.txt"));
+        assert!(managed.contains("Saves and settings: managed by Portcove"));
     }
 
     #[test]
@@ -3568,6 +4112,7 @@ mod tests {
                 key_id: Some("publisher-id".into()),
                 expires_at: Some(42),
                 fallback_reasons: vec!["active catalog expired\rcheck trust".into()],
+                fallback_codes: Vec::new(),
             },
             trusted_keys: vec![CatalogTrustKey {
                 key_id: "trusted-id".into(),
@@ -3610,6 +4155,7 @@ mod tests {
                 key_id: None,
                 expires_at: None,
                 fallback_reasons: Vec::new(),
+                fallback_codes: Vec::new(),
             },
             trusted_keys: Vec::new(),
             highest_sequence: 0,
@@ -3845,6 +4391,7 @@ mod tests {
                 file_count: 3,
                 size: 2048,
                 sha256: "a".repeat(64),
+                unknown_file_count: 0,
             },
             current_user_data_exists: true,
             safety_backup_will_be_created: true,
@@ -3993,6 +4540,7 @@ mod tests {
                         file_count: 3,
                         size: 2048,
                         sha256: "a".repeat(64),
+                        unknown_file_count: 0,
                     }],
                     problems: Vec::new(),
                 },
@@ -4064,6 +4612,36 @@ mod tests {
             "staged": null
         }))
         .unwrap()
+    }
+
+    #[test]
+    fn carried_file_disclosure_preserves_unknown_counts_and_missing_source_coordinates() {
+        let recorded = portcove_core::CarriedFilesStatus {
+            from_install_id: "removed-source".into(),
+            to_install_id: "target".into(),
+            from_version: None,
+            from_path: None,
+            to_version: "2.0".into(),
+            to_path: PathBuf::from("target-folder"),
+            outcome: portcove_core::CarriedFileOutcome {
+                kept_separately: vec!["notes\nwith-control.txt".into()],
+                insufficient_space: true,
+                required_bytes: Some(2_048),
+                available_bytes: Some(1_024),
+                ..Default::default()
+            },
+        };
+        let text = super::carried_files(&recorded);
+        assert!(text.contains("complete count not recorded"));
+        assert!(!text.contains("kept separately: 1"));
+        assert!(text.contains("Space required at the switch: 2.0 KiB"));
+        assert!(text.contains("Space available at the switch: 1.0 KiB"));
+        assert!(text.contains("earlier version is no longer recorded"));
+        assert!(!text.contains("notes\nwith-control.txt"));
+        assert_eq!(
+            recorded.outcome.kept_separately[0],
+            "notes\nwith-control.txt"
+        );
     }
 
     #[test]
@@ -4331,7 +4909,7 @@ mod catalog_detail_tests {
     fn external_port() -> PortDefinition {
         Catalog::embedded()
             .unwrap()
-            .port("wave-race-64-recomp")
+            .port("dkc2-recomp")
             .unwrap()
             .clone()
     }
@@ -4477,9 +5055,7 @@ mod catalog_detail_tests {
         )));
         assert!(output.contains(&format!("Package SHA-256: {}", runtime.archive_sha256)));
         assert!(output.contains(&format!("Executable: {}", runtime.executable)));
-        assert!(
-            output.contains("portcove external preview wave-race-64-recomp \"<extracted-folder>\"")
-        );
+        assert!(output.contains("portcove external preview dkc2-recomp \"<extracted-folder>\""));
         assert!(output.contains("matching platform"));
         assert!(output.contains(
             "Maintenance: user-owned; Portcove does not download or update this runtime"
@@ -4530,21 +5106,19 @@ mod catalog_detail_tests {
             .user_prepared
             .insert(Platform::LinuxX86_64, linux);
         let output = catalog_show(&port);
-        let windows_heading = "Accepted runtime (Windows (x64)): v1.0.2";
+        let windows_heading = "Accepted runtime (Windows (x64)): v0.0.2";
         let linux_heading = "Accepted runtime (Linux (x64)): v7.2.1";
         let windows_position = output.find(windows_heading).unwrap();
         let linux_position = output.find(linux_heading).unwrap();
         assert!(windows_position < linux_position);
         let windows = &output[windows_position..linux_position];
-        assert!(
-            windows.contains("WaveRace64Recomp-1.0.2-windows-x64.zip (16.6 MiB; 17397538 bytes)")
-        );
+        assert!(windows.contains("DKC2Recomp-windows-x64-v0.0.2.zip (8.1 MiB; 8488768 bytes)"));
         assert!(!windows.contains("fixture-linux-runtime"));
         let linux = &output[linux_position..];
         assert!(linux.contains("Package: fixture-linux-runtime.zip (321 B; 321 bytes)"));
         assert!(linux.contains(&format!("Package SHA-256: {}", "a".repeat(64))));
         assert!(linux.contains("Executable: bin/fixture-game"));
-        assert!(!linux.contains("WaveRace64Recomp.exe"));
+        assert!(!linux.contains("DKC2Recomp.exe"));
     }
 
     #[test]
@@ -4685,5 +5259,22 @@ mod catalog_detail_tests {
         assert_eq!(super::format_bytes(0), "0 B");
         assert_eq!(super::format_bytes(1), "1 B");
         assert_eq!(super::format_bytes(1024), "1.0 KiB");
+    }
+
+    #[test]
+    fn folder_setup_states_a_kept_local_copy() {
+        let consent = portcove_core::RootSetupConsent {
+            format_version: 1,
+            root_id: "root".into(),
+            enrollment: portcove_core::RootSetupEnrollment::ExistingAndFuture,
+            enabled_at: 1,
+            updated_at: 1,
+            existing_files: 0,
+            implementations: Vec::new(),
+            failures: Vec::new(),
+            keep_local_copy: true,
+        };
+        let text = super::root_setup_consent(Some(&consent));
+        assert!(text.contains("copied into Portcove's game-file folder; originals stay"));
     }
 }

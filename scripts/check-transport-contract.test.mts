@@ -723,14 +723,16 @@ const eventDeclarationSource = `
 pub(crate) const DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE: &str = "portcove://application-update-notice";
 pub(crate) const DESKTOP_EVENT_LIBRARY_CHANGED: &str = "portcove://library-changed";
 pub(crate) const DESKTOP_EVENT_OPERATION: &str = "portcove://operation";
+pub(crate) const DESKTOP_EVENT_PLAY_REQUEST: &str = "portcove://play-request";
 `;
 const eventProducerSources = [
   `use crate::transport::emit_desktop_event;
-   emit_desktop_event::<ApplicationUpdateNoticeSnapshot>(&app, DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, notice);
-   emit_desktop_event::<ApplicationUpdateNoticeSnapshot>(app, DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, cleared);`,
+   emit_desktop_event::<ApplicationUpdateStatus>(&app, DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, notice);
+   emit_desktop_event::<ApplicationUpdateStatus>(app, DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, cleared);`,
   `use crate::transport::emit_desktop_event;
    emit_desktop_event::<()>(&app, DESKTOP_EVENT_LIBRARY_CHANGED, ());
-   emit_desktop_event::<portcove_core::OperationEvent>(app, DESKTOP_EVENT_OPERATION, event);`,
+   emit_desktop_event::<portcove_core::OperationEvent>(app, DESKTOP_EVENT_OPERATION, event);
+   emit_desktop_event::<()>(app, DESKTOP_EVENT_PLAY_REQUEST, ());`,
   `use tauri::Emitter;
    fn emit_desktop_event<T>(app: &tauri::AppHandle, event: &'static str, payload: T) {
      app.emit_to(MAIN_WINDOW_LABEL, event, payload);
@@ -738,9 +740,10 @@ const eventProducerSources = [
 ];
 const eventExporterSource = `
 let events = serde_json::Map::from_iter([
-  (DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE.to_owned(), output::<ApplicationUpdateNoticeSnapshot>()),
+  (DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE.to_owned(), output::<ApplicationUpdateStatus>()),
   (DESKTOP_EVENT_LIBRARY_CHANGED.to_owned(), output::<()>()),
   (DESKTOP_EVENT_OPERATION.to_owned(), output::<portcove_core::OperationEvent>()),
+  (DESKTOP_EVENT_PLAY_REQUEST.to_owned(), output::<()>()),
 ]);
 `;
 const eventFrontendSources = [
@@ -750,6 +753,8 @@ const eventFrontendSources = [
    listenDesktopEvent("portcove://library-changed", accept);`,
   `import { listenDesktopEvent } from "./desktop-events";
    listenDesktopEvent("portcove://operation", accept);`,
+  `import { listenDesktopEvent } from "./desktop-events";
+   listenDesktopEvent("portcove://play-request", accept);`,
   `import { listen } from "@tauri-apps/api/event";
    export function listenDesktopEvent(name, accept) { return listen(name, (event) => accept(event.payload)); }`,
 ];
@@ -760,21 +765,25 @@ void test("Rust event declarations, Tauri producers, and typed frontend consumer
     "portcove://application-update-notice",
     "portcove://library-changed",
     "portcove://operation",
+    "portcove://play-request",
   ]);
   assert.deepEqual(extractProducedDesktopEvents(eventProducerSources, declarations), [
     "portcove://application-update-notice",
     "portcove://library-changed",
     "portcove://operation",
+    "portcove://play-request",
   ]);
   assert.deepEqual(extractExportedDesktopEvents(eventExporterSource, declarations), [
     "portcove://application-update-notice",
     "portcove://library-changed",
     "portcove://operation",
+    "portcove://play-request",
   ]);
   assert.deepEqual(extractFrontendDesktopEvents(eventFrontendSources), [
     "portcove://application-update-notice",
     "portcove://library-changed",
     "portcove://operation",
+    "portcove://play-request",
   ]);
   assert.deepEqual(
     checkDesktopEventContract({
@@ -879,7 +888,7 @@ void test("unparsed event constants and Tauri producers fail closed", () => {
           "const DESKTOP_EVENT_OPERATION: &str = selected_event();",
         ),
       ),
-    /parsed 2 of 3/,
+    /parsed 3 of 4/,
   );
   const declarations = extractDeclaredDesktopEvents(eventDeclarationSource);
   assert.throws(

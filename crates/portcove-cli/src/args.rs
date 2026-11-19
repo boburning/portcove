@@ -1,10 +1,52 @@
 use std::path::PathBuf;
 
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use portcove_core::{ReleaseChannel, SourceImportMode, UpdatePolicy};
 use uuid::Uuid;
 
 use crate::{catalog::CatalogCommand, schema::SchemaContract};
+
+/// Derive public identifiers from the parser. The named compatibility markers
+/// describe existing reviewed command pairs that older clients negotiate.
+pub(crate) fn registered_command_capabilities() -> Vec<String> {
+    fn visit(parent: &str, command: &clap::Command, commands: &mut Vec<String>) {
+        for child in command
+            .get_subcommands()
+            .filter(|child| !child.is_hide_set())
+        {
+            let name = child.get_name();
+            let id = if parent.is_empty() {
+                name.to_owned()
+            } else {
+                format!("{parent}.{name}")
+            };
+            commands.push(if id == "remove-preview" {
+                "remove.preview".into()
+            } else {
+                id.clone()
+            });
+            visit(&id, child, commands);
+        }
+    }
+
+    let mut commands = Vec::new();
+    visit("", &Cli::command(), &mut commands);
+    for (marker, required) in [
+        ("external.review", ["external.preview", "external.register"]),
+        (
+            "installation.review",
+            ["installation.plan", "installation.run"],
+        ),
+    ] {
+        if required
+            .iter()
+            .all(|id| commands.iter().any(|command| command == id))
+        {
+            commands.push(marker.into());
+        }
+    }
+    commands
+}
 
 // Derive the descriptions from the same commands used by the parser. The groups
 // are a task index, not a second command or option definition.
@@ -67,6 +109,7 @@ const ROOT_COMMAND_GROUPS: &[(&str, &[&str])] = &[
             "paths",
             "remove-preview",
             "tool",
+            "dat",
             "capabilities",
             "schema",
             "about",
@@ -228,6 +271,11 @@ pub(crate) enum Commands {
     Tool {
         #[command(subcommand)]
         command: ToolCommand,
+    },
+    /// Manage No-Intro or Redump DAT files used only to name selected game files.
+    Dat {
+        #[command(subcommand)]
+        command: DatCommand,
     },
     /// Show setup routes, feature availability, and scoped known issues.
     PortCapabilities {
@@ -401,6 +449,16 @@ pub(crate) enum InstallationCommand {
         #[arg(long)]
         yes: bool,
     },
+    /// Check which Microsoft runtimes the installed game's program needs and whether Windows has them.
+    Runtimes {
+        /// Catalog port ID of the installed or registered game.
+        port_id: String,
+    },
+    /// Show each installation's recorded package shape and shadow release-drift verdict.
+    PackageShape {
+        /// Catalog port ID whose installations should be shown.
+        port_id: String,
+    },
     /// Inspect retained local builds and the setup references protecting them from cleanup.
     Retained {
         /// Stable catalog port ID; retained builds are local, not a historical release list.
@@ -508,6 +566,7 @@ pub(crate) enum InstallationCommand {
 pub(crate) enum ArtworkSlotArg {
     Cover,
     Detail,
+    Landscape,
 }
 
 impl From<ArtworkSlotArg> for portcove_core::ArtworkSlot {
@@ -515,6 +574,7 @@ impl From<ArtworkSlotArg> for portcove_core::ArtworkSlot {
         match slot {
             ArtworkSlotArg::Cover => Self::Cover,
             ArtworkSlotArg::Detail => Self::Detail,
+            ArtworkSlotArg::Landscape => Self::Landscape,
         }
     }
 }
@@ -532,6 +592,77 @@ impl From<DestinationArtworkRoleArg> for portcove_core::DestinationArtworkRole {
             DestinationArtworkRoleArg::PortraitCover => Self::PortraitCover,
             DestinationArtworkRoleArg::LandscapeCover => Self::LandscapeCover,
             DestinationArtworkRoleArg::HeroBanner => Self::HeroBanner,
+        }
+    }
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum SteamGridDbCommand {
+    /// Show whether a SteamGridDB API key is saved; the key itself is never shown.
+    Status,
+    /// Save your SteamGridDB API key in this host's secure credential store.
+    #[command(
+        after_help = "With --non-interactive, artwork steamgriddb set-key requires --stdin. Never place a key in command-line arguments."
+    )]
+    SetKey {
+        #[arg(
+            long,
+            help = "Read the key from standard input without placing it in argv"
+        )]
+        stdin: bool,
+    },
+    /// Remove the saved SteamGridDB API key from this host.
+    ClearKey,
+    /// Search SteamGridDB games by name; matches are proposals, not identities.
+    Search {
+        /// Game name to search for, up to 120 characters.
+        term: String,
+    },
+    /// Choose one SteamGridDB image for a port's cover, detail or landscape image.
+    #[command(
+        after_help = "Cover uses portrait images, detail uses hero images and landscape uses wide grid images. Portcove looks the image up again with your key, downloads it without sending your key, and keeps the artist credit with the copy in your library. The previous choice is replaced only if the image is valid and the choice revision has not changed."
+    )]
+    Choose {
+        /// Catalog port ID; run `portcove catalog list` to find it.
+        port_id: String,
+        /// Artwork slot to change; cover is the library image, detail is the detail view image, and landscape is the wide cover Steam uses as its library capsule.
+        #[arg(long, value_enum, default_value = "cover")]
+        slot: ArtworkSlotArg,
+        /// SteamGridDB game ID from `artwork steamgriddb search`.
+        #[arg(long)]
+        game: u64,
+        /// SteamGridDB image ID from `artwork steamgriddb candidates`.
+        #[arg(long)]
+        candidate: u64,
+        /// Require the artwork revision to match the value previously read.
+        #[arg(long)]
+        expected_revision: Option<u64>,
+    },
+    /// Check whether SteamGridDB still lists each SteamGridDB image in your library.
+    #[command(
+        after_help = "Uses your own API key. Portcove records what it finds beside each image's credit. An image counts as no longer listed only when SteamGridDB returns a complete listing for its game, role, size and format that leaves it out; anything less is reported as not confirmed. When SteamGridDB's image server also says the file is gone, or a check at least a day later still finds it missing, Portcove removes its copy of an image you didn't import yourself; your choice and the credit are kept, choosing the image again restores it, and nothing changes in Steam. Each run starts with the images checked longest ago and stops after three minutes."
+    )]
+    CheckListings,
+    /// List proposed static images for one SteamGridDB game and destination role.
+    Candidates {
+        /// SteamGridDB game ID from `artwork steamgriddb search`.
+        game_id: u64,
+        /// Destination image role to propose images for.
+        #[arg(long, value_enum)]
+        role: DestinationArtworkRoleArg,
+    },
+}
+
+impl SteamGridDbCommand {
+    pub(crate) fn name(&self) -> &'static str {
+        match self {
+            Self::Status => "artwork.steamgriddb.status",
+            Self::SetKey { .. } => "artwork.steamgriddb.set-key",
+            Self::ClearKey => "artwork.steamgriddb.clear-key",
+            Self::Search { .. } => "artwork.steamgriddb.search",
+            Self::Candidates { .. } => "artwork.steamgriddb.candidates",
+            Self::Choose { .. } => "artwork.steamgriddb.choose",
+            Self::CheckListings => "artwork.steamgriddb.check-listings",
         }
     }
 }
@@ -567,7 +698,7 @@ pub(crate) enum ArtworkCommand {
     Show {
         /// Catalog port ID; run `portcove catalog list` to find it.
         port_id: String,
-        /// Artwork slot to inspect or change; cover is the library image and detail is the detail view image.
+        /// Artwork slot to inspect or change; cover is the library image, detail is the detail view image, and landscape is the wide cover Steam uses as its library capsule.
         #[arg(long, value_enum, default_value = "cover")]
         slot: ArtworkSlotArg,
     },
@@ -577,7 +708,7 @@ pub(crate) enum ArtworkCommand {
         port_id: String,
         /// Local image file to import; the original stays outside Portcove ownership.
         path: PathBuf,
-        /// Artwork slot to inspect or change; cover is the library image and detail is the detail view image.
+        /// Artwork slot to inspect or change; cover is the library image, detail is the detail view image, and landscape is the wide cover Steam uses as its library capsule.
         #[arg(long, value_enum, default_value = "cover")]
         slot: ArtworkSlotArg,
         /// Require the artwork revision to match the value previously read.
@@ -588,7 +719,7 @@ pub(crate) enum ArtworkCommand {
     Reset {
         /// Catalog port ID; run `portcove catalog list` to find it.
         port_id: String,
-        /// Artwork slot to inspect or change; cover is the library image and detail is the detail view image.
+        /// Artwork slot to inspect or change; cover is the library image, detail is the detail view image, and landscape is the wide cover Steam uses as its library capsule.
         #[arg(long, value_enum, default_value = "cover")]
         slot: ArtworkSlotArg,
         /// Require the artwork revision to match the value previously read.
@@ -599,6 +730,14 @@ pub(crate) enum ArtworkCommand {
     ClearCache,
     /// List imported artwork assets no longer referenced by a port.
     Unused,
+    /// Look up proposed artwork on SteamGridDB with your own API key.
+    #[command(
+        after_help = "SteamGridDB lookups use only your own API key from steamgriddb.com/profile/preferences/api. Portcove never ships a key. Results are proposals with author attribution; they choose no artwork and write nothing to Steam."
+    )]
+    Steamgriddb {
+        #[command(subcommand)]
+        command: SteamGridDbCommand,
+    },
     /// Delete one unreferenced imported asset after confirmation.
     RemoveUnused {
         /// Full SHA-256 of an unused imported asset from `artwork unused`; referenced assets cannot be removed.
@@ -617,6 +756,7 @@ impl ArtworkCommand {
             Self::Show { .. } => "artwork.show",
             Self::Import { .. } => "artwork.import",
             Self::Reset { .. } => "artwork.reset",
+            Self::Steamgriddb { command } => command.name(),
             Self::ClearCache => "artwork.clear-cache",
             Self::Unused => "artwork.unused",
             Self::RemoveUnused { .. } => "artwork.remove-unused",
@@ -682,6 +822,13 @@ pub(crate) enum GamesCommand {
     },
     /// Reassess remembered choices against current files, catalog and tools; changes nothing.
     Intents,
+    /// Show or change whether ready notices are shown. Never changes a game's choice or
+    /// automatic setup.
+    Notices {
+        /// on or off. Omit to show the current setting without changing it.
+        #[arg(value_enum)]
+        state: Option<NoticeState>,
+    },
     /// Mark ready games as seen so the same opportunity is not reported again.
     IntentsAcknowledge {
         /// Ready game and plan digest from `games intents`, as PORT_ID=PLAN_SHA256. Repeat per game.
@@ -710,14 +857,35 @@ pub(crate) enum GamesCommand {
         #[arg(long = "game", value_name = "PORT_ID")]
         port_id: String,
     },
+    /// Choose whether automatic setup from a folder copies each game's required
+    /// files into Portcove's game-file folder (originals are never moved).
+    FolderSetupCopy {
+        /// Folder ID from `source roots`.
+        root_id: String,
+        /// on: register a local copy; off: use files where they are.
+        #[arg(value_enum)]
+        copy: FolderSetupCopy,
+    },
     /// List folders with automatic setup turned on; changes nothing.
     FolderSetups,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum FolderSetupCopy {
+    On,
+    Off,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub(crate) enum FolderSetupMode {
     ExistingAndFuture,
     FutureOnly,
+    Off,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub(crate) enum NoticeState {
+    On,
     Off,
 }
 
@@ -1325,6 +1493,23 @@ pub(crate) enum GameFileRootCommand {
     Scan(GameFileRootScanArgs),
     /// Read the last completed scan and whether its inputs still match.
     Snapshot,
+    /// Read the last scan's recorded matches one page at a time.
+    Matches(GameFileRootMatchesArgs),
+    /// List the game-file profiles the last scan matched inside one saved folder.
+    Profiles {
+        /// Saved folder ID from `source roots list`.
+        #[arg(long = "root")]
+        root_id: String,
+    },
+    /// List game folders Steam, GOG and Epic installed on this computer; reads only.
+    #[command(
+        after_help = "Search one with source discover --root PATH --profile PROFILE_ID, or save it with source roots add PATH. Listing never saves a folder, registers files or changes anything in a store's folder."
+    )]
+    Stores {
+        /// Select a known original-file profile for a store bundle's candidate folder.
+        #[arg(long = "profile")]
+        profile_id: Option<String>,
+    },
     /// Save one available folder; adding the same folder again is idempotent.
     Add {
         /// Available folder to remember for future scans; adding it does not register its files.
@@ -1342,6 +1527,52 @@ pub(crate) enum GameFileRootCommand {
         /// Saved folder ID from `source roots list`; paths alone are not folder identities.
         root_id: String,
     },
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub(crate) enum GameFileScanMatchKindArg {
+    Exact,
+    Preliminary,
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct GameFileRootMatchesArgs {
+    /// Exact candidates, or preliminary selections whose validator has not run.
+    #[arg(long, value_enum, default_value = "exact")]
+    pub(crate) kind: GameFileScanMatchKindArg,
+    /// Matches to skip, from an earlier page's next offset.
+    #[arg(long, default_value_t = 0)]
+    pub(crate) offset: u32,
+    /// Matches on this page, 1 to 512.
+    #[arg(long, default_value_t = 64)]
+    pub(crate) limit: u32,
+    /// Only matches inside this saved folder ID from `source roots list`.
+    #[arg(long = "root")]
+    pub(crate) root_id: Option<String>,
+    /// Only matches for this source profile.
+    #[arg(long = "profile")]
+    pub(crate) profile_id: Option<String>,
+    /// Scan ID from an earlier page; a scan replaced since then is refused.
+    #[arg(long)]
+    pub(crate) scan_id: Option<String>,
+}
+
+impl GameFileRootMatchesArgs {
+    pub(crate) fn query(self) -> portcove_core::GameFileScanMatchQuery {
+        portcove_core::GameFileScanMatchQuery {
+            scan_id: self.scan_id,
+            kind: match self.kind {
+                GameFileScanMatchKindArg::Exact => portcove_core::GameFileScanMatchKind::Exact,
+                GameFileScanMatchKindArg::Preliminary => {
+                    portcove_core::GameFileScanMatchKind::Preliminary
+                }
+            },
+            offset: self.offset,
+            limit: self.limit,
+            root_id: self.root_id,
+            profile_id: self.profile_id,
+        }
+    }
 }
 
 #[derive(Debug, Args)]
@@ -1478,6 +1709,22 @@ pub(crate) enum ToolCommand {
     ClearPath {
         /// Tool ID from `portcove tool list`, which also shows its supported purpose and setup reference.
         tool_id: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum DatCommand {
+    /// Show saved DAT files and whether each still matches its saved fingerprint.
+    List,
+    /// Check a local Logiqx XML DAT file and save a reference to it; the file is not copied.
+    Add {
+        /// Path to a No-Intro, Redump or other Logiqx XML DAT file.
+        path: PathBuf,
+    },
+    /// Forget a saved DAT file; the file itself is not changed.
+    Remove {
+        /// DAT ID from `portcove dat list`.
+        dat_id: String,
     },
 }
 

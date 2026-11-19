@@ -184,6 +184,36 @@ describe("coherent Core browsing contexts", () => {
       ).ports,
     ).toEqual([]);
   });
+  it("offers listing-only platforms as the listing download, never a managed context", () => {
+    // The accepted listing adds macOS; Core has contexts for the managed platforms only.
+    const offered = { ...port, listing: { platforms: ["macos-aarch64"] } } as typeof port;
+    const macos = { version: 1, platforms: ["macos-aarch64"] };
+    const result = evaluateCatalogQuery([offered], macos, context());
+    expect(result.state).toBe("matched");
+    expect(result.ports).toEqual([offered]);
+    expect(result.matchingContexts.get(port.id)).toEqual([]);
+    expect(result.counts.platforms["macos-aarch64"]).toBe(1);
+    const onMac = context();
+    onMac.browsing = { ...onMac.browsing!, host_platform: "macos-aarch64" };
+    expect(
+      evaluateCatalogQuery([offered], { version: 1, platforms: ["this-device"] }, onMac).ports,
+    ).toEqual([offered]);
+    // The managed Windows installation and Linux setup do not transfer to macOS.
+    for (const extra of [
+      { membership: ["in-library"] },
+      { membership: ["not-in-library"] },
+      { channels: ["beta"] },
+      { installationMethods: ["portable-package"] },
+    ])
+      expect(evaluateCatalogQuery([offered], { ...macos, ...extra }, context()).ports).toEqual([]);
+    expect(
+      evaluateCatalogQuery(
+        [offered],
+        { version: 1, platforms: ["linux-x86-64"] },
+        context(),
+      ).matchingContexts.get(port.id),
+    ).toEqual([base]);
+  });
   it("does not guess a historical platform or publish a false zero", () => {
     const result = evaluateCatalogQuery(
       [port],

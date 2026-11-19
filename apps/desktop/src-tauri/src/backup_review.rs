@@ -181,6 +181,7 @@ mod tests {
                     file_count: 1,
                     size: 4,
                     sha256: "a".repeat(64),
+                    unknown_file_count: 0,
                 },
                 current_user_data_exists: safety_backup_will_be_created,
                 safety_backup_will_be_created,

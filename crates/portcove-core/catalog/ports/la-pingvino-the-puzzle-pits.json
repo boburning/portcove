@@ -1,0 +1,45 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "la-pingvino-the-puzzle-pits",
+    "project_url": "https://github.com/LaPingvino/The-Puzzle-Pits",
+    "artwork": {
+      "game_id": 62400,
+      "cover_id": 42395,
+      "image_id": "db70locrelhbrat6cmyo",
+      "image_sha256": "0123b46b3856eb26430b974218e1432ad092d3ac99454afbb74ac5784bdf6a24",
+      "game_slug": "puzzle-pits",
+      "match_kind": "port"
+    },
+    "name": "The Puzzle Pits",
+    "original_game_title": "The Puzzle Pits",
+    "summary": "Move barrels, cross traps and resume puzzles with level passwords.",
+    "issue_number": 6079,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/LaPingvino/The-Puzzle-Pits/releases/tag/v0.1.0",
+    "setup_url": "https://github.com/LaPingvino/The-Puzzle-Pits/blob/v0.1.0/README.md",
+    "download_block_reason": "Open the publisher’s preview release or browser edition. These packages include the original DOS game and its data.",
+    "manual_setup": {
+      "help_url": "https://github.com/LaPingvino/The-Puzzle-Pits/blob/v0.1.0/README.md",
+      "steps": [
+        {
+          "title": "Open the native preview",
+          "instruction": "Extract the complete publisher package. Open puzzle-pits.exe on Windows x86-64 or run puzzle-pits from the extracted folder on Linux x86-64 or Apple Silicon. PITS.EXE is the bundled DOS program. Keep the level and sound files with the native player. The Linux build needs SDL2 and glibc 2.34 or later. The inspected Mac build needs macOS 26.6.2 or later."
+        },
+        {
+          "title": "Keep your level passwords",
+          "instruction": "Write down the password displayed after completing each level. Use Enter Level Password on the title screen to resume from the next level. Keep passwords when replacing the upstream player."
+        },
+        {
+          "title": "Play in a browser",
+          "instruction": "The publisher also offers a browser build at https://lapingvino.github.io/The-Puzzle-Pits/."
+        }
+      ],
+      "warnings": [
+        "This is the first upstream preview. The publisher describes the Mac binary as unsigned. Review the publisher’s instructions before opening it."
+      ]
+    }
+  }
+}

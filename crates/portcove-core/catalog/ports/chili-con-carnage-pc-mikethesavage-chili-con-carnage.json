@@ -35,6 +35,21 @@
       "image_sha256": "ab4eeec515f39b56578acffc49fdda2fdd1106ae84c7d1e3c7894bbdb53c6f3c",
       "game_slug": "chili-con-carnage",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "chili-con-carnage",
+      "evidence_urls": ["https://github.com/MikeTheSavage/chili-con-carnage-pc"],
+      "source_editions": [
+        {
+          "id": "chili-con-carnage-playstation-portable",
+          "title": "Chili Con Carnage (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/MikeTheSavage/chili-con-carnage-pc/blob/3bf54521d55d05b884293cbce61831c22959128c/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

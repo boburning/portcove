@@ -1,0 +1,109 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "touhou-4-lotus-land-story-portable64",
+    "artwork": {
+      "game_id": 45964,
+      "cover_id": 217575,
+      "image_id": "co4nvr",
+      "image_sha256": "f32a4573b6f8f10dceacef3bbe57797253a94262417436d35f833df7d597f26c",
+      "game_slug": "touhou-gensoukyou-lotus-land-story",
+      "match_kind": "underlying-game"
+    },
+    "name": "Touhou 4: Lotus Land Story — Portable 64-bit",
+    "original_game_title": "Touhou Gensokyo: Lotus Land Story",
+    "summary": "Play the native desktop preview using your own PC-98 game image and external font and sound resources.",
+    "project_url": "https://github.com/N0zoM1z0/th04",
+    "issue_number": 6128,
+    "listed_at": "2026-11-15",
+    "platforms": ["linux-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/N0zoM1z0/th04/releases/tag/portable64-2026.10.27",
+    "setup_url": "https://github.com/N0zoM1z0/th04/blob/23a73b72ea89eaee96621e3c881815814b2bc03b/docs/PORTABLE.md",
+    "download_asset_hints": {
+      "windows-x86-64": ["th04-portable64-windows-x64-", ".zip"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/N0zoM1z0/th04/blob/23a73b72ea89eaee96621e3c881815814b2bc03b/docs/PORTABLE.md",
+      "steps": [
+        {
+          "title": "Add your own game files",
+          "instruction": "Put your own th04.hdi PC-98 image, FREECG98.BMP font and ym2608_adpcm_rom.bin rhythm ROM beside th04-port64.exe. Compare them with the tested input identities in the upstream guide; the game does not check them."
+        },
+        {
+          "title": "Register a Windows copy you manage yourself",
+          "instruction": "Extract the x64 preview into a writable folder and check the release SHA-256. Choose th04-port64.exe with its own folder as the working directory. Add these arguments as separate entries: --hdi th04.hdi --font-bmp FREECG98.BMP --save-dir save-normal --title --audio --pmd-driver pmd86 --opna-rom ym2608_adpcm_rom.bin. Save the launch details and choose Play. Play.bat starts the ordinary game outside Portcove."
+        },
+        {
+          "title": "Build a Linux x86-64 copy",
+          "instruction": "Follow the pinned Portable 64-bit Linux build with CMake, a C++17 compiler and SDL2 development files. Start the built th04-port64 from your prepared folder and set the input paths and save directory as shown in the upstream Linux command."
+        }
+      ],
+      "warnings": [
+        "The player contains program code reconstructed from the original game, which the project’s MIT licence does not cover. Portcove downloads it only from the project’s own releases. You need your own game image, font and sound ROM.",
+        "The upstream preview offers an assisted mode with its own save directory. Use the ordinary player for regular play and keep both profiles separately."
+      ],
+      "references": [
+        {
+          "title": "Keep scores and settings",
+          "instruction": "Keep MIKO.CFG and GENSOU.SCR together under your effective save directory. The bundled launchers use save-normal and save-no-life-loss. A direct run without --save-dir uses %LOCALAPPDATA%/TH04 on Windows or $XDG_DATA_HOME/th04 on Linux, usually ~/.local/share/th04. Close the game before replacing its player."
+        }
+      ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "N0zoM1z0/th04",
+      "asset_hints": {
+        "windows-x86-64": ["th04-portable64-windows-x64-", ".zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["th04-port64.exe"]
+    },
+    "launch_arguments": [
+      "--hdi",
+      "th04.hdi",
+      "--font-bmp",
+      "FREECG98.BMP",
+      "--save-dir",
+      "save-normal",
+      "--title",
+      "--audio",
+      "--pmd-driver",
+      "pmd86",
+      "--opna-rom",
+      "ym2608_adpcm_rom.bin"
+    ],
+    "persistent_paths": [
+      "save-normal",
+      "save-no-life-loss",
+      "th04.hdi",
+      "FREECG98.BMP",
+      "ym2608_adpcm_rom.bin"
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Before Play, put your own th04.hdi PC-98 image, FREECG98.BMP font and ym2608_adpcm_rom.bin rhythm ROM beside th04-port64.exe in the managed game folder; nothing checks them, so compare them with the tested identities in the upstream guide. Portcove starts the ordinary player with those files and the save-normal save folder, and keeps the three files, save-normal and save-no-life-loss across updates, backups and rollback. The bundled Play.bat and assisted-mode launchers start the game outside Portcove. Use a library path that fits within the Windows path limit; Portcove refuses longer install folders before download."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["licenses"],
+        "executables": [
+          "play-no-life-loss.bat",
+          "play.bat",
+          "run_no_life_loss.ps1",
+          "th04-port64.exe"
+        ]
+      }
+    },
+    "windows_runtime_path_policy": "relative-file-max-path"
+  }
+}

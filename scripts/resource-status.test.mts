@@ -7,6 +7,7 @@ import test from "node:test";
 import { capacityOwnerLines, collectResourceStatus } from "./resource-status.mts";
 import { writeFileSync } from "node:fs";
 import { parsePressure, parseDiskStats, sampleHostObservations } from "./resource-observations.mts";
+import { passiveProcessIdentityReader } from "./heavy-rust-test-lock.mts";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -35,6 +36,43 @@ void test("resource status CLI renders its collected I/O observation without req
   );
   assert.match(output, /Host I\/O: (?:recorded|unavailable); 1 sample/u);
   assert.match(output, /unregistered runners are unobserved/u);
+});
+
+void test("Windows passive resource identities share one creation-time snapshot", () => {
+  let calls = 0;
+  const inspect = passiveProcessIdentityReader("win32", (command, args, options) => {
+    calls++;
+    assert.equal(command, "pwsh.exe");
+    assert.match(args.at(-1) ?? "", /Get-CimInstance Win32_Process/u);
+    assert.equal(options.timeout, 15_000);
+    assert.equal(options.maxBuffer, 256 * 1024);
+    return "12:638983830665234567\r\n13:638983830665234568\r\n14:?\r\n";
+  });
+
+  assert.equal(calls, 0);
+  assert.equal(inspect(12), "win32:12:638983830665234567");
+  assert.notEqual(inspect(13), "win32:13:638983830665234569");
+  assert.throws(() => inspect(14), {
+    code: "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE",
+    message: /no observed creation identity/u,
+  });
+  for (let pid = 100; pid < 205; pid++) assert.equal(inspect(pid), null);
+  assert.equal(calls, 1);
+});
+
+void test("Windows resource identity probe failures are observable", () => {
+  for (const raw of ["", "123:638983830665234567\ncorrupt", "123:1\n123:2"]) {
+    const inspect = passiveProcessIdentityReader("win32", () => raw);
+    assert.throws(() => inspect(123), /Invalid Windows process identity snapshot/u);
+  }
+  const error = Object.assign(new Error("timed out reading identities"), { code: "ETIMEDOUT" });
+  const inspect = passiveProcessIdentityReader("win32", () => {
+    throw error;
+  });
+  assert.throws(() => inspect(123), {
+    code: "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE",
+    cause: error,
+  });
 });
 
 void test("host I/O observations preserve counters and reject malformed or incomplete data", async () => {

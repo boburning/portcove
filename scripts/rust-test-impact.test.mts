@@ -21,6 +21,7 @@ import {
   selectWorkspaceRustImpact,
   runnableWorkspaceImpactTests,
   runWorkspaceRustImpact,
+  catalogGrowthGuardFilter,
 } from "./rust-test-impact.mts";
 import { buildValidationPlan, linuxRuntimeDiagnosticsRequired } from "./validation-plan.mts";
 import { baselineContractTests, baselineIntegrityCommands } from "./ci-baseline.mts";
@@ -1297,6 +1298,44 @@ void test("an explicitly mapped addition uses its reviewed focused group", () =>
   assert.match(selected.reason, /added or modified Rust path/u);
 });
 
+// A group runs the catalog growth guard when it is the complete Core package
+// or its filter names the guard explicitly.
+const runsCatalogGrowthGuard = (groups: { filter: string }[]) =>
+  groups.some(
+    (group) =>
+      group.filter === "all()" ||
+      group.filter === "package(=portcove-core)" ||
+      (group.filter.startsWith("package(=portcove-core)") &&
+        group.filter.includes(catalogGrowthGuardFilter)),
+  );
+
+void test("catalog-only and port-file-only changes keep Core's catalog growth guard", () => {
+  assert.ok(
+    map.packages["portcove-core"]?.groups.some(
+      (group) => group.id === "catalog-contract" && group.filter.includes(catalogGrowthGuardFilter),
+    ),
+  );
+  const catalogOnly = selectWorkspaceRustImpact(
+    workspacePlan(["crates/portcove-core/catalog/catalog.json"]),
+  );
+  assert.deepEqual(
+    catalogOnly.filter((group) => group.packageName === "portcove-core").map((group) => group.id),
+    ["portcove-core:catalog-contract"],
+  );
+  assert.ok(runsCatalogGrowthGuard(catalogOnly));
+  const portOnly = selectWorkspaceRustImpact(
+    workspacePlan(["crates/portcove-core/catalog/ports/body-harvest-recompiled.json"]),
+  );
+  assert.ok(runsCatalogGrowthGuard(portOnly));
+  const authored = selectWorkspaceRustImpact(
+    workspacePlan([
+      "crates/portcove-core/catalog/catalog.json",
+      "crates/portcove-core/catalog/ports/body-harvest-recompiled.json",
+    ]),
+  );
+  assert.ok(runsCatalogGrowthGuard(authored));
+});
+
 void test("route fixture changes retain both enrollment inventories and release selection", () => {
   const fixtures = [
     "crates/portcove-core/catalog/route-enrollment.generated.json",
@@ -1783,6 +1822,7 @@ void test("discovery platforms narrow only complete upstream-only directory addi
       "portcove-desktop:catalog-discovery-platforms",
     ],
   );
+  assert.ok(runsCatalogGrowthGuard(select(annotated)));
   const broad = (selection: ReturnType<typeof select>) =>
     selection.some(
       (group) => group.filter === "package(=portcove-core)" || group.filter === "all()",
@@ -1854,6 +1894,7 @@ void test("guide reference copy narrows Rust only for complete matching projecti
     selectWorkspaceRustImpact(guided, undefined, after).map((group) => group.id),
     ["portcove-core:catalog-guide-copy", "portcove-cli:catalog-guide-copy"],
   );
+  assert.ok(runsCatalogGrowthGuard(selectWorkspaceRustImpact(guided, undefined, after)));
   const usesBroadCore = (candidate: typeof guided, checkout = after) =>
     selectWorkspaceRustImpact(candidate, undefined, checkout).some(
       (group) => group.filter === "package(=portcove-core)",
@@ -1932,6 +1973,7 @@ void test("proven per-title layout conversions retain generator and embedded cat
     selectWorkspaceRustImpact(proven, undefined, after).map((group) => group.id),
     ["portcove-core:catalog-authoring-equivalence"],
   );
+  assert.ok(runsCatalogGrowthGuard(selectWorkspaceRustImpact(proven, undefined, after)));
   assert.ok(baselineContractTests(proven).includes("scripts/generate-catalog.test.mts"));
   assert.ok(
     baselineIntegrityCommands(proven).some(

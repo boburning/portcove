@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "daxter-recompiled-anthonyhfm-daxter",
+    "artwork": {
+      "game_id": 1533,
+      "cover_id": 79887,
+      "image_id": "co1pn3",
+      "image_sha256": "ba8adb1ce85f2d4c5c2727afe3ea8caca6a2047e50dc99e0e09f2a94e9c2faa0",
+      "game_slug": "daxter",
+      "match_kind": "underlying-game"
+    },
     "name": "Daxter — daxter-recompiled (anthonyhfm)",
     "original_game_title": "Daxter",
     "summary": "This experimental alpha has a native Refract player. A complete playthrough is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/anthonyhfm/daxter-recompiled"
     },
-    "issue_number": 3109
+    "issue_number": 3109,
+    "original_game": {
+      "format_version": 1,
+      "id": "daxter",
+      "evidence_urls": ["https://github.com/anthonyhfm/daxter-recompiled"],
+      "source_editions": [
+        {
+          "id": "daxter-playstation-portable",
+          "title": "Daxter (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/anthonyhfm/daxter-recompiled/blob/c0c8cc01a7f782f6706fc91b91f476cfd191bd23/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

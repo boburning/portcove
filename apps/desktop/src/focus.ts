@@ -3,13 +3,14 @@ const selector =
   "button, a[href], input, select, textarea, summary, [tabindex], [contenteditable=true], [role=option], [role=menuitem]";
 const regionFocus = new WeakMap<HTMLElement, HTMLElement>();
 
-function visibleControl(item: HTMLElement) {
+function visibleControl(item: HTMLElement, includeAriaDisabled = false) {
   return (
     (item.tabIndex >= 0 ||
       item.matches("[role=option], [role=menuitem]") ||
       (item.matches("[role=radio], [role=tab]") &&
         Boolean(item.closest("[role=radiogroup], [role=tablist]")))) &&
-    !item.matches(":disabled, [aria-disabled=true]") &&
+    !item.matches(":disabled") &&
+    (includeAriaDisabled || item.getAttribute("aria-disabled") !== "true") &&
     !item.closest("[inert], [hidden], [aria-hidden=true]") &&
     item.getClientRects().length > 0 &&
     getComputedStyle(item).visibility !== "hidden"
@@ -25,15 +26,60 @@ export function navigationScope(): HTMLElement | Document {
   return surfaces.at(-1) ?? document;
 }
 
-export function focusableControls(scope: HTMLElement | Document = navigationScope()) {
-  return [...scope.querySelectorAll<HTMLElement>(selector)].filter(visibleControl);
+export function focusableControls(
+  scope: HTMLElement | Document = navigationScope(),
+  { includeAriaDisabled = false } = {},
+) {
+  return [...scope.querySelectorAll<HTMLElement>(selector)].filter((item) =>
+    visibleControl(item, includeAriaDisabled),
+  );
 }
 
-export function focusAndReveal(item: HTMLElement | null | undefined) {
-  const region = item?.closest<HTMLElement>("[data-focus-region]");
-  if (item && region) regionFocus.set(region, item);
-  item?.focus({ preventScroll: true });
-  item?.scrollIntoView({ block: "nearest", inline: "nearest" });
+export function focusAndReveal(
+  item: HTMLElement | null | undefined,
+  { centerBeforeFocus = false } = {},
+) {
+  if (!item) return;
+  const region = item.closest<HTMLElement>("[data-focus-region]");
+  if (region) regionFocus.set(region, item);
+  // Default consumers can resize on focus. A completion handoff centers before
+  // focusin so workspace feedback reflow records the destination's new position.
+  const moveFocus = () => item.focus({ preventScroll: true });
+  if (!centerBeforeFocus) moveFocus();
+  item.scrollIntoView({ block: centerBeforeFocus ? "center" : "nearest", inline: "nearest" });
+  containWithinScroller(item);
+  if (centerBeforeFocus) moveFocus();
+}
+
+/**
+ * Browsers round scroll positions to whole pixels, which can leave a control with a
+ * fractional height clipped by less than a pixel after a "nearest" reveal. Nudge the
+ * nearest vertical scroller outward so the revealed control is fully contained.
+ */
+function containWithinScroller(item: HTMLElement) {
+  let scroller = item.parentElement;
+  while (scroller && scroller !== document.body) {
+    const { overflowY } = getComputedStyle(scroller);
+    if (/(auto|scroll|overlay)/u.test(overflowY) && scroller.scrollHeight > scroller.clientHeight)
+      break;
+    scroller = scroller.parentElement;
+  }
+  const target = scroller && scroller !== document.body ? scroller : document.scrollingElement;
+  if (!target) return;
+  const bounds =
+    target === document.scrollingElement
+      ? { top: 0, bottom: window.innerHeight }
+      : target.getBoundingClientRect();
+  const visibleTop = bounds.top + (target === document.scrollingElement ? 0 : target.clientTop);
+  const visibleBottom = visibleTop + target.clientHeight;
+  const rect = item.getBoundingClientRect();
+  if (rect.height > target.clientHeight) return;
+  // Only a sub-pixel residual is corrected; anything larger belongs to the browser's
+  // own reveal or to deliberate scroll restoration and is left untouched.
+  const below = rect.bottom - visibleBottom;
+  const above = visibleTop - rect.top;
+  if (below > 0 && below < 1) target.scrollTop += 1;
+  else if (above > 0 && above < 1) target.scrollTop -= 1;
 }
 
 export function focusRegion(name: "sidebar" | "workspace") {

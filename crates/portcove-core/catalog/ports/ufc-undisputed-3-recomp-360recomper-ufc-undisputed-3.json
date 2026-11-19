@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "ufc-undisputed-3-recomp-360recomper-ufc-undisputed-3",
+    "artwork": {
+      "game_id": 7229,
+      "cover_id": 161056,
+      "image_id": "co3g9s",
+      "image_sha256": "dea7d47110ca740c27cb6b947e0039e9b8508d791ebbad052034500943d2382c",
+      "game_slug": "ufc-undisputed-3",
+      "match_kind": "underlying-game"
+    },
     "name": "UFC Undisputed 3 — UFC Undisputed 3 Recomp (360recomper)",
     "original_game_title": "UFC Undisputed 3",
     "summary": "The project claims career play from start to finish after fixing earlier fight-transition crashes. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,25 @@
       ],
       "help_url": "https://github.com/360recomper/UFC3ReX"
     },
-    "issue_number": 3237
+    "issue_number": 3237,
+    "original_game": {
+      "format_version": 1,
+      "id": "ufc-undisputed-3",
+      "evidence_urls": [
+        "https://github.com/360recomper/UFC3ReX",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/ufc-undisputed-3-recomp-360recomper-ufc-undisputed-3.json"
+      ],
+      "source_editions": [
+        {
+          "id": "ufc-undisputed-3-xbox-360",
+          "title": "UFC Undisputed 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/ufc-undisputed-3-recomp-360recomper-ufc-undisputed-3.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

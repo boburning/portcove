@@ -35,6 +35,21 @@
       "image_sha256": "618c3934a7cc6ea3c3db0c3fb229b793cb861cea2c55cdf6e304a0faa79517a5",
       "game_slug": "army-of-two-the-40th-day",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "army-of-two-the-40th-day",
+      "evidence_urls": ["https://github.com/eu-maxwelllucas/Libre40"],
+      "source_editions": [
+        {
+          "id": "army-of-two-the-40th-day-xbox-360",
+          "title": "Army of Two: The 40th Day (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/eu-maxwelllucas/Libre40/blob/52b7e4411d5347179be66efb4a90ac080677b72f/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

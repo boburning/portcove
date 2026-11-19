@@ -80,6 +80,7 @@ fn authenticated_baseline(
             size: SIZE,
             sha256: DIGEST.into(),
         },
+        uploader_continuity: None,
     })
 }
 
@@ -127,6 +128,8 @@ mod tests {
             GithubRepository {
                 id: Some(repository_id),
                 archived: false,
+                owner: None,
+                pushed_at: None,
             },
             serde_json::from_value(value).unwrap(),
         )

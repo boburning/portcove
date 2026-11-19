@@ -99,7 +99,7 @@ it("restores independent section query/search/sort on restart without transient 
   await act(async () => {
     browsing.ui.setFilter(filter);
     browsing.ui.setQuery("catalog search");
-    browsing.ui.setCatalogSort("name");
+    browsing.ui.setCatalogSort("name-desc");
   });
   const saved = window.localStorage.getItem(libraryBrowsingPreferenceKey(libraryRoot))!;
   expect(saved).not.toMatch(/private-|selected-detail|scrollTop|focus/);
@@ -110,7 +110,7 @@ it("restores independent section query/search/sort on restart without transient 
     libraryReadiness: "ready",
     librarySort: "recent",
     query: "installed search",
-    catalogSort: "name",
+    catalogSort: "name-desc",
     selectedId: undefined,
     sourcePath: "",
     biosPath: "",
@@ -118,7 +118,7 @@ it("restores independent section query/search/sort on restart without transient 
     adoptOpen: false,
   });
   await act(async () => browsing.ui.setView("catalog"));
-  expect(browsing.ui).toMatchObject({ filter, query: "catalog search", catalogSort: "name" });
+  expect(browsing.ui).toMatchObject({ filter, query: "catalog search", catalogSort: "name-desc" });
   expect(backend).not.toHaveBeenCalled();
   expect(network).not.toHaveBeenCalled();
 });
@@ -461,7 +461,7 @@ it("restores membership in its section/library without losing legacy or unsuppor
       platforms: ["linux-x86-64"],
     });
     browsing.ui.setQuery("kept search");
-    browsing.ui.setCatalogSort("name");
+    browsing.ui.setCatalogSort("name-desc");
   });
   await act(async () => browsing.ui.setView("library"));
   await act(async () => browsing.ui.setFilter({ version: 1, membership: ["in-library"] }));
@@ -470,7 +470,7 @@ it("restores membership in its section/library without losing legacy or unsuppor
   await act(async () => browsing.ui.setView("catalog"));
   expect(browsing.ui).toMatchObject({
     query: "kept search",
-    catalogSort: "name",
+    catalogSort: "name-desc",
     filter: { version: 1, membership: ["not-in-library"], platforms: ["linux-x86-64"] },
   });
   libraryRoot = "E:/other";

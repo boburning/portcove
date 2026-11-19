@@ -1,0 +1,64 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kens-labyrinth-sacredbanana-lab3d-sdl",
+    "project_url": "https://github.com/sacredbanana/lab3d-sdl",
+    "name": "Ken’s Labyrinth / LAB3D/SDL",
+    "original_game_title": "Ken’s Labyrinth",
+    "artwork": {
+      "game_id": 8743,
+      "cover_id": 419835,
+      "image_id": "co8zy3",
+      "image_sha256": "f0c00424aed86fefb0064e6f74e05cc449cee311ce294b70caced13af47229b3",
+      "game_slug": "kens-labyrinth",
+      "match_kind": "underlying-game"
+    },
+    "summary": "Explore Ken’s Labyrinth in a native player with the original game versions and the Walken prerelease.",
+    "issue_number": 6129,
+    "listed_at": "2026-11-14",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/sacredbanana/lab3d-sdl/blob/4.4.0/README.md#installation",
+    "release_url": "https://github.com/sacredbanana/lab3d-sdl/releases/tag/4.4.0",
+    "download_block_reason": "The publisher packages include game data from several original releases. Use the setup guide for a copy you already have. Portcove can offer downloads after the bundled game data is cleared for these packages.",
+    "manual_setup": {
+      "help_url": "https://github.com/sacredbanana/lab3d-sdl/blob/4.4.0/README.md",
+      "steps": [
+        {
+          "title": "Open the Windows or Linux player",
+          "instruction": "Extract the archive to a writable folder. Keep gamedata next to the player. On Windows 10 or later, open Kens-Labyrinth.exe from the extracted folder. The publisher offers separate ARM64 and 32-bit Windows builds. On Linux, install the SDL2, SDL2_image and GLU libraries listed in the upstream guide, then run ./ken from the extracted folder. The publisher also offers Linux ARM64 and other architectures."
+        },
+        {
+          "title": "Set up the universal Mac app",
+          "instruction": "On macOS 12.4 or later, copy Kens-Labyrinth.app from the disk image to an Applications folder you can write to, then open the copied app. The same app runs on Intel and Apple Silicon and already contains the game data and libraries."
+        },
+        {
+          "title": "Choose a game and keep its progress",
+          "instruction": "Choose Ken’s Labyrinth 2.1 for the full Epic release. Walken is the separate 1992 prerelease and uses its own save slots. Before replacing a copy, keep settings.ini. On Linux, also preserve ~/.config/ken/settings.ini if you use it. Keep the save slots and high scores from each game’s own gamedata subfolder. The Mac copy keeps these files under Contents/Resources/kenfiles inside the app."
+        }
+      ],
+      "warnings": [
+        "The Linux system package can place gamedata in a system-owned directory. Use the writable portable copy for saving game progress."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kens-labyrinth",
+      "evidence_urls": [
+        "https://github.com/sacredbanana/lab3d-sdl/blob/4.4.0/README.md#installation",
+        "https://github.com/sacredbanana/lab3d-sdl/blob/4.4.0/README.md",
+        "https://github.com/sacredbanana/lab3d-sdl"
+      ],
+      "source_editions": [
+        {
+          "id": "kens-labyrinth-pc",
+          "title": "Ken’s Labyrinth (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/sacredbanana/lab3d-sdl/blob/d657e6b6921324763c87ae185982aaf376b6fe07/README.md"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,11 +1,15 @@
 import type { TFunction } from "i18next";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
+import { requestStandingSetup } from "../features/game-file-discovery/use-standing-setup";
 import { useAppTranslation } from "../localization";
 import type { ProviderBrowsePage, ProviderInstallPlan, ProviderProjectView } from "../types";
 import { errorText, formatBytes } from "../view-model";
+import { ExternalLink } from "./ExternalLink";
 import { Button } from "./ui/button";
+import { ModUpdateControl, type ModUpdateControlProps } from "./ModUpdateControl";
+import { Input } from "./ui/input";
 import { ActionRow, Notice } from "./ui/patterns";
 
 type Props = {
@@ -23,6 +27,7 @@ type Props = {
   onBusyChange: (busy: boolean) => void;
   /** Called after an install so the setups panel reads Core again. */
   onInstalled: (message: string) => void;
+  updates?: Pick<ModUpdateControlProps, "policy" | "setPolicy" | "automaticChecks">;
 };
 
 /** The provider's own name, which is not translated. */
@@ -61,16 +66,25 @@ export function ModProviderBrowser(props: Props) {
     disabled,
     onBusyChange,
     onInstalled,
+    updates,
   } = props;
   const provider = providerName(providerId);
   const { t } = useAppTranslation("gameSettings");
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const [page, setPage] = useState<ProviderBrowsePage>();
   const [project, setProject] = useState<ProviderProjectView>();
   const [plan, setPlan] = useState<ProviderInstallPlan>();
   const [working, setWorking] = useState<string>();
   // Core failure text stays verbatim; the app's own follow-up is rendered live.
-  const [error, setError] = useState<{ text: string; reviewAgain?: boolean }>();
+  const [error, setError] = useState<{
+    text: string;
+    reviewAgain?: boolean;
+    projectId?: string;
+    browseUrl?: string;
+  }>();
+  const heading = useRef<HTMLHeadingElement>(null);
+  const focusOnOpen = useRef(false);
   const headingId = useId();
   const reviewId = useId();
   const alive = useRef(true);
@@ -96,13 +110,24 @@ export function ModProviderBrowser(props: Props) {
     onBusyChange(busy);
   }, [busy, onBusyChange]);
   useEffect(() => () => onBusyChange(false), [onBusyChange]);
+  useLayoutEffect(() => {
+    if (open && focusOnOpen.current) {
+      focusOnOpen.current = false;
+      heading.current?.focus();
+    }
+  }, [open]);
 
   const showPlan = (next: ProviderInstallPlan | undefined) => {
     openPlan.current = next;
     setPlan(next);
   };
 
-  const run = async <T,>(status: string, action: () => Promise<T>, apply: (value: T) => void) => {
+  const run = async <T,>(
+    status: string,
+    action: () => Promise<T>,
+    apply: (value: T) => void,
+    projectId?: string,
+  ) => {
     setWorking(status);
     setError(undefined);
     try {
@@ -110,7 +135,24 @@ export function ModProviderBrowser(props: Props) {
       if (alive.current) apply(value);
       return value;
     } catch (failure) {
-      if (alive.current) setError({ text: errorText(failure) });
+      if (alive.current) {
+        const details =
+          failure && typeof failure === "object" && "details" in failure
+            ? failure.details
+            : undefined;
+        const url =
+          details && typeof details === "object" && "provider_browse_url" in details
+            ? details.provider_browse_url
+            : undefined;
+        setError({
+          text: errorText(failure),
+          ...(projectId ? { projectId } : {}),
+          ...(typeof url === "string" &&
+          /^https:\/\/thunderstore\.io\/c\/[a-zA-Z0-9_-]{1,128}\/$/u.test(url)
+            ? { browseUrl: url }
+            : {}),
+        });
+      }
       return undefined;
     } finally {
       if (alive.current) setWorking(undefined);
@@ -120,39 +162,69 @@ export function ModProviderBrowser(props: Props) {
   const showPage = (number: number) =>
     void run(
       t("mods.browse.checking", { provider }),
-      () => desktopApi.browseProviderMods(portId, number, generation),
+      () => desktopApi.browseProviderMods(portId, number, generation, providerId),
       (next) => {
         setPage(next);
         setProject(undefined);
       },
     );
 
-  const showProject = (projectId: string) =>
+  const showProject = (projectId: string) => {
+    if (project && project.project.project_id !== projectId) setProject(undefined);
     void run(
       t("mods.browse.checking", { provider }),
-      () => desktopApi.providerProject(portId, projectId, generation),
-      setProject,
+      () => desktopApi.providerProject(portId, projectId, generation, providerId),
+      (next) => {
+        setProject(next);
+        if (next.freshness !== "stale") requestStandingSetup();
+      },
+      projectId,
     );
+  };
+
+  const reviewProject = (projectId: string) => {
+    if (open) {
+      heading.current?.focus();
+    } else {
+      focusOnOpen.current = true;
+      setOpen(true);
+    }
+    showProject(projectId);
+  };
 
   const cancelPlan = () => {
     discard(plan);
     showPlan(undefined);
   };
 
+  const updateControl = updates && (
+    <ModUpdateControl
+      portId={portId}
+      profileId={profileId}
+      generation={generation}
+      disabled={disabled || busy}
+      {...updates}
+      showProject={reviewProject}
+    />
+  );
+
   if (!open)
     return (
-      <ActionRow>
-        <Button
-          variant="outline"
-          disabled={disabled}
-          onClick={() => {
-            setOpen(true);
-            showPage(1);
-          }}
-        >
-          {t("mods.browse.open", { provider })}
-        </Button>
-      </ActionRow>
+      <>
+        {updateControl}
+        <ActionRow>
+          <Button
+            variant="outline"
+            disabled={disabled}
+            onClick={() => {
+              setOpen(true);
+              showPage(1);
+            }}
+          >
+            {t("mods.browse.open", { provider })}
+          </Button>
+        </ActionRow>
+      </>
     );
 
   const locked = disabled || Boolean(working);
@@ -164,17 +236,34 @@ export function ModProviderBrowser(props: Props) {
     : undefined;
   const pageStale = page ? staleNote(t, provider, page.freshness, page.observed_at) : undefined;
   const name = <bdi>{profileName}</bdi>;
-  return (
-    <section aria-labelledby={headingId} className="grid gap-2">
-      <h4 id={headingId} className="text-sm font-semibold">
+  const failedProjectId = error?.projectId;
+  const browser = (
+    <section aria-labelledby={headingId} className="grid min-w-0 gap-2 [overflow-wrap:anywhere]">
+      <h4 ref={heading} id={headingId} tabIndex={-1} className="text-sm font-semibold">
         <Trans t={t} i18nKey="mods.browse.heading" values={{ provider }} components={{ name }} />
       </h4>
       <p className="text-sm text-pc-muted-foreground">{t("mods.browse.intro", { provider })}</p>
       {error && (
         <p role="alert">
-          {error.text}
+          <bdi>{error.text}</bdi>
           {error.reviewAgain ? ` ${t("mods.browse.reviewAgain")}` : ""}
         </p>
+      )}
+      {error?.browseUrl && (
+        <ExternalLink href={error.browseUrl}>
+          {t("mods.browse.sourcePage", { provider })}
+        </ExternalLink>
+      )}
+      {failedProjectId && (
+        <ActionRow>
+          <Button
+            variant="outline"
+            disabled={locked}
+            onClick={() => reviewProject(failedProjectId)}
+          >
+            {t("mods.browse.checkAgain", { provider })}
+          </Button>
+        </ActionRow>
       )}
       {working && <p role="status">{working}</p>}
 
@@ -197,90 +286,7 @@ export function ModProviderBrowser(props: Props) {
               />{" "}
               {inUse ? t("mods.browse.inUse") : t("mods.browse.notInUse")}
             </p>
-            <p className="font-semibold">{t("mods.browse.installs")}</p>
-            <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
-              {plan.members.map((member) => (
-                <li key={member.file_name}>
-                  <Trans
-                    t={t}
-                    i18nKey="mods.browse.member"
-                    values={{ size: formatBytes(member.size) }}
-                    components={{ file: <bdi>{member.file_name}</bdi> }}
-                  />
-                </li>
-              ))}
-              {plan.replaces.map((replaced) => (
-                <li key={`replaces-${replaced}`}>
-                  <Trans
-                    t={t}
-                    i18nKey="mods.browse.replaces"
-                    components={{ name: <bdi>{replaced}</bdi> }}
-                  />
-                </li>
-              ))}
-            </ul>
-            {plan.ignored_entries > 0 && (
-              <p>{t("mods.browse.ignored", { count: plan.ignored_entries })}</p>
-            )}
-            {plan.conflicts.length > 0 && (
-              <>
-                <p className="font-semibold">{t("mods.browse.conflictsHeading")}</p>
-                <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
-                  {plan.conflicts.map((conflict) => (
-                    <li key={`conflict-${conflict.path}`}>
-                      <Trans
-                        t={t}
-                        i18nKey="mods.browse.conflict"
-                        components={{
-                          path: <bdi>{conflict.path}</bdi>,
-                          providers: <bdi>{conflict.providers.join(t("mods.separator"))}</bdi>,
-                          winner: <bdi>{conflict.winner}</bdi>,
-                        }}
-                      />
-                    </li>
-                  ))}
-                </ul>
-                {plan.conflicts_truncated && <p>{t("mods.browse.truncated")}</p>}
-              </>
-            )}
-            {plan.unverified_claims.length > 0 && (
-              <>
-                <p className="font-semibold">{t("mods.browse.unverifiedHeading")}</p>
-                <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
-                  {plan.unverified_claims.map((claim) => (
-                    <li key={`claim-${claim}`}>
-                      <bdi>{claim}</bdi>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-            <p className="text-sm [overflow-wrap:anywhere] text-pc-muted-foreground">
-              <Trans
-                t={t}
-                i18nKey="mods.browse.digests"
-                components={{
-                  download: <code dir="ltr">{plan.download_sha256}</code>,
-                  review: <code dir="ltr">{plan.plan_sha256}</code>,
-                }}
-              />
-            </p>
-            {codeMembers.length > 0 && (
-              <Notice intent="warning">
-                <div data-slot="notice-body">
-                  <p className="[overflow-wrap:anywhere]">
-                    <Trans
-                      t={t}
-                      i18nKey="mods.browse.code"
-                      count={codeMembers.length}
-                      components={{
-                        names: <bdi>{codeMembers.join(t("mods.separator"))}</bdi>,
-                      }}
-                    />
-                  </p>
-                </div>
-              </Notice>
-            )}
+            <ProviderInstallDetails plan={plan} codeMembers={codeMembers} />
             <ActionRow>
               <Button
                 disabled={locked}
@@ -339,154 +345,443 @@ export function ModProviderBrowser(props: Props) {
           </div>
         </Notice>
       ) : project ? (
-        <section
-          aria-label={t("mods.browse.filesLabel", { name: project.project.name })}
-          className="grid gap-2"
-        >
-          <p className="text-sm font-semibold">
-            <bdi>{project.project.name}</bdi>
-          </p>
-          {projectStale && <p className="text-sm">{projectStale}</p>}
-          {project.project.obsolete && <p className="text-sm">{t("mods.browse.obsolete")}</p>}
-          {project.project.files.length === 0 ? (
-            <p className="text-sm">{t("mods.browse.noFiles")}</p>
-          ) : (
-            <ul className="m-0 grid list-none gap-1 p-0">
-              {project.project.files.map((file) => {
-                const installable = !file.archived && !project.project.obsolete && !projectStale;
-                return (
-                  <li
-                    key={file.file_id}
-                    className="flex flex-wrap items-center gap-2 text-sm [overflow-wrap:anywhere]"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <Trans
-                        t={t}
-                        i18nKey={file.archived ? "mods.browse.fileArchived" : "mods.browse.file"}
-                        values={{ size: formatBytes(file.size) }}
-                        components={{ file: <bdi>{file.file_name}</bdi> }}
-                      />
-                    </span>
-                    {installable && (
-                      <Button
-                        variant="outline"
-                        disabled={locked}
-                        onClick={() =>
-                          void run(
-                            t("mods.browse.downloading", { file: file.file_name }),
-                            () =>
-                              desktopApi.planProviderInstall(
-                                portId,
-                                profileId,
-                                project.project.project_id,
-                                file.file_id,
-                                generation,
-                              ),
-                            showPlan,
-                          ).then((reviewed) => {
-                            // An answer for a view that was left is discarded.
-                            if (reviewed && !alive.current) discard(reviewed);
-                          })
-                        }
-                      >
-                        {t("mods.browse.review", { file: file.file_name })}
-                      </Button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          {project.project.unreadable_files > 0 && (
-            <p className="text-sm">
-              {t("mods.browse.unreadable", { count: project.project.unreadable_files, provider })}
-            </p>
-          )}
-          <ActionRow>
-            {projectStale && (
-              <Button
-                variant="outline"
-                disabled={locked}
-                onClick={() => showProject(project.project.project_id)}
-              >
-                {t("mods.browse.checkAgain", { provider })}
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              disabled={Boolean(working)}
-              onClick={() => {
-                setError(undefined);
-                setProject(undefined);
-              }}
-            >
-              {t("mods.browse.back")}
-            </Button>
-          </ActionRow>
-        </section>
+        <ProviderProjectFiles
+          project={project}
+          openProject={() =>
+            desktopApi.openProviderModProject(
+              portId,
+              project.project.project_id,
+              generation,
+              providerId,
+            )
+          }
+          projectStale={projectStale}
+          provider={provider}
+          locked={locked}
+          working={Boolean(working)}
+          showProject={showProject}
+          back={() => {
+            setError(undefined);
+            if (page) setProject(undefined);
+            else showPage(1);
+          }}
+          reviewFile={(file) =>
+            void run(
+              t("mods.browse.downloading", { file: file.file_name }),
+              () =>
+                desktopApi.planProviderInstall(
+                  portId,
+                  profileId,
+                  project.project.project_id,
+                  file.file_id,
+                  generation,
+                  providerId,
+                ),
+              showPlan,
+            ).then((reviewed) => {
+              // An answer for a view that was left is discarded.
+              if (reviewed && !alive.current) discard(reviewed);
+            })
+          }
+        />
       ) : page ? (
-        <section aria-label={t("mods.browse.modsLabel", { provider })} className="grid gap-2">
-          {pageStale && <p className="text-sm">{pageStale}</p>}
-          {page.page.projects.length === 0 ? (
-            <p className="text-sm">{t("mods.browse.noMods")}</p>
-          ) : (
-            <ul className="m-0 grid list-none gap-1 p-0">
-              {page.page.projects.map((entry) => (
-                <li
-                  key={entry.project_id}
-                  className="flex flex-wrap items-center gap-2 text-sm [overflow-wrap:anywhere]"
-                >
-                  <span className="min-w-0 flex-1">
-                    <Trans
-                      t={t}
-                      i18nKey={entry.version ? "mods.browse.entryVersion" : "mods.browse.entry"}
-                      components={{
-                        name: <bdi>{entry.name}</bdi>,
-                        version: <bdi>{entry.version ?? ""}</bdi>,
-                      }}
-                    />
-                  </span>
-                  <Button
-                    variant="outline"
-                    disabled={locked}
-                    onClick={() => showProject(entry.project_id)}
-                  >
-                    {t("mods.browse.showFiles", { name: entry.name })}
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <ActionRow>
-            <Button
-              variant="outline"
-              disabled={locked || page.page.page <= 1}
-              onClick={() => showPage(page.page.page - 1)}
-            >
-              {t("mods.browse.previous")}
-            </Button>
-            <Button
-              variant="outline"
-              disabled={locked || page.page.complete || page.page.page >= page.last_page}
-              onClick={() => showPage(page.page.page + 1)}
-            >
-              {t("mods.browse.next")}
-            </Button>
-            <Button variant="outline" disabled={Boolean(working)} onClick={() => setOpen(false)}>
-              {t("mods.browse.close")}
-            </Button>
-          </ActionRow>
-        </section>
+        <ProviderProjectList
+          page={page}
+          query={query}
+          setQuery={setQuery}
+          stale={pageStale}
+          provider={provider}
+          locked={locked}
+          working={Boolean(working)}
+          showProject={showProject}
+          showPage={showPage}
+          close={() => setOpen(false)}
+        />
       ) : working ? null : (
         <ActionRow>
-          <Button variant="outline" disabled={disabled} onClick={() => showPage(1)}>
-            {t("mods.browse.checkAgain", { provider })}
-          </Button>
+          {!failedProjectId && (
+            <Button variant="outline" disabled={disabled} onClick={() => showPage(1)}>
+              {t("mods.browse.checkAgain", { provider })}
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setOpen(false)}>
             {t("mods.browse.close")}
           </Button>
         </ActionRow>
       )}
+    </section>
+  );
+  return (
+    <>
+      {updateControl}
+      {browser}
+    </>
+  );
+}
+
+function ProviderInstallDetails({
+  plan,
+  codeMembers,
+}: {
+  plan: ProviderInstallPlan;
+  codeMembers: string[];
+}) {
+  const { t } = useAppTranslation("gameSettings");
+  return (
+    <>
+      <p className="font-semibold">{t("mods.browse.installs")}</p>
+      <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
+        {plan.members.map((member) => (
+          <li key={member.file_name}>
+            <Trans
+              t={t}
+              i18nKey="mods.browse.member"
+              values={{ size: formatBytes(member.size) }}
+              components={{ file: <bdi>{member.file_name}</bdi> }}
+            />
+          </li>
+        ))}
+        {plan.replaces.map((replaced) => (
+          <li key={`replaces-${replaced}`}>
+            <Trans
+              t={t}
+              i18nKey="mods.browse.replaces"
+              components={{ name: <bdi>{replaced}</bdi> }}
+            />
+          </li>
+        ))}
+      </ul>
+      {(plan.wrappers?.length ?? 0) > 1 && (
+        <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
+          {plan.wrappers?.map((wrapper) => (
+            <li key={wrapper.provider.project}>
+              <Trans
+                t={t}
+                i18nKey="mods.browse.entryVersion"
+                components={{
+                  name: <bdi>{wrapper.provider.project}</bdi>,
+                  version: <bdi>{wrapper.file.file_id}</bdi>,
+                }}
+              />
+              <ul className="m-0 list-disc ps-5">
+                {Object.keys(wrapper.members).map((member) => (
+                  <li key={member}>
+                    <bdi>{member}</bdi>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      )}
+      {plan.ignored_entries > 0 && (
+        <p>{t("mods.browse.ignored", { count: plan.ignored_entries })}</p>
+      )}
+      {plan.conflicts.length > 0 && (
+        <>
+          <p className="font-semibold">{t("mods.browse.conflictsHeading")}</p>
+          <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
+            {plan.conflicts.map((conflict) => (
+              <li key={`conflict-${conflict.path}`}>
+                <Trans
+                  t={t}
+                  i18nKey="mods.browse.conflict"
+                  components={{
+                    path: <bdi>{conflict.path}</bdi>,
+                    providers: <bdi>{conflict.providers.join(t("mods.separator"))}</bdi>,
+                    winner: <bdi>{conflict.winner}</bdi>,
+                  }}
+                />
+              </li>
+            ))}
+          </ul>
+          {plan.conflicts_truncated && <p>{t("mods.browse.truncated")}</p>}
+        </>
+      )}
+      {plan.unverified_claims.length > 0 && (
+        <>
+          <p className="font-semibold">{t("mods.browse.unverifiedHeading")}</p>
+          <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
+            {plan.unverified_claims.map((claim) => (
+              <li key={`claim-${claim}`}>
+                <bdi>{claim}</bdi>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <p className="text-sm [overflow-wrap:anywhere] text-pc-muted-foreground">
+        <Trans
+          t={t}
+          i18nKey="mods.browse.digests"
+          components={{
+            download: <code dir="ltr">{plan.download_sha256}</code>,
+            review: <code dir="ltr">{plan.plan_sha256}</code>,
+          }}
+        />
+      </p>
+      {codeMembers.length > 0 && (
+        <Notice intent="warning">
+          <div data-slot="notice-body">
+            <p className="[overflow-wrap:anywhere]">
+              <Trans
+                t={t}
+                i18nKey="mods.browse.code"
+                count={codeMembers.length}
+                components={{
+                  names: <bdi>{codeMembers.join(t("mods.separator"))}</bdi>,
+                }}
+              />
+            </p>
+          </div>
+        </Notice>
+      )}
+    </>
+  );
+}
+
+function ProviderProjectList({
+  page,
+  query,
+  setQuery,
+  stale,
+  provider,
+  locked,
+  working,
+  showProject,
+  showPage,
+  close,
+}: {
+  page: ProviderBrowsePage;
+  query: string;
+  setQuery: (query: string) => void;
+  stale: string | undefined;
+  provider: string;
+  locked: boolean;
+  working: boolean;
+  showProject: (id: string) => void;
+  showPage: (number: number) => void;
+  close: () => void;
+}) {
+  const { t } = useAppTranslation("gameSettings");
+  const filterId = useId();
+  const normalized = query.trim().toLocaleLowerCase();
+  const matching = page.page.projects.filter((entry) =>
+    [entry.name, entry.submitter, entry.version].some((value) =>
+      value?.toLocaleLowerCase().includes(normalized),
+    ),
+  );
+  return (
+    <section aria-label={t("mods.browse.modsLabel", { provider })} className="grid gap-2">
+      {stale && <p className="text-sm">{stale}</p>}
+      <label htmlFor={filterId} className="text-sm">
+        {t("mods.browse.filterPage")}
+      </label>
+      <Input
+        id={filterId}
+        type="search"
+        value={query}
+        onChange={(event) => setQuery(event.currentTarget.value)}
+        maxLength={128}
+      />
+      {matching.length === 0 ? (
+        <p className="text-sm" role="status">
+          {t(normalized ? "mods.browse.noMatches" : "mods.browse.noMods")}
+        </p>
+      ) : (
+        <ul className="m-0 grid list-none gap-1 p-0">
+          {matching.map((entry) => (
+            <li
+              key={entry.project_id}
+              className="flex flex-wrap items-center gap-2 text-sm [overflow-wrap:anywhere]"
+            >
+              <span className="min-w-0 flex-1">
+                <Trans
+                  t={t}
+                  i18nKey={entry.version ? "mods.browse.entryVersion" : "mods.browse.entry"}
+                  components={{
+                    name: <bdi>{entry.name}</bdi>,
+                    version: <bdi>{entry.version ?? ""}</bdi>,
+                  }}
+                />
+              </span>
+              <Button
+                variant="outline"
+                disabled={locked}
+                onClick={() => showProject(entry.project_id)}
+              >
+                {t("mods.browse.showFiles", { name: entry.name })}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <ActionRow>
+        <Button
+          variant="outline"
+          disabled={locked || page.page.page <= 1}
+          onClick={() => showPage(page.page.page - 1)}
+        >
+          {t("mods.browse.previous")}
+        </Button>
+        <Button
+          variant="outline"
+          disabled={locked || page.page.complete || page.page.page >= page.last_page}
+          onClick={() => showPage(page.page.page + 1)}
+        >
+          {t("mods.browse.next")}
+        </Button>
+        <Button variant="outline" disabled={working} onClick={close}>
+          {t("mods.browse.close")}
+        </Button>
+      </ActionRow>
+    </section>
+  );
+}
+
+function ProviderProjectFiles({
+  project,
+  projectStale,
+  openProject,
+  provider,
+  locked,
+  working,
+  showProject,
+  back,
+  reviewFile,
+}: {
+  project: ProviderProjectView;
+  projectStale: string | undefined;
+  openProject: () => Promise<void>;
+  provider: string;
+  locked: boolean;
+  working: boolean;
+  showProject: (projectId: string) => void;
+  back: () => void;
+  reviewFile: (file: ProviderProjectView["project"]["files"][number]) => void;
+}) {
+  const { t, i18n } = useAppTranslation("gameSettings");
+  const [showArchived, setShowArchived] = useState(false);
+  const files = project.project.files.filter(
+    (file) => showArchived || !file.archived || file.status_unknown,
+  );
+  return (
+    <section
+      aria-label={t("mods.browse.filesLabel", { name: project.project.name })}
+      className="grid gap-2"
+    >
+      <p className="text-sm font-semibold">
+        <bdi>{project.project.name}</bdi>
+      </p>
+      {project.project.submitter && (
+        <p className="text-sm">
+          <Trans
+            t={t}
+            i18nKey="mods.browse.submittedBy"
+            components={{ name: <bdi>{project.project.submitter}</bdi> }}
+          />
+        </p>
+      )}
+      {project.project.profile_url && (
+        <ExternalLink href={project.project.profile_url} openUrl={openProject}>
+          {t("mods.browse.sourcePage", { provider })}
+        </ExternalLink>
+      )}
+      {projectStale && <p className="text-sm">{projectStale}</p>}
+      {project.project.status_unknown && (
+        <p className="text-sm">{t("mods.browse.eligibilityUnknown")}</p>
+      )}
+      {project.project.obsolete && <p className="text-sm">{t("mods.browse.obsolete")}</p>}
+      {project.project.files.some((file) => file.archived && !file.status_unknown) && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={(event) => setShowArchived(event.currentTarget.checked)}
+          />
+          {t("mods.browse.showArchived")}
+        </label>
+      )}
+      {files.length === 0 ? (
+        <p className="text-sm">
+          {t(
+            showArchived || project.project.files.length === 0
+              ? "mods.browse.noFiles"
+              : "mods.browse.noActiveFiles",
+          )}
+        </p>
+      ) : (
+        <ul className="m-0 grid list-none gap-1 p-0">
+          {files.map((file) => {
+            const installable =
+              !file.archived &&
+              !file.status_unknown &&
+              !project.project.obsolete &&
+              !project.project.status_unknown &&
+              !projectStale;
+            const date = new Date(file.added_at * 1000);
+            return (
+              <li
+                key={file.file_id}
+                className="flex flex-wrap items-center gap-2 text-sm [overflow-wrap:anywhere]"
+              >
+                <span className="min-w-0 flex-1">
+                  <Trans
+                    t={t}
+                    i18nKey={
+                      file.archived && !file.status_unknown
+                        ? "mods.browse.fileArchived"
+                        : "mods.browse.file"
+                    }
+                    values={{ size: formatBytes(file.size) }}
+                    components={{ file: <bdi>{file.file_name}</bdi> }}
+                  />
+                  {file.status_unknown && (
+                    <span className="block">{t("mods.browse.eligibilityUnknown")}</span>
+                  )}
+                </span>
+                <details className="text-sm">
+                  <summary>{t("mods.browse.fileDetails")}</summary>
+                  <p>{t("mods.browse.fileId", { id: file.file_id })}</p>
+                  {file.added_at > 0 && Number.isFinite(date.getTime()) && (
+                    <p>
+                      {t("mods.browse.filePublished", {
+                        date: new Intl.DateTimeFormat(i18n.resolvedLanguage, {
+                          dateStyle: "medium",
+                        }).format(date),
+                      })}
+                    </p>
+                  )}
+                </details>
+                {installable && (
+                  <Button variant="outline" disabled={locked} onClick={() => reviewFile(file)}>
+                    {t("mods.browse.review", { file: file.file_name })}
+                  </Button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {project.project.unreadable_files > 0 && (
+        <p className="text-sm">
+          {t("mods.browse.unreadable", { count: project.project.unreadable_files, provider })}
+        </p>
+      )}
+      <ActionRow>
+        {projectStale && (
+          <Button
+            variant="outline"
+            disabled={locked}
+            onClick={() => showProject(project.project.project_id)}
+          >
+            {t("mods.browse.checkAgain", { provider })}
+          </Button>
+        )}
+        <Button variant="outline" disabled={working} onClick={back}>
+          {t("mods.browse.back")}
+        </Button>
+      </ActionRow>
     </section>
   );
 }

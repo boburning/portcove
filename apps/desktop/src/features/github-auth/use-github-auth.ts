@@ -98,7 +98,7 @@ export function useGithubAuth(perform: Perform, setError: ReportError, libraryGe
           }
         } catch (value) {
           if (!cancelled && deviceSession.current === session) {
-            setError(errorText(value), accountContext("Sign in"));
+            setError(value, accountContext("Sign in"));
             setDeviceLogin(undefined);
           }
         }
@@ -144,7 +144,7 @@ export function useGithubAuth(perform: Perform, setError: ReportError, libraryGe
       perform("GitHub login", desktopApi.beginGithubDeviceLogin, {
         refresh: "none",
         invalidateDiagnostics: false,
-        context: accountContext("Sign in"),
+        context: accountContext("Request sign-in code"),
       }),
     );
     if (result && mounted.current) setDeviceLogin(result);

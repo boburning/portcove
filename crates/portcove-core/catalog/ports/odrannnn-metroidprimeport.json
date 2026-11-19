@@ -3,12 +3,12 @@
   "listing": {
     "id": "odrannnn-metroidprimeport",
     "name": "Metroid Prime / MetroidPrimePort (Odrannnn)",
-    "summary": "Explore Metroid Prime / MetroidPrimePort (Odrannnn) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Metroid Prime / MetroidPrimePort (Odrannnn): the upstream repository is no longer public. If you already maintain a permitted copy, you can still add it to Portcove.",
     "project_url": "https://github.com/Odrannnn/MetroidPrimePort",
     "issue_number": 1846,
     "listed_at": "2026-10-23",
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "unavailable",
     "setup_url": "https://github.com/Odrannnn/MetroidPrimePort",
     "artwork": {
       "game_id": 1105,
@@ -47,6 +47,17 @@
         }
       ]
     },
-    "download_block_reason": "The selected LICENSE/NOTICE excludes recovered game code, console SDK/runtime and symbol data and asserts no applicable permission for their distribution. Fresh self-service acquisition remains held until an attributable permitted basis for the exact selected package/components is reviewed, or a reviewed clean alternative resolves that condition. This does not grant or prohibit use of another already permitted copy."
+    "download_block_reason": "The selected LICENSE/NOTICE excludes recovered game code, console SDK/runtime and symbol data and asserts no applicable permission for their distribution. Fresh self-service acquisition remains held until an attributable permitted basis for the exact selected package/components is reviewed, or a reviewed clean alternative resolves that condition. This does not grant or prohibit use of another already permitted copy.",
+    "availability_override_reason": "GitHub no longer shows this project's repository (checked November 15, 2026). Portcove keeps this listing so an installation you maintain can still be added and played. If the project becomes available again, Portcove can review it again.",
+    "original_game": {
+      "format_version": 1,
+      "id": "metroid-prime",
+      "evidence_urls": [
+        "https://github.com/Odrannnn/MetroidPrimePort/tree/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+        "https://github.com/Odrannnn/MetroidPrimePort"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Metroid Prime"
   }
 }

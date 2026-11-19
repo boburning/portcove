@@ -49,6 +49,16 @@
         }
       ],
       "help_url": "https://teamforeveronline.wixsite.com/home/sonic-1-forever"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-the-hedgehog",
+      "evidence_urls": [
+        "https://teamforeveronline.wixsite.com/home/sonic-1-forever",
+        "https://github.com/ElspethThePict/S1Forever"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Sonic the Hedgehog"
   }
 }

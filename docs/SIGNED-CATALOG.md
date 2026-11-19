@@ -31,7 +31,7 @@ expansion or data migration. The format-1 behavior below remains unchanged.
 
 ## Publisher format
 
-The outer JSON object has exactly `format_version: 1`, `key_id`, `payload`, and `signature`. It is at most 4 MiB, including all JSON escaping. `key_id` is the lowercase hex SHA-256 of the raw 32-byte Ed25519 public key. `signature` is the 64-byte signature in hex. `payload` is a JSON **string**; its exact UTF-8 bytes are signed, without parsing, whitespace changes, or reserialization by the verifier.
+The outer JSON object has exactly `format_version: 1`, `key_id`, `payload`, and `signature`. It is at most 16 MiB, including all JSON escaping; clients before library writer protocol 60 still refuse more than 4 MiB (see [Size bounds and older clients](#size-bounds-and-older-clients)). `key_id` is the lowercase hex SHA-256 of the raw 32-byte Ed25519 public key. `signature` is the 64-byte signature in hex. `payload` is a JSON **string**; its exact UTF-8 bytes are signed, without parsing, whitespace changes, or reserialization by the verifier.
 
 The signing message is the byte concatenation of:
 
@@ -68,9 +68,10 @@ node scripts/sign-catalog.mts --catalog legacy-catalog.json --key publisher-priv
 ```
 
 The key and catalog inputs must be regular files, limited to 64 KiB (65536 bytes)
-and 4 MiB (4194304 bytes), respectively. The escaped signed envelope has its own
-4 MiB limit, so a catalog within its input limit can still produce an oversized
-envelope. Refusals identify the affected argument, limit and observed size without
+and 16 MiB (16777216 bytes), respectively. The escaped signed envelope has its own
+16 MiB limit, so a catalog within its input limit can still produce an oversized
+envelope. The capacity check reserves growth margin below supported bounds.
+Refusals identify the affected argument, limit and observed size without
 including key or catalog contents. Sequence must be a positive safe integer;
 issuance and expiry use integer Unix seconds with validity of at most 366 days.
 
@@ -100,6 +101,41 @@ Explicit rollback consumes the previous selection and keeps the highest sequence
 Trust and replay state belong to the local library's database. Managed moves retain it. Metadata-only export/import intentionally leaves it out, so each destination configures its own trust; old installed artifacts remain subject to the same embedded safety contracts. This protects against network/publisher-delivery tampering and replay under an intact local database. It does not protect against a local attacker rewriting that database, restore its newer replay floor after a whole-database rollback, or supply a trustworthy system clock.
 
 Bundled-runtime updates may change their pinned archive asset and archive root, like a game release update. They cannot add or remove a runtime platform, change its mount directory or executable, or make runtime files mutable. Runtime-only updates receive a distinct immutable install identity. Adding a new runtime execution contract requires an application update; an older cached catalog that omits the new contract is rejected and falls back through the normal verified selection rules.
+
+## Size bounds and older clients
+
+The publication policy in #5894 uses supported consumer bounds. Changes reserve
+15% of capacity for growth, including JSON escaping. A catalog may exceed 4 MiB
+once compatible application packages are available on the affected channels.
+
+| Representation                            | Supported bound and owner                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Generated and compact operational catalog | 16 MiB for signer input, local proposal inspection and whole-catalog upstream observation and checkpoints.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Escaped signed envelope                   | 16 MiB including the signature, checked on file and HTTPS reads and before signing. Migration 60 preserves both exact active and previous envelopes and the replay floor. Each has a frozen 16 MiB SQLite check.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Core catalog projection                   | 16 MiB per indexed content target. The release-tools publisher and Core share the path-specific size policy. The separate index and definition entries have 4 MiB limits. Definition contents share a 32 MiB aggregate bound.                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Retained format-1 catalog                 | 16 MiB of compact catalog JSON. The retained contract is escaped again inside an installation manifest or registration. The CI guard budgets that escaped contract against 16 MiB and leaves space for the rest of the record.                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Retained browsing                         | Verified per-install manifests and retained registration reads have a 32 MiB byte limit. The retired-listing lookup and workspace projection still use finite request-wide budgets. User-selected listings already retain one entry. Artwork requests can use the existing per-port route.                                                                                                                                                                                                                                                                                                                                                                                          |
+| Other retained and descriptive documents  | SQLite indexed selection rows have a separate 16 MiB limit including escaping. Publication checks the exact escaped snapshot and reserves 4 KiB for selection identity and provenance. The embedded listing directory and its signed descriptive target have independent 8 MiB limits. The TUF snapshot has a 4 MiB limit. [Observer recovery archives](UPSTREAM-OBSERVATIONS.md#catalog-scheduling-and-definition-delivery-handoff) have a 16 MiB format 4 limit and a 4 MiB legacy limit. The staged coherence check has a 64 MiB aggregate budget for authored, generated and historical data together. Provider responses, package downloads and artwork keep their own bounds. |
+
+`node scripts/catalog-capacity.mts --check` reports generated and compact
+operational bytes, a representative escaped signed envelope and the separate
+embedded listing directory. The Core test
+`catalog_growth_stays_within_supported_capacity` measures Core serialization for
+the complete projection, escaped indexed snapshot, retained catalog and escaped contract. On November 18, 2026 the generated operational catalog measured 3,993,745 bytes,
+the compact catalog 3,076,225 bytes, and its representative signed envelope
+3,241,972 bytes. The generated listing directory measured 5,535,922 bytes,
+leaving 1,594,394 bytes before the guard and 2,852,686 bytes before its reader
+limit. The complete retained graph remains available for existing installs and rollback. A per-port
+retention redesign requires separate work.
+
+Library writer protocol 60 rebuilds `catalog_state` in one transaction, copying
+the singleton row, replay floor and both envelopes byte for byte. Failure leaves
+the schema-59 table intact. Older binaries refuse both a migrated library and
+their own catalog input above 4 MiB. The migration-11 and migration-60 constants
+are fixed historical schema values.
+
+See [Upgrading before a larger public catalog](UPGRADING.md#upgrading-before-a-larger-public-catalog)
+for the release prerequisite and the supported player path.
 
 ## Capacity diagnostics and retained representations
 
@@ -149,3 +185,8 @@ samples per case, the 1,000/10,000-row aggregate checks averaged 0.080/0.759ms;
 unconditional window eviction averaged 0.420/3.857ms. These are small-body fixture
 CPU observations, not application timings or provider costs. Live occupancy,
 API consumption, process memory and actual release throughput remain Unknown.
+
+Catalog provenance reports `fallback_codes` in the same order as the legacy
+`fallback_reasons` diagnostics. The codes drive localized Desktop guidance.
+Clients can continue to display the original diagnostic and use generic guidance
+when a reason code is absent or unfamiliar.

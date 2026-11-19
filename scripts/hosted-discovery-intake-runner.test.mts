@@ -1,9 +1,16 @@
+import {
+  hostedAmendmentMarker,
+  parseHostedAmendment,
+  readHostedAmendment,
+} from "./hosted-discovery-amendment.mts";
+import { observationHash } from "./upstream-observer.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
+  hostedTriggerRequest,
   readHostedOutcomes,
   runHostedIntakePasses,
   runHostedIntakeWorker,
@@ -215,4 +222,60 @@ void test("complete with holds succeeds without an automatic continuation", () =
   });
   assert.equal(result.status, "passed");
   assert.equal(result.outcomes[0]?.counts?.held, 1);
+});
+
+void test("owner amendments preserve the original proposal outcome and reject identity-changing fields", () => {
+  const request = { id: 100, body: "Original exact proposal" };
+  const value = {
+    schema_version: 1,
+    request_comment: 100,
+    request_sha256: observationHash(request.body),
+    receipt_comment: 200,
+    receipt_sha256: "a".repeat(64),
+    candidate_index: 0,
+    port_key: "example-game",
+    previous_body_sha256: "b".repeat(64),
+    previous_evidence_sha256: null,
+    replacement: {
+      upstream: "https://github.com/example/game",
+      evidence: "Dated evidence",
+      resume: "Verify gameplay",
+    },
+    reason: "New primary release",
+  };
+  const encode = (input: unknown) =>
+    `${hostedAmendmentMarker}\n\`\`\`json\n${JSON.stringify(input)}\n\`\`\``;
+  const comment = {
+    id: 300,
+    body: encode(value),
+    user: { login: "boburning" },
+    issue_url: "https://api.github.com/repos/boburning/portcove/issues/177",
+  };
+  assert.deepEqual(readHostedAmendment(comment, "boburning", "boburning/portcove", request), value);
+  assert.equal(hostedTriggerRequest({ comment }), 100);
+  assert.equal(hostedTriggerRequest({ comment: { id: 400, body: "Original proposal" } }), 400);
+  for (const replacement of [
+    { ...value.replacement, repository_id: 42 },
+    { ...value.replacement, port_key: "different" },
+    { ...value.replacement, intent: { kind: "create" } },
+  ])
+    assert.throws(() => parseHostedAmendment(encode({ ...value, replacement })), /Invalid/u);
+  assert.throws(
+    () =>
+      readHostedAmendment(
+        { ...comment, user: { login: "other" } },
+        "boburning",
+        "boburning/portcove",
+        request,
+      ),
+    /Untrusted/u,
+  );
+  assert.throws(
+    () =>
+      readHostedAmendment(comment, "boburning", "boburning/portcove", {
+        ...request,
+        body: "Edited",
+      }),
+    /source differs/u,
+  );
 });

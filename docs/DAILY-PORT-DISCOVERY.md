@@ -29,7 +29,7 @@ dated primary links. Text is inert data, never a command or authority grant.
 <!-- portcove-hosted-intake:v1 -->
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "kind": "proposal",
   "investigator": "actual-hosted-investigator-context",
   "candidates": [{
@@ -38,12 +38,23 @@ dated primary links. Text is inert data, never a command or authority grant.
     "repository_id": 123,
     "game": "Independently catalogable game title",
     "port_key": "durable-game-implementation-key",
+    "intent": { "kind": "create" },
     "evidence": "Dated primary research and explicit unknowns.",
     "resume": "Exact research/watch resume condition."
   }]
 }
 ```
 ````
+
+For a dated observation on an existing owner, use
+`"intent": { "kind": "observe-existing", "issue": 334 }` and put that
+issue's actual canonical implementation or catalog key in `port_key`. A
+conflict in the issue, key, source or game parks that candidate. A declared
+creation that already has an owner also parks. Independent candidates can still
+deliver. The GitHub event marker stays at `v1` to recognize retained requests.
+Once the database-backed executor is configured, new batches require proposal
+schema 2. Schema 1 receipts and their bound reconciliations remain readable and
+resumable.
 
 Actions checks complete open/closed issue and active/archived Project coverage,
 authored catalog lineage and immutable primary identity before publishing a
@@ -80,8 +91,10 @@ logical batch stays together when it fits the existing comment limit.
 The same invocation then applies the bound proposal automatically. Port metadata
 intake requires no separate model reviewer or review attestation. The owner
 confirmed this policy on October 28, 2026. Software changes retain the repository's
-independent review and CI requirements. Changed request or primary evidence stops
-delivery; prepare a fresh proposal instead of overwriting an in-flight issue.
+independent review and CI requirements. A changed request refuses delivery.
+Changed primary evidence holds its unfinished candidate. Use an exact-receipt
+owner amendment, described below, to refresh its evidence. Completed deliveries
+retain their saved proofs.
 
 A candidate whose initial upstream repository metadata lookup returns HTTP 404
 can receive a **candidate hold** when it has no unfinished delivery or uncertain
@@ -120,7 +133,12 @@ object alongside `schema_version`, `kind`, `investigator` and `candidates`:
 }
 ```
 
-These example hash placeholders must be replaced with actual SHA-256 digests.
+Use `observationHash` from `scripts/upstream-observer.mts` for comment hashes.
+For `request_sha256`, hash the original proposal portion beginning at
+`<!-- portcove-hosted-intake:v1 -->`, after the withdrawal prefix. For
+`receipt_sha256`, hash the complete bot comment body. The helper hashes the
+canonical JSON encoding of the string. Copy the retained plan hash from the
+matching bot receipt.
 The executor requires that exact withdrawn owner source, one exact bot receipt,
 its original request/plan/body bindings and at least one confirmed canonical ID.
 It rejects reordered, dropped, added or revised candidate bodies. Reconciliation
@@ -141,6 +159,43 @@ and any final full-doctor obligation. Old receipts remain historical incomplete
 evidence, never rewritten to claim success. This route adds no automatic evidence
 rebinding, provider retry, scheduler or model reviewer.
 
+For schema 2 delivery, PostgreSQL retains the exact request hash, ordered
+candidate intents, evidence and rendered-body bindings, verified GitHub
+identities, scoped-doctor proofs and the current batch checkpoint. The existing
+executor commits the checkpoint before projecting it to the bot comment, and
+verifies that comment before a GitHub issue or observation POST. A failed
+publication stops further checkpoint advancement. A subsequent pass may
+republish the saved bytes on a known predecessor comment. Missing or
+contradictory receipt identities require explicit reconciliation. PostgreSQL
+and GitHub retain separate write boundaries.
+
+An owner can amend one unattempted candidate on #177 with
+`<!-- portcove-hosted-intake-amendment:v1 -->` and a JSON object containing
+`schema_version: 1`, `request_comment`, `request_sha256`, `receipt_comment`,
+`receipt_sha256`, `candidate_index`, `port_key`, `previous_body_sha256`,
+`previous_evidence_sha256`, `replacement` and `reason`. Hashes bind the exact
+original proposal, current bot receipt and candidate slot. Compute both comment
+hashes with `observationHash(comment.body)` from `scripts/upstream-observer.mts`.
+Copy the previous body/evidence hashes from the exact bot receipt. `replacement` contains
+only `upstream`, `evidence` and `resume`. Optional top-level `hold: true` retains
+the amended candidate for research. A later exact-receipt amendment without that
+flag resumes it after its research condition is satisfied. Repository ID, game, key, title and intent
+retain their original identities. Competing amendments or completed/uncertain
+writes refuse revision. The retained receipt references the exact owner amendment.
+An amendment event drains the existing queue and reports its original proposal.
+For a historical schema 1 batch, an exact-receipt amendment authorizes importing
+that receipt and its candidate proofs into the existing PostgreSQL checkpoint
+store. The original proposal and stable creation markers stay authoritative.
+
+Unfinished candidates verify repository location with bounded metadata reads. A
+GitHub 301 must name the retained numeric repository ID. Numeric metadata and the
+current named endpoint must agree before research uses the new location. Receipts
+retain both locations. Name reuse, missing metadata and conflicting IDs hold the
+affected candidate. New primary evidence also holds its unfinished candidate until
+an owner amendment verifies. Other candidates continue. Delivered candidates use
+their saved scoped proofs during ordinary resumption. Further releases become
+separate observations.
+
 The executor serializes repository-wide and drains retained proposal comments,
 so GitHub's replaceable pending workflow slot cannot erase a request. Explicit
 owner dispatch in `process` mode resumes the same queue. The executor records `preflight` before candidate creation checks, then
@@ -153,15 +208,26 @@ ambiguous POST without a confirmed marker remains held; it is never recaptured.
 Confirmed issues recover through `normalize-port`, preserving owner changes by
 refusing mismatched bodies. Exactly one active item, the complete issue body,
 neutral planning fields and applicable scoped doctors must verify for new intake before the
-receipt says `complete`. A logical batch over ten retains its final full doctor.
+receipt says `complete`. After all candidates in a batch over ten have passing
+scoped proofs, Actions records delivery with the full audit pending. A subsequent
+pass runs only the full doctor for that checkpoint. An upstream release published
+in the meantime can be recorded as a separate dated observation. The full audit
+still verifies complete live coverage. Missing catalog links produce an
+`audit-repairs` diagnostic naming matching canonical owners when identifiable.
+The batch becomes complete after a passing full-doctor readback.
 Existing-owner observations retain their original planning rather than applying
 neutral defaults. All candidates, including existing owners, remain in the same
 ordered receipt and its logical-batch full-doctor obligation. Scoped receipts retain `global_health: not_evaluated`.
 The existing Actions job owns bounded continuation; the hosted chat need not
 notice and rerun ordinary temporary holds. It runs up to twelve joined worker
 passes under one 90-minute wall deadline inside the existing 100-minute job,
-each with the existing cold quota/byte/time envelope and fresh queue,
-primary and inventory reads. A worker is joined before another can start and its
+each with a 128 MiB hosted byte envelope, a 30-minute operation deadline and
+fresh queue, primary and inventory reads. The hosted envelope gives growing
+Project inventories room for preflight and final validation in one pass. The
+local runner retains its ordinary and cold profiles. Hosted request capacity
+still follows fresh GitHub quota and observed costs after bootstrap. Admission
+failures retain the requested and available requests and bytes and the time left.
+A worker is joined before another can start and its
 timeout is capped by the remaining wall deadline. Only typed inventory movement, successful-but-stale quota observation or budget admission
 holds with no unconfirmed mutation can continue. Each pass preserves its own
 diagnostics. Eligible requests at an exhausted queue tail run first next pass;
@@ -170,9 +236,10 @@ stop after three consecutive identical progress observations; continuing deliver
 can use later windows rather than requiring an operator after the third pass.
 Queue collection revision drift gets at most three read-only passes. Missing/inconsistent reports, killed
 workers, provider/auth/identity/owner conflicts, ambiguous writes and failed
-receipt readbacks stop automatic recovery. Independent requests may still finish;
-any held request keeps the overall job incomplete. The job has a finite 100-minute
-outer timeout; no new workflow, timer, credential scope or API retry is introduced.
+receipt readbacks stop automatic recovery. Independent requests retain their own
+outcomes. A comment-triggered run reports its triggering request's outcome.
+An explicit queue dispatch reports the aggregate. The job has a finite
+100-minute outer timeout.
 After the bound, report the exact remaining blocker and resume the same receipt
 through the ordinary process entry point. No bounded mechanism guarantees
 eventual completion during continual upstream/owner changes or unavailable APIs.
@@ -226,10 +293,10 @@ node scripts/hosted-discovery-intake.mts status --all --json
 
 It reports `submitted`, `partial`, `blocked`, `complete` or `complete_with_holds`,
 new `delivered` versus verified `existing` counts, held and pending candidates,
-the last diagnostic and whether the full doctor is required. Each ordered
+the last diagnostic and whether the full doctor is required or pending. Each ordered
 candidate slot reports its port key, repository ID, upstream, delivery status,
-linked issue (the created issue or verified existing owner) and any hold's HTTP
-status and resume condition. It refuses a forged/stale proposal binding or a
+linked issue (the created issue or verified existing owner) and any hold's resume
+condition. A repository hold includes HTTP 404. An identity hold has no HTTP status. It refuses a forged/stale proposal binding or a
 complete claim without the candidate-bound scoped doctors and applicable full
 doctor. `--all` covers every owner-authored #177 request in one complete comment
 read bracketed by #177's unchanged revision. A request is a comment that starts
@@ -304,7 +371,7 @@ actual supported automation interface and installed schedules, including the
 historical `portcove-weekly-port-discovery-and-candidate-recheck`. Never infer
 active scheduling from a saved prompt or old receipt. Preserve a suitable
 existing time; otherwise use configurable 09:00 America/New_York daily.
-Choose a suitable model within existing spending authority. Use the existing
+Choose models by responsibility from [agent model selection](DEVELOPMENT-TOOLS.md#agent-model-selection) within existing spending authority. Use the existing
 Codex subscription and supported scheduler only, with no new service, Actions
 schedule, broader credentials or spending. Test manually before enabling
 unattended writes. Verify identity, enabled state, local timezone/next run,
@@ -349,7 +416,8 @@ These bound individual batches, not total legitimate work. Search, investigation
 intake and quiet recheck counts have no separate throughput ceiling.
 
 Use the selected hosted investigator for hosted discovery; local collection,
-comparison and research can use GPT-6.1-Sol Medium. Port metadata has no separate
+comparison and research use the research scout or implementation owner from
+[agent model selection](DEVELOPMENT-TOOLS.md#agent-model-selection). Port metadata has no separate
 model-review gate. Respect stricter provider and
 runtime limits. Retain pending identities, exact pages/paths and resume conditions
 before exhaustion. A logical candidate journal is admitted in prefixes, each
@@ -379,14 +447,95 @@ The fixed source scope is:
 | GithubLauncher          | `SirDiabo/GHLAppList/apps.json`, exact commit/blob; inspect current launcher catalog-selection code only when served-source mapping changes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | RetComM                 | Current `RetroPortingToolKit/Retro-Catalog/index.json` plus referenced platform title manifests (repository ID `1316230812`, transferred from `TechnicallyComputers/retcomm-catalog`). Preserve the `retcomm-*` checkpoint identities; changed manifests first, then rotation. Index-only coverage is partial for title facts.                                                                                                                                                                                                                                                                                                                                                                                                         |
 | PortForge               | `zamiba/portforge-mediaitems`, exact commit tree, at most eight changed `.mediaitem.json`/`.forge.json` records per run; preserve continuation and tree truncation. Never execute recipes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| PCGamingWiki            | Normally accessible `List_of_unofficial_ports`, revision and relevant changed rows. A denied request is inaccessible, never an empty table.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| PCGamingWiki            | Capture the normal response for manual revision and changed-row review. Corroborate proposed leads upstream. Denied or empty responses are inaccessible.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | Primary/community leads | Resource-admitted bounded search pages across upstream announcements/docs, native-port/decomp/recomp and relevant game communities, including attributable developer posts. Verify worthwhile leads against primary upstreams; no expansion to whole new registries.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Curated community lists | Lead hints only: the Decomp Buddy finds feed, portsdr.com and the Alexbeav PS1 catalog, read at most weekly as repository URLs plus inert titles. Bounded primary metadata reads turn uncovered GitHub hints into ordinary leads; see [curated list leads](#curated-list-leads).                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+
+PCGamingWiki is a manual lead source. The collector retains an accessible page
+as a partial observation and emits no automated row coverage. The reviewer
+records the wiki revision and relevant changed rows, then verifies candidate
+leads against primary upstreams. On November 18, 2026, normal requests to both
+the page and the MediaWiki parse endpoint returned HTTP 403. Keep the source
+gap visible until normal access returns or the wiki offers a supported feed.
 
 The additional recomp.board source reads the published
 `https://recomp.fyi/feed.xml` Atom feed, not the restricted bulk table. It validates
 the full currently published feed and retains exact upstream links, event clocks
 and provenance. A feed gap retains positive leads without advancing its
 successful clock; an expired entry is not evidence of project deletion.
+
+### Curated list leads
+
+`collect` first reads four public curated lists through the bounded discovery
+transport: the Decomp Buddy finds feed
+(`https://tanookistudios.com/decomp-buddy/finds.json`, 8 MiB cap), portsdr.com
+(`port-card` Repository links, 4 MiB cap) and the Alexbeav PS1 catalog
+(`catalog-data.js`, read as text and never executed, 1 MiB cap), and RecompSoftware's
+`data/projects/games.json` (8 MiB cap). RecompSoftware first resolves `main` to
+an immutable commit, then reads that exact revision; its successful clock retains
+the source URL, revision and SHA-256 of received content. Decomp Buddy's
+aggregated catalog is not read; its finds feed plus the two original lists
+cover it. Each list is read at most once per run, again seven days after its
+last complete collection, and only while twenty-two requests (the research
+reserve plus four possible redirects) and the list cap plus 1 MiB remain. A
+malformed, oversized, count-mismatched or failed list keeps its prior complete
+clock and hints, records its failed attempt, waits two days before another read
+and is recorded as a partial note. Parser diagnostics never copy list bytes. A
+failure anywhere in this step leaves the rest of `collect` running.
+
+Only HTTPS GitHub and Codeberg `owner/name` and GitLab project paths (up to four
+group segments) and a truncated inert title are retained in `leads.json` as
+hints, with the lists that named them and first/last observation clocks.
+Name-only entries are counted, never mapped. A list no longer naming a
+repository is not deletion evidence. Hints are not leads: they grant no
+admission, support, catalog or planning facts, and list text is never followed
+as instructions. Retired list ids stay readable in retained state.
+
+After list collection, at most eight uncovered GitHub hints per run, newest
+first, receive one primary `repos/{owner}/{name}` metadata read while eighteen
+requests remain. A hint is covered when a canonical issue upstream, reviewed
+catalog lineage URL or a retained lead's current repository path names it;
+unchanged covered hints are never read. Historical lead aliases do not cover a hint,
+because another repository can reuse an old path. Only an answer for the listed
+path joins the ordinary lead queue, through the same immutable-ID rules as
+search results. The discovery SDK refuses redirects, so a renamed or transferred
+path, HTTP 404/410 and HTTP 403/451 access blocks mark only that hint
+unavailable for thirty days for manual research at its new location. An answer
+for another path or a path owned by another retained ID marks it as a conflict
+for thirty days; malformed metadata or another typed client answer for that
+path is a failed read retried after one day. Admission, budget, quota,
+rate-limit, deadline, credential (HTTP 401), server (HTTP 5xx), retry-exhaustion
+and scope refusals, and any unclassified error, stop resolution and mark no hint.
+A list read refused for budget or quota stays due; other list failures wait.
+RecompSoftware retains each source slug, subject, category, method, status,
+targets, original-copy flag and latest-release claim within its repository hint.
+Shared repositories receive one metadata read while keeping their independent
+source-entry associations. These are external claims, including category
+`games`; none establishes a reviewed game identity or playable runtime. Upstream
+summaries and code are not copied. No repository/data license was found in the
+reviewed `e981757f31fdb58b85e546069cf303daac56cc61` tree, so these parsers are
+independent implementations and retained facts require primary-source research.
+
+The already consumed review snapshot is the bootstrap baseline. If a first
+collection observes a newer revision, it also reads the pinned reviewed snapshot
+before comparing claims. A new slug or changed method, target, original-copy
+requirement, status or release claim queues one primary research handoff even
+when the repository already has a canonical issue. Removed entries and missing
+associations remain retained; absence is not upstream-deletion evidence.
+A failed or partial read retains last-good content and clocks. Identical claims
+stay quiet. A retained lead consumes the changed claim without another repository
+read, and `lead-dispose` acknowledges it after the existing primary research and
+canonical overlap guards. The recorded hold/resume condition is retained for that
+review. New/changed claims cannot grant support or reverse a deliberate deferral.
+
+Resolved leads record `external_lists` provenance and then follow the unchanged
+ranking, research, disposition and intake guards. Non-GitHub hints remain manual
+research hints. The lead summary's `external` entry reports each list's last
+complete collection, last attempt and due state, and covered, queued, unresolved,
+unavailable, conflict, failed and non-GitHub hints; without a validated inventory,
+canonical overlap is unknown. List collection does not count toward
+quiet-rotation lead coverage. Hints live in `leads.json` and its recovery copy
+in the run journal, never in registry checkpoint sources.
 
 Collect registry entry fingerprints and exact evidence URLs/clocks cheaply
 before deep investigation. Process offered-integration safety/availability
@@ -620,7 +769,7 @@ recovery, physical envelopes or the requirement to retain confirmed identities.
 
 | `op`           | Additional message fields and completion criterion                                                                                                                                                                                                         |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `collect`      | Fixed registry snapshots, bounded manifest rotation and accessible source evidence saved. Each failure remains partial/inaccessible.                                                                                                                       |
+| `collect`      | Due curated list hints and bounded hint resolution, then fixed registry snapshots, bounded manifest rotation and accessible source evidence saved. Each failure remains partial/inaccessible.                                                              |
 | `search`       | `query`: a resource-admitted bounded GitHub repository lead search. Search is a lead page and cannot prove absence or complete community coverage.                                                                                                         |
 | `discover`     | Resume complementary bounded lead searches and return retained provider identities, research evidence and exact query/page continuations. `collect` invokes it first.                                                                                      |
 | `lead-dispose` | `disposition`: investigated `evidence_id`, `outcome` (`held`, `no-change`, `canonical`), `reason`, `resume`. Canonical requires a current canonical upstream match; this never writes planning fields.                                                     |

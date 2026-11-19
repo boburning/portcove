@@ -1,0 +1,209 @@
+import { controlledAct as act } from "../../test/controlled-react-act";
+import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import type { DatReferenceStatus, SourceInspectionReport } from "../types";
+import { sourceInspectionIdentityFixture } from "../test-fixtures";
+import { DatReferenceSettings } from "./DatReferences";
+import { SourceIdentityPanel } from "./SourceIdentity";
+
+const ready: DatReferenceStatus = {
+  id: "0123456789abcdef",
+  path: "C:/DATs/Nintendo - Nintendo 64.dat",
+  name: "Nintendo - Nintendo 64",
+  version: "20261113",
+  entry_count: 2,
+  file_count: 2,
+  state: "ready",
+  message: "Ready to name selected original game files.",
+};
+
+describe("DAT files", () => {
+  let root: RenderResult;
+  let host: HTMLDivElement;
+  beforeEach(async () => {
+    host = document.createElement("div");
+    document.body.append(host);
+    root = await renderComponent(null, { container: host });
+  });
+  afterEach(async () => {
+    await cleanup();
+    document.body.replaceChildren();
+    vi.restoreAllMocks();
+  });
+
+  it("adds, lists and removes DAT files through the supplied Core actions", async () => {
+    let saved: DatReferenceStatus[] = [];
+    const add = vi.fn(async (path: string) => {
+      saved = [{ ...ready, path }];
+      return saved[0]!;
+    });
+    const remove = vi.fn(async () => {
+      saved = [];
+    });
+    await act(async () =>
+      root.rerender(
+        <DatReferenceSettings
+          load={async () => saved}
+          add={add}
+          remove={remove}
+          pick={async () => ready.path}
+        />,
+      ),
+    );
+    expect(host.textContent).toContain("No DAT files added.");
+    expect(host.textContent).toContain("DAT files don’t change which files a game accepts.");
+
+    const addButton = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Add DAT file",
+    )!;
+    await act(async () => addButton.click());
+    expect(add).toHaveBeenCalledWith(ready.path);
+    expect(host.textContent).toContain("Nintendo - Nintendo 64 (20261113)");
+    expect(host.textContent).toContain("Ready · 2 entries");
+
+    const removeButton = host.querySelector<HTMLButtonElement>(
+      "[aria-label='Remove DAT file Nintendo - Nintendo 64 (20261113)']",
+    )!;
+    removeButton.focus();
+    await act(async () => removeButton.click());
+    expect(remove).toHaveBeenCalledWith(ready.id);
+    expect(host.textContent).toContain("No DAT files added.");
+    expect(document.activeElement).toBe(addButton);
+  });
+
+  it("holds the controls while the file picker is open", async () => {
+    let choose!: (path: string | null) => void;
+    const pick = () => new Promise<string | null>((resolve) => (choose = resolve));
+    const add = vi.fn();
+    await act(async () =>
+      root.rerender(<DatReferenceSettings load={async () => []} add={add} pick={pick} />),
+    );
+    const addButton = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Add DAT file",
+    )!;
+    addButton.focus();
+    await act(async () => addButton.click());
+    expect(addButton.getAttribute("aria-disabled")).toBe("true");
+    expect(document.activeElement).toBe(addButton);
+    await act(async () => choose(null));
+    expect(addButton.getAttribute("aria-disabled")).not.toBe("true");
+    expect(document.activeElement).toBe(addButton);
+    expect(add).not.toHaveBeenCalled();
+  });
+
+  it("refreshes a failed inventory without picking a file and returns focus to Add", async () => {
+    let available = false;
+    const load = vi.fn(async () => {
+      if (!available) throw new Error("Saved DAT list is temporarily unavailable.");
+      return [ready];
+    });
+    const pick = vi.fn();
+    await act(async () => root.rerender(<DatReferenceSettings load={load} pick={pick} />));
+    expect(host.querySelector("[role='alert']")?.textContent).toContain(
+      "Portcove couldn’t read your saved DAT files.",
+    );
+    const refresh = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Refresh DAT files",
+    )!;
+    const addButton = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Add DAT file",
+    )!;
+    refresh.focus();
+    available = true;
+    await act(async () => refresh.click());
+    expect(host.querySelector("[role='alert']")).toBeNull();
+    expect(host.textContent).toContain("Ready · 2 entries");
+    expect(document.activeElement).toBe(addButton);
+    expect(pick).not.toHaveBeenCalled();
+  });
+
+  it("keeps an acknowledged removal out of the list if refreshing fails", async () => {
+    const remaining = { ...ready, id: "fedcba9876543210", name: "Another DAT file" };
+    let removed = false;
+    const load = async () => {
+      if (removed) throw new Error("Saved DAT list is temporarily unavailable.");
+      return [ready, remaining];
+    };
+    const remove = vi.fn(async () => {
+      removed = true;
+    });
+    await act(async () => root.rerender(<DatReferenceSettings load={load} remove={remove} />));
+    const removeButton = host.querySelector<HTMLButtonElement>(
+      "[aria-label='Remove DAT file Nintendo - Nintendo 64 (20261113)']",
+    )!;
+    removeButton.focus();
+    await act(async () => removeButton.click());
+    expect(remove).toHaveBeenCalledExactlyOnceWith(ready.id);
+    expect(removeButton.isConnected).toBe(false);
+    expect(host.textContent).toContain("Another DAT file");
+    expect(host.textContent).toContain("Refresh DAT files");
+    expect(document.activeElement?.textContent).toBe("Add DAT file");
+  });
+
+  it("shows why a saved DAT file is not used", async () => {
+    await act(async () =>
+      root.rerender(
+        <DatReferenceSettings
+          load={async () => [
+            {
+              ...ready,
+              state: "changed",
+              message:
+                "This DAT file changed after you added it. Add it again to use the new version.",
+            },
+          ]}
+        />,
+      ),
+    );
+    expect(host.textContent).toContain("Changed · 2 entries");
+    expect(host.textContent).toContain("Add it again to use the new version.");
+  });
+
+  it("shows the informational DAT match beside the catalog result", async () => {
+    const report: SourceInspectionReport = {
+      ...sourceInspectionIdentityFixture(),
+      dump_identification: {
+        state_code: "identified",
+        summary: "Matches “Example (Europe)” in Nintendo - Nintendo 64.",
+        limitation:
+          "DAT files only name the selected original game files. They don’t change which files this game accepts.",
+        checked_reference_count: 1,
+        match_count: 2,
+        matches: [
+          {
+            reference_id: ready.id,
+            reference_name: ready.name,
+            entry_name: "Example (Europe)",
+            complete: true,
+            matched_files: [
+              { file_name: "Example (Europe).z64", algorithm: "sha1", scope: "original-file" },
+            ],
+            entry_file_count: 1,
+          },
+          {
+            reference_id: ready.id,
+            reference_name: ready.name,
+            entry_name: "Example (Europe) (Rev 1)",
+            complete: false,
+            matched_files: [
+              {
+                file_name: "Example (Europe) (Rev 1).z64",
+                algorithm: "sha1",
+                scope: "original-file",
+              },
+            ],
+            entry_file_count: 2,
+          },
+        ],
+        unavailable_references: [],
+      },
+    };
+    await act(async () => root.rerender(<SourceIdentityPanel report={report} />));
+    const note = host.querySelector("[aria-label='DAT file match']")!;
+    expect(note.textContent).toContain("Matches “Example (Europe)” in Nintendo - Nintendo 64.");
+    expect(note.textContent).toContain(
+      "Partly matches “Example (Europe) (Rev 1)” in Nintendo - Nintendo 64",
+    );
+    expect(note.textContent).toContain("They don’t change which files this game accepts.");
+  });
+});

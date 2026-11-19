@@ -1,0 +1,58 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "astromenace-viewizard",
+    "artwork": {
+      "game_id": 187894,
+      "cover_id": 204660,
+      "image_id": "co4dx0",
+      "image_sha256": "521cbfe7aa4efb6f4a4af73712f66ecff6d0ce7ded2771efd0048307b7dcf4cd",
+      "game_slug": "astromenace",
+      "match_kind": "underlying-game"
+    },
+    "name": "AstroMenace",
+    "summary": "Fly a customizable fighter through a 3D space shooter from Viewizard.",
+    "project_url": "https://github.com/viewizard/astromenace",
+    "issue_number": 6131,
+    "listed_at": "2026-11-14",
+    "original_game_title": "AstroMenace",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/viewizard/astromenace/blob/v1.4.3/README.md#installation",
+    "release_url": "https://github.com/viewizard/astromenace/releases/tag/v1.4.3",
+    "download_asset_hints": {
+      "windows-x86-64": ["astromenace-win-", ".exe"]
+    },
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "help_url": "https://github.com/viewizard/astromenace/blob/v1.4.3/README.md",
+      "steps": [
+        {
+          "title": "Set up the Windows release",
+          "instruction": "Run the publisher’s v1.4.3 installer and open AstroMenace when setup completes. On Windows x64 it installs the native x64 player and its matching libraries. The standalone game is included."
+        },
+        {
+          "title": "Use your Linux package or build on Mac",
+          "instruction": "Install astromenace through your Linux distribution, or use the community Flatpak for x64 or ARM64 from the upstream guide. On Mac, follow the source-build instructions for the required Xcode and Homebrew tools."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Keep your pilots and settings",
+          "instruction": "Preserve config.xml and the versioned PilotProfiles_*.data file in the active profile. Windows and Mac use the Viewizard/AstroMenace user folder. On native Linux keep astromenace under XDG_CONFIG_HOME or ~/.config. If you use Flatpak, keep its separate app profile."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "astromenace",
+      "evidence_urls": [
+        "https://github.com/viewizard/astromenace/blob/v1.4.3/README.md#installation",
+        "https://github.com/viewizard/astromenace/blob/v1.4.3/README.md",
+        "https://github.com/viewizard/astromenace"
+      ],
+      "source_editions": []
+    }
+  }
+}

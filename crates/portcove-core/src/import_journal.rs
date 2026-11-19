@@ -300,6 +300,18 @@ pub(crate) fn metadata_tables_empty(connection: &rusqlite::Connection) -> Result
             return Ok(false);
         }
     }
+    let has_source_instances: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='source_instances')",
+        [],
+        |row| row.get(0),
+    )?;
+    if has_source_instances
+        && connection.query_row("SELECT EXISTS(SELECT 1 FROM source_instances)", [], |row| {
+            row.get::<_, bool>(0)
+        })?
+    {
+        return Ok(false);
+    }
     if crate::profile::any_profiles(connection)? {
         return Ok(false);
     }

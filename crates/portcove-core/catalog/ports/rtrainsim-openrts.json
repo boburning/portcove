@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rtrainsim-openrts",
+    "name": "RTrainSim / openRTS",
+    "summary": "Drive trains in a native Windows build using the routes and rolling stock from your own RTrainSim installation.",
+    "project_url": "https://github.com/SmileDoge/openRTS",
+    "original_game_title": "RTrainSim",
+    "issue_number": 5782,
+    "listed_at": "2026-11-18",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "download_asset_hints": {
+      "windows-x86-64": ["openRTS-windows-x64-", ".zip"]
+    },
+    "release_url": "https://github.com/SmileDoge/openRTS/releases/tag/v0.22.0",
+    "setup_url": "https://github.com/SmileDoge/openRTS/blob/v0.22.0/INSTALL_EN.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Open the start menu",
+          "instruction": "Extract the ZIP and open openrts_game.exe from the extracted folder. Install the x64 Microsoft Visual C++ Redistributable if needed. The project requires a graphics driver with Vulkan or DirectX 12."
+        },
+        {
+          "title": "Choose your RTrainSim folder",
+          "instruction": "In the start menu, set the folder of your own RTrainSim installation with routes and rolling stock. The menu remembers the folder. Return to openrts_game.exe to choose a route or save, or open Settings to change the folder."
+        }
+      ],
+      "references": [
+        {
+          "title": "Keep saves and settings",
+          "instruction": "The default profile is %LOCALAPPDATA%/openRTS. If you use the project’s portable.txt marker, the profile stays beside the program. Open the profile from the project’s Settings and back it up separately. It holds viewer_state.ini, saves grouped by route and RTS_TAPES. The project’s start menu handles updates and lets you turn off checks at startup."
+        }
+      ],
+      "warnings": ["Portcove does not back up this project’s profile."]
+    }
+  }
+}

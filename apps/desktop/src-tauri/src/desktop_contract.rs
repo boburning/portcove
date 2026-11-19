@@ -13,6 +13,8 @@ pub(crate) const DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE: &str =
     "portcove://application-update-notice";
 pub(crate) const DESKTOP_EVENT_LIBRARY_CHANGED: &str = "portcove://library-changed";
 pub(crate) const DESKTOP_EVENT_OPERATION: &str = "portcove://operation";
+/// A later launch forwarded a play request; take it with `take_startup_play_request`.
+pub(crate) const DESKTOP_EVENT_PLAY_REQUEST: &str = "portcove://play-request";
 
 pub(crate) type DesktopError = portcove_core::FailureReport;
 
@@ -80,6 +82,17 @@ pub(crate) struct BackupReview {
     pub(crate) persistent_data_path: PathBuf,
 }
 
+/// A recipe review's display data and its exact Core-owned import plan.
+/// JavaScript numbers cannot preserve every JSON number representation, so
+/// only the unchanged serialized plan is sent back for Core to verify and use.
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct RecipeImportReview {
+    pub(crate) plan: portcove_core::RecipeImportPlan,
+    pub(crate) serialized_plan: String,
+    /// Exact native text in the same order as `plan.recipe.settings`.
+    pub(crate) setting_values: Vec<String>,
+}
+
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct CliCommandContext {
     pub(crate) library_root: PathBuf,
@@ -106,205 +119,61 @@ pub(crate) struct LaunchResult {
     pub(crate) session_id: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+/// The application release feed a player follows. Beta is the default; Preview
+/// is an opt-in feed that receives builds before Beta.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
-pub enum ApplicationChannel {
+pub enum ApplicationUpdateChannel {
+    #[default]
+    Beta,
     Preview,
-    Stable,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ApplicationUpdateCandidateSummary {
-    pub version: String,
-    pub channel: ApplicationChannel,
-    pub bytes: u64,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateCheckPhase {
-    Checking,
-    AcquiringAndVerifying,
-    Staged,
-    Complete,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateCheckResultKind {
-    ConsentRequired,
-    Paused,
-    ManualMode,
-    Offline,
-    Metered,
-    MeteredStateUnknown,
-    StartupDelay,
-    Cadence,
-    Superseded,
-    Current,
-    UpdateAvailable,
-    Held,
-    Incompatible,
-    NoCandidate,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateCheckResult {
-    pub kind: ApplicationUpdateCheckResultKind,
-    pub candidate: Option<ApplicationUpdateCandidateSummary>,
-    pub reasons: Vec<String>,
-    pub staged: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ApplicationUpdateManualCheckRequest {
-    pub channel: Option<ApplicationChannel>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateManualCheckResult {
-    pub checked_channel: ApplicationChannel,
-    pub result: ApplicationUpdateCheckResult,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateNotice {
-    pub preference_revision: u64,
-    pub result: ApplicationUpdateCheckResult,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateNoticeSnapshot {
-    pub revision: u64,
-    pub notice: Option<ApplicationUpdateNotice>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ApplicationUpdateDownloadRequest {
-    pub expected_preference_revision: u64,
-    pub expected_candidate: ApplicationUpdateCandidateSummary,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateMode {
-    Automatic,
-    NotifyOnly,
-    Manual,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ApplicationUpdateChoice {
-    pub channel: ApplicationChannel,
-    pub mode: ApplicationUpdateMode,
-    pub paused: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ApplicationUpdatePreferences {
-    pub schema_version: u32,
-    pub revision: u64,
-    /// `None` means the user has not completed the one-time choice.
-    pub choice: Option<ApplicationUpdateChoice>,
+    pub channel: ApplicationUpdateChannel,
+    /// Check for updates at startup and periodically. A found update is only
+    /// announced; installing always needs the player's click.
+    pub automatic_checks: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateProductionDecision {
-    UseStable,
-    KeepPreview,
+impl Default for ApplicationUpdatePreferences {
+    fn default() -> Self {
+        Self {
+            channel: ApplicationUpdateChannel::Beta,
+            automatic_checks: true,
+        }
+    }
 }
 
+/// A newer signed release announced by the channel feed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateProductionTransition {
-    pub schema_version: u32,
-    pub preference_revision: u64,
-    pub offer_required: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateProductionTransitionResult {
-    pub preferences: ApplicationUpdatePreferences,
-    pub transition: ApplicationUpdateProductionTransition,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateRecoveryArea {
-    Schedule,
-    Staging,
-    Apply,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateRecoveryNotice {
-    pub area: ApplicationUpdateRecoveryArea,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateScheduleSummary {
-    pub last_success_unix_seconds: Option<u64>,
-    pub consecutive_failures: u32,
-    pub next_automatic_check_unix_seconds: Option<u64>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateRequestedAction {
-    SafeExit,
-    RestartToApply,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateObservedTermination {
-    NormalExit,
-    RestartToApply,
-    Crash,
-    OsShutdown,
-    SteamStop,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateNativeLaunchSummary {
-    Starting,
-    Started,
-    Failed,
-    InstallerSucceeded,
-    InstallerFailed,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateApplySummary {
-    pub revision: u64,
-    pub request: ApplicationUpdateRequestedAction,
-    pub termination: Option<ApplicationUpdateObservedTermination>,
-    pub native_launch: Option<ApplicationUpdateNativeLaunchSummary>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateInstallEligibility {
-    Eligible,
-    PackageManagedDeb,
-    PackageManagedRpm,
-    NotConfigured,
-    Unavailable,
+pub struct ApplicationUpdateAvailable {
+    pub version: String,
+    pub channel: ApplicationUpdateChannel,
+    pub notes: Option<String>,
+    /// Publication date as written in the feed (RFC 3339).
+    pub date: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct ApplicationUpdateStatus {
-    pub schedule: Option<ApplicationUpdateScheduleSummary>,
-    pub staged: Option<ApplicationUpdateCandidateSummary>,
-    pub apply: Option<ApplicationUpdateApplySummary>,
-    pub install_eligibility: ApplicationUpdateInstallEligibility,
-    pub recovery_required: Vec<ApplicationUpdateRecoveryNotice>,
+    pub current_version: String,
+    pub checking: bool,
+    pub installing: bool,
+    pub available: Option<ApplicationUpdateAvailable>,
+    pub last_checked_unix_seconds: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(tag = "phase", rename_all = "kebab-case")]
+pub enum ApplicationUpdateProgress {
+    Downloading {
+        downloaded_bytes: u64,
+        total_bytes: Option<u64>,
+    },
+    Installing,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -458,6 +327,10 @@ pub enum SteamArtworkOperation {
     Update { replace_existing: bool },
     /// Remove only recorded, unchanged Portcove-written art for this entry.
     RemoveOwned,
+    /// As `RemoveOwned`, for one role only; the entry's other artwork stays.
+    RemoveOwnedRole {
+        role: portcove_core::DestinationArtworkRole,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -520,6 +393,18 @@ pub struct SteamArtworkReview {
     /// An interrupted shortcut (or, for shortcut reviews, artwork) change in this
     /// profile was settled before review.
     pub recovered_shortcut_change: bool,
+    /// Roles whose Portcove-added Steam image came from a SteamGridDB image
+    /// Portcove has since removed from its library. Display only: it is not
+    /// part of the reviewed plan, and removal still needs its own review.
+    /// Empty when unknown.
+    pub withdrawn_sources: Vec<SteamArtworkWithdrawnSource>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SteamArtworkWithdrawnSource {
+    pub role: portcove_core::DestinationArtworkRole,
+    /// When Portcove removed its own copy of the source image.
+    pub source_evicted_at: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -543,9 +428,10 @@ pub fn export_transport_schemas() -> Value {
     let events = serde_json::Map::from_iter([
         (
             DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE.to_owned(),
-            output::<ApplicationUpdateNoticeSnapshot>(),
+            output::<ApplicationUpdateStatus>(),
         ),
         (DESKTOP_EVENT_LIBRARY_CHANGED.to_owned(), output::<()>()),
+        (DESKTOP_EVENT_PLAY_REQUEST.to_owned(), output::<()>()),
         (
             DESKTOP_EVENT_OPERATION.to_owned(),
             output::<portcove_core::OperationEvent>(),
@@ -559,23 +445,23 @@ pub fn export_transport_schemas() -> Value {
             "locale_preference": output::<DesktopLocalePreference>(),
             "library_organization": output::<portcove_core::LibraryOrganization>(),
             "backup_review": output::<BackupReview>(),
+            "recipe_import_review": output::<RecipeImportReview>(),
             "cli_command_context": output::<CliCommandContext>(),
             "desktop_error": output::<DesktopError>(),
             "update_check_outcome": output::<BatchOutcome<UpdateCheck>>(),
             "reconcile_outcome": output::<BatchOutcome<ReconcileResult>>(),
             "source_verification_outcome": output::<SourceBatchOutcome>(),
             "launch_result": output::<LaunchResult>(),
+            "dat_reference_status": output::<portcove_core::DatReferenceStatus>(),
+            "dat_reference_statuses": output::<Vec<portcove_core::DatReferenceStatus>>(),
             "automatic_snapshots_enabled": output::<bool>(),
+            "ready_notices_enabled": output::<bool>(),
             "bug_report_draft": output::<portcove_core::BugReportDraft>(),
             "bug_report_link": output::<portcove_core::BugReportLink>(),
+            "submitted_report": output::<portcove_core::SubmittedReport>(),
             "application_update_preferences": output::<ApplicationUpdatePreferences>(),
-            "application_update_production_transition": output::<ApplicationUpdateProductionTransition>(),
-            "application_update_production_transition_result": output::<ApplicationUpdateProductionTransitionResult>(),
             "application_update_status": output::<ApplicationUpdateStatus>(),
-            "application_update_check_result": output::<ApplicationUpdateCheckResult>(),
-            "application_update_manual_check_result": output::<ApplicationUpdateManualCheckResult>(),
-            "application_update_check_phase": output::<ApplicationUpdateCheckPhase>(),
-            "application_update_notice": output::<ApplicationUpdateNoticeSnapshot>(),
+            "application_update_progress": output::<ApplicationUpdateProgress>(),
             "workspace_snapshot": output::<DesktopWorkspaceSnapshot>(),
             "game_file_roots": output::<Vec<portcove_core::GameFileRoot>>(),
             "library_memberships": output::<Vec<portcove_core::LibraryMembership>>(),
@@ -593,6 +479,9 @@ pub fn export_transport_schemas() -> Value {
             "root_setup_consents": output::<Vec<portcove_core::RootSetupConsent>>(),
             "source_reuse_review": output::<portcove_core::SourceReuseReview>(),
             "game_file_scan_snapshot": output::<Option<portcove_core::GameFileScanSnapshot>>(),
+            "game_file_scan_match_page": output::<portcove_core::GameFileScanMatchPage>(),
+            "game_file_scan_registered_matches": output::<portcove_core::GameFileScanRegisteredMatches>(),
+            "store_game_installs": output::<portcove_core::StoreGameInstalls>(),
             "game_file_query_snapshot": output::<portcove_core::GameFileQuerySnapshot>(),
             "preparation_cleanup_preview": output::<portcove_core::PreparationCleanupPreview>(),
             "external_runtime_preview": output::<portcove_core::ExternalRuntimePreview>(),
@@ -625,12 +514,9 @@ pub fn export_transport_schemas() -> Value {
             "adoption_batch_items": schemars::schema_for!(Vec<portcove_core::AdoptionBatchItem>),
             "port_intent_mode": schemars::schema_for!(portcove_core::PortIntentMode),
             "root_setup_enrollment": schemars::schema_for!(Option<portcove_core::RootSetupEnrollment>),
+            "game_file_scan_match_query": schemars::schema_for!(portcove_core::GameFileScanMatchQuery),
             "port_readiness_acknowledgements": schemars::schema_for!(Vec<portcove_core::PortReadinessAcknowledgement>),
-            "application_update_choice": schemars::schema_for!(ApplicationUpdateChoice),
-            "application_update_production_decision": schemars::schema_for!(ApplicationUpdateProductionDecision),
-            "application_update_recovery_area": schemars::schema_for!(ApplicationUpdateRecoveryArea),
-            "application_update_download_request": schemars::schema_for!(ApplicationUpdateDownloadRequest),
-            "application_update_manual_check_request": schemars::schema_for!(ApplicationUpdateManualCheckRequest),
+            "application_update_preferences": schemars::schema_for!(ApplicationUpdatePreferences),
             "steam_entry_selection": schemars::schema_for!(SteamEntrySelection),
             "steam_batch_selection": schemars::schema_for!(SteamBatchSelection),
             "steam_artwork_selection": schemars::schema_for!(SteamArtworkSelection),

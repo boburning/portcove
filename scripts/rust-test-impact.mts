@@ -439,6 +439,11 @@ function definitionImplementation(file: string) {
   return file.startsWith("crates/portcove-core/src/definition_") && !file.endsWith("_tests.rs");
 }
 
+// Core's catalog size guard measures serialized projection and retained-contract
+// bytes that no script can reproduce. Every catalog fast path keeps it (#5894).
+export const catalogGrowthGuardFilter =
+  "test(/^installed_contract::tests::catalog_growth_stays_within_supported_capacity$/)";
+
 export function selectWorkspaceRustImpact(
   plan: ValidationPlan,
   map: RustImpactMap | null = readRustTestImpactMap(),
@@ -488,8 +493,7 @@ export function selectWorkspaceRustImpact(
       {
         id: "portcove-core:catalog-authoring-equivalence",
         packageName: "portcove-core",
-        filter:
-          "package(=portcove-core) & test(/^catalog::tests::embedded_catalog_is_valid_and_contains_lighthouse$/)",
+        filter: `package(=portcove-core) & (test(/^catalog::tests::embedded_catalog_is_valid_and_contains_lighthouse$/) | ${catalogGrowthGuardFilter})`,
         reason:
           "Authoring layout conversion preserves generated definitions; catalog generation and embedded validation remain required",
       },
@@ -508,8 +512,7 @@ export function selectWorkspaceRustImpact(
       {
         id: "portcove-core:catalog-discovery-platforms",
         packageName: "portcove-core",
-        filter:
-          "package(=portcove-core) & test(/^(catalog(::|_)|artwork|definition_|game_file_query|game_recommendations|library|listing_delivery|official_catalog_setup|port_recommendation|release::tests::unchanged_definition|service::(capabilities|catalog_download|listings|native_portable|package_selection|tests::channel_recommendations|user_selected)|signed_catalog)/)",
+        filter: `package(=portcove-core) & (test(/^(catalog(::|_)|artwork|definition_|game_file_query|game_recommendations|library|listing_delivery|official_catalog_setup|port_recommendation|release::tests::unchanged_definition|service::(capabilities|catalog_download|listings|native_portable|package_selection|tests::channel_recommendations|user_selected)|signed_catalog)/) | ${catalogGrowthGuardFilter})`,
         reason: "Additive discovery platform facts retain Core directory and package consumers",
       },
       {
@@ -530,8 +533,7 @@ export function selectWorkspaceRustImpact(
       {
         id: "portcove-core:catalog-guide-copy",
         packageName: "portcove-core",
-        filter:
-          "package(=portcove-core) & (test(/^catalog::/) | test(/::prepared_guide_adoption_/))",
+        filter: `package(=portcove-core) & (test(/^catalog::/) | test(/::prepared_guide_adoption_/) | ${catalogGrowthGuardFilter})`,
         reason: "Guide copy changes retain catalog invariants and prepared guide consumers",
       },
       {

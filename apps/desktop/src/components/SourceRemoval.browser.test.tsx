@@ -1,11 +1,12 @@
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
-import { portDefinition } from "../test-fixtures";
+import { portDefinition, sourceProfile } from "../test-fixtures";
 import type { SourceRemovalPreview } from "../types";
 import { SourceRemovalControl, SourceRemovalReview } from "./SourceRemoval";
+import { SettingsView } from "./Chrome";
 import "../styles/index.css";
 
 const ports = [
@@ -78,6 +79,23 @@ it("isolates a mixed-script Windows path in an RTL layout without changing its t
   expect(code.textContent).toBe(path);
   expect(getComputedStyle(code).direction).toBe("ltr");
   expect(getComputedStyle(code).unicodeBidi).toBe("isolate");
+});
+
+it("fits the saved-location impact and actions inside the 400% Settings column", async () => {
+  container.style.inlineSize = "144px";
+  container.className = "flex flex-wrap items-center gap-2.5";
+  const source = {
+    ...preview.source,
+    path: "D:\\Originals ü\\العربية\\" + "long".repeat(30) + ".iso",
+  };
+  vi.spyOn(desktopApi, "previewSourceRemoval").mockResolvedValue({ ...preview, source });
+  await root.rerender(
+    <SourceRemovalControl source={source} generation={3} ports={ports} disabled={false} />,
+  );
+  await click("Review saved location removal");
+  await expect.poll(() => impact().querySelector("code")?.textContent).toBe(source.path);
+  expect(container.scrollWidth).toBeLessThanOrEqual(container.clientWidth + 1);
+  expect(impact().scrollWidth).toBeLessThanOrEqual(impact().clientWidth + 1);
 });
 
 it("requires fresh intent after location identity changes and never opens renderer approval", async () => {
@@ -307,3 +325,74 @@ it("never commits an old source preview under a new identity", async () => {
     ),
   ).toBe(false);
 });
+
+it.each(["lost focus", "another control", "left during refresh", "left during removal"] as const)(
+  "settles a saved location removal after %s",
+  async (scenario) => {
+    vi.spyOn(desktopApi, "previewSourceRemoval").mockResolvedValue(preview);
+    let releaseRemoval!: (value: SourceRemovalPreview) => void;
+    const removalReady = new Promise<SourceRemovalPreview>((resolve) => {
+      releaseRemoval = resolve;
+    });
+    vi.spyOn(desktopApi, "removeSource").mockReturnValue(removalReady);
+    let releaseRefresh!: () => void;
+    const refreshReady = new Promise<void>((resolve) => {
+      releaseRefresh = resolve;
+    });
+
+    let selectCategory!: (category: "appearance" | "game-files") => void;
+    function Settings() {
+      const [category, setCategory] = useState<"appearance" | "game-files">("game-files");
+      useLayoutEffect(() => {
+        selectCategory = setCategory;
+      }, []);
+      const [sources, setSources] = useState([preview.source]);
+      return (
+        <SettingsView
+          category={category}
+          generation={3}
+          sources={sources}
+          sourceProfiles={[sourceProfile()]}
+          sourceRequirementsState="available"
+          onSourceAdded={async () => {
+            await refreshReady;
+            setSources([]);
+          }}
+        />
+      );
+    }
+
+    await root.rerender(<Settings />);
+    await click("Review saved location removal");
+    await click("Remove saved location…");
+    if (scenario !== "left during removal") {
+      await act(async () => releaseRemoval(preview));
+    }
+    if (scenario === "left during refresh" || scenario === "left during removal") {
+      await act(async () => selectCategory("appearance"));
+      await act(async () => selectCategory("game-files"));
+    }
+    if (scenario === "left during removal") {
+      await act(async () => releaseRemoval(preview));
+    }
+    const discovery = button("Find required files");
+    if (scenario === "another control") {
+      discovery.focus();
+    } else {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    }
+
+    await act(async () => releaseRefresh());
+    expect(container.querySelector("[data-source-profile]")).toBeNull();
+    const heading = [...container.querySelectorAll("h2")].find(
+      (element) => element.textContent === "Game files and BIOS",
+    );
+    const target =
+      scenario === "lost focus"
+        ? heading
+        : scenario === "another control"
+          ? discovery
+          : document.body;
+    expect(document.activeElement).toBe(target);
+  },
+);

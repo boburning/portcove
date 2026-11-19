@@ -115,6 +115,7 @@ fn restore_review_keeps_metadata_payload_destination_and_full_fingerprint_separa
         original_root: PathBuf::from("/original"),
         content_roots: vec![],
         source_references: vec![source()],
+        source_instances: Vec::new(),
         application_versions: vec![],
         retained_build_references: vec![],
         profiles: vec![],

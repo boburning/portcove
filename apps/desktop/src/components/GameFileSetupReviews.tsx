@@ -34,7 +34,9 @@ export function GameFileSetupReviews({
   busy: boolean;
   onOpenPort?: ((portId: string, originKey: string) => void) | undefined;
   onAddToLibrary?: ((portIds: string[]) => void) | undefined;
-  onReviewInstall?: ((portIds: string[]) => void) | undefined;
+  onReviewInstall?:
+    | ((portIds: string[], origin: HTMLButtonElement, owner: HTMLElement) => void)
+    | undefined;
   focusFallback?: (() => HTMLElement | null) | undefined;
 }) {
   const { t } = useAppTranslation("gameFiles");
@@ -225,8 +227,9 @@ export function GameFileSetupReviews({
             <Button
               data-focusable
               disabled={!current || busy || !selected.some(canReview)}
-              onClick={() => {
-                onReviewInstall(selected);
+              onClick={(event) => {
+                if (!section.current) return;
+                onReviewInstall(selected, event.currentTarget, section.current);
                 clear();
               }}
             >

@@ -16,7 +16,22 @@
       "game_slug": "wcw-nwo-revenge",
       "match_kind": "underlying-game"
     },
-    "issue_number": 92
+    "issue_number": 92,
+    "original_game": {
+      "format_version": 1,
+      "id": "wcw-nwo-revenge",
+      "evidence_urls": ["https://github.com/jessetbh/WCWnWoRevengeRecomp"],
+      "source_editions": [
+        {
+          "id": "wcw-nwo-revenge-nintendo-64",
+          "title": "WCW/nWo Revenge (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

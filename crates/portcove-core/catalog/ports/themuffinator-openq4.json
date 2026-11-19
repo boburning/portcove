@@ -19,6 +19,7 @@
     },
     "issue_number": 2810,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://github.com/sponsors/themuffinator"],
     "manual_setup": {
       "help_url": "https://github.com/themuffinator/openQ4/blob/fcdd56967135fbbdfb1688e2d25533f8f123b1c6/README.md",
       "steps": [
@@ -46,6 +47,15 @@
       "warnings": [
         "Select the native x64 client and point fs_basepath at the PC Quake 4 root. Keep q4base and baseoq4 separate; preserve the actual save root and do not infer stock, legacy or cross-platform save compatibility."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "quake-4",
+      "evidence_urls": [
+        "https://github.com/themuffinator/openQ4/blob/fcdd56967135fbbdfb1688e2d25533f8f123b1c6/README.md",
+        "https://github.com/themuffinator/openQ4"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -16,7 +16,22 @@
       "game_slug": "super-bomberman",
       "match_kind": "underlying-game"
     },
-    "issue_number": 724
+    "issue_number": 724,
+    "original_game": {
+      "format_version": 1,
+      "id": "super-bomberman",
+      "evidence_urls": ["https://github.com/elliotttate/BombermanRecomp"],
+      "source_editions": [
+        {
+          "id": "super-bomberman-super-nintendo",
+          "title": "Super Bomberman (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/elliotttate/BombermanRecomp/blob/56106599c1fb2f612fd642ee37c0e015611fc31d/runner/verified_rom.c"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -42,17 +57,17 @@
         {
           "role": "game",
           "profile_id": "super-bomberman-snes-usa",
-          "label": "Super Bomberman (USA) stock headerless SNES source",
+          "label": "Super Bomberman (USA) stock SNES source",
           "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own stock headerless Super Bomberman (USA) ROM. Portcove downloads the checked official Windows package and manages its local saves separately from existing copies. Use a short installation path with basic Latin characters; the original can stay where it is. Headered inputs, gameplay completion and in-game save/load remain outside this selected route."
+      "manual_preparation": "Select your own stock Super Bomberman (USA) ROM, with or without a copier header. Portcove downloads the checked official Windows package and manages its local saves separately from existing copies. Use a short installation path with basic Latin characters; the original can stay where it is. Gameplay completion and in-game save/load remain outside this selected route."
     },
     "launch_arguments": ["game.sfc"],
     "launch_environment": {},
     "runtime_source_filename": "game.sfc",
-    "runtime_source_materialization": "copy",
+    "runtime_source_materialization": "snes-headerless",
     "runtime_source_hashes": {
       "game.sfc": "4efab3f49cbe91ec77b6cba747ddfedfdc0b080c755a8b6ba51234f0676c000f"
     },

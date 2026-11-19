@@ -67,6 +67,8 @@ export function useInstallPlanning(
   context: InvocationContext | undefined,
   registeredSource?: SourceRecord,
   sourcePath = "",
+  registeredBios?: SourceRecord,
+  biosPath = "",
 ) {
   // Empty and the automatically filled saved path select the same registration.
   // A display-only prefill must not discard its checked setup continuation.
@@ -81,6 +83,8 @@ export function useInstallPlanning(
       context?.libraryGeneration,
       registeredSource,
       explicitSourcePath,
+      registeredBios,
+      biosPath === registeredBios?.path ? "" : biosPath,
     ]),
     perform,
   );

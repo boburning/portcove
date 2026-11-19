@@ -23,14 +23,14 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     {
         return if port.platforms.contains(&Platform::WindowsX86_64)
             && port.setup_executable_hints.is_empty()
-            && port.source_profile.is_none()
+            && (port.source_profile.is_none() || crate::preparation::source::eligible(port))
             && port.release.user_prepared.is_empty()
             && port.release.managed_build.is_empty()
         {
             Ok(())
         } else {
             Err(PortcoveError::usage(
-                "printable ASCII Windows native archives require Windows support without source preparation or setup helpers",
+                "printable ASCII Windows native archives require Windows support and allow only immutable original-file preparation without setup helpers",
             ))
         };
     }
@@ -40,7 +40,9 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
                 || crate::native_temp::has_sibling_platforms(port)
                 || windows_with_checked_tar_xz_siblings(port)))
             || (port.adapter == AdapterKind::LibultrashipPortable
-                && port.platforms.contains(&Platform::WindowsX86_64));
+                && port.platforms.contains(&Platform::WindowsX86_64))
+            || (crate::managed_chocolate::applies(port)
+                && crate::managed_chocolate::validate(port).is_ok());
         return if supported_route
             && port.setup_executable_hints.is_empty()
             && port.release.user_prepared.is_empty()
@@ -49,7 +51,7 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
             Ok(())
         } else {
             Err(PortcoveError::usage(
-                "relative Windows file access requires a native archive or a Windows-capable Libultraship archive without preparation helpers",
+                "relative Windows file access requires a supported portable archive and its reviewed preparation contract",
             ))
         };
     }
@@ -107,7 +109,9 @@ fn windows_with_checked_tar_xz_siblings(port: &PortDefinition) -> bool {
 }
 
 pub(crate) fn minimum_capability(port: &PortDefinition) -> u32 {
-    if port.adapter == AdapterKind::LibultrashipPortable {
+    if crate::managed_chocolate::applies(port) {
+        crate::managed_chocolate::CAPABILITY
+    } else if port.adapter == AdapterKind::LibultrashipPortable {
         2
     } else if port.adapter == AdapterKind::NativePortable {
         if port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
@@ -206,6 +210,28 @@ pub(crate) fn check(port: &PortDefinition, platform: Platform, path: &Path) -> R
         }
         WindowsRuntimePathPolicy::RelativeFileMaxPath => require_relative_windows_path(path),
     }
+}
+
+/// Open Surge's Windows player reads its managed profile path through the narrow CRT
+/// environment and can silently change a Unicode path before opening it. Bind this
+/// check to the existing environment contract, including retained definitions.
+pub(crate) fn check_user_data_root(
+    port: &PortDefinition,
+    platform: Platform,
+    path: &Path,
+) -> Result<()> {
+    if platform == Platform::WindowsX86_64
+        && port.adapter == AdapterKind::NativePortable
+        && port.id == "surge-the-rabbit-opensurge"
+        && port.user_data_environment.as_deref() == Some("OPENSURGE_USER_PATH")
+        && !path.to_str().is_some_and(|path| path.is_ascii())
+    {
+        return Err(PortcoveError::unsupported(
+            "the Windows Open Surge runtime can redirect a Unicode managed data path",
+        )
+        .with_known_cause(crate::failure::KnownFailureCause::OpenSurgeUserDataPath));
+    }
+    Ok(())
 }
 
 /// Reject an already impossible destination before resolving or acquiring a release.

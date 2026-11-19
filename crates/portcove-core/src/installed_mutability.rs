@@ -141,6 +141,11 @@ pub(crate) fn checked_port(
                 .push("logs/Ship of Harkinian.log".into());
         }
     }
+    if crate::persistence::only_adds_psx_texture_packs(retained, &current) {
+        current
+            .persistent_paths
+            .clone_from(&retained.persistent_paths);
+    }
     if !retained
         .persistent_paths
         .iter()
@@ -242,6 +247,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         runtime_data_policy,
         external_profile_policy,
         windows_shipwright_persistence,
+        windows_tracked_handoff,
         mod_package_policy,
         game_settings,
         managed_shared_preferences,
@@ -256,6 +262,8 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         runtime_source_materialization,
         runtime_source_hashes,
         runtime_disc_image,
+        runtime_stfs_package,
+        runtime_rom_patch,
         optional_game_source,
         runtime_source_set,
         launch_disc_choice,
@@ -265,10 +273,19 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         setup_marker,
         setup_output_paths,
         upstream_status: _,
+        upstream_active_reviewed: _,
+        mod_provider_bindings: _,
+        legacy_mod_provider_held: _,
         managed_acquisition_hold: _,
         reviewed_package_layouts: _,
         presentation: _,
     } = port;
+    // Reviewed release uploaders gate only fresh acquisition, like the hold and
+    // package layouts above, so accepting one leaves installed identities intact.
+    let release = crate::ReleaseSpec {
+        accepted_uploaders: Vec::new(),
+        ..release.clone()
+    };
     let mut compatibility = serde_json::json!({
         "id": id,
         "channels": channels,
@@ -323,12 +340,24 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
     if let Some(image) = runtime_disc_image {
         compatibility["runtime_disc_image"] = serde_json::json!(image);
     }
+    // An STFS package binding joins only when declared, so Nocturne keeps its identity.
+    if let Some(package) = runtime_stfs_package {
+        compatibility["runtime_stfs_package"] = serde_json::json!(package);
+    }
+    // Likewise, a declared patch format and its exact inputs join only when declared.
+    if let Some(patch) = runtime_rom_patch {
+        compatibility["runtime_rom_patch"] = serde_json::json!(patch);
+    }
     // A launch disc choice changes what launch writes, so it joins when declared.
     if let Some(choice) = launch_disc_choice {
         compatibility["launch_disc_choice"] = serde_json::json!(choice);
     }
     if *optional_game_source {
         compatibility["optional_game_source"] = serde_json::json!(true);
+    }
+    // A tracked handoff changes how long a session holds the installation.
+    if *windows_tracked_handoff {
+        compatibility["windows_tracked_handoff"] = serde_json::json!(true);
     }
     compatibility
 }
@@ -356,5 +385,32 @@ mod marker_identity_tests {
             .unwrap()
             .remove("portable_marker_file");
         assert_eq!(stripped, without);
+    }
+
+    #[test]
+    fn a_windows_tracked_handoff_joins_the_retained_identity_only_when_declared() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut port = catalog.port("zelda64-recomp").unwrap().clone();
+        let without = operational_compatibility(&port);
+        assert!(without.get("windows_tracked_handoff").is_none());
+        port.windows_tracked_handoff = true;
+        let mut with = operational_compatibility(&port);
+        assert_eq!(with["windows_tracked_handoff"], true);
+        with.as_object_mut()
+            .unwrap()
+            .remove("windows_tracked_handoff");
+        assert_eq!(with, without);
+    }
+
+    #[test]
+    fn accepted_release_uploaders_leave_the_retained_identity_unchanged() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut port = catalog.port("shipwright").unwrap().clone();
+        let without = operational_compatibility(&port);
+        port.release.accepted_uploaders = vec![crate::AcceptedUploader {
+            id: 9,
+            login: "reviewed".into(),
+        }];
+        assert_eq!(operational_compatibility(&port), without);
     }
 }

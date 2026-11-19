@@ -14,6 +14,8 @@ import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-saf
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import type { TufSigningRole } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
+import { decodeTufRoleKey } from "./tuf-role-key.mts";
+export { decodeTufRoleKey };
 import {
   inspectInitialRootProfile,
   inspectTopLevelTargetsProfile,
@@ -42,21 +44,6 @@ export function tufRoleDependencies(raw: unknown): readonly TufSigningRole[] {
   return Object.freeze(
     role === "timestamp" ? roles.slice(0, 4) : role === "snapshot" ? roles.slice(0, 3) : [],
   );
-}
-export function decodeTufRoleKey(raw: string): Buffer {
-  if (typeof raw !== "string" || Buffer.byteLength(raw) > 32768 || !raw.length)
-    throw new Error("bounded single TUF role key required");
-  if (
-    /^-----BEGIN PRIVATE KEY-----\r?\n[A-Za-z0-9+/=\r\n]+\r?\n-----END PRIVATE KEY-----\r?\n?$/u.test(
-      raw,
-    )
-  )
-    return Buffer.from(raw);
-  if (!/^[A-Za-z0-9+/]+={0,2}$/u.test(raw)) throw new Error("TUF role key encoding differs");
-  const bytes = Buffer.from(raw, "base64");
-  if (!bytes.length || bytes.toString("base64") !== raw)
-    throw new Error("TUF role key encoding differs");
-  return bytes;
 }
 function remaining(deadline: number) {
   const left = Math.floor(deadline - performance.now());

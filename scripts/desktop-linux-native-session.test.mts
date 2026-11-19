@@ -1,6 +1,10 @@
 // Keep the dependency-free PID1 packet controls in the maintained broad Node suite.
 import "../apps/desktop/scripts/desktop-linux-native-session.native.test.mts";
-import { readLinuxX11Configuration, assertQualificationUidMap } from "./desktop-linux-x11.mts";
+import {
+  readLinuxX11Configuration,
+  assertQualificationUidMap,
+  linuxX11ExecutionBudgets,
+} from "./desktop-linux-x11.mts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { spawn, spawnSync } from "node:child_process";
@@ -23,7 +27,237 @@ import { fileIdentity } from "./development-evidence.mts";
 import type { ConsumedInput } from "./retained-evidence.mts";
 import { isRecord } from "./runtime-values.mts";
 import { executionAdmission } from "./retained-evidence.mts";
+import { stripTypeScriptTypes } from "node:module";
+import { runInNewContext } from "node:vm";
+import type { acquireNativeSessionLock } from "./native-session-lock.mts";
 const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+void test(
+  "private-X11 waits contain the selected harness deadline and retain finite cleanup margins",
+  { skip: process.platform !== "linux" },
+  () => {
+    assert.deepEqual(
+      linuxX11ExecutionBudgets({
+        stage: "harness",
+        harness_args: ["--scenario", "native-design-system-compatibility"],
+      }),
+      {
+        harness: 240_000,
+        outer: 510_000,
+        inputCapture: 300_000,
+        inputVerification: 120_000,
+        namespaceCapture: 60_000,
+        command: 1_050_000,
+      },
+    );
+    assert.deepEqual(
+      linuxX11ExecutionBudgets({
+        stage: "harness",
+        harness_args: ["--scenario", "keyboard-layout"],
+      }),
+      {
+        harness: 420_000,
+        outer: 690_000,
+        inputCapture: 300_000,
+        inputVerification: 120_000,
+        namespaceCapture: 60_000,
+        command: 1_230_000,
+      },
+    );
+    for (const scenario of [
+      "native-selected-setup-completion",
+      "native-saved-folder-selected-setup",
+      "native-large-discovery-setup-review",
+    ])
+      assert.deepEqual(
+        linuxX11ExecutionBudgets({ stage: "harness", harness_args: ["--scenario", scenario] }),
+        {
+          harness: 660_000,
+          outer: 930_000,
+          inputCapture: 300_000,
+          inputVerification: 120_000,
+          namespaceCapture: 60_000,
+          command: 1_470_000,
+        },
+      );
+    assert.deepEqual(
+      linuxX11ExecutionBudgets({ stage: "gtk", harness_args: ["not-a-harness-option"] }),
+      {
+        harness: 240_000,
+        outer: 390_000,
+        inputCapture: 300_000,
+        inputVerification: 120_000,
+        namespaceCapture: 60_000,
+        command: 930_000,
+      },
+    );
+    assert.throws(
+      () =>
+        linuxX11ExecutionBudgets({
+          stage: "harness",
+          harness_args: [
+            "--scenario",
+            "native-selected-setup-completion",
+            "--scenario",
+            "appearance-restart",
+          ],
+        }),
+      /requires one exact standalone scenario/u,
+    );
+  },
+);
+
+void test("private-X11 input checks outlive the former minute and still refuse finite expiry", async () => {
+  const source = await readFile(new URL("./desktop-linux-x11.mts", import.meta.url), "utf8");
+  const start = source.indexOf("export async function runLinuxX11(");
+  const end = source.indexOf("export async function runWindowsLinuxX11(", start);
+  assert.ok(start >= 0 && end > start);
+  const implementation = stripTypeScriptTypes(source.slice(start, end).replace("export ", ""));
+  for (const mode of ["delayed", "capture-expired", "verification-expired"] as const) {
+    let now = 0;
+    const events: string[] = [];
+    const deadlines: number[] = [];
+    const config = {
+      stage: "gtk" as const,
+      harness_args: [],
+      output_root: "/owned/output",
+      xvfb: "/xvfb",
+      xkbcomp: "/xkbcomp",
+    };
+    const lease: {
+      owner: Pick<Awaited<ReturnType<typeof acquireNativeSessionLock>>["owner"], "token">;
+      release: () => Promise<void>;
+    } = {
+      owner: { token: "owned" },
+      release: async () => {
+        events.push("lease-released");
+      },
+    };
+    const context = {
+      assert,
+      path: path.posix,
+      root: "/owned/workspace",
+      scope: "Controlled actual-source input-budget contract",
+      source: "/owned/workspace/scripts/desktop-linux-x11.mts",
+      process: {
+        platform: "linux",
+        execPath: "/owned/node",
+        env: {},
+        stdout: {},
+        stderr: {},
+        exitCode: undefined,
+      },
+      uid: () => 1000,
+      assertQualificationUidMap,
+      readLinuxX11Configuration: async () => ({ config, identities: [] }),
+      mkdtemp: async () => "/owned/output/runtime",
+      chmod: async () => {},
+      acquireNativeSessionLock: async () => lease,
+      linuxX11ExecutionBudgets,
+      retainedEvidenceRoot: () => "/retained",
+      AbortSignal: {
+        timeout: (milliseconds: number) => {
+          deadlines.push(milliseconds);
+          const deadline = now + milliseconds;
+          return {
+            throwIfAborted: () => {
+              if (now >= deadline) throw new Error("Controlled finite input deadline");
+            },
+          };
+        },
+      },
+      retainEvidenceInput: async ({ file, signal }: { file: string; signal: AbortSignal }) => {
+        events.push("capture");
+        if (events.filter((event) => event === "capture").length === 1)
+          now += mode === "capture-expired" ? 300_001 : 70_000;
+        signal.throwIfAborted();
+        return { path: file, bytes: 1, sha256: "a".repeat(64) };
+      },
+      writeFile: async () => {},
+      verifyConsumedInputs: async (_inputs: unknown, { signal }: { signal: AbortSignal }) => {
+        events.push("verify");
+        if (events.includes("joined")) now += mode === "verification-expired" ? 120_001 : 70_000;
+        signal.throwIfAborted();
+      },
+      linuxNamespaceEnvironment: () => ({}),
+      launchLinuxNativeSession: async () => {
+        events.push("launched");
+        return {
+          child: { stdout: { pipe() {} }, stderr: { pipe() {} } },
+          ready: async () => {},
+          stop: async () => {
+            events.push("joined");
+            return { quiesced: true };
+          },
+        };
+      },
+      waitExit: async (_launch: unknown, milliseconds: number) => {
+        assert.equal(milliseconds, 390_000);
+        return { code: 0 };
+      },
+    };
+    const value: unknown = runInNewContext(`(${implementation})`, context);
+    assert.equal(typeof value, "function");
+    const run = value as (file: string) => Promise<void>;
+    if (mode === "delayed") {
+      await run("/owned/config.json");
+      assert.equal(context.process.exitCode, 0);
+      assert.equal(events.filter((event) => event === "capture").length, 8);
+      assert.deepEqual(events.slice(-3), ["joined", "verify", "lease-released"]);
+      assert.deepEqual(deadlines, [300_000, 120_000]);
+    } else {
+      await assert.rejects(run("/owned/config.json"), /Controlled finite input deadline/u);
+      assert.equal(events.at(-1), "lease-released");
+      assert.equal(events.includes("launched"), mode === "verification-expired");
+      assert.equal(events.includes("joined"), mode === "verification-expired");
+    }
+  }
+});
+
+void test("private-X11 direct Linux admission includes input checks and preserves Windows admission", async () => {
+  const source = await readFile(new URL("./desktop-linux-x11.mts", import.meta.url), "utf8");
+  const marker = '} else if (mode === "--config" && value && !runtime) {';
+  const start = source.indexOf(marker);
+  const end = source.indexOf("\n    } else\n      throw new Error(", start);
+  assert.ok(start >= 0 && end > start);
+  const implementation = stripTypeScriptTypes(source.slice(start + marker.length, end));
+  for (const platform of ["linux", "win32"]) {
+    let reads = 0;
+    const admissions: { profile: string; options: { executionTimeoutMilliseconds?: number } }[] =
+      [];
+    const context = {
+      process: { platform, exitCode: undefined },
+      value: "/owned/config.json",
+      root: "/owned/workspace",
+      readFile: async () => {
+        reads += 1;
+        return JSON.stringify({ stage: "gtk", harness_args: [] });
+      },
+      configuration: (value: unknown) => value,
+      linuxX11ExecutionBudgets,
+      frontendOutputResource: () => "owned-output",
+      resourceEntrypoint: async (
+        profile: string,
+        _action: unknown,
+        options: { executionTimeoutMilliseconds?: number },
+      ) => {
+        admissions.push({ profile, options });
+        return 0;
+      },
+    };
+    const value: unknown = runInNewContext(`(async () => { ${implementation} })`, context);
+    assert.equal(typeof value, "function");
+    await (value as () => Promise<void>)();
+    assert.equal(admissions.length, 1);
+    const admitted = admissions[0]!;
+    assert.equal(admitted.profile, platform === "linux" ? "browser" : "rust");
+    assert.equal(
+      admitted.options.executionTimeoutMilliseconds,
+      platform === "linux" ? 930_000 : undefined,
+    );
+    assert.equal(reads, platform === "linux" ? 1 : 0);
+  }
+});
 
 void test("media video observations retain verbose UTF-8 bytes outside the bounded control message", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-media-video-"));

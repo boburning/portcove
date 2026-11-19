@@ -2,7 +2,11 @@ import type { CSSProperties } from "react";
 import palette from "./platform-palette.json";
 
 // v58 identity decoration is independent of readiness and semantic status colors.
-const identities: Record<string, { label: string; color: string }> = palette;
+const identities: Record<string, { label: string; color: string }> = {
+  ...palette,
+  // Keep the existing facet key for saved filters that use the authored ID.
+  "nintendo-gamecube": palette.gamecube,
+};
 const aliases: Record<string, string> = {
   "windows-x86-64": "windows",
   "linux-x86-64": "linux",
@@ -31,19 +35,12 @@ export function identityLabel(id: string): string {
   if (id === "nintendo-64dd") return "Nintendo 64DD";
   return Object.hasOwn(identities, id) ? identities[id]!.label : id.replaceAll("-", " ");
 }
-const channelColors: Record<string, string> = {
-  stable: "#22C55E",
-  beta: "#F59E0B",
-  rolling: "#3B82F6",
-};
 export function identityStyle(id: string, channel = false): CSSProperties | undefined {
-  if (!channel) id = canonicalIdentityId(id);
-  const color = channel
-    ? Object.hasOwn(channelColors, id)
-      ? channelColors[id]
-      : undefined
-    : Object.hasOwn(identities, id)
-      ? identities[id]!.color
-      : undefined;
+  // Release channels are neutral: green means ready to play and blue means selection
+  // or a link (#5058 V2). Callers keep platform chips neutral; system identities keep
+  // their colors.
+  if (channel) return undefined;
+  id = canonicalIdentityId(id);
+  const color = Object.hasOwn(identities, id) ? identities[id]!.color : undefined;
   return color ? ({ "--identity-base": color } as CSSProperties) : undefined;
 }

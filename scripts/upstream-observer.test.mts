@@ -363,6 +363,10 @@ void test("scheduled observation keeps the configured cadence, read-only authori
     workflow,
     /\n  observe:\n    needs: admit\n    if: .*needs\.admit\.outputs\.observe == 'true'/u,
   );
+  assert.match(
+    workflow,
+    /\n  report-package-drift:\n    needs: inspect-package-drift\n(?:    #[^\n]*\n)*    if: .*?!cancelled\(\) && needs\.inspect-package-drift\.result == 'success' && github\.repository == 'boburning\/portcove' && github\.ref == 'refs\/heads\/main'/u,
+  );
   assert.match(workflow, /\n    concurrency:\n      group: configured-upstream-observer-/u);
   assert.doesNotMatch(workflow, /\nconcurrency:/u);
   assert.match(workflow, /node scripts\/observer-push-admission\.mts/u);
@@ -1801,6 +1805,27 @@ void test("fair observer admission deferrals preserve the provider read allowanc
   assert.equal(calls, 0);
   await observeUpstream(config, options);
   assert.ok(calls > 0);
+});
+
+void test("exhausting the shared GitHub deadline before SDK setup is budget continuation", async () => {
+  await assert.rejects(
+    observeUpstream(config, {
+      githubScope: {
+        deadline: performance.now() - 1,
+        failedReads: new Map(),
+        deferral: { primary: new Map(), secondary: 0 },
+      },
+      fetch: async () => assert.fail("expired setup must not read the provider"),
+    }),
+    (error: unknown) => error instanceof ObservationFailure && error.rule === "budget",
+  );
+  await assert.rejects(
+    observeUpstream(config, {
+      token: "",
+      fetch: async () => assert.fail("invalid credentials must not read the provider"),
+    }),
+    /Required GitHub credential is unavailable/u,
+  );
 });
 
 void test("continued command cannot renew an exhausted SDK read allowance", async () => {

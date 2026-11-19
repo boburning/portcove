@@ -39,6 +39,10 @@ interface InstallContext extends ScenarioContext {
 }
 interface InstallWindow extends Window {
   __TAURI_INTERNALS__?: { convertFileSrc(command: string, protocol: string): string };
+  __portcoveBackupReadProbe?: {
+    started: number;
+    reads: { start: number; end?: number; ok?: boolean }[];
+  };
   __portcoveInstallRefreshProbe?: {
     original: typeof fetch;
     target: string;
@@ -74,6 +78,7 @@ function fixtureHash(port: FixturePort) {
 }
 import { errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
+import { captureKeyboardTarget } from "./desktop-capture-target.mts";
 import assert from "node:assert/strict";
 import { copyFile, lstat, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -82,6 +87,7 @@ import {
   reviewGameUpdateDisposition,
   clickVisible,
   selectCatalogPort,
+  selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
 import { By, Key, until } from "selenium-webdriver";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
@@ -98,12 +104,79 @@ async function exists(candidate: string) {
   );
 }
 
-async function waitForFixture(predicate: () => boolean | undefined, message: string) {
-  const deadline = Date.now() + 10_000;
+async function waitForFixture(
+  predicate: () => boolean | undefined,
+  message: string,
+  budgetMs = 10_000,
+) {
+  const deadline = Date.now() + budgetMs;
   while (!predicate()) {
     if (Date.now() >= deadline) throw new Error(message);
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
+}
+
+/** Record each page-side backup inventory IPC read without changing it. */
+async function installBackupReadProbe(browser: WebDriver) {
+  await browser.executeScript(() => {
+    const runtime = window as InstallWindow;
+    const native = runtime.__TAURI_INTERNALS__;
+    if (!native || runtime.__portcoveBackupReadProbe) return;
+    const target = native.convertFileSrc("get_backups", "ipc");
+    const probe = {
+      started: performance.now(),
+      reads: [] as { start: number; end?: number; ok?: boolean }[],
+    };
+    runtime.__portcoveBackupReadProbe = probe;
+    const original = window.fetch;
+    window.fetch = function (input, ...args) {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : typeof input === "object" && input !== null && "url" in input
+              ? String(input.url)
+              : String(input);
+      if (!url.startsWith(target)) return original.call(this, input, ...args);
+      const read: { start: number; end?: number; ok?: boolean } = { start: performance.now() };
+      probe.reads.push(read);
+      return original.call(this, input, ...args).then(
+        (response) => {
+          read.end = performance.now();
+          read.ok = response.ok;
+          return response;
+        },
+        (error: unknown) => {
+          read.end = performance.now();
+          read.ok = false;
+          throw error;
+        },
+      );
+    };
+  });
+}
+
+/** Distinguishes discarded page reads from a backup read that never settles. */
+async function backupReadDiagnostics(browser: WebDriver) {
+  return browser.executeScript(() => {
+    const probe = (window as InstallWindow).__portcoveBackupReadProbe;
+    const now = performance.now();
+    return {
+      observed_ms: probe ? Math.round(now - probe.started) : null,
+      reads: (probe?.reads ?? []).map((read) => ({
+        start_ms: probe ? Math.round(read.start - probe.started) : null,
+        duration_ms: read.end === undefined ? null : Math.round(read.end - read.start),
+        ok: read.ok ?? null,
+      })),
+      unsettled: (probe?.reads ?? []).filter((read) => read.end === undefined).length,
+      status_text: [
+        ...document.querySelectorAll(
+          '[aria-labelledby="detail-saves-and-storage"] [role="status"]',
+        ),
+      ].map((node) => node.textContent?.trim()),
+    };
+  });
 }
 
 export async function installRefreshProbe(browser: WebDriver) {
@@ -471,11 +544,30 @@ export async function installScenarios({
     const invocation = await browser.findElement(
       By.css(`[data-invocation-id="${completedInvocationId}"]`),
     );
+    // A finished install that is ready to play offers Play and Dismiss, not an
+    // Activity link (#5226). The invocation-owned View in Activity route is
+    // therefore not exercised here; the Core activity is reached through primary
+    // navigation instead and matched by its independently known Core UUID.
+    assert.match(await invocation.getText(), /is ready to play\./u);
+    assert.equal(
+      (await invocation.findElements(By.xpath('.//button[normalize-space(.)="View in Activity"]')))
+        .length,
+      0,
+    );
+    await selectPrimaryNavigation(browser, "Activity");
+    // A completed record belongs to History, not the default Tasks section.
     await clickVisible(
       browser,
-      await invocation.findElement(By.xpath('.//button[normalize-space(.)="View in Activity"]')),
+      await browser.wait(
+        until.elementLocated(
+          By.xpath(
+            '//*[@aria-label="Activity sections"]//*[@role="tab" and starts-with(normalize-space(.), "History")]',
+          ),
+        ),
+        10_000,
+      ),
     );
-    await browser.wait(until.elementLocated(By.css('[data-activity-section="tasks"]')), 10_000);
+    await browser.wait(until.elementLocated(By.css('[data-activity-section="history"]')), 10_000);
     const destination = await browser.wait(
       until.elementLocated(By.css(`.activity-row[data-activity-id="${succeeded.id}"]`)),
       10_000,
@@ -504,7 +596,9 @@ export async function installScenarios({
           invocation_id: completedInvocationId,
           expected_core_activity_id: succeeded.id,
           actual_visible_activity_id: await destination.getAttribute("data-activity-id"),
-          selected_section: "tasks",
+          selected_section: await destination
+            .findElement(By.xpath("ancestor::*[@data-activity-section][1]"))
+            .getAttribute("data-activity-section"),
           protected_activity_ids: protectedIds,
           active_and_actionable_complete: destinationFeed.active_and_actionable_complete,
           core_operation: succeeded.operation,
@@ -515,7 +609,7 @@ export async function installScenarios({
             role: document.activeElement?.getAttribute("role"),
           })),
           scope:
-            "Actual invocation-owned View in Activity route; independently known Core UUID. Numeric invocation identity is not equated with a Core UUID.",
+            "Activity reached through primary navigation; independently known Core UUID. The invocation-owned View in Activity route is not exercised because a ready-to-play completion offers Play and Dismiss. Numeric invocation identity is not equated with a Core UUID.",
         },
         null,
         2,
@@ -603,12 +697,12 @@ export async function installScenarios({
         })) > 0,
       );
 
-      const failureScreenshot = path.join(output, "native-install-refresh-failure.png");
-      await writeFile(failureScreenshot, await browser.takeScreenshot(), {
-        encoding: "base64",
-        flag: "wx",
-      });
-      artifacts.push(failureScreenshot);
+      await captureKeyboardTarget(
+        { browser, output, artifacts },
+        "native-install-refresh-failure",
+        await browser.findElement(By.css("[data-workspace-feedback]")),
+        "install-commit-refresh-recovery",
+      );
       const accessibility = path.join(output, "install-refresh-failure-accessibility.json");
       await captureAccessibilityReport(browser, accessibility, artifacts);
 
@@ -632,11 +726,19 @@ export async function installScenarios({
       observations.retry_commands = observations.commands_after_retry.slice(
         observations.commands_before_retry.length,
       );
+      // A refreshed workspace also lets the open detail re-read its own
+      // read-only views; none of these can repeat the install.
       const retryAndBackgroundCommands = new Set([
         "get_activities",
         "get_workspace_changed",
         "get_workspace_snapshot",
         "discover_orphaned_operations",
+        "get_launch_failure",
+        "get_runtime_prerequisites",
+        "get_port_capabilities",
+        "get_mod_setups",
+        "get_backups",
+        "get_artwork",
       ]);
       assert.ok(observations.retry_commands.includes("get_workspace_snapshot"));
       assert.ok(
@@ -766,7 +868,10 @@ export async function installScenarios({
     await reviewGameUpdateDisposition(browser, "prepare");
     const review = By.css("[data-game-update-review]");
     await browser.wait(until.elementLocated(review), 15_000);
-    assert.match(await browser.findElement(review).getText(), /current version stays unchanged/i);
+    assert.match(
+      await browser.findElement(review).getText(),
+      /Set up the update for later and keep using your current version/i,
+    );
     await browser.findElement(button("Prepare update for later")).click();
     const staged = await browser.wait(async () => {
       const result = object(await invoke("get_statuses"));
@@ -888,8 +993,23 @@ export async function installScenarios({
     let pendingGame: NativeManagedGame | undefined;
     let observationIndex = 0;
     const evidenceName = (name: string) => `acquisition-${name}-${++observationIndex}`;
-    const status = async () =>
-      required((await statuses()).find((item) => item.port_id === port.id));
+    // Timeout calibration (docs/QUALITY.md): on the hosted Windows debug build,
+    // get_statuses after the activating update exceeded the session's 15 s
+    // WebDriver script budget, which bounds the harness IPC bridge. This journey
+    // uses 60 s, reapplied after each application restart and restored at the
+    // end; product deadlines and assertions are unchanged. The slowest read is
+    // recorded so a pass under the larger budget stays visible as such.
+    const acquisitionScriptBudgetMs = 60_000;
+    const calibrateScriptBudget = () =>
+      browser.manage().setTimeouts({ script: acquisitionScriptBudgetMs });
+    let slowestStatusMs = 0;
+    const status = async () => {
+      const started = Date.now();
+      const current = required((await statuses()).find((item) => item.port_id === port.id));
+      slowestStatusMs = Math.max(slowestStatusMs, Date.now() - started);
+      observations.slowest_status_ms = slowestStatusMs;
+      return current;
+    };
     const bootstrap = async () =>
       transportValue("desktop_bootstrap_status", success(await invoke("get_bootstrap_status")));
     const visibleButton = async (label: string) => {
@@ -907,7 +1027,26 @@ export async function installScenarios({
     };
     const click = async (label: string) => {
       const element = await visibleButton(label);
-      await browser.wait(until.elementIsEnabled(element), 15_000);
+      // Base UI keeps busy actions focusable: `disabled` stays false while
+      // aria-disabled/aria-busy mark them inert, and the busy layout can place a
+      // neighbouring control under the click point.
+      // Calibrated from 15 s (#4879), shared by every click in this journey:
+      // hosted run 43680800015 kept Play busy past 15 s after rollback while a
+      // 14 s workspace snapshot, a 6 s follow-up and 13-15 s debug-build
+      // capability reads settled. Harness only; the slowest wait is recorded.
+      const actionableStarted = Date.now();
+      await browser.wait(
+        async () =>
+          (await element.isEnabled()) &&
+          (await element.getAttribute("aria-disabled")) !== "true" &&
+          (await element.getAttribute("aria-busy")) !== "true",
+        60_000,
+        `${label} did not become actionable`,
+      );
+      observations.slowest_actionable_ms = Math.max(
+        Number(observations.slowest_actionable_ms ?? 0),
+        Date.now() - actionableStarted,
+      );
       await executeBrowserScript(
         browser,
         'arguments[0].scrollIntoView({block:"center"});',
@@ -1101,6 +1240,7 @@ export async function installScenarios({
           }),
         ),
       );
+    await calibrateScriptBudget();
     const first = await status();
     assert.ok(first.active, "Setup must install the owned executable fixture");
     assert.equal(first.staged, null);
@@ -1205,9 +1345,15 @@ export async function installScenarios({
       browser = await restartApplication(`acquisition-${version}`, async () => {
         assert.equal(liveGame, undefined, "No live game may survive fixture publication");
         for (const original of [ownedFixture.artifactPath, ownedFixture.catalogPath]) {
+          // Each publication replaces the ~2.9 MB fixture catalog. Its pre-publication
+          // copy stays bound by SHA-256 in the run's inputs, but takes a suffix outside
+          // the retained evidence extensions: three raw copies plus the journey's other
+          // ~7 MB of evidence would exceed the 12 MiB native evidence bound.
           const snapshot = path.join(
             output,
-            `acquisition-${version}-before-${path.basename(original)}`,
+            `acquisition-${version}-before-${path.basename(original)}${
+              original === ownedFixture.catalogPath ? ".hash-bound" : ""
+            }`,
           );
           await copyFile(original, snapshot);
           const index = inputs.findIndex((item) => item.path === original);
@@ -1225,13 +1371,21 @@ export async function installScenarios({
             inputs.push(await fileIdentity(file));
         }
       });
+      await calibrateScriptBudget();
       await rm(marker, { force: true });
       await openFixture(port, true);
       await revealDetailSection(browser, "Versions & updates");
+      const checkStarted = Date.now();
       await click("Check for updates");
+      // Calibrated from 15 s: on hosted Windows the debug build's v4 check was still
+      // busy at 15 s (status reads up to 16.6 s). The check's own deadlines are unchanged.
       await browser.wait(
         until.elementLocated(By.css('section[aria-label="Review game update"]')),
-        15_000,
+        acquisitionScriptBudgetMs,
+      );
+      observations.slowest_update_check_ms = Math.max(
+        Number(observations.slowest_update_check_ms ?? 0),
+        Date.now() - checkStarted,
       );
       const release = required(published);
       const gate = ownedFixture.holdArtifact(release.url);
@@ -1247,9 +1401,21 @@ export async function installScenarios({
       assert.equal(plan.activate, false);
       assert.equal(plan.plan.release.asset.sha256, release.sha256);
       await reviewGameUpdateDisposition(browser, "download");
-      await browser.wait(until.elementLocated(By.css("[data-game-update-review]")), 15_000);
+      // Calibrated from 15 s: on hosted Windows (debug build) the v3 download review
+      // opened after 15 s once (cause not diagnosed; 14.9 s in the passing run). It
+      // shares the acquisition budget.
+      const reviewWaitStarted = Date.now();
+      await browser.wait(
+        until.elementLocated(By.css("[data-game-update-review]")),
+        acquisitionScriptBudgetMs,
+      );
+      observations.slowest_download_review_ms = Math.max(
+        Number(observations.slowest_download_review_ms ?? 0),
+        Date.now() - reviewWaitStarted,
+      );
       await click("Download archive for later");
       const pathname = new URL(release.url).pathname;
+      const transferWaitStarted = Date.now();
       await waitForFixture(
         () =>
           ownedFixture.requests.some(
@@ -1257,6 +1423,13 @@ export async function installScenarios({
               request.request_path === pathname && request.bytes_sent > 0 && !request.completed,
           ),
         "Real acquisition did not enter the owned held HTTP transfer",
+        // Calibrated from 10 s: on hosted Windows (debug build, 16.5 s status reads)
+        // the v3 request reached the held fixture after the old window expired.
+        acquisitionScriptBudgetMs,
+      );
+      observations.slowest_transfer_start_ms = Math.max(
+        Number(observations.slowest_transfer_start_ms ?? 0),
+        Date.now() - transferWaitStarted,
       );
       const transferring = await browser.wait(async () => {
         const value = await status();
@@ -1295,11 +1468,11 @@ export async function installScenarios({
       await browser.wait(
         async () => {
           for (const section of await browser.findElements(
-            By.css('section[aria-label="Retained update archive"]'),
+            By.css('section[aria-label="Downloaded update"]'),
           ))
             if (
               (await section.isDisplayed()) &&
-              (await section.getText()).includes("Archive downloaded")
+              (await section.getText()).includes("Update downloaded, not installed")
             )
               return true;
           return false;
@@ -1322,17 +1495,26 @@ export async function installScenarios({
       return { acquired, archive };
     };
     const discardExact = async (acquisition: GameUpdateAcquisition) => {
-      await click("Discard archive…");
+      await click("Delete downloaded update…");
       const discard = await browser.wait(
         until.elementLocated(By.css("[data-game-update-discard-review]")),
         15_000,
+      );
+      // The exact identity sits in the review's collapsed technical details.
+      const technical = await discard.findElement(By.css("details"));
+      if ((await technical.getAttribute("open")) === null)
+        await clickVisible(browser, await technical.findElement(By.css("summary")));
+      await browser.wait(
+        async () => (await discard.getText()).includes(acquisition.release.asset.sha256),
+        15_000,
+        "Discard review technical details did not open",
       );
       const review = await discard.getText();
       assert.ok(
         review.includes(acquisition.id) && review.includes(acquisition.release.asset.sha256),
         "Discard review must name the retained exact ID and digest",
       );
-      await click("Discard archive");
+      await click("Delete download");
       await browser.wait(
         async () => !(await statuses()).find((item) => item.port_id === port.id)?.acquisition,
         15_000,
@@ -1365,6 +1547,17 @@ export async function installScenarios({
       const review = await browser.wait(
         until.elementLocated(By.css("[data-game-update-review]")),
         15_000,
+      );
+      // The exact archive identity sits in the review's collapsed download details.
+      const downloadDetails = await review.findElement(
+        By.xpath('.//details[summary[normalize-space(.)="Download details"]]'),
+      );
+      if ((await downloadDetails.getAttribute("open")) === null)
+        await clickVisible(browser, await downloadDetails.findElement(By.css("summary")));
+      await browser.wait(
+        async () => (await review.getText()).includes(release.sha256),
+        15_000,
+        "Update review download details did not open",
       );
       const reviewText = await review.getText();
       assert.ok(
@@ -1489,6 +1682,139 @@ export async function installScenarios({
         first.active.version,
         required((await status()).active).version,
       );
+
+      // #4879: a real "Restore previous version" takes one automatic snapshot of the
+      // current saves first, labelled with the version change, and keeps saved data.
+      assert.equal(await snapshotsEnabled(), true);
+      const beforeRollback = await status();
+      const rollbackFrom = required(beforeRollback.active);
+      const rollbackTo = required(beforeRollback.previous);
+      const backupsBeforeRollback = new Set((await backups()).backups.map((item) => item.id));
+      // Observe every page backup read the rollback triggers, not only later ones.
+      await installBackupReadProbe(browser);
+      const saveBeforeRollback = await readFile(save, "utf8");
+      await openFixture(port, true);
+      await revealDetailSection(browser, "Versions & updates");
+      await click("Restore previous version");
+      await browser.wait(
+        async () => (await status()).active?.id === rollbackTo.id,
+        acquisitionScriptBudgetMs,
+        "Restore previous version did not activate the previous installation",
+      );
+      // Core activates before it finishes the rollback activity and releases the
+      // port lock; observe the settled outcome, not only the switched version.
+      await browser.wait(
+        async () => {
+          const activities = transportValue("activity", success(await invoke("get_activities")));
+          return !activities.records.some(
+            (record) =>
+              record.operation === "rollback" &&
+              record.target_id === port.id &&
+              record.status === "running",
+          );
+        },
+        acquisitionScriptBudgetMs,
+        "Core rollback activity did not settle after the previous version activated",
+      );
+      const rollbackActivities = transportValue(
+        "activity",
+        success(await invoke("get_activities")),
+      ).records.filter((record) => record.operation === "rollback" && record.target_id === port.id);
+      assert.equal(
+        rollbackActivities.length,
+        1,
+        "Expected exactly one rollback activity for the port",
+      );
+      assert.equal(
+        rollbackActivities[0]?.status,
+        "succeeded",
+        "Core did not record a successful rollback",
+      );
+      const rollbackSnapshots = (await backups()).backups.filter(
+        (item) => item.automatic && !backupsBeforeRollback.has(item.id),
+      );
+      assert.equal(rollbackSnapshots.length, 1, "One rollback must keep one automatic snapshot");
+      const rollbackSnapshot = required(rollbackSnapshots[0]);
+      const rollbackLabel = required(rollbackSnapshot.automatic);
+      assert.equal(rollbackLabel.operation, "rollback");
+      assert.equal(rollbackLabel.from_version, rollbackFrom.version);
+      assert.equal(rollbackLabel.to_version, rollbackTo.version);
+      assert.equal(
+        await readFile(path.join(rollbackSnapshot.path, "data", path.basename(save)), "utf8"),
+        saveBeforeRollback,
+        "The rollback snapshot must hold the current saves (unchanged since the update snapshot)",
+      );
+      assert.equal(
+        await readFile(save, "utf8"),
+        saveBeforeRollback,
+        "Restore previous version keeps current saved data",
+      );
+      const rollbackHistoryText = `Automatic snapshot before restoring a previous version (${rollbackFrom.version} to ${rollbackTo.version})`;
+      await revealDetailSection(browser, "Saves & backups");
+      let rollbackHistory: WebElement;
+      try {
+        rollbackHistory = await browser.wait(
+          until.elementLocated(
+            By.css(
+              `[aria-labelledby="detail-saves-and-storage"] [data-backup-id="${rollbackSnapshot.id}"] [data-automatic-snapshot]`,
+            ),
+          ),
+          // Hosted debug get_backups reads settled after 20.6 s (job 132474930950).
+          60_000,
+        );
+      } catch (error) {
+        // Core already returned this snapshot to the harness; record whether the
+        // page kept reading (and discarding) or one read never settled.
+        // Best effort: a diagnostic failure must not replace the original timeout.
+        try {
+          const diagnostic = path.join(output, "rollback-history-backup-reads.json");
+          await writeFile(
+            diagnostic,
+            JSON.stringify(
+              {
+                core_snapshot_id: rollbackSnapshot.id,
+                probe_scope:
+                  "page get_backups reads issued from just before Restore previous version",
+                page: await backupReadDiagnostics(browser),
+                // A single fresh read while the page's reads are still pending
+                // distinguishes a stuck read from a uniformly slow one.
+                fresh_page_read: await (async () => {
+                  const started = Date.now();
+                  try {
+                    success(await invoke("get_backups", { portId: port.id }));
+                    return { ok: true, ms: Date.now() - started };
+                  } catch (failure) {
+                    return { ok: false, ms: Date.now() - started, error: String(failure) };
+                  }
+                })(),
+                page_after_fresh_read: await backupReadDiagnostics(browser),
+                activities: await invoke("get_activities"),
+              },
+              null,
+              2,
+            ),
+            { flag: "wx" },
+          );
+          artifacts.push(diagnostic);
+        } catch (diagnosticError) {
+          console.error(`Rollback history diagnostic unavailable: ${String(diagnosticError)}`);
+        }
+        throw error;
+      }
+      await browser.wait(
+        async () => (await rollbackHistory.getText()) === rollbackHistoryText,
+        15_000,
+        "Backup history must label the rollback snapshot with its version change",
+      );
+      await snapshotEvidence("native-automatic-snapshot-rollback-history", rollbackHistory);
+      observations.rollback_snapshot = {
+        from: rollbackFrom.version,
+        to: rollbackTo.version,
+        snapshot_id: rollbackSnapshot.id,
+        label: rollbackLabel,
+        history_label: rollbackHistoryText,
+        preserved_save: await fileIdentity(save),
+      };
 
       const v3 = await publish("3.0.0-acquisition", 0x7249b309);
       await play();
@@ -1640,8 +1966,14 @@ export async function installScenarios({
       primaryFailure =
         error instanceof Error ? error : new Error(errorMessage(error), { cause: error });
       observations.failure = errorMessage(error);
+      // Harness-only locator for the failed step; no player data.
+      observations.failure_stack = primaryFailure.stack?.slice(0, 4000);
     } finally {
       for (const gate of gates) gate.release();
+      await browser
+        .manage()
+        .setTimeouts({ script: 15_000 })
+        .catch(() => undefined);
       try {
         await stopGame();
         observations.cleanup = {

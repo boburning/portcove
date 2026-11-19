@@ -67,6 +67,8 @@ export type AdoptionBatchItemOutcome = "copied" | "changed" | "failed";
  */
 export type GameUpdateAcquisitionPhase = "acquiring" | "verifying" | "acquired" | "attention_required";
 export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "macos-aarch64";
+export type UploaderContinuityBasis =
+  "predates-baseline" | "repository-owner" | "project-automation" | "established" | "accepted" | "not-observed";
 export type DefinitionEligibilityOutcome = "eligible" | "hold" | "escalate";
 export type DefinitionEligibilityReason =
   | "mandatory_checks_passed"
@@ -256,8 +258,40 @@ export type SourceVerificationMethod = "catalog-identity" | "upstream-validator"
 export type UpdatePolicy = "notify" | "stage" | "automatic";
 export type ArtworkImageFormat = "png" | "jpeg";
 export type OutputArtworkAssets = LocalArtworkAsset[];
+/**
+ * A remote provider an image was chosen from; a local import has none.
+ */
+export type ArtworkProvider = "steamgriddb";
+export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner";
 export type ArtworkAvailability = "fallback" | "available" | "unavailable";
-export type ArtworkSlot = "cover" | "detail";
+export type ArtworkSlot = ("cover" | "detail") | "landscape";
+/**
+ * Whether SteamGridDB's own listing still includes a stored image.
+ */
+export type SteamGridDbListingResult =
+  | {
+      status: "listed";
+    }
+  | {
+      status: "not_listed";
+    }
+  | {
+      reason: SteamGridDbUnknownReason;
+      status: "unknown";
+    };
+export type SteamGridDbUnknownReason =
+  | "incomplete_listing"
+  | "too_many_images"
+  | "game_not_found"
+  | "empty_listing"
+  | "request_limit"
+  | "check_stopped"
+  | "unavailable"
+  | "invalid_response";
+/**
+ * The second signal that confirmed a withdrawal after a first absence.
+ */
+export type ArtworkWithdrawalSignal = "gone" | "absent_again";
 /**
  * The source core resolves for one slot before a client attempts to transport
  * or render it. A client can still display the generated fallback if a
@@ -341,7 +375,9 @@ export type ExternalProfilePolicy =
   | "recomp-direct-v1"
   | "doom3-linux-v1"
   | "openjk-unix-v1"
-  | "openomf-linux-v1";
+  | "endless-sky-desktop-v1"
+  | "openomf-linux-v1"
+  | "vcmi-windows-v1";
 export type GameSettingsFormat = "json" | "ini";
 export type GameSettingType =
   | {
@@ -374,12 +410,25 @@ export type LaunchDiscChoice = "psx-settings-selected";
 /**
  * Closed initialization recipes, never catalog-supplied scripts or file contents.
  */
-export type ManagedInitialization = "tfe-dark-forces-v1.22.420" | "tfe-dark-forces-portable-v1";
+export type ManagedInitialization =
+  "tfe-dark-forces-v1.22.420" | "tfe-dark-forces-portable-v1" | "chocolate-family-portable-v1";
 /**
  * Preserve complete mod package versions without replacing packaged defaults.
  * This grants neither executable trust nor mod/save compatibility.
  */
 export type ModPackagePolicy = "versioned-packages-v1";
+/**
+ * Exact provider-side scope from a reviewed definition.
+ */
+export type ModProviderBinding =
+  | {
+      game_id: number;
+      provider: "gamebanana";
+    }
+  | {
+      community: string;
+      provider: "thunderstore";
+    };
 export type IgdbGameImageKind = "logo" | "artwork";
 export type CatalogMediaRole = "header" | "screenshot" | "logo" | "key_art";
 export type CatalogMediaSubject =
@@ -418,11 +467,17 @@ export type RuntimeDataPolicy = "racewave46-v1.0.0-windows" | "version-local-ret
  * Disc file-system an image is read as.
  */
 export type DiscImageFormat = "xdvdfs" | "iso9660";
+/**
+ * Patch file format applied by the `rom-patch` materialization.
+ */
+export type RomPatchFormat = "ips" | "bps" | "ups";
 export type RuntimeSourceMaterialization =
   | ("n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso" | "stfs-directory")
   | "regaiden-gbc"
   | "xdvdfs-directory"
-  | "iso9660-directory";
+  | "iso9660-directory"
+  | "rom-patch"
+  | "snes-headerless";
 export type SupportTier = "stable" | "beta" | "rolling";
 /**
  * A declared upstream limitation, checked by Core rather than left to the game.
@@ -448,6 +503,11 @@ export type SourceRepresentation1 =
   | {
       identities: DigestIdentity[];
       kind: "canonical-n64";
+      [k: string]: unknown;
+    }
+  | {
+      identities: DigestIdentity[];
+      kind: "snes-copier-header-optional";
       [k: string]: unknown;
     }
   | {
@@ -500,6 +560,14 @@ export type SourceRepresentation1 =
       [k: string]: unknown;
     }
   | {
+      content_types: string[];
+      kind: "stfs-content";
+      members: StfsContentMember[];
+      package_types: StfsPackageType[];
+      title_ids: string[];
+      [k: string]: unknown;
+    }
+  | {
       evidence_gap: string;
       kind: "informational-extension";
       [k: string]: unknown;
@@ -509,12 +577,17 @@ export type DigestScope =
   | "original-container"
   | "normalized-content"
   | "canonical-n64-big-endian"
+  | "snes-headerless-content"
   | "archive-member"
   | "gamecube-normalized-iso"
   | "psx-normalized-track-set"
   | "file-set-member"
   | "disc-set-member";
 export type CompoundSourceFormat = "stfs-live";
+/**
+ * The STFS container magic: `LIVE` or `PIRS`. `CON` is not read yet.
+ */
+export type StfsPackageType = "live" | "pirs";
 export type CatalogDownloadAssetId = number | CatalogForeignAssetId;
 export type CatalogForeignAssetId = {
   file_id: number;
@@ -529,7 +602,20 @@ export type CatalogForeignReleaseId = {
   provider: "gitlab";
   tag: string;
 };
+/**
+ * Why the upstream listing download is not this host's route. Each one leaves
+ * existing-installation registration and every installed copy unchanged.
+ */
+export type CatalogDownloadRefusal = "managed-route";
 export type ListingObservationStatus = "complete" | "incomplete" | "unavailable" | "failed";
+export type CatalogFallbackCode =
+  | "unknown"
+  | "replay_floor"
+  | "untrusted_key"
+  | "signature_invalid"
+  | "invalid_validity"
+  | "selected_definition_unavailable"
+  | "listing_directory_unavailable";
 export type CatalogOrigin = "embedded" | "signed_active" | "signed_previous" | "definition_selected";
 export type CatalogUpdateSource =
   | {
@@ -542,6 +628,7 @@ export type CatalogUpdateSource =
       value: string;
       [k: string]: unknown;
     };
+export type DatReferenceState = ("missing" | "unreadable") | "ready" | "changed";
 export type DefinitionCapabilityOutcome = "supported" | "unsupported_template" | "unsupported_version";
 export type DefinitionRefreshDisposition = "revoked" | "selected" | "ineligible";
 export type DestinationArtworkContent =
@@ -554,8 +641,7 @@ export type DestinationArtworkContent =
       reason: DestinationArtworkUnavailableReason;
     };
 export type DestinationArtworkUnavailableReason =
-  ("role_not_provided" | "no_local_original" | "selected_original_unavailable") | "selected_image_not_wide";
-export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner";
+  ("no_local_original" | "selected_original_unavailable") | "role_not_provided" | "selected_image_not_wide";
 export type DestinationArtworkSource =
   | {
       asset: LocalArtworkAsset;
@@ -671,11 +757,12 @@ export type GameFileQueryState =
   "files_available" | "files_missing" | "needs_checking" | "no_files_required" | "unavailable_context";
 export type GameFileRootAvailability = "available" | "unavailable";
 export type OutputGameFileRoots = GameFileRoot[];
-export type OutputGameFileScanSnapshot = GameFileScanSnapshot | null;
-export type GameFileScanFreshness = "inputs_match" | "inputs_changed";
 export type SourceDigestAlgorithm = "sha1" | "sha256" | "crc32";
 export type SourceComponentKind = "file_set_member" | "optical_disc";
 export type SourceValidatorResult = "not_run" | "passed" | "failed" | "missing_tool";
+export type GameFileScanMatchKind = "exact" | "preliminary";
+export type OutputGameFileScanSnapshot = GameFileScanSnapshot | null;
+export type GameFileScanFreshness = "inputs_match" | "inputs_changed";
 export type SourceDiscoveryLimit = "entries" | "depth" | "file_size" | "hash_bytes" | "candidates";
 export type InstallPlanAction = "already_active" | "use_staged" | "reuse_retained" | "blocked_unverified" | "download";
 export type SourceRequirementRole = "game_source" | "bios";
@@ -687,6 +774,11 @@ export type GameSettingChange =
   | {
       action: "reset";
     };
+/**
+ * How far `UpdateReleaseNotes::entries` reaches toward the installed version.
+ */
+export type UpdateReleaseNotesCoverage =
+  "complete" | "shortened" | "installed_not_listed" | "installed_newer" | "rolling_release" | "unavailable";
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
 export type GithubDeviceLoginState = "pending" | "complete";
 export type HostToolProbeState =
@@ -702,6 +794,15 @@ export type HostToolProbeState =
 export type OutputLaunchRequest = LaunchSessionView | null;
 export type LaunchSessionOutcome = "succeeded" | "failed" | "cancelled";
 export type LaunchSessionPhase = "preparing" | "spawning" | "running" | "collecting" | "recovering";
+export type RuntimeHostCheck = "checked" | "not_windows";
+export type RuntimeInspection = "complete" | "partial" | "not_windows_program" | "unreadable";
+export type WindowsArchitecture = "x86" | "x64" | "arm64";
+export type RuntimePresence = "present" | "missing" | "unknown";
+export type WindowsRuntime =
+  | ("visual_cpp_2013" | "visual_cpp_2012" | "visual_cpp_2010")
+  | "visual_cpp_2015_or_later"
+  | "directx_june_2010"
+  | "dotnet";
 export type LauncherAppsRootOrigin = "settings" | "default" | "override" | "unresolved";
 export type LauncherEntryStatus =
   | "ready-to-review"
@@ -738,14 +839,51 @@ export type CapabilityFeature =
   | "audio"
   | "performance"
   | "save-compatibility";
+/**
+ * What the selected upstream entry point does, separately from Portcove's launch action.
+ */
+export type LaunchEntryBehavior = "starts-game-directly" | "opens-project-launcher" | "asks-for-game-files" | "unknown";
 export type PendingSetupState = "downloaded" | "attention-required";
 export type OutputListingStatuses = PortListingStatus[];
 /**
  * What the package would run on the player's machine if enabled.
  */
 export type RecompExecution = "recompiled_code" | "native_libraries" | "external_code";
-export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
+/**
+ * `Present` is limited to ordinary setup metadata previews; it does not
+ * establish current immutable payload integrity. Strict inspection uses `Verified`.
+ */
+export type RetainedBuildAvailability = "verified" | "present" | "missing" | "changed" | "held" | "unavailable";
 export type OriginalAvailability = "verified" | "missing" | "changed";
+/**
+ * What one standing pass did about one installed provider file.
+ */
+export type ProviderAutoUpdateOutcome =
+  | {
+      file_id: string;
+      outcome: "applied";
+      revision: number;
+      [k: string]: unknown;
+    }
+  | {
+      outcome: "held";
+      reason: string;
+      [k: string]: unknown;
+    }
+  | {
+      outcome: "deferred";
+      reason: string;
+      [k: string]: unknown;
+    }
+  | {
+      outcome: "unavailable";
+      reason: string;
+      [k: string]: unknown;
+    };
+export type OfficialCatalogAutomaticOutcome =
+  "turned_off" | "not_configured" | "already_running" | "unavailable" | "refreshed";
+export type DefinitionDeliveryServing =
+  "verified" | "not_served" | "incomplete" | "unreachable" | "expired" | "verification_failed" | "not_configured";
 /**
  * Versioned best-effort progress envelope. Durable activity history remains
  * authoritative after reconnect or restart.
@@ -842,6 +980,12 @@ export type PortableSaveFileEffect = ("add" | "replace" | "unchanged") | "remove
  * How incoming progress relates to this device's progress, by content only.
  */
 export type PortableSaveRelation = ("no-local-progress" | "already-current") | "continues" | "diverged";
+export type RecipeModSettingValue = number | string;
+export type ProfileRecoveryProgress = "keep_current";
+/**
+ * Why a provider's eligibility flag could not be determined.
+ */
+export type ProviderStatusUnknown = "omitted" | "null" | "malformed";
 /**
  * How current an observation is. A confirmed empty result is `Fresh`; an outage
  * that falls back to earlier data is `Stale`, never an empty list.
@@ -928,6 +1072,7 @@ export type MaintenanceOutcome =
   | "demonstrated-regression-handling"
   | "demonstrated-continuity-and-succession";
 export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
+export type OutputRuntimePrerequisiteReport = RuntimePrerequisiteReport | null;
 /**
  * What the player can usefully do next with a selected save folder.
  */
@@ -939,34 +1084,52 @@ export type SourceImportOutcome =
 export type SourceInboxResolutionState =
   "registered" | "exact_match" | "approval_required" | "unresolved" | "conflict" | "incomplete";
 export type SourceReuseCompatibility = "listed_identity" | "potential" | "incompatible" | "unavailable";
+export type OutputSteamgriddbCandidates = SteamGridDbCandidate[];
+export type OutputSteamgriddbGames = SteamGridDbGame[];
+/**
+ * What SteamGridDB's image server answered for the stored source URL, without the key.
+ */
+export type SteamGridDbSourceStatus = "not_checked" | "served" | "gone" | "unknown";
+/**
+ * Why a check ended before every group was read.
+ */
+export type SteamGridDbCheckStop =
+  | {
+      reason: "rate_limited";
+      retry_after_seconds: number | null;
+    }
+  | {
+      reason: "key_rejected";
+    }
+  | {
+      reason: "unavailable";
+    }
+  | {
+      reason: "time_limit";
+    }
+  | {
+      reason: "cancelled";
+    };
+export type GameStore = "steam" | "gog" | "epic";
 export type OutputDesktopAdoptionBatchResult = AdoptionBatchResult | null;
-export type OutputDesktopApplicationUpdateCheckPhase = "checking" | "acquiring-and-verifying" | "staged" | "complete";
-export type ApplicationChannel = "preview" | "stable";
-export type ApplicationUpdateCheckResultKind =
-  | "consent-required"
-  | "paused"
-  | "manual-mode"
-  | "offline"
-  | "metered"
-  | "metered-state-unknown"
-  | "startup-delay"
-  | "cadence"
-  | "superseded"
-  | "current"
-  | "update-available"
-  | "held"
-  | "incompatible"
-  | "no-candidate";
-export type ApplicationUpdateMode = "automatic" | "notify-only" | "manual";
-export type ApplicationUpdateNativeLaunchSummary =
-  "starting" | "started" | "failed" | "installer-succeeded" | "installer-failed";
-export type ApplicationUpdateRequestedAction = "safe-exit" | "restart-to-apply";
-export type ApplicationUpdateObservedTermination =
-  "normal-exit" | "restart-to-apply" | "crash" | "os-shutdown" | "steam-stop";
-export type ApplicationUpdateInstallEligibility =
-  "eligible" | "package-managed-deb" | "package-managed-rpm" | "not-configured" | "unavailable";
-export type ApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
+/**
+ * The application release feed a player follows. Beta is the default; Preview
+ * is an opt-in feed that receives builds before Beta.
+ */
+export type ApplicationUpdateChannel = "beta" | "preview";
+export type OutputDesktopApplicationUpdateProgress =
+  | {
+      downloaded_bytes: number;
+      phase: "downloading";
+      total_bytes: number | null;
+      [k: string]: unknown;
+    }
+  | {
+      phase: "installing";
+      [k: string]: unknown;
+    };
 export type OutputDesktopAutomaticSnapshotsEnabled = boolean;
+export type OutputDesktopDatReferenceStatuses = DatReferenceStatus[];
 export type InstallBatchItemState = ("queued" | "running" | "failed" | "cancelled") | "ready" | "held" | "interrupted";
 export type OutputDesktopInstallBatches = InstallBatchRecord[];
 export type LibraryMembershipOutcomeKind = "added" | "already_saved" | "already_in_library";
@@ -1057,6 +1220,11 @@ export type SteamArtworkOperation =
   | {
       kind: "remove_owned";
       [k: string]: unknown;
+    }
+  | {
+      kind: "remove_owned_role";
+      role: DestinationArtworkRole;
+      [k: string]: unknown;
     };
 export type SteamClientState = "closed" | "running" | "unknown";
 export type SteamEntryChangeKind = "add" | "repair" | "remove" | "unchanged";
@@ -1116,6 +1284,7 @@ export interface TransportOutputs {
   catalog_update_plan: OutputCatalogUpdatePlan;
   catalog_update_source: CatalogUpdateSource;
   check_batch_outcome: OutputCheckBatchOutcome;
+  dat_reference_status: DatReferenceStatus;
   definition_authority_provisioning: OutputDefinitionAuthorityProvisioning;
   definition_authority_review: DefinitionAuthorityReview;
   definition_capability_report: OutputDefinitionCapabilityReport;
@@ -1133,6 +1302,8 @@ export interface TransportOutputs {
   game_file_query_request: OutputGameFileQueryRequest;
   game_file_query_snapshot: OutputGameFileQuerySnapshot;
   game_file_roots: OutputGameFileRoots;
+  game_file_scan_match_page: OutputGameFileScanMatchPage;
+  game_file_scan_match_query: OutputGameFileScanMatchQuery;
   game_file_scan_snapshot: OutputGameFileScanSnapshot;
   game_install_plan: GameInstallPlan;
   game_setting_change: GameSettingChange;
@@ -1159,13 +1330,17 @@ export interface TransportOutputs {
   library_move_plan: OutputLibraryMovePlan;
   library_move_result: OutputLibraryMoveResult;
   library_selection: LibrarySelection;
-  listing_delivery_status: OutputListingDeliveryStatus;
+  listing_delivery_status: ListingDeliveryStatus;
   listing_statuses: OutputListingStatuses;
   live_mods: LiveMods;
+  local_mod_package_plan: OutputLocalModPackagePlan;
   managed_route_change_preview: OutputManagedRouteChangePreview;
   managed_route_change_result: OutputManagedRouteChangeResult;
   mod_code_review: OutputModCodeReview;
+  mod_file_preservation_plan: ModFilePreservationPlan;
+  mod_file_preservation_result: OutputModFilePreservationResult;
   mod_setups_view: OutputModSetupsView;
+  official_catalog_automatic_refresh: OutputOfficialCatalogAutomaticRefresh;
   official_catalog_review: OfficialCatalogReview;
   official_catalog_setup: OutputOfficialCatalogSetup;
   operation_event: OutputOperationEvent;
@@ -1187,13 +1362,17 @@ export interface TransportOutputs {
   preparation_options: PreparationOptions;
   preparation_plan: OutputPreparationPlan;
   profile_inventory: ProfileInventory;
+  profile_original_instance: ProfileOriginalInstance;
+  profile_original_review: OutputProfileOriginalReview;
   profile_recipe: ProfileRecipe;
+  profile_recovery_plan: OutputProfileRecoveryPlan;
   profile_revision: ProfileRevision;
   provider_browse_page: OutputProviderBrowsePage;
-  provider_install_plan: OutputProviderInstallPlan;
+  provider_install_plan: ProviderInstallPlan;
   provider_project_view: OutputProviderProjectView;
   provider_update_observation: OutputProviderUpdateObservation;
-  recipe_import_plan: OutputRecipeImportPlan;
+  recipe_acquisition_plan: RecipeAcquisitionPlan;
+  recipe_import_plan: RecipeImportPlan;
   recommendation_metadata: OutputRecommendationMetadata;
   reconcile_batch_outcome: OutputReconcileBatchOutcome;
   reconcile_result: ReconcileResult;
@@ -1204,6 +1383,7 @@ export interface TransportOutputs {
   retained_build_removal_preview: OutputRetainedBuildRemovalPreview;
   retained_build_resolution: RetainedBuildResolution;
   retained_build_retirement_preview: OutputRetainedBuildRetirementPreview;
+  runtime_prerequisite_report: OutputRuntimePrerequisiteReport;
   save_folder_push_result: OutputSaveFolderPushResult;
   save_folder_status: OutputSaveFolderStatus;
   setup_launch_targets: OutputSetupLaunchTargets;
@@ -1229,7 +1409,12 @@ export interface TransportOutputs {
   source_reuse_review: OutputSourceReuseReview;
   source_verification: SourceVerification;
   status: PortStatus;
+  steamgriddb_candidates: OutputSteamgriddbCandidates;
+  steamgriddb_games: OutputSteamgriddbGames;
+  steamgriddb_key_status: OutputSteamgriddbKeyStatus;
+  steamgriddb_listing_report: OutputSteamgriddbListingReport;
   storage: StorageSummary;
+  store_game_installs: OutputStoreGameInstalls;
   update_batch_outcome: OutputUpdateBatchOutcome;
   update_check: UpdateCheck;
   update_check_forecast: OutputUpdateCheckForecast;
@@ -1237,13 +1422,8 @@ export interface TransportOutputs {
   upstream_observation_report: OutputUpstreamObservationReport;
   desktop_adoption_batch_preview: OutputAdoptionBatchPreview;
   desktop_adoption_batch_result: OutputDesktopAdoptionBatchResult;
-  desktop_application_update_check_phase: OutputDesktopApplicationUpdateCheckPhase;
-  desktop_application_update_check_result: ApplicationUpdateCheckResult;
-  desktop_application_update_manual_check_result: OutputDesktopApplicationUpdateManualCheckResult;
-  desktop_application_update_notice: OutputDesktopApplicationUpdateNotice;
-  desktop_application_update_preferences: ApplicationUpdatePreferences;
-  desktop_application_update_production_transition: ApplicationUpdateProductionTransition;
-  desktop_application_update_production_transition_result: OutputDesktopApplicationUpdateProductionTransitionResult;
+  desktop_application_update_preferences: OutputDesktopApplicationUpdatePreferences;
+  desktop_application_update_progress: OutputDesktopApplicationUpdateProgress;
   desktop_application_update_status: OutputDesktopApplicationUpdateStatus;
   desktop_automatic_snapshots_enabled: OutputDesktopAutomaticSnapshotsEnabled;
   desktop_backup_review: OutputDesktopBackupReview;
@@ -1253,6 +1433,8 @@ export interface TransportOutputs {
   desktop_catalog_download_candidates: OutputCatalogDownloadCandidates;
   desktop_catalog_download_preview: OutputCatalogDownloadPreview;
   desktop_cli_command_context: OutputDesktopCliCommandContext;
+  desktop_dat_reference_status: DatReferenceStatus;
+  desktop_dat_reference_statuses: OutputDesktopDatReferenceStatuses;
   desktop_desktop_error: FailureReport;
   desktop_external_runtime_preview: ExternalRuntimePreview;
   desktop_external_runtime_record: ExternalRuntimeRecord;
@@ -1261,6 +1443,8 @@ export interface TransportOutputs {
   desktop_game_comparison: OutputGameComparison;
   desktop_game_file_query_snapshot: OutputGameFileQuerySnapshot;
   desktop_game_file_roots: OutputGameFileRoots;
+  desktop_game_file_scan_match_page: OutputGameFileScanMatchPage;
+  desktop_game_file_scan_registered_matches: OutputDesktopGameFileScanRegisteredMatches;
   desktop_game_file_scan_snapshot: OutputGameFileScanSnapshot;
   desktop_install_batch: InstallBatchRecord;
   desktop_install_batch_review: OutputDesktopInstallBatchReview;
@@ -1277,6 +1461,8 @@ export interface TransportOutputs {
   desktop_port_intent_assessments: OutputDesktopPortIntentAssessments;
   desktop_port_intents: OutputDesktopPortIntents;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
+  desktop_ready_notices_enabled: OutputDesktopAutomaticSnapshotsEnabled;
+  desktop_recipe_import_review: OutputDesktopRecipeImportReview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
   desktop_root_setup_consent: OutputDesktopRootSetupConsent;
   desktop_root_setup_consents: OutputDesktopRootSetupConsents;
@@ -1290,6 +1476,8 @@ export interface TransportOutputs {
   desktop_steam_entry_apply_result: OutputDesktopSteamEntryApplyResult;
   desktop_steam_entry_review: OutputDesktopSteamEntryReview;
   desktop_steam_profiles: OutputDesktopSteamProfiles;
+  desktop_store_game_installs: OutputStoreGameInstalls;
+  desktop_submitted_report: OutputDesktopSubmittedReport;
   desktop_support_bundle_export: OutputDesktopSupportBundleExport;
   desktop_update_check_outcome: OutputCheckBatchOutcome;
   desktop_workspace_snapshot: OutputDesktopWorkspaceSnapshot;
@@ -1515,6 +1703,10 @@ export interface PortStatus {
    */
   acquisition?: GameUpdateAcquisition | null;
   active: InstallRecord | null;
+  /**
+   * Recorded file preservation during the switch to the current active version.
+   */
+  carried_files?: CarriedFilesStatus | null;
   channel: ReleaseChannel;
   /**
    * Successor-definition policy decisions. Legacy catalog ports retain an empty list.
@@ -1550,6 +1742,7 @@ export interface ResolvedRelease {
   asset: ReleaseAsset;
   channel: ReleaseChannel;
   published_at: string | null;
+  uploader_continuity?: UploaderContinuityRecord | null;
   version: string;
   [k: string]: unknown;
 }
@@ -1558,6 +1751,56 @@ export interface ReleaseAsset {
   sha256: string;
   size: number;
   url: string;
+  [k: string]: unknown;
+}
+export interface UploaderContinuityRecord {
+  basis: UploaderContinuityBasis;
+  uploaded_at?: string | null;
+  uploader_id?: number | null;
+  [k: string]: unknown;
+}
+/**
+ * A historical outcome applicable only to the currently active target installation.
+ * The source may since have been removed; absent coordinates must stay absent.
+ */
+export interface CarriedFilesStatus {
+  from_install_id: string;
+  from_path: string | null;
+  from_version: string | null;
+  outcome: CarriedFileOutcome;
+  to_install_id: string;
+  to_path: string;
+  to_version: string;
+  [k: string]: unknown;
+}
+/**
+ * The result of carrying files during one switch, rather than an operation failure.
+ * Older rows have path examples but no complete counts or byte observations.
+ */
+export interface CarriedFileOutcome {
+  available_bytes?: number | null;
+  carried: string[];
+  carried_bytes?: number | null;
+  counts?: CarriedFileCounts | null;
+  insufficient_space: boolean;
+  kept_separately: string[];
+  new_version_ships_file: string[];
+  not_carried_count?: number | null;
+  removed: string[];
+  required_bytes?: number | null;
+  source_modified: boolean;
+  source_unreadable: string[];
+  [k: string]: unknown;
+}
+/**
+ * Complete counts recorded before the bounded path examples are truncated.
+ */
+export interface CarriedFileCounts {
+  carried: number;
+  kept_separately: number;
+  new_version_ships_file: number;
+  removed: number;
+  source_unreadable: number;
   [k: string]: unknown;
 }
 /**
@@ -1647,6 +1890,39 @@ export interface UpdateCheck {
   release: ResolvedRelease;
   required_runtime: RuntimeIdentity | null;
   update_available: boolean;
+  /**
+   * Repository maintenance facts from the provider's most recent observation of
+   * this port. Absent means unknown, never active. It may be older than
+   * `checked_at` when this check did not read the repository itself.
+   */
+  upstream_activity?: UpstreamActivity | null;
+  [k: string]: unknown;
+}
+/**
+ * What the release provider reported about the upstream repository while Portcove
+ * was already reading it to select a release. A maintenance observation only: it
+ * grants or revokes no release, update, install or catalog authority, and it is
+ * not the catalog's reviewed `upstream_status` declaration.
+ */
+export interface UpstreamActivity {
+  /**
+   * The repository owner archived the repository (read-only upstream).
+   */
+  archived: boolean;
+  /**
+   * Unix seconds of the latest push the provider reported, when it reported one.
+   */
+  last_change_at?: number | null;
+  /**
+   * Unix seconds when the provider reported these facts.
+   */
+  observed_at: number;
+  /**
+   * The GitHub `owner/name` repository these facts describe. A port whose
+   * catalog provider or repository differs no longer owns this observation.
+   * Empty (an observation without a recorded repository) describes no port.
+   */
+  repository: string;
   [k: string]: unknown;
 }
 export interface PortActionAssessment {
@@ -1690,6 +1966,12 @@ export interface LaunchReadiness {
    * legacy fields and unreviewed contracts never establish compatibility.
    */
   source_assessment?: SourceAssessment | null;
+  /**
+   * The saved game-file folder holding this game's missing or unreadable
+   * original, when that folder is currently unavailable: reconnecting it is
+   * the fix, and nothing was deleted.
+   */
+  source_folder_unavailable?: string | null;
   [k: string]: unknown;
 }
 export interface SourceAssessment {
@@ -1811,13 +2093,48 @@ export interface OutputArtworkCacheClear {
   [k: string]: unknown;
 }
 export interface OutputArtworkState {
+  /**
+   * Provider credits for the selected image; empty for a purely local import.
+   */
+  attribution: ArtworkAttribution[];
   availability: ArtworkAvailability;
   choice: ArtworkChoice;
+  /**
+   * When Portcove removed the selected image's stored copy because every
+   * provider that supplied it confirmed a withdrawal. The choice and the
+   * credit stay; choosing the image again restores the copy.
+   */
+  evicted_at: number | null;
   generated_fallback: GeneratedArtworkFallback;
+  /**
+   * Recorded listing evidence for the credited images; empty until an image
+   * is chosen from a provider or checked.
+   */
+  provider_listing: ArtworkProviderListing[];
   reason: string | null;
   resolved_source: ArtworkResolvedSource;
   selection: LocalArtworkAsset | null;
   [k: string]: unknown;
+}
+/**
+ * Where a provider image came from and who made it. Recorded per origin, never
+ * replaced by a later identical import, and shown wherever the image is credited.
+ */
+export interface ArtworkAttribution {
+  /**
+   * The provider's identity for this image.
+   */
+  asset_id: number;
+  author_name: string;
+  author_steam64: string | null;
+  fetched_at: number;
+  /**
+   * The provider's game the image was listed under; a proposal, not port identity.
+   */
+  game_id: number;
+  provider: ArtworkProvider;
+  role: DestinationArtworkRole;
+  source_url: string;
 }
 export interface ArtworkChoice {
   asset_sha256: string | null;
@@ -1830,6 +2147,31 @@ export interface GeneratedArtworkFallback {
   initials: string;
   palette_index: number;
   style_version: number;
+}
+/**
+ * Recorded evidence of whether a provider still lists a credited image. A
+ * confirmed withdrawal (`withdrawn_at`) can remove a provider-only copy; see
+ * [`ArtworkState::evicted_at`].
+ */
+export interface ArtworkProviderListing {
+  asset_id: number;
+  /**
+   * When a check or a choice last established this evidence.
+   */
+  last_checked_at: number;
+  last_result: SteamGridDbListingResult;
+  /**
+   * When a verified listing first lacked the image; cleared only when it is
+   * seen listed again.
+   */
+  not_listed_since: number | null;
+  provider: ArtworkProvider;
+  withdrawal_signal: ArtworkWithdrawalSignal | null;
+  /**
+   * When a later check confirmed the withdrawal; cleared when the image is
+   * seen listed again or chosen again.
+   */
+  withdrawn_at: number | null;
 }
 /**
  * Maintainer-reviewed catalog mapping. These public IDs never contain Twitch
@@ -1861,6 +2203,12 @@ export interface BackupRecord {
   port_id: string;
   sha256: string;
   size: number;
+  /**
+   * Unknown player-side files kept in the backup's separate area (#5359).
+   * They are not counted in `file_count`, and restore does not put them
+   * back. Omitted when zero.
+   */
+  unknown_file_count?: number;
   [k: string]: unknown;
 }
 /**
@@ -2083,6 +2431,10 @@ export interface PortDefinition {
   manually_validated_platforms: Platform[];
   mod_package_policy?: ModPackagePolicy | null;
   /**
+   * Provider coordinates reviewed alongside the existing mod loader contract.
+   */
+  mod_provider_bindings?: ModProviderBinding[] | null;
+  /**
    * Keep a reviewed N64 package's runtime and data beside its selected player,
    * including when upstream changes the outer archive wrapper name.
    */
@@ -2131,12 +2483,22 @@ export interface PortDefinition {
   runtime_disc_image?: DiscImageProfile | null;
   runtime_mutable_file_patterns?: PersistentFilePattern[];
   runtime_mutable_paths: string[];
+  /**
+   * Required by, and only valid with, the `rom-patch` materialization: the
+   * patch format and the exact original and patch members it combines.
+   */
+  runtime_rom_patch?: RomPatchProfile | null;
   runtime_source_filename: string | null;
   runtime_source_hashes: {
     [k: string]: string;
   };
   runtime_source_materialization: RuntimeSourceMaterialization | null;
   runtime_source_set: RuntimeSourceTarget[];
+  /**
+   * Only valid with the `stfs-directory` materialization: accepted header title IDs
+   * and content types and a size bound, checked before extraction.
+   */
+  runtime_stfs_package?: StfsPackageProfile | null;
   runtime_subdirectory: string | null;
   /**
    * Per-platform runtime subdirectories for packages whose wrapper folder is named differently
@@ -2162,6 +2524,11 @@ export interface PortDefinition {
   source_profile: string | null;
   summary: string;
   support_tier: SupportTier;
+  /**
+   * An explicit review of an active project. Older serialized definitions
+   * defaulted to Active, so that value alone cannot prove a declaration.
+   */
+  upstream_active_reviewed?: boolean;
   upstream_status: "active" | "retired" | "superseded" | "abandoned";
   user_data_environment: string | null;
   windows_runtime_path_policy?: WindowsRuntimePathPolicy | null;
@@ -2174,6 +2541,13 @@ export interface PortDefinition {
    * The upstream process must preserve the reviewed working directory.
    */
   windows_temp_directory?: string | null;
+  /**
+   * Reviewed Windows tracked handoff: the game can restart into a successor
+   * from its own process tree, so the session also waits for job members
+   * whose image lies in the install root. Without it, the original process
+   * is the whole session.
+   */
+  windows_tracked_handoff?: boolean;
   [k: string]: unknown;
 }
 /**
@@ -2256,6 +2630,11 @@ export interface ManagedAcquisitionHold {
    */
   activation_reason: string;
   /**
+   * Exact artifacts unavailable for acquisition or staged activation. An
+   * empty list preserves the route-wide acquisition hold.
+   */
+  excluded_artifacts?: ReviewedHoldArtifact[];
+  /**
    * Player-facing explanation for refused Install and Update.
    */
   reason: string;
@@ -2274,6 +2653,19 @@ export interface ReviewedHoldArtifact {
  */
 export interface PortPresentation {
   artwork?: IgdbArtwork | null;
+  /**
+   * Reviewed constituent-game covers for a multi-game project. Display only.
+   */
+  collection_covers?: IgdbArtwork[] | null;
+  /**
+   * Cover for the second game in a combined definition's Discover card.
+   */
+  companion_cover?: IgdbArtwork | null;
+  /**
+   * Optional descriptive implementation methods and dependencies. Malformed or future
+   * content is unavailable as explanation and never changes operation authority.
+   */
+  implementation?: unknown;
   installation_method: InstallationMethod;
   manual_preparation?: string | null;
   manual_setup?: ManualSetupGuide | null;
@@ -2354,6 +2746,13 @@ export interface SourceEdition {
 }
 export interface ReleaseSpec {
   /**
+   * GitHub accounts a maintainer reviewed and accepted as uploaders of this
+   * project's release packages, in addition to the repository owner, the
+   * project's own Actions automation and its established uploaders. Matched by
+   * numeric account ID; the login records what was reviewed.
+   */
+  accepted_uploaders?: AcceptedUploader[];
+  /**
    * Native13: the package relies on in-archive file links, which extraction writes as
    * regular copies of the files they name.
    */
@@ -2412,6 +2811,14 @@ export interface ReleaseSpec {
     "windows-x86-64"?: UserPreparedRuntimeSpec;
   };
   [k: string]: unknown;
+}
+/**
+ * One reviewed GitHub release uploader. The numeric ID is stable across login
+ * renames; a freed login re-registered by another account does not match.
+ */
+export interface AcceptedUploader {
+  id: number;
+  login: string;
 }
 export interface CuratedAcquisitionRecord {
   acquisition_evidence: CuratedEvidenceReference;
@@ -2500,6 +2907,11 @@ export interface UserPreparedRuntimeSpec {
  */
 export interface ReviewedPackageLayout {
   /**
+   * Classify Linux executable-mode files by content: only files starting
+   * with an ELF or `#!` header count, and verified ELF shared libraries do not.
+   */
+  classify_linux_programs_by_format?: boolean;
+  /**
    * Lowercase top-level directory names of the package root, sorted.
    */
   directories: string[];
@@ -2508,6 +2920,10 @@ export interface ReviewedPackageLayout {
    * any depth, sorted.
    */
   executables: string[];
+  /**
+   * Exclude verified macOS shared libraries from this fingerprint.
+   */
+  ignore_verified_macos_libraries?: boolean;
 }
 /**
  * Port declaration for a disc image that Portcove unpacks into a runtime
@@ -2527,11 +2943,55 @@ export interface DiscImageProfile {
   product_codes: string[];
   [k: string]: unknown;
 }
+/**
+ * Port declaration for producing a patched runtime file from two members of the
+ * port's file-set source. Both inputs are pinned to one exact SHA-256 each; the
+ * output is pinned by the port's single `runtime_source_hashes` entry.
+ */
+export interface RomPatchProfile {
+  format: RomPatchFormat;
+  /**
+   * Accepted filenames of the file-set member holding the unmodified original.
+   */
+  original_filenames: string[];
+  /**
+   * The one original this patch applies to; also an accepted SHA-256 of its member.
+   */
+  original_sha256: string;
+  /**
+   * Accepted filenames of the file-set member holding the patch file.
+   */
+  patch_filenames: string[];
+  /**
+   * The one reviewed patch file; also an accepted SHA-256 of its member.
+   */
+  patch_sha256: string;
+}
 export interface RuntimeSourceTarget {
   destination: string;
   materialization: RuntimeSourceMaterialization;
   source_filenames: string[];
   [k: string]: unknown;
+}
+/**
+ * Port binding for an Xbox 360 STFS package that `stfs-directory` extracts. The
+ * header facts are compared before anything is extracted, so another game, a title
+ * update or downloadable content is refused first. Requires staged-source capability 32.
+ */
+export interface StfsPackageProfile {
+  /**
+   * Accepted header content types as eight uppercase hex digits; currently only
+   * `000D0000` (Xbox Live Arcade title).
+   */
+  content_types: string[];
+  /**
+   * Explicit bound on the selected package in bytes; at most 16 GiB.
+   */
+  max_package_bytes: number;
+  /**
+   * Accepted header title IDs as eight uppercase hex digits. At least one is required.
+   */
+  title_ids: string[];
 }
 export interface SourceCatalog {
   contracts: PortSourceContract[];
@@ -2637,6 +3097,16 @@ export interface SourceDiscIdentity {
   track_counts: number[];
   volume_ids: string[];
 }
+/**
+ * One extracted file of a content-identified STFS package.
+ */
+export interface StfsContentMember {
+  /**
+   * Relative path inside the package, compared without regard to ASCII case.
+   */
+  path: string;
+  sha256: string;
+}
 export interface SourceValidatorContract {
   evidence_ids: string[];
   id: string;
@@ -2689,6 +3159,11 @@ export interface OutputCatalogDownloadCandidates {
   reason: string | null;
   recommendation_reason: string;
   recommended_asset_id: CatalogDownloadAssetId | null;
+  /**
+   * Present when the listing download is refused because another route
+   * serves this host; `reason` carries the same player explanation.
+   */
+  refusal?: CatalogDownloadRefusal | null;
   releases: CatalogDownloadRelease[];
   selected_release_id: CatalogDownloadReleaseId | null;
   upstream_url: string;
@@ -2778,6 +3253,10 @@ export interface PortListing {
    */
   availability_override_reason?: string | null;
   /**
+   * Display samples of a project's constituent games. Requires listing format 11.
+   */
+  collection_covers?: IgdbArtwork[] | null;
+  /**
    * Inert optional advisory envelope. Invalid/future content is unavailable as advice,
    * never an acquisition restriction or an operation grant. Requires listing format 7.
    */
@@ -2797,7 +3276,19 @@ export interface PortListing {
    * no execution, management or permission over an existing copy.
    */
   download_block_reason?: string | null;
+  /**
+   * Reviewed pages where the upstream developers accept funding, normally taken
+   * from the project's `FUNDING.yml` at authoring time. Descriptive only: public
+   * HTTPS links that grant nothing. Requires listing format 10; when present it
+   * is never empty, so an earlier strict reader never meets an inert empty key.
+   */
+  funding_urls?: string[] | null;
   id: string;
+  /**
+   * Optional descriptive implementation methods and dependencies. Malformed or future
+   * content is unavailable as explanation and never changes operation authority.
+   */
+  implementation?: unknown;
   issue_number?: number | null;
   /**
    * The UTC date (`YYYY-MM-DD`) this listing was first added to the directory.
@@ -2880,6 +3371,10 @@ export interface ListingObservedAsset {
 export interface CatalogProvenance {
   catalog_sha256: string;
   expires_at: number | null;
+  /**
+   * Stable codes in the same order as the legacy diagnostic strings.
+   */
+  fallback_codes?: CatalogFallbackCode[];
   fallback_reasons: string[];
   key_id: string | null;
   origin: CatalogOrigin;
@@ -2924,6 +3419,20 @@ export interface OutputCheckBatchOutcome {
   ok: boolean;
   port_id: string;
   result: UpdateCheck | null;
+  [k: string]: unknown;
+}
+export interface DatReferenceStatus {
+  entry_count: number;
+  file_count: number;
+  id: string;
+  message: string;
+  /**
+   * Sanitized name from the DAT header, for example `Sony - PlayStation`.
+   */
+  name: string;
+  path: string;
+  state: DatReferenceState;
+  version?: string | null;
   [k: string]: unknown;
 }
 export interface OutputDefinitionAuthorityProvisioning {
@@ -3009,12 +3518,17 @@ export interface OutputDestinationArtworkBytes {
 }
 /**
  * An observation, never provider permission, destination ownership or write consent.
- * Portrait exposes the validated local cover original; hero banner exposes the
- * validated local detail original only when it is wider than tall. Catalog
- * defaults and the landscape role remain explicit unavailable states; nothing is
+ * Portrait exposes the validated local cover original; hero banner and landscape
+ * cover expose the validated local detail or landscape original only when it is
+ * wider than tall. Catalog defaults remain explicit unavailable states; nothing is
  * synthesized, cropped or resized from another role or cache.
  */
 export interface DestinationArtworkHandoff {
+  /**
+   * Provider credits for the selected local image, shown by a destination that
+   * presents the image; empty for a purely local import and every other source.
+   */
+  attribution: ArtworkAttribution[];
   choice: ArtworkChoice | null;
   content: DestinationArtworkContent;
   handoff_schema: number;
@@ -3448,54 +3962,20 @@ export interface GameFileRoot {
   updated_at: number;
   [k: string]: unknown;
 }
-export interface GameFileScanSnapshot {
-  catalog_sha256: string;
-  completed_at: number;
-  continuation?: unknown;
-  coverage?: GameFileScanCoverage | null;
-  format_version: number;
-  freshness: GameFileScanFreshness;
-  limits: SourceDiscoveryLimits | null;
-  report: SourceDiscoveryReport;
-  roots: GameFileRoot[];
-  [k: string]: unknown;
-}
-export interface GameFileScanCoverage {
-  batch_entries_examined: number;
-  batches: number;
-  can_resume: boolean;
-  entries_relisted: number;
-  frontier_exhausted: boolean;
-  metadata_checks: number;
-  pending_directories: number;
-  prior_member_rechecks: number;
-  remaining_entries: number | null;
-  restart_required: boolean;
-  [k: string]: unknown;
-}
-export interface SourceDiscoveryLimits {
-  max_candidates: number;
-  max_depth: number;
-  max_entries: number;
-  max_file_bytes: number;
-  max_hash_bytes: number;
-  [k: string]: unknown;
-}
-export interface SourceDiscoveryReport {
+export interface OutputGameFileScanMatchPage {
   candidates: SourceRecord[];
-  entries_examined: number;
-  files_hashed: number;
-  hash_bytes: number;
-  issues: SourceDiscoveryIssue[];
-  issues_omitted: number;
-  limits_reached: SourceDiscoveryLimit[];
+  kind: GameFileScanMatchKind;
+  next_offset: number | null;
+  offset: number;
+  preliminary_selections: SourceInspection[];
   /**
-   * Preliminary selections are not exact matches and their pinned validator has not run.
+   * Absent when the current report keeps every match inline.
    */
-  preliminary_selections?: SourceInspection[];
-  searched_profiles: string[];
-  searched_roots: string[];
-  symlinks_skipped: number;
+  scan_id: string | null;
+  /**
+   * Matches of this kind (inside `root_id`, when given).
+   */
+  total: number;
   [k: string]: unknown;
 }
 export interface SourceRecord {
@@ -3549,12 +4029,6 @@ export interface ObservedSourceValidator {
   tool_id: string;
   [k: string]: unknown;
 }
-export interface SourceDiscoveryIssue {
-  message: string;
-  path: string | null;
-  profile_id: string | null;
-  [k: string]: unknown;
-}
 /**
  * Facts returned by read-only inspection. A record is present only when the
  * admission state permits existing callers to register or use the source.
@@ -3563,12 +4037,127 @@ export interface SourceInspection {
   archive_member_name?: string | null;
   assessment: SourceAssessment;
   components: ObservedSourceComponent[];
+  /**
+   * Integrity checks that did not pass but did not decide admission, such as an STFS
+   * hash-tree mismatch on a package already proven by its exact whole-file digest.
+   */
+  integrity_advisories?: string[];
   message: string;
   observed_digests: ObservedSourceDigest[];
   path: string;
   profile_id: string;
   record: SourceRecord | null;
   validator?: ObservedSourceValidator | null;
+  [k: string]: unknown;
+}
+/**
+ * One page of the current saved-folder scan's retained matches.
+ */
+export interface OutputGameFileScanMatchQuery {
+  kind: GameFileScanMatchKind;
+  /**
+   * 1 to 512 matches.
+   */
+  limit: number;
+  offset: number;
+  /**
+   * Only matches for this source profile.
+   */
+  profile_id?: string | null;
+  /**
+   * Only matches inside this saved folder.
+   */
+  root_id?: string | null;
+  /**
+   * The scan the caller is paging; a different current scan is a conflict.
+   */
+  scan_id?: string | null;
+  [k: string]: unknown;
+}
+export interface GameFileScanSnapshot {
+  catalog_sha256: string;
+  completed_at: number;
+  continuation?: unknown;
+  coverage?: GameFileScanCoverage | null;
+  format_version: number;
+  freshness: GameFileScanFreshness;
+  limits: SourceDiscoveryLimits | null;
+  /**
+   * Where the scan's retained matches live. When present, the report's
+   * `candidates` and `preliminary_selections` are only a bounded preview
+   * and every match is read in pages. Absent means every match is inline
+   * in the report (older formats).
+   */
+  matches?: GameFileScanMatchSummary | null;
+  report: SourceDiscoveryReport;
+  roots: GameFileRoot[];
+  [k: string]: unknown;
+}
+export interface GameFileScanCoverage {
+  batch_entries_examined: number;
+  batches: number;
+  can_resume: boolean;
+  entries_relisted: number;
+  frontier_exhausted: boolean;
+  metadata_checks: number;
+  /**
+   * File identities (one per file and representation) reused because the
+   * recorded metadata and inspector version still match. Never admission.
+   */
+  observations_reused: number;
+  pending_directories: number;
+  prior_member_rechecks: number;
+  remaining_entries: number | null;
+  restart_required: boolean;
+  [k: string]: unknown;
+}
+export interface SourceDiscoveryLimits {
+  max_candidates: number;
+  max_depth: number;
+  max_entries: number;
+  max_file_bytes: number;
+  max_hash_bytes: number;
+  [k: string]: unknown;
+}
+/**
+ * Totals for one saved-folder scan's retained matches. The preview in the
+ * report holds the first matches in page order, exact matches first.
+ */
+export interface GameFileScanMatchSummary {
+  exact_matches: number;
+  preliminary_selections: number;
+  /**
+   * Whether the report's preview holds every retained match.
+   */
+  preview_complete: boolean;
+  scan_id: string;
+  [k: string]: unknown;
+}
+export interface SourceDiscoveryReport {
+  candidates: SourceRecord[];
+  entries_examined: number;
+  files_hashed: number;
+  hash_bytes: number;
+  issues: SourceDiscoveryIssue[];
+  issues_omitted: number;
+  limits_reached: SourceDiscoveryLimit[];
+  /**
+   * Preliminary selections are not exact matches and their pinned validator has not run.
+   */
+  preliminary_selections?: SourceInspection[];
+  searched_profiles: string[];
+  searched_roots: string[];
+  symlinks_skipped: number;
+  [k: string]: unknown;
+}
+export interface SourceDiscoveryIssue {
+  /**
+   * Profiles whose bounded direct inspection can check this skipped file.
+   */
+  direct_check_profiles?: string[];
+  message: string;
+  path: string | null;
+  profile_id: string | null;
   [k: string]: unknown;
 }
 /**
@@ -3702,6 +4291,12 @@ export interface OutputGameUpdatePlan {
   data_transition?: ArchiveDataTransitionReview | null;
   plan: InstallPlan;
   plan_sha256: string;
+  /**
+   * Informational upstream notes for this review. Read from cached provider
+   * metadata only, excluded from `plan_sha256`, never authority. Absent when
+   * the provider has no hosted release page.
+   */
+  release_notes?: UpdateReleaseNotes | null;
   [k: string]: unknown;
 }
 /**
@@ -3722,6 +4317,46 @@ export interface ArchiveDataTransitionReview {
   producing_archive_sha256: string;
   retained_installations: number;
   temporary_space: InstallSpaceRequirement;
+  [k: string]: unknown;
+}
+/**
+ * Upstream releases between the installed version (exclusive) and the offered
+ * version (inclusive), newest first. Notes are untrusted plain text.
+ */
+export interface UpdateReleaseNotes {
+  coverage: UpdateReleaseNotesCoverage;
+  /**
+   * Empty when the notes are unknown: not cached, or the offered release is not listed.
+   */
+  entries: UpdateReleaseNotesEntry[];
+  /**
+   * The project's release list page. Present only when Desktop may open it: it is
+   * built by Portcove and passes the same reviewed-link check as other handoffs.
+   */
+  releases_url?: string | null;
+  [k: string]: unknown;
+}
+export interface UpdateReleaseNotesEntry {
+  /**
+   * Normalized plain text; may contain unrendered Markdown or HTML source.
+   */
+  notes: string;
+  notes_truncated: boolean;
+  /**
+   * Provider timestamp in RFC 3339 shape; absent when missing or malformed.
+   */
+  published_at?: string | null;
+  title?: string | null;
+  /**
+   * This release's page. Present only when Desktop may open it: it is built by
+   * Portcove under the port's own release repository from a plain tag and passes
+   * the reviewed-link check.
+   */
+  url?: string | null;
+  /**
+   * The release tag, normalized for display.
+   */
+  version: string;
   [k: string]: unknown;
 }
 export interface OutputGhostshipRecoveryPlan {
@@ -3806,6 +4441,12 @@ export interface LaunchSessionView {
   owner_kind: "managed" | "external";
   phase: LaunchSessionPhase;
   port_id: string;
+  /**
+   * Microsoft runtimes the installation that ran most likely needs, present
+   * only for an exit most likely caused by a missing DLL and only while that
+   * installation is still the current one. Derived on read, never stored.
+   */
+  runtime_prerequisites?: RuntimePrerequisiteReport | null;
   started_at: number;
   supervisor_identity: string | null;
   supervisor_pid: number;
@@ -3824,6 +4465,54 @@ export interface ExitExplanation {
    */
   raw_code: string;
   table_version: number;
+  [k: string]: unknown;
+}
+/**
+ * Microsoft runtimes the active installation's launch program most likely
+ * needs. Derived on request; nothing is stored.
+ */
+export interface RuntimePrerequisiteReport {
+  host: RuntimeHostCheck;
+  inspection: RuntimeInspection;
+  requirements: RuntimePrerequisite[];
+  [k: string]: unknown;
+}
+export interface RuntimePrerequisite {
+  /**
+   * Architecture of the launch program; absent for an architecture Portcove
+   * does not assess.
+   */
+  architecture?: WindowsArchitecture | null;
+  /**
+   * Microsoft's official download page for this runtime.
+   */
+  download_page: string;
+  /**
+   * Lowercase runtime DLL names the game imports and does not ship.
+   */
+  files?: string[];
+  framework?: DotnetFramework | null;
+  /**
+   * The part of `files` this host reports absent.
+   */
+  missing_files?: string[];
+  presence: RuntimePresence;
+  runtime: WindowsRuntime;
+  [k: string]: unknown;
+}
+export interface DotnetFramework {
+  /**
+   * Shared framework name, e.g. `Microsoft.WindowsDesktop.App`.
+   */
+  name: string;
+  /**
+   * The program's declared roll-forward policy; absent means `Minor`.
+   */
+  roll_forward?: string | null;
+  /**
+   * Version the program was built against.
+   */
+  version: string;
   [k: string]: unknown;
 }
 export interface OutputLauncherLibraryInventory {
@@ -3966,25 +4655,62 @@ export interface LibraryMetadata {
   exported_at: number;
   launch_history: LibraryLaunchHistory[];
   /**
-   * Explicit add-only Library entries; present only under metadata schema 7, so
-   * an older reader refuses the export instead of silently dropping them.
+   * Explicit add-only Library entries; present only under metadata schema 7 or later,
+   * so an older reader refuses the export instead of silently dropping them.
    */
   library_memberships?: LibraryMembership[];
   original_root: string;
   port_settings: LibraryPortSettings[];
   portability_authority?: PortabilityAuthority | null;
   /**
-   * Local profiles and revisions; present only under metadata schema 6.
+   * Local profiles and revisions; present only under metadata schema 6 or later.
    */
   profiles?: LibraryProfile[];
   retained_build_references?: RetainedBuildReference[];
   schema_version: number;
+  /**
+   * Other admitted original locations in metadata schema 12.
+   */
+  source_instances?: SourceRecord[];
   source_references: SourceRecord[];
   [k: string]: unknown;
 }
 export interface ArtworkMetadata {
   assets: LocalArtworkAsset[];
   choices: ArtworkChoice[];
+  /**
+   * Provider-only assets whose originals Portcove removed after every record
+   * was withdrawn. Their files are not carried; schema 10.
+   */
+  evicted_assets?: ArtworkEvictedAsset[];
+  /**
+   * Assets that exist only because a provider image was chosen; no local import
+   * of the same bytes was made. Present only under library metadata schema 8.
+   */
+  provider_only_assets?: string[];
+  /**
+   * Provider provenance; present only under library metadata schema 8.
+   */
+  providers?: ArtworkProviderRecord[];
+  /**
+   * Confirmed withdrawals of provider records; library metadata schema 10.
+   */
+  withdrawals?: ArtworkWithdrawalRecord[];
+}
+export interface ArtworkEvictedAsset {
+  asset_sha256: string;
+  evicted_at: number;
+}
+export interface ArtworkProviderRecord {
+  asset_sha256: string;
+  attribution: ArtworkAttribution;
+}
+export interface ArtworkWithdrawalRecord {
+  asset_id: number;
+  asset_sha256: string;
+  provider: ArtworkProvider;
+  signal: ArtworkWithdrawalSignal;
+  withdrawn_at: number;
 }
 export interface LibraryContentRoot {
   kind: LibraryContentKind;
@@ -4067,6 +4793,10 @@ export interface RequestedPackage {
  * A provider's own coordinates. Provider IDs never double as native loader IDs.
  */
 export interface ProviderPackageRef {
+  /**
+   * Required for coordinates that differ from the historical compiled binding.
+   */
+  binding?: ModProviderBinding | null;
   file?: string | null;
   project: string;
   provider: string;
@@ -4153,12 +4883,22 @@ export interface ResolvedPackage {
   native_id: string;
   native_version?: string | null;
   provider?: ProviderPackageRef | null;
+  provider_requires?: ProviderRequirement[];
   /**
    * Native IDs this package requires, from native metadata (not provider claims).
    */
   requires?: string[];
   sha256: string;
   size: number;
+}
+/**
+ * One exact provider wrapper and the complete set of native members it supplied.
+ */
+export interface ProviderRequirement {
+  members: {
+    [k: string]: string;
+  };
+  provider: ProviderPackageRef;
 }
 /**
  * One binding per (port, setup). The caller supplies a stable opaque setup ID,
@@ -4227,10 +4967,11 @@ export interface LibrarySelection {
   source: LibrarySelectionSource;
   [k: string]: unknown;
 }
-export interface OutputListingDeliveryStatus {
+export interface ListingDeliveryStatus {
   anchor_sha256: string | null;
   delivery_schema: number;
   expires_at: string | null;
+  fallback_code?: CatalogFallbackCode | null;
   fallback_reason: string | null;
   listing_count: number;
   repository_root_sha256: string | null;
@@ -4293,6 +5034,7 @@ export interface CapabilityAdvisory {
   explanation: string;
   feature: CapabilityFeature;
   id: string;
+  launch_behavior?: LaunchBehavior | null;
   /**
    * Unix seconds. A newer date never proves an earlier failure is fixed.
    */
@@ -4302,6 +5044,10 @@ export interface CapabilityAdvisory {
   release: string | null;
   route: string;
   workaround: string | null;
+}
+export interface LaunchBehavior {
+  first_launch: LaunchEntryBehavior;
+  repeat_launch: LaunchEntryBehavior;
 }
 export interface PortCapabilityRoute {
   features: PortCapabilityFeature[];
@@ -4358,12 +5104,57 @@ export interface LiveMods {
         state: "unreadable";
         [k: string]: unknown;
       };
+  /**
+   * An authorized file move waiting for recovery, even if the live name disappeared.
+   */
+  pending_preservation?: ModFilePreservationPlan | null;
   profile_id: string | null;
   revision: number | null;
   /**
    * Files in the mods folder this profile did not install; never touched.
    */
   unmanaged: string[];
+  [k: string]: unknown;
+}
+export interface ModFilePreservationPlan {
+  file_name: string;
+  observed: ModFileIdentity;
+  plan_sha256: string;
+  port_id: string;
+  profile_id: string;
+  /**
+   * For an edited managed file, the exact package that will be restored.
+   */
+  restore: ModFileIdentity | null;
+  revision: number;
+  revision_sha256: string;
+  /**
+   * Distinguishes a rediscovered copy of the same bytes from prior preserved copies.
+   */
+  slot: number;
+}
+export interface ModFileIdentity {
+  sha256: string;
+  size: number;
+}
+/**
+ * Exact review of a file chosen for one setup. Paths stay local to the caller.
+ */
+export interface OutputLocalModPackagePlan {
+  asset_count: number;
+  conflicts_truncated: boolean;
+  expected_revision: number;
+  missing_required_mods: string[];
+  native_id: string;
+  needs_code_permission: boolean;
+  overlapping_mods: string[];
+  plan_sha256: string;
+  profile_id: string;
+  replaces: string[];
+  replaces_enabled: boolean;
+  required_mods: string[];
+  sha256: string;
+  size: number;
   [k: string]: unknown;
 }
 export interface OutputManagedRouteChangePreview {
@@ -4407,6 +5198,15 @@ export interface OutputModCodeReview {
   sha256: string;
   [k: string]: unknown;
 }
+export interface OutputModFilePreservationResult {
+  plan: ModFilePreservationPlan;
+  /**
+   * Outside the loader's effective mod directories. The regular local package
+   * review may use this path, without granting execution or ownership here.
+   */
+  preserved_path: string;
+  [k: string]: unknown;
+}
 /**
  * Everything a game-level mods view needs in one read: whether the game has a
  * reviewed mod contract, its setups and what is live now. Read-only.
@@ -4427,6 +5227,10 @@ export interface OutputModSetupsView {
    */
   inventory: ProfileInventory | null;
   /**
+   * Results of the last automatic check, even after reopening the library.
+   */
+  last_automatic_checks?: ProviderAutoUpdateCheck[];
+  /**
    * True when reviewed loader source shows that the later of two mods changing
    * the same asset wins. False when the order is kept but which mod wins is not
    * established.
@@ -4439,10 +5243,19 @@ export interface OutputModSetupsView {
   package_types: string[];
   port_id: string;
   /**
+   * This game has a reviewed progress contract. Runtime and save contents
+   * are checked again during an explicit copy.
+   */
+  progress_copy_supported?: boolean;
+  /**
    * The mod provider this game has a reviewed binding for (`gamebanana` or
    * `thunderstore`), if any.
    */
   provider: string | null;
+  /**
+   * Reviewed provider choices when the game offers more than one.
+   */
+  providers?: string[];
   /**
    * False when the game has no reviewed mod package contract; nothing else is
    * offered then.
@@ -4472,6 +5285,10 @@ export interface ProfileInventory {
 }
 export interface ProfileView {
   build_availability: RetainedBuildAvailability;
+  /**
+   * Version of the exact installed runtime this setup resolves to.
+   */
+  build_version?: string | null;
   originals: OriginalStatus[];
   profile: Profile;
   revision: ProfileRevision;
@@ -4480,6 +5297,36 @@ export interface ProfileView {
 export interface OriginalStatus {
   availability: OriginalAvailability;
   binding: OriginalBinding;
+  [k: string]: unknown;
+}
+/**
+ * The last automatic check of an installed provider file or setup.
+ */
+export interface ProviderAutoUpdateCheck {
+  candidate_file_id: string | null;
+  checked_at: number;
+  native_ids: string[];
+  profile_id: string;
+  project_id: string | null;
+  /**
+   * None means a current observation offered no update.
+   */
+  result: ProviderAutoUpdateOutcome | null;
+  [k: string]: unknown;
+}
+/**
+ * The result of one scheduled official catalog refresh.
+ */
+export interface OutputOfficialCatalogAutomaticRefresh {
+  outcome: OfficialCatalogAutomaticOutcome;
+  /**
+   * What the location served, when `outcome` is `unavailable`.
+   */
+  serving: DefinitionDeliveryServing | null;
+  /**
+   * The resulting selection, when `outcome` is `refreshed`.
+   */
+  status: ListingDeliveryStatus | null;
   [k: string]: unknown;
 }
 export interface OfficialCatalogReview {
@@ -4606,6 +5453,21 @@ export interface OutputPortRemovalPreview {
   persistent_data_will_be_preserved: boolean;
   port_id: string;
   preview_sha256: string;
+  /**
+   * Bytes the removal backup stores for those files, once identical copies
+   * collapse. The free-space check covers this. Omitted when zero.
+   */
+  unknown_file_bytes?: number;
+  /**
+   * Unknown player-side files in the versions being removed (#5359).
+   * Removal copies them to a new backup's separate area before it deletes
+   * the version folders; restore does not put them back. Omitted when zero.
+   */
+  unknown_file_count?: number;
+  /**
+   * The first unknown file paths, each relative to its version folder.
+   */
+  unknown_files?: string[];
   [k: string]: unknown;
 }
 export interface OutputPortableSaveExportPreview {
@@ -4727,6 +5589,12 @@ export interface BackupRecord1 {
   port_id: string;
   sha256: string;
   size: number;
+  /**
+   * Unknown player-side files kept in the backup's separate area (#5359).
+   * They are not counted in `file_count`, and restore does not put them
+   * back. Omitted when zero.
+   */
+  unknown_file_count?: number;
   [k: string]: unknown;
 }
 /**
@@ -4801,6 +5669,11 @@ export interface PreparationTool {
  */
 export interface SourceInspectionReport {
   applications: SourceApplicationInspection[];
+  /**
+   * Informational naming from the player's DAT files. It never affects
+   * `inspection.assessment`; present only when DAT files are saved.
+   */
+  dump_identification?: DumpIdentification | null;
   evidence: SourceEvidenceLink[];
   expected_identity?: SourceIdentityProfile | null;
   health: SourceHealth;
@@ -4846,6 +5719,72 @@ export interface SourceReleaseApplicability {
   state_code: string;
   [k: string]: unknown;
 }
+/**
+ * Informational naming of selected bytes against the player's DAT files.
+ */
+export interface DumpIdentification {
+  checked_reference_count: number;
+  /**
+   * Fixed statement of the admission boundary shown with every result.
+   */
+  limitation: string;
+  /**
+   * Total matching entries; `matches` holds at most the first sixteen.
+   */
+  match_count: number;
+  matches: DumpMatch[];
+  /**
+   * Open code: `identified`, `partially_identified`, `not_listed`,
+   * `not_checked` or `references_unavailable`.
+   */
+  state_code: string;
+  summary: string;
+  unavailable_references: DatReferenceStatus[];
+  [k: string]: unknown;
+}
+export interface DumpMatch {
+  /**
+   * True when every required file of the entry matched.
+   */
+  complete: boolean;
+  /**
+   * Required files: those with a SHA-1 or SHA-256 that aren't cue or gdi
+   * descriptors. CRC32- or MD5-only files can't be compared and don't count.
+   */
+  entry_file_count: number;
+  /**
+   * Sanitized DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.
+   */
+  entry_name: string;
+  matched_files: DumpMatchedFile[];
+  reference_id: string;
+  reference_name: string;
+  [k: string]: unknown;
+}
+export interface DumpMatchedFile {
+  algorithm: SourceDigestAlgorithm;
+  /**
+   * The observed component (for example `disc-1`) when the match was not the
+   * whole selection.
+   */
+  component_id?: string | null;
+  file_name: string;
+  /**
+   * The observed byte scope that matched, for example `canonical-n64-big-endian`.
+   */
+  scope:
+    | "original-file"
+    | "original-container"
+    | "normalized-content"
+    | "canonical-n64-big-endian"
+    | "snes-headerless-content"
+    | "archive-member"
+    | "gamecube-normalized-iso"
+    | "psx-normalized-track-set"
+    | "file-set-member"
+    | "disc-set-member";
+  [k: string]: unknown;
+}
 export interface SourceEvidenceLink {
   authority: string;
   authority_ref: string;
@@ -4881,6 +5820,23 @@ export interface SourceInspectionProblem {
   tool_id?: string | null;
   [k: string]: unknown;
 }
+export interface ProfileOriginalInstance {
+  binding: OriginalBinding;
+  instance_id: string;
+  path: string;
+  [k: string]: unknown;
+}
+export interface OutputProfileOriginalReview {
+  current_instance_id: string;
+  current_path: string | null;
+  embedded: boolean;
+  /**
+   * Other saved instances whose current bytes the retained contract admits.
+   */
+  instances: ProfileOriginalInstance[];
+  source_profile: SourceProfile;
+  [k: string]: unknown;
+}
 export interface ProfileRecipe {
   format: number;
   /**
@@ -4894,15 +5850,28 @@ export interface ProfileRecipe {
   port_id: string;
   runtime: RecipeRuntime;
   /**
+   * Portable, exact-package settings. Omitted by format 1.
+   */
+  settings?: RecipeModSetting[];
+  /**
    * Inputs this recipe cannot reproduce; always stated, never implied.
    */
   uncaptured: string[];
 }
 /**
- * A reference to an original, by content identity only. No path, no payload.
+ * Local original identity, without its path or payload.
  */
 export interface RecipeOriginal {
   requirement_id: string;
+  sha256: string;
+  size: number;
+  /**
+   * Earlier recipes identified content only. Format 3 also binds its saved representation.
+   */
+  storage?: RecipeOriginalStorage | null;
+}
+export interface RecipeOriginalStorage {
+  observed_identity_sha256?: string | null;
   sha256: string;
   size: number;
 }
@@ -4911,6 +5880,7 @@ export interface RecipePackage {
   native_id: string;
   native_version: string | null;
   provider: ProviderPackageRef | null;
+  provider_requires?: ProviderRequirement[];
   requires: string[];
   sha256: string;
   size: number;
@@ -4921,6 +5891,38 @@ export interface RecipeRuntime {
   installed_contract_sha256: string;
   platform: Platform;
   runtime: RuntimeIdentity | null;
+}
+/**
+ * Exactly one reviewed, manifest-declared option in a shareable recipe.
+ */
+export interface RecipeModSetting {
+  native_id: string;
+  option_id: string;
+  package_sha256: string;
+  value: RecipeModSettingValue;
+}
+/**
+ * The exact setup change for review. Applying it preserves the current save group.
+ * Recovery does not restore an old save or claim save compatibility.
+ */
+export interface OutputProfileRecoveryPlan {
+  current: ProfileRevision;
+  holds: RetainedBuildGap[];
+  originals: OriginalStatus[];
+  plan_sha256: string;
+  progress: ProfileRecoveryProgress;
+  selected_revision: number | null;
+  target: ProfileRevision;
+  update_policy: ProfileUpdatePolicy;
+  [k: string]: unknown;
+}
+export interface RetainedBuildGap {
+  code: ErrorCode;
+  details: {
+    [k: string]: string;
+  };
+  message: string;
+  [k: string]: unknown;
 }
 export interface OutputProviderBrowsePage {
   /**
@@ -4971,6 +5973,10 @@ export interface ProviderProject {
   profile_url: string;
   project_id: string;
   provider: string;
+  /**
+   * Present when the wire response did not establish project eligibility.
+   */
+  status_unknown?: ProviderStatusUnknown | null;
   submitter: string | null;
   /**
    * File records the adapter could not read. Non-zero means the file list is
@@ -5008,9 +6014,27 @@ export interface ProviderFileCandidate {
   file_id: string;
   file_name: string;
   size: number;
+  /**
+   * Present when the wire response did not establish archival status.
+   */
+  status_unknown?: ProviderStatusUnknown | null;
+  /**
+   * Exact provider coordinates, independent of native loader requirements.
+   * Absent for providers that do not supply this field.
+   */
+  thunderstore_dependencies?: ThunderstoreDependency[] | null;
   [k: string]: unknown;
 }
-export interface OutputProviderInstallPlan {
+/**
+ * One exact Thunderstore dependency coordinate from a version listing.
+ */
+export interface ThunderstoreDependency {
+  namespace: string;
+  package: string;
+  version: string;
+  [k: string]: unknown;
+}
+export interface ProviderInstallPlan {
   conflicts: AssetConflict[];
   conflicts_truncated: boolean;
   /**
@@ -5042,6 +6066,10 @@ export interface OutputProviderInstallPlan {
    * What this plan relies on without verifying.
    */
   unverified_claims: string[];
+  /**
+   * Exact Thunderstore wrapper closure in dependency-first order.
+   */
+  wrappers?: ProviderWrapper[];
   [k: string]: unknown;
 }
 /**
@@ -5068,6 +6096,16 @@ export interface PlanMember {
   runs_code?: RecompExecution[];
   sha256: string;
   size: number;
+  [k: string]: unknown;
+}
+export interface ProviderWrapper {
+  download_sha256: string;
+  download_size: number;
+  file: ProviderFileCandidate;
+  members: {
+    [k: string]: string;
+  };
+  provider: ProviderPackageRef;
   [k: string]: unknown;
 }
 export interface OutputProviderProjectView {
@@ -5097,6 +6135,10 @@ export interface ProviderProject1 {
   profile_url: string;
   project_id: string;
   provider: string;
+  /**
+   * Present when the wire response did not establish project eligibility.
+   */
+  status_unknown?: ProviderStatusUnknown | null;
   submitter: string | null;
   /**
    * File records the adapter could not read. Non-zero means the file list is
@@ -5130,8 +6172,19 @@ export interface OutputProviderUpdateObservation {
   version_changed: boolean;
   [k: string]: unknown;
 }
-export interface OutputRecipeImportPlan {
+/**
+ * Private provider staging bound to one exact recipe and expected package.
+ */
+export interface RecipeAcquisitionPlan {
+  native_id: string;
+  provider_plan: ProviderInstallPlan;
+  recipe_identity_sha256: string;
+  [k: string]: unknown;
+}
+export interface RecipeImportPlan {
+  acquisitions?: RecipeAcquisitionPlan[];
   can_apply: boolean;
+  code_approval?: RecipeCodeApproval[];
   /**
    * Why applying is not possible yet; empty when every input is present.
    */
@@ -5143,8 +6196,22 @@ export interface OutputRecipeImportPlan {
   originals: RecipeInputPlan[];
   packages: RecipeInputPlan[];
   plan_sha256: string;
+  /**
+   * Missing packages with an exact coordinate that the player can check.
+   */
+  provider_checks?: string[];
   recipe: ProfileRecipe;
   runtime: RecipeInputPlan;
+  /**
+   * Exact, path-free local resolutions consumed by the reviewed import.
+   */
+  verified_originals?: OriginalBinding[];
+  [k: string]: unknown;
+}
+export interface RecipeCodeApproval {
+  native_id: string;
+  runs: RecompExecution[];
+  sha256: string;
   [k: string]: unknown;
 }
 export interface RecipeInputPlan {
@@ -5227,14 +6294,6 @@ export interface RetainedBuild {
   offered_by: string[];
   previous: boolean;
   retained_by: string[];
-  [k: string]: unknown;
-}
-export interface RetainedBuildGap {
-  code: ErrorCode;
-  details: {
-    [k: string]: string;
-  };
-  message: string;
   [k: string]: unknown;
 }
 /**
@@ -5385,6 +6444,11 @@ export interface SourceVerification {
  */
 export interface SourceInspectionReport1 {
   applications: SourceApplicationInspection[];
+  /**
+   * Informational naming from the player's DAT files. It never affects
+   * `inspection.assessment`; present only when DAT files are saved.
+   */
+  dump_identification?: DumpIdentification | null;
   evidence: SourceEvidenceLink[];
   expected_identity?: SourceIdentityProfile | null;
   health: SourceHealth;
@@ -5534,6 +6598,154 @@ export interface SourceRegistrationReference {
   profile_id: string;
   reference_sha256: string;
 }
+/**
+ * A proposed static image for one role, with attribution. Not a selection.
+ */
+export interface SteamGridDbCandidate {
+  author: SteamGridDbAuthor;
+  height: number;
+  id: number;
+  mime: string;
+  role: DestinationArtworkRole;
+  score: number;
+  style: string;
+  thumb: string;
+  url: string;
+  width: number;
+  [k: string]: unknown;
+}
+export interface SteamGridDbAuthor {
+  name: string;
+  steam64: string | null;
+  [k: string]: unknown;
+}
+export interface SteamGridDbGame {
+  id: number;
+  name: string;
+  verified: boolean;
+  [k: string]: unknown;
+}
+export interface OutputSteamgriddbKeyStatus {
+  /**
+   * Whether a player key is stored; the key itself is never returned.
+   */
+  configured: boolean;
+  [k: string]: unknown;
+}
+export interface OutputSteamgriddbListingReport {
+  checked_at: number;
+  images: SteamGridDbImageCheck[];
+  /**
+   * Whether these results were recorded in the library. A cancelled check, or
+   * one whose recording failed, still reports what it saw.
+   */
+  recorded: boolean;
+  /**
+   * Removals left for the next check, export or move because one check
+   * removes a bounded number while it holds the library.
+   */
+  removal_deferred: number;
+  /**
+   * Removals that failed, usually because another program holds the file.
+   * Portcove no longer shows or hands out these copies.
+   */
+  removal_failed: number;
+  /**
+   * Copies of withdrawn images removed from the library during this check,
+   * including removals left over from earlier checks.
+   */
+  removed: number;
+  /**
+   * Attempted results that could not be written and stay unrecorded; they are
+   * checked again first next time.
+   */
+  skipped: number;
+  stopped: SteamGridDbCheckStop | null;
+}
+export interface SteamGridDbImageCheck {
+  asset_sha256: string;
+  /**
+   * Whether this run requested the image's listing and reached a conclusion
+   * other than running out of budget; images not reached are `false`.
+   */
+  attempted: boolean;
+  attribution: ArtworkAttribution;
+  /**
+   * What recording this result changed; `none` when the check was not recorded.
+   */
+  effect: "none" | "withdrawn" | "removed" | "listed_again";
+  /**
+   * When Portcove removed the stored copy behind this record, as recorded
+   * after this check; choosing the image again restores it.
+   */
+  evicted_at: number | null;
+  listing: SteamGridDbListingResult;
+  /**
+   * The `total` SteamGridDB reported for the image's listing, when one was read.
+   */
+  listing_total: number | null;
+  /**
+   * When a verified listing first lacked this image, as recorded in the
+   * library after this check; cleared only by a later observed listing.
+   */
+  not_listed_since: number | null;
+  source: SteamGridDbSourceStatus;
+  /**
+   * When a check confirmed this record withdrawn, as recorded after this
+   * check; cleared when it is seen listed again or chosen again.
+   */
+  withdrawn_at: number | null;
+}
+export interface OutputStoreGameInstalls {
+  /**
+   * The stores this host's metadata was read for. A store missing here was
+   * not checked, which is different from having no games installed.
+   */
+  checked_stores: GameStore[];
+  installs: StoreGameInstall[];
+  /**
+   * Whether a detection bound stopped the list early.
+   */
+  limited: boolean;
+  /**
+   * Store entries left out because their metadata was unreadable, malformed,
+   * unsafe or named a folder that does not exist.
+   */
+  skipped_entries: number;
+  [k: string]: unknown;
+}
+/**
+ * One game folder a store installed, as the store's own metadata records it.
+ */
+export interface StoreGameInstall {
+  /**
+   * Reviewed search hint. The source profile still verifies the actual files.
+   */
+  original_folder?: StoreOriginalFolder | null;
+  /**
+   * Canonical existing folder.
+   */
+  path: string;
+  /**
+   * Stable store product identity when the installation metadata supplies one.
+   */
+  product_id?: string | null;
+  /**
+   * The saved game-file folder at exactly this path, when there is one.
+   */
+  saved_root_id: string | null;
+  store: GameStore;
+  /**
+   * The store's title for the game; a label, never an identity.
+   */
+  title: string;
+  [k: string]: unknown;
+}
+export interface StoreOriginalFolder {
+  path: string;
+  profile_id: string;
+  [k: string]: unknown;
+}
 export interface OutputUpdateBatchOutcome {
   error: FailureReport | null;
   ok: boolean;
@@ -5601,80 +6813,33 @@ export interface ObservedResolution {
   release_id: number;
   [k: string]: unknown;
 }
-export interface ApplicationUpdateCheckResult {
-  candidate: ApplicationUpdateCandidateSummary | null;
-  kind: ApplicationUpdateCheckResultKind;
-  reasons: string[];
-  staged: boolean;
-  [k: string]: unknown;
-}
-export interface ApplicationUpdateCandidateSummary {
-  bytes: number;
-  channel: ApplicationChannel;
-  version: string;
-}
-export interface OutputDesktopApplicationUpdateManualCheckResult {
-  checked_channel: ApplicationChannel;
-  result: ApplicationUpdateCheckResult;
-  [k: string]: unknown;
-}
-export interface OutputDesktopApplicationUpdateNotice {
-  notice: ApplicationUpdateNotice | null;
-  revision: number;
-  [k: string]: unknown;
-}
-export interface ApplicationUpdateNotice {
-  preference_revision: number;
-  result: ApplicationUpdateCheckResult;
-  [k: string]: unknown;
-}
-export interface ApplicationUpdatePreferences {
+export interface OutputDesktopApplicationUpdatePreferences {
   /**
-   * `None` means the user has not completed the one-time choice.
+   * Check for updates at startup and periodically. A found update is only
+   * announced; installing always needs the player's click.
    */
-  choice: ApplicationUpdateChoice | null;
-  revision: number;
-  schema_version: number;
-}
-export interface ApplicationUpdateChoice {
-  channel: ApplicationChannel;
-  mode: ApplicationUpdateMode;
-  paused: boolean;
-}
-export interface ApplicationUpdateProductionTransition {
-  offer_required: boolean;
-  preference_revision: number;
-  schema_version: number;
-  [k: string]: unknown;
-}
-export interface OutputDesktopApplicationUpdateProductionTransitionResult {
-  preferences: ApplicationUpdatePreferences;
-  transition: ApplicationUpdateProductionTransition;
-  [k: string]: unknown;
+  automatic_checks: boolean;
+  channel: ApplicationUpdateChannel;
 }
 export interface OutputDesktopApplicationUpdateStatus {
-  apply: ApplicationUpdateApplySummary | null;
-  install_eligibility: ApplicationUpdateInstallEligibility;
-  recovery_required: ApplicationUpdateRecoveryNotice[];
-  schedule: ApplicationUpdateScheduleSummary | null;
-  staged: ApplicationUpdateCandidateSummary | null;
+  available: ApplicationUpdateAvailable | null;
+  checking: boolean;
+  current_version: string;
+  installing: boolean;
+  last_checked_unix_seconds: number | null;
   [k: string]: unknown;
 }
-export interface ApplicationUpdateApplySummary {
-  native_launch: ApplicationUpdateNativeLaunchSummary | null;
-  request: ApplicationUpdateRequestedAction;
-  revision: number;
-  termination: ApplicationUpdateObservedTermination | null;
-  [k: string]: unknown;
-}
-export interface ApplicationUpdateRecoveryNotice {
-  area: ApplicationUpdateRecoveryArea;
-  [k: string]: unknown;
-}
-export interface ApplicationUpdateScheduleSummary {
-  consecutive_failures: number;
-  last_success_unix_seconds: number | null;
-  next_automatic_check_unix_seconds: number | null;
+/**
+ * A newer signed release announced by the channel feed.
+ */
+export interface ApplicationUpdateAvailable {
+  channel: ApplicationUpdateChannel;
+  /**
+   * Publication date as written in the feed (RFC 3339).
+   */
+  date: string | null;
+  notes: string | null;
+  version: string;
   [k: string]: unknown;
 }
 export interface OutputDesktopBackupReview {
@@ -5695,7 +6860,21 @@ export interface OutputDesktopBootstrapStatus {
  * The exact text that will appear in the issue form, after redaction.
  */
 export interface OutputDesktopBugReportDraft {
+  /**
+   * Dropdowns the player picks; empty for a bug report.
+   */
+  choices: ReportChoice[];
   fields: BugReportField[];
+  [k: string]: unknown;
+}
+/**
+ * A dropdown from the issue form. Its value travels as a field with the same id
+ * and must be one of `options`.
+ */
+export interface ReportChoice {
+  id: string;
+  label: string;
+  options: string[];
   [k: string]: unknown;
 }
 export interface BugReportField {
@@ -5719,6 +6898,14 @@ export interface OutputDesktopCliCommandContext {
   executable: string | null;
   library_root: string;
   platform: Platform;
+  [k: string]: unknown;
+}
+/**
+ * Retained matches for the current registration of each source profile.
+ */
+export interface OutputDesktopGameFileScanRegisteredMatches {
+  candidates: SourceRecord[];
+  preliminary_selections: SourceInspection[];
   [k: string]: unknown;
 }
 export interface InstallBatchRecord {
@@ -5899,6 +7086,12 @@ export interface OutputDesktopPortIntentAssessments {
    * Intents left for a later pass because one pass is bounded.
    */
   not_assessed: number;
+  /**
+   * Whether the player wants ready notices. While off, a game set to be
+   * told is never reported as newly ready; nothing about its choice or its
+   * readiness changes, and set-up-when-ready games are unaffected.
+   */
+  ready_notices_enabled: boolean;
   [k: string]: unknown;
 }
 export interface PortIntentAssessment {
@@ -5952,6 +7145,20 @@ export interface PortMaintenance {
   update_policy: UpdatePolicy;
   [k: string]: unknown;
 }
+/**
+ * A recipe review's display data and its exact Core-owned import plan.
+ * JavaScript numbers cannot preserve every JSON number representation, so
+ * only the unchanged serialized plan is sent back for Core to verify and use.
+ */
+export interface OutputDesktopRecipeImportReview {
+  plan: RecipeImportPlan;
+  serialized_plan: string;
+  /**
+   * Exact native text in the same order as `plan.recipe.settings`.
+   */
+  setting_values: string[];
+  [k: string]: unknown;
+}
 export interface RootSetupConsent {
   enabled_at: number;
   enrollment: RootSetupEnrollment;
@@ -5967,6 +7174,13 @@ export interface RootSetupConsent {
    * until one is chosen; Portcove never sets up every fork.
    */
   implementations?: RootSetupImplementation[];
+  /**
+   * Copy each matched game's required files into Portcove's game-file
+   * folder instead of using them in place, so games that read their
+   * originals at launch don't need this folder connected. The originals
+   * are never moved. Off by default.
+   */
+  keep_local_copy?: boolean;
   root_id: string;
   updated_at: number;
   [k: string]: unknown;
@@ -5990,7 +7204,7 @@ export interface RootSetupImplementation {
   [k: string]: unknown;
 }
 /**
- * What one standing-setup pass did for each game it considered.
+ * What one standing pass did for the games and mods it considered.
  */
 export interface OutputDesktopStandingSetup {
   /**
@@ -6006,6 +7220,10 @@ export interface OutputDesktopStandingSetup {
    * Games that could not start; the others were not affected.
    */
   failures: StandingSetupFailure[];
+  /**
+   * The game setup queue could not be read. Mod updates still ran.
+   */
+  game_setup_unavailable?: string | null;
   /**
    * Provider updates for mod setups whose policy allows unattended updates.
    */
@@ -6073,6 +7291,13 @@ export interface OutputDesktopSteamArtworkReview {
   steam_client_state: SteamClientState;
   steam_root: string;
   steam_user_id: string;
+  /**
+   * Roles whose Portcove-added Steam image came from a SteamGridDB image
+   * Portcove has since removed from its library. Display only: it is not
+   * part of the reviewed plan, and removal still needs its own review.
+   * Empty when unknown.
+   */
+  withdrawn_sources: SteamArtworkWithdrawnSource[];
   writes_required: boolean;
   [k: string]: unknown;
 }
@@ -6082,6 +7307,14 @@ export interface OutputDesktopSteamArtworkReview {
 export interface SteamArtworkRecovery {
   abandoned: DestinationArtworkRole[];
   completed: DestinationArtworkRole[];
+  [k: string]: unknown;
+}
+export interface SteamArtworkWithdrawnSource {
+  role: DestinationArtworkRole;
+  /**
+   * When Portcove removed its own copy of the source image.
+   */
+  source_evicted_at: number;
   [k: string]: unknown;
 }
 export interface OutputDesktopSteamBatchReview {
@@ -6182,6 +7415,14 @@ export interface OutputDesktopSteamEntryReview {
   steam_root: string;
   steam_user_id: string;
   writes_required: boolean;
+  [k: string]: unknown;
+}
+/**
+ * An issue GitHub created from a submitted report.
+ */
+export interface OutputDesktopSubmittedReport {
+  number: number;
+  url: string;
   [k: string]: unknown;
 }
 export interface OutputDesktopSupportBundleExport {

@@ -247,7 +247,7 @@ impl GithubReleaseProvider {
         Ok(())
     }
 
-    fn catalog_candidate(
+    pub(super) fn catalog_candidate(
         &self,
         repository: &str,
         release: &GithubRelease,
@@ -281,14 +281,6 @@ impl GithubReleaseProvider {
                 )
             })?),
         };
-        let mut release_url =
-            reqwest::Url::parse(&format!("https://github.com/{repository}/releases/tag/"))
-                .map_err(|_| PortcoveError::verification("invalid GitHub repository"))?;
-        release_url
-            .path_segments_mut()
-            .map_err(|_| PortcoveError::verification("invalid GitHub release URL"))?
-            .pop_if_empty()
-            .push(&release.tag_name);
         Ok(CatalogDownloadCandidate {
             release_id: release
                 .id
@@ -301,7 +293,7 @@ impl GithubReleaseProvider {
                 .ok_or_else(|| PortcoveError::verification("release asset has no stable ID"))?
                 .into(),
             release_tag: release.tag_name.clone(),
-            release_url: release_url.into(),
+            release_url: catalog_release_page(repository, &release.tag_name)?,
             name: asset.name.clone(),
             size: asset.size,
             download_url: asset.browser_download_url.clone(),
@@ -336,19 +328,18 @@ impl GithubReleaseProvider {
         ))
     }
 
-    pub(crate) async fn catalog_release_candidate(
+    async fn catalog_release_asset(
         &self,
         repository: &str,
         release_id: u64,
         asset_id: u64,
-    ) -> Result<CatalogDownloadCandidate> {
+    ) -> Result<(GithubRelease, usize)> {
         if release_id == 0 || asset_id == 0 {
             return Err(PortcoveError::usage(
                 "release and asset IDs must be nonzero",
             ));
         }
-        // Refresh the exact immutable IDs for every preview and execution. Never
-        // accept a URL, size or checksum supplied by the caller.
+        // Verify the exact immutable IDs against the configured repository.
         let url = format!("{}/repos/{repository}/releases/{release_id}", self.api_root);
         let mut release: GithubRelease = self.get_json(&url).await?;
         if release.id != Some(release_id) || release.draft || release.assets.len() > ASSET_LIMIT {
@@ -363,8 +354,9 @@ impl GithubReleaseProvider {
         let mut matching = release
             .assets
             .iter()
-            .filter(|asset| asset.id == Some(asset_id));
-        let asset = matching.next().ok_or_else(|| {
+            .enumerate()
+            .filter(|(_, asset)| asset.id == Some(asset_id));
+        let (asset_index, _) = matching.next().ok_or_else(|| {
             PortcoveError::not_found("selected release asset is no longer available")
         })?;
         if matching.next().is_some() {
@@ -372,6 +364,35 @@ impl GithubReleaseProvider {
                 "release repeats the selected asset ID",
             ));
         }
+        Ok((release, asset_index))
+    }
+
+    pub(crate) async fn catalog_release_notes_url(
+        &self,
+        repository: &str,
+        release_id: u64,
+        asset_id: u64,
+    ) -> Result<String> {
+        let (release, asset_index) = self
+            .catalog_release_asset(repository, release_id, asset_id)
+            .await?;
+        self.require_catalog_asset_url(
+            repository,
+            &release.assets[asset_index].browser_download_url,
+        )?;
+        catalog_release_page(repository, &release.tag_name)
+    }
+
+    pub(crate) async fn catalog_release_candidate(
+        &self,
+        repository: &str,
+        release_id: u64,
+        asset_id: u64,
+    ) -> Result<CatalogDownloadCandidate> {
+        let (release, asset_index) = self
+            .catalog_release_asset(repository, release_id, asset_id)
+            .await?;
+        let asset = &release.assets[asset_index];
         let mut candidate = self.catalog_candidate(repository, &release, asset)?;
         // Existing bounded sidecar parsing remains the checksum authority. Its
         // requests use the same restricted, unauthenticated release transport.
@@ -407,6 +428,17 @@ impl GithubReleaseProvider {
         candidate.sha256 = candidate.sha256.or(sidecar);
         Ok(candidate)
     }
+}
+
+fn catalog_release_page(repository: &str, tag: &str) -> Result<String> {
+    if tag.is_empty() || tag.len() > 512 || tag.chars().any(char::is_control) {
+        return Err(PortcoveError::verification(
+            "release tag is empty or exceeds its bound",
+        ));
+    }
+    let url = format!("https://github.com/{repository}/releases/tag/");
+    crate::release_notes::web_url(&url, &[tag])
+        .ok_or_else(|| PortcoveError::verification("invalid GitHub release URL"))
 }
 
 #[cfg(test)]

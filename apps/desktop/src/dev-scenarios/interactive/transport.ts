@@ -11,7 +11,7 @@ import {
   workspace,
   type Journey,
 } from "./scenarios";
-import type { ArtworkSlot, OperationEvent, ApplicationUpdateCheckPhase } from "../../types";
+import type { ArtworkSlot, OperationEvent } from "../../types";
 import type { desktopApi } from "../../api";
 import { collectionArtwork } from "./collection-artwork";
 import { retainedSetup } from "./activity-fixtures";
@@ -122,6 +122,18 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
   const calls: string[] = [];
   // The library's snapshot setting, on by default like Core's.
   let automaticSnapshots = true;
+  let readyNotices = true;
+  let officialCatalogAutomatic = true;
+  let applicationUpdatePreferences: Awaited<
+    ReturnType<typeof desktopApi.applicationUpdatePreferences>
+  > = { channel: "beta", automatic_checks: false };
+  let applicationUpdateStatus: Awaited<ReturnType<typeof desktopApi.applicationUpdateStatus>> = {
+    current_version: "0.1.0",
+    checking: false,
+    installing: false,
+    available: null,
+    last_checked_unix_seconds: null,
+  };
   const unsupported = (command: string): never => {
     const message = `Unsupported fixture action: ${command}. No native action was performed.`;
     refuse(message);
@@ -178,6 +190,17 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       requireArgs("get_launch_failure", args, { portId: args.portId, generation });
       return null;
     },
+    // Fixture installations ship no Windows program for Core to read.
+    get_runtime_prerequisites: (args) => {
+      if (typeof args?.portId !== "string" || typeof args.installId !== "string")
+        return unsupported("get_runtime_prerequisites (unexpected arguments)");
+      requireArgs("get_runtime_prerequisites", args, {
+        portId: args.portId,
+        installId: args.installId,
+        generation,
+      });
+      return null;
+    },
     // Fixtures never run a setup batch, so none is left unfinished.
     get_unfinished_install_batches: (args) => {
       requireArgs("get_unfinished_install_batches", args, { generation });
@@ -192,9 +215,44 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       requireArgs("get_root_setup_consents", args, { generation });
       return [];
     },
+    run_standing_setup: (args) => {
+      if (!(args?.onEvent instanceof Channel))
+        return unsupported("run_standing_setup (unexpected channel)");
+      requireArgs("run_standing_setup", args, { generation, onEvent: args.onEvent });
+      return {
+        already_running: false,
+        assessments: [],
+        not_assessed: 0,
+        batches: [],
+        failures: [],
+      } satisfies Awaited<ReturnType<typeof desktopApi.runStandingSetup>>;
+    },
     assess_port_intents: (args) => {
       requireArgs("assess_port_intents", args, { generation });
-      return { assessments: [], not_assessed: 0 };
+      return { assessments: [], not_assessed: 0, ready_notices_enabled: readyNotices };
+    },
+    // Fixtures never start from a taskbar jump-list entry.
+    take_startup_play_request: (args) => {
+      requireArgs("take_startup_play_request", args, {});
+      return null;
+    },
+    get_ready_notices_enabled: (args) => {
+      requireArgs("get_ready_notices_enabled", args, { generation });
+      return readyNotices;
+    },
+    set_ready_notices_enabled: (args) => {
+      if (typeof args?.enabled !== "boolean")
+        return unsupported("set_ready_notices_enabled (unexpected arguments)");
+      requireArgs("set_ready_notices_enabled", args, { enabled: args.enabled, generation });
+      readyNotices = args.enabled;
+      return readyNotices;
+    },
+    get_dat_references: () => [] satisfies Awaited<ReturnType<typeof desktopApi.datReferences>>,
+    add_dat_reference: () => {
+      throw new Error("This scenario does not add DAT files.");
+    },
+    remove_dat_reference: () => {
+      throw new Error("This scenario has no saved DAT files.");
     },
     get_automatic_snapshots: (args) => {
       requireArgs("get_automatic_snapshots", args, { generation });
@@ -348,13 +406,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     },
     get_application_update_status: (args) => {
       requireArgs("get_application_update_status", args, {});
-      return {
-        schedule: null,
-        staged: null,
-        apply: null,
-        install_eligibility: "not-configured",
-        recovery_required: [],
-      } satisfies Awaited<ReturnType<typeof desktopApi.applicationUpdateStatus>>;
+      return applicationUpdateStatus;
     },
     get_listing_delivery_status: (args) => {
       requireArgs("get_listing_delivery_status", args, {});
@@ -381,9 +433,20 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         source: null,
         expected_plan: null,
       }) satisfies Awaited<ReturnType<typeof desktopApi.officialCatalogReview>>,
-    enable_official_catalog: () => {
-      throw new Error("This scenario has no configured official catalog.");
+    get_official_catalog_automatic_updates: () => officialCatalogAutomatic,
+    set_official_catalog_automatic_updates: (args) => {
+      if (typeof args?.enabled !== "boolean")
+        return unsupported("set_official_catalog_automatic_updates (unexpected arguments)");
+      requireArgs("set_official_catalog_automatic_updates", args, { enabled: args.enabled });
+      officialCatalogAutomatic = args.enabled;
+      return officialCatalogAutomatic;
     },
+    refresh_official_catalog_automatically: () =>
+      ({
+        outcome: "not_configured",
+        serving: null,
+        status: null,
+      }) satisfies Awaited<ReturnType<typeof desktopApi.refreshOfficialCatalogAutomatically>>,
     refresh_official_catalog: () => {
       throw new Error("This scenario has no configured official catalog.");
     },
@@ -470,6 +533,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         journey !== "recovery" || ["original", "moved"].includes(recoveryChoice ?? ""),
         recoveryChoice === "original" ? "fixture/original" : "fixture/library",
       );
+    },
+    get_default_library_root: (args) => {
+      requireArgs("get_default_library_root", args, {});
+      return "fixture/library";
     },
     reset_default_library: (args) => {
       requireArgs("reset_default_library", args, {});
@@ -649,60 +716,45 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         source: "anonymous",
       } satisfies Awaited<ReturnType<typeof desktopApi.githubAuthStatus>>;
     },
-    get_application_update_preferences: (args) => {
-      requireArgs("get_application_update_preferences", args, {});
-      return {
-        schema_version: 1,
-        revision: 1,
-        choice: { channel: "stable", mode: "notify-only", paused: true },
-      } satisfies Awaited<ReturnType<typeof desktopApi.applicationUpdatePreferences>>;
+    discover_steam_client_roots: (args) => {
+      requireArgs("discover_steam_client_roots", args, { generation });
+      return [];
     },
-    get_application_update_production_transition: (args) => {
-      requireArgs("get_application_update_production_transition", args, {});
-      return {
-        schema_version: 1,
-        preference_revision: 1,
-        offer_required: false,
-      } satisfies Awaited<ReturnType<typeof desktopApi.applicationUpdateProductionTransition>>;
-    },
-    get_application_update_notice: (args) => {
-      requireArgs("get_application_update_notice", args, {});
-      return { notice: null, revision: 0 } satisfies Awaited<
-        ReturnType<typeof desktopApi.applicationUpdateNotice>
+    get_steamgriddb_key_status: (args) => {
+      requireArgs("get_steamgriddb_key_status", args, {});
+      // Fixtures never hold a player key, so SteamGridDB stays unconfigured.
+      return { configured: false } satisfies Awaited<
+        ReturnType<typeof desktopApi.steamGridDbKeyStatus>
       >;
     },
-    check_application_update: (args) => {
-      const request = args?.request;
-      if (request != null && (typeof request !== "object" || Array.isArray(request)))
-        return unsupported("check_application_update (invalid request)");
-      const fields = (request ?? {}) as Record<string, unknown>;
+    get_application_update_preferences: (args) => {
+      requireArgs("get_application_update_preferences", args, {});
+      return applicationUpdatePreferences;
+    },
+    set_application_update_preferences: (args) => {
+      const preferences = args?.preferences;
+      if (!preferences || typeof preferences !== "object" || Array.isArray(preferences))
+        return unsupported("set_application_update_preferences (invalid preferences)");
+      const { channel, automatic_checks: automaticChecks } = preferences as Record<string, unknown>;
       requireArgs(
-        "check_application_update request",
-        fields,
-        fields.channel === undefined ? {} : { channel: fields.channel },
-      );
-      const selected = fields.channel ?? "preview";
-      if (selected !== "stable" && selected !== "preview")
-        return unsupported("check_application_update (invalid channel)");
-      if (!(args?.onEvent instanceof Channel))
-        return unsupported("check_application_update (missing event channel)");
-      requireArgs(
-        "check_application_update",
-        args,
-        args && "request" in args ? { request, onEvent: args.onEvent } : { onEvent: args?.onEvent },
-      );
-      const events = args.onEvent as Channel<ApplicationUpdateCheckPhase>;
-      events.onmessage("checking");
-      events.onmessage("complete");
-      return {
-        checked_channel: selected,
-        result: {
-          kind: "no-candidate",
-          candidate: null,
-          reasons: ["Renderer fixture only: no update service or native trust checks were run."],
-          staged: false,
+        "set_application_update_preferences preferences",
+        preferences as Record<string, unknown>,
+        {
+          channel,
+          automatic_checks: automaticChecks,
         },
-      } satisfies Awaited<ReturnType<typeof desktopApi.checkApplicationUpdate>>;
+      );
+      if ((channel !== "beta" && channel !== "preview") || typeof automaticChecks !== "boolean")
+        return unsupported("set_application_update_preferences (invalid preferences)");
+      requireArgs("set_application_update_preferences", args, { preferences });
+      applicationUpdatePreferences = { channel, automatic_checks: automaticChecks };
+      return applicationUpdatePreferences;
+    },
+    check_application_update: (args) => {
+      requireArgs("check_application_update", args, {});
+      // Renderer fixture only: no update feed or signature check is run.
+      applicationUpdateStatus = { ...applicationUpdateStatus, last_checked_unix_seconds: 1 };
+      return applicationUpdateStatus;
     },
     get_cli_command_context: (args) => {
       requireArgs("get_cli_command_context", args, { generation });
@@ -719,6 +771,37 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     get_game_file_scan_snapshot: (args) => {
       requireArgs("get_game_file_scan_snapshot", args, { generation });
       return null;
+    },
+    // Fixtures publish no saved scan, so there are no recorded matches to page.
+    get_game_file_scan_matches: (args) => {
+      const query = args?.query as { kind?: string; offset?: number } | undefined;
+      requireArgs("get_game_file_scan_matches", args, { generation, query });
+      return {
+        scan_id: null,
+        kind: query?.kind === "preliminary" ? "preliminary" : "exact",
+        offset: query?.offset ?? 0,
+        total: 0,
+        candidates: [],
+        preliminary_selections: [],
+        next_offset: null,
+      };
+    },
+    get_game_file_root_match_profiles: (args) => {
+      requireArgs("get_game_file_root_match_profiles", args, { generation, rootId: args?.rootId });
+      return [];
+    },
+    get_store_game_installs: (args) => {
+      const profileId = args?.profileId;
+      requireArgs("get_store_game_installs", args, {
+        generation,
+        ...(profileId !== undefined ? { profileId } : {}),
+      });
+      if (
+        profileId !== undefined &&
+        !workspace(journey).catalog.source_profiles?.some((profile) => profile.id === profileId)
+      )
+        return unsupported("get_store_game_installs (unknown profile)");
+      return { checked_stores: [], installs: [], skipped_entries: 0, limited: false };
     },
     get_backups: (args) => {
       if (!workspace(journey).catalog.ports.some((port) => port.id === args?.portId))
@@ -745,6 +828,21 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         state: "healthy",
       } satisfies Awaited<ReturnType<typeof desktopApi.backups>>;
     },
+    preview_portable_save_export: (args) => {
+      if (!workspace(journey).catalog.ports.some((port) => port.id === args?.portId))
+        return unsupported("preview_portable_save_export");
+      requireArgs("preview_portable_save_export", args, {
+        portId: args?.portId,
+        generation,
+      });
+      // Scenario ports have no reviewed portable-save contract.
+      return {
+        port_id: String(args?.portId),
+        files: [],
+        stays_local: [],
+        blockers: ["unqualified"],
+      } satisfies Awaited<ReturnType<typeof desktopApi.previewPortableSaveExport>>;
+    },
     get_artwork: (args) => {
       if (
         !(
@@ -753,7 +851,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
             (listing) => listing.id === args?.portId,
           )
         ) ||
-        !["cover", "detail"].includes(String(args?.slot))
+        !["cover", "detail", "landscape"].includes(String(args?.slot))
       )
         return unsupported("get_artwork");
       requireArgs("get_artwork", args, { portId: args?.portId, slot: args?.slot, generation });

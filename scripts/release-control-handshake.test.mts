@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
+import { GitHubApiError } from "./github-operation.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import {
   controlHandshakeArtifactName,
@@ -141,6 +142,99 @@ void test("coordinator artifact transfer has scoped headroom and retains a safe 
     await readFile(path.join(f.root, "control-ready-refusal.json"), "utf8"),
     /private provider response/u,
   );
+});
+
+void test("coordinator transfer re-joins the same just-listed archive after a bounded provider 404", async (t) => {
+  for (const role of ["ready", "observation"] as const) {
+    const f = await fixture(t, role, "coordinator");
+    const archive = await f.options.download();
+    let unavailable = 1;
+    const proof = await waitForControlArtifact(f.root, role, f.input, {
+      ...f.options,
+      download: async () => {
+        if (unavailable-- > 0)
+          throw new GitHubApiError("request_failed", "artifact archive pending", { status: 404 });
+        return archive;
+      },
+    });
+    assert.equal(proof.artifact.id, f.artifact.id);
+  }
+});
+
+void test("coordinator transfer 404 stays bounded, identity-bound and coordinator-only", async (t) => {
+  const missing = () => {
+    throw new GitHubApiError("request_failed", "artifact archive pending", { status: 404 });
+  };
+  const bounded = await fixture(t, "ready", "coordinator");
+  const phases: Record<string, unknown>[] = [];
+  let downloads = 0;
+  await assert.rejects(
+    waitForControlArtifact(bounded.root, "ready", bounded.input, {
+      ...bounded.options,
+      download: async () => {
+        downloads++;
+        return missing();
+      },
+      onRefusal: (receipt) => phases.push(receipt),
+    }),
+    /handoff refused/u,
+  );
+  assert.equal(downloads, 4);
+  assert.equal(phases[0]?.stage, "artifact-transfer");
+  assert.equal(phases[0]?.provider_status, 404);
+
+  for (const change of ["digest", "id"] as const) {
+    const changed = await fixture(t, "ready", "coordinator");
+    const archive = await changed.options.download();
+    let changedDownloads = 0;
+    await assert.rejects(
+      waitForControlArtifact(changed.root, "ready", changed.input, {
+        ...changed.options,
+        download: async () => {
+          if (++changedDownloads === 1) {
+            if (change === "digest") changed.artifact.digest = `sha256:${"0".repeat(64)}`;
+            else changed.artifact.id += 1;
+            return missing();
+          }
+          return archive;
+        },
+      }),
+      /handoff refused/u,
+    );
+    assert.equal(changedDownloads, 1, `${change} change must refuse before another download`);
+  }
+
+  const vanished = await fixture(t, "ready", "coordinator");
+  let vanishedDownloads = 0;
+  const vanishedPhases: Record<string, unknown>[] = [];
+  await assert.rejects(
+    waitForControlArtifact(vanished.root, "ready", vanished.input, {
+      ...vanished.options,
+      download: async () => {
+        vanishedDownloads++;
+        vanished.missing(Number.MAX_SAFE_INTEGER);
+        return missing();
+      },
+      onRefusal: (receipt) => vanishedPhases.push(receipt),
+    }),
+    /handoff refused/u,
+  );
+  assert.equal(vanishedDownloads, 1);
+  assert.equal(vanishedPhases[0]?.polls, 2, "a vanished pending artifact refuses on the next poll");
+
+  const other = await fixture(t, "observation", "payload");
+  let otherDownloads = 0;
+  await assert.rejects(
+    waitForControlArtifact(other.root, "observation", other.input, {
+      ...other.options,
+      download: async () => {
+        otherDownloads++;
+        return missing();
+      },
+    }),
+    /handoff refused/u,
+  );
+  assert.equal(otherDownloads, 1);
 });
 
 void test("legacy phase inventory keeps its own producer when the admission/shared name also exists", async (t) => {
@@ -304,6 +398,28 @@ void test("same active job ready artifact becomes readable before job completion
   assert.throws(() => {
     proof.body.facts_sha256 = "e".repeat(64);
   }, TypeError);
+});
+
+void test("coordinator refresh repeats one timed-out inventory without changing the original deadline", async (t) => {
+  for (const terminal of [false, true]) {
+    const f = await fixture(t, "ready", "coordinator", { index: 2, nonce: "a".repeat(64) });
+    const read = f.options.read;
+    let attempts = 0;
+    f.options.read = async (endpoint) => {
+      if (endpoint.includes("/artifacts?") && (++attempts === 1 || terminal)) {
+        throw new GitHubApiError("deadline_exceeded", "inert request timeout");
+      }
+      return read(endpoint);
+    };
+    const result = f.collect();
+    if (terminal) {
+      await assert.rejects(result, /retain exact attempt/u);
+      assert.equal(attempts, 2);
+    } else {
+      assert.equal((await result).artifact.id, f.artifact.id);
+      assert.equal(attempts, 3);
+    }
+  }
 });
 
 void test("actual immutable report permits live observer consumption without awaiting its queue or completion", async (t) => {

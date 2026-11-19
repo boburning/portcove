@@ -3,13 +3,13 @@
   "listing": {
     "id": "super-smash-bros-ultimate-ssbu-arena",
     "name": "Super Smash Bros. Ultimate (ssbu-arena)",
-    "summary": "An independently maintained OpenSmash fork for competitive Super Smash Bros. Ultimate 1v1, using AArch64-to-C translation and a Windows Vulkan player with its own relay/rollback. Network-impairment and rollback tests used two windows on one PC; ranked play, Elo and replays are planned. The README describes local source installation and says no prebuilt player, but the reviewed v0.2.7 release includes SSBU-Arena.exe, a player ZIP and manifest; that discrepancy remains. Windows 10/11 x64 is primary. Linux/macOS guide links do not establish exact CPU or gameplay support. Use your own 13.0.4 or 13.0.5 dump, keys and owned updates/DLC. Separate firmware requirements are unclear. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "SSBU Arena is an independent Windows fork for competitive one-on-one Super Smash Bros. Ultimate. The v0.2.52 release provides SSBU-Arena.exe to prepare and update the game from your own supported files. Upstream reported testing rollback with two windows on one PC. Portcove has yet to verify setup, matchmaking or gameplay.",
     "original_game_title": "Super Smash Bros. Ultimate",
-    "project_url": "https://github.com/Acid236/ssbu-arena",
+    "project_url": "https://github.com/SSBUArena/ssbu-arena",
     "listed_at": "2026-10-25",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Acid236/ssbu-arena",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/SSBUArena/ssbu-arena/releases/tag/v0.2.52",
     "artwork": {
       "game_id": 90101,
       "cover_id": 96089,
@@ -18,7 +18,38 @@
       "game_slug": "super-smash-bros-ultimate",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2938
+    "issue_number": 2938,
+    "release_url": "https://github.com/SSBUArena/ssbu-arena/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["SSBU-Arena.exe"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/SSBUArena/ssbu-arena/releases/tag/v0.2.52",
+      "steps": [
+        {
+          "title": "Supply your own game files",
+          "instruction": "Follow the instructions for your own Super Smash Bros. Ultimate dump, matching update, and any keys required for the selected build. The project documents 13.0.4 and 13.0.5."
+        },
+        {
+          "title": "Start the upstream launcher",
+          "instruction": "On Windows x64, choose SSBU-Arena.exe. Let the launcher install or update its companion files. The separate runtime archive and release manifest are for the launcher."
+        }
+      ],
+      "warnings": [
+        "The publisher requires compatible versions for online play. Linux and macOS availability and gameplay have not been verified by Portcove."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros-ultimate",
+      "evidence_urls": [
+        "https://github.com/SSBUArena/ssbu-arena",
+        "https://api.github.com/repositories/1428182133",
+        "https://api.github.com/repos/SSBUArena/ssbu-arena/contributors",
+        "https://api.github.com/repos/Acid236/ssbu-arena"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -30,6 +61,48 @@
         "id": "1428182133"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/Acid236/ssbu-arena",
+          "repository": {
+            "host": "github.com",
+            "id": "1428182133"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/SSBUArena/ssbu-arena",
+          "repository": {
+            "host": "github.com",
+            "id": "1428182133"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The repository moved from Acid236 to SSBUArena. GitHub only lets an administrator of the original repository transfer it, and Acid236 authored its history and remains a contributor. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1428182133",
+            "note": "Repository ID 1428182133, recorded when this port was listed, resolves to SSBUArena/ssbu-arena."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repos/SSBUArena/ssbu-arena/contributors",
+            "note": "Acid236 is listed among the current repository's contributors."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/Acid236/ssbu-arena",
+            "note": "The listed path resolves to SSBUArena/ssbu-arena, repository ID 1428182133."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "da8cbfa2ab4d648c9f308ab214c0d65c0a1dc2d5740e4f54694a64c4ccdac92c"
+        }
+      }
+    ]
   }
 }

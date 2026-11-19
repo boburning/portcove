@@ -7,7 +7,7 @@
     "summary": "Native Mega Man 64 recompilation.",
     "project_url": "https://github.com/MegaMan64Recomp/MegaMan64Recompiled",
     "listed_at": "2026-10-23",
-    "original_game_title": "Mega Man 64",
+    "original_game_title": "Mega Man Legends",
     "artwork": {
       "game_id": 400965,
       "cover_id": 569473,
@@ -16,7 +16,25 @@
       "game_slug": "mega-man-64-recompiled",
       "match_kind": "port"
     },
-    "issue_number": 96
+    "issue_number": 96,
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-legends",
+      "evidence_urls": [
+        "https://github.com/MegaMan64Recomp/MegaMan64Recompiled",
+        "https://www.emulation64.fr/pdf/N64%20-%20Mega%20Man%2064%20%28Anglais%29.pdf"
+      ],
+      "source_editions": [
+        {
+          "id": "mega-man-legends-nintendo-64",
+          "title": "Mega Man Legends (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "stable",

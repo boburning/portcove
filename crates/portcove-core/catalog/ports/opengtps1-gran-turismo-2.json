@@ -3,12 +3,12 @@
   "listing": {
     "id": "opengtps1-gran-turismo-2",
     "name": "OpenGTPS1 (Gran Turismo 2)",
-    "summary": "Windows Gran Turismo 2 project awaiting an upstream grant for its original code. Read the current licensing status; your existing files stay untouched.",
+    "summary": "Windows Gran Turismo 2 project whose upstream repository is no longer public. Its original code never received a license grant; your existing files stay untouched.",
     "project_url": "https://github.com/GTTeancum/OpenGTPS1",
     "issue_number": 743,
     "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],
-    "availability": "source-only",
+    "availability": "unavailable",
     "setup_url": "https://github.com/GTTeancum/OpenGTPS1/blob/d9e6af5dccf704383f28faf8d1b50633e2539046/README.md",
     "artwork": {
       "game_id": 1597,
@@ -22,12 +22,23 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Read the upstream licensing status",
-          "instruction": "The existing original-code permission hold is unresolved, and the current public GitHub release list is empty. Upstream’s older download references do not establish a current permitted player. Follow the linked licensing statement for changes; a future attributable grant and usable reviewed runtime/setup route can reopen acquisition review. This listing does not ask you to download or run a tool, or to remove an existing copy. Your existing files stay untouched."
+          "title": "Check the recorded licensing status",
+          "instruction": "The upstream repository is no longer public, and the original-code permission hold was never resolved. The linked licensing statement is a historical copy. If the project returns with an attributable grant and a usable reviewed runtime and setup route, Portcove can review it again. This listing does not ask you to download or run anything."
         }
       ],
       "warnings": [],
       "help_url": "https://github.com/GTTeancum/OpenGTPS1/blob/d9e6af5dccf704383f28faf8d1b50633e2539046/README.md"
-    }
+    },
+    "availability_override_reason": "GitHub no longer shows this project's repository (checked November 15, 2026). Portcove keeps this listing for reference. If the project becomes available again, Portcove can review it again.",
+    "original_game": {
+      "format_version": 1,
+      "id": "gran-turismo-2",
+      "evidence_urls": [
+        "https://github.com/GTTeancum/OpenGTPS1/blob/d9e6af5dccf704383f28faf8d1b50633e2539046/README.md",
+        "https://github.com/GTTeancum/OpenGTPS1"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Gran Turismo 2"
   }
 }

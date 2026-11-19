@@ -334,6 +334,7 @@ mod tests {
                 file_count: 1,
                 size: 3,
                 sha256: "a".repeat(64),
+                unknown_file_count: 0,
             },
             canonical_data: ghostship_data_store::reviewed_data(&root.join("data")).unwrap(),
             runtime_data: ghostship_data_store::reviewed_data(&root.join(RUNTIME_DATA)).unwrap(),

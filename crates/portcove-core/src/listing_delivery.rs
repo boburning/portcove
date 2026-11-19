@@ -32,6 +32,83 @@ mod projection_tests {
     use super::*;
 
     #[test]
+    fn legacy_delivery_preserves_only_same_scope_implementation_descriptions() {
+        let baseline = Catalog::embedded().unwrap();
+        let original = baseline.listing("zelda64-recomp").unwrap();
+        assert!(original.implementation.is_some());
+        let legacy = baseline.listing_document().export_format(11).unwrap();
+        let legacy = legacy
+            .listings
+            .iter()
+            .find(|listing| listing.id == original.id)
+            .unwrap();
+        for case in [
+            "legacy-same-scope",
+            "current-format-omission",
+            "changed-project",
+            "changed-game",
+            "changed-edition",
+            "missing-identity",
+            "new-id",
+        ] {
+            let mut delivered = legacy.clone();
+            delivered.summary = "Updated delivered summary.".into();
+            delivered.download_block_reason = Some("Preserve the delivered prerequisite.".into());
+            match case {
+                "changed-project" => delivered.project_url = "https://example.invalid/other".into(),
+                "changed-game" => {
+                    delivered.original_game.as_mut().unwrap().id = "other-game".into()
+                }
+                "changed-edition" => {
+                    delivered.original_game.as_mut().unwrap().source_editions[0].id =
+                        "other-edition".into();
+                }
+                "missing-identity" => delivered.original_game = None,
+                "new-id" => delivered.id = "separate-implementation".into(),
+                _ => {}
+            }
+            let id = delivered.id.clone();
+            let document = ListingDeliveryDocument {
+                listing_delivery_schema: 1,
+                revision: 1,
+                withdrawn_ids: vec![],
+                directory: CatalogListingDocument {
+                    format_version: if case == "current-format-omission" {
+                        12
+                    } else {
+                        11
+                    },
+                    listings: vec![delivered],
+                },
+            };
+            let document =
+                ListingDeliveryDocument::parse(&serde_json::to_vec(&document).unwrap()).unwrap();
+            let projected = document.project(baseline.clone()).unwrap();
+            let listing = projected.listing(&id).unwrap();
+            assert_eq!(
+                listing.implementation,
+                if case == "legacy-same-scope" {
+                    original.implementation.clone()
+                } else {
+                    None
+                },
+                "{case}"
+            );
+            assert_eq!(listing.summary, "Updated delivered summary.", "{case}");
+            assert_eq!(
+                listing.download_block_reason.as_deref(),
+                Some("Preserve the delivered prerequisite."),
+                "{case}"
+            );
+            assert_eq!(
+                serde_json::to_value(projected.authoritative_document()).unwrap(),
+                serde_json::to_value(baseline.authoritative_document()).unwrap(),
+                "{case}"
+            );
+        }
+    }
+
+    #[test]
     fn restricted_delivery_promotes_a_legacy_directory_without_granting_managed_authority() {
         let document = ListingDeliveryDocument::parse(
             &serde_json::to_vec(&serde_json::json!({
@@ -120,7 +197,20 @@ impl ListingDeliveryDocument {
                 .iter_mut()
                 .find(|current| current.id == listing.id)
             {
-                Some(current) => *current = listing.clone(),
+                Some(current) => {
+                    let mut replacement = listing.clone();
+                    // Older directories cannot express or withdraw format-12
+                    // explanations. Retain only the same project's exact game
+                    // scope; all fields that delivery understands remain its own.
+                    if self.directory.format_version < 12
+                        && replacement.implementation.is_none()
+                        && replacement.project_url == current.project_url
+                        && replacement.original_game == current.original_game
+                    {
+                        replacement.implementation = current.implementation.clone();
+                    }
+                    *current = replacement;
+                }
                 None => directory.listings.push(listing.clone()),
             }
         }
@@ -142,6 +232,8 @@ pub struct ListingDeliveryStatus {
     pub listing_count: usize,
     pub withdrawn_ids: Vec<String>,
     pub fallback_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_code: Option<crate::CatalogFallbackCode>,
 }
 
 impl Default for ListingDeliveryStatus {
@@ -157,11 +249,12 @@ impl Default for ListingDeliveryStatus {
             listing_count: 0,
             withdrawn_ids: vec![],
             fallback_reason: None,
+            fallback_code: None,
         }
     }
 }
 
-struct AuthenticatedListings {
+pub(crate) struct AuthenticatedListings {
     bytes: Vec<u8>,
     document: ListingDeliveryDocument,
     provenance: PolicyProvenance,
@@ -226,6 +319,7 @@ impl AuthenticatedListings {
             listing_count: self.document.directory.listings.len(),
             withdrawn_ids: self.document.withdrawn_ids.clone(),
             fallback_reason: None,
+            fallback_code: None,
         }
     }
 }
@@ -249,6 +343,11 @@ pub(crate) fn load(
         Ok(None) => (catalog, status),
         Err(error) => {
             status.selected = false;
+            status.fallback_code = Some(
+                error
+                    .catalog_fallback()
+                    .unwrap_or(crate::CatalogFallbackCode::ListingDirectoryUnavailable),
+            );
             status.fallback_reason = Some(error.message);
             (catalog, status)
         }
@@ -270,6 +369,20 @@ impl Library {
     }
 
     fn apply_listings(&self, candidate: AuthenticatedListings) -> Result<ListingDeliveryStatus> {
+        self.admit_listings(&candidate, true)
+    }
+
+    /// Every admission check of `apply_listings`, without writing. A scheduled
+    /// refresh uses it so a candidate this client would refuse records nothing.
+    pub(crate) fn check_listings(&self, candidate: &AuthenticatedListings) -> Result<()> {
+        self.admit_listings(candidate, false).map(|_| ())
+    }
+
+    fn admit_listings(
+        &self,
+        candidate: &AuthenticatedListings,
+        publish: bool,
+    ) -> Result<ListingDeliveryStatus> {
         candidate.provenance.require_fresh()?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -297,6 +410,10 @@ impl Library {
         let provenance = serde_json::to_string(&candidate.provenance)?;
         let document = std::str::from_utf8(&candidate.bytes)
             .map_err(|_| PortcoveError::verification("listing target must be UTF-8"))?;
+        if !publish {
+            // Dropping the transaction rolls it back; nothing was written.
+            return Ok(candidate.status());
+        }
         transaction.execute(
             "INSERT INTO listing_delivery(singleton,document_json,provenance_json) VALUES(1,?1,?2)
              ON CONFLICT(singleton) DO UPDATE SET document_json=excluded.document_json,provenance_json=excluded.provenance_json",
@@ -324,7 +441,7 @@ impl PortcoveService {
     }
 }
 
-async fn refresh<T: Transport + Send + Sync + 'static>(
+pub(crate) async fn refresh<T: Transport + Send + Sync + 'static>(
     service: &PortcoveService,
     source: &DefinitionRepositorySource,
     root: &[u8],
@@ -369,6 +486,66 @@ async fn refresh<T: Transport + Send + Sync + 'static>(
             "listing refresh acquisition timed out",
         ))
     });
+    let result = service.finish_activity(activity, result);
+    emit(operation.finished(OperationResult::from_result(&result)));
+    result
+}
+
+/// The scheduled refresh's acquisition: the same authenticated TUF path and
+/// strict parser as `refresh`, followed by every admission check, with no
+/// activity and no write. A candidate this client would refuse (outage, absent
+/// or expired publication, bad signature, newer format, replay) records nothing.
+pub(crate) async fn acquire_admissible<T: Transport + Send + Sync + 'static>(
+    library: &Library,
+    source: &DefinitionRepositorySource,
+    root: &[u8],
+    transport: T,
+) -> Result<AuthenticatedListings> {
+    let candidate = tokio::time::timeout(super::super::ACQUISITION_TIMEOUT, async {
+        let repository = super::super::load_repository(
+            root,
+            source.metadata_base_url.clone(),
+            source.targets_base_url.clone(),
+            transport,
+        )
+        .await?;
+        let (bytes, provenance) =
+            super::acquire_target_with_limit(&repository, root, TARGET, MAX_BYTES as u64).await?;
+        let document = ListingDeliveryDocument::parse(&bytes)?;
+        Ok(AuthenticatedListings {
+            bytes,
+            document,
+            provenance,
+        })
+    })
+    .await
+    .unwrap_or_else(|_| {
+        Err(PortcoveError::network(
+            "listing refresh acquisition timed out",
+        ))
+    })?;
+    library.check_listings(&candidate)?;
+    Ok(candidate)
+}
+
+/// Publishes an already acquired and checked candidate through the ordinary
+/// activity, cancellation and atomic admission owner.
+pub(crate) fn publish_acquired(
+    service: &PortcoveService,
+    candidate: AuthenticatedListings,
+    mut emit: impl FnMut(OperationEvent),
+) -> Result<ListingDeliveryStatus> {
+    let (activity, operation) = service.begin_cancellable_activity(
+        ActivityOperation::UpdateCatalog,
+        ActivityTargetKind::Library,
+        None,
+    )?;
+    emit(operation.started());
+    let result = (|| {
+        operation.checkpoint()?;
+        operation.begin_publication()?;
+        service.library().apply_listings(candidate)
+    })();
     let result = service.finish_activity(activity, result);
     emit(operation.finished(OperationResult::from_result(&result)));
     result

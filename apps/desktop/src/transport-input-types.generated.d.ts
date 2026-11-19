@@ -24,10 +24,11 @@ export type InputGameSettingChange =
       action: "reset";
     };
 export type InputDesktopAdoptionBatchItems = AdoptionBatchItem[];
-export type ApplicationChannel = "preview" | "stable";
-export type ApplicationUpdateMode = "automatic" | "notify-only" | "manual";
-export type InputDesktopApplicationUpdateProductionDecision = "use-stable" | "keep-preview";
-export type InputDesktopApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
+/**
+ * The application release feed a player follows. Beta is the default; Preview
+ * is an opt-in feed that receives builds before Beta.
+ */
+export type ApplicationUpdateChannel = "beta" | "preview";
 export type CatalogDownloadAssetId = number | CatalogForeignAssetId;
 export type CatalogForeignAssetId = {
   file_id: number;
@@ -42,6 +43,7 @@ export type CatalogForeignReleaseId = {
   provider: "gitlab";
   tag: string;
 };
+export type GameFileScanMatchKind = "exact" | "preliminary";
 export type InputDesktopInstallBatchRequestItems = InstallBatchRequestItem[];
 export type LibraryMembershipOrigin = "game_file_discovery" | "manual";
 export type InputDesktopLibraryMembershipRequests = LibraryMembershipRequest[];
@@ -135,7 +137,13 @@ export type SteamArtworkOperation =
   | {
       kind: "remove_owned";
       [k: string]: unknown;
+    }
+  | {
+      kind: "remove_owned_role";
+      role: DestinationArtworkRole;
+      [k: string]: unknown;
     };
+export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner";
 export type SteamEntryOperation = "add_or_repair" | "remove";
 
 export interface TransportInputs {
@@ -146,15 +154,12 @@ export interface TransportInputs {
   source_discovery_limits: SourceDiscoveryLimits;
   source_discovery_request: InputSourceDiscoveryRequest;
   desktop_adoption_batch_items: InputDesktopAdoptionBatchItems;
-  desktop_application_update_choice: InputDesktopApplicationUpdateChoice;
-  desktop_application_update_download_request: InputDesktopApplicationUpdateDownloadRequest;
-  desktop_application_update_manual_check_request: InputDesktopApplicationUpdateManualCheckRequest;
-  desktop_application_update_production_decision: InputDesktopApplicationUpdateProductionDecision;
-  desktop_application_update_recovery_area: InputDesktopApplicationUpdateRecoveryArea;
+  desktop_application_update_preferences: InputDesktopApplicationUpdatePreferences;
   desktop_bug_report_field: InputDesktopBugReportField;
   desktop_catalog_download_request: InputDesktopCatalogDownloadRequest;
   desktop_game_comparison_request: InputDesktopGameComparisonRequest;
   desktop_game_file_query_request: InputGameFileQueryRequest;
+  desktop_game_file_scan_match_query: InputDesktopGameFileScanMatchQuery;
   desktop_install_batch_request_items: InputDesktopInstallBatchRequestItems;
   desktop_install_input: InputDesktopInstallInput;
   desktop_library_membership_requests: InputDesktopLibraryMembershipRequests;
@@ -231,22 +236,13 @@ export interface AdoptionBatchItem {
   source: string;
   [k: string]: unknown;
 }
-export interface InputDesktopApplicationUpdateChoice {
-  channel: ApplicationChannel;
-  mode: ApplicationUpdateMode;
-  paused: boolean;
-}
-export interface InputDesktopApplicationUpdateDownloadRequest {
-  expected_candidate: ApplicationUpdateCandidateSummary;
-  expected_preference_revision: number;
-}
-export interface ApplicationUpdateCandidateSummary {
-  bytes: number;
-  channel: ApplicationChannel;
-  version: string;
-}
-export interface InputDesktopApplicationUpdateManualCheckRequest {
-  channel?: ApplicationChannel | null;
+export interface InputDesktopApplicationUpdatePreferences {
+  /**
+   * Check for updates at startup and periodically. A found update is only
+   * announced; installing always needs the player's click.
+   */
+  automatic_checks: boolean;
+  channel: ApplicationUpdateChannel;
 }
 export interface InputDesktopBugReportField {
   id: string;
@@ -287,6 +283,30 @@ export interface InputDesktopGameComparisonRequest {
    * presence describes a hypothetical source context, not a fresh file verification.
    */
   source_profile_ids?: string[] | null;
+}
+/**
+ * One page of the current saved-folder scan's retained matches.
+ */
+export interface InputDesktopGameFileScanMatchQuery {
+  kind: GameFileScanMatchKind;
+  /**
+   * 1 to 512 matches.
+   */
+  limit: number;
+  offset?: number;
+  /**
+   * Only matches for this source profile.
+   */
+  profile_id?: string | null;
+  /**
+   * Only matches inside this saved folder.
+   */
+  root_id?: string | null;
+  /**
+   * The scan the caller is paging; a different current scan is a conflict.
+   */
+  scan_id?: string | null;
+  [k: string]: unknown;
 }
 export interface InstallBatchRequestItem {
   /**

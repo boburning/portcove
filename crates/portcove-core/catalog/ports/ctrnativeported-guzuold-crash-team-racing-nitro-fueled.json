@@ -4,6 +4,14 @@
     "id": "ctrnativeported-guzuold-crash-team-racing-nitro-fueled",
     "name": "Crash Team Racing: Nitro-Fueled — CTRNativePorted (guzuold)",
     "original_game_title": "Crash Team Racing: Nitro-Fueled",
+    "artwork": {
+      "game_id": 113113,
+      "cover_id": 135934,
+      "image_id": "co2wvy",
+      "image_sha256": "dc3e0199d93b20f39ad8e6f7656f1efb7d0ebbb94fab91832b3ff5a3a70ce631",
+      "game_slug": "crash-team-racing-nitro-fueled",
+      "match_kind": "underlying-game"
+    },
     "summary": "For experimental 0.5.9, the project reports completing the game and races between two PCs. Network R8 remains incomplete for more than two players and other cases. Portcove has not confirmed campaign or online play. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/guzuold/CTRNativePorted",
     "listed_at": "2026-10-25",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/guzuold/CTRNativePorted"
     },
-    "issue_number": 3468
+    "issue_number": 3468,
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-team-racing-nitro-fueled",
+      "evidence_urls": ["https://github.com/guzuold/CTRNativePorted"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

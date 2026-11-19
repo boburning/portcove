@@ -1,0 +1,293 @@
+# Catalog publication (#246; owner decisions 2026-11-14 and 2026-11-15 on #534).
+# Signs the official catalog bundle `release/catalog-publication/bundle` with the
+# existing online catalog role keys and publishes the complete TUF repository to
+# `gh-pages/catalog/`, which installed clients verify against the compiled root.
+#
+# - A green `CI` push run on `main` publishes when the bundle or generated browse
+#   inputs differ, or its timestamp expires within 12 hours; nothing is built
+#   otherwise. Every trigger publishes the newest CI-green `main` commit.
+# - The schedule renews the 1-day timestamp and 7-day roles twice a day from the
+#   newest CI-green `main` commit. A manual run does the same.
+#
+# Each signing job runs in its own catalog signing environment, which only
+# admits `main`, and sees only its own key, in one step. Root and Targets stay
+# offline with the owner. There is no review gate.
+name: Catalog publish
+run-name: Catalog publish (${{ github.event_name }})
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: "13 5,17 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: catalog-publish
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: >-
+      github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      publish: ${{ steps.decide.outputs.publish }}
+      commit: ${{ steps.commit.outputs.commit }}
+      prior_digest: ${{ steps.prepare.outputs.prior_digest }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      # The GitHub client loads @octokit/core from the locked dependencies.
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Select the newest CI-green main commit
+        id: commit
+        run: |
+          set -euo pipefail
+          # Every trigger publishes the newest CI-green first-parent commit, so a
+          # re-run of an older CI run cannot publish an older bundle.
+          commit=$(node scripts/catalog-publish.mts green-main | sed -n 's/^commit=//p')
+          [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::no commit selected"; exit 1; }
+          git merge-base --is-ancestor "$commit" origin/main || { echo "::error::$commit is not on main"; exit 1; }
+          git checkout --quiet --detach "$commit"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+      - name: Read the published catalog
+        run: |
+          set -euo pipefail
+          # Fail closed: only a missing branch means nothing is published yet.
+          # ls-remote exits 2 only for a missing branch; any other failure stops the run.
+          rc=0; git ls-remote --exit-code --heads origin gh-pages > /dev/null || rc=$?
+          if [ "$rc" = 0 ]; then
+            git fetch --quiet origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
+            git worktree add --quiet --detach site refs/remotes/origin/gh-pages
+          elif [ "$rc" != 2 ]; then
+            echo "::error::Could not read gh-pages (git ls-remote exited $rc)"; exit 1
+          fi
+          if [ -d site/catalog ]; then echo "PRIOR=site/catalog" >> "$GITHUB_ENV"; else echo "PRIOR=none" >> "$GITHUB_ENV"; fi
+      - name: Decide whether to publish
+        id: decide
+        run: |
+          set -euo pipefail
+          unchanged=$(node scripts/catalog-publish.mts unchanged --bundle release/catalog-publication/bundle --prior "$PRIOR")
+          browse_prior=none; if [ "$PRIOR" != none ]; then browse_prior="$PRIOR/browse"; fi
+          browse_unchanged=$(node scripts/public-catalog.mts unchanged \
+            --listings crates/portcove-core/catalog/listings.json \
+            --catalog crates/portcove-core/catalog/catalog.json --prior "$browse_prior")
+          due=$(node scripts/catalog-publish.mts renewal-due --prior "$PRIOR" --hours 12)
+          if [ "$GITHUB_EVENT_NAME" = workflow_run ] && [ "$unchanged" = true ] && [ "$browse_unchanged" = true ] && [ "$due" = false ]; then
+            echo "The published catalog already serves this bundle."; echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: ./.github/actions/setup-rust
+        if: steps.decide.outputs.publish == 'true'
+      - name: Build the catalog tools
+        if: steps.decide.outputs.publish == 'true'
+        run: cargo build --locked --release -p portcove-cli -p portcove-release-tools
+      - name: Project completed shared observations into the existing descriptive target
+        if: steps.decide.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          node scripts/listing-observation-delivery.mts \
+            --bundle release/catalog-publication/bundle \
+            --canonical crates/portcove-core/catalog/listings.json \
+            --catalog crates/portcove-core/catalog/catalog.json \
+            --prior "$PRIOR" --output "$RUNNER_TEMP/observation-bundle" \
+            --cli target/release/portcove --tools target/release/portcove-release-tools \
+            --root crates/portcove-core/catalog/official-definition-root.json \
+            --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json
+          echo "BUNDLE=$RUNNER_TEMP/observation-bundle/bundle" >> "$GITHUB_ENV"
+      - name: Inspect the bundle and plan the next versions
+        id: prepare
+        if: steps.decide.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          scratch="$RUNNER_TEMP/inspect"; mkdir -p "$scratch"/{home,temp,config,cache,data,state}
+          # Core inspects inertly; an isolated home keeps it away from any library.
+          env -i PATH="$PATH" HOME="$scratch/home" TMPDIR="$scratch/temp" \
+            XDG_CONFIG_HOME="$scratch/config" XDG_CACHE_HOME="$scratch/cache" \
+            XDG_DATA_HOME="$scratch/data" XDG_STATE_HOME="$scratch/state" \
+            target/release/portcove --json catalog inspect-definition-publication \
+            "$BUNDLE" > "$RUNNER_TEMP/inspection.stdout"
+          node scripts/catalog-publish.mts prepare --work "$RUNNER_TEMP/catalog-work" \
+            --root crates/portcove-core/catalog/official-definition-root.json \
+            --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json \
+            --bundle "$BUNDLE" \
+            --inspection-stdout "$RUNNER_TEMP/inspection.stdout" \
+            --prior "$PRIOR" >> "$GITHUB_OUTPUT"
+          cp "$RUNNER_TEMP/observation-bundle/report.json" "$RUNNER_TEMP/catalog-work/observation-projection.json"
+          mkdir -p "$RUNNER_TEMP/catalog-tools"
+          cp target/release/portcove-release-tools "$RUNNER_TEMP/catalog-tools/"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.decide.outputs.publish == 'true'
+        with:
+          name: catalog-work
+          path: ${{ runner.temp }}/catalog-work
+          include-hidden-files: true
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.decide.outputs.publish == 'true'
+        with:
+          name: catalog-tools
+          path: ${{ runner.temp }}/catalog-tools
+          if-no-files-found: error
+
+  sign-definitions:
+    needs: prepare
+    if: needs.prepare.outputs.publish == 'true'
+    uses: ./.github/workflows/catalog-sign-role.yml
+    secrets: inherit
+    with:
+      role: official-definitions
+      commit: ${{ needs.prepare.outputs.commit }}
+
+  sign-policy:
+    needs: prepare
+    if: needs.prepare.outputs.publish == 'true'
+    uses: ./.github/workflows/catalog-sign-role.yml
+    secrets: inherit
+    with:
+      role: official-policy
+      commit: ${{ needs.prepare.outputs.commit }}
+
+  sign-snapshot:
+    needs: [prepare, sign-definitions, sign-policy]
+    uses: ./.github/workflows/catalog-sign-role.yml
+    secrets: inherit
+    with:
+      role: snapshot
+      commit: ${{ needs.prepare.outputs.commit }}
+
+  sign-timestamp:
+    needs: [prepare, sign-snapshot]
+    uses: ./.github/workflows/catalog-sign-role.yml
+    secrets: inherit
+    with:
+      role: timestamp
+      commit: ${{ needs.prepare.outputs.commit }}
+
+  publish:
+    needs: [prepare, sign-timestamp]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      COMMIT: ${{ needs.prepare.outputs.commit }}
+      PRIOR_DIGEST: ${{ needs.prepare.outputs.prior_digest }}
+    steps:
+      # Credentials stay for the gh-pages push.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: catalog-work
+          path: ${{ runner.temp }}/catalog-work
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: catalog-role-*
+          path: ${{ runner.temp }}/catalog-work/roles
+          merge-multiple: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: catalog-tools
+          path: ${{ runner.temp }}/catalog-tools
+      - name: Assemble the repository without keys
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/catalog-work"
+          chmod +x "$RUNNER_TEMP/catalog-tools/portcove-release-tools"
+          node scripts/catalog-publish.mts assembly-config --work "$work"
+          "$RUNNER_TEMP/catalog-tools/portcove-release-tools" assemble-definition-repository "$work/assembly.json"
+      - name: Generate public development catalog pages
+        run: |
+          set -euo pipefail
+          node scripts/public-catalog.mts \
+            --listings crates/portcove-core/catalog/listings.json \
+            --catalog crates/portcove-core/catalog/catalog.json \
+            --revision "$COMMIT" --observed-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --prior "$RUNNER_TEMP/catalog-work/prior-browse" \
+            --output "$RUNNER_TEMP/catalog-work/repository/browse"
+      - name: Publish the repository to the Pages branch
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          repository="$RUNNER_TEMP/catalog-work/repository"
+          for attempt in 1 2 3 4; do
+            git fetch --quiet origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
+            rm -rf site && git worktree add --quiet --force site refs/remotes/origin/gh-pages
+            # Only this workflow writes catalog/, and its runs are serialized; a
+            # different catalog means the plan is stale, so refuse rather than overwrite.
+            if [ "$(node scripts/catalog-publish.mts tree-digest --dir site/catalog)" != "$PRIOR_DIGEST" ]; then
+              echo "::error::gh-pages catalog/ changed since this run read it"; exit 1
+            fi
+            rm -rf site/catalog && cp -R "$repository" site/catalog
+            git -C site add -A catalog
+            git -C site commit --quiet -m "Publish the official catalog from $COMMIT"
+            if git -C site push --quiet origin HEAD:refs/heads/gh-pages; then exit 0; fi
+            git worktree remove --force site
+            sleep $((attempt * 5))
+          done
+          echo "::error::Could not publish the catalog to gh-pages"; exit 1
+      - name: Read the published timestamp and generated browse pages back
+        run: |
+          set -euo pipefail
+          expected=$(sha256sum "$RUNNER_TEMP/catalog-work/repository/metadata/timestamp.json" | cut -d' ' -f1)
+          browse_expected=$(sha256sum "$RUNNER_TEMP/catalog-work/repository/browse/index.html" | cut -d' ' -f1)
+          inputs_expected=$(sha256sum "$RUNNER_TEMP/catalog-work/repository/browse/inputs.json" | cut -d' ' -f1)
+          sample=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const rows=JSON.parse(readFileSync(process.argv[1],"utf8")); process.stdout.write((rows.find(row=>row.reviewed_game&&row.projects.length>1)??rows[0])?.url??"")' "$RUNNER_TEMP/catalog-work/repository/browse/search-index.json")
+          sample_expected=empty
+          if [ -n "$sample" ]; then sample_expected=$(sha256sum "$RUNNER_TEMP/catalog-work/repository/browse/$sample" | cut -d' ' -f1); fi
+          url="https://boburning.github.io/portcove/catalog/metadata/timestamp.json"
+          deadline=$((SECONDS + 900))
+          fetch_digest() {
+            local remaining=$((deadline - SECONDS))
+            if [ "$remaining" -le 0 ]; then echo unavailable; return; fi
+            local request_seconds=30; if [ "$remaining" -lt 30 ]; then request_seconds=$remaining; fi
+            local connect_seconds=10; if [ "$request_seconds" -lt 10 ]; then connect_seconds=$request_seconds; fi
+            curl -fsSL --connect-timeout "$connect_seconds" --max-time "$request_seconds" \
+              --max-filesize "$2" "$1" | sha256sum | cut -d' ' -f1 || true
+          }
+          attempt=0
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            attempt=$((attempt + 1))
+            actual=$(fetch_digest "$url?run=$GITHUB_RUN_ID-$attempt" 1048576)
+            browse_actual=$(fetch_digest "https://boburning.github.io/portcove/catalog/browse/index.html?run=$GITHUB_RUN_ID-$attempt" 67108864)
+            inputs_actual=$(fetch_digest "https://boburning.github.io/portcove/catalog/browse/inputs.json?run=$GITHUB_RUN_ID-$attempt" 8192)
+            sample_actual=empty
+            if [ -n "$sample" ]; then sample_actual=$(fetch_digest "https://boburning.github.io/portcove/catalog/browse/$sample?run=$GITHUB_RUN_ID-$attempt" 67108864); fi
+            if [ "$actual" = "$expected" ] && [ "$browse_actual" = "$browse_expected" ] && [ "$inputs_actual" = "$inputs_expected" ] && [ "$sample_actual" = "$sample_expected" ]; then echo "Pages serves the published timestamp and generated catalog pages."; exit 0; fi
+            remaining=$((deadline - SECONDS))
+            if [ "$remaining" -le 0 ]; then break; fi
+            if [ "$remaining" -gt 30 ]; then remaining=30; fi
+            sleep "$remaining"
+          done
+          echo "::warning::Pages did not serve the complete new timestamp and browse output within 15 minutes; check the Pages build."

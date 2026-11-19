@@ -8,7 +8,7 @@
     "issue_number": 2003,
     "listed_at": "2026-10-23",
     "availability": "packages",
-    "setup_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/blob/v0.2.5/README.md",
+    "setup_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port#readme",
     "artwork": {
       "game_id": 47685,
       "cover_id": 110864,
@@ -17,18 +17,36 @@
       "game_slug": "battletanx-global-assault",
       "match_kind": "underlying-game"
     },
-    "release_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/releases/tag/v0.2.5",
+    "release_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/releases",
     "manual_setup": {
       "steps": [
         {
           "title": "Select your original in the game",
-          "instruction": "Choose Play, then select your own BattleTanx: Global Assault USA Rev 0 big-endian .z64 dump when the game asks. This portable player validates and remembers that file without copying it. No build tool or installer is needed."
+          "instruction": "Choose Play, then select your own BattleTanx: Global Assault USA Rev 0 big-endian .z64 dump when the game asks. This portable player validates that file, remembers its location and keeps a copy in its own data folder. No build tool or installer is needed."
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/blob/v0.2.5/README.md"
+      "help_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port#readme"
     },
-    "original_game_title": "BattleTanx: Global Assault"
+    "original_game_title": "BattleTanx: Global Assault",
+    "original_game": {
+      "format_version": 1,
+      "id": "battletanx-global-assault",
+      "evidence_urls": [
+        "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port#readme",
+        "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port"
+      ],
+      "source_editions": [
+        {
+          "id": "battletanx-global-assault-nintendo-64",
+          "title": "BattleTanx: Global Assault (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/blob/3c074c3bd9e20e81c32a37b588a70ecd2073e128/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -49,7 +67,18 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Choose Play, then select your own BattleTanx: Global Assault USA Rev 0 big-endian .z64 dump when the game asks. This portable player validates and remembers that file without copying it. No build tool or installer is needed. The official portable package includes portable.txt and keeps settings, Controller Pak data, logs and texture packs in userdata beside the player. That directory is declared for compatible updates and backups. Your selected original ROM stays in its own location and is outside Portcove backup. A deliberate BTGA_DATA_DIR override also remains outside that backup. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed."
+      "manual_preparation": "Choose Play, then select your own BattleTanx: Global Assault USA Rev 0 big-endian .z64 dump when the game asks. This portable player validates that file, remembers its location and keeps a copy in its own data folder. No build tool or installer is needed. The official portable package includes portable.txt and keeps settings, Controller Pak data, logs and texture packs in userdata beside the player. That directory is declared for compatible updates and backups. Release v0.2.5 also writes a validated copy of your selected original ROM into userdata, so that copy is carried with compatible updates and included in Portcove backups; your original file also stays in its own location. A deliberate BTGA_DATA_DIR override also remains outside that backup. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": [
+          "battletanxga.exe",
+          "launch battletanx ga.cmd",
+          "run dedicated server.cmd",
+          "run-dedicated-server.ps1"
+        ]
+      }
     }
   }
 }

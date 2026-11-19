@@ -1,0 +1,50 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "puzzle-moppet-karjonas-native",
+    "name": "Puzzle Moppet",
+    "summary": "Push blocks and cross floating islands to solve Puzzle Moppet’s 3D puzzles.",
+    "original_game_title": "Puzzle Moppet",
+    "project_url": "https://github.com/karjonas/Puzzle-Moppet",
+    "issue_number": 6076,
+    "listed_at": "2026-11-17",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/karjonas/Puzzle-Moppet/blob/2026.09.30/README.md#releases",
+    "release_url": "https://github.com/karjonas/Puzzle-Moppet/releases/tag/2026.09.30",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Start the publisher package",
+          "instruction": "On Windows x64, extract the whole Win64 ZIP and open PuzzleMoppet.exe. On Linux x86-64, allow the AppImage to run as a program, then open it on a system with FUSE support. Both packages include the puzzles and game data."
+        },
+        {
+          "title": "Keep your completed puzzles",
+          "instruction": "Step into a portal and advance from the result screen so the game records your progress. Close the game before copying the Puzzle Moppet profile. Find it in %APPDATA% on Windows, in $XDG_DATA_HOME on Linux when set, or in ~/.local/share on Linux by default."
+        }
+      ],
+      "warnings": [
+        "Keep a copy of the whole profile when moving the game. The progress files and levelscores folder hold different parts of your progress."
+      ],
+      "references": [
+        {
+          "title": "Install the Windows runtime if needed",
+          "instruction": "The Windows player uses the Microsoft Visual C++ v14 x64 runtime. If Windows reports a missing MSVCP140 or VCRUNTIME140 DLL, get the x64 Redistributable from https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist/."
+        }
+      ],
+      "help_url": "https://github.com/karjonas/Puzzle-Moppet/blob/2026.09.30/README.md#releases"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "puzzle-moppet-karjonas-native",
+    "origin": {
+      "project_url": "https://github.com/karjonas/Puzzle-Moppet",
+      "repository": {
+        "host": "github.com",
+        "id": "202996079"
+      }
+    },
+    "decisions": []
+  }
+}

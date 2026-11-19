@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "rumble-roses-xx-pc-recomp-unofficial-jesustaylo-rumble-roses-xx",
+    "artwork": {
+      "game_id": 7167,
+      "cover_id": 113093,
+      "image_id": "co2f9h",
+      "image_sha256": "2edfed3a2a23ef487538b5b89d2353d48ec14e9d69fc988dbc423b1d5d3550de",
+      "game_slug": "rumble-roses-xx",
+      "match_kind": "underlying-game"
+    },
     "name": "Rumble Roses XX — Rumble Roses XX — PC recomp (unofficial) (JesusTaylo)",
     "original_game_title": "Rumble Roses XX",
     "summary": "The alpha reaches full matches on one IntelUHD PC. GPU-TDR and crash concerns remain. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/JesusTaylo/rumble-roses-xx-recomp"
     },
-    "issue_number": 3234
+    "issue_number": 3234,
+    "original_game": {
+      "format_version": 1,
+      "id": "rumble-roses-xx",
+      "evidence_urls": ["https://github.com/JesusTaylo/rumble-roses-xx-recomp"],
+      "source_editions": [
+        {
+          "id": "rumble-roses-xx-xbox-360",
+          "title": "Rumble Roses XX (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/JesusTaylo/rumble-roses-xx-recomp/blob/7c60384935b5391cf9e76fb1c162abac865575c2/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

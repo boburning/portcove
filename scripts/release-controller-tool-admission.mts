@@ -88,6 +88,28 @@ function predicateProfile(expected: ControllerToolArtifactExpected) {
     ? { schema_version: 2, platform: "windows-x86_64" }
     : { schema_version: 1 };
 }
+// An acknowledged upload can briefly be absent from the artifact REST API.
+async function readVisibleUpload<T>(
+  read: () => Promise<T>,
+  deadline: number,
+  waits: readonly number[],
+) {
+  for (const wait of waits) {
+    try {
+      return await read();
+    } catch (error) {
+      if (
+        !(error instanceof GitHubApiError) ||
+        error.status !== 404 ||
+        performance.now() + wait >= deadline
+      )
+        throw error;
+      await delay(wait);
+    }
+  }
+  return read();
+}
+
 function artifact(
   raw: unknown,
   expected: ControllerToolArtifactExpected,
@@ -116,7 +138,11 @@ function artifact(
     throw new Error("controller tool artifact provider identity differs");
   return { id, bytes: raw.size_in_bytes, sha256 };
 }
-function runIdentity(raw: unknown, expected: ControllerToolArtifactExpected) {
+function inspectControllerToolRunIdentity(
+  raw: unknown,
+  expected: ControllerToolArtifactExpected,
+  liveCoordinator = false,
+) {
   if (
     !isRecord(raw) ||
     raw.id !== Number(expected.run_id) ||
@@ -124,7 +150,8 @@ function runIdentity(raw: unknown, expected: ControllerToolArtifactExpected) {
     raw.head_sha !== expected.controller_revision ||
     raw.path !== productionControllerWorkflow ||
     raw.event !== "workflow_dispatch" ||
-    !["in_progress", "completed"].includes(String(raw.status)) ||
+    (!(raw.status === "queued" && raw.conclusion === null && liveCoordinator) &&
+      !["in_progress", "completed"].includes(String(raw.status))) ||
     (raw.conclusion !== null && raw.conclusion !== "success") ||
     !isRecord(raw.repository) ||
     raw.repository.id !== 1354613114 ||
@@ -238,25 +265,12 @@ export async function prepareControllerToolPredicate(
       const data = await metadata.artifact(expected.artifact_id);
       return artifact(data, expected, expected.artifact_id, expected.sha256);
     };
-    // The upload acknowledgment can precede visibility in the artifact REST API.
     const visibilityDeadline = deadline(15000);
-    const readVisibleUpload = async () => {
-      for (const wait of [500, 1500, 3000]) {
-        try {
-          return await read(visibilityDeadline);
-        } catch (error) {
-          if (
-            !(error instanceof GitHubApiError) ||
-            error.status !== 404 ||
-            performance.now() + wait >= visibilityDeadline
-          )
-            throw error;
-          await delay(wait);
-        }
-      }
-      return read(visibilityDeadline);
-    };
-    const before = await readVisibleUpload();
+    const before = await readVisibleUpload(
+      () => read(visibilityDeadline),
+      visibilityDeadline,
+      [500, 1500, 3000],
+    );
     await writeFile(path.join(attempt, "provider-before.json"), JSON.stringify(before), {
       flag: "wx",
       mode: 0o600,
@@ -415,10 +429,18 @@ export async function receiveControllerTools(
     spawn?: RetainedGitHubSpawn;
     fetch?: typeof globalThis.fetch;
     deadline?: number;
+    liveCoordinator?: { id: number; started_at: string };
   } = {},
 ) {
-  const { metadata: injectedMetadata, download: injectedDownload, spawn, fetch } = options;
+  const {
+    liveCoordinator: rawLiveCoordinator,
+    metadata: injectedMetadata,
+    download: injectedDownload,
+    spawn,
+    fetch,
+  } = options;
   const { deadline: requestedDeadline } = options;
+  const liveCoordinator = rawLiveCoordinator && structuredClone(rawLiveCoordinator);
   if (
     requestedDeadline !== undefined &&
     (!Number.isFinite(requestedDeadline) ||
@@ -485,9 +507,11 @@ export async function receiveControllerTools(
     }
     const metadata = provider;
     let requests = 0;
+    // Only coordinator custody can need one extra active-job read per snapshot.
+    const requestLimit = liveCoordinator ? 16 : 14;
     const get = async (read: () => Promise<unknown>) => {
       remaining(15000);
-      if (++requests > 12) throw new Error("bootstrap provider request bound exhausted");
+      if (++requests > requestLimit) throw new Error("bootstrap provider request bound exhausted");
       const body = await read();
       remaining(15000);
       if (Buffer.byteLength(JSON.stringify(body)) > 128 * 1024)
@@ -505,28 +529,62 @@ export async function receiveControllerTools(
         throw new Error("bootstrap source tree differs from provider commit");
       return { commit: commit.sha, tree: commit.tree.sha };
     };
-    const snapshot = async () => ({
-      source: await sourceIdentity(),
-      run: runIdentity(await get(() => metadata.run(expected.run_id)), expected),
-      attempt: runIdentity(
-        await get(() => metadata.attempt(expected.run_id, expected.run_attempt)),
+    let requiresLiveConfirmation = false;
+    const snapshot = async (initial = false) => {
+      const source = await sourceIdentity();
+      const rawRun = await get(() => metadata.run(expected.run_id));
+      const rawAttempt = await get(() => metadata.attempt(expected.run_id, expected.run_attempt));
+      const run = inspectControllerToolRunIdentity(rawRun, expected, liveCoordinator !== undefined);
+      const attempt = inspectControllerToolRunIdentity(
+        rawAttempt,
         expected,
-      ),
-      tools: artifact(
-        await get(() => metadata.artifact(expected.artifact_id)),
-        expected,
-        expected.artifact_id,
-        expected.sha256,
-      ),
-      bundle: artifact(
-        await get(() => metadata.artifact(bundle.artifact_id)),
-        expected,
-        bundle.artifact_id,
-        bundle.sha256,
-        true,
-      ),
-    });
-    const before = await snapshot();
+        liveCoordinator !== undefined,
+      );
+      requiresLiveConfirmation ||=
+        (isRecord(rawRun) && rawRun.status === "queued") ||
+        (isRecord(rawAttempt) && rawAttempt.status === "queued");
+      if (liveCoordinator && requiresLiveConfirmation) {
+        if (
+          process.env.GITHUB_RUN_ID !== expected.run_id ||
+          process.env.GITHUB_RUN_ATTEMPT !== String(expected.run_attempt) ||
+          process.env.GITHUB_SHA !== expected.controller_revision ||
+          process.env.GITHUB_REF !== expected.controller_ref
+        )
+          throw new Error("queued tool run is not the live fixed coordinator attempt");
+        if (++requests > requestLimit)
+          throw new Error("bootstrap provider request bound exhausted");
+        const { readControlBridgeOriginalJob } = await import("./release-control-step-bridge.mts");
+        const { job } = await readControlBridgeOriginalJob("coordinator", process.env, deadline);
+        if (job.id !== liveCoordinator.id || job.started_at !== liveCoordinator.started_at)
+          throw new Error("exact active coordinator job changed during tool custody");
+        remaining(15000);
+      }
+      return {
+        source,
+        run,
+        attempt,
+        tools: artifact(
+          await get(() => metadata.artifact(expected.artifact_id)),
+          expected,
+          expected.artifact_id,
+          expected.sha256,
+        ),
+        bundle: artifact(
+          await (initial
+            ? readVisibleUpload(
+                () => get(() => metadata.artifact(bundle.artifact_id)),
+                Math.min(deadline ?? Infinity, performance.now() + 15000),
+                [500, 1500],
+              )
+            : get(() => metadata.artifact(bundle.artifact_id))),
+          expected,
+          bundle.artifact_id,
+          bundle.sha256,
+          true,
+        ),
+      };
+    };
+    const before = await snapshot(true);
     await writeFile(path.join(directory, "provider-before.json"), JSON.stringify(before), {
       flag: "wx",
       mode: 0o600,

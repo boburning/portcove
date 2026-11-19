@@ -123,7 +123,7 @@ impl PortcoveService {
                     "an installed version failed verification before relocation",
                 )
                 .detail("install_id", &install.id)
-                .detail("failures", report.failures.join(", ")));
+                .detail("failures", report.findings().join(", ")));
             }
             installer.verify_critical(&install, &qualification)?;
             let name = install.path.file_name().ok_or_else(|| {
@@ -692,7 +692,7 @@ fn verify_staged(
                 "a staged relocation copy failed immutable verification",
             )
             .detail("install_id", &entry.install.id)
-            .detail("failures", report.failures.join(", ")));
+            .detail("failures", report.findings().join(", ")));
         }
         installer.verify_critical(&staged, &qualification)?;
     }
@@ -723,7 +723,7 @@ fn verify_new_authority(service: &PortcoveService, plan: &OutputRelocationPlan) 
                 "the authoritative relocated installation failed verification",
             )
             .detail("install_id", &entry.install.id)
-            .detail("failures", report.failures.join(", ")));
+            .detail("failures", report.findings().join(", ")));
         }
         installer.verify_critical(&relocated, &qualification)?;
     }

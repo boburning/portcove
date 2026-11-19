@@ -3,12 +3,12 @@
   "listing": {
     "id": "pilotwings-64-dgv-recomp",
     "name": "Pilotwings 64: Recompiled (Daniel Gomes Vieira)",
-    "summary": "Player-managed Pilotwings 64 setup on Windows and Linux using an original USA cartridge image.",
+    "summary": "Native Pilotwings 64 for Windows and Linux with an in-game picker for your own USA cartridge image; saves and settings stay in the player's profile.",
+    "original_game_title": "Pilotwings 64",
     "project_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp",
     "issue_number": 1275,
     "listed_at": "2026-10-23",
-    "platforms": ["windows-x86-64", "linux-x86-64"],
-    "availability": "unknown",
+    "availability": "packages",
     "artwork": {
       "game_id": 3573,
       "cover_id": 257550,
@@ -20,24 +20,82 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Prepare your original",
-          "instruction": "For an already permitted copy, keep the selected x64 package’s files together. Use your own 8 MiB Pilotwings 64 USA Rev 0 big-endian .z64 file in the upstream launcher. The direct input validator expects big-endian byte order."
+          "title": "Choose your original on first Play",
+          "instruction": "Choose Play, then Load ROM in the player and pick your own 8 MiB Pilotwings 64 USA Rev 0 cartridge image. The project recommends an unmodified big-endian .z64; the picker also converts byteswapped images of the same cartridge. The player checks the file and keeps its own copy in its profile, so keep your original separately."
         },
         {
-          "title": "Start the matching upstream player",
-          "instruction": "On Windows open Pilotwings64Recomp.exe. On Linux use Pilotwings64Recomp.sh from the extracted folder with system SDL2, GTK 3, FreeType and a working Vulkan driver. The inspected Linux executable requires glibc 2.43 and libstdc++ with GLIBCXX_3.4.32."
-        },
-        {
-          "title": "Preserve the actual profile",
-          "instruction": "Keep the selected profile and creating runtime. The default profile is LOCALAPPDATA/Pilotwings64Recomp on Windows and XDG_DATA_HOME/Pilotwings64Recomp on Linux, usually ~/.local/share/Pilotwings64Recomp. A portable.txt beside the executable keeps the profile alongside it."
+          "title": "Start a copy you manage yourself",
+          "instruction": "Extract the whole package to a writable folder. On Windows open Pilotwings64Recomp.exe. On Linux run Pilotwings64Recomp.sh or the Pilotwings64Recomp program from the extracted folder. To add that copy to Portcove, select the player and its folder and leave arguments empty; removing it from Portcove leaves every file in place."
         }
       ],
       "warnings": [
-        "The official frontend has since published a GPLv3 grant for the same code. The selected packages still have separate translated title code and the component conditions in their notices. Use an independently permitted copy.",
-        "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+        "The package includes recompiled game code that the project license does not cover, plus two RT64 shaders adapted from Shadertoy, possibly under a noncommercial Creative Commons license. Portcove downloads the package only from the project’s own releases. You need your own original game files.",
+        "Portcove has not observed native setup, gameplay or saves. The Linux player needs glibc 2.43, libstdc++ with GLIBCXX_3.4.32, SDL2, GTK 3, FreeType and a working Vulkan driver."
       ],
-      "help_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/README.md"
+      "help_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/README.md",
+      "references": [
+        {
+          "title": "Preserve the player's profile",
+          "instruction": "The profile is %LOCALAPPDATA%\\Pilotwings64Recomp on Windows and $XDG_DATA_HOME/Pilotwings64Recomp on Linux, usually ~/.local/share/Pilotwings64Recomp. It holds the copied original, saves, settings and mods, and on Windows possibly pw64.log. A portable.txt in the player's folder keeps the profile in that folder instead. Close the game and back up the profile before replacing a copy you manage yourself."
+        }
+      ]
     },
-    "download_block_reason": "Fresh Portcove downloads are held for the selected packages while the applicable basis for translated title code and the component conditions in the bundled notices remain unresolved. The later GPLv3 grant covers the official frontend code; it does not resolve those separate conditions. Independently permitted copies retain their own setup route."
-  }
+    "release_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/releases",
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "pilotwings-64",
+      "evidence_urls": [
+        "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/README.md",
+        "https://github.com/danielgomesvieira2000/pilotwings-64-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "pilotwings-64-nintendo-64",
+          "title": "Pilotwings 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/README.md"
+          ]
+        }
+      ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "danielgomesvieira2000/pilotwings-64-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["Pilotwings64Recomp-", "-windows-x64.zip"],
+        "linux-x86-64": ["Pilotwings64Recomp-", "-linux-x86_64.tar.gz"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["Pilotwings64Recomp.exe"],
+      "linux-x86-64": ["Pilotwings64Recomp"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "On first Play, choose Load ROM and pick your own 8 MiB Pilotwings 64 USA Rev 0 cartridge image. The player checks it and keeps a copy in its profile, together with saves, settings and mods; keep your original separately. The profile is %LOCALAPPDATA%\\Pilotwings64Recomp on Windows and $XDG_DATA_HOME/Pilotwings64Recomp on Linux, usually ~/.local/share/Pilotwings64Recomp. A copy you manage yourself without portable.txt shares that profile. Portcove refuses to start a managed copy that contains portable.txt. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. The Linux player needs glibc 2.43 or later. Portcove replaces the player; you own the original and the profile."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["assets", "licenses"],
+        "executables": ["pilotwings64recomp.exe"]
+      },
+      "linux-x86-64": {
+        "classify_linux_programs_by_format": true,
+        "directories": ["assets", "licenses"],
+        "executables": ["pilotwings64recomp", "pilotwings64recomp.sh"]
+      }
+    }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"]
 }

@@ -224,6 +224,10 @@ impl PortcoveService {
             return Ok(None);
         }
         let old = self.installed_port(&active)?;
+        // Enter the policy reviewed for the creating scope; appended settings
+        // files follow later as an ordinary additive successor.
+        let target = crate::archive_data_transition::data_target(&old, target);
+        let target = &target;
         if old.archive_data_compatibility_v1.is_some()
             || Installer::new(self.library.clone())?
                 .archive_data_port(&active)?
@@ -491,8 +495,11 @@ impl PortcoveService {
             ));
         }
         let authority = intent.authority.catalog(&operation.port_id)?;
-        if crate::archive_data::policy_sha256(authority.port(&operation.port_id)?)?
-            != intent.review.policy_sha256
+        if crate::archive_data::lineage_member(
+            authority.port(&operation.port_id)?,
+            &intent.review.policy_sha256,
+        )?
+        .is_none()
         {
             return Err(held("data transition policy identity changed"));
         }
@@ -728,7 +735,12 @@ impl PortcoveService {
     ) -> Result<()> {
         let (root, mut intent) = self.read_transition_intent(operation)?;
         let authority = intent.authority.catalog(&operation.port_id)?;
-        let port = authority.port(&operation.port_id)?;
+        let port = crate::archive_data::lineage_member(
+            authority.port(&operation.port_id)?,
+            &intent.review.policy_sha256,
+        )?
+        .ok_or_else(|| held("data transition policy identity changed"))?;
+        let port = &port;
         let user = self.library.user_dir(&operation.port_id);
         let stage = root.join("staged-data");
         let previous = root.join("previous-data");

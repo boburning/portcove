@@ -11,6 +11,7 @@ import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dialog";
 import { ReviewedRemovalFooter } from "./ReviewedRemovalFooter";
 import { useAppTranslation } from "../localization";
+import { formatBytes } from "../view-model";
 
 export type ApplyRemoval = (expectedPreview: string) => Promise<ReviewOutcome>;
 
@@ -121,6 +122,33 @@ export function RemovalReviewDialog({
             <p className="[overflow-wrap:anywhere]" dir="ltr">
               {preview.persistent_data_path}
             </p>
+            {(preview.unknown_file_count ?? 0) > 0 && (
+              <>
+                <p className="[overflow-wrap:anywhere]">
+                  <strong>{t("unknownFiles", { total: preview.unknown_file_count ?? 0 })}</strong>
+                </p>
+                <ul>
+                  {(preview.unknown_files ?? []).map((path) => (
+                    <li className="[overflow-wrap:anywhere]" dir="ltr" key={path}>
+                      {path}
+                    </li>
+                  ))}
+                </ul>
+                {(preview.unknown_file_count ?? 0) > (preview.unknown_files ?? []).length && (
+                  <p className="[overflow-wrap:anywhere]">
+                    {t("unknownFilesUnlisted", {
+                      total:
+                        (preview.unknown_file_count ?? 0) - (preview.unknown_files ?? []).length,
+                    })}
+                  </p>
+                )}
+                {(preview.unknown_file_bytes ?? 0) > 0 && (
+                  <p className="[overflow-wrap:anywhere]">
+                    {t("unknownFilesSize", { size: formatBytes(preview.unknown_file_bytes ?? 0) })}
+                  </p>
+                )}
+              </>
+            )}
             <p className="[overflow-wrap:anywhere]">{t("kept")}</p>
             <p className="[overflow-wrap:anywhere]">{t("irreversible")}</p>
             <p className="[overflow-wrap:anywhere]">{t("interrupted")}</p>

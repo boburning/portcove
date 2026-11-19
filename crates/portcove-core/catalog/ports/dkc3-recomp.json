@@ -48,8 +48,24 @@
           "instruction": "The v0.0.6 release reuses the exact v0.0.4 Mac bundle. See https://github.com/elliotttate/DKC3Recomp/releases/tag/v0.0.6 for the publisher’s package and platform notes."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "donkey-kong-country-3-dixie-kong-s-double-trouble",
+      "evidence_urls": ["https://github.com/elliotttate/DKC3Recomp"],
+      "source_editions": [
+        {
+          "id": "donkey-kong-country-3-dixie-kong-s-double-trouble-super-nintendo",
+          "title": "Donkey Kong Country 3: Dixie Kong's Double Trouble! (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/elliotttate/DKC3Recomp/blob/3a033f19801a2bd3abf784d4b29c4462495d19de/runner/verified_rom.c"
+          ]
+        }
+      ]
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -74,18 +90,27 @@
         {
           "role": "game",
           "profile_id": "dkc3-na-en-fr",
-          "label": "Donkey Kong Country 3 (North America, En/Fr) headerless SNES source",
+          "label": "Donkey Kong Country 3 (North America, En/Fr) SNES source",
           "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own headerless North American English/French DKC3 .sfc. Portcove installs the checked Windows package and manages its default local saves separately from existing external copies. This build needs a short installation folder using basic Latin characters; original files can stay where they are. The reviewed v0.0.6 build had a game-logic failure during startup; later releases have not been observed running here. Gameplay, visual correctness and save/load remain unqualified."
+      "manual_preparation": "Select your own North American English/French DKC3 .sfc or .smc, with or without a copier header. Portcove installs the checked Windows package and manages its default local saves separately from existing external copies. This build needs a short installation folder using basic Latin characters; original files can stay where they are. The reviewed v0.0.6 build had a game-logic failure during startup; later releases have not been observed running here. Gameplay, visual correctness and save/load remain unqualified.",
+      "manual_setup": {
+        "warnings": ["Choose a short installation folder that uses basic Latin characters."],
+        "steps": [
+          {
+            "title": "Set up the managed copy",
+            "instruction": "Use your own North American English/French DKC3 ROM. Portcove accepts .sfc or .smc files with or without a copier header."
+          }
+        ]
+      }
     },
     "launch_environment": {
       "SNESRECOMP_NO_LAUNCHER": "1"
     },
     "runtime_source_filename": "dkc3.sfc",
-    "runtime_source_materialization": "copy",
+    "runtime_source_materialization": "snes-headerless",
     "runtime_source_hashes": {
       "dkc3.sfc": "2277a2d8dddb01fe5cb0ae9a0fa225d42b3a11adccaeafa18e3c339b3794a32b"
     },

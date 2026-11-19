@@ -1,0 +1,63 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "little-fighter-2-lf2-port",
+    "artwork": {
+      "game_id": 8700,
+      "cover_id": 205763,
+      "image_id": "co4ern",
+      "image_sha256": "255b5e8101679f9cc05c4c5e22dd5c5b5f9e42cf37d305bc8d82bc4e4a16b235",
+      "game_slug": "little-fighter-2",
+      "match_kind": "underlying-game"
+    },
+    "name": "Little Fighter 2 / LF2 Port",
+    "summary": "Run the original Little Fighter 2 v2.0a game data with LF2 Port's native Linux player.",
+    "project_url": "https://github.com/SomeoneIsWorking/lf2-port",
+    "issue_number": 6111,
+    "listed_at": "2026-11-15",
+    "original_game_title": "Little Fighter 2",
+    "platforms": ["linux-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/SomeoneIsWorking/lf2-port/releases/tag/v0.1.2",
+    "manual_setup": {
+      "help_url": "https://github.com/SomeoneIsWorking/lf2-port/blob/v0.1.2/README.md",
+      "steps": [
+        {
+          "title": "Prepare a separate game copy",
+          "instruction": "Use the original developers' Little Fighter 2 v2.0a installer. Extract it with the upstream tagged helper into a new writable folder, or copy a complete already-extracted v2.0a tree. Keep the original installer and any original extracted tree separately."
+        },
+        {
+          "title": "Set up the Linux x64 AppImage",
+          "instruction": "Make LF2-Port-x86_64.AppImage executable. Put the working tree in a folder named game beside it, or open the upstream picker and choose lf2.exe from the complete working tree. To import a complete ZIP, choose ZIP archive in the file-type menu if the picker starts with the executable filter."
+        },
+        {
+          "title": "Add the working Linux player",
+          "instruction": "Once the AppImage works on your system, select it in Portcove and keep its containing folder as the start folder. Save the launch details, then choose Play. Removing the registration leaves the working tree in place."
+        }
+      ],
+      "warnings": [
+        "This upstream player includes translated original game code. The original game and its data remain under the original developers' terms.",
+        "Use a separate writable working tree. The game can write files inside it as well as in the port profile. Back up both locations before replacing the player. A successful new ZIP import replaces the previous imported tree, so preserve its recordings and changes first."
+      ],
+      "references": [
+        {
+          "title": "Preserve the selected game and profile",
+          "instruction": "Keep the working game tree and the lf2-port profile under XDG_CONFIG_HOME or ~/.config. The port stores a ZIP import under game-import in its profile. Preserve that selected tree, lf2.cfg and any recordings or mods that you add."
+        },
+        {
+          "title": "Check Linux and other platform options",
+          "instruction": "Linux v0.1.2 has an x64 AppImage. Launch it with APPIMAGE_EXTRACT_AND_RUN=1 if FUSE is unavailable. Music needs ffmpeg on PATH. The release also offers a separate ARM64 Android 7 or later debug preview with a folder or ZIP import. macOS uses the upstream source build. The original Windows game is a separate player."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "little-fighter-2",
+      "evidence_urls": [
+        "https://github.com/SomeoneIsWorking/lf2-port/blob/v0.1.2/README.md",
+        "https://github.com/SomeoneIsWorking/lf2-port"
+      ],
+      "source_editions": []
+    }
+  }
+}

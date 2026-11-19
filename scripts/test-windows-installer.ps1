@@ -500,7 +500,7 @@ namespace Portcove.HistoricalBootstrap {
     $profiles
 }
 
-function Invoke-ApplicationSmoke([string]$Application, [string]$Role, [string]$ExpectedWebViewDirectory = '') {
+function Invoke-ApplicationSmoke([string]$Application, [string]$Role, [string]$ExpectedWebViewDirectory = '', [string]$ExpectedLibraryDatabase = '') {
     $launch = Start-JournaledProcess $Role $Application @()
     $process = $launch.process
     try {
@@ -512,9 +512,19 @@ function Invoke-ApplicationSmoke([string]$Application, [string]$Role, [string]$E
                 Complete-JournaledProcess $launch.run $process "exit_observed"
                 throw "Installed application exited before the smoke check completed"
             }
-        } while ((-not $process.Responding -or -not $process.MainWindowTitle) -and (Get-Date) -lt $deadline)
-        if (-not $process.Responding -or -not $process.MainWindowTitle) {
+            $windowReady = $process.Responding -and [bool]$process.MainWindowTitle
+            # Native window creation can precede the renderer's first library request.
+            $libraryReady = -not $ExpectedLibraryDatabase
+            if ($ExpectedLibraryDatabase) {
+                $database = [IO.FileInfo]::new($ExpectedLibraryDatabase)
+                $libraryReady = $database.Exists -and $database.Length -gt 0
+            }
+        } while ((-not $windowReady -or -not $libraryReady) -and (Get-Date) -lt $deadline)
+        if (-not $windowReady) {
             throw "The installed app did not open a responsive Portcove window. Inspect the retained installer test evidence at $runRoot before retrying."
+        }
+        if (-not $libraryReady) {
+            throw "The installed app did not initialize its isolated library database before the smoke deadline."
         }
         $title = $process.MainWindowTitle
         $observedWebView = if ($ExpectedWebViewDirectory) { @(Get-HistoricalWebViewProfile $process $ExpectedWebViewDirectory) } else { @() }
@@ -1872,7 +1882,7 @@ try {
         $qualificationSid = if ($nativeAccount) { [string]$nativeAccount.binding.account_sid } else { '' }
         Assert-InstallerUserRegistration ([string]$registryEntries[0].PSPath) $qualificationSid $(if ($nativeAccount) { [string]$registryEntries[0].account_sid } else { '' })
     }
-    $smoke = Invoke-ApplicationSmoke $application "candidate_smoke"
+    $smoke = Invoke-ApplicationSmoke $application "candidate_smoke" -ExpectedLibraryDatabase (Join-Path $libraryRoot "portcove.sqlite3")
     if ((Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) {
         throw "Installation or application startup changed the isolated persistent-data marker"
     }

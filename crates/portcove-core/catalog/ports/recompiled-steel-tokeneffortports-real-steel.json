@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "recompiled-steel-tokeneffortports-real-steel",
+    "artwork": {
+      "game_id": 47447,
+      "cover_id": 157649,
+      "image_id": "co3dn5",
+      "image_sha256": "4bf0095a6f353ab9cf21f36864271b36beddecaa3666fb745dfac212322976f6",
+      "game_slug": "real-steel",
+      "match_kind": "underlying-game"
+    },
     "name": "Real Steel — ReCompiled Steel (tokeneffortports)",
     "original_game_title": "Real Steel",
     "summary": "The project advertises Vulkan, multiplayer and mods. Complete-game coverage is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -25,7 +33,13 @@
         "The project advertises Vulkan, multiplayer and mods. Complete-game coverage is unknown.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/tokeneffortports/ReCompiledSteel"
+      "help_url": "https://github.com/tokeneffortports/ReCompiledSteel",
+      "references": [
+        {
+          "title": "Prepare the Real Steel Android package",
+          "instruction": "ReCompiledSteel v0.2.0 publishes ReCompiledSteel-android-arm64-0.2.0.apk. Select the folder containing your own Xbox 360 game and its title update in Install game files. The project puts the imported data in its RealSteel folder. After setup, use Start in the app."
+        }
+      ]
     },
     "issue_number": 3253
   },

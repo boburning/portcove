@@ -26,7 +26,7 @@
         },
         {
           "title": "Start the managed Linux AppImage",
-          "instruction": "Install the stable x86-64 AppImage in Portcove and choose Play. Your Linux system needs AppImage support. The package includes the freeware resources and its own SDL2 libraries. For a custom OpenOMF override or alternate resource set, keep a separately prepared copy."
+          "instruction": "Install the stable x86-64 AppImage in Portcove and choose Play. Your Linux system needs AppImage support. The package includes the freeware resources and SDL2. The v0.8.6 AppImage also needs your system’s libjack.so.0 and libpipewire-0.3.so.0. Use your distribution’s packages if Play reports either library missing. For a custom OpenOMF override or alternate resource set, keep a separately prepared copy."
         },
         {
           "title": "Prepare the upstream Apple Silicon package",
@@ -53,6 +53,24 @@
     "download_asset_hints": {
       "linux-x86-64": ["OpenOMF-", "-x86_64.AppImage"],
       "macos-aarch64": ["openomf_", "_macos", "_arm.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "one-must-fall-2097",
+      "evidence_urls": [
+        "https://github.com/omf2097/openomf/blob/master/PATHS.md",
+        "https://github.com/omf2097/openomf"
+      ],
+      "source_editions": [
+        {
+          "id": "one-must-fall-2097-pc",
+          "title": "One Must Fall: 2097 (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/omf2097/openomf/blob/801d29720ae648c1e8675b8b34f0227950a8d819/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {
@@ -77,7 +95,13 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "The official packages include the freeware One Must Fall 2097 resources. Choose Play after installation. The Windows ZIP includes an ARM64 player alongside the managed x86-64 executable. The managed Linux route uses the stable x86-64 AppImage and its bundled resources. OpenOMF keeps configuration and state in its external profile, normally AppData/OpenOMF on Windows or ~/.local/share/OpenOMF on Linux. On Linux, explicit XDG_CONFIG_HOME and XDG_STATE_HOME select their own absolute locations, and XDG_DATA_HOME can change the SDL preference root. Back up settings, saves, scores, screenshots, recordings and user mods separately. Use a separately prepared copy for custom OpenOMF overrides or alternate resources. Package resources and bundled mods stay with their installed version."
+      "manual_preparation": "The official packages include the freeware One Must Fall 2097 resources. Choose Play after installation. The Windows ZIP includes an ARM64 player alongside the managed x86-64 executable. The managed Linux route uses the stable x86-64 AppImage and its bundled resources. The v0.8.6 AppImage needs the system libraries libjack.so.0 and libpipewire-0.3.so.0. OpenOMF keeps configuration and state in its external profile, normally AppData/OpenOMF on Windows or ~/.local/share/OpenOMF on Linux. On Linux, explicit XDG_CONFIG_HOME and XDG_STATE_HOME select their own absolute locations, and XDG_DATA_HOME can change the SDL preference root. Back up settings, saves, scores, screenshots, recordings and user mods separately. Use a separately prepared copy for custom OpenOMF overrides or alternate resources. Package resources and bundled mods stay with their installed version."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["mods", "resources", "shaders"],
+        "executables": ["openomf.exe", "openomf_arm64.exe"]
+      }
     }
   }
 }

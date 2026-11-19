@@ -18,9 +18,6 @@
       "match_kind": "underlying-game"
     },
     "release_url": "https://github.com/elasota/Aerofoil/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["Aerofoil-", "-win64.zip"]
-    },
     "manual_setup": {
       "steps": [
         {
@@ -39,6 +36,7 @@
     },
     "original_game_title": "Glider PRO"
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Gamepad2, FolderOpen } from "lucide-react";
 import { gameIdentityLabel } from "../port-identity";
 import { desktopApi } from "../api";
+import { focusAndReveal } from "../focus";
 import { pickSteamFolder } from "../file-picker";
 import type {
   PortDefinition,
@@ -53,11 +54,17 @@ function steamArtworkUnavailableLabel(
     case "no_local_original":
       return role === "hero_banner"
         ? "Not available: import a wide detail image for this game in Portcove first"
-        : "Not available: choose an imported image for this game in Portcove first";
+        : role === "landscape_cover"
+          ? "Not available: choose a wide landscape image for this game in Portcove first"
+          : "Not available: choose an imported image for this game in Portcove first";
     case "selected_original_unavailable":
-      return "Not available: the selected image could not be read; import it again";
+      // Also covers a copy removed after SteamGridDB withdrew the image, so the
+      // remedy names both choosing again and choosing another.
+      return "Not available: Portcove no longer has the selected image; choose it again or pick another one in Portcove";
     case "selected_image_not_wide":
-      return "Not available: the selected detail image is not wide, so it is not used as a banner";
+      return role === "landscape_cover"
+        ? "Not available: the selected landscape image is not wide, so it is not used as a capsule"
+        : "Not available: the selected detail image is not wide, so it is not used as a banner";
     default:
       return "Not available: Portcove has no image for this role yet";
   }
@@ -140,21 +147,23 @@ export function SteamEntryDialog({
   generation,
   installed,
   close,
+  initialProfile,
 }: {
   port: PortDefinition;
   generation: number;
   installed: boolean;
   close: () => void;
+  initialProfile?: Pick<SteamBatchSelection, "steamRoot" | "steamUserId" | "includeArtwork">;
 }) {
   const cancelButton = useRef<HTMLButtonElement>(null);
-  const [steamRoot, setSteamRoot] = useState("");
-  const [steamUserId, setSteamUserId] = useState("");
+  const [steamRoot, setSteamRoot] = useState(initialProfile?.steamRoot ?? "");
+  const [steamUserId, setSteamUserId] = useState(initialProfile?.steamUserId ?? "");
   const [review, setReview] = useState<SteamEntryReview>();
   const [result, setResult] = useState<SteamEntryApplyResult>();
   const [artworkReview, setArtworkReview] = useState<SteamArtworkReview>();
   const [artworkResult, setArtworkResult] = useState<SteamArtworkApplyResult>();
   const [replaceArtwork, setReplaceArtwork] = useState(false);
-  const [includeArtwork, setIncludeArtwork] = useState(true);
+  const [includeArtwork, setIncludeArtwork] = useState(initialProfile?.includeArtwork ?? true);
   const [pending, setPending] = useState<"review" | "apply">();
   const [error, setError] = useState<string>();
   const dismiss = () => {
@@ -310,49 +319,25 @@ export function SteamEntryDialog({
         )}
         {pending === "review" && <p role="status">Inspecting the selected Steam profile…</p>}
         {!reviewing && (
-          <Fieldset legend="Steam artwork" disabled={Boolean(pending)} className="mt-6 grid gap-3">
-            <p>
-              Add this game's selected Portcove cover to its Portcove shortcut. Artwork already in
-              Steam is kept unless you choose to replace it.
-            </p>
-            <label
-              htmlFor="steam-artwork-replace"
-              className="flex min-h-10 cursor-pointer items-center gap-3 py-2"
-            >
-              <Checkbox
-                data-focusable
-                id="steam-artwork-replace"
-                data-steam-artwork-replace
-                checked={replaceArtwork}
-                onCheckedChange={(checked) => setReplaceArtwork(checked === true)}
-              />
-              Replace artwork already in Steam
-            </label>
-            <ActionRow>
-              <Button
-                data-focusable
-                variant="outline"
-                disabled={!selected || Boolean(pending)}
-                onClick={() =>
-                  void loadArtworkReview({ kind: "update", replace_existing: replaceArtwork })
-                }
-              >
-                Review artwork update
-              </Button>
-              <Button
-                data-focusable
-                variant="outline"
-                disabled={!selected || Boolean(pending)}
-                onClick={() => void loadArtworkReview({ kind: "remove_owned" })}
-              >
-                Review artwork removal
-              </Button>
-            </ActionRow>
-          </Fieldset>
+          <SteamArtworkActions
+            pending={Boolean(pending)}
+            selected={Boolean(selected)}
+            replaceArtwork={replaceArtwork}
+            setReplaceArtwork={setReplaceArtwork}
+            loadArtworkReview={loadArtworkReview}
+          />
         )}
         {review && <SteamEntryReviewDetails review={review} />}
         {result && <SteamEntryResult result={result} batch={false} />}
-        {artworkReview && <SteamArtworkReviewDetails review={artworkReview} />}
+        {artworkReview && (
+          <SteamArtworkReviewDetails
+            review={artworkReview}
+            pending={Boolean(pending)}
+            reviewRoleRemoval={(role) =>
+              void loadArtworkReview({ kind: "remove_owned_role", role })
+            }
+          />
+        )}
         {artworkResult && <SteamArtworkResult result={artworkResult} />}
         {error && <p role="alert">{error}</p>}
         <DialogFooter className="mt-4">
@@ -384,63 +369,161 @@ export function SteamEntryDialog({
               </Button>
             </>
           )}
-          {review && (
-            <>
-              <Button
-                data-focusable
-                variant="outline"
-                disabled={Boolean(pending)}
-                onClick={() => void loadReview(review.operation)}
-              >
-                {review.steam_client_state === "running" ? "Check again" : "Check shortcuts again"}
-              </Button>
-              {review.writes_required && (
-                <Button
-                  data-focusable
-                  variant={review.operation === "remove" ? "destructive" : "primary"}
-                  disabled={Boolean(pending) || review.steam_client_state !== "closed"}
-                  onClick={() => void apply()}
-                >
-                  {pending === "apply"
-                    ? "Applying reviewed change…"
-                    : review.operation === "remove"
-                      ? "Remove shortcut"
-                      : "Add or repair shortcut"}
-                </Button>
-              )}
-            </>
-          )}
-          {artworkReview && (
-            <>
-              <Button
-                data-focusable
-                variant="outline"
-                disabled={Boolean(pending)}
-                onClick={() => void loadArtworkReview(artworkReview.operation)}
-              >
-                Check again
-              </Button>
-              {artworkReview.writes_required && (
-                <Button
-                  data-focusable
-                  variant={
-                    artworkReview.operation.kind === "remove_owned" ? "destructive" : "primary"
-                  }
-                  disabled={Boolean(pending) || artworkReview.steam_client_state !== "closed"}
-                  onClick={() => void applyArtwork()}
-                >
-                  {pending === "apply"
-                    ? "Applying reviewed change…"
-                    : artworkReview.operation.kind === "remove_owned"
-                      ? "Remove Portcove artwork"
-                      : "Update Steam artwork"}
-                </Button>
-              )}
-            </>
-          )}
+          <SteamReviewActions
+            review={review}
+            artworkReview={artworkReview}
+            pending={pending}
+            reloadEntry={(operation) => void loadReview(operation)}
+            applyEntry={() => void apply()}
+            reloadArtwork={(operation) => void loadArtworkReview(operation)}
+            applyArtwork={() => void applyArtwork()}
+          />
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function SteamReviewActions({
+  review,
+  artworkReview,
+  pending,
+  reloadEntry,
+  applyEntry,
+  reloadArtwork,
+  applyArtwork,
+}: {
+  review: SteamEntryReview | undefined;
+  artworkReview: SteamArtworkReview | undefined;
+  pending: "review" | "apply" | undefined;
+  reloadEntry: (operation: SteamEntryOperation) => void;
+  applyEntry: () => void;
+  reloadArtwork: (operation: SteamArtworkOperation) => void;
+  applyArtwork: () => void;
+}) {
+  return (
+    <>
+      {review && (
+        <>
+          <Button
+            data-focusable
+            variant="outline"
+            disabled={Boolean(pending)}
+            onClick={() => reloadEntry(review.operation)}
+          >
+            {review.steam_client_state === "running" ? "Check again" : "Check shortcuts again"}
+          </Button>
+          {review.writes_required && (
+            <Button
+              data-focusable
+              variant={review.operation === "remove" ? "destructive" : "primary"}
+              disabled={Boolean(pending) || review.steam_client_state !== "closed"}
+              onClick={() => applyEntry()}
+            >
+              {pending === "apply"
+                ? "Applying reviewed change…"
+                : review.operation === "remove"
+                  ? "Remove shortcut"
+                  : "Add or repair shortcut"}
+            </Button>
+          )}
+        </>
+      )}
+      {artworkReview && (
+        <>
+          <Button
+            data-focusable
+            variant="outline"
+            disabled={Boolean(pending)}
+            onClick={() => reloadArtwork(artworkReview.operation)}
+          >
+            Check again
+          </Button>
+          {artworkReview.writes_required && (
+            <Button
+              data-focusable
+              variant={removesArtwork(artworkReview) ? "destructive" : "primary"}
+              disabled={Boolean(pending) || artworkReview.steam_client_state !== "closed"}
+              onClick={() => applyArtwork()}
+            >
+              {pending === "apply" ? "Applying reviewed change…" : artworkApplyLabel(artworkReview)}
+            </Button>
+          )}
+        </>
+      )}
+    </>
+  );
+}
+
+/** Whether applying this review deletes any file from Steam. */
+function removesArtwork(review: SteamArtworkReview) {
+  return review.roles.some((role) => role.action === "remove");
+}
+
+function artworkApplyLabel(review: SteamArtworkReview) {
+  const operation = review.operation;
+  if (operation.kind === "remove_owned")
+    return removesArtwork(review) ? "Remove Portcove artwork" : "Stop tracking changed artwork";
+  if (operation.kind === "remove_owned_role")
+    return removesArtwork(review)
+      ? `Remove ${steamArtworkRoleName(operation.role).toLowerCase()} from Steam`
+      : "Stop tracking this image";
+  return "Update Steam artwork";
+}
+
+function SteamArtworkActions({
+  pending,
+  selected,
+  replaceArtwork,
+  setReplaceArtwork,
+  loadArtworkReview,
+}: {
+  pending: boolean;
+  selected: boolean;
+  replaceArtwork: boolean;
+  setReplaceArtwork: (replace: boolean) => void;
+  loadArtworkReview: (operation: SteamArtworkOperation) => Promise<void>;
+}) {
+  return (
+    <Fieldset legend="Steam artwork" disabled={pending} className="mt-6 grid gap-3">
+      <p>
+        Add this game's selected Portcove cover to its Portcove shortcut. Artwork already in Steam
+        is kept unless you choose to replace it.
+      </p>
+      <label
+        htmlFor="steam-artwork-replace"
+        className="flex min-h-10 cursor-pointer items-center gap-3 py-2"
+      >
+        <Checkbox
+          data-focusable
+          id="steam-artwork-replace"
+          data-steam-artwork-replace
+          checked={replaceArtwork}
+          onCheckedChange={(checked) => setReplaceArtwork(checked === true)}
+        />
+        Replace artwork already in Steam
+      </label>
+      <ActionRow>
+        <Button
+          data-focusable
+          variant="outline"
+          disabled={!selected || pending}
+          onClick={() =>
+            void loadArtworkReview({ kind: "update", replace_existing: replaceArtwork })
+          }
+        >
+          Review artwork update
+        </Button>
+        <Button
+          data-focusable
+          variant="outline"
+          disabled={!selected || pending}
+          onClick={() => void loadArtworkReview({ kind: "remove_owned" })}
+        >
+          Review artwork removal
+        </Button>
+      </ActionRow>
+    </Fieldset>
   );
 }
 
@@ -448,13 +531,19 @@ export function SteamBatchEntryDialog({
   ports,
   generation,
   close,
+  allowSingle = false,
 }: {
   ports: PortDefinition[];
   generation: number;
   close: () => void;
+  allowSingle?: boolean;
 }) {
-  const cancelButton = useRef<HTMLButtonElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const applyButton = useRef<HTMLButtonElement>(null);
+  const reviewButton = useRef<HTMLButtonElement>(null);
+  const restoreReviewFocus = useRef(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [singlePort, setSinglePort] = useState<PortDefinition>();
   const [steamRoot, setSteamRoot] = useState("");
   const [steamUserId, setSteamUserId] = useState("");
   const [review, setReview] = useState<SteamBatchReview>();
@@ -463,11 +552,26 @@ export function SteamBatchEntryDialog({
   const [includeArtwork, setIncludeArtwork] = useState(true);
   const [pending, setPending] = useState<"review" | "apply">();
   const [error, setError] = useState<string>();
+  const [writeDeclined, setWriteDeclined] = useState(false);
+  useLayoutEffect(() => {
+    const button = applyButton.current;
+    if (writeDeclined && button === document.activeElement) focusAndReveal(button);
+  }, [writeDeclined]);
+  useLayoutEffect(() => {
+    if (error === undefined || pending || !restoreReviewFocus.current) return;
+    restoreReviewFocus.current = false;
+    const target = reviewButton.current;
+    const active = document.activeElement;
+    if (target && (active === document.body || active === target.closest('[role="dialog"]'))) {
+      focusAndReveal(target);
+    }
+  }, [error, pending]);
   const resetReview = () => {
     setReview(undefined);
     setReviewedSelection(undefined);
     setResult(undefined);
     setError(undefined);
+    setWriteDeclined(false);
   };
   const dismiss = () => {
     if (pending !== "apply") close();
@@ -496,6 +600,7 @@ export function SteamBatchEntryDialog({
     if (!review || !reviewedSelection || pending) return;
     setPending("apply");
     setError(undefined);
+    setWriteDeclined(false);
     try {
       const applied = await desktopApi.applySteamBatchAdd(
         reviewedSelection,
@@ -506,14 +611,32 @@ export function SteamBatchEntryDialog({
       if (applied) {
         setResult(applied);
         setReview(undefined);
+      } else {
+        setWriteDeclined(true);
       }
     } catch (value) {
+      const button = applyButton.current;
+      restoreReviewFocus.current = button !== null && document.activeElement === button;
       resetReview();
       setError(errorText(value));
     } finally {
       setPending(undefined);
     }
   };
+  const selectedPort =
+    allowSingle && selectedIds.length === 1
+      ? ports.find((port) => port.id === selectedIds[0])
+      : undefined;
+  if (singlePort)
+    return (
+      <SteamEntryDialog
+        port={singlePort}
+        generation={generation}
+        installed
+        initialProfile={{ steamRoot, steamUserId, includeArtwork }}
+        close={() => setSinglePort(undefined)}
+      />
+    );
   return (
     <Dialog
       open
@@ -522,17 +645,18 @@ export function SteamBatchEntryDialog({
       }}
     >
       <DialogContent
-        initialFocus={cancelButton}
+        initialFocus={heading}
         showCloseButton={false}
         reviewSize="standard"
         aria-describedby="steam-batch-description"
       >
-        <DialogTitle id="steam-batch-title" className="mb-2 text-xl">
+        <DialogTitle ref={heading} tabIndex={-1} id="steam-batch-title" className="mb-2 text-xl">
           Add selected games to Steam
         </DialogTitle>
         <DialogDescription id="steam-batch-description" className="mb-4 leading-relaxed">
-          Select at least two installed games to add or repair their shortcuts in one selected local
-          Steam profile.
+          {allowSingle
+            ? "Choose one or more installed games to add or repair shortcuts in a local Steam profile."
+            : "Select at least two installed games to add or repair their shortcuts in one selected local Steam profile."}
         </DialogDescription>
         {!result && (
           <>
@@ -581,29 +705,29 @@ export function SteamBatchEntryDialog({
         {pending === "review" && <p role="status">Inspecting selected games and Steam profile…</p>}
         {review && <SteamEntryReviewDetails review={review} />}
         {result && <SteamEntryResult result={result} batch />}
+        {writeDeclined && <p role="status">Steam shortcut changes were cancelled.</p>}
         {error && <p role="alert">{error}</p>}
         <DialogFooter className="mt-4">
-          <Button
-            ref={cancelButton}
-            data-focusable
-            variant="outline"
-            disabled={pending === "apply"}
-            onClick={dismiss}
-          >
+          <Button data-focusable variant="outline" disabled={pending === "apply"} onClick={dismiss}>
             {result ? "Close" : "Cancel"}
           </Button>
           {!review && !result && (
             <Button
+              ref={reviewButton}
               data-focusable
               disabled={
-                selectedIds.length < 2 ||
-                !steamRoot.trim() ||
-                !steamUserId.trim() ||
-                Boolean(pending)
+                !selectedPort &&
+                (selectedIds.length < 2 ||
+                  !steamRoot.trim() ||
+                  !steamUserId.trim() ||
+                  Boolean(pending))
               }
-              onClick={() => void loadReview()}
+              onClick={() => {
+                if (selectedPort) setSinglePort(selectedPort);
+                else void loadReview();
+              }}
             >
-              Review selected shortcuts
+              {selectedPort ? "Review selected game" : "Review selected shortcuts"}
             </Button>
           )}
           {review && (
@@ -618,9 +742,12 @@ export function SteamBatchEntryDialog({
               </Button>
               {review.writes_required && (
                 <Button
+                  ref={applyButton}
                   data-focusable
                   variant="primary"
                   disabled={Boolean(pending) || review.steam_client_state !== "closed"}
+                  aria-busy={pending === "apply"}
+                  focusableWhenDisabled={pending === "apply"}
                   onClick={() => void apply()}
                 >
                   {pending === "apply" ? "Updating shortcuts…" : "Add or repair selected shortcuts"}
@@ -653,6 +780,9 @@ function SteamProfileFields({
   setSteamUserId: (value: string) => void;
   resetReview: () => void;
 }) {
+  const [installations, setInstallations] = useState<string[]>();
+  const [discovering, setDiscovering] = useState(false);
+  const [discoveryError, setDiscoveryError] = useState<string>();
   const [profiles, setProfiles] = useState<string[]>();
   const [listing, setListing] = useState(false);
   const [listError, setListError] = useState<string>();
@@ -665,6 +795,7 @@ function SteamProfileFields({
   );
   const changeRoot = (value: string) => {
     requestId.current += 1;
+    setDiscovering(false);
     setListing(false);
     setProfiles(undefined);
     setListError(undefined);
@@ -677,8 +808,23 @@ function SteamProfileFields({
     const selected = await pickSteamFolder(steamRoot);
     if (selected && requestId.current === currentRequest) changeRoot(selected);
   };
+  const findInstallations = async () => {
+    if (discovering || listing) return;
+    const currentRequest = ++requestId.current;
+    setDiscovering(true);
+    setInstallations(undefined);
+    setDiscoveryError(undefined);
+    try {
+      const roots = await desktopApi.discoverSteamClientRoots(generation);
+      if (requestId.current === currentRequest) setInstallations(roots);
+    } catch (error) {
+      if (requestId.current === currentRequest) setDiscoveryError(errorText(error));
+    } finally {
+      if (requestId.current === currentRequest) setDiscovering(false);
+    }
+  };
   const findProfiles = async () => {
-    if (!steamRoot.trim() || listing) return;
+    if (!steamRoot.trim() || listing || discovering) return;
     const currentRequest = ++requestId.current;
     setListing(true);
     setProfiles(undefined);
@@ -699,12 +845,12 @@ function SteamProfileFields({
           <Input
             data-focusable
             id={`${idPrefix}-installation`}
+            dir="ltr"
             value={steamRoot}
             disabled={pending}
             onChange={(event) => {
               changeRoot(event.target.value);
             }}
-            placeholder="C:\\Program Files (x86)\\Steam"
           />
           <Button
             data-focusable
@@ -720,7 +866,43 @@ function SteamProfileFields({
       <Button
         data-focusable
         variant="outline"
-        disabled={pending || listing || !steamRoot.trim()}
+        disabled={pending || discovering || listing}
+        onClick={() => void findInstallations()}
+      >
+        {discovering ? "Finding Steam installations…" : "Find Steam installations"}
+      </Button>
+      {discoveryError && <p role="alert">{discoveryError}</p>}
+      {installations && (
+        <div role="group" aria-label="Local Steam installations">
+          {installations.length === 0 ? (
+            <p>
+              No local Steam installations with profiles found. You can choose a folder manually.
+            </p>
+          ) : (
+            <ActionRow>
+              {installations.map((root) => (
+                <Button
+                  key={root}
+                  data-focusable
+                  variant={root === steamRoot ? "selected" : "outline"}
+                  disabled={pending}
+                  aria-pressed={root === steamRoot}
+                  className="h-auto min-w-0 text-start [overflow-wrap:anywhere] whitespace-normal"
+                  onClick={() => changeRoot(root)}
+                >
+                  <bdi className="path-value" dir="ltr">
+                    {root}
+                  </bdi>
+                </Button>
+              ))}
+            </ActionRow>
+          )}
+        </div>
+      )}
+      <Button
+        data-focusable
+        variant="outline"
+        disabled={pending || listing || discovering || !steamRoot.trim()}
         onClick={() => void findProfiles()}
       >
         {listing ? "Finding profiles…" : "Find local profiles"}
@@ -804,11 +986,17 @@ function SteamEntryResult({ result, batch }: { result: SteamEntryApplyResult; ba
         <strong>{message}</strong>
       </p>
       <p className="[overflow-wrap:anywhere]">
-        Shortcut file: <code>{result.shortcuts_path}</code>
+        Shortcut file:{" "}
+        <code className="path-value block" dir="ltr">
+          {result.shortcuts_path}
+        </code>
       </p>
       {result.backup_path && (
         <p className="[overflow-wrap:anywhere]">
-          Backup: <code>{result.backup_path}</code>
+          Backup:{" "}
+          <code className="path-value block" dir="ltr">
+            {result.backup_path}
+          </code>
         </p>
       )}
       {result.artwork.length > 0 && (
@@ -930,15 +1118,24 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamB
         <dl className="grid gap-3 wrap-anywhere">
           <div>
             <dt>Shortcut file</dt>
-            <dd>{review.shortcuts_path}</dd>
+            <dd className="path-value" dir="ltr">
+              {review.shortcuts_path}
+            </dd>
           </div>
           <div>
             <dt>Portcove library</dt>
-            <dd>{review.library_root}</dd>
+            <dd className="path-value" dir="ltr">
+              {review.library_root}
+            </dd>
           </div>
           <div>
             <dt>Standalone CLI</dt>
-            <dd>{review.cli_path ?? "Not required for this removal review"}</dd>
+            <dd
+              className={review.cli_path ? "path-value" : undefined}
+              dir={review.cli_path ? "ltr" : undefined}
+            >
+              {review.cli_path ?? "Not required for this removal review"}
+            </dd>
           </div>
           {review.cli_sha256 && (
             <div>
@@ -954,17 +1151,41 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamB
   );
 }
 
-function SteamArtworkReviewDetails({ review }: { review: SteamArtworkReview }) {
-  const removing = review.operation.kind === "remove_owned";
+function singleRoleHeading(review: SteamArtworkReview, role: SteamArtworkRole["role"]) {
+  const change = review.roles[0];
+  if (!review.writes_required)
+    return `There is no Portcove image to remove for the ${steamArtworkRoleName(role).toLowerCase()} in this Steam profile.`;
+  if (change?.action === "remove") return "Review the exact artwork change before applying it.";
+  if (change?.action === "absent")
+    return "This image is no longer in Steam, so nothing is removed.";
+  return "Portcove no longer recognizes this image in Steam, so nothing is removed.";
+}
+
+function SteamArtworkReviewDetails({
+  review,
+  pending,
+  reviewRoleRemoval,
+}: {
+  review: SteamArtworkReview;
+  pending: boolean;
+  reviewRoleRemoval: (role: SteamArtworkRole["role"]) => void;
+}) {
+  const operation = review.operation;
+  const removing = operation.kind === "remove_owned";
+  const singleRole = operation.kind === "remove_owned_role" ? operation.role : undefined;
+  const withdrawn = (role: SteamArtworkRole["role"]) =>
+    review.withdrawn_sources.find((source) => source.role === role);
   return (
     <section className="removal-review-details mt-6 grid gap-3" aria-label="Reviewed Steam artwork">
       <p className="[overflow-wrap:anywhere]">
         <strong>
-          {review.writes_required
-            ? "Review the exact artwork change before applying it."
-            : removing
-              ? "There is no Portcove artwork to remove for this game in the selected profile."
-              : "No artwork will change for this game in the selected profile."}
+          {singleRole
+            ? singleRoleHeading(review, singleRole)
+            : review.writes_required
+              ? "Review the exact artwork change before applying it."
+              : removing
+                ? "There is no Portcove artwork to remove for this game in the selected profile."
+                : "No artwork will change for this game in the selected profile."}
         </strong>
       </p>
       {review.recovered_shortcut_change && (
@@ -981,11 +1202,38 @@ function SteamArtworkReviewDetails({ review }: { review: SteamArtworkReview }) {
         </p>
       )}
       <ul>
-        {review.roles.map((role) => (
-          <li className="[overflow-wrap:anywhere]" key={role.role}>
-            {steamArtworkRoleName(role.role)}: {steamArtworkPlanLabel(role)}
-          </li>
-        ))}
+        {review.roles.map((role) => {
+          const source = withdrawn(role.role);
+          return (
+            <li className="[overflow-wrap:anywhere]" key={role.role}>
+              {steamArtworkRoleName(role.role)}: {steamArtworkPlanLabel(role)}
+              {source && (
+                <>
+                  <span className="block">
+                    This Steam image came from SteamGridDB, which no longer lists it. Portcove
+                    removed its own copy on{" "}
+                    {new Date(source.source_evicted_at * 1000).toLocaleDateString()}.{" "}
+                    {role.action === "replace"
+                      ? "This update replaces it in Steam."
+                      : "Steam keeps this image until you remove it."}
+                  </span>
+                  {!singleRole && (
+                    <Button
+                      data-focusable
+                      variant="outline"
+                      size="sm"
+                      disabled={pending}
+                      aria-label={`Review removing this image: ${steamArtworkRoleName(role.role).toLowerCase()}`}
+                      onClick={() => reviewRoleRemoval(role.role)}
+                    >
+                      Review removing this image
+                    </Button>
+                  )}
+                </>
+              )}
+            </li>
+          );
+        })}
       </ul>
       {review.steam_client_state === "running" && (
         <p className="[overflow-wrap:anywhere]" role="alert">
@@ -998,9 +1246,13 @@ function SteamArtworkReviewDetails({ review }: { review: SteamArtworkReview }) {
         </p>
       )}
       <p className="[overflow-wrap:anywhere]">
-        {removing
-          ? "Only artwork Portcove added and that has not changed since is removed. The shortcut, the game, its saves and your other Steam artwork are not affected."
-          : "Only this game's Portcove shortcut artwork changes. The shortcut, the game, its saves and your other Steam artwork are not affected."}
+        {singleRole
+          ? removesArtwork(review)
+            ? "Only this image is removed, and only if Portcove added it and it has not changed since. The shortcut, the game, its saves and your other Steam artwork are not affected."
+            : "No Steam file changes. Portcove only stops tracking this image. The shortcut, the game, its saves and your other Steam artwork are not affected."
+          : removing
+            ? "Only artwork Portcove added and that has not changed since is removed. The shortcut, the game, its saves and your other Steam artwork are not affected."
+            : "Only this game's Portcove shortcut artwork changes. The shortcut, the game, its saves and your other Steam artwork are not affected."}
       </p>
       <details>
         <summary data-focusable>Technical details</summary>
@@ -1011,7 +1263,9 @@ function SteamArtworkReviewDetails({ review }: { review: SteamArtworkReview }) {
           </div>
           <div>
             <dt>Artwork folder</dt>
-            <dd>{review.grid_path}</dd>
+            <dd className="path-value" dir="ltr">
+              {review.grid_path}
+            </dd>
           </div>
           {review.app_id !== null && review.app_id !== undefined && (
             <div>
@@ -1030,9 +1284,13 @@ function SteamArtworkResult({ result }: { result: SteamArtworkApplyResult }) {
     <section className="removal-review-details" aria-label="Steam artwork result">
       <p className="[overflow-wrap:anywhere]" role="status">
         <strong>
-          {result.wrote
-            ? "Steam artwork updated. Restart Steam to see the change."
-            : "Steam artwork already matches this review."}
+          {!result.wrote
+            ? "Steam artwork already matches this review."
+            : result.roles.some((role) => ["write", "replace", "remove"].includes(role.action))
+              ? "Steam artwork updated. Restart Steam to see the change."
+              : result.roles.length === 1
+                ? "Nothing was removed. Portcove no longer tracks this image."
+                : "Nothing was removed. Portcove no longer tracks artwork that was changed or deleted outside Portcove."}
         </strong>
       </p>
       <ul>
@@ -1044,7 +1302,10 @@ function SteamArtworkResult({ result }: { result: SteamArtworkApplyResult }) {
       </ul>
       {result.backup_paths.map((path) => (
         <p className="[overflow-wrap:anywhere]" key={path}>
-          Backup: <code>{path}</code>
+          Backup:{" "}
+          <code className="path-value block" dir="ltr">
+            {path}
+          </code>
         </p>
       ))}
     </section>

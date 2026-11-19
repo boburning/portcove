@@ -3,11 +3,11 @@
   "listing": {
     "id": "blacklabelhq-medievilrecomp",
     "name": "MediEvil / MediEvilRecomp (BlackLabelHQ)",
-    "summary": "Play MediEvil with your own supported disc; its upstream player handles setup and runtime updates.",
+    "summary": "Play MediEvil natively with your own supported North American disc.",
     "project_url": "https://github.com/BlackLabelHQ/MediEvilRecomp",
     "issue_number": 1844,
     "listed_at": "2026-10-23",
-    "platforms": ["windows-x86-64"],
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md",
     "artwork": {
@@ -21,30 +21,92 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Prepare the Windows player",
-          "instruction": "Extract the official Windows x64 ZIP into a separate folder. The reviewed v0.2b package uses the .NET 10 runtime and OpenAL; follow upstream prerequisite instructions if either is missing. Choose medievil.exe in that folder when saving launch details. Registration does not start the game."
+          "title": "Choose your original disc in the game",
+          "instruction": "Choose Play, then use MediEvil’s disc picker to select your own supported North American MediEvil CUE/BIN or CHD. The game validates the disc and remembers its path, so keep the disc in a folder outside the game folder. Portcove does not supply original game files."
         },
         {
-          "title": "Choose your original disc in the game",
-          "instruction": "Choose Play when ready, then use MediEvil’s disc picker to select your own supported North American MediEvil CUE/BIN or CHD. The game validates the disc; Portcove does not supply original game files or run preparation tools during discovery."
+          "title": "Run a copy you manage yourself",
+          "instruction": "Extract the official package for your system (Windows x64 ZIP, Linux x64 TAR.GZ, or macOS Apple Silicon or Intel ZIP) into a separate folder and start medievil.exe (medievil on Linux and macOS) from that folder. The player needs the .NET 10 runtime and OpenAL; follow upstream's prerequisite instructions if either is missing. To add that copy to Portcove, select the player and its folder."
         }
       ],
       "warnings": [
-        "MediEvilRecomp has an in-game updater that replaces its own runtime. Keep that upstream-owned route and a separate copy of your working folder before updating. Keep settings.json, interface layout, memory-card files and custom mods with that copy, and preserve the original disc separately. Portcove leaves the external files untouched and does not provide managed Update, Backup or Rollback."
+        "The project publishes no licence, and the package bundles the recompiled game code and third-party libraries without their licence notices. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+        "In a copy you manage yourself, the in-game updater replaces the game's program files. Keep a copy of your working folder, including settings.json, interface.ini, the memory-card files and mods, before updating."
       ],
       "help_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md",
       "references": [
         {
-          "title": "Let the game provide updates",
-          "instruction": "MediEvilRecomp has an in-game updater that replaces its own runtime. Keep that upstream-owned route and a separate copy of your working folder before updating. Keep settings.json, interface layout, memory-card files and custom mods with that copy, and preserve the original disc separately. Portcove leaves the external files untouched and does not provide managed Update, Backup or Rollback."
+          "title": "Keep the game folder's data",
+          "instruction": "The game keeps settings.json, interface.ini, the carda.sav and cardb.sav memory cards, mods, shader and asset packs (shaders, packs), texture dumps (dump) and the mod hub cache (.modhub) in its own folder. Back up that folder and keep your disc separately before replacing a copy you manage yourself."
         }
       ]
     },
     "download_asset_hints": {
-      "windows-x86-64": ["MediEvilRecomp-", "-windows-x64.zip"]
+      "linux-x86-64": ["MediEvilRecomp-", "-linux-x64.tar.gz"],
+      "macos-aarch64": ["MediEvilRecomp-", "-macos-arm64.zip"],
+      "macos-x86-64": ["MediEvilRecomp-", "-macos-x64.zip"]
     },
     "original_game_title": "MediEvil",
     "release_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/releases",
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "medievil",
+      "evidence_urls": [
+        "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md",
+        "https://github.com/BlackLabelHQ/MediEvilRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "medievil-playstation",
+          "title": "MediEvil (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/2125f7090e3bbb8ea74000ff972ecbebdb09b7ed/README.md"
+          ]
+        }
+      ]
+    }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "BlackLabelHQ/MediEvilRecomp",
+      "asset_hints": {
+        "windows-x86-64": ["MediEvilRecomp-", "-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["medievil.exe"]
+    },
+    "launch_arguments": ["--disable-updated"],
+    "persistent_paths": [
+      "settings.json",
+      "interface.ini",
+      "carda.sav",
+      "cardb.sav",
+      "mods",
+      "shaders",
+      "packs",
+      "dump",
+      ".modhub"
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Requires the .NET 10 runtime. On first Play, use MediEvil's disc picker to select your own supported North American MediEvil CUE/BIN or CHD; the game remembers the disc's path, so keep the disc in a folder outside the game folder. Portcove starts the game with --disable-updated, upstream's switch for an external manager, which removes its update check, Updates menu and installer, so only Portcove replaces the managed copy. Settings, memory-card saves, the interface layout, mods, shader and asset packs, texture dumps and the mod hub cache stay in the game folder and are kept across updates, backups and rollback. Keep the memory cards at their default names, carda.sav and cardb.sav. Mods run code you choose to install."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["medievil.exe"]
+      }
+    }
   }
 }

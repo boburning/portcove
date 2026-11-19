@@ -1,0 +1,54 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gh3-segovia-no-macos-recomp",
+    "artwork": {
+      "game_id": 2671,
+      "cover_id": 89086,
+      "image_id": "co1wqm",
+      "image_sha256": "7e4c63c739ddd3765504cc44ce30a30596ab17d6c81535b494301b0e7bce472b",
+      "game_slug": "guitar-hero-iii-legends-of-rock",
+      "match_kind": "underlying-game"
+    },
+    "project_url": "https://github.com/segovia-no/GH3-macOS-Recomp",
+    "name": "Guitar Hero III: Legends of Rock / GH3 macOS Recomp",
+    "original_game_title": "Guitar Hero III: Legends of Rock",
+    "summary": "Build the upstream Apple Silicon player from your own Guitar Hero III PC installation.",
+    "issue_number": 6106,
+    "listed_at": "2026-11-15",
+    "platforms": ["macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/segovia-no/GH3-macOS-Recomp/releases/tag/v0.1.0",
+    "setup_url": "https://github.com/segovia-no/GH3-macOS-Recomp/blob/v0.1.0/docs/guides/install.md",
+    "download_block_reason": "Open the publisher’s release to download GH3 Builder. The inspected kit includes Apple Silicon tools and libraries built for macOS 26.5.",
+    "manual_setup": {
+      "help_url": "https://github.com/segovia-no/GH3-macOS-Recomp/blob/v0.1.0/docs/guides/install.md",
+      "steps": [
+        {
+          "title": "Open GH3 Builder on Apple Silicon",
+          "instruction": "Download the publisher’s v0.1.0 ZIP and open GH3 Builder on macOS 26.5 or later. The builder needs Apple’s Command Line Tools and internet access to fetch the checked Visual C++ runtime. Keep the builder separate from the game app it creates."
+        },
+        {
+          "title": "Build from your own PC installation",
+          "instruction": "Select your own compatible Guitar Hero III 1.3.1 folder with GH3.exe, DATA/, AWL.dll and fmodex.dll. The builder checks the specific executable and FMOD hashes. The developer tested with BetterGH3. Choose a destination for the generated app, then use Play after the build completes. Keep the original folder in place for the default linked setup."
+        },
+        {
+          "title": "Preserve your app and profile before rebuilding",
+          "instruction": "Close the game and back up ~/Library/Application Support/gh3, including AspyrConfig.ini and the drive_c saves. Keep your original installation and custom songs separately. A build replaces Guitar Hero III.app at its selected destination and recreates the shared game links in linked mode. A separate destination protects the previous app. Linked builds still share the same profile and game links. Keep the generated app and its game files for your own use."
+        }
+      ],
+      "warnings": [
+        "The publisher describes this builder as experimental and unnotarized. Review the publisher and this package before using Apple’s per-app approval to open it."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "guitar-hero-iii-legends-of-rock",
+      "evidence_urls": [
+        "https://github.com/segovia-no/GH3-macOS-Recomp/blob/v0.1.0/docs/guides/install.md",
+        "https://github.com/segovia-no/GH3-macOS-Recomp"
+      ],
+      "source_editions": []
+    }
+  }
+}

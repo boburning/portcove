@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "iron-jay-banjo-tooie-xbla-recomp",
+    "artwork": {
+      "game_id": 201645,
+      "cover_id": 294815,
+      "image_id": "co6bhb",
+      "image_sha256": "58106f8aa52becd3cb47516bed37e056e96ad69a8ae8fd614a99d531d217cfca",
+      "game_slug": "banjo-tooie--1",
+      "match_kind": "underlying-game"
+    },
     "name": "Banjo-Tooie — XBLA (Banjo Tooie XBLA Recomp)",
     "summary": "Documented Windows native source-build route using your own Banjo-Tooie XBLA files. Add only a completed authorized banjotooie.exe build; the packaged outer launcher has a separate process-lifetime hold.",
     "original_game_title": "Banjo-Tooie",
@@ -34,6 +42,24 @@
         "This guide follows upstream source instructions. Portcove has not run original-data preparation, generation, compilation or the game, or checked the resulting build, dependency compatibility, files, saves or source correspondence. The packaged Windows launcher starts another process and exits; use the completed native build described above. Source and component downloads require their own applicable permissions."
       ],
       "help_url": "https://github.com/iron-jay/banjo_tooie_xbla_recomp#building-from-source"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "banjo-tooie",
+      "evidence_urls": [
+        "https://github.com/iron-jay/banjo_tooie_xbla_recomp#building-from-source",
+        "https://github.com/iron-jay/banjo_tooie_xbla_recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "banjo-tooie-xbox-360",
+          "title": "Banjo-Tooie (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/iron-jay/banjo_tooie_xbla_recomp/blob/72c23973337398b361272fd4949d6d6274746585/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

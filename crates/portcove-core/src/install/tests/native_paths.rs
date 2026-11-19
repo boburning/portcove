@@ -656,7 +656,7 @@ fn reflectionhle_mac_tar_xz_keeps_player_data_outside_the_bundle() {
                     .unwrap();
             assert_eq!(root, payload.path().join(wrapper));
             #[cfg(unix)]
-            crate::package_layout::require_reviewed_layout(port, platform, &root).unwrap();
+            crate::package_layout::require_reviewed_layout(port, platform, &root, None).unwrap();
             let executable = resolve_declared_executable(&root, &qualification).unwrap();
             assert_eq!(executable, root.join(program));
             assert_eq!(qualification.persistence_root(&root, &executable), root);

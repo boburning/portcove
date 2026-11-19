@@ -171,31 +171,72 @@ function issueSection(body: unknown, heading: string) {
   );
 }
 
-function hasBlockedEvidence(body: unknown) {
-  const section =
+const blockerFieldPattern =
+  /^(?:[-*][ \t]*)?(?:\*\*)?(Blocker|Resume condition|Reconsideration condition)(?:\*\*)?:[ \t]*(.*?)(?=\r?$)/gimu;
+
+const blockerFieldText = (value: string) => value.replace(/[*_`]/gu, "").trim();
+
+function usableBlockerField(value: string) {
+  const text = blockerFieldText(value);
+  return (
+    text.length >= 12 &&
+    !/^(?:pending|tbd|todo|none|unknown|n\/?a|not (?:yet )?(?:known|specified|established))(?:\b|[.!])/iu.test(
+      text,
+    ) &&
+    !/^(?:\.{3}|…|<[^>]+>)$/u.test(text)
+  );
+}
+
+function blockerSection(body: unknown) {
+  return (
     issueSection(body, "Dependencies and blockers") ||
-    issueSection(body, "Known dependencies and blockers");
+    issueSection(body, "Known dependencies and blockers")
+  );
+}
+
+/**
+ * The explicit `Blocker:` and `Resume condition:` fields of an issue's
+ * dependencies section, when they are present and substantive. Legacy prose
+ * and placeholders return null; this never guesses a condition from prose.
+ */
+export function explicitBlockerFields(
+  body: unknown,
+): { blocker: string | null; resume_condition: string } | null {
+  const section = blockerSection(body);
+  if (!section) return null;
+  const fields = [...section.matchAll(blockerFieldPattern)];
+  const blocker = fields.filter((match) => match[1]?.toLowerCase() === "blocker");
+  const resume = fields.filter((match) => match[1]?.toLowerCase() !== "blocker");
+  if (
+    blocker.length > 1 ||
+    resume.length !== 1 ||
+    !usableBlockerField(resume[0]?.[2] ?? "") ||
+    (blocker.length === 1 && !usableBlockerField(blocker[0]?.[2] ?? ""))
+  )
+    return null;
+  return {
+    blocker:
+      blocker.length === 1
+        ? Array.from(blockerFieldText(blocker[0]?.[2] ?? ""))
+            .slice(0, 500)
+            .join("")
+        : null,
+    // Truncated by code point, so a cut never leaves a lone surrogate.
+    resume_condition: Array.from(blockerFieldText(resume[0]?.[2] ?? ""))
+      .slice(0, 500)
+      .join(""),
+  };
+}
+
+function hasBlockedEvidence(body: unknown) {
+  const section = blockerSection(body);
   if (
     !section ||
     /^(?:pending|tbd|todo|none)[.!]?$/i.test(section) ||
     /no current blocker (?:has been )?established/i.test(section)
   )
     return false;
-  const fields = [
-    ...section.matchAll(
-      /^(?:[-*][ \t]*)?(?:\*\*)?(Blocker|Resume condition|Reconsideration condition)(?:\*\*)?:[ \t]*(.*?)(?=\r?$)/gimu,
-    ),
-  ];
-  const usable = (value: string) => {
-    const text = value.replace(/[*_`]/gu, "").trim();
-    return (
-      text.length >= 12 &&
-      !/^(?:pending|tbd|todo|none|unknown|n\/?a|not (?:yet )?(?:known|specified|established))(?:\b|[.!])/iu.test(
-        text,
-      ) &&
-      !/^(?:\.{3}|…|<[^>]+>)$/u.test(text)
-    );
-  };
+  const fields = [...section.matchAll(blockerFieldPattern)];
   if (fields.length) {
     const blocker = fields.filter((match) => match[1]?.toLowerCase() === "blocker");
     const resume = fields.filter((match) => match[1]?.toLowerCase() !== "blocker");
@@ -209,14 +250,17 @@ function hasBlockedEvidence(body: unknown) {
     return (
       blocker.length <= 1 &&
       resume.length === 1 &&
-      usable(resume[0]?.[2] ?? "") &&
-      (blocker.length === 1 ? usable(blocker[0]?.[2] ?? "") : usable(remainder))
+      usableBlockerField(resume[0]?.[2] ?? "") &&
+      (blocker.length === 1
+        ? usableBlockerField(blocker[0]?.[2] ?? "")
+        : usableBlockerField(remainder))
     );
   }
   // Existing prose remains readable during migration; new explicit fields never
   // fall back to incidental words when a required value is absent/placeholder.
   return (
-    /\b(?:resume|until|when|needs?|required missing|after)\b/i.test(section) && usable(section)
+    /\b(?:resume|until|when|needs?|required missing|after)\b/i.test(section) &&
+    usableBlockerField(section)
   );
 }
 

@@ -5,10 +5,10 @@
     "name": "Twisted Metal: Black — TMB_Recomp (boubou666)",
     "original_game_title": "Twisted Metal: Black",
     "summary": "This native build reaches boot and language selection. It is explicitly not playable. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-    "project_url": "https://github.com/boubou666/TMB_Recomp",
+    "project_url": "https://github.com/TheBozos/TMB_Recomp",
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/boubou666/TMB_Recomp",
+    "setup_url": "https://github.com/TheBozos/TMB_Recomp",
     "manual_setup": {
       "steps": [
         {
@@ -24,7 +24,7 @@
         "This native build reaches boot and language selection. It is explicitly not playable.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/boubou666/TMB_Recomp"
+      "help_url": "https://github.com/TheBozos/TMB_Recomp"
     },
     "issue_number": 3038,
     "listed_at": "2026-10-25",
@@ -35,6 +35,21 @@
       "image_sha256": "080a8a106660f80fbde11b1baefbf76059eb168adb26668086f149d4d3ef81af",
       "game_slug": "twisted-metal-black",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "twisted-metal-black",
+      "evidence_urls": ["https://github.com/TheBozos/TMB_Recomp"],
+      "source_editions": [
+        {
+          "id": "twisted-metal-black-playstation-2",
+          "title": "Twisted Metal: Black (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/TheBozos/TMB_Recomp/blob/a58a70226062c5323e8ac4ac78f71c95f4a57495/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -47,6 +62,48 @@
         "id": "1430294447"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/boubou666/TMB_Recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1430294447"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/TheBozos/TMB_Recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1430294447"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The repository moved from boubou666 to TheBozos. GitHub only lets an administrator of the original repository transfer it, and boubou666 authored its history and remains a contributor. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1430294447",
+            "note": "Repository ID 1430294447, recorded when this port was listed, resolves to TheBozos/TMB_Recomp."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repos/TheBozos/TMB_Recomp/contributors",
+            "note": "boubou666 is listed among the current repository's contributors."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/boubou666/TMB_Recomp",
+            "note": "The listed path resolves to TheBozos/TMB_Recomp, repository ID 1430294447."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "5e817980b61f73d58ed81741ceddd197334a6cddccad16bbcc18742fc59767f1"
+        }
+      }
+    ]
   }
 }

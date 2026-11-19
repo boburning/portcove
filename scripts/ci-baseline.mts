@@ -154,9 +154,16 @@ export function baselineIntegrityCommands(plan: ValidationPlan, options: Classif
     ["scripts/check-release-metadata.test.mts", ["scripts/check-release-metadata.mts"]],
     ["scripts/generate-catalog.test.mts", ["scripts/generate-catalog.mts", "--check"]],
     ["scripts/generate-catalog.test.mts", ["scripts/check-retcomm-upstreams.mts", "--offline"]],
+    ["scripts/generate-catalog.test.mts", ["scripts/package-shape-baselines.mts", "--check"]],
+    ["scripts/generate-catalog.test.mts", ["scripts/catalog-capacity.mts", "--check"]],
+    ["scripts/sign-catalog.test.mts", ["scripts/catalog-capacity.mts", "--check"]],
     ["scripts/native-helper-dependencies.test.mts", ["scripts/native-helper-dependencies.mts"]],
   ];
-  return checks.filter(([test]) => tests.has(test)).map(([, args]) => args);
+  // One checker may serve several selected contracts; run it once.
+  const selected = new Map(
+    checks.filter(([test]) => tests.has(test)).map(([, args]) => [JSON.stringify(args), args]),
+  );
+  return [...selected.values()];
 }
 
 // The browser projects that the sharded hosted jobs execute. This must stay the project list of

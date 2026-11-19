@@ -1,0 +1,73 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "warzone-2100-official-maintained-source-port",
+    "artwork": {
+      "game_id": 51297,
+      "cover_id": 290237,
+      "image_id": "co67y5",
+      "image_sha256": "b822e6718c3e24ee79f6c50ef603e72b41e2057a9b0095e785fd653943ff2562",
+      "game_slug": "warzone-2100",
+      "match_kind": "underlying-game"
+    },
+    "project_url": "https://github.com/Warzone2100/warzone2100",
+    "name": "Warzone 2100",
+    "original_game_title": "Warzone 2100",
+    "summary": "Play the official open-source Warzone 2100 release on Windows, Linux or Mac.",
+    "issue_number": 5800,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/Warzone2100/warzone2100/releases/tag/4.7.0",
+    "setup_url": "https://wz2100.net/download/",
+    "download_asset_hints": {
+      "windows-x86-64": ["warzone2100_win_x64_archive.zip"],
+      "linux-x86-64": ["warzone2100_ubuntu24.04_amd64.deb"],
+      "macos-x86-64": ["warzone2100_macOS_universal_novideos.zip"],
+      "macos-aarch64": ["warzone2100_macOS_universal_novideos.zip"]
+    },
+    "manual_setup": {
+      "help_url": "https://wz2100.net/download/",
+      "steps": [
+        {
+          "title": "Open the Windows archive",
+          "instruction": "Choose the publisher archive for x64, ARM64 or x86 Windows. Extract it to its own writable folder, keep bin and data together and open bin/warzone2100.exe. To keep the game profile in the extracted tree, create an empty .portable file beside the executable before first launch."
+        },
+        {
+          "title": "Install through upstream on Linux",
+          "instruction": "On Ubuntu 26.04 x64 or ARM64, install warzone2100 from the Ubuntu package repository and open it from your app menu. On Ubuntu 22.04 or 24.04 x64, you can install the publisher’s matching DEB through your package manager. The publisher also offers the net.wz2100.wz2100 Flatpak for Linux x64 and ARM64."
+        },
+        {
+          "title": "Open the Mac application",
+          "instruction": "Extract the publisher's universal ZIP and open Warzone 2100.app on an Intel or Apple Silicon Mac. The Intel player targets macOS 10.14 or later. Apple Silicon and the bundled Vulkan renderer require macOS 11 or later."
+        },
+        {
+          "title": "Keep your campaign progress and custom content",
+          "instruction": "In Options, open the actual Configuration Directory and back it up before replacing the game. Keep savegames, config, custom maps, mods and replays together, including any custom profile location. Ubuntu DEBs and the no-video Mac archive omit the campaign videos. Follow the publisher's video instructions if you want them."
+        }
+      ],
+      "warnings": [
+        "The upstream desktop player can register a handler for Discord join links when it starts. The publisher Linux package writes the handler and MIME association outside its selected profile. Removing a Portcove registration leaves those files in place. Package replacement and backups are player-managed."
+      ],
+      "references": [
+        {
+          "title": "Register the publisher Linux player with Portcove CLI",
+          "instruction": "Use warzone-2100-official-maintained-source-port as the port ID in external select-preview and external select. For the extracted publisher Ubuntu x64 DEB, select the absolute usr/bin/warzone2100 path and set --working-directory to its usr/bin folder. Pass the absolute usr/share/warzone2100 directory as --arg=--datadir=<path> and your absolute profile path as --arg=--configdir=<path>. Quote each full argument if it contains spaces. Repeat the details with external select and pass the preview SHA-256 to --expected-preview. Start with portcove exec and the same port ID."
+        },
+        {
+          "title": "Keep the Ubuntu package’s campaign files",
+          "instruction": "The Ubuntu 26.04 repository package starts through its own sandboxed launcher. Its default profile is ~/.local/share/warzone2100. Close the game before copying your campaign saves and other player data. When switching from a separately installed copy of the same release, keep the original backup until the loaded campaign is working."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "warzone-2100",
+      "evidence_urls": [
+        "https://wz2100.net/download/",
+        "https://github.com/Warzone2100/warzone2100"
+      ],
+      "source_editions": []
+    }
+  }
+}

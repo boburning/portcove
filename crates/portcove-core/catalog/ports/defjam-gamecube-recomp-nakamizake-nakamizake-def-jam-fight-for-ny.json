@@ -35,6 +35,21 @@
       "image_sha256": "d1a6333b311d1daa7f81254e2b25ccba66b992825bca75b9438b2cd7f87e9508",
       "game_slug": "def-jam-fight-for-ny",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "def-jam-fight-for-ny",
+      "evidence_urls": ["https://github.com/Nakamizake/Def-Jam-Fight-for-NY-Recomp"],
+      "source_editions": [
+        {
+          "id": "def-jam-fight-for-ny-nintendo-gamecube",
+          "title": "Def Jam: Fight for NY (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/Nakamizake/Def-Jam-Fight-for-NY-Recomp/blob/1d6138134ce37eb2a0d6f7738dd29ab13a88e209/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

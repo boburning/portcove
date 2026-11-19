@@ -6,6 +6,50 @@ use crate::{
 };
 
 const MAX_DIRECTORY_ENTRIES: usize = 4096;
+
+/// Managed PS1 readers that keep an existing installation's retained scope
+/// while a newer definition adds an empty runtime-created directory path.
+pub(crate) const PSX_RETAINED_SCOPE_CAPABILITY: u32 = 3;
+/// The directory PSXRecomp `7192402` creates for player texture packs.
+pub(crate) const PSX_TEXTURE_PACKS: &str = "mods/texture-packs";
+
+/// A newer definition that only adds the texture-pack folder to a managed PS1
+/// installation's retained scope. The installation keeps its retained scope,
+/// so verification, collection and backup behave as before the folder was
+/// declared; installations created under the wider definition retain it.
+pub(crate) fn only_adds_psx_texture_packs(
+    retained: &PortDefinition,
+    current: &PortDefinition,
+) -> bool {
+    let added = current
+        .persistent_paths
+        .iter()
+        .filter(|path| !retained.persistent_paths.contains(path))
+        .collect::<Vec<_>>();
+    retained.adapter == crate::AdapterKind::PsxRecompManaged
+        && retained.persistent_file_patterns == current.persistent_file_patterns
+        && !added.is_empty()
+        && added.iter().all(|path| *path == PSX_TEXTURE_PACKS)
+        && retained
+            .persistent_paths
+            .iter()
+            .all(|path| current.persistent_paths.contains(path))
+        && !retained.persistent_paths.iter().any(|path| {
+            let path = path.to_lowercase();
+            Path::new(&path).starts_with(PSX_TEXTURE_PACKS)
+                || Path::new(PSX_TEXTURE_PACKS).starts_with(&path)
+        })
+}
+
+/// Entries declaring a path older managed PS1 readers would treat as a
+/// changed scope for existing installations.
+pub(crate) fn requires_psx_retained_scope(port: &PortDefinition) -> bool {
+    port.adapter == crate::AdapterKind::PsxRecompManaged
+        && port
+            .persistent_paths
+            .iter()
+            .any(|path| path == PSX_TEXTURE_PACKS)
+}
 const MAX_MATCHING_FILES: usize = 1024;
 
 /// Check one newly declared path without following links or scanning a tree.
@@ -119,7 +163,10 @@ pub(crate) fn legacy_direct_reader(port_id: &str) -> Option<(&'static str, &'sta
 }
 
 pub(crate) fn fresh_direct_data_guard_capability(port: &crate::PortDefinition) -> Option<u32> {
-    if crate::runtime_path_policy::has_staged_sibling_platforms(port) {
+    if !crate::archive_data::additive_runs(port).is_empty() {
+        // Older readers would hold every installation of the predecessor policy.
+        Some(crate::archive_data::ADDITIVE_DATA_POLICY_CAPABILITY)
+    } else if crate::runtime_path_policy::has_staged_sibling_platforms(port) {
         Some(crate::runtime_path_policy::minimum_capability(port))
     } else if port.archive_data_transition_v1.is_some() {
         Some(28)
@@ -148,7 +195,8 @@ pub(crate) fn requires_fresh_direct_data_guard(port: &crate::PortDefinition) -> 
             .is_some_and(|release| release.version == version && release.sha256 == sha256))
 }
 
-/// A ready managed archive with at most one verified, persistent raw-file copy.
+/// A ready managed archive with at most one verified, persistent runtime source
+/// file, copied whole or written without a SNES copier header.
 /// Decide from the retained definition before collecting data from an install.
 pub(crate) fn ready_staged_archive(port: &PortDefinition) -> bool {
     let source_is_ready = match (
@@ -157,9 +205,14 @@ pub(crate) fn ready_staged_archive(port: &PortDefinition) -> bool {
         port.runtime_source_materialization,
     ) {
         (None, None, None) => true,
-        (Some(_), Some(filename), Some(crate::RuntimeSourceMaterialization::Copy)) => {
-            port.persistent_paths.contains(filename)
-        }
+        (
+            Some(_),
+            Some(filename),
+            Some(
+                crate::RuntimeSourceMaterialization::Copy
+                | crate::RuntimeSourceMaterialization::SnesHeaderless,
+            ),
+        ) => port.persistent_paths.contains(filename),
         _ => false,
     };
     port.adapter == crate::AdapterKind::StagedSourcePortable
@@ -174,7 +227,9 @@ pub(crate) fn ready_staged_archive(port: &PortDefinition) -> bool {
         && port.setup_arguments.is_empty()
         && port.setup_output_paths.is_empty()
         && port.setup_marker.is_none()
-        && port.managed_initialization.is_none()
+        && (port.managed_initialization.is_none()
+            || (crate::managed_chocolate::applies(port)
+                && crate::managed_chocolate::validate(port).is_ok()))
         && port.managed_shared_preferences.is_none()
         && port.runtime_data_policy.is_none()
 }

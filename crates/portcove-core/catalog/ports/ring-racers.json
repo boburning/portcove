@@ -1,0 +1,59 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ring-racers",
+    "artwork": {
+      "game_id": 238878,
+      "cover_id": 380102,
+      "image_id": "co85ae",
+      "image_sha256": "e5f7e14e5d5bf87ef37f7d2dfbccf2da120f8d38f3d2ab86ac160f12a1c91c55",
+      "game_slug": "dr-robotniks-ring-racers",
+      "match_kind": "underlying-game"
+    },
+    "name": "Dr. Robotnik's Ring Racers",
+    "original_game_title": "Dr. Robotnik's Ring Racers",
+    "summary": "Race karts through courses with items, drifting, and time trials.",
+    "project_url": "https://github.com/KartKrewDev/RingRacers",
+    "issue_number": 6412,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://www.kartkrew.org/",
+    "setup_url": "https://www.kartkrew.org/news/2025-11-02_dr-robotniks-ring-racers-version-24.html",
+    "download_block_reason": "Use Kart Krew's full desktop release or the Linux Flatpak. These packages include the game's assets.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install the official desktop game",
+          "instruction": "Use Kart Krew's Windows installer or copy the complete application from the Mac disk image. The Windows 2.4 player uses 32-bit application support. The Mac 2.4 app contains both Intel and Apple Silicon players. Keep the game files together."
+        },
+        {
+          "title": "Use Flathub on Linux",
+          "instruction": "Install org.kartkrew.RingRacers from Flathub on x86-64 or ARM64. Use the installed app launcher so it can find its packaged data. Flathub manages this installation and its updates."
+        },
+        {
+          "title": "Keep the actual profile before replacing the game",
+          "instruction": "Close the game and preserve the folder that contains ringdata.dat, ringprofiles.prf and ringconfig.cfg. Keep Grand Prix saves, replays and add-ons you want to retain as well. The Flatpak profile lives at ~/.var/app/org.kartkrew.RingRacers/.ringracers. A separate native installation may use a different profile or your chosen -home location."
+        },
+        {
+          "title": "Save and reopen a race replay",
+          "instruction": "Use Save replay on the round result screen and confirm the title. Keep media/replay inside the profile when copying it. After Egg TV unlocks, open Extras, then Egg TV. Select the game version and replay. Standings shows the saved result, and Watch Replay plays the recorded round. If playback reports a desync, use Standings to read the saved result."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://www.kartkrew.org/"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ring-racers",
+    "origin": {
+      "project_url": "https://github.com/KartKrewDev/RingRacers",
+      "repository": {
+        "host": "github.com",
+        "id": "791534272"
+      }
+    },
+    "decisions": []
+  }
+}

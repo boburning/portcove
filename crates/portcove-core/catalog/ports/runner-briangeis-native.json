@@ -1,0 +1,79 @@
+{
+  "format_version": 1,
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "briangeis/runner",
+      "asset_hints": {
+        "windows-x86-64": ["runner-", "-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["Runner.exe"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Install and select Play to start the complete game. It keeps score and upgrades during the current run. The game has no saved-run restore option."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["_internal"],
+        "executables": ["runner.exe"]
+      }
+    }
+  },
+  "listing": {
+    "id": "runner-briangeis-native",
+    "name": "Runner (Brian Geis)",
+    "summary": "Pilot a ship, collect upgrades and fight through a scrolling arcade shooter based on the 1998 DOS game.",
+    "original_game_title": "Runner",
+    "project_url": "https://github.com/briangeis/runner",
+    "issue_number": 6055,
+    "listed_at": "2026-11-17",
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/briangeis/runner/blob/v1.0.0/README.md#download",
+    "release_url": "https://github.com/briangeis/runner/releases/tag/v1.0.0",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Start the Windows version",
+          "instruction": "Install and select Play in Portcove. If Windows blocks the unsigned upstream program on first launch, see the publisher’s First Run instructions."
+        },
+        {
+          "title": "Use the Linux or Mac package",
+          "instruction": "On Linux x86-64 with glibc 2.35 or later, unpack the full archive with a tool that preserves its links. Run ./Runner from the extracted Runner folder. Use the Apple Silicon ZIP on macOS 11 or later or the Intel ZIP on macOS 10.15 or later. Open the included app and see the publisher’s First Run instructions if macOS blocks it."
+        }
+      ],
+      "warnings": [
+        "Runner keeps progress and upgrades for the current play session. Quitting ends that run."
+      ],
+      "references": [
+        {
+          "title": "Play your first run",
+          "instruction": "Use WASD or the arrow keys to move, Space to fire and Escape to quit. The desktop packages include the game and artwork. No original DOS files are required."
+        }
+      ],
+      "help_url": "https://github.com/briangeis/runner/releases/tag/v1.0.0#first-run"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "runner-briangeis-native",
+    "origin": {
+      "project_url": "https://github.com/briangeis/runner",
+      "repository": {
+        "host": "github.com",
+        "id": "1331198053"
+      }
+    },
+    "decisions": []
+  }
+}

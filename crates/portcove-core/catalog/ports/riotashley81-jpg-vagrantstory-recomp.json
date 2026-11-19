@@ -46,6 +46,24 @@
       "warnings": [
         "Keep the complete player, local compiler/cache and existing card roots. Preserve the hybrid execution and exact noncommercial/component terms; another Vagrant Story port is a separate qualification."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "vagrant-story",
+      "evidence_urls": [
+        "https://github.com/riotashley81-jpg/vagrantstory_recomp/blob/898a34db9913d0b9835ed26af6e769ea3389cc80/README.md",
+        "https://github.com/riotashley81-jpg/vagrantstory_recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "vagrant-story-playstation",
+          "title": "Vagrant Story (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/riotashley81-jpg/vagrantstory_recomp/blob/d2d82f58125268183ecd3de5f369119438541ba8/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

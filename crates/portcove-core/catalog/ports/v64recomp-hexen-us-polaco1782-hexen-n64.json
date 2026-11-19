@@ -3,11 +3,19 @@
   "listing": {
     "id": "v64recomp-hexen-us-polaco1782-hexen-n64",
     "name": "Hexen (N64) — v64recomp / hexen-us (polaco1782)",
-    "original_game_title": "Hexen (N64)",
+    "original_game_title": "Hexen",
+    "artwork": {
+      "game_id": 93641,
+      "cover_id": 154601,
+      "image_id": "co3bah",
+      "image_sha256": "5d9f0e9d92e40092dd0a2ae1afd585d36ea0654530cd984f2938ab2d59509aef",
+      "game_slug": "hexen",
+      "match_kind": "underlying-game"
+    },
     "summary": "Experimental project. The shared README does not confirm gameplay for this game; check the linked game notes. Progress on other games does not establish that this one works. A full playthrough has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/polaco1782/v64recomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/polaco1782/v64recomp",
     "manual_setup": {
@@ -37,7 +45,25 @@
         }
       ]
     },
-    "issue_number": 3607
+    "issue_number": 3607,
+    "original_game": {
+      "format_version": 1,
+      "id": "hexen",
+      "evidence_urls": [
+        "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md",
+        "https://github.com/polaco1782/v64recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "hexen-nintendo-64",
+          "title": "Hexen (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/v64recomp-hexen-us-polaco1782-hexen-n64.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -23,11 +23,11 @@
       "steps": [
         {
           "title": "Keep the portable package together",
-          "instruction": "Extract the Windows MinGW x64 ZIP into a separate folder. This selected package includes the upstream data directory; keep it beside opentyrian2000.exe."
+          "instruction": "Choose the upstream MinGW x64 ZIP on Windows x86-64 or opentyrian2000-MSVC-ARM64.zip on Windows ARM64. Extract the complete package into a writable folder. Keep opentyrian2000.exe, its libraries and the included data directory together."
         },
         {
           "title": "Use the included player",
-          "instruction": "Finish setup with opentyrian2000.exe and its folder, then choose Play. For other packages that require additional data, follow the upstream Tyrian 2000 data instructions."
+          "instruction": "On Windows x86-64, finish setup with opentyrian2000.exe and its folder, then choose Play in Portcove. On Windows ARM64, start opentyrian2000.exe directly. For other packages that require additional data, follow the upstream Tyrian 2000 data instructions."
         },
         {
           "title": "Install the upstream Linux package",
@@ -57,7 +57,7 @@
         },
         {
           "title": "Preserve the Tyrian 2000 profile",
-          "instruction": "On Linux and Mac back up $XDG_CONFIG_HOME/opentyrian2000 or ~/.config/opentyrian2000. Keep its saves and settings separate from the OpenTyrian 2.1 profile."
+          "instruction": "On Linux, back up $XDG_CONFIG_HOME/opentyrian2000 or ~/.config/opentyrian2000. The reviewed Mac app uses ~/Library/Containers/com.AnV.Software.opentyrian2000/Data instead. Use Quit in the game menu before backing up or replacing the Mac app. In Finder, choose Go > Go to Folder and open that path. Find and back up your actual tyrian.sav, tyrian.cfg and opentyrian.cfg before replacing the app. Keep Tyrian 2000 data separate from the OpenTyrian 2.1 profile."
         }
       ]
     },
@@ -66,6 +66,16 @@
       "linux-x86-64": ["opentyrian2000-", "-amd64.deb"],
       "macos-x86-64": ["opentyrian2000-macOS.zip"],
       "macos-aarch64": ["opentyrian2000-macOS.zip"]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tyrian",
+      "evidence_urls": [
+        "https://github.com/andyvand/opentyrian2000#readme",
+        "https://github.com/andyvand/opentyrian2000"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Tyrian"
   }
 }

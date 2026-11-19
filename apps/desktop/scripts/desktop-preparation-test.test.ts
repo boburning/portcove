@@ -21,6 +21,8 @@ import {
   overflowUpdateFocusPoint,
   rollbackWitnessWithinLibrary,
   waitForReviewedUpdateAction,
+  reachLibraryFooterAction,
+  libraryFooterCaptureReady,
 } from "./desktop-preparation-test.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 
@@ -56,18 +58,19 @@ for (const mode of [
   });
 
 const currentPreparationSummary = `Finish setup
-Uses E:/owned.iso
-Starts from E:/sample
-The finished version goes in a new folder beside it.
 Installed version 1.2
-Needs At least 1.5 MiB free, plus what the game creates
-Your original game files aren't changed.
-Setup and recovery details
 Your original files and current installation remain unchanged until the verified
 result becomes active. The previous version stays available for rollback.
 Keep Portcove open. Continue browsing and revisit progress in Activity.
 Cancellation or interruption may leave working files in Activity.
-Starting again keeps earlier unfinished work.`;
+Starting again keeps earlier unfinished work.
+If setup opens another window
+Finish setup in that window, then close it without starting the game.
+Portcove will check the files. If the checks pass, it will switch to the new version.
+Uses E:/owned.iso
+Starts from E:/sample
+The finished version goes in a new folder beside it.
+Needs At least 1.5 MiB free, plus what the game creates`;
 
 test("native preparation observation accepts current rendered safety guidance and wrapping", () => {
   assert.doesNotThrow(() => assertPreparationReviewSummary(currentPreparationSummary));
@@ -76,11 +79,13 @@ test("native preparation observation accepts current rendered safety guidance an
 for (const [name, omitted] of [
   ["minimum free space", /At least 1\.5 MiB free, /],
   ["generated output", /plus what the game creates/],
-  ["unchanged originals", /Your original game files aren't changed\./],
   ["originals and active runtime", /Your original files[\s\S]*?result becomes active\./],
   ["runtime rollback", /The previous version stays available for rollback\./],
+  ["progress in Activity", /Continue browsing and revisit progress in Activity\./],
   ["Activity recovery", /Cancellation or interruption may leave working files in Activity\./],
   ["retained unfinished work", /Starting again keeps earlier unfinished work\./],
+  ["setup window instructions", /then close it without starting the game/],
+  ["setup window verification", /Portcove will check the files\./],
 ] as const)
   test(`native preparation observation refuses missing ${name}`, () => {
     assert.throws(() =>
@@ -380,3 +385,85 @@ for (const [name, changes] of refusedReviews) {
     assert.ok(observation.review.latest);
   });
 }
+
+test("native Library footer is reached through Tab without forcing focus", async () => {
+  let position = 0;
+  const result = await reachLibraryFooterAction(
+    async () => ({
+      originFocused: position === 0,
+      withinCard: true,
+      footerFocused: position === 2,
+      tabStops: 3,
+    }),
+    async () => {
+      position++;
+    },
+  );
+  assert.equal(position, 2);
+  assert.equal(result.tabPresses, 2);
+});
+
+test("native Library footer refuses an unrelated origin or a Tab path that skips the action", async () => {
+  let tabs = 0;
+  await assert.rejects(
+    reachLibraryFooterAction(
+      async () => ({ originFocused: false, withinCard: true, footerFocused: false, tabStops: 3 }),
+      async () => {
+        tabs++;
+      },
+    ),
+    /Start at the owned Library More action/u,
+  );
+  assert.equal(tabs, 0);
+  await assert.rejects(
+    reachLibraryFooterAction(
+      async () => ({
+        originFocused: tabs === 0,
+        withinCard: tabs === 0,
+        footerFocused: false,
+        tabStops: 3,
+      }),
+      async () => {
+        tabs++;
+      },
+    ),
+    /Tab left the owned Library card/u,
+  );
+  assert.equal(tabs, 1);
+  tabs = 0;
+  await assert.rejects(
+    reachLibraryFooterAction(
+      async () => ({
+        originFocused: tabs === 0,
+        withinCard: true,
+        footerFocused: false,
+        tabStops: 3,
+      }),
+      async () => {
+        tabs++;
+      },
+    ),
+    /was not reached through its Tab order/u,
+  );
+  assert.equal(tabs, 3);
+});
+
+test("native Library footer capture requires a positive finite focus ring", () => {
+  const ready = {
+    footerFocused: true,
+    documentFocused: true,
+    fullyVisible: true,
+    zoom: "200",
+    ring: 4,
+  };
+  assert.equal(libraryFooterCaptureReady(ready), true);
+  for (const ring of [0, -1, Number.NaN, Number.POSITIVE_INFINITY])
+    assert.equal(libraryFooterCaptureReady({ ...ready, ring }), false);
+  for (const state of [
+    { footerFocused: false },
+    { documentFocused: false },
+    { fullyVisible: false },
+    { zoom: "100" },
+  ])
+    assert.equal(libraryFooterCaptureReady({ ...ready, ...state }), false);
+});

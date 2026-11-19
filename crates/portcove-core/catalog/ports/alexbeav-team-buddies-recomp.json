@@ -52,14 +52,31 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/releases",
     "download_asset_hints": {
-      "linux-x86-64": ["teambuddies-", "-linux-x64.zip"],
       "macos-aarch64": ["teambuddies-", "-macos-arm64.zip"],
-      "macos-x86-64": ["teambuddies-", "-macos-x64.zip"],
-      "windows-x86-64": ["teambuddies-", "-windows-x64.zip"]
+      "macos-x86-64": ["teambuddies-", "-macos-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "team-buddies",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "team-buddies-playstation",
+          "title": "Team Buddies (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/blob/79bae1c84219b98277e40d2c71abeab80469885f/game.toml"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -97,7 +114,19 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own Team Buddies (Europe) (En,Es,It) complete CHD (SCES-02986, 1 track) and retail SCPH-5552 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned."
+      "manual_preparation": "Select your own Team Buddies (Europe) (En,Es,It) complete CHD (SCES-02986, 1 track) and retail SCPH-5552 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the exact original files",
+            "instruction": "Use your own Team Buddies (Europe) (En,Es,It) disc (SCES-02986) with its single data track and your own retail SCPH-5552 BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove checks the first data track and track count. Keep the complete disc intact."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-5552-bios"
   }

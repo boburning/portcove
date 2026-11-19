@@ -2,11 +2,19 @@
   "format_version": 1,
   "listing": {
     "id": "black-xbox-black-pc",
+    "artwork": {
+      "game_id": 5749,
+      "cover_id": 388910,
+      "image_id": "co8c32",
+      "image_sha256": "22a6b13aabf70f235c98cf1b33941a273b4eed5910197212b17d22a366cbd1f4",
+      "game_slug": "black",
+      "match_kind": "underlying-game"
+    },
     "name": "BLACK (Xbox) (black-pc)",
     "summary": "Attach an independently permitted, prepared BLACK Windows installation using Spark198rus’s title-specific original-x86 compatibility runtime. This is direct Xbox-code execution with replacement services, not static recompilation; Linux uses Wine rather than a native Linux player.",
-    "original_game_title": "BLACK (Xbox)",
+    "original_game_title": "BLACK",
     "project_url": "https://github.com/Spark198rus/black-pc",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Spark198rus/black-pc",
     "issue_number": 2877,
@@ -37,6 +45,25 @@
       ],
       "warnings": [
         "Use one of the exact NTSC-U/PAL XBE hashes, keep blackrt.dll with the x86 stub, and preserve the virtual hard disk before upstream replacement."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "black",
+      "evidence_urls": [
+        "https://github.com/Spark198rus/black-pc/blob/b826153997907272dd555b8ec63b6a54fcde0600/README.md",
+        "https://github.com/Spark198rus/black-pc"
+      ],
+      "source_editions": [
+        {
+          "id": "black-xbox",
+          "title": "BLACK (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/Spark198rus/black-pc/blob/b826153997907272dd555b8ec63b6a54fcde0600/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/black-xbox-black-pc.json"
+          ]
+        }
       ]
     }
   },

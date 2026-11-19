@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 import { desktopApi } from "../../api";
 import { listenDesktopEvent } from "../../desktop-events";
+import { requestStandingSetup } from "../game-file-discovery/use-standing-setup";
 import type {
   ActivityFeed,
   PortListingStatus,
@@ -26,6 +27,7 @@ import {
   LatestRequestGeneration,
 } from "../../shared/concurrency-state";
 import { startManagedSubscription } from "../../shared/subscription-lifecycle";
+import { isRetryableStaleSnapshot } from "../../view-model";
 
 export function emptyActivityFeed(terminalHistoryLimit = 50): ActivityFeed {
   return {
@@ -53,6 +55,48 @@ interface WorkspaceRead {
   activities: ActivityFeed;
   fullReadAt: number;
   needsRecovery: boolean;
+}
+
+function canRefreshActivities(
+  previous: WorkspaceRead,
+  ownChange: boolean,
+  externalChange: boolean,
+) {
+  return (
+    (!ownChange || previous.needsRecovery) &&
+    (previous.needsRecovery ||
+      externalChange ||
+      document.hidden ||
+      Date.now() - previous.fullReadAt < 60_000)
+  );
+}
+
+async function probeWorkspaceChange(
+  libraryGeneration: number,
+  localWrites: { current: { revision: number; at: number } },
+  observedLocalWrites: { current: number },
+  deferredDiscovery: { current: boolean },
+) {
+  let changed = false;
+  let ownChange = false;
+  let deferredDue = false;
+  try {
+    changed = await desktopApi.workspaceChanged(libraryGeneration);
+    const localRevision = localWrites.current.revision;
+    ownChange = changed && localRevision !== observedLocalWrites.current;
+    observedLocalWrites.current = localRevision;
+    if (ownChange) deferredDiscovery.current = true;
+    else if (
+      deferredDiscovery.current &&
+      Date.now() - localWrites.current.at >= localOperationEventWindowMs
+    ) {
+      deferredDiscovery.current = false;
+      deferredDue = true;
+    }
+  } catch {
+    /* Periodic/full read remains the actionable fallback. */
+  }
+  return { changed, ownChange, deferredDue };
 }
 
 // Extend the documented focus adapter for desktop window focus as well as visibility.
@@ -242,36 +286,17 @@ export function usePortcoveData(libraryGeneration = 0) {
         queryClient.getQueryState(queryKey)?.status === "error";
       fullReadRequested.current = false;
       if (!full && previous) {
-        let changed = false;
-        let ownChange = false;
-        let deferredDue = false;
-        try {
-          changed = await desktopApi.workspaceChanged(libraryGeneration);
-          const localRevision = localWrites.current.revision;
-          ownChange = changed && localRevision !== observedLocalWrites.current;
-          observedLocalWrites.current = localRevision;
-          if (ownChange) deferredDiscovery.current = true;
-          else if (
-            deferredDiscovery.current &&
-            Date.now() - localWrites.current.at >= localOperationEventWindowMs
-          ) {
-            deferredDiscovery.current = false;
-            deferredDue = true;
-          }
-        } catch {
-          /* Periodic/full read remains the actionable fallback. */
-        }
+        const { changed, ownChange, deferredDue } = await probeWorkspaceChange(
+          libraryGeneration,
+          localWrites,
+          observedLocalWrites,
+          deferredDiscovery,
+        );
         signal.throwIfAborted(); // Stops frontend continuations, not the already-started backend read.
         // A change coinciding with this window's own writes only needs a fresh read;
         // other commits (CLI or another process) still run orphan discovery first.
         const externalChange = (changed && !ownChange) || deferredDue;
-        if (
-          (!ownChange || previous.needsRecovery) &&
-          (previous.needsRecovery ||
-            externalChange ||
-            document.hidden ||
-            Date.now() - previous.fullReadAt < 60_000)
-        ) {
+        if (canRefreshActivities(previous, ownChange, externalChange)) {
           let activities = previous.activities;
           let activityReadSucceeded = false;
           try {
@@ -293,10 +318,20 @@ export function usePortcoveData(libraryGeneration = 0) {
       // Offer the catalog digest this generation already holds; an unchanged
       // catalog (about 7 MB) is then omitted and reused by reference.
       const held = previous?.snapshot;
-      const transport = await desktopApi.workspaceSnapshot(
-        libraryGeneration,
-        held?.catalog_digest ?? null,
-      );
+      const readSnapshot = () =>
+        desktopApi.workspaceSnapshot(libraryGeneration, held?.catalog_digest ?? null);
+      let transport: WorkspaceSnapshotTransport;
+      try {
+        transport = await readSnapshot();
+      } catch (error) {
+        // A read that overlapped the player's own change is refused rather than
+        // returned inconsistent. Read once more before reporting it: the change
+        // succeeded, so a warning now would ask for nothing. A second refusal
+        // still surfaces as the refresh failure.
+        if (!isRetryableStaleSnapshot(error)) throw error;
+        signal.throwIfAborted();
+        transport = await readSnapshot();
+      }
       signal.throwIfAborted();
       const snapshot = restoreUnchangedCatalog(transport, held);
       return {
@@ -526,6 +561,7 @@ export function usePortcoveData(libraryGeneration = 0) {
     >({
       register: (accept) => listenDesktopEvent("portcove://library-changed", accept),
       onEvent: () => {
+        requestStandingSetup();
         invalidateDiagnostics();
         void retryRecovery().catch(() => {
           /* The refresh failure remains visible; this event has no awaiting caller. */

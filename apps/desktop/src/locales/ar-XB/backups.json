@@ -27,7 +27,8 @@
     "summary_two": "ملفان · {{size}}",
     "summary_few": "{{count}} ملفات · {{size}}",
     "summary_many": "{{count}} ملفًا · {{size}}",
-    "summary_other": "{{count}} ملف · {{size}}"
+    "summary_other": "{{count}} ملف · {{size}}",
+    "unknownFiles": "تحتفظ أيضًا بـ {{total, number}} من الملفات التي لم يثبّتها Portcove. لا تعيدها استعادة هذه النسخة الاحتياطية."
   },
   "ghostship": {
     "activates": "يفعّل هذا نسخة مشتقة جديدة من التثبيت القديم المحتفظ به ويستبدل البيانات المحفوظة الأساسية باللقطة المحددة.",

@@ -92,8 +92,21 @@ export async function adoptionReviewScenario({
     await browser.navigate().refresh();
     const { button, click } = reviewControls(browser);
     const dialog = By.css('[aria-labelledby="adopt-title"]');
+    // Native27 reached the former 15 s click wait while Library still loaded;
+    // its reload workspace reads took 14.075 s and 14.212 s. Wait for the real
+    // entry control before using the unchanged ordinary click path.
+    await browser.wait(
+      async () => {
+        const controls = await browser.findElements(button("Add games"));
+        if (controls.length !== 1) return false;
+        const control = required(controls[0]);
+        return (await control.isDisplayed()) && (await control.isEnabled());
+      },
+      60_000,
+      "The reloaded Library must expose one visible enabled Add games control",
+    );
     await click(button("Add games"));
-    await click(By.css('button[aria-label="Use an existing installation"]'));
+    await click(button("Use an existing installation"));
     const trigger = button("Copy an existing installation");
     await click(trigger);
     await browser.wait(until.elementLocated(dialog), 15_000);
@@ -166,13 +179,13 @@ export async function adoptionReviewScenario({
     assert.ok(selectedText.includes(paths.user_data_root));
     await click(button("Continue to copy confirmation"));
     await confirmNative(
-      "Confirm existing installation copy",
+      "Copy existing installation?",
       "__observe__",
-      `catalog port ${port.id}?`,
+      `${port.id} into Portcove?`,
       "adoption-ambiguous-selected-before-consent",
     );
     await confirmNative(
-      "Confirm existing installation copy",
+      "Copy existing installation?",
       "Cancel",
       ambiguous,
       "adoption-ambiguous-cancelled",
@@ -217,7 +230,7 @@ export async function adoptionReviewScenario({
     await open();
     await click(button("Continue to copy confirmation"));
     await confirmNative(
-      "Confirm existing installation copy",
+      "Copy existing installation?",
       "__observe__",
       "Portcove does not create a backup before this copy.",
       "adoption-native-before-consent",
@@ -225,7 +238,7 @@ export async function adoptionReviewScenario({
     assert.equal(await readFile(current, "utf8"), "current settings");
     assert.equal(required(status(port.id).active).id, previous.id);
     await confirmNative(
-      "Confirm existing installation copy",
+      "Copy existing installation?",
       "Cancel",
       paths.user_data_root,
       "adoption-native-cancelled",
@@ -288,7 +301,7 @@ export async function adoptionReviewScenario({
     artifacts.push(screenshot);
     await click(button("Continue to copy confirmation"));
     await confirmNative(
-      "Confirm existing installation copy",
+      "Copy existing installation?",
       "Copy into Portcove",
       paths.user_data_root,
       "adoption-native-confirmed",

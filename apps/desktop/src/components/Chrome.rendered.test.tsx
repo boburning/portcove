@@ -132,11 +132,16 @@ describe("desktop components", () => {
     expect(html).toContain("About Portcove");
     expect(html).toContain("Install, update, and play native game ports.");
     expect(html).toContain("/brand/icons/portcove-mascot-transparent.png");
-    expect(html).toMatch(/<h2[^>]*aria-label="About Portcove"[^>]*>Portcove<\/h2>/u);
+    expect(html).toMatch(/<h2[^>]*id="settings-about-heading"[^>]*>About Portcove<\/h2>/u);
     expect(html).toContain(`<h3>Portcove ${desktopPackage.version}</h3>`);
     expect(html).toContain("Licensed under MIT or Apache-2.0.");
     expect(html).toContain("Open project repository");
     expect(html).toContain("Open diagnostics");
+    // Players look for help under About; reporting starts there, not in Advanced.
+    const about = html.slice(html.indexOf('id="settings-about-heading"'));
+    expect(about).toContain("<h3>Feedback</h3>");
+    expect(about).toMatch(/<button[^>]*>Report a problem or send feedback<\/button>/u);
+    expect(html.match(/>Report a problem or send feedback<\/button>/gu)).toHaveLength(1);
   });
 
   it("keeps page introductions concise without losing catalog count or controls", () => {
@@ -264,7 +269,7 @@ describe("desktop components", () => {
       "Check Saves &amp; backups on each game’s page for its save locations and backup options.",
     );
     expect(html).toContain(
-      "Metadata records installed versions, saved file locations and settings",
+      "The export records installed versions, saved file locations and settings",
     );
     expect(html).toMatch(
       /<button[^>]*data-variant="outline"[^>]*>Export library information<\/button>/u,
@@ -301,7 +306,7 @@ describe("desktop components", () => {
           source: "discovery",
           configuration_variable: "PORTCOVE_CHDMAN",
           purpose: "Check CHD game files and prepare disc images",
-          official_url: "https://docs.mamedev.org/tools/chdman.html",
+          official_url: "https://www.mamedev.org/release.html",
         },
         {
           id: "dolphin_tool",
@@ -343,16 +348,15 @@ describe("desktop components", () => {
     expect(html).toContain("Not found");
     expect(html).toContain("C:/Tools/chdman.exe");
     expect(html).toContain("E:/Missing/DolphinTool.exe");
-    expect(html).toContain(
-      "Portcove couldn’t find Future tool. If it’s installed, choose its program file.",
-    );
+    expect(html).toContain("Portcove couldn’t find Future tool.");
+    expect(html).toContain("Official downloads for installation options.");
     expect(html).toContain("Environment variable: PORTCOVE_FUTURE_TOOL");
     expect(html).toContain("Tool details");
-    expect(html).toContain("Official site");
+    expect(html).toContain("Official downloads");
     expect(html).toContain("Locate Future tool…");
     expect(html).not.toContain("Locate DolphinTool…");
     expect(html).toContain("Recheck");
-    expect(html).toMatch(/<button[^>]*data-variant="outline"[^>]*>Official site<\/button>/u);
+    expect(html).toMatch(/<button[^>]*data-variant="outline"[^>]*>Official downloads<\/button>/u);
     expect(retained).toContain("Couldn’t check disc tools.");
     expect(retained).toContain("Showing the last successful host check.");
     expect(retained).toContain("C:/Tools/chdman.exe");
@@ -611,7 +615,8 @@ describe("desktop components", () => {
       />,
     );
 
-    expect(html).toContain("Not signed in. Signing in increases the limit for release checks.");
+    expect(html).toContain("Not signed in");
+    expect(html).toContain("Signing in increases the limit for release checks.");
     expect(html).toContain("GitHub request limit unavailable");
     expect(html).toContain("Continue without signing in or use a personal access token");
     expect(html).toMatch(

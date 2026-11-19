@@ -16,7 +16,10 @@ const FORMAT_VERSION: u32 = 1;
 const MAX_BYTES: u64 = 64 * 1024;
 const INVALID_DOCUMENT_DETAIL: &str = "invalid_host_preference_document";
 const FAVORITES_KEY: &str = "favorites_by_library";
+/// Host-wide choice; absent means on (owner decision on #534, 2026-11-15).
+const OFFICIAL_CATALOG_AUTOMATIC_UPDATES_KEY: &str = "official_catalog_automatic_updates";
 
+mod dat_references;
 mod organization;
 pub(crate) mod recommendations;
 pub use organization::{
@@ -294,6 +297,41 @@ impl HostPreferenceStore {
         let _lock = self.lock()?;
         let mut preferences = self.load()?;
         preferences.locale = locale.map(str::to_owned);
+        self.publish(&preferences)
+    }
+
+    /// Whether the official catalog is refreshed automatically. On unless the
+    /// player turned it off; a saved value that is not a boolean is reported
+    /// rather than silently treated as either choice.
+    pub fn official_catalog_automatic_updates(&self) -> Result<bool> {
+        match self
+            .load()?
+            .extensions
+            .get(OFFICIAL_CATALOG_AUTOMATIC_UPDATES_KEY)
+        {
+            None => Ok(true),
+            Some(serde_json::Value::Bool(enabled)) => Ok(*enabled),
+            Some(_) => Err(PortcoveError::state(
+                "the saved official catalog update choice is malformed; repair or reset preferences",
+            )),
+        }
+    }
+
+    /// Records the player's choice. Turning updates on removes the saved value,
+    /// so the default applies again; turning them off is retained explicitly.
+    pub fn set_official_catalog_automatic_updates(&self, enabled: bool) -> Result<()> {
+        let _lock = self.lock()?;
+        let mut preferences = self.load()?;
+        if enabled {
+            preferences
+                .extensions
+                .remove(OFFICIAL_CATALOG_AUTOMATIC_UPDATES_KEY);
+        } else {
+            preferences.extensions.insert(
+                OFFICIAL_CATALOG_AUTOMATIC_UPDATES_KEY.to_owned(),
+                serde_json::Value::Bool(false),
+            );
+        }
         self.publish(&preferences)
     }
 

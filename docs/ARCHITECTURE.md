@@ -1,9 +1,9 @@
 # Architecture
 
-For a change, start at [Find the owning boundary](#find-the-owning-boundary),
-then read the affected subsystem. Core owns durable policy; adapters and
-presentation consume it. Detailed implementation and dated evidence below retain
-their stated scopes; live acceptance belongs to the owning issue.
+Before you change code, [find the owning boundary](#find-the-owning-boundary).
+Then read the section for that part of the system. Core owns rules that must
+persist. Adapters expose the results to the interface. Check the scope of each
+dated result. The issue records what the work must achieve.
 
 Library collection layout is a profile-local React preference scoped by the
 canonical library browsing key. `useCollectionLayout` owns covers/rows persistence
@@ -31,6 +31,20 @@ without cancelling or overlapping backend IPC. Recovery stays outside query
 execution. Activity ordering, pending-change handoff and diagnostic revision guards
 remain explicit; query cancellation only stops frontend continuations.
 
+Mod setup inventory requests share one frontend read lane per port and library
+generation, including across component remounts while native work is outstanding.
+Refreshes arriving during a read coalesce into one subsequent read; each current
+consumer receives its batch's result. Settled results are discarded, and outgoing
+components retain their publication fencing. After abandoned-stage cleanup, Core
+`preview_mod_setups` checks each current setup's registered installation identity,
+manifest, executable presence and current policy without traversing immutable
+payloads or historical builds. `present` means those metadata checks passed;
+it does not claim current payload integrity. Missing, changed and held metadata
+remain distinct. The explicit `mod_setups`, `profile_inventory` and retained-build APIs,
+setup mutations, automatic-update execution, deployment and launch retain their
+existing verification. Live mod drift is still observed separately. No settled
+inventory result or execution authorization is cached by the preview.
+
 Desktop interface enlargement is presentation authority: `InterfaceSizeController`
 serializes the existing Tauri WebView zoom API and persists acknowledged choices
 within the browser profile, independently of library generations. React owns
@@ -38,7 +52,7 @@ pending intent and recovery feedback. No Core library record, durable operation,
 installation lock or host scheduler is created for interface scaling. See
 [theme ownership](THEME.md#whole-interface-enlargement-and-reflow).
 
-Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+Core owns game release-channel selection and its stored values. See the [CLI release-channel contract](CLI.md#release-channels).
 
 ## Current ownership and deliverables
 
@@ -126,6 +140,7 @@ scope; they do not certify later builds.
 | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Catalog, sources, installation, game updates and launch | Shared core; start with the [library model](#library-model), [install transaction](#install-transaction), [adapter boundary](#adapter-boundary) and [catalog contract](CATALOG.md).                                                                                                                                         |
 | Disc-image unpacking (Xbox, Xbox 360, PS2, PSP)         | Core `disc_filesystem` owns the read-only XDVDFS/ISO 9660 readers and their fixed bounds, `disc_product` owns pre-extraction game identification, and the adapter owns staging, verification, swap and marker. CLI and Desktop only present its phases; see [catalog contract](CATALOG.md#disc-image-unpacking).            |
+| ROM patching (IPS, BPS, UPS)                            | Core `rom_patch` owns the bounded in-memory IPS/BPS/UPS appliers; the adapter owns member reading, pinned original/patch/output identity checks, atomic replacement and marker. No download route; see [catalog contract](CATALOG.md#rom-patching).                                                                         |
 | Application self-update, replacement and recovery       | Tauri host; [updater trust](UPDATER-TRUST.md), [upgrade behavior](UPGRADING.md) and [delivery boundaries](DELIVERY.md). Application, game and catalog updates remain separate.                                                                                                                                              |
 | CLI, Desktop IPC and external clients                   | Thin adapters over core; [CLI contract](CLI.md), [external frontend boundary](#external-frontend-contract) and [integration-author route](INTEGRATION-AUTHOR.md).                                                                                                                                                           |
 | React presentation and workspace state                  | Desktop frontend; [design system](DESIGN-SYSTEM.md), [desktop library handoff](#desktop-library-handoff-state) and [backup review presentation](#backup-review-presentation). Core assessments retain operation authority.                                                                                                  |
@@ -197,12 +212,23 @@ the existing GitHub provider and archive checks. A download publishes into a new
 user-owned child folder outside the Library and managed outputs; it never runs
 an installer. Shared release/package suitability and bounded native executable
 discovery supply suggestions; explicit registration and launch revalidate them.
+Download availability offers one fresh route per host: Core refuses the listing
+download with a typed `CatalogDownloadRefusal` only when the library's own
+Install assessment for the host is allowed or waiting for game files, the same
+test Desktop uses to prefer Install. Held or already-registered Install keeps the
+download. Target inspection reports the refusal per target for a fresh library.
+Descriptive listing platforms never refuse a host.
+Registering an existing copy and installed copies are unaffected; Desktop and
+the CLI show the explanation instead of download choices.
 Generic GitHub/GitLab downloaded setup can optionally extract ZIP, tar.gz/tgz,
 tar.xz and bounded 7z packages. TAR.XZ uses the pinned in-process LZMA decoder
 with a single verified worker. The reader bounds the raw index to 32 KiB before
 allocation and requires one unpadded stream with CRC32 or CRC64. It preflights
-up to 1,024 plain LZMA2 block headers, at most 64 MiB of decoded bytes per
-block and a 96 MiB decoder budget. It applies the compression ratio to the
+up to 1,024 plain LZMA2 block headers, at most 128 MiB of decoded bytes per
+block and a 160 MiB decoder budget for the verified worker's packed input,
+decoded output and decoder state. The official JGR Patch Pack 0.73.5 Linux
+archive uses one block of 43,738,084 packed and 121,032,704 decoded bytes.
+The reader applies the compression ratio to the
 entire indexed output before decoding, including headers and padding. The
 existing archive size and TAR metadata limits also apply. It verifies every
 indexed block and consumes the TAR terminator and up to one 10 KiB record of
@@ -352,6 +378,25 @@ Populated, mixed, aliased or incompatible changes remain held, including a later
 return if the older runtime has created a changed path. Existing collection,
 backup/restore, interruption recovery and historical transfer authority remain in
 place; this grants no populated migration or save-format compatibility.
+
+An archive data-policy successor that only appends shared conventional files
+is a separate, structural exception to the empty-path proof. `archive_data`
+derives every predecessor from the current contract by removing a trailing run
+present in both the persistent and shared path lists, keeps the namespace the
+first policy established, and refuses every other policy difference. The update,
+activation and rollback guards accept that lineage (rollback in either direction
+only toward a retained copy). The forward guard also requires the predecessor's
+package manifest to permit the appended paths and its runtime and canonical
+copies of each appended file to agree. After the successor copy's ordinary
+restore, `prepare_retained_install_data` and rollback copy an appended file from
+the active predecessor runtime into that copy only when canonical data lacks it,
+so canonical data changes only through later collection; a retry keeps an
+identical earlier copy. Rollback records the predecessor copy's appended-file
+digests as a baseline, and a forward switch lets canonical data win silently
+for files still matching it. Restoring a snapshot
+framed by a strict predecessor policy keeps current appended files the snapshot
+lacks. Backup framing, fresh-beside and historical transition admission use
+the same lineage. See [CATALOG](CATALOG.md#adding-or-changing-a-port).
 
 Trusted verification projections keep the same exact root receipt-metadata
 exclusions as catalog-captured qualifications. Import still verifies each
@@ -518,7 +563,7 @@ already rejects every other webview. Capability selection stays explicit: the
 `default` capability names only the `main` window, and a host test refuses any
 capability file that names another window, `webviews`, `remote` or `platforms`,
 or a configured window other than `main`. Events changed: every Portcove event
-(`library-changed`, `operation`, `application-update-notice`) is emitted with an
+(`library-changed`, `operation`, `application-update-notice`, `play-request`) is emitted with an
 explicit `main` target through one function that shares the invoke gate's label.
 Each event has one consumer, in the main window, and none is a global event.
 Targeting is a second layer, not the boundary: the frontend's default listeners
@@ -706,13 +751,23 @@ specifies request bounds, version semantics, and independent trust checks.
 
 ## Local artwork ownership
 
-The optional destination-artwork handoff (schema 2) is also Core-owned. Read-only
+Core validates bounded constituent-game `collection_covers` and resolves each requested
+member from the current or retained listing, with the expected digest and local Cover
+choice revision. Any explicit local choice suppresses the collection. Tauri delegates
+through the existing generation guard and remote-thumbnail worker pool. React fits the
+available covers using the shared artwork cache, visibility subscriptions and remote
+request queue; catalog changes invalidate every member's display identity. Reference
+retention and exact-image withdrawal include collection members. This creates no durable
+choice, image store or destination-export authority.
+
+The optional destination-artwork handoff (schema 4) is also Core-owned. Read-only
 CLI adapters export exact library/port/revision/asset bindings, accepted provenance
 and explicit static-role availability. Validated durable local Cover originals
 provide portrait bytes and a Detail original displayed wider than tall provides hero-banner
 bytes, both unmodified; unavailable originals retain their selection metadata.
 Catalog display caches never supply destination bytes, and no role is synthesized,
-cropped or resized from another. There is no new durable store, provider or destination writer.
+cropped or resized from another. There is no new durable store or destination writer;
+provider provenance is recorded beside the existing assets, as described below.
 The [integration contract](INTEGRATION-AUTHOR.md#destination-artwork-handoff) owns
 consumer negotiation and preview/replacement/cleanup obligations.
 
@@ -728,18 +783,116 @@ keeps only image and thumbnail URLs on `https://cdn2.steamgriddb.com`, bounds
 responses and counts, and maps missing, rejected, rate-limited (with `Retry-After`),
 unavailable and malformed responses to explicit outcomes. Responses do not mark
 animation, so the static-only filter relies on the provider until import decodes the
-image. Candidates are proposals
-with author attribution; they establish no game identity, selection or Steam write.
-No project key exists, and no CLI or Desktop surface exposes the client yet.
+image; the shared decode refuses animated PNGs. Candidates are proposals with author
+attribution; they establish no game identity or Steam write. No project key exists.
 
-Core owns independent cover/detail choices, copied local originals, deterministic
+Choosing a SteamGridDB image goes through the same artwork store and ingestion path
+as a local import. Cover takes the portrait role, Detail the hero role and Landscape the
+landscape role. Core re-lists the game's first candidate page with the player's key and
+selects the requested image, so a client-supplied URL or author is never trusted, and
+an image that has left that page is reported as no longer listed. The image is then
+fetched from the CDN through a transport method that takes no key, with no redirects,
+a 60-second limit and the 16 MiB original cap enforced while reading. Only the image
+URL and ordinary request metadata reach the CDN. All network work happens before the
+artwork lock or any transaction; the existing revision checks reject a stale choice.
+The decoded format and pixel dimensions must match the listing, so a chosen hero is
+genuinely wide.
+
+SQLite schema 52 records provenance in `artwork_asset_providers`, keyed by asset,
+provider and provider image, and marks assets that exist only because a provider image
+was chosen in `artwork_provider_only_assets`. Asset payloads are unchanged, so local
+imports keep their stored form and older writers refuse the upgraded library. Records
+are per origin and never dropped: a later local import of identical bytes clears only
+the provider-only marker, keeping the credit, first filename and import time. A
+provider-first asset is named `steamgriddb-<image-id>.<png|jpg>`. Removing an unused
+asset removes its provenance. Library metadata that carries provenance uses schema 8,
+which older readers refuse; a same-user export copies provider originals like every
+other original. `artwork_state` and the handoff expose the credits.
+
+Withdrawal handling is player-triggered (2026-11-13 owner decision).
+`check_steamgriddb_listings` takes a
+dedicated single-flight lock, then snapshots the stored records and their evidence in
+one read transaction, without the artwork lock. It groups the records by game, role
+collection, stored size and format and lists the stalest groups first, with every
+content flag set to `any`, so a re-tagged image or a later Portcove filter change never
+reads as missing. This listing is separate from the picker's lossy one and matches raw
+IDs only. An ID on any envelope-valid page is presence evidence. Absence is accepted
+only from a listing whose pages echo the request, carry `data` and a stable `total`,
+and whose unique IDs equal `total`; an empty narrowed listing is corroborated by the
+unfiltered one, so the only image of its size and format can still be found missing.
+Everything else, including a game 404, is unknown. Absent images get a keyless
+image-server probe. Each check has a request budget (120 API, 60 image server), 250 ms
+spacing, a three-minute deadline and a cancel hook checked before every request.
+
+SQLite schema 58 records the evidence in `artwork_provider_listing_checks`, keyed
+exactly like `artwork_asset_providers` with a cascading composite foreign key, a
+revision taken from a one-row sequence (so no revision is ever reused) and state
+constraints; removing an asset also deletes its rows explicitly. Hosts can run the
+check in three phases: prepare (single-flight lock and snapshot), the network check,
+which holds no library connection or lease, and record. Desktop holds a service only
+to prepare and to record, so a library switch, move or import never waits for the
+network phase; the check then stops before its next request and reports unrecorded. Attempted results are applied in one immediate transaction under a
+briefly retried artwork lock, each only if the row's revision is unchanged since the
+snapshot, so a concurrent choice or removal always wins. Choosing an image marks it
+listed in the same transaction as its provider record. `not_listed_since` keeps the
+first verified absence and is cleared only by an observed listing; unknown results
+never move it. A cancelled check records nothing. Evidence travels with a library
+move (the database is copied) but not with metadata export or import.
+
+SQLite schema 59 adds withdrawals and evictions. A withdrawal is decided only when a
+result is applied, from that result alone: a verified absence plus either a `gone`
+probe answer in the same check, or an earlier absence that has stood for 24 hours by
+both Portcove's clock and SteamGridDB's `Date` (`not_listed_since_server`). An
+observed listing deletes the withdrawal, so `artwork_provider_withdrawals` always
+follows the latest verified evidence. In the same transaction, a provider-only asset
+whose every record is withdrawn gets an `artwork_evicted_assets` marker, which
+requires the provider-only marker. The marker is the authority for every reader:
+`artwork_state`, the destination handoff (`selected_original_unavailable`), handoff
+bytes and thumbnails never read an evicted original. The original, staged copy and
+thumbnail are deleted after the commit without reading them, at most 32 per check;
+the rest, and deletions another process refused, are finished at the next check's
+preparation, by every artwork-lock mutation and, without a bound, before an export or
+move plan, which stops if one still cannot be deleted. A player's own import is never
+provider-only and is never evicted. Restoring (choosing the image again, or importing
+the same bytes) publishes the original first; only then does the transaction that
+writes the choice clear the marker and record the provenance, so a failed restore
+changes nothing. Evicted bytes do not count toward artwork storage or the transfer
+byte limit. Library metadata schema 10 carries withdrawals and evicted assets;
+evicted originals are not part of the transfer inventory.
+Desktop's Steam artwork review asks Core, by source hash, which Portcove-owned Steam
+files came from an evicted image (`evicted_artwork_sources`, a display fact that
+never authorizes removal) and offers a separate, player-confirmed per-role removal;
+Steam files are never changed because of an eviction alone.
+
+The CLI's `artwork steamgriddb` commands are thin adapters:
+lookups run on a blocking task, and `choose` and `check-listings`, which borrow the
+service, run in place on a runtime worker thread (`block_in_place`).
+
+Desktop exposes the same Core functions through thin Tauri commands. Settings →
+Integrations saves or removes the player's key; the key is passed to Core once and
+never returned to the renderer, and saving it starts no lookups. Each artwork slot's
+**Find on SteamGridDB** opens a picker only when asked: it searches from the port
+name, lists the slot's role (Cover takes portrait images, Detail takes hero images)
+and chooses through Core with the slot's choice revision and library generation.
+Opening artwork makes no SteamGridDB request. The webview's content policy blocks
+remote images, so candidate previews come from Core: it fetches the thumbnail from
+the SteamGridDB CDN without the key (4 MiB, enforced while reading), decodes it with the shared limits and
+returns a small re-encoded PNG. Previews share the bounded remote-image admission used
+by catalog covers. A newer search or game choice supersedes older results.
+SteamGridDB's retry guidance disables search and retry until it passes and pauses
+further previews; loaded previews and, for five minutes, failed previews are reused
+across picker views. The source details credit the artist and link the SteamGridDB image.
+
+Core owns independent cover, detail and landscape choices, copied local originals, deterministic
 generated fallbacks, bounded raster decoding and disposable thumbnails. SQLite
 schema 24 records assets and monotonic choice revisions; older writers refuse the
-upgraded library. API schema 44 exposes selection and integrity metadata through
+upgraded library. SQLite schema 57 rebuilds `artwork_choices` in place to admit the
+`landscape` slot, keeping every row, revision and constraint. API schema 44 exposes selection and integrity metadata through
 the CLI and Desktop. The schema-49 `artwork_state` object now includes an additive
 core-resolved source and generated-fallback provenance. Catalog and signed-envelope
-formats are unchanged. Local filenames, hashes and import times record provenance;
-they establish neither copyright permission nor upstream authenticity.
+formats are unchanged. Local filenames, hashes and import times record local
+provenance, and provider records credit chosen SteamGridDB images; neither establishes
+copyright permission nor upstream authenticity.
 
 Artwork reads, thumbnails, imports, resets and destination handoffs use descriptive
 listing identity, including listings without an operational integration. Current
@@ -760,8 +913,10 @@ limits also apply; destination pixel allocation is checked explicitly. A separat
 library artwork lock serializes local import/thumbnail decoding, reset, cache
 publication/clearing and unused-original removal without holding a game's operation
 lock. Remote original reads, fetching and conversion use a separate process-wide
-two-worker budget; Core refuses excess work promptly instead of blocking a shared
-worker behind another image. Expected slot revisions reject stale changes, including
+budget of `IGDB_ARTWORK_WORK_LIMIT` (6) workers; Core refuses excess work promptly
+instead of blocking a shared worker behind another image. Each worker may transiently
+hold an original and its decoded pixels, so the worst-case bound is that limit times
+the original and decoded byte limits; real covers are far smaller. Expected slot revisions reject stale changes, including
 reset/reselect cycles. Missing or changed originals retain the selection and report
 unavailability through the artwork API; ordinary lifecycle reads do not read images.
 
@@ -824,15 +979,17 @@ visible viewport plus at most 256 inactive previews (bounded by encoded size) pe
 generation. Local-choice reads run for up to four ports at once while each port's
 slots stay ordered; mutations and local thumbnail decoding run alone because Core
 refuses a contended artwork lock. IGDB thumbnail retrieval uses a separate
-two-request drain. Undispatched requests
+drain of `maximumRemoteRequests` requests, which must equal Core's limit because Core
+refuses rather than queues excess work. Cards prefetch 800px vertically ahead of the
+viewport, and an already-loaded image stays displayed while its card is offscreen. Undispatched requests
 are keyed by port/slot, share the inactive-preview retention bound and recheck
 current state and viewport interest before IPC. A refreshed choice replaces queued
 work, and offscreen queued work is discarded so current covers can proceed.
 The native adapter
 uses Core's resolved source to await remote admission asynchronously before
 dispatching a thumbnail worker; local thumbnails, imports, resets and unrelated
-game work do not wait on that remote gate. Its capacity matches Core's two-worker
-limit. A dispatched worker retains its permit even if its IPC waiter is cancelled.
+game work do not wait on that remote gate. Its capacity matches Core's
+`IGDB_ARTWORK_WORK_LIMIT`. A dispatched worker retains its permit even if its IPC waiter is cancelled.
 Library generation and slot revision are rechecked after admission. Queued renderer
 reads are discarded when their view no longer needs them, and stale completions
 cannot replace a changed choice or generation. Visible cards load asynchronously and preserve
@@ -968,9 +1125,8 @@ immutable manifest digest covers both the snapshot and admission record. Format 
 continues to retain canonical legacy catalog content. Format 2 remains readable as
 exact supplied successor content but does not acquire invented authentication.
 Pure decode caching is bounded to one exact format/content pair and never caches
-filesystem integrity, source admission or revocation decisions. Each content
-component keeps its existing 4 MiB bound; the three retained components total at
-most 12 MiB before JSON string encoding and decoding overhead.
+filesystem integrity, source admission or revocation decisions. The index and individual definition entry keep 4 MiB bounds. A complete
+projection may use 16 MiB. Selection rows have their own 16 MiB serialized bound.
 
 SQLite writer protocols 25 and 27 prevent older clients from discarding exact
 successor bytes and authenticated admission provenance respectively. They change
@@ -985,8 +1141,12 @@ manifests include the port identity and complete referenced source graph, covere
 by the existing immutable manifest digest. Keeping the complete bounded catalog
 avoids a second mutable database or a missing sidecar during moves and exports.
 This trades repeated catalog bytes per version for a single atomic payload and
-an independently readable contract. The retained catalog uses the existing 4 MiB
-catalog limit and rejects unknown or discarded semantics.
+an independently readable contract. The retained catalog uses the 16 MiB signed
+catalog limit and rejects unknown or discarded semantics. SQLite writer protocol
+60 raised that limit from 4 MiB: it rebuilds `catalog_state` with the larger BLOB
+checks and makes older clients, which refuse retained content above 4 MiB, refuse
+the library before they read or rewrite a manifest. A Core test and the CI size
+guard reserve 15% below supported bounds ([size bounds](SIGNED-CATALOG.md#size-bounds-and-older-clients)).
 Core memoizes pure decoding of the most recently validated exact content string,
 bounded to one catalog. Each read still verifies the current manifest bytes and
 digest; the cache contains no filesystem, source-admission, or revocation decision.
@@ -1160,7 +1320,15 @@ removes only that quarantine, then records metadata commit and retires the journ
 The existing restore/deletion fault points and recovery rules still distinguish
 those phases; activity finalization remains separate from payload publication.
 Backup inventory probes the per-port lock to distinguish live staging from idle
-owned preparation without changing the lock owner payload. The detailed backup
+owned preparation without changing the lock owner payload. Read-only game-settings
+views hold a shared port lock: they admit each other, block writers only for the
+read, and never replace the owner record. A port writer refused only by shared
+readers retries for at most thirty seconds, because one settings view reads status,
+the retained catalog and critical files under its shared lock, then reports the
+port busy with
+`held_by: read_only_views`; a writer refused by another exclusive holder reports
+it at once with the last published writer's operation, which is advisory because
+inventory probes publish no record. Probes never wait. The detailed backup
 durability contract below owns stage classification and filesystem guarantees.
 
 ## Steam shortcut compatibility boundary
@@ -1283,6 +1451,12 @@ or blocked; those alternative implementations are counted as games needing a
 version choice and are selected individually. A matching observed game or BIOS source
 must already be registered, and current Core action availability must allow
 installation before a selected item can request its existing game-details review.
+For a saved scan with more matches than its preview, Core reads the retained
+rows that match current registrations by profile, path and digest. The read
+checks the expected scan summary, catalog and saved folders in the same
+transaction as the match and registration rows. Desktop can include those
+games in setup review immediately, while the file results stay paged for
+browsing.
 The explicit review request is consumed once after the matching detail is active
 and calls the existing Core installation planner; leaving that detail invalidates
 the request. Applying installation still requires the ordinary review consent.
@@ -1293,16 +1467,33 @@ does not register files or apply installation, or imply completed setup. Choosin
 Review requests a fresh plan for that item; plans are never batched into consent.
 Desktop presents core's optional completed-scan coverage with cumulative batch
 counts and explicit unknown remaining-entry counts. A refreshed, matching
-snapshot with a resumable frontier offers Continue scan; a required restart
-offers Start new scan. Both use the existing bounded scan command. Continuation
-preserves the fresh saved snapshot's limits, including a smaller CLI-created
-batch budget. Limits above Desktop's existing caps are refused with CLI/narrower
+snapshot with a resumable frontier offers Continue scan. A retained scan ID
+also offers Finish scanning these folders. Core binds Finish to that scan ID,
+publishes each bounded batch, and retains those results if the player cancels.
+A required restart offers Start new scan. Continuation preserves the fresh
+saved snapshot's limits, including a smaller CLI-created batch budget. Limits above Desktop's existing caps are refused with CLI/narrower
 folder guidance; a new scan retains Desktop's default budgets. Core revalidates
 the actual input and continuation fingerprints before execution.
+A skipped raw ISO can carry Core's direct-check profile choices for managed
+OpenGOAL. Desktop reuses the reported path and the selected game's ordinary
+source review. That check streams the original within the existing runtime
+source byte limit. The pinned extractor still validates the disc for setup.
 Exhausting the folder frontier does not erase skipped files or imply gameplay
 support. Older snapshots retain the ordinary Scan saved folders action.
 The Playnite reference client negotiates event schemas 2 and 3 independently
 from API schema and validates candidate fields without changing lifecycle state.
+
+Core `windows_runtime` owns the advisory Microsoft runtime prerequisite report.
+It reads the current installation's launch program and shipped DLLs with fixed
+bounds and without execution, then asks a host-facts seam whether each runtime is
+present; only the Windows host answers, so other hosts and unreadable or limited
+inputs stay unknown rather than missing. `Library::runtime_prerequisites` is an
+on-demand read for one port and stays out of the all-ports status read, which
+would otherwise open program files on every refresh. Launch-session views attach
+the same report to `dll_not_found` and `dll_init_failed` explanations while the
+session's installation is current. CLI and Desktop only present it; the report
+never blocks launch, and Core recognizes the official Microsoft download pages it
+names as reviewed links. Running Microsoft installers is outside this boundary.
 
 API schema 51 exposes one core-owned activity feed. Core reads every current,
 failed-needs-attention, and lifecycle-recovery-owned row from the same SQLite
@@ -1343,6 +1534,72 @@ and argument-array fields separately. This creates no independent lifecycle
 state or command authority: the standalone CLI validates and executes through core.
 Desktop continues to call core directly.
 
+## Recently played shortcuts
+
+Core's `PortcoveService::recently_played` projects successful-launch history,
+newest first and capped at ten, onto ports in the current catalog that still have
+an active installation or registered external runtime. It is a read of the same
+`launch_history` that drives Continue; it assesses no readiness and adds no
+history authority.
+
+On Windows the Tauri host mirrors up to five of those games into a "Recently
+played" category of Portcove's taskbar jump list. It rebuilds the category on a
+worker after startup publishes the library, after an observed launch finishes and
+after a library selection or transfer, so CLI launches appear at the next of
+those points. An empty read removes the category, and a failed read (for example
+a library that did not open) clears it rather than keep another library's games.
+Entries the player removed from the jump list are not added back. Failures are
+logged and never affect startup, play or a library change. Other platforms
+compile the refresh as a no-op.
+
+The jump list belongs to a taskbar identity. When the running executable is the
+registered current-version NSIS installation (the fail-closed check in
+`windows_installation`), Desktop sets its process AppUserModelID to the bundle
+identifier `io.github.portcove.portcove` before any window exists. That is the
+identity the installer stamps on its Start menu and desktop shortcuts and under
+which its uninstaller deletes the jump list. The list is then written under that
+ID and each entry carries it, so windows started from an entry group with the
+installed shortcuts. Development, fixture and portable runs keep the default
+per-executable identity and never write the installed application's list.
+Because that check fails closed, an installed run that
+finds an ambiguous or stale second registration, a version mismatch, a reparse
+point or an unreadable or oversized Uninstall inventory also keeps the
+per-executable identity; that run's list then does not appear on the pinned
+button, and a debug log names the failing stage. Shipped releases are
+current-user NSIS installs. An existing pin created from a window that had no
+explicit identity (the installer's post-install launch, an updater relaunch or
+starting the executable directly) may show as a separate taskbar button after
+this change.
+
+Each entry starts the Desktop executable with exactly `--portcove-play
+<port-id>`. Desktop registers no URL scheme, protocol handler or listener for
+it, so web content cannot produce the argument; a local program that can start
+Desktop with arguments gains nothing beyond the ordinary launch command. The host
+accepts only that exact form with a bounded identifier and keeps it as a one-shot
+request that the frontend takes once, after the workspace has its catalog and
+statuses. A game that can play directly uses the existing Continue launch path;
+one that needs attention opens its details; an unknown or removed game opens
+nothing. Core's launch path still owns readiness, per-port locking and
+executable trust. When the process uses the installed identity, Desktop also
+registers Tauri's single-instance plugin first: a later launch, including an entry
+used while Portcove is open, passes its arguments to the running window through
+the operating system's single-instance channel and exits. The running window
+parses them with the same exact-form check, replaces any request the frontend has
+not taken, announces `portcove://play-request` and comes to the front; the
+frontend takes the request and routes it as at startup, in the library that window
+already has open. Development, fixture, portable and isolated runs of a
+non-installed executable never register the plugin, so they keep starting independent instances; such a run
+started from an entry opens its own window, holds its own shared
+application-runtime lease and opens the saved library selection. The plugin keys
+its single-instance channel by the bundle identifier only, so an isolated run of the
+installed executable (for example one using `PORTCOVE_PREFERENCES` or
+`PORTCOVE_LIBRARY`) forwards to an installed instance already running in the same
+session instead of opening its own window; isolated native runs should use a
+non-installed executable. A forwarding launch completes its diagnostics session
+before it exits. Two windows
+refreshing at once each commit a complete list, and the last commit wins. The jump
+list and forwarding have not been observed on a native Windows taskbar.
+
 ## Desktop library handoff state
 
 GitHub authentication status extracts an owned HTTP observation before awaiting
@@ -1372,7 +1629,16 @@ generation under that same lock; successful selection and every attempted transf
 publish the reopened state and new generation together. A transfer error can follow
 committed changes or reopening through a relocation receipt, so it also expires
 earlier reviews. Rejected overlapping handoffs leave the owned operation untouched.
-Reviews from the previous generation must be requested again. Core still owns library leases, copy verification,
+Reviews from the previous generation must be requested again. Read-only adapter
+commands never hold that lock while Core works: game setting, setting review,
+capability and mod setup reads resolve the service at their generation, release the
+lock, and reject a result whose generation changed meanwhile, so one slow read cannot
+queue every other command behind it. Applying a game setting binds the same way without the afterward check, so a committed change is never reported as refused; a switch cannot redirect it while its service holds the library lease, and waiting on the port lock never stalls other commands. An in-process settings access lock, taken exclusively by an apply or a setting review after releasing the adapter lock, and shared by those reads, keeps a read from meeting either one's exclusive port lock, which would refuse it. Like other reads, one still running after the
+two-second drain makes a switch or transfer report the library as in use and restore
+the previous state. Within one process, Core admits no new shared port reader while a
+writer waits for existing readers, so overlapping read-only views cannot keep a player
+action refused as busy; every such wait stays within the writer's thirty-second
+yield budget, and readers in other processes are not ordered. Core still owns library leases, copy verification,
 persistence, transfer journals and durable library selection; this is host-state
 coordination, not another domain authority.
 
@@ -1780,18 +2046,12 @@ identities/requests/outcomes, durable ordering, and lock/recovery contracts with
 introducing universal managers, repositories, dependency injection, one state
 machine for unlike workflows, or one crate per feature.
 
-The residual component owners are explicit. [#925](https://github.com/boburning/portcove/issues/925)
-owns core domain/lifecycle/persistence and measured host-integration boundaries.
-[#926](https://github.com/boburning/portcove/issues/926) extends the existing
-Rust-owned transport gate to command names, registrations and Tauri exposure while
-#30 retains public CLI wire behavior and #243 retains independent-consumer proof.
-[#924](https://github.com/boburning/portcove/issues/924) extends the coherent
-snapshot/coalescing and bounded operation-event foundations from #741/#32 into one
-frontend backend-state cache and feature-owned structure, with deterministic
-development-only scenarios excluded from release builds. #917 remains the styling
-and visual-architecture owner; #206 interaction/focus/navigation; #202/#204 failure,
-mutation, review and confirmation presentation; and #245/#397/#398/#246 independent
-definition delivery.
+Three component issues completed their scoped consolidation. [#925](https://github.com/boburning/portcove/issues/925)
+covers Core domain, persistence and host seams. [#926](https://github.com/boburning/portcove/issues/926)
+covers Rust-owned transport exposure and tooling. [#924](https://github.com/boburning/portcove/issues/924)
+covers the frontend cache, feature ownership and development scenarios. The
+[parent issue](https://github.com/boburning/portcove/issues/921) tracks remaining
+acceptance. Use [the ownership map](#find-the-owning-boundary) for current implementation boundaries.
 
 Any internal crate split is an evidenced ownership/dependency decision, not a proxy
 for moving files. In particular, a private host updater crate or pure Steam boundary
@@ -1800,8 +2060,7 @@ staging, replacement, quiescence and recovery with the Desktop host. SQLite,
 released library/install/save/manifest formats, public identifiers and supported
 consumer contracts remain compatible through incremental migrations. Temporary
 adapters must be removed after their consumers migrate or retained only with an
-explicit compatibility reason. These are approved future outcomes, not descriptions
-of current implementation completion.
+explicit compatibility reason. The parent records which remaining outcomes need evidence.
 
 `portcove-release-tools` is an unpublished, offline repository tool for checking
 application artifact signatures and constructing signed application-update TUF
@@ -1818,312 +2077,38 @@ cannot become a second domain authority or a runtime dependency. Disposable test
 Payload test signers are development dependencies only. TUF role credentials are
 external inputs and are never copied into repository output.
 
-The [application updater trust design](UPDATER-TRUST.md) assigns application
-replacement/trust state to the Tauri host; core retains library/game authority.
-The desktop executable also exposes a GUI-independent application-update recovery
-command. It reuses the same host stores and fixed-area `recover_invalid` methods,
-so it can inspect or clear malformed coordination state without adding network,
-download, installation, restart, consent, library, or native-prompt authority.
-The host's independent `application_update_preferences` store records the user's
-single explicit channel, update mode and pause choice outside every library. Reads
-do not create state, writers use optimistic revisions under path-keyed process and
-operating-system locks, and the shared durable-file helper publishes a flushed
-sibling atomically. Missing state means no consent; malformed or future state fails
-closed until an explicit reset clears the choice and advances its revision. These
-typed host commands only read or persist policy and cannot check, download, stage or
-apply an update.
-The sibling `application_update_schedule` store persists only successful-check
-cadence and bounded retry state. Its pure decision boundary combines that state
-with the explicit preference, a 30-second startup delay, and observable offline or
-metered status. Successful checks defer the next automatic check by at least 24
-hours. Failures use a 15-minute exponential retry with bounded jitter and a six-hour
-cap without shortening an existing hold. Each outcome binds the preference revision
-observed by its check, so a later channel or mode change ignores stale cadence.
-Manual checks bypass cadence, startup, pause, mode and metered holds but still refuse
-a known offline state. Unknown
-metered status holds automatic work so the user can choose manually. Strict parsing,
-compare-and-swap revisions, path-keyed process and OS locks, atomic durable writes,
-and explicit corrupt-state reset match the preference boundary. The module has no
-network, download, staging, application or persistent-device-identifier authority.
-The `application_update_coordinator` is the single host owner for manual and due
-automatic checks. It re-evaluates policy after acquiring one process and OS lock,
-awaits an injected authenticated checker off the startup path, and records success
-or failure only after completion against the schedule revision that admitted the
-check, so a concurrent explicit reset wins. Dropping a check releases ownership
-without inventing an outcome. An observed preference change during the check makes
-its result superseded; the coordinator records it against the old revision but
-returns no candidate for staging. A returned candidate carries the preference
-revision that downstream work must revalidate. Current policy ignores old cadence.
-The checker remains the existing authenticated repository boundary, so coordination
-adds no URL, key, network, staging or apply authority.
-Updater-enabled Desktop builds start one process-local background loop after Tauri
-setup returns control to the event loop. It waits through the same 30-second startup
-delay, observes the preferred machine connection on a blocking worker, and submits
-only an automatic request to the coordinator. The persisted schedule remains the
-authority for daily success cadence and retry jitter; the loop sleeps toward the
-returned due time with a one-day maximum and otherwise re-evaluates at a bounded
-one-minute interval. The cap prevents a damaged clock or extreme valid timestamp
-from creating an unbounded runtime timer without shortening the persisted hold.
-Preference changes and explicit recovery wake a cadence sleep so the coordinator can
-apply the new revision immediately. The task shares the manual-command activity guard
-and the cross-process coordinator lock, so it cannot overlap a renderer check,
-download, restart admission or another process. Shutdown drops the task; there is no
-daemon, service or persistent device identity.
+The [application updater design](UPDATER-TRUST.md) assigns application update
+trust and replacement to the Tauri host; core retains library/game authority.
+The host uses Tauri's updater plugin with the minisign public key compiled into
+`tauri.conf.json`. Its single `application_update` module owns the player's
+channel (Beta by default, Preview by choice) and automatic-check preference in a
+small JSON file beside host preferences, selects that channel's fixed
+`latest.json` feed at runtime, and keeps the plugin's last checked update in
+process memory. React receives only the version, notes, date, check/install
+state and download progress; no URL, signature, key or path crosses IPC.
 
-A successful due check that selects an eligible candidate also publishes a
-sanitized, process-local notice snapshot containing only the candidate summary,
-staging state and observed preference revision. The Tauri event and matching
-read command carry a monotonically increasing session revision; dismissal
-compares that revision so a late action cannot clear a newer result. Preference
-changes, recovery and successful manual update actions clear the notice. React
-presents it as a global accessible status and may reuse the already checked,
-preference-bound candidate for an explicit download from Settings. The notice is
-disposable presentation state: the durable schedule and staging journals remain
-the authorities across restarts, and no release URL, signature, key or path crosses
-the IPC boundary.
-
-While the host reports no saved application-update choice, React presents an
-accessible setup notice throughout the workspace. Deferring it records only the
-observed preference revision in renderer memory, so it returns after restart or
-after a newer no-choice state. Reviewing the notice moves focus to the Settings
-choice, whose existing explicit Save action remains the only way to record host
-consent; the notice itself cannot check, download, stage, install or restart.
-
-The first stable production build also asks an existing Preview user once whether
-to move to Stable or keep Preview. The host derives eligibility from its compiled
-semantic version and exact saved preference revision. Choosing Stable changes only
-the channel under the preference lock, preserving mode and pause; keeping Preview
-leaves the choice unchanged. Either explicit decision writes a fixed companion
-acknowledgement beside the unchanged schema-1 preference document. The marker binds
-the preference revision that completes the decision, so an interrupted Stable write
-reoffers rather than hiding an uncommitted choice. A missing, malformed or incomplete
-acknowledgement reoffers the choice, while Not now remains session-only.
-Stable selection may wake the existing scheduler for the new saved policy, but
-neither decision directly downloads, applies or restarts.
-
-On Windows, `application_update_connectivity` queries Network List Manager on a
-short-lived initialized COM worker. A reported offline connection blocks all checks.
-Unrestricted machine-wide cost permits automatic work; fixed, variable, roaming,
-congested, near-limit or over-limit cost holds it as metered. Observation or cost
-classification failure remains unknown and therefore holds automatic activity while
-the existing manual command remains available. Platforms without an implemented
-observer likewise remain unknown until their native apply and connection contracts
-are implemented.
-Immediately before a host application replacement, core's
-`ApplicationUpdateQuiescenceGuard` acquires the current library's
-exclusive lifetime lease. Every CLI and Desktop library instance already retains the
-shared side for its lifetime, so another process or previously dispatched operation
-prevents admission. After ownership, core requires the current schema and rejects any
-unfinished launch session or running activity until explicit recovery. The host
-retains the guard across its checks and replacement, preventing a new library
-operation from winning the recheck-to-apply interval. Relocated source roots are
-rejected in favor of their current destination. This proves current-library
-quiescence only; candidate freshness, executable ownership, permissions, consent and
-native replacement remain host checks.
-Independently, every normal CLI command, Desktop process, launch supervisor and
-recovery helper retains a shared `ApplicationRuntimeGuard` in the canonical user host
-directory for its full process operation. Update admission takes the exclusive
-side before the library guard, so a process using another library also blocks
-replacement and a new process cannot enter while replacement is admitted. The lock
-contains no state and does not enumerate libraries; per-library recovery and busy
-details remain owned by the library guard.
-The host's `application_update` module validates separately authenticated immutable
-release and channel records against installed identity and compatibility context,
-then selects by SemVer precedence. `application_update_repository` is the bounded
-bridge from TUF to that selector: it discovers the installed package's versioned
-promotions, requires separate direct release/channel delegation, rejects top-level
-or duplicate records and fully consumes authenticated streams before parsing. A
-sibling strict payload-key parser validates the offline-authorized top-level
-`keys/payload.json`, including the exact decoded public-key SHA-256 and minisign
-format, and the bridge returns only the selected release's Tauri-compatible key.
-`application_update_trust` wraps the maintained `tough` client with path-keyed
-process ownership plus one host OS lock, atomically persisted greatest accepted
-time, the latest verified root and explicit
-timestamp/snapshot/targets version and signed-body replay floors. After TUF
-authentication it enforces the host's delegated-role depth/count, global role-name,
-target-count, selector-count and bounded-name/path policy; unavailable delegated
-metadata fails closed, and rejected authenticated versions still advance replay floors.
-It supplies the latest persisted root on restart and retains verified root progress
-when later metadata fails. Disposable local-file repositories remain available to
-tests.
-
-`application_update_host` is the sole runtime constructor for that repository and
-selection path. Updater-enabled Desktop builds embed a bounded public TUF root and
-fixed metadata and target bases as one build-time configuration; partial input
-fails the build, and ordinary alpha builds remain unconfigured. Runtime environment
-variables and React cannot supply those authorities. The Windows context source
-proves the running package through the exact current-user NSIS registration and
-combines it with compiled target, API, catalog, library and lock compatibility plus
-the actual operating-system version. The provider serves both ordinary checks and
-fresh helper revalidation. A fixed manual-check command now invokes that provider,
-streams only checking, acquiring-and-verifying, staged and complete phases, and
-returns only candidate version/channel/size, policy reasons and staging outcome.
-One process-owned cancellation token prevents overlapping renderer requests and
-cooperatively stops the existing restart-reconcilable operation. The command is
-unavailable in ordinary unconfigured alpha builds, and the background loop exits
-before spawning there. No production root or origin is present, and no exit hook
-currently activates the provider.
-For notify-only and manual choices, a separate explicit download command accepts
-only the preference revision and sanitized version, channel and size shown by the
-preceding check. The host reauthenticates the repository, requires that exact summary
-and preference revision to remain current, refuses staging while paused, and sends
-only its newly selected candidate and payload key through the existing downloader,
-verifier and staging boundary. The renderer cannot turn those optimistic guards into
-a URL, key or alternate candidate, and a changed or withdrawn candidate requires a
-fresh visible check.
-The sibling payload boundary independently binds an already obtained stream to the
-selected release length, SHA-256 and exact registry key using bounded, prehashed
-Minisign verification. Only its Rust-only verified identity may cross into later
-staging work; it owns no download, eligibility, replacement or installation state.
-The host's private `application_update_staging` module tees that exact verification
-stream into a fixed incoming file, checks capacity for both the authenticated payload
-and native replacement workspace, and publishes one active candidate with durable
-staged, payload-verified and verified journal phases. Its path-keyed process and OS
-locks serialize writers. On restart it discards pre-verification bytes, restores the
-prior verified slot after an interrupted attempt, or completes publication only from
-the durable payload-verified phase. Corrupt or future journals require explicit
-bounded reset. A reconciled file is retained state rather than fresh eligibility or
-apply authority. The sibling payload downloader accepts only the authenticated
-Portcove GitHub release/version path, follows at most five redirects through the
-reviewed GitHub release-asset host, resolves and pins public addresses, bypasses
-ambient proxies and streams anonymously under connection, idle, total-time and
-authenticated-length bounds. It returns only a reader for the existing verifier and
-staging boundary and grants no replacement authority by itself.
-The sibling `application_update_apply` journal binds a requested safe exit or
-explicit one-restart action to the exact staged candidate, preference revision and
-choice, installed application context, and canonical current-library root. Its
-strict compare-and-swap revisions prevent a stale exit observer from changing a
-newer request, and a different candidate cannot replace an unfinished intent.
-Normal Exit and Restart to apply are distinct eligible observations; crash, OS
-shutdown, Steam Stop, missing hooks and mismatched observations remain held for
-next-launch reconciliation. Only a Portcove-owned installation can enter the
-journal. Even a matching observation permits only another revalidation attempt:
-the host locks the apply journal, preferences, staging slot, user-scoped application
-runtime and current library in that order, then requires the expected journal
-revision, matching termination,
-unchanged consent, exact verified staged candidate, exact freshly authenticated
-candidate and installed context, current compatibility and core quiescence. Those
-locks are retained together through final native admission and process creation.
-Executable ownership and permissions still require a platform proof before
-replacement. On Windows,
-`application_update_windows` adds that platform proof without accepting paths from
-IPC. It requires one exact HKCU Portcove uninstall registration, the registered
-version and install directory to own the running `portcove-desktop.exe` and direct
-`uninstall.exe`, a writable non-reparse install tree, and the locked staged payload
-to remain an exact Windows x64 Portcove NSIS candidate with PE bytes. It inventories
-both HKLM registry views and refuses system-wide, custom, ambiguous or identity-drifted
-installations. An admitted payload starts through the documented passive NSIS
-`/P /UPDATE` path and the reviewed host-integration child-process policy, with no
-relocation or elevation argument, while retaining the shared revalidation lease
-through process creation. Before creating the process, the apply journal records
-`starting`; a helper crash then remains an ambiguous attempt instead of silently
-starting the installer twice. The launch remains `starting` while every updater
-lock is retained and the helper observes the child. A zero exit records
-`installer-succeeded`
-but still requires installed-identity and application-health reconciliation before
-the request can clear. A proven pre-spawn failure records `failed`; a nonzero exit
-records `installer-failed`. Both are known to have no live child and are eligible
-only for an explicit retry. A legacy `started` state and any crash while `starting`
-remain ambiguous and held. Windows staging uses one fixed
-`.exe` payload slot so the operating system can execute the authenticated bytes;
-on Linux, `application_update_linux` admits only the freshly observed direct,
-current-user AppImage source and an exact x86_64 Type 2 AppImage payload from the locked staging
-slot. The helper records the source path, backup path, prior byte length and prior
-SHA-256 in the apply journal, copies and rehashes the candidate into a synchronized
-sibling file with the existing executable permissions, then uses Linux
-`RENAME_EXCHANGE`. The stable AppImage path therefore always names one complete
-image, and the previous image remains in the recorded sibling slot until the new
-exact candidate crosses healthy startup. The helper relaunches the stable AppImage
-source after clearing the old mount environment. Healthy startup rechecks the
-running source's candidate bytes, the recorded backup identity and both direct paths
-before retiring staging and the apply intent. A launch without AppImage identity can
-only classify ownership for guidance. The host queries fixed, root-owned DEB and RPM
-database tools with a clean environment, deadline and output bound, and accepts
-exactly one owner for package-specific guidance. This observation never enters
-replacement admission or mutates managed files. The recovery entry point's
-`eligibility` command exposes the same sanitized result without initializing Tauri or
-starting update work, so packaged qualification can exercise the installed binary
-without a display. A pre-exchange failure is retryable; a
-failure after the atomic exchange remains ambiguous and does not launch another
-process. A later launch of the candidate from the exact stable source can cross the
-normal health boundary, verify the retained predecessor backup, and retire the
-staging and apply records. Other platforms retain their inert generic slot until their own adapters
-define a format-specific replacement. The sibling `application_update_helper` defines the
-post-exit revalidation sequence for a dedicated process without accepting paths,
-repository locations, trust roots, candidates or keys in its request. It first
-requires the exact eligible apply-journal revision, then waits up to two minutes for
-the persistent user-scoped application-runtime lock to become exclusively available.
-Using the runtime lock avoids the process-ID race where a fast parent can disappear
-before a child opens its handle and also accounts for other Portcove processes.
-Packaged qualification first proves an unsupported future apply-journal schema, an
-update-state directory without owner write permission, a bounded update-state
-filesystem with zero available bytes, and a bounded stable-AppImage filesystem with
-zero available bytes each fail closed while the predecessor restarts. The state
-fixture leaves every pending byte unchanged. The AppImage fixture leaves the stable
-predecessor and staged candidate exact while advancing only its isolated apply copy
-to a failed launch with the exact attempted replacement identity. It then exercises
-the explicit retry transition, which clears that failed attempt while retaining the
-intent and staged candidate. Each full-filesystem fixture uses a disposable
-`tmpfs`, fills it to an independently measured zero-byte boundary, removes the
-bounded filler, proves writes recover, and unmounts it. It restores only the fixture
-schema or storage condition needed to continue. It then holds the shared lock in
-another process, verifies the helper leaves the stable AppImage and pending state
-unchanged while blocked, and releases the peer so the same helper can
-continue. The helper releases that probe, obtains a newly observed installed context
-and fresh authenticated selection through its host-owned Rust provider, and
-immediately acquires the canonical apply, preference, staging, application and
-library lease.
-The retained and newly observed installed contexts must match. A process that starts
-during the fresh check wins the shared runtime lock and safely defers replacement.
-The exact `--portcove-apply-update <revision>` helper mode is reachable only from
-the host-owned Restart to update command after the current library generation,
-verified staging, saved preference and installed package have been rebound into the
-durable journal. While holding the desktop's library-selection mutex, the parent blocks
-new backend workers and manual application-update checks, refuses workers already in
-flight, and preflights
-the same durable activity and launch-session idle conditions so the restart does not
-knowingly interrupt current-process work. The helper receives no path, URL,
-candidate or key. After the parent
-releases its runtime lease it repeats fresh repository, installed identity, consent,
-staging and quiescence checks, crosses Windows NSIS admission, and records the native
-outcome. It reopens the registered application after success or a failure proven to
-have no live installer, and only after proving that no Portcove runtime peer already
-exists. A child-observation failure remains ambiguous and starts no peer process. The
-later healthy startup remains the only authority that can clear a
-successful attempt. On a later Windows startup, reconciliation
-runs only after the new process holds the application runtime lease, initializes its
-selected library and diagnostics, creates the Tauri application, focuses the main
-window, and restores every retained launch-session observer. It then requires the
-compiled version to equal the retained candidate and one
-exact current-user NSIS registration to report that version and own the running
-executable and uninstaller. The host retires only that exact staged candidate under
-the apply-before-staging lock order; a newer staged candidate is preserved. It clears
-the apply request last, so interruption during cleanup remains restart-reconcilable.
-Installer exit status alone never grants this installed-identity or health proof.
-The adapter-local `application_update_status` command combines sanitized summaries
-of check cadence, a verified staged candidate, and any pending safe-exit or restart
-request. Its apply summary includes the durable `starting`, `started`, `failed`,
-`installer-succeeded` or `installer-failed`
-native-launch state so React can explain why another launch is held without receiving
-host paths or native authority. It never exposes authenticated URLs, signatures,
-payload keys, installed paths or library paths to React, and retained state is never
-described as fresh apply authority. Malformed or future schedule, staging and apply
-journals are reported independently so other readable state remains visible. Each
-fixed recovery action rechecks that its journal is still invalid under that store's
-lock before it clears only that domain; a stale UI action cannot discard state another
-process already repaired. Native automation redirects every updater journal into the
-run's fresh evidence directory.
-The Settings action appears only for a verified staged candidate with no conflicting
-or ambiguous apply attempt. It supplies the current library generation and can reopen
-only a proven `failed` or `installer-failed` attempt; `starting`, legacy `started` and
-`installer-succeeded` remain held for installed-identity reconciliation.
-For production metadata, a sibling host transport accepts only host-selected
-HTTPS bases with separate path prefixes on port 443, resolves and pins public DNS
-results, bypasses proxies, refuses redirects and enforces request, deadline, idle,
-per-role and aggregate byte limits. Its Rust-only request cannot be populated from
-frontend IPC. No production origin, updater check, publication or
-replacement is active. Existing architecture metadata rules continue to forbid
-independent catalog verification in adapters.
+Automatic checks run in release builds only: once shortly after startup and then
+every six hours while the preference is on. A found update is announced through
+the existing `application-update-notice` event and never installed without the
+player's explicit Download and restart request. That request downloads the
+announced package and lets the plugin verify its signature before any bytes are
+returned. Package-managed `.deb` and `.rpm` installations refuse checks and
+installs and point the player to their package manager. The idle preflight runs
+before the download. After verification, `application_update_admission` takes
+the library-selection mutex, blocks new backend workers (game launches included)
+and refuses if any are running, repeats the idle check, then swaps the open
+library for a placeholder, releasing this process's shared library lease, and
+trades its shared application runtime lease for Core's exclusive
+`ApplicationUpdateExclusivityGuard` and `ApplicationUpdateQuiescenceGuard` (the
+exclusive library lease with the idle check repeated under it). These guards are
+held across `Update::install`. Any refusal or install failure drops them,
+reacquires the shared runtime lease and reopens the same library. On Windows the
+plugin flushes diagnostics through `on_before_exit`, starts the per-user NSIS
+installer in passive mode and exits the process while the guards are held; on
+Linux (AppImage) and macOS the worker block stays committed and the library stays
+closed while the exclusive leases are released immediately before the host
+restarts into the replaced build, so no queued launch can run in the exiting
+process.
 
 Offline release tooling reconstructs the host's record inputs from complete raw
 qualified updater inventories, their signature files, frozen run/tree context,
@@ -2249,6 +2234,8 @@ retained path rather than claiming a move.
 
 Every filesystem-mutating operation takes an operating-system advisory lock keyed by library and port. The lock is shared across CLI and desktop processes, fails immediately with a structured conflict instead of waiting indefinitely, and is released automatically if a process exits. A launch retains its lock until the game exits and the exact launched version's mutable data has been collected, so another frontend cannot update, roll back, remove, verify, or launch that port during the save-critical interval. The desktop starts a detached instance of its own native binary in a hidden supervisor mode; Tauri only forwards an identified request and observes that exact durable row. Core commits the request, exact install, supervisor PID/start identity, cancellable preparation phase, and generic activity before the adapter reports acceptance. Immediately before process creation, one conditional SQLite transition closes cancellation; a request wins that transition or child creation proceeds, never both. Core records `spawning` before process creation and then records the child PID/start identity before reporting it, writes the per-version launched marker only after child creation, waits for the child, records successful-exit history separately from in-flight state, and commits the terminal request outcome only after exact-install collection. Terminal rows remain reconnectable evidence but do not block another launch. If a supervisor disappears, the active row continues to block mutation; Desktop startup or explicit CLI recovery waits only a child with the exact recorded start identity, repeats exact-install collection, and records failure rather than success. A crash in the irreducibly ambiguous spawning window remains blocked for manual review, as do PID mismatch, missing legacy identity, and changed install identity. Different ports remain independently operable.
 
+On Windows a game can restart into a successor and exit (for example through `_wexecv`), so the original child alone does not span such a session. Only a definition that declares the reviewed `windows_tracked_handoff` integration field, with a native Windows executable, opts in; delivered definitions must require native-portable capability 28 (35 for Snap64), format-1 signed catalogs cannot carry it, and a legacy installation without a retained definition cannot inherit it on Windows ([definition delivery](DEFINITION-DELIVERY.md)); every other launch on every platform keeps the original child as the whole session, with no job, suspended start or extra wait. For an opted-in managed or external Windows launch, Core resolves the install root to its final path (an unresolvable root fails the launch) and creates the game suspended inside a fresh job object named `Local\Portcove.LaunchSession.<session-id>`, assigns it and only then resumes the thread that holds exactly the creation suspension, composing that flag with the supervised process-group flag. The name accepts only plain session-ID characters, an existing object with that name is refused rather than joined, and the job's protected DACL grants only the current account. The job sets no kill-on-close, memory or UI limits, so closing Portcove leaves the game running, and it nests inside any job that already contains the supervisor; an outer job that forbids nesting fails the launch with that cause named. Ordinary children and successors stay in the job; explicit `CREATE_BREAKAWAY_FROM_JOB` remains permitted (refusing it would make such games' process creation fail) and leaves tracking, as does anything started outside the game's tree through the shell, services or scheduled tasks. After the original child exits, the session stays `running` while any job member whose image (`QueryFullProcessImageNameW`, resolved to its final path and compared case-insensitively) lies inside the session's install root still runs; members elsewhere, such as a browser or Steam client the game opened, never hold it. Each member lifetime (PID and start time) is classified once. A member that cannot be identified, an image that cannot be read or resolved, or a membership list that does not fit holds the session (fail closed). While it waits, Core writes the holding program names and process IDs to the running session record's `message`; today that is visible only through the session record and `launch show --technical-details`, not in Desktop, and the terminal outcome replaces it. The outcome and exit code remain those of the original child, because successor exit codes are not a reliable game result. A named object loses its name when its last handle closes even while members run, so Core leaves an inheritable query-only job handle in the game before resuming it and, every 250 ms while it supervises, shares one with in-install members that lack it. Core starts a separate copy of the Portcove executable before the game runs and waits for it to acknowledge its query-only handle to the same job. The keeper waits on the exact supervisor process identity and uses ordinary Core recovery after supervisor exit. It can hold the job across a successor that does not inherit handles. Recovery requires the recorded child identity and uses exact job membership to apply the same in-install rule before collecting. If Core cannot verify the job, install root, or spawning state, it holds the session for manual review. A failure while preparing the job, sharing its handle or starting its keeper stops launch before game code runs. Linux and macOS keep the original child: an exec-based restart keeps its PID and start identity, process-group signals are unchanged, and a launcher there that spawns a successor and exits is not tracked.
+
 Every open `Library` also holds a shared operating-system lease on `locks/library.lock`, acquired before SQLite initialization and retained by every clone. Whole-library transfer must acquire that lock exclusively, so it cannot proceed while a current CLI, desktop, or launch supervisor owns the library. Per-port locks remain the normal concurrency boundary between independent games.
 
 #### Activity and readback
@@ -2274,8 +2261,10 @@ React coalesces refresh invalidations, retains stale snapshots explicitly after 
 events as hints: SQLite readback remains authoritative, active work is polled without overlap, and
 idle polling backs off further while the window is hidden. Listener setup and cleanup failures
 degrade to visible manual refresh plus polling rather than an unhandled rejection or a second durable
-state authority. The hook mounts and unmounts its scoped QueryClient and removes its exact
-generation query at disposal. Diagnostic, activity and recovery coordinators remain separately
+state authority. A read that Core refuses as a retryable stale snapshot, because it overlapped a
+write, is read once more before it is reported, so a player's own successful change does not raise a
+refresh warning; a second refusal, or any other failure, is reported as before. The hook mounts and
+unmounts its scoped QueryClient and removes its exact generation query at disposal. Diagnostic, activity and recovery coordinators remain separately
 scoped to each effect lifetime. Strict Mode replay and library changes retire old continuations
 and cannot reuse a disposed coordinator.
 
@@ -2306,24 +2295,12 @@ a manual-refresh/polling fallback after setup failure, and keeps recovery outsid
 the query function. Other frontend read owners retain their existing boundaries;
 this integration does not imply a broader state migration.
 
-Application-update preferences use one app-session read owner in
-`features/application-update`. The global choice prompt, transition readback and
-Settings consume that owner; Settings keeps only its unsaved draft and operation
-presentation. Concurrent reads coalesce, Settings entry still refreshes external
-changes, and unchanged snapshots retain identity. Reads racing accepted mutations
-cannot replace them. Fresh host reads and explicit recovery can establish a new
-identity at a lower or equal revision after malformed-state repair; recovery
-invalidates old in-flight reads. Drafts and prompts bind to snapshot identity,
-not just the reusable revision number. Read failures disable preference-dependent controls until
-retry or a successful host mutation supplies current state. This small explicit
-owner does not need a second query cache. Host-side revision checks, trust and
-update eligibility remain authoritative; cached preferences never authorize an
-update. Status and notice streams retain their existing separate owners.
-The application-update Settings component, choice/transition/notice hooks and
-their tests are colocated with that read owner in `features/application-update`.
-App and the remaining legacy Settings composition import the feature directly;
-`use-portcove.ts` no longer owns or re-exports these hooks. The existing shared-to-
-feature import rule applies without adding a second boundary checker.
+Application-update presentation has one owner in `features/application-update`:
+`use-application-update.ts` mirrors the host status event and preferences and
+forwards explicit check, preference and install actions; the Settings section and
+global notice consume it. Hiding the notice is session-only presentation state.
+App imports the feature directly. Host-side feeds, signature checks and library
+admission remain authoritative.
 
 The essential workspace owner accepts catalog, status and source collections from
 one coherent backend snapshot. TanStack structural sharing retains unchanged
@@ -2661,6 +2638,144 @@ For a live desktop switch, the adapter makes its current state unavailable and d
 
 Persistent-data backups use the same per-port lock and canonical user root. A backup is copied into a same-volume temporary directory, rejects symlinks or unsupported entries, flushes every copied file plus its identity/count/size/tree-digest manifest, and is then renamed into `backups/<port-id>/<backup-id>`. That rename is an atomic namespace-visibility boundary for running processes. On Linux filesystems that accept directory `fsync`, core also synchronizes the staged directory tree and relevant library/backup parent directories before the rename, then synchronizes the final parent before returning success; a final-parent sync failure attempts to roll the visible snapshot back to private staging. Other platforms and Linux filesystems that reject directory synchronization explicitly do not receive a sudden-power-loss durability claim. New stages write a bounded preparation identity before copying; the final manifest binds its backup ID to that same staging name. Inventory holds a per-port lock probe while classifying private backup stages; the probe may create the normal lock file but does not rewrite its owner payload. An active owner is not called abandoned, an idle owned stage is reported as recovery-required through backup inventory and doctor, and an unowned or mismatched entry remains explicitly ambiguous. The staged manifest distinguishes an interrupted copy from complete-looking but unpublished data; neither stage is a restorable or verified backup. Lock ownership that cannot be checked remains ambiguous, and no stage is cleaned automatically. Inventory still returns published manifest entries alongside structured per-entry problems, and marks unmatched private deletion data or an incomplete deletion journal as recovery-required; one damaged entry cannot hide healthy backups or prevent an unrelated new snapshot. A validated deletion that has already moved its backup out of view (quarantined or later, original absent, and neither a runtime-safety binding nor an unauthorized runtime-safety companion) is the exception: the next backup, restore, deletion or version change attempts to finish it under the port lock before its own unchanged guard, so inventory and the restore and create assessments do not hold those actions for it. If that attempt or a startup recovery attempt fails, the journal records it and inventory holds again until a later startup recovery finishes the deletion. Doctor lists the deletion until it completes. Restore review stays read-only: it refuses only for a pending deletion that the restore could not finish. Restore stages and rehashes the selected tree before mutation, creates an automatic safety backup when current data is non-empty, and records the staged/current/recovery paths before swapping them. Startup can finish either half of an unambiguous process interruption; that journal and same-volume rename boundary do not claim cross-platform power-loss atomicity. Confirmed deletion records the exact bounded original and private quarantine paths before rename, then advances its lifecycle record after quarantine, filesystem removal, and commit. Startup completes an unambiguous authorized deletion, including a partially removed quarantine, but retains ambiguous or out-of-root state for repair review. Backups are intentionally independent of install rollback: they preserve mutable data, while release rollback changes application versions.
 
+#### Unknown player-side files
+
+Managed portable runtimes (native-portable, generated-cache, N64
+executable-parent and ready staged-source archive routes) use complete
+immutable verification. Since [#5359](https://github.com/boburning/portcove/issues/5359)
+Tier 1, `service::native_portable::portable_runtime_unknown_files` is the one
+place that splits its result. Hazards hold update, rollback target, removal
+review, collection, the persistence contract and backups exactly as before:
+changed, missing or permission-changed manifest files and undeclared hazards.
+An undeclared file is a hazard when it is a link, reparse point or other non-regular entry; when its name is a program or script (`exe`, `appimage`, `bat`, `cmd`, `ps1`, `sh`, `msi`, `jar`, `vbs`, `lnk`) or code (`dll`, `so`, `so.N`, `dylib`, `asi`, `node`, `ocx`, `cpl`, `sys`, `drv`, `com`, `scr`, `js`, `mjs`, `cjs`, `py`, `pyc`, `pyo`, `pyd`, `pth`, `lua`, `luac`, `psm1`, `wsf`, `hta`, `jse`, `vbe`, `gd`, `gdc`, `pck`, `wasm`, `class`); when it has an executable mode bit; when its first four bytes are an executable signature (PE `MZ`, ELF, Mach-O, universal binary or Java class, or a `#!` interpreter line); or when it is anywhere under the `resources` folder beside the executable of an Electron-shaped package (one that ships `resources/app.asar`, `default_app.asar` or `electron.asar`). Changed, missing or permission-changed package files are hazards too. The extension list and signature sniff live in
+`package_layout::is_unknown_file_hazard`; the Electron rule is
+`install::electron_resources`, because Electron loads `resources/app`,
+`resources/app.asar` or `resources/default_app.asar`, whichever it finds first.
+Package recognition and unknown-file matching use ASCII case-insensitive folder
+and archive names. Carry exclusions use that same target manifest to exclude
+the entire resource folder, including nested additions and ledger removals;
+folders outside it do not acquire this exclusion.
+
+Every other undeclared regular file is an unknown player-side file, such as a
+settings file a game writes beside itself. `VerificationReport` keeps it out of
+`failures` and reports `unknown_file_count` with up to 64 sorted paths; `valid`
+still means an exact match. Unknown files do not hold those operations or
+launch. An update leaves them in the old version folder; nothing carries them
+forward.
+
+Launch-time `verify_critical` applies the same split to the full inventory.
+Beside the selected executable it still rejects new programs, libraries and
+links, and new names on the reviewed loader-read list in
+`install::is_loader_sensitive_name`: `<proxy>.ini` and `<proxy>.cfg` for common
+proxy DLLs (`dinput8`, `d3d9`, `d3d11`, `dxgi`, `dsound`, `winmm`, `version`,
+`xinput1_3` and similar), `ReShade.ini`, `dxvk.conf`, `enblocal.ini`, the
+NES/SNES-recomp developer-listener switch `debug.ini`, and
+`*.exe.config`, Mono `*.dll.config`, `*.exe.manifest` and `*.exe.local`,
+case-insensitively. Mono's per-assembly configuration can redirect native
+library loading; ordinary `.config` files and backup suffixes are not added
+to the loader-read list. The
+list also covers Godot `override.cfg`, CPython `pyvenv.cfg` and `*._pth`, .NET
+`*.runtimeconfig.dev.json`, numbered proxies such as `xaudio2_9` and
+`d3dcompiler_47`, and undeclared portable markers (`portable.txt` and the
+catalog's `<engine>_portable.ini` names), which would silently move saves into
+the version folder where they are never collected. That
+list keeps audit finding PCV-REAUD-003 from
+[#237](https://github.com/boburning/portcove/pull/237) (#17, #20) and
+[SECURITY](../SECURITY.md); the owner narrowed it on November 14, 2026 from
+every new `ini`, `cfg` or `toml`. Ordinary settings such as `settings.ini`
+beside the executable, and loader names elsewhere, launch. The game-update
+acquisition precondition, update reuse and the rollback target check use
+`verify_critical_for_replacement`, which starts no process and treats even the
+loader-read names as unknown data.
+
+Every backup copies the unknown files of the versions it already checks (the
+collectible active version and every generated-cache version) into
+`unknown-files/<install-id>/<install-relative path>`, beside `data/`. Removal
+first takes an ordinary backup holding the unknown files of every version,
+because removal deletes the version folders, and its review lists them
+(`PortRemovalPreview.unknown_file_count` and up to 64 paths) and binds them
+into the review fingerprint. The manifest records the area as `unknown_files_v1`
+(count, size, digest) outside the restorable content digest, and
+`BackupRecord.unknown_file_count` exposes the count. Restore copies only `data/`,
+so it never writes an unknown file into a declared path, and an older reader
+ignores the area. Restoring the area is Tier 2 work.
+
+A removal backup collects every version, and stores identical copies of one
+file once. Copies are identical when they share a path relative to each
+version's persistence root (from the selected executable, as verification
+reads it) and the same SHA-256. Each distinct copy stays in the first
+installation's folder (by id), and `unknown-files/index.json` lists every
+installation's copy with `stored_in` and `stored_path`. Such a backup is
+recorded as `unknown_files_v2`, whose `file_count` counts every copy and
+`stored_file_count` what was stored; a backup where nothing collapsed keeps
+`unknown_files_v1`. An older reader ignores v2 and shows no unknown files for
+that backup. Each stored copy is re-hashed after copying, and each collapsed
+copy's game-folder file is re-hashed afterwards too, so no copy changes
+unseen during the backup. A write after the backup and before removal moves the
+folders is not covered, as in Tier 1. The free-space check, in the removal
+review and in execution, counts stored copies, so the copies Tier 2 places in
+several versions need no extra space. A backup whose `data/` is
+empty, holding only unknown files, cannot be restored (restore and its review
+refuse it, and the restore assessment ignores it) and is never the latest
+protection in `BackupInventory.protection`.
+
+Output relocation, library transfer copies and managed preparation output
+checks still require an exact match and refuse any unknown file. That is
+intentionally strict for now: those paths copy or re-derive the whole runtime,
+and Tier 1 does not decide how unknown files travel with it.
+
+Tier 2 (T2-2) carries harmless unknown files to the version about to become
+active, under the port lock and before the pointer changes, at staged
+activation, update reuse, rollback and recovery of an interrupted activation.
+Only native-portable, ready staged-source archive and N64 executable-parent
+installations take part; generated-cache and every other route never carry.
+The library ledger (schema 61, `carried_files` and `carried_file_outcomes`)
+records each version's carried or recorded digests and lineage, never bytes.
+A copy in the target is replaced or removed only when it is a recorded,
+unchanged ancestor of the source's file, or Portcove's own interrupted
+placement from that source; every other difference keeps both copies. Paths
+the current definition or any retained installation declares, the target's
+package members and folders, generated metadata from both active and target
+versions, loader-read names, Portcove metadata, unsafe or short names, case
+collisions, links and sensitive entries are never carried. Pending rows are
+committed before anything is written; copies are staged in each destination's
+nearest existing ancestor, without creating missing folders, verified against the plan's approved digests and published only
+when all are staged, each after an unchanged-destination and exact-parent
+check. Missing folders are created only during publication, so a planning,
+staging or verification hold leaves no new empty destination folders. A partial
+publication may still leave folders; no directory deletion authority is inferred.
+Too little free space (the larger of 1 GiB and 2% kept) carries nothing
+and the switch goes ahead; a modified active version carries nothing and
+records `source_modified`; a locked or changed file, or a partial earlier carry
+the switch cannot finish, holds. The step has no cancellation or progress yet,
+and the recorded outcome is exposed by `PortStatus.carried_files` (T2-3)
+only while its target is active. The bulk status query joins the known-format
+outcome with a byte bound before loading its JSON; malformed and future
+disclosure rows do not break status. Complete counts and observed copy/space
+bytes are recorded before path examples are truncated. Legacy rows retain
+unknown totals. CLI status and Desktop version details show this historical
+result, distinguish unavailable source coordinates and never recheck files or
+grant a file mutation through the disclosure.
+
+An explicit backup and removal (review and execution) copy every unknown file
+and need only the space for the whole backup (owner decision, November 15,
+2026): when there are unknown files, the library volume must keep the larger
+of 1 GiB and 2% of the volume free after the saves and settings plus the
+stored unknown files, or they hold instead of truncating. A removal with no
+unknown files takes no backup, and an explicit backup of saves alone, checks
+nothing new. The removal review reports the stored unknown bytes as
+`PortRemovalPreview.unknown_file_bytes` and binds them into its fingerprint;
+Desktop and the CLI say how much those files take in the backup, which stays
+until the player deletes it. The caps of 1,024 files, 16 MiB in one file and
+64 MiB in total bound the automatic snapshot before a version change, the
+restore safety backup and the portable-save import snapshot: past one they copy
+none of the unknown files and record `unknown_files_left_in_place_v1`, because
+those operations delete nothing and run on every switch. The legacy Ghostship
+recovery safety snapshot keeps the caps and holds past one, because its
+capacity review is sized for them. Update, rollback, collection and launch are
+never held. Declared
+persistence, retained-scope receipts and canonical collection are unchanged.
+
 Elsewhere in this document, “atomic rename” describes namespace visibility and the operation's tested process-crash boundary unless an accompanying directory-sync step explicitly extends the claim to supported power-loss durability.
 
 Backup inventory exposes separate Core creation and Restore assessments. Restore
@@ -2731,7 +2846,13 @@ Only a verified import changes its journal to published and becomes openable. Th
 
 ## Source discovery
 
-Core owns opt-in discovery requests, traversal and hashing budgets, candidate validation, and explicit acceptance. Search requires selected roots and profiles; it does not infer personal folders. It skips symlinks and entries outside the canonical selected roots, filters extensions and size before hashing, bounds traversal and hashing, and shares original-file/cartridge-ZIP identity validation with manual registration. Equal source contracts share a hashing pass. Schema-2 scans select extensions from current exact file representations rather than their potentially narrower informational schema-1 projection; the shared inspector also accepts those current extensions when reviewing or importing a candidate. Schema-1 catalogs retain their exact-hash lookup. Only a unique exact identity admitted by the shared inspector becomes a candidate. Complete schema-2 directory file sets also participate: the shared inspector matches required member names, digests and coherent variants from scan-local observations. Member enumeration and hash work share the request-wide budgets; incomplete directories cannot establish unique membership. Ordinary-file and directory-set matching reuse byte observations without sharing admission. File-set ZIPs use the same schema-2 matcher with safe root-level member inventories, bounded/cancellable member and container hashing, and scan-local facts shared across file-set profiles. The original container and normalized file-set aggregate retain distinct identities; old snapshots remain readable but stale when scan coverage changes. Exact schema-2 GameCube ISO/GCM representations also use the bounded raw-file observation and the existing disc matcher without conversion. Applicable profiles share one original-byte hashing pass while admission stays independent. Exact schema-2 STFS LIVE compound inputs also participate, including extensionless packages. A four-byte LIVE probe is bounded by the entry limit and does not hash unrelated inputs; matching packages share one bounded raw hash across applicable ordinary-file and compound profiles. Only exact compound digest matches trigger the existing bounded structural validator, once per file. Probe, hashing and validation use one open handle, with canonical-path, object, size and modification-time checks before and after inspection. Structural reads are additional bounded I/O, not hash bytes; no persistent cache or universal concurrent-mutation guarantee is implied. Windows and Linux CISO/GCZ/RVZ/WIA and complete PSX CHD sets participate through the bounded normalized observer described below; original-byte processing allowances and normalized logical identity remain distinct. ZIP-contained STFS is not an admitted LIVE representation. Structural-only inputs and pinned upstream validators can yield separate preliminary selections requiring fresh review; they are not exact candidates. Results are candidates, never registrations. Acceptance runs current validation under the existing source/dependent-port locks and compares the reviewed normalized digest before writing the registry. CLI and Tauri expose this core operation; React holds only the selected search scope and transient result list.
+Core owns opt-in discovery requests, traversal and hashing budgets, candidate validation, and explicit acceptance. Search requires selected roots and profiles; it does not infer personal folders. It skips symlinks and entries outside the canonical selected roots, filters extensions and size before hashing, bounds traversal and hashing, and shares original-file/cartridge-ZIP identity validation with manual registration. Equal source contracts share a hashing pass. Schema-2 scans select extensions from current exact file representations rather than their potentially narrower informational schema-1 projection; the shared inspector also accepts those current extensions when reviewing or importing a candidate. Schema-1 catalogs retain their exact-hash lookup. Only a unique exact identity admitted by the shared inspector becomes a candidate. Complete schema-2 directory file sets also participate: the shared inspector matches required member names, digests and coherent variants from scan-local observations. Member enumeration and hash work share the request-wide budgets; incomplete directories cannot establish unique membership. Ordinary-file and directory-set matching reuse byte observations without sharing admission. File-set ZIPs use the same schema-2 matcher with safe root-level member inventories, bounded/cancellable member and container hashing, and scan-local facts shared across file-set profiles. The original container and normalized file-set aggregate retain distinct identities; old snapshots remain readable but stale when scan coverage changes. Exact schema-2 GameCube ISO/GCM representations also use the bounded raw-file observation and the existing disc matcher without conversion. Applicable profiles share one original-byte hashing pass while admission stays independent. Exact schema-2 STFS LIVE compound inputs also participate, including extensionless packages, as do content-identified LIVE and PIRS packages. A four-byte probe (LIVE, or PIRS only when a selected profile declares a content identity) is bounded by the entry limit and does not hash unrelated inputs; matching packages share one bounded raw hash across applicable ordinary-file and compound profiles. Only an exact compound digest match or a declared content identity triggers the bounded structural and hash-tree validator, once per file. Probe, hashing and validation use one open handle, with canonical-path, object, size and modification-time checks before and after inspection. Structural reads are additional bounded I/O, not hash bytes; no persistent cache or universal concurrent-mutation guarantee is implied. Windows and Linux CISO/GCZ/RVZ/WIA and complete PSX CHD sets participate through the bounded normalized observer described below; original-byte processing allowances and normalized logical identity remain distinct. ZIP-contained STFS is not an admitted LIVE representation. Structural-only inputs and pinned upstream validators can yield separate preliminary selections requiring fresh review; they are not exact candidates. Results are candidates, never registrations. Acceptance runs current validation under the existing source/dependent-port locks and compares the reviewed normalized digest before writing the registry. CLI and Tauri expose this core operation; React holds only the selected search scope and transient result list.
+
+One-off discovery accepts at most eight explicit roots. For saved folders, Core
+keeps the deduplicated available scope in one checkpoint and visits up to eight
+root trees per batch. Later batches retain the same match inventory and may
+continue after reopening the library. Checkpoint, match and I/O limits still
+apply. An unavailable saved folder is recorded once for that scan.
 
 Core also provides explicit bounded registered-source observation batches,
 separate from query evaluation. Readers cover ordinary raw files, uncompressed
@@ -2775,11 +2896,21 @@ write share one database transaction. After a successful scan, core atomically
 replaces one bounded versioned snapshot containing
 the exact root identities and states, authoritative catalog digest, discovery report,
 limits and completion time. Current format 12 retains the delivered original-file/ZIP, directory/ZIP-file-set, normalized raw GameCube, exact STFS LIVE and pinned-validator preliminary discovery contracts, plus bounded normalized disc observations admitted independently through the existing schema-2 disc matcher. CISO streams the standard GameCube logical extent without materializing a full ISO. Windows decoder inspection copies one bounded original atom into private local staging, preflights fixed container headers/maps/metadata before decoder buffering, applies an OS-enforced job memory cap, supervises output growth and time, and requires positive tree closure before consuming output or cleanup. Output polling is not a hard Windows file-write quota. Original bytes are rehashed before publishing the observation. Complete PSX sets require the pre-enumeration directory handle, all ordered members, checked aggregate sizes and hashes, and final original-byte verification. No scan registers or prepares a source. On Linux, decoder inspection uses a private user/PID namespace with an atomic init pidfd and a bounded private startup gate. Positive terminal waitid(P_PIDFD) joins namespace teardown before consuming output or cleanup, including detached and nested descendants. Per-process address-space and per-file write limits are hard bounds; output-tree polling supplies the separate aggregate/depth/entry bound. Ordinary Unix process groups cannot prove escaped-descendant closure, and other Unix platforms report tool-based normalized discovery as uninspected. Unsupported Linux namespace capabilities fail explicitly without a weaker fallback. Unknown closure retains private inspection paths and aborts publication. Selected converted-disc inspection and registration on Windows/Linux reuse the same immutable observer and closure custody. Explicit selection has no scan batch/hash allowance, while individual originals and decoded discs have a 2 GiB boundary and selected PSX directories have a 16,384-entry bound. One ordered inventory, its held directory object, and final member-byte checks precede admission; storage identity is never computed from a newly enumerated set after decoding. Preliminary NotRun selections remain separate from exact matches and do not establish compatibility. Earlier formats retain their original readable evidence and become stale until rescanned; unknown historical limits are not invented.
-Saved scans retain a library-owned bounded continuation for unfinished entry or hash processing. Each explicitly requested batch replenishes those processing allowances and the per-batch match allowance (a scan-wide match ceiling remains explicitly limited), and the cursor keeps metadata only for the unfinished frontier and retained match paths, ending a batch after a finished folder before its storage bound, while cumulative byte measurements include fresh reinspection work. Deferred files and complete file-set evaluations are checked from bytes again; saved hashes do not grant admission. Identical retry results do not duplicate progressive candidate events. An indivisible input that cannot fit a fresh hash allowance remains explicitly limited and offers a bounded larger CLI allowance or deliberate source selection, rather than a repeated no-progress continuation. Candidate/storage, metadata-work, file-size, depth, archive, symlink and path protections remain bounded. One-off discovery starts anew. Cancellation or failure preserves the last published snapshot. No client can submit a continuation as authorization.
+Saved scans retain a library-owned bounded continuation for unfinished entry or hash processing. Each explicitly requested batch replenishes those processing allowances and the per-batch match allowance (a scan-wide match ceiling remains explicitly limited), and the cursor keeps metadata only for the unfinished frontier, ending a batch after a finished folder before its storage bound. Matches are stored as local, rebuildable `game_file_scan_matches` rows (never admission) published in the same transaction as the snapshot, which keeps only a bounded preview plus totals; the cursor binds the rows by count, bytes and a chained digest; resume checks the counts, contiguous order, batches and bytes with aggregates rather than re-reading every record (owner decision: consumers re-verify each match from current bytes), a mismatch restarts the scan while preserving the prior report and rows, and Core serves paged reads that refuse a replaced scan. Earlier-batch matches are not rechecked by the continuation; consumers re-verify them before use. The scan-wide match ceiling is 100,000 matches or 256 MiB of records, while cumulative byte measurements include fresh reinspection work. Deferred files and prior-batch file-set members are checked from bytes again; saved hashes do not grant admission. Identical retry results do not duplicate progressive candidate events. An indivisible input that cannot fit a fresh hash allowance remains explicitly limited and offers a bounded larger CLI allowance or deliberate source selection, rather than a repeated no-progress continuation. Candidate/storage, metadata-work, file-size, depth, archive, symlink and path protections remain bounded. One-off discovery starts anew. Cancellation or failure preserves the last published snapshot. No client can submit a continuation as authorization. Self-containment for launch is decided by what launch would still hand the game, not by family: when it would export, copy again or pass the registered original, the original stays required. Otherwise (sealed source-only preparations, prepared upstream/Libultraship installations with a prepared runtime input, managed PS1 raw sets and cartridge builds that read only installed files) launch uses the manifest-verified installed data without requiring or comparing the original, which repair, rebuild and preparation still need, and readiness reports no missing-source blocker. Saved scans also keep a best-effort, library-owned observation cache keyed by exact file metadata with a platform change identity, representation and identity inspector version; it only skips rehashing unchanged files, is never admission, is forgotten when fresh verification disagrees, and drops rows only for files gone from available folders or removed folders.
 Reads report whether catalog bytes, roots, availability, relink state and scan
 rules still match the recorded inputs. That does not claim the collection stayed byte-identical after
 the scan; the snapshot is local evidence, not a watcher, source registration, setup
 intent, or permission to mutate or install anything.
+
+Setup review asks Core for the registered matches of every current saved scan,
+including a scan that fits entirely in its preview. Core reads the scan, roots,
+catalog binding and current registrations in one transaction. Profile, content
+digest and source path must match. On Windows only, the existing absolute-path
+comparison accepts ordinary and verbatim disk/UNC spellings while preserving
+case and path components. Returned matches use the saved registration spelling;
+the registration itself is never rewritten. Other copies with the same digest
+remain distinct. React consumes this result without deciding filesystem identity,
+and installation review still verifies the current source before authorization.
 
 CLI and Tauri expose that same foreground scan, its normal operation events, and
 nullable snapshot readback. They accept only core's typed limits and do not add a
@@ -2823,6 +2954,36 @@ The existing 512-port selection bound and independent implementations apply;
 each selected port opens its fresh Core plan without automatic registration or
 installation.
 
+Core also lists game folders that Steam, GOG and Epic recorded on this host, so
+a player can choose the PC original a remake or source port needs. A
+`StoreInstallHost` seam supplies Steam client roots, GOG registry installs and
+Epic manifest folders; the production host reads default locations and the
+Windows registry, and tests use fixture folders. Core reads Steam
+`libraryfolders.vdf` and `appmanifest_*.acf` files and Epic `*.item` files with
+bounded regular-file reads, skips unsafe or missing locations, canonicalizes and
+deduplicates folders (keeping a linked `steamapps` as its resolved folder), drops
+filesystem roots, the home folder and ancestors of the library, and reports the
+matching saved game-file root identity plus the stores this host could check,
+so an unchecked store stays distinct from an empty one. Core unit-test services
+default to a host that reads no store.
+The result is a read-only suggestion: it adds no saved root, registration, setup
+intent or second scanner, and store titles never identify a source. Search and
+admission stay with the existing discovery and inspector. Source import refuses
+Move for an original inside a detected store game folder or a Steam library's
+`steamapps` folder, for a folder that contains one, and for any path through a
+folder named `steamapps`, so Portcove does not remove a recognized store's
+files; Copy and Use current location are unchanged. Recognition depends on
+readable store metadata otherwise, and the CLI guide documents that limit. CLI `source roots stores` and the Tauri
+`get_store_game_installs` command expose the same Core result, and Desktop **Find
+required files** loads it only when the player asks and uses a chosen folder as
+the ordinary search folder.
+Selected setup may pass an optional known source-profile identity through the
+same adapters to Core. Core filters reviewed original-folder hints before
+canonicalization; this does not change the store-report shape or file admission.
+In particular, the Steam Blake Stone anthology needs that context to choose
+one game's child folder. Generic store discovery leaves its hint absent.
+Linked or conflicting store locations cannot acquire a hint through this context.
+
 ## Install transaction
 
 SQLite schema 28 adds a durable preparation-process quiescence fact. Core clears
@@ -2845,6 +3006,48 @@ warning.
 7. Resolve the executable only from catalog-qualified safe-relative hints. Exact paths bind one file; legacy basenames must have exactly one case-insensitive match and ambiguity fails before publication. Hash immutable files into a schema-5 manifest bound to port, install, display version, artifact, target platform, selected executable, executable intent, and critical-file identities; then record the `prepared` postcondition.
 8. Atomically claim the vacant version path without replacement, record `payload_published`, commit activation or staging metadata, and record `metadata_committed`. A late destination remains untouched and blocks recovery until the conflict is explicitly resolved. On Windows, a just-exited process, indexer, or scanner can briefly retain a handle that denies renaming its parent directory; publication waits up to two seconds only for the corresponding access, sharing, or lock errors while rechecking that staging still exists and the destination remains vacant. Persistent errors retain private staging and report the exact operation paths and operating-system code for recovery.
 9. Remove only the operation-private staging tree. Failed cleanup remains `cleanup_pending` for retry; completed journals are removed because the activity ledger owns terminal history.
+
+Package-shape comparison (#5359). After extraction and the
+retained-contract package checks, at the existing reviewed-layout comparison
+point and before bundled runtimes, PS1 preparation or source materialization
+add content, `package_shape` derives the candidate's package shape and compares
+it with the generated reviewed table, the explicit `reviewed_package_layouts`
+fingerprint or the active installation's recorded shape
+([CATALOG](CATALOG.md#generated-reviewed-package-shapes)). The verdict is
+`compatible`, `drifted` with bounded per-part changes, or `unknown` with a
+reason (`no_baseline`, `incomplete_comparison`, `observation_failed`). Every
+observation or baseline failure, including an unverifiable active manifest,
+becomes `unknown`. Core withholds known drift against a reviewed baseline for
+the managed portable templates while the candidate is in its private staging
+directory. Drift against unreviewed local observations remains diagnostic. A bounded local
+observation retains the candidate identity, derivation inputs and observed
+shape. Later checks compare the exact candidate observation with the current
+applicable baseline. Exact reviewed fallback applies only to first installs.
+The provider verifies that the withheld latest package still matches the
+observation, then selects the newest independently reviewed artifact for the
+same channel and platform. It applies normal acquisition and uploader checks,
+and keeps this selection out of the ordinary release cache. A confirmed
+setup plan binds the selected package. If the first confirmed attempt detects
+drift, the next review shows the fallback. A direct install can retry after
+private cleanup under the same port lock. A successful install records its
+verdict in the optional
+`package_shape` field with the shape, the
+derivation version and a provenance (`reviewed` for an exactly listed artifact,
+`inherited` when every compared part equals a reviewed or inherited baseline's,
+which says nothing about content outside those parts, else `unreviewed`). The
+field is additive, does not change the manifest schema version and grants
+nothing. Core stores it as untyped JSON and parses it only when it is read: a
+record with another derivation version, or with a part, status or reason this
+build does not know, reads as no record and never makes the manifest, its
+verification, launch checks or rollback fail. Manifest rewrites, such as an
+archive-data admission, carry the stored value unchanged. An active
+installation's recorded shape is eligible as a local fallback baseline when the
+platform and retained shape-derivation inputs match. Installations recorded
+before this field have no local shape. `portcove installation package-shape
+PORT` reads the recorded verdicts without a port lock and distinguishes no
+record, an unrecognized record and an unverifiable manifest;
+`portcove catalog inspect-package-shape` derives the same shape from verified
+archive bytes for the table generator.
 
 Launch-critical verification uses complete immutable-file verification when the
 authenticated manifest records a nested executable companion outside the selected
@@ -2990,9 +3193,9 @@ Backup restore publishes its verified canonical snapshot, then synchronizes the 
 
 Restore consumes its one-use, action/target-bound authorization under the port lock before expensive save collection and fingerprint recomputation. Expiry is an admission deadline; an admitted operation can finish hashing a large tree. The current backup/data fingerprint must still match the reviewed state before any restore publication. Expired or mismatched tokens never begin that work, and changed state consumes the grant and requires a new review.
 
-When an update resolves to an artifact already present in the managed library, Portcove compares the verified digest, asset name, and size rather than the display tag. A republished stable, beta, rolling, or direct-manifest tag therefore remains visibly the same version while becoming a distinct update and content-addressed install. Before active/staged/retained reuse, activation, rollback, recovery, or launch, Portcove validates the manifest identity and rehashes the selected executable plus immutable libraries and bootstrap configuration beside it. The same targeted check enumerates the executable directory and rejects new unmanifested libraries, launchers, scripts, loader configuration, or symlinks before a child can be created. Catalog-declared mutable paths and exact generated metadata remain explicit exclusions; explicit full verification checks every other immutable file and rejects unexpected immutable additions.
+When an update resolves to an artifact already present in the managed library, Portcove compares the verified digest, asset name, and size rather than the display tag. A republished stable, beta, rolling, or direct-manifest tag therefore remains visibly the same version while becoming a distinct update and content-addressed install. Before active/staged/retained reuse, activation, rollback, recovery, or launch, Portcove validates the manifest identity and rehashes the selected executable plus immutable libraries and bootstrap configuration beside it. The same targeted check enumerates the executable directory and rejects new unmanifested libraries, launchers, scripts, reviewed loader-read configuration names, or symlinks before a child can be created. Catalog-declared mutable paths and exact generated metadata remain explicit exclusions; explicit full verification checks every other immutable file and rejects unexpected immutable additions. Managed operations and launch of full-integrity portable runtimes hold only on hazards and report other additions as [unknown player-side files](#unknown-player-side-files); new loader-read configuration beside the executable stays launch-sensitive.
 
-The desktop process shares one release provider across Tauri commands. Successful release and asset selections are cached in memory for five minutes, but every reuse first revalidates current GitHub or GitLab repository metadata; an observed archive rejects the cached selection, and a temporary network failure remains a network failure. Those selector caches retain at most 1,024 entries; a Core test keeps every platform's embedded provider selector slots within half of that bound. Provider JSON is streamed under a 4 MiB per-response limit and parsed before it may replace the library-scoped SQLite conditional cache, which opportunistically retains at most 512 response bodies, 64 MiB, and seven days. `ETag` and `Last-Modified` requests therefore reuse only the last semantically valid body on `304 Not Modified`. Metadata and authentication calls have ten-second connection, fifteen-second read-idle, and sixty-second overall bounds. Provider metadata redirects are rejected; unauthenticated checksum downloads may follow at most five redirects and are streamed under a 1 MiB limit. Checksum and artifact downloads have connection and read-idle protection but no short total deadline, so a progressing large transfer remains possible and cancellable. GitHub and GitLab release discovery reads at most ten 100-item pages. GitLab package discovery reads the same maximum, then checks at most sixteen packages whose version matches the selected release, with four package-file list requests in flight and at most five 100-file pages per package. Equally scored runnable assets or package links fail as ambiguous, and an aggregate checksum file must name the exact selected asset; only its exact `.sha256` sidecar may contain a bare digest. Core bulk update checking admits at most four provider resolutions at once, returns results in the caller's order, records each activity independently, and never retries a rate-limited item implicitly; CLI and Tauri only translate those outcomes. React generation-gates overlapping refreshes and tracks pending commands independently, so reverse completion cannot replace newer data or clear an unrelated busy state. Gamepad navigation is scoped to the top modal and a single Back stack closes command palette, adoption, then port detail in visual order. A top-level render boundary reports the component failure to Tauri and presents a reload surface without claiming domain failure. Tauri creates the window before opening the library: a startup worker opens and migrates it, recovers pending work, builds the release providers, observes running launches and reconciles a pending application update, and only then publishes the library; automatic update checks start after publication. A panic on the worker publishes a failure instead of leaving the placeholder. Until publication, `get_bootstrap_status` waits, so React keeps its loading surface; domain commands return a `library_initializing` state refusal and library switches or transfers are refused. A selection that replaced the placeholder is never overwritten by the worker. If library opening, migration recovery, or release-provider construction fails, Tauri keeps a typed failed bootstrap state: every domain command returns that error and React shows a retry/recovery surface without exposing library actions.
+The desktop process shares one release provider across Tauri commands. Successful release and asset selections are cached in memory for five minutes, but every reuse first revalidates current GitHub or GitLab repository metadata; an observed archive rejects the cached selection, and a temporary network failure remains a network failure. Those selector caches retain at most 1,024 entries; a Core test keeps every platform's embedded provider selector slots within half of that bound. Provider JSON is streamed under a 4 MiB per-response limit and parsed before it may replace the library-scoped SQLite conditional cache, which opportunistically retains at most 512 response bodies, 64 MiB, and seven days. `ETag` and `Last-Modified` requests therefore reuse only the last semantically valid body on `304 Not Modified`. Metadata and authentication calls have ten-second connection, fifteen-second read-idle, and sixty-second overall bounds. Provider metadata redirects are rejected; unauthenticated checksum downloads may follow at most five redirects and are streamed under a 1 MiB limit. Checksum and artifact downloads have connection and read-idle protection but no short total deadline, so a progressing large transfer remains possible and cancellable. Within one artifact transfer, Core retries after a dropped response body (a reset or early close, or a partial body that ends cleanly short of its known length), never after a read-idle stall, an error status or a first request that fails before any body. At most five retries run with cancellable back-off from half a second to eight seconds; a reconnect that fails with a transport error other than a timeout consumes one of them. When retries run out, the error is the original body interruption with the retry count and last retry error as details, so that exhaustion path classifies for preserved-location failover exactly as it did before retries existed. A reconnect that instead fails fatally (a read-idle stall, or a status such as 404 or 410) returns that error with its own classification, so an unavailable answer on a reconnect can now trigger preserved-location failover. A status that means the server refused the range itself (400, 403, 405, 412 or 501 in answer to a `Range` request) instead discards the received bytes and retries from the start without a range. A retry continues with `Range` only when bytes were received, the first response carried a strong `ETag` (sent as `If-Range`) and the caller supplied an expected SHA-256; a non-empty expected digest is the caller's promise to verify the complete file against it (the catalog download uses the record digest or the known catalog artifact digest). Core appends only a `206` that echoes the same `ETag` and whose `Content-Range` and `Content-Length` continue from the received offset to the end of the same complete length and declared size. A `200` answer, a `416`, a missing or changed validator, an unusable range or a missing expected digest discards the received bytes, truncates the file, reports zero progress and downloads from the start, so different representations are never spliced. The caller's full-file size and SHA-256 verification remains the acceptance for every resumed file. Partial bytes otherwise live only in the operation's private download location (install lifecycle staging, the catalog `.portcove-download-*` temporary directory or the PSX toolchain operation root) and are discarded with it. A release asset downloaded for installation or update may also continue in a later run (#6222). PSX preparation uses the same bounded transfer mechanism for its exact pinned toolchain archive in downloads/psx-toolchain-partial-v1. A library-scoped acquisition lock excludes concurrent toolchain preparation through transfer and publication, and ordinary release downloads do not sweep its partial store. The staging root can be recreated on retry. The complete archive still passes pinned size and SHA-256 verification before extraction and the existing shared cache publication checks. An eligible transfer with an expected SHA-256 writes straight into its entry under `downloads/partial-v1` while holding an exclusive lock on it, and records the asset URL, declared size, expected digest, strong `ETag` and complete length as soon as the first whole response arrives, so bytes received before a failure, a cancellation, a crash or Portcove closing remain. A later transfer of the same exact asset that can take the lock continues from them under the same `Range`/`If-Range` rules, so any mismatch starts over; a refused range request also starts over without one. A verification failure, a weak or missing validator or a drain failure discards the entry; an entry another transfer holds is not used. Release and bundled-runtime archives can also resume into a verified install staging directory outside the library. The external output root retains its independent ownership, volume and capacity checks. On success the store moves the bytes to private staging, or copies them through the locked file across volumes, and removes the entry. Each use of the store removes expired (seven days), leftover and unpaired files and keeps at most four entries and 16 GiB, reserving the full declared size of each active transfer. When the store bounds or the volume's available space cannot accommodate another transfer after idle entries are evicted, it downloads in private staging without durable resume. An entry is otherwise only removed by its next use, by a later download or by deleting the library's `downloads` folder. The store never publishes, registers or activates anything, and the caller still verifies the complete file. Catalog and definition downloads keep in-transfer resume only. Durable job and queue state beyond that remains #248. GitHub and GitLab release discovery reads at most ten 100-item pages. GitLab package discovery reads the same maximum, then checks at most sixteen packages whose version matches the selected release, with four package-file list requests in flight and at most five 100-file pages per package. Equally scored runnable assets or package links fail as ambiguous, and an aggregate checksum file must name the exact selected asset; only its exact `.sha256` sidecar may contain a bare digest. Core bulk update checking admits at most four provider resolutions at once, returns results in the caller's order, records each activity independently, and never retries a rate-limited item implicitly; CLI and Tauri only translate those outcomes. React generation-gates overlapping refreshes and tracks pending commands independently, so reverse completion cannot replace newer data or clear an unrelated busy state. Gamepad navigation is scoped to the top modal and a single Back stack closes command palette, adoption, then port detail in visual order. A top-level render boundary reports the component failure to Tauri and presents a reload surface without claiming domain failure. Tauri creates the window before opening the library: a startup worker opens and migrates it, recovers pending work, builds the release providers and observes running launches, and only then publishes the library; automatic update checks start after publication. A panic on the worker publishes a failure instead of leaving the placeholder. Until publication, `get_bootstrap_status` waits, so React keeps its loading surface; domain commands return a `library_initializing` state refusal and library switches or transfers are refused. A selection that replaced the placeholder is never overwritten by the worker. If library opening, migration recovery, or release-provider construction fails, Tauri keeps a typed failed bootstrap state: every domain command returns that error and React shows a retry/recovery surface without exposing library actions.
 
 Anonymous update-check request cost (measured November 2026 by
 `release::tests::measure_the_request_cost_of_checking_a_library`, which drives the real
@@ -3048,6 +3251,21 @@ workspace remount clears it, and the core activity ledger and recovery state
 remain authoritative for completed, interrupted and failed operations. Evicting
 an event never removes durable history or declares recovery successful.
 
+### Local setup revision recovery
+
+Core reviews an exact earlier profile revision against the current head and
+materialized selection. A plan verifies the retained runtime and its policy,
+stored package bytes and current code consent. It reports original availability
+separately from the inputs needed to apply a retained runtime. An exact plan
+digest binds the inputs and live effects for the port-locked apply.
+
+Apply appends the earlier setup state as a successor and retains the current
+save group. A selected setup uses its existing materialized-revision checkpoint
+and restore-pending marker to finish deployment after interruption. Launch holds
+before selecting an executable until the selected setup finishes materializing.
+Runtime rollback still owns the active executable for Default. A customized
+setup can recover an offered exact runtime without changing that pointer.
+
 ### Runtime diagnostic writer
 
 Desktop and CLI use `portcove-diagnostics` for structured JSONL records, approved
@@ -3075,6 +3293,15 @@ outlive the wait and retains any acquired lease until its work returns. Only
 a timely result can start the writer; late preparation is discarded without
 starting a writer or installing a subscriber. There is no automatic retry.
 Logging initialization failure never changes an otherwise valid startup outcome.
+
+The original safely validated host root is retained once selected, separately
+from writer readiness. Explicit support export and its folder action read that
+immutable selection in their existing blocking worker; they do not reread
+preferences, select the current library's log directory or retry logging. A late
+bootstrap may make this destination available without enabling a writer or
+changing unavailable diagnostic health. Until root preparation succeeds, export
+reports the location as unavailable. Core still validates the destination and
+owns bounded collection, redaction and atomic archive publication.
 
 Positive-sink qualification fixtures use the diagnostics crate's nondefault
 `qualification-fixtures` feature and an exact child-only
@@ -3388,6 +3615,45 @@ managed runtime, or changing a source registration/channel through another
 client, never deletes these private archives; later Apply must freshly validate
 those changed facts and cannot resurrect a removed installation.
 
+### Update review release notes
+
+`GameUpdatePlan.release_notes` is informational. For GitHub and GitLab ports
+the provider reads the release-list pages it already persisted in the
+conditional HTTP cache while resolving the offered release; building the notes
+sends no request and spends no API budget, so a review works offline with
+whatever is cached. A later cached page is joined only when it was confirmed
+within five minutes of the first page, so the list is one observation and never
+has a silent gap. Entries run from the offered release (inclusive) to the
+installed version (exclusive), newest first, under the release-selection rules:
+drafts, upcoming releases, releases outside this platform's native stream and
+unrelated rolling tags are skipped, a stable channel skips prereleases, and
+repeated tags keep their first listing. A rolling channel lists only the offered
+tag. At most 20 releases and 4,000 characters per release are kept. `coverage`
+says whether the list is complete, shortened, missing the installed version,
+limited to the offered release because the installed version is newer, or
+limited to a rolling release's current notes. An already active release carries
+no notes.
+
+Notes, titles and versions are untrusted upstream text. Core removes complete
+HTML comments, control characters and bidirectional or invisible formatting
+characters (zero-width joiners stay), keeps at most one blank line in a row,
+bounds every value and drops malformed timestamps; Desktop renders the text
+escaped, with no Markdown, HTML or embedded links. The only links are the
+project's release list page and each release's page, built by Core from the
+provider origin and repository and kept only when they pass the reviewed-link
+check that Desktop applies before opening any URL; if that check cannot complete,
+the link is dropped and the review continues. A release page is offered only for
+a plain tag (ASCII letters, digits, `-`, `_`, `.`, `+`) shown exactly as published,
+only while the release list itself is openable, and only for the reviewed port's
+own release repository. The reviewed-link check accepts exactly
+`https://github.com/<repository>/releases/tag/<tag>` or
+`https://gitlab.com/<repository>/-/releases/<tag>` for a cataloged port's own
+release repository and such a tag; any other path, host, query, fragment or
+encoded tag is refused. An uncached or unlisted offered release yields no entries;
+with no entries and no openable link the review carries no value, as do direct
+manifest and user-prepared ports. The notes are excluded from `plan_sha256`,
+so edited upstream text never invalidates a reviewed update.
+
 ## Cooperative operation cancellation
 
 Restart recovery retains a structured Core failure for an unrequested interrupted
@@ -3510,7 +3776,7 @@ split, and do not claim exhaustive arbitrary configuration, upstream-build,
 gameplay or native termination qualification. New contradictory inputs require
 an exact causal case and compatible normal/recovery consumer migration.
 
-Adapters describe recurring families rather than individual games: libultraship portable releases, N64 recomp portable releases, staged-source portable releases, referenced-disc ports, generated-cache ports, upstream-managed setup, and managed PS1 recomp builds. Port-specific facts stay in `catalog.json`: repository, channels, platform availability, source profile, executable hints, launch behavior, persistent paths, and optional runtime subdirectory and source paths. Source profiles may use exact SHA-1, SHA-256, file-set CRC32, reviewed PS1 ISO-volume allowlists, or a tightly bounded upstream-validator handoff so Portcove can enforce the strongest identity form an upstream actually publishes while continuing to record SHA-256 in local state. A declared runtime subdirectory keeps working-directory, portable-marker, and stored-source behavior inside a stable nested release layout without port-specific code. Runtime source materialization is limited to reviewed generic operations: N64 byte-order normalization, bounded exact copy or ZIP-member extraction, GameCube or PS2 ISO conversion, single-disc PS1 CHD expansion to a multi-BIN/CUE directory, multi-disc PS1 CHD expansion to numbered raw data tracks, and read-only LIVE/STFS extraction into a new directory. STFS extraction validates a bounded ASCII path table, rejects traversal, case collisions, cyclic or out-of-range block chains, caps depth/count/expanded bytes against available storage, and publishes only after declared inner-file SHA-256 checks pass. File replacements and directory swaps preserve the prior destination until the staged replacement is ready; schema-2 source sidecars bind reuse to the current storage SHA-256 and size instead of path metadata, forcing restaging even when changed bytes retain the same path, length, and timestamp.
+Adapters describe recurring families rather than individual games: libultraship portable releases, N64 recomp portable releases, staged-source portable releases, referenced-disc ports, generated-cache ports, upstream-managed setup, and managed PS1 recomp builds. Port-specific facts stay in `catalog.json`: repository, channels, platform availability, source profile, executable hints, launch behavior, persistent paths, and optional runtime subdirectory and source paths. Source profiles may use exact SHA-1, SHA-256, file-set CRC32, reviewed PS1 ISO-volume allowlists, or a tightly bounded upstream-validator handoff so Portcove can enforce the strongest identity form an upstream actually publishes while continuing to record SHA-256 in local state. A declared runtime subdirectory keeps working-directory, portable-marker, and stored-source behavior inside a stable nested release layout without port-specific code. Runtime source materialization is limited to reviewed generic operations: N64 byte-order normalization, bounded exact copy or ZIP-member extraction, GameCube or PS2 ISO conversion, single-disc PS1 CHD expansion to a multi-BIN/CUE directory, multi-disc PS1 CHD expansion to numbered raw data tracks, and read-only LIVE/PIRS STFS extraction into a new directory. STFS extraction verifies the header SHA-1 and the complete SHA-1 hash tree (top hash, level-2/level-1/level-0 tables and every data block read), honours the contiguous-file flag, refuses CON, two-table and SVOD packages, compares an optional catalog title/content-type binding before extraction, validates a bounded ASCII path table, rejects traversal, case collisions, cyclic or out-of-range block chains, caps depth/count/expanded bytes against available storage, and publishes only after declared inner-file SHA-256 checks pass. An STFS source profile may also identify a package by content (verified hash tree, header title ID and content type, and extracted member SHA-256) beside its exact whole-package identity; a package matching both is admitted by its exact identity. Hash-tree and newer descriptor checks are enforced for content identities and for ports with an STFS binding. For a package proven by its exact whole-package digest they run in an advisory mode: findings are reported as inspection advisories and extraction warnings, the recorded block chain is followed, and only the bounds that prevent unsafe reads and writes refuse. File replacements and directory swaps preserve the prior destination until the staged replacement is ready; schema-2 source sidecars bind reuse to the current storage SHA-256 and size instead of path metadata, forcing restaging even when changed bytes retain the same path, length, and timestamp.
 
 For an observed cartridge ZIP, exact-copy preparation selects the admitted member
 by its retained name and content identity, independently of the runtime filename.
@@ -3542,7 +3808,7 @@ Catalog entries may add fixed launch environment values and one dynamic user-dat
 
 The upstream-managed setup adapter runs only a checksum-verified executable selected by catalog hints, fixed reviewed arguments, and the normalized registered source. It requires a concrete safe-relative marker before producing a game launch specification. Its private setup metadata binds that marker to the staged source SHA-256 and size, so a changed registration reruns validation rather than reusing another disc's output. After setup and the final original-source identity check, the installer rebuilds the immutable manifest over the generated application data, publishes the new manifest bytes, and updates only that exact install record before the child starts. A database-commit failure restores the prior manifest bytes and fails closed. Catalog-declared `runtime_mutable_paths` and `runtime_mutable_file_patterns` identify narrowly reviewed, nonpersistent files that the upstream runtime creates inside this generated tree; they are excluded from immutable verification and backup ownership without becoming executable or source exceptions. The service writes its first-success marker only after all adapter preparation succeeds, so source rejection, partial extraction, or manifest-registration failure cannot be reported as a completed launch.
 
-The managed PS1 adapter downloads a platform-specific, fixed-version toolchain asset, verifies its declared size and SHA-256, and extracts it through the same bounded archive policy into Portcove's private toolchain cache. Its schema-2 marker binds the pinned artifact to the current bytes of bundled Python, CMake, Ninja, and toolchain metadata; cache reuse fails after any critical-file change. It invokes only the reviewed `generate` and `rebuild` commands with toolchain downloads disabled; it does not execute arbitrary catalog scripts. Before adapter mutation or spawn, a private validated configuration binds the exact nonempty disc list to the verified source record and checks the executable basename and optional relative runtime directory. Runtime raw-set requests require a source directory with at least two verified discs, matching the existing materialization contract. Public preparation inputs remain compatible; cancellation, source/BIOS storage identity, and quiescence checks remain authoritative. Installer acquisition and service toolchain provisioning retain their existing ordering. CHD extraction for identity checks is temporary. A title may declare a second exact BIOS source profile; it is validated and recorded independently, supplied only to the reviewed generator, and the staged raw dump is removed after backend generation. By default, the installed runtime mounts the verified original CHD path and Portcove rewrites that path from the registered source before each launch. Reviewed runtime-generated diagnostics may be cataloged as exact nonpersistent mutable paths or bounded nonpersistent filename patterns, but they cannot overlap an executable, source materialization, Portcove metadata, or persistent user data. A cataloged multi-disc title whose runtime cannot read CHD may instead request an immutable numbered raw set during installation. Portcove transactionally extracts all discs, verifies their aggregate normalized identity and size against the registered source record, retains deterministic cue descriptors, writes relative cue paths into the manifest-covered base configuration, and includes every cue and raw track in the critical installation manifest set checked before launch. The original CHDs remain authoritative and are also rechecked before launch. After immutable verification, launch preparation derives one exact core-owned runtime configuration with absolute cue paths for upstreams that cannot resolve relative paths and pins the runtime's memory-card directory to the catalog-owned persistent `saves` path; it never rewrites or regenerates the immutable raw set. Generated compiler intermediates and any unrequested expanded disc files are pruned before activation.
+The managed PS1 adapter downloads a platform-specific, fixed-version toolchain asset, verifies its declared size and SHA-256, and extracts it through the same bounded archive policy into Portcove's private toolchain cache. Its schema-2 marker binds the pinned artifact to the current bytes of bundled Python, CMake, Ninja, and toolchain metadata; cache reuse fails after any critical-file change. It invokes only the reviewed `generate` and `rebuild` commands with toolchain downloads disabled; it does not execute arbitrary catalog scripts. Before adapter mutation or spawn, a private validated configuration binds the exact nonempty disc list to the verified source record and checks the executable basename and optional relative runtime directory. Runtime raw-set requests require a source directory with at least two verified discs, matching the existing materialization contract. Public preparation inputs remain compatible except for the required `PsxManagedPreparation.runtime_track_counts` field, which carries each disc's exact catalog track count for a runtime raw set and is empty otherwise; cancellation, source/BIOS storage identity, and quiescence checks remain authoritative. Installer acquisition and service toolchain provisioning retain their existing ordering. CHD extraction for identity checks is temporary. A title may declare a second exact BIOS source profile; it is validated and recorded independently, supplied only to the reviewed generator, and the staged raw dump is removed after backend generation. By default, the installed runtime mounts the verified original CHD path and Portcove rewrites that path from the registered source before each launch. Reviewed runtime-generated diagnostics may be cataloged as exact nonpersistent mutable paths or bounded nonpersistent filename patterns, but they cannot overlap an executable, source materialization, Portcove metadata, or persistent user data. A cataloged multi-disc title whose runtime cannot read CHD may instead request an immutable numbered raw set during installation. Portcove transactionally extracts all discs, verifies their aggregate normalized identity and size against the registered source record, retains deterministic cue descriptors (each disc's data track stays `disc-NN.bin`; any further track of a disc with one exact multi-track catalog count becomes `disc-NN-tTT.bin`, and each cue's TRACK count is re-checked against that count), writes relative cue paths into the manifest-covered base configuration, and includes every cue and raw track in the critical installation manifest set checked before launch. The original CHDs remain authoritative for repair and re-preparation; because the raw set is self-contained, launch does not require or recheck them. After immutable verification, launch preparation derives one exact core-owned runtime configuration with absolute cue paths for upstreams that cannot resolve relative paths and pins the runtime's memory-card directory to the catalog-owned persistent `saves` path; it never rewrites or regenerates the immutable raw set. Generated compiler intermediates and any unrequested expanded disc files are pruned before activation.
 
 Managed PS1 preparation on Mac uses the pinned pack's interpreter for the selected architecture and Apple's active Command Line Tools or Xcode for Clang and the macOS SDK. Portcove checks the selected developer tools and SDK before running the builder. The Intel and Apple Silicon caches use separate coordinates alongside the legacy wrapper-based cache. Publication reuses a verified pack already published by another operation and preserves unverified content in an occupied Mac coordinate.
 
@@ -3590,6 +3856,10 @@ overlays cannot add credential-shaped names; Windows replacement and removal
 compare names using case-insensitive ordinal equality. Raw argument syntax is
 available only to the existing Windows junction unit-test fixtures.
 
+Reviewed Windows upstream setup that receives a source argument runs with the
+standard Windows heap. The debugger remains attached for process-tree tracking
+and settlement throughout setup, including compiler teardown.
+
 On Windows, supervised tools use a private controller whose single owning thread
 creates the suspended root, assigns its non-breakaway kill-on-close Job and
 resumes the exact creation-returned primary thread. It captures descendant
@@ -3598,8 +3868,12 @@ checkpoints. One PID-and-creation-time store combines those handles with bounded
 Job observations for descendants that start their own debugger. Cleanup proof
 uses valid returned PIDs from successful partial live snapshots as supplemental
 observations; partial snapshots never establish complete lifetime coverage.
-Malformed counts and either count above the 512-member bound remain failures. It
-requires positive retained-handle waits, zero active members and equality between
+Malformed counts and counts above the applicable member bound remain failures.
+Ordinary tools and decoders allow up to 512 members and 4,096 debug events.
+Managed builders allow up to 2,048 members and 65,536 debug events. Windows
+starts managed builders with the standard heap to avoid allocation contention
+during compilation and linking while retaining the same debug-event tracking.
+Cleanup requires positive retained-handle waits, zero active members and equality between
 the Job's lifetime count and retained identities, within one two-second closure
 deadline. Missing coverage, API failure or expiry preserves failure. Startup
 readiness failures and controller panics project the available locked proof
@@ -3737,7 +4011,7 @@ while core and Tauri remain authoritative for source validation and mutation.
 
 The CLI is the integration boundary. Consumers should probe `capabilities`, including `product_version`, `failure_isolated_batches`, and `port_operation_locking`, use `--json` for request/response automation or `--jsonl` for progress streams, select an explicit library, and launch through `exec`. `catalog export` supplies the complete versioned port and source-profile document, `activity` supplies a bounded, newest-first durable ledger for frontends that need recent results without replaying progress streams, and `storage` reports the resolved root and containing-volume capacity. `plan` combines release resolution, retained/staged version discovery, registered requirements, and capacity into a typed preflight without changing installed state. `paths` exposes canonical persistent-data and managed-version roots so backup tools do not depend on private layout conventions; `backup create`, `list`, and confirmed `restore` provide a first-party snapshot lifecycle. Bulk check, reconcile, and update operations isolate every installed port; bulk source verification isolates every registered profile. Frontends must inspect each nested outcome rather than treating a completed batch as proof that every item succeeded. `catalog export`, `source verify --all`, `activity`, `storage`, `paths`, `backup list`, and `exec` are network-free; backup create/restore are also network-free but copy local data, `plan` may make a conditional release request, and launch inherits the child's standard streams and exit code.
 
-The CLI's `schema export` is library-free and is also the transport authority for the desktop. The deterministic transport-contract gate compares the Rust schema with TypeScript DTO field names, catalog adapter values, common enums, and event variants before either adapter can ship. Desktop's existing Rust host transport declarations additionally own the exact `portcove://operation`, `portcove://library-changed`, and `portcove://application-update-notice` event names and payload schemas. Tauri producers use one Rust adapter that compiler-checks an explicit payload type; repository tooling binds that type and event constant to the schema exporter, while React subscribes through one generated payload map and typed adapter. An independent compatibility fixture prevents a coherent shared-generator rename or payload substitution from silently changing the released contract. Events remain hints: durable activity, library and updater reads are authoritative after loss, reordering or restart. Filesystem paths are deliberately narrower than native Unix paths in V1: any path crossing durable serialization or a child-process string boundary must be Unicode, and an unrepresentable path is rejected as unsupported rather than lossily rewritten.
+The CLI's `schema export` is library-free and is also the transport authority for the desktop. The deterministic transport-contract gate compares the Rust schema with TypeScript DTO field names, catalog adapter values, common enums, and event variants before either adapter can ship. Desktop's existing Rust host transport declarations additionally own the exact `portcove://operation`, `portcove://library-changed`, `portcove://application-update-notice` and `portcove://play-request` event names and payload schemas. Tauri producers use one Rust adapter that compiler-checks an explicit payload type; repository tooling binds that type and event constant to the schema exporter, while React subscribes through one generated payload map and typed adapter. An independent compatibility fixture prevents a coherent shared-generator rename or payload substitution from silently changing the released contract. Events remain hints: durable activity, library and updater reads are authoritative after loss, reordering or restart. Filesystem paths are deliberately narrower than native Unix paths in V1: any path crossing durable serialization or a child-process string boundary must be Unicode, and an unrepresentable path is rejected as unsupported rather than lossily rewritten.
 
 ## Signed catalog authority
 
@@ -3899,10 +4173,13 @@ Current managed-install and external-registration routes share Core's existing
 route exclusions with action presentation. Managed and external launch use their
 retained definitions and recorded platform; missing, oversized, changed or legacy
 retained context stays unavailable and has no guessed definition digest. Query
-manifest reads use the existing stable no-follow object reader, a 4 MiB bound and
-immutable manifest verification. Construction accepts at most 256 unique known
-routes with identifiers of at most 128 bytes, a cooperative 30-second budget and
-a 4 MiB response. These checks cannot interrupt an individual filesystem call.
+manifest reads use the existing stable no-follow object reader, a 32 MiB bound and
+immutable manifest verification. Explicit CLI queries accept at most 256 unique
+known routes. Desktop browsing can cover its full admitted definition catalog for
+one selection. Core reads routes in batches of at most 256 and shares one source
+inspection, observation window and cancellation scope. Each request uses identifiers
+of at most 128 bytes, a cooperative 30-second budget and a 4 MiB response. These
+checks cannot interrupt an individual filesystem call.
 
 A current, admitted exact identity establishes compatible files only when its
 variant and complete representation satisfy an enforced source contract bound to

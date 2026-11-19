@@ -5,10 +5,10 @@
     "name": "Blue Stinger — BlueStingerRecomp (rodrigo-mendonca)",
     "original_game_title": "Blue Stinger",
     "summary": "Actual game/native audio/Vulkan rendering described; intermittent AMD device-lost and unfixed fog/modifier volumes; remaster work not implemented. Original files and setup are described below. Portcove has not verified setup or gameplay.",
-    "project_url": "https://github.com/rodrigo-mendonca/BlueStingerRecomp",
+    "project_url": "https://github.com/DCRecomp/BlueStingerRecomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/rodrigo-mendonca/BlueStingerRecomp",
+    "setup_url": "https://github.com/DCRecomp/BlueStingerRecomp",
     "manual_setup": {
       "steps": [
         {
@@ -24,7 +24,7 @@
         "Actual game/native audio/Vulkan rendering described; intermittent AMD device-lost and unfixed fog/modifier volumes; remaster work not implemented.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/rodrigo-mendonca/BlueStingerRecomp"
+      "help_url": "https://github.com/DCRecomp/BlueStingerRecomp"
     },
     "issue_number": 3568,
     "listed_at": "2026-10-25",
@@ -35,6 +35,21 @@
       "image_sha256": "580e9735786ce1d0c34ca13635f35902222ef8c783e554f2f1c5a909971270b9",
       "game_slug": "blue-stinger",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "blue-stinger",
+      "evidence_urls": ["https://github.com/DCRecomp/BlueStingerRecomp"],
+      "source_editions": [
+        {
+          "id": "blue-stinger-dreamcast",
+          "title": "Blue Stinger (Sega Dreamcast)",
+          "system": "dreamcast",
+          "evidence_urls": [
+            "https://github.com/DCRecomp/BlueStingerRecomp/blob/fbc6761d49fa701f3c90e2444f7f98a6b5e61687/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -47,6 +62,48 @@
         "id": "1429030695"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/rodrigo-mendonca/BlueStingerRecomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1429030695"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/DCRecomp/BlueStingerRecomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1429030695"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The repository moved from rodrigo-mendonca to DCRecomp. GitHub only lets an administrator of the original repository transfer it, and rodrigo-mendonca authored its history and remains a contributor. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1429030695",
+            "note": "Repository ID 1429030695, recorded when this port was listed, resolves to DCRecomp/BlueStingerRecomp."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repos/DCRecomp/BlueStingerRecomp/contributors",
+            "note": "rodrigo-mendonca is listed among the current repository's contributors."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/rodrigo-mendonca/BlueStingerRecomp",
+            "note": "The listed path resolves to DCRecomp/BlueStingerRecomp, repository ID 1429030695."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "5c44c33cf158dfd110e0c9184a61d5f9c9a05c048ad1fae4807d4ca112f2b73c"
+        }
+      }
+    ]
   }
 }

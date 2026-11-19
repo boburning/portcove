@@ -1,0 +1,69 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dungeon-keeper-keeperfx-tux-edition",
+    "project_url": "https://github.com/ForkedInTime/keeperfx-tux-edition",
+    "name": "Dungeon Keeper / KeeperFX Tux Edition",
+    "original_game_title": "Dungeon Keeper",
+    "artwork": {
+      "game_id": 35,
+      "cover_id": 182022,
+      "image_id": "co3wg6",
+      "image_sha256": "9a3409c8b4937b0a9bc70951a1e808112122847099411625581b845a97d4745a",
+      "game_slug": "dungeon-keeper",
+      "match_kind": "underlying-game"
+    },
+    "summary": "Set up the community Linux build of KeeperFX using your own Dungeon Keeper files.",
+    "issue_number": 6110,
+    "listed_at": "2026-11-15",
+    "platforms": ["linux-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/ForkedInTime/keeperfx-tux-edition/releases/tag/v1.4.0.6103",
+    "setup_url": "https://github.com/ForkedInTime/keeperfx-tux-edition/blob/v1.4.0.6103/docs/install.md",
+    "download_block_reason": "Open the publisher’s release and choose the Linux x86-64 AppImage. The upstream launcher prepares and maintains the game folder.",
+    "manual_setup": {
+      "help_url": "https://github.com/ForkedInTime/keeperfx-tux-edition/blob/v1.4.0.6103/docs/install.md",
+      "steps": [
+        {
+          "title": "Start the Linux AppImage",
+          "instruction": "On a current Linux x86-64 system such as Ubuntu 24.04 or newer, download KeeperFX-Tux-Edition-x86_64.AppImage from the publisher and make it executable. Run it directly or use --appimage-extract-and-run if FUSE is unavailable."
+        },
+        {
+          "title": "Copy your owned Dungeon Keeper files",
+          "instruction": "At the launcher’s Copy Dungeon Keeper Files prompt, select your original CD or a prepared GOG, Steam, or EA installation. Keep the original files in place. For music, use tracks from your own copy as described in the upstream guide."
+        },
+        {
+          "title": "Keep one Linux game folder",
+          "instruction": "The AppImage uses ~/.local/share/keeperfx-alpha by default. To use a separate folder, set KFX_ALPHA_PREFIX to its absolute path on each launch. Keep this folder separate from the Windows KeeperFX installation. A different AppImage version can update the same folder on its first launch. Before opening a replacement AppImage, close the game and launcher and back up the complete Linux folder, which holds saves, settings, screenshots, mods, and Workshop maps."
+        }
+      ],
+      "warnings": [
+        "Keep the build that wrote your saves before changing channels or versions. Older saves can depend on their original build, and some later scripted levels have an additional compatibility boundary. The publisher’s FAQ lists the affected versions."
+      ],
+      "references": [
+        {
+          "title": "Check save compatibility and use owned original data",
+          "instruction": "See https://github.com/ForkedInTime/keeperfx-tux-edition/blob/v1.4.0.6103/docs/faq.md for edition-specific setup and save compatibility."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dungeon-keeper",
+      "evidence_urls": [
+        "https://github.com/ForkedInTime/keeperfx-tux-edition/blob/v1.4.0.6103/docs/install.md",
+        "https://github.com/ForkedInTime/keeperfx-tux-edition"
+      ],
+      "source_editions": [
+        {
+          "id": "dungeon-keeper-pc",
+          "title": "Dungeon Keeper (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/dungeon-keeper-keeperfx-tux-edition.json"
+          ]
+        }
+      ]
+    }
+  }
+}

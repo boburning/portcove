@@ -4,6 +4,14 @@
     "id": "gitaroo-man-native-erinxocon-gitaroo-man",
     "name": "Gitaroo Man — gitaroo-man-native (erinxocon)",
     "original_game_title": "Gitaroo Man",
+    "artwork": {
+      "game_id": 11338,
+      "cover_id": 129604,
+      "image_id": "co2s04",
+      "image_sha256": "2c862f87c477f0100adb9e7e6aba524d89f43b0d61e98b4374ee1ae02091c163",
+      "game_slug": "gitaroo-man",
+      "match_kind": "underlying-game"
+    },
     "summary": "This project includes game code and a native renderer/runtime. The extent of working gameplay is unknown here; check the upstream progress notes before setup. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/erinxocon/gitaroo-man-native",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/erinxocon/gitaroo-man-native"
     },
-    "issue_number": 3044
+    "issue_number": 3044,
+    "original_game": {
+      "format_version": 1,
+      "id": "gitaroo-man",
+      "evidence_urls": ["https://github.com/erinxocon/gitaroo-man-native"],
+      "source_editions": [
+        {
+          "id": "gitaroo-man-playstation-2",
+          "title": "Gitaroo Man (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/erinxocon/gitaroo-man-native/blob/36eb4d556213b106f900030053d7550ef381e9e2/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

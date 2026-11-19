@@ -32,6 +32,7 @@ fn recorded_github_asset_identity_rejects_changed_bytes_but_keeps_new_rolling_bi
             size: 32,
             sha256: "a".repeat(64),
         },
+        uploader_continuity: None,
     };
     let identity = crate::definition_acquisition::GithubArtifactIdentity {
         repository: port.release.repository.clone(),
@@ -133,6 +134,7 @@ fn request(catalog: &Catalog, library: &Library, url: &str, version: &str) -> In
                 size: 42,
                 sha256: "ab".repeat(32),
             },
+            uploader_continuity: None,
         },
         output_root: library.versions_dir().join(ID),
         activate: true,
@@ -328,6 +330,7 @@ fn native10_appimage_requires_provider_selection_and_exact_retained_asset() {
             size: 42,
             sha256: "a".repeat(64),
         },
+        uploader_continuity: None,
     };
     let qualification = || InstallQualification::from_catalog(&catalog, id, platform).unwrap();
     let unresolved = crate::ScopedResolvedRelease::legacy(release.clone());

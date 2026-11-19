@@ -6,7 +6,14 @@ import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { Field } from "@base-ui/react/field";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "../components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+  DialogTrigger,
+} from "../components/ui/dialog";
 import { ChoiceSelect } from "../components/ChoiceSelect";
 import { StatusLayer } from "../components/Chrome";
 import { Notice } from "../components/ui/patterns";
@@ -140,6 +147,36 @@ afterEach(async () => {
   await cleanup();
   document.documentElement.removeAttribute("data-theme");
   document.documentElement.removeAttribute("dir");
+});
+
+it("keeps long diagnostics and dismissal reachable in an enlarged dialog", async () => {
+  const previous = document.documentElement.style.fontSize;
+  const viewport = { width: window.innerWidth, height: window.innerHeight };
+  await page.viewport(320, 420);
+  document.documentElement.style.fontSize = "200%";
+  try {
+    await render(
+      <Dialog>
+        <DialogTrigger render={<Button />}>Review failure</DialogTrigger>
+        <DialogContent>
+          <DialogTitle>Library review</DialogTitle>
+          <DialogDescription>{`E:/Library/${"LongFolderName".repeat(40)}`}</DialogDescription>
+          <DialogFooter showCloseButton />
+        </DialogContent>
+      </Dialog>,
+    );
+    const open = page.getByRole("button", { name: "Review failure" });
+    await open.click();
+    const popup = page.getByRole("dialog", { name: "Library review" });
+    await expect.element(popup).toBeVisible();
+    const element = popup.element();
+    expect(element.scrollWidth).toBeLessThanOrEqual(element.clientWidth + 1);
+    await popup.getByRole("button", { name: "Close", exact: true }).first().click();
+    await expect.element(open).toHaveFocus();
+  } finally {
+    document.documentElement.style.fontSize = previous;
+    await page.viewport(viewport.width, viewport.height);
+  }
 });
 
 it("reverses a closing dialog when controlled application state reopens it", async () => {

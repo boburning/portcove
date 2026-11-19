@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "sylpheed-stuken-project-sylpheed-arc-of-deception",
+    "artwork": {
+      "game_id": 7136,
+      "cover_id": 377112,
+      "image_id": "co82zc",
+      "image_sha256": "e3314f6e1029094027dbbb6ddeedbe3702c36518dcc42e37476aa4587df24e7a",
+      "game_slug": "project-sylpheed",
+      "match_kind": "underlying-game"
+    },
     "name": "Project Sylpheed: Arc of Deception — sylpheed (stuken)",
     "original_game_title": "Project Sylpheed: Arc of Deception",
     "summary": "A game-specific native project exists. Full-game compatibility is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/stuken/sylpheed"
     },
-    "issue_number": 3258
+    "issue_number": 3258,
+    "original_game": {
+      "format_version": 1,
+      "id": "project-sylpheed-arc-of-deception",
+      "evidence_urls": ["https://github.com/stuken/sylpheed"],
+      "source_editions": [
+        {
+          "id": "project-sylpheed-arc-of-deception-xbox-360",
+          "title": "Project Sylpheed: Arc of Deception (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/stuken/sylpheed/blob/166b189238d2943c60d3dfac458bb3bcda25d2fd/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

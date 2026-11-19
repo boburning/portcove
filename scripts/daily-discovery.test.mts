@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { once } from "node:events";
 import { isBuiltin } from "node:module";
-import { DiscoveryBudget, selectDiscoveryProfile } from "./discovery-budget.mts";
+import {
+  DiscoveryBudget,
+  createDiscoveryTransport,
+  selectDiscoveryProfile,
+} from "./discovery-budget.mts";
 import { boundedDiscoveryRequest } from "./discovery-http.mts";
 import { boundedDiscoveryInput } from "./daily-discovery-session.mts";
 import { readDiscoveryReport } from "./discovery-artifact.mts";
@@ -568,6 +572,24 @@ void test("bounded stream stops on response cap, counts redirects, and strips cr
     boundedDiscoveryRequest({ ...envelope, method: "POST" }),
     /Invalid bounded/u,
   );
+  // Named curated lists may raise the cap to 8 MiB, never beyond.
+  const largest = await boundedDiscoveryRequest(
+    { ...envelope, cap: 8 * 1024 * 1024 },
+    async () => new Response("ok"),
+  );
+  assert.equal(largest.bytes, 2);
+  await assert.rejects(
+    boundedDiscoveryRequest({ ...envelope, cap: 8 * 1024 * 1024 + 1 }, async () =>
+      assert.fail("Oversized cap must not dispatch"),
+    ),
+    /Invalid bounded/u,
+  );
+  const transport = createDiscoveryTransport(new DiscoveryBudget("ordinary"), "token");
+  for (const limit of [0, 8 * 1024 * 1024 + 1, 1.5])
+    await assert.rejects(
+      transport.request("GET", "https://example.org/list.json", undefined, false, limit),
+      (error: unknown) => error instanceof GitHubApiError && error.code === "request_refused",
+    );
   const metadata = await boundedDiscoveryRequest(
     { ...envelope, url: "https://api.github.com/repos/o/r" },
     async () => {

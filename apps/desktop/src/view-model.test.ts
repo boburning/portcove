@@ -267,6 +267,32 @@ describe("catalog view model", () => {
     expect(unordered.map((item) => item.id)).toEqual(["zeta", "alpha", "alpha-two", "beta"]);
   });
 
+  it("sorts names lexically with stable accent and case ties in both directions", () => {
+    const unordered = [
+      { ...port("eclair-accent", ["stable"]), name: "Éclair" },
+      { ...port("game-two", ["stable"]), name: "Game 2" },
+      { ...port("eclair-upper", ["stable"]), name: "ECLAIR" },
+      { ...port("game-ten", ["stable"]), name: "Game 10" },
+      { ...port("eclair-lower", ["stable"]), name: "eclair" },
+    ];
+    const ids = (sort: "name" | "name-desc") =>
+      filterPorts(unordered, new Map(), "catalog", "all", "", sort).map(({ id }) => id);
+    expect(ids("name")).toEqual([
+      "eclair-accent",
+      "eclair-upper",
+      "eclair-lower",
+      "game-ten",
+      "game-two",
+    ]);
+    expect(ids("name-desc")).toEqual([
+      "game-two",
+      "game-ten",
+      "eclair-accent",
+      "eclair-upper",
+      "eclair-lower",
+    ]);
+  });
+
   it("searches the visible installation method without indexing the internal adapter id", () => {
     const searchable = {
       ...fixtureValue(ports[0], "ports[0]"),
@@ -612,7 +638,10 @@ it("names each disc-unpacking step for the player and shows unpacking bytes", ()
   expect(unpacking.detail).toBe("1.0 KiB of 2.0 KiB");
   expect(unpacking.range?.percent).toBe(50);
   // The closing event keeps the existing launch wording rather than the last disc step.
-  expect(progressPresentation(step("launch", "indeterminate"), "").label).toBe("Starting game");
+  const starting = progressPresentation(step("launch", "indeterminate"), "");
+  expect(starting.label).toBe("Starting game");
+  // The closing step says what is happening instead of the generic "total not yet known".
+  expect(starting.detail).toBe("Opening the game now.");
 });
 
 it("formats progress from producer units independently of display wording", () => {

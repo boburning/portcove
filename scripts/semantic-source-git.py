@@ -16,6 +16,9 @@ import stat
 import sys
 import time
 
+# Fetch and enumerate one extra commit so the application reader detects overflow.
+APPLICATION_HISTORY_PROBE = 3201
+
 
 def main():
     if len(sys.argv) != 2 or os.getuid() == 0:
@@ -153,7 +156,7 @@ def main():
         if phase == "commits":
             args.append("--depth=2049")
         elif phase == "application-commits":
-            args.append("--depth=3073")
+            args.append(f"--depth={APPLICATION_HISTORY_PROBE}")
         args.extend(["https://github.com/boburning/portcove.git", *objects])
     elif phase == "init":
         args.extend(["init", "--bare", "--quiet", "--template=", value["repository"]])
@@ -162,7 +165,12 @@ def main():
             "commit": ["cat-file", "commit", *objects],
             "refs": ["for-each-ref", "--format=%(refname)"],
             "history": ["rev-list", "--max-count=2049", *objects[:1], *[f"^{oid}" for oid in objects[1:]]],
-            "application-history": ["rev-list", "--max-count=3073", *objects[:1], *[f"^{oid}" for oid in objects[1:]]],
+            "application-history": [
+                "rev-list",
+                f"--max-count={APPLICATION_HISTORY_PROBE}",
+                *objects[:1],
+                *[f"^{oid}" for oid in objects[1:]],
+            ],
             "application-commit-batch": ["cat-file", "--batch"],
             "peel": ["rev-parse", "--verify", *[f"{oid}^{{commit}}" for oid in objects]],
             "tree": ["hash-object", "-w", "-t", "tree", "--stdin"],

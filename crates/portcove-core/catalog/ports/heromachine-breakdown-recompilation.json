@@ -7,7 +7,7 @@
     "project_url": "https://github.com/Heromachine/Breakdown-Recompilation",
     "issue_number": 1805,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Heromachine/Breakdown-Recompilation",
     "artwork": {
@@ -49,6 +49,27 @@
       "warnings": [
         "Version 0.2.2 is early and incomplete. Upstream reports looping background music, slow Retry/loading and late textures."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "breakdown",
+      "evidence_urls": [
+        "https://github.com/Heromachine/Breakdown-Recompilation",
+        "https://github.com/Heromachine/Breakdown-Recompilation/blob/473b7d22c6c24b74f4bf424ecfff3cc1355c6a5a/README.md",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/heromachine-breakdown-recompilation.json"
+      ],
+      "source_editions": [
+        {
+          "id": "breakdown-xbox",
+          "title": "Breakdown (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/Heromachine/Breakdown-Recompilation/blob/473b7d22c6c24b74f4bf424ecfff3cc1355c6a5a/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/heromachine-breakdown-recompilation.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Breakdown"
   }
 }

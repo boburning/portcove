@@ -1,3 +1,4 @@
+import { useAppTranslation } from "../localization";
 import { ExternalLaunchWarnings } from "./AuthoredSetupWarnings";
 import { GameHero } from "./GameHero";
 import {
@@ -8,19 +9,27 @@ import {
 import { updateNoticeHidden } from "../features/organization/organization";
 import { gameUpdateAcquisitionLabel } from "../features/port-updates/acquisition-presentation";
 import {
+  FavoriteGameButton,
+  FavoritePreferenceFailure,
+  favoriteGroupIds,
   OrganizationControls,
   OrganizationMenuItems,
   organizedPorts,
   type Organization,
 } from "../features/organization/OrganizationControls";
 import { GroupedDiscover, IdentityChips } from "../features/browsing/GroupedDiscover";
-import { GroupedLibrary } from "../features/browsing/GroupedLibrary";
-import { groupCatalog, groupCountLabel } from "../features/browsing/original-game";
+import { GroupedLibrary, useLibraryMenu } from "../features/browsing/GroupedLibrary";
+import {
+  gameGroupId,
+  groupCatalog,
+  groupCountLabel,
+  type GameGroup,
+} from "../features/browsing/original-game";
 import { PortSearch } from "./PortSearch";
 import { controlFocus, floatingMotion } from "./ui/control-style";
 import { gameTitle, gameProjectLabel, gameIdentityLabel } from "../port-identity";
 import { cn } from "cn";
-import { Notice } from "./ui/patterns";
+import { ActionRow, Notice } from "./ui/patterns";
 import type { useFavorites } from "../features/favorites/use-favorites";
 import {
   memo,
@@ -29,6 +38,7 @@ import {
   useRef,
   useEffect,
   useId,
+  useMemo,
   type Dispatch,
   type SetStateAction,
   type ReactNode,
@@ -37,7 +47,6 @@ import { useLatestCallback } from "../shared/use-latest-callback";
 import type { CollectionLayout } from "../features/browsing/use-collection-layout";
 import {
   ArrowRight,
-  Heart,
   LayoutGrid,
   List,
   Play,
@@ -158,14 +167,19 @@ function visibleRecentPort(
 
 function browserResultAvailability(
   favorites: ReturnType<typeof useFavorites> | undefined,
+  favoriteGroups: ReadonlySet<string> | undefined,
+  organization: Organization | undefined,
   loading: boolean,
   filter: Filter | CatalogQuery,
   queryContext: CatalogQueryContext | undefined,
   readinessUnavailable: boolean,
 ) {
-  const favoritesUnavailable = favorites?.only === true && !favorites.ids;
-  const loadingResults = loading || Boolean(favoritesUnavailable && favorites?.busy);
-  const showingRetainedFavorites = Boolean(favorites?.only && favorites.ids && favorites.failure);
+  const favoritesUnavailable = favorites?.only === true && !favoriteGroups;
+  const loadingResults =
+    loading || Boolean(favoritesUnavailable && (favorites?.busy || organization?.busy));
+  const showingRetainedFavorites = Boolean(
+    favorites?.only && favoriteGroups && (favorites.failure || organization?.failure),
+  );
   const queryState =
     typeof filter === "string" ? "matched" : evaluateCatalogQuery([], filter, queryContext).state;
   const resultsUnavailable =
@@ -197,8 +211,9 @@ function browserResultCountLabel({
   declaredCandidates: CatalogEntry[] | undefined;
 }) {
   if (view === "catalog") {
+    // Each card is one game; port counts and grouping facts belong on the game page.
     const groups = groupCatalog(catalogUniverse ?? declaredCandidates ?? ports, visiblePorts);
-    return `${groupCountLabel(groups)} · ${visiblePorts.length} matching ports`;
+    return `${groups.length} ${groups.length === 1 ? "game" : "games"}`;
   }
   if (view === "library") {
     const groups = groupCatalog(catalogUniverse ?? ports, visiblePorts);
@@ -206,6 +221,110 @@ function browserResultCountLabel({
       return `${groupCountLabel(groups)} · ${visiblePorts.length} matching ports`;
   }
   return browserResultCount(view, visiblePorts.length);
+}
+
+function usePortBrowserFocus() {
+  const browserOwner = useRef({ closed: false });
+  const filterButton = useRef<HTMLButtonElement>(null);
+  const browserRoot = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const owner = { closed: false };
+    browserOwner.current = owner;
+    return () => {
+      owner.closed = true;
+    };
+  }, []);
+  const restoreAfter = useCallback(async (button: HTMLElement, action: () => Promise<boolean>) => {
+    const owner = browserOwner.current;
+    const ownedFocus = document.activeElement === button;
+    const accepted = await action();
+    if (!accepted || !ownedFocus) return;
+    window.requestAnimationFrame(() => {
+      if (
+        owner.closed ||
+        browserOwner.current !== owner ||
+        button.isConnected ||
+        document.activeElement !== document.body
+      )
+        return;
+      (
+        filterButton.current ??
+        browserRoot.current?.querySelector<HTMLButtonElement>("[data-focusable]:not([disabled])")
+      )?.focus();
+    });
+  }, []);
+  const prepareSearchFocusRestore = () => {
+    const owner = browserOwner.current;
+    const origin = document.activeElement;
+    return () =>
+      window.requestAnimationFrame(() => {
+        if (owner.closed || browserOwner.current !== owner) return;
+        if (document.activeElement !== origin && document.activeElement !== document.body) return;
+        (document.querySelector<HTMLInputElement>("#port-search") ?? filterButton.current)?.focus();
+      });
+  };
+  return { browserRoot, filterButton, restoreAfter, prepareSearchFocusRestore };
+}
+
+type BrowserQuickViewInputs = Pick<
+  Parameters<typeof usePortBrowser>[0],
+  "favorites" | "filter" | "organization" | "statuses" | "catalogUniverse" | "ports"
+> & {
+  queryContext: CatalogQueryContext | undefined;
+  libraryReadiness: string;
+  composedLibrary: boolean;
+  organizationView: string;
+  candidates: CatalogEntry[] | undefined;
+  favoriteGroups: ReadonlySet<string> | undefined;
+};
+
+function browserQuickViews({
+  favorites,
+  favoriteGroups,
+  libraryReadiness,
+  filter,
+  composedLibrary,
+  organizationView,
+  organization,
+  candidates,
+  statuses,
+  queryContext,
+  catalogUniverse,
+  ports,
+}: BrowserQuickViewInputs) {
+  const activeQuickView = activeLibraryQuickView({
+    favoritesOnly: favorites?.only === true,
+    readiness: libraryReadiness,
+    filter,
+  });
+  const favoriteIds = favorites?.ids;
+  const quickViewCounts = libraryQuickViewCounts({
+    // An unread collection snapshot makes a selected collection's counts unknown.
+    base:
+      composedLibrary && (organizationView === "all" || organization?.snapshot)
+        ? candidates
+        : undefined,
+    filter,
+    readiness: libraryReadiness,
+    favoriteGroupIds: favoriteGroups,
+    statuses,
+    // Match filterPorts: group facts use the full catalog, not the searched base.
+    context: {
+      ...queryContext,
+      catalogUniverse: queryContext?.catalogUniverse ?? catalogUniverse ?? candidates ?? [],
+    },
+    scope: (scoped) =>
+      organizedPorts(
+        scoped,
+        organization,
+        organizationView,
+        false,
+        catalogUniverse ?? ports,
+        favoriteIds,
+      ),
+  });
+
+  return { activeQuickView, quickViewCounts };
 }
 
 function usePortBrowser({
@@ -243,7 +362,9 @@ function usePortBrowser({
   collectionLayout = "covers",
   setCollectionLayout,
   collectionLayoutFailure,
+  resultsReady = true,
 }: {
+  resultsReady?: boolean | undefined;
   collectionLayout?: CollectionLayout;
   setCollectionLayout?: ((layout: CollectionLayout) => void) | undefined;
   collectionLayoutFailure?: "read" | "write" | undefined;
@@ -288,45 +409,25 @@ function usePortBrowser({
     if (organizationSelection) organizationSelection.onChange(value);
     else setOrganizationViews((current) => ({ ...current, [organizationKey]: value }));
   };
-  const browserOwner = useRef({ closed: false });
-  const filterButton = useRef<HTMLButtonElement>(null);
-  const browserRoot = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const owner = { closed: false };
-    browserOwner.current = owner;
-    return () => {
-      owner.closed = true;
-    };
-  }, []);
+  const { browserRoot, filterButton, restoreAfter, prepareSearchFocusRestore } =
+    usePortBrowserFocus();
   // Card callbacks keep their identity across renders so memoized cards can skip
   // unrelated workspace updates; each call still uses the latest owner handler.
   const stableSelect = useLatestCallback(onSelect);
   const stableContinue = useLatestCallback(onContinue);
   const stableTask = useLatestCallback(onTask);
-  const restoreAfter = useCallback(async (button: HTMLElement, action: () => Promise<boolean>) => {
-    const owner = browserOwner.current;
-    const ownedFocus = document.activeElement === button;
-    const accepted = await action();
-    if (!accepted || !ownedFocus) return;
-    window.requestAnimationFrame(() => {
-      if (
-        owner.closed ||
-        browserOwner.current !== owner ||
-        button.isConnected ||
-        document.activeElement !== document.body
-      )
-        return;
-      (
-        filterButton.current ??
-        browserRoot.current?.querySelector<HTMLButtonElement>("[data-focusable]:not([disabled])")
-      )?.focus();
-    });
-  }, []);
-  const onFavoriteToggle = useCallback(
-    (portId: string, button: HTMLElement) => {
-      if (favorites) void restoreAfter(button, () => favorites.toggle(portId));
-    },
-    [favorites, restoreAfter],
+  const confirmedPortIds = favorites?.ids;
+  const favoriteUniverse =
+    catalogUniverse ??
+    queryContext?.catalogUniverse ??
+    (view === "library" ? libraryFilterCandidates : catalogFilterCandidates) ??
+    ports;
+  const favoriteGroups = useMemo(
+    () =>
+      confirmedPortIds && (!organization || organization.snapshot)
+        ? favoriteGroupIds(favoriteUniverse, organization, confirmedPortIds)
+        : undefined,
+    [favoriteUniverse, organization, confirmedPortIds],
   );
   const { composedLibrary, unresolvedReadiness, candidates, readinessCount, declaredCandidates } =
     resolveLibraryFilters({
@@ -336,6 +437,7 @@ function usePortBrowser({
       libraryFilterCandidates,
       catalogFilterCandidates,
       favorites,
+      favoriteGroups,
       filter,
       queryContext,
       statuses,
@@ -348,42 +450,37 @@ function usePortBrowser({
     unresolvedFilter,
   } = browserResultAvailability(
     favorites,
+    favoriteGroups,
+    organization,
     loading,
     filter,
     queryContext,
     composedLibrary && candidates === undefined,
   );
-  const { favoriteCount, visiblePorts: favoriteMatches } = favoritePorts(ports, favorites);
-  const visiblePorts = organizedPorts(
-    favoriteMatches,
+  const scopedPorts = organizedPorts(
+    ports,
     organization,
     organizationView,
     view === "catalog",
-    catalogUniverse ?? ports,
+    favoriteUniverse,
+    favorites?.ids,
   );
-  const activeQuickView = activeLibraryQuickView({
-    favoritesOnly: favorites?.only === true,
-    readiness: libraryReadiness,
+  const favoriteMatches = scopedPorts.filter((port) => favoriteGroups?.has(gameGroupId(port)));
+  const favoriteCount = favoriteGroups ? new Set(favoriteMatches.map(gameGroupId)).size : undefined;
+  const visiblePorts = favorites?.only ? favoriteMatches : scopedPorts;
+  const { activeQuickView, quickViewCounts } = browserQuickViews({
+    favorites,
+    favoriteGroups,
+    libraryReadiness,
     filter,
-  });
-  const favoriteIds = favorites?.ids;
-  const quickViewCounts = libraryQuickViewCounts({
-    // An unread collection snapshot makes a selected collection's counts unknown.
-    base:
-      composedLibrary && (organizationView === "all" || organization?.snapshot)
-        ? candidates
-        : undefined,
-    filter,
-    readiness: libraryReadiness,
-    favoriteIds,
+    composedLibrary,
+    organizationView,
+    organization,
+    candidates,
     statuses,
-    // Match filterPorts: group facts use the full catalog, not the searched base.
-    context: {
-      ...queryContext,
-      catalogUniverse: queryContext?.catalogUniverse ?? catalogUniverse ?? candidates ?? [],
-    },
-    scope: (scoped) =>
-      organizedPorts(scoped, organization, organizationView, false, catalogUniverse ?? ports),
+    queryContext,
+    catalogUniverse,
+    ports,
   });
 
   const resultCount = browserResultCountLabel({
@@ -394,16 +491,11 @@ function usePortBrowser({
     declaredCandidates,
   });
   const reset = () => {
-    const owner = browserOwner.current;
-    const origin = document.activeElement;
+    const restoreSearch = prepareSearchFocusRestore();
     favorites?.setOnly(false);
     setOrganizationView("all");
     clearFilters?.();
-    window.requestAnimationFrame(() => {
-      if (owner.closed || browserOwner.current !== owner) return;
-      if (document.activeElement !== origin && document.activeElement !== document.body) return;
-      (document.querySelector<HTMLInputElement>("#port-search") ?? filterButton.current)?.focus();
-    });
+    restoreSearch();
   };
   const constrained =
     organizationView !== "all" ||
@@ -422,6 +514,7 @@ function usePortBrowser({
       query,
     });
   return {
+    resultsReady,
     favorites,
     organization,
     organizationView,
@@ -457,7 +550,6 @@ function usePortBrowser({
     filterButton,
     browserRoot,
     restoreAfter,
-    onFavoriteToggle,
     composedLibrary,
     unresolvedReadiness,
     readinessCount,
@@ -468,6 +560,7 @@ function usePortBrowser({
     resultsUnavailable,
     unresolvedFilter,
     favoriteCount,
+    favoriteUniverse,
     activeQuickView,
     quickViewCounts,
     visiblePorts,
@@ -541,6 +634,7 @@ function DiscoverOrganizationControls({
           Not in library
         </Button>
       }
+      showFavorites={!favorites}
       discover
     >
       {renderFilters()}
@@ -618,8 +712,7 @@ function PortBrowserView({
   const renderConnectPrompt = () => renderConnectPromptPortBrowserView(model);
   const renderContinue = () => renderContinuePortBrowserView(model, favorites);
   const renderSteamBatch = () => renderSteamBatchPortBrowserView(model);
-  const renderFavoritesFailure = () => renderFavoritesFailurePortBrowserView(model, favorites);
-  const renderFilters = () => renderFiltersPortBrowserView(model, favorites, filterButton);
+  const renderFilters = () => <BrowserFilterControls {...{ model, favorites, filterButton }} />;
   const renderSort = () => renderSortPortBrowserView(model);
   return (
     <div ref={browserRoot} className="@container/library-query min-w-0">
@@ -652,7 +745,15 @@ function PortBrowserView({
           renderSteamBatch={renderSteamBatch}
         />
       </div>
-      {renderFavoritesFailure()}
+      {model.organization ? (
+        <FavoritePreferenceFailure
+          favorites={favorites}
+          organization={model.organization}
+          restoreAfter={model.restoreAfter}
+        />
+      ) : (
+        renderFavoritesFailurePortBrowserView(model, favorites)
+      )}
       <BrowserResultNotices model={model} favorites={favorites} />
       {
         <BrowserCollectionTools
@@ -668,15 +769,15 @@ function PortBrowserView({
       {<SuggestedOrderHint {...{ model }} />}
       <BrowserFilterRecovery model={model} />
       <BrowserResults
+        resultsReady={model.resultsReady}
         layout={model.collectionLayout}
         query={model.query}
         view={model.view}
         ports={model.visiblePorts}
-        allCatalogPorts={model.catalogUniverse ?? model.declaredCandidates ?? model.visiblePorts}
+        allCatalogPorts={model.favoriteUniverse}
         organization={model.organization}
         restoreAfter={model.restoreAfter}
         favorites={favorites}
-        onFavoriteToggle={model.onFavoriteToggle}
         installedCount={model.overview.installed}
         constrained={model.constrained || model.query.trim().length > 0}
         statuses={model.statuses}
@@ -690,6 +791,7 @@ function PortBrowserView({
         loading={model.loadingResults}
         unavailable={model.resultsUnavailable}
         nativeSourceDrag={model.nativeSourceDrag}
+        devicePlatform={model.queryContext?.devicePlatform}
       />
     </div>
   );
@@ -745,7 +847,7 @@ export function SteamBatchLibraryAction({
   return (
     <>
       <details className="collection-tools text-xs text-pc-muted-foreground" data-focus-group>
-        <summary data-focusable className="cursor-pointer py-2">
+        <summary data-focusable className="disclosure-pad-2 cursor-pointer">
           Library tools
         </summary>
         <p>
@@ -765,12 +867,12 @@ export function SteamBatchLibraryAction({
 }
 
 function BrowserResults({
+  resultsReady,
   organization,
   query,
   restoreAfter,
   layout,
   favorites,
-  onFavoriteToggle,
   view,
   ports,
   installedCount,
@@ -787,13 +889,15 @@ function BrowserResults({
   loading,
   unavailable,
   nativeSourceDrag,
+  devicePlatform,
 }: {
+  resultsReady: boolean;
+  devicePlatform?: PortDefinition["platforms"][number] | undefined;
   organization?: Organization | undefined;
   restoreAfter: (button: HTMLElement, action: () => Promise<boolean>) => Promise<void>;
   layout: CollectionLayout;
   query: string;
   favorites?: ReturnType<typeof useFavorites> | undefined;
-  onFavoriteToggle: (portId: string, button: HTMLElement) => void;
   view: View;
   ports: CatalogEntry[];
   installedCount: number;
@@ -813,7 +917,7 @@ function BrowserResults({
 }) {
   if (loading && ports.length === 0) return <LoadingState />;
   if (unavailable && ports.length === 0) return null;
-  if (ports.length === 0)
+  if (ports.length === 0 && resultsReady)
     return (
       <BrowserEmptyState
         view={view}
@@ -829,6 +933,8 @@ function BrowserResults({
   if (view === "catalog")
     return (
       <GroupedDiscover
+        resultsReady={resultsReady}
+        queryKey={query}
         onTask={onTask}
         layout={layout}
         all={allCatalogPorts}
@@ -837,47 +943,47 @@ function BrowserResults({
         onSelect={onSelect}
         organization={organization}
         favorites={favorites}
-        onFavoriteToggle={onFavoriteToggle}
+        restoreAfter={restoreAfter}
         nativeSourceDrag={nativeSourceDrag}
+        devicePlatform={devicePlatform}
       />
     );
+  const renderFavorite = (port: CatalogEntry, group: GameGroup) => (
+    <FavoriteGameButton
+      card
+      {...{ port, organization, favorites, restoreAfter }}
+      groupPorts={group.ports}
+    />
+  );
   return (
-    <section
-      className={
-        view === "library"
-          ? `port-grid collection-${layout} @container/collection grid w-full ${layout === "rows" ? "gap-0" : ""}`
-          : "port-grid collection-covers @container/collection grid w-full"
-      }
-      aria-label={view === "library" ? "Library entries" : "Find games entries"}
-      data-focus-group
-    >
-      <GroupedLibrary
-        layout={layout}
-        all={allCatalogPorts}
-        matching={ports}
-        statuses={statuses}
-        organization={organization}
-        onSelect={onSelect}
-        renderPort={(port) => (
-          <PortCard
-            layout={layout}
-            favorites={favorites}
-            onFavoriteToggle={onFavoriteToggle}
-            organization={organization}
-            restoreAfter={restoreAfter}
-            key={port.id}
-            port={port}
-            status={statuses.get(port.id)}
-            readiness={portReadiness(statuses.get(port.id))}
-            onSelect={onSelect}
-            onTask={onTask}
-            onLaunch={onLaunch}
-            nativeSourceDrag={nativeSourceDrag}
-            view="library"
-          />
-        )}
-      />
-    </section>
+    <GroupedLibrary
+      resultsReady={resultsReady}
+      queryKey={query}
+      layout={layout}
+      all={allCatalogPorts}
+      matching={ports}
+      statuses={statuses}
+      organization={organization}
+      onSelect={onSelect}
+      renderFavorite={renderFavorite}
+      renderPort={(port, group) => (
+        <PortCard
+          layout={layout}
+          favoriteControl={renderFavorite(port, group)}
+          organization={organization}
+          restoreAfter={restoreAfter}
+          key={port.id}
+          port={port}
+          status={statuses.get(port.id)}
+          readiness={portReadiness(statuses.get(port.id))}
+          onSelect={onSelect}
+          onTask={onTask}
+          onLaunch={onLaunch}
+          nativeSourceDrag={nativeSourceDrag}
+          view="library"
+        />
+      )}
+    />
   );
 }
 
@@ -937,9 +1043,9 @@ function BrowserEmptyState({
           </span>
         }
         title="Your library is empty"
-        description="Portcove helps you find and install community-made versions of games, called ports, and can keep many of them updated. Some ports need files from your own copy of the original game; Portcove checks them on this computer and doesn’t upload them. You can also copy a supported installation without changing its original folder."
+        description="Browse community-made versions of games, called ports, or copy a supported installation without changing its original folder. Some ports need files from your own copy of the original game. When Portcove checks those files, it does so on this computer and doesn’t upload them."
         action={
-          <>
+          <ActionRow className="justify-center">
             {onDiscover && (
               <Button data-focusable variant="primary" size="lg" onClick={onDiscover}>
                 <Icon glyph={Compass} />
@@ -961,7 +1067,7 @@ function BrowserEmptyState({
                 Connect game-file folder
               </Button>
             )}
-          </>
+          </ActionRow>
         }
       />
     );
@@ -1082,8 +1188,7 @@ type PortCardProps = {
   organization?: Organization | undefined;
   restoreAfter: (button: HTMLElement, action: () => Promise<boolean>) => Promise<void>;
   layout: CollectionLayout;
-  onFavoriteToggle: (portId: string, button: HTMLElement) => void;
-  favorites?: ReturnType<typeof useFavorites> | undefined;
+  favoriteControl?: ReactNode;
   port: CatalogEntry;
   status?: PortStatus | undefined;
   readiness: PortReadiness;
@@ -1101,8 +1206,7 @@ const PortCard = memo(function PortCard({
   organization,
   restoreAfter,
   layout,
-  favorites,
-  onFavoriteToggle,
+  favoriteControl,
   port,
   status,
   readiness,
@@ -1134,33 +1238,15 @@ const PortCard = memo(function PortCard({
     !port.pendingSetup;
   const dropTarget = dropEligible && nativeSourceDrag.targetPortId === port.id;
   const detailOrigin = `${view}:card:${port.id}`;
-  const favoriteMenu = (
-    <>
-      {" "}
-      {organization && (
-        <OrganizationMenuItems
-          port={port}
-          organization={organization}
-          after={(action) => {
-            const target = document.activeElement;
-            if (target instanceof HTMLElement) void restoreAfter(target, action);
-          }}
-        />
-      )}{" "}
-      {favorites && (
-        <Menu.Item
-          disabled={!favorites.ids || favorites.busy}
-          className={cn(
-            controlFocus,
-            "flex cursor-default items-center gap-2 rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground [&_svg]:size-4 [&_svg]:shrink-0",
-          )}
-          onClick={(event) => onFavoriteToggle(port.id, event.currentTarget)}
-        >
-          <Heart aria-hidden="true" />
-          {favorites.ids?.has(port.id) ? "Remove from favorites" : "Add to favorites"}
-        </Menu.Item>
-      )}
-    </>
+  const organizationMenu = organization && (
+    <OrganizationMenuItems
+      port={port}
+      organization={organization}
+      after={(action) => {
+        const target = document.activeElement;
+        if (target instanceof HTMLElement) void restoreAfter(target, action);
+      }}
+    />
   );
   return (
     <LibraryEntry
@@ -1178,9 +1264,8 @@ const PortCard = memo(function PortCard({
         updateAvailable,
         dropEligible,
         dropTarget,
-        favoriteMenu,
-        favorites,
-        onFavoriteToggle,
+        organizationMenu,
+        favoriteControl,
       }}
     />
   );
@@ -1200,19 +1285,11 @@ function LibraryEntry({
   updateAvailable,
   dropEligible,
   dropTarget,
-  favoriteMenu,
-  favorites,
-  onFavoriteToggle,
+  organizationMenu,
+  favoriteControl,
 }: Pick<
   PortCardProps,
-  | "port"
-  | "status"
-  | "layout"
-  | "onSelect"
-  | "onLaunch"
-  | "onTask"
-  | "favorites"
-  | "onFavoriteToggle"
+  "port" | "status" | "layout" | "onSelect" | "onLaunch" | "onTask" | "favoriteControl"
 > & {
   state: CardState;
   detailOrigin: string;
@@ -1221,7 +1298,7 @@ function LibraryEntry({
   updateAvailable: boolean;
   dropEligible: boolean;
   dropTarget: boolean;
-  favoriteMenu: ReactNode;
+  organizationMenu: ReactNode;
 }) {
   const { element: artworkElement, visible } = useArtworkVisibility();
   const { display: artwork } = useArtwork(port.id, "cover", visible);
@@ -1253,6 +1330,8 @@ function LibraryEntry({
           <ArtworkFrame
             element={artworkElement}
             display={artwork}
+            portId={port.id}
+            visible={visible}
             identityArtwork
             className="card-art collection-art"
           />
@@ -1291,24 +1370,10 @@ function LibraryEntry({
 
       <div className="collection-personal-actions">
         <PortCardActionMenu
-          {...{ favoriteMenu, port, status, onSelect }}
+          {...{ organizationMenu, port, status, onSelect }}
           overflowOrigin={`library:card-more:${port.id}`}
         />
-        {favorites && (
-          <Button
-            data-focusable
-            variant="ghost"
-            size="icon-sm"
-            className="collection-art-action collection-favorite"
-            aria-label={`Favorite ${gameIdentityLabel(port)}`}
-            aria-pressed={favorites.ids?.has(port.id) ?? false}
-            title={favorites.ids?.has(port.id) ? "Remove from favorites" : "Add to favorites"}
-            disabled={!favorites.ids || favorites.busy}
-            onClick={(event) => onFavoriteToggle(port.id, event.currentTarget)}
-          >
-            <Heart aria-hidden="true" />
-          </Button>
-        )}
+        {favoriteControl}
       </div>
       <div className="library-entry-footer">
         <LibraryEntryState
@@ -1356,7 +1421,7 @@ function PortCardStatus({
   onTask,
 }: Pick<PortCardProps, "port" | "status" | "onSelect" | "onLaunch" | "onTask"> & {
   inputDescriptionId?: string | undefined;
-  favoriteMenu?: ReactNode;
+  organizationMenu?: ReactNode;
   detailOrigin: string;
 }) {
   const action = presentPortAction(useOperationPresentation(), port.id, status, "launch");
@@ -1428,6 +1493,7 @@ function PortCardStatus({
             variant="primary"
             size="xs"
             className="library-card-action library-card-play"
+            data-detail-origin={`${detailOrigin}:play`}
             disabled={Boolean(action.busy)}
             focusableWhenDisabled={Boolean(action.busy)}
             aria-busy={Boolean(action.busy)}
@@ -1446,7 +1512,7 @@ function PortCardStatus({
 
 function filterLabel(filter: Filter) {
   if (filter === "all") return "All";
-  if (filter === "ready") return "Ready";
+  if (filter === "ready") return "Ready to play";
   if (filter === "setup") return "Needs attention";
   return releaseChannelPresentation(filter).label;
 }
@@ -1458,6 +1524,7 @@ function resolveLibraryFilters({
   libraryFilterCandidates,
   catalogFilterCandidates,
   favorites,
+  favoriteGroups,
   filter,
   queryContext,
   statuses,
@@ -1474,19 +1541,19 @@ function resolveLibraryFilters({
       | "queryContext"
       | "statuses"
   ]: Parameters<typeof usePortBrowser>[0][K];
-}) {
+} & { favoriteGroups: ReadonlySet<string> | undefined }) {
   const composedLibrary = view === "library" && Boolean(setLibraryReadiness);
   const unresolvedReadiness =
     composedLibrary && !["all", "ready", "setup"].includes(libraryReadiness);
   const candidates = view === "library" ? libraryFilterCandidates : catalogFilterCandidates;
   const countCandidates =
-    candidates === undefined || (favorites?.only && !favorites.ids)
+    candidates === undefined || (favorites?.only && !favoriteGroups)
       ? undefined
       : favorites?.only
-        ? candidates.filter((port) => favorites.ids?.has(port.id))
+        ? candidates.filter((port) => favoriteGroups?.has(gameGroupId(port)))
         : candidates;
   const declaredMatches =
-    countCandidates === undefined
+    !composedLibrary || countCandidates === undefined
       ? undefined
       : evaluateCatalogQuery(
           countCandidates,
@@ -1496,6 +1563,7 @@ function resolveLibraryFilters({
               ? { version: 1, channels: [filter] }
               : filter,
           queryContext,
+          { includeFacetCounts: false },
         );
   const readinessCount = (readiness: "all" | "ready" | "setup") =>
     declaredMatches?.state === "matched"
@@ -1543,16 +1611,13 @@ function renderConnectPromptPortBrowserView(
     model.onConnectGameFiles && (
       <section
         aria-label="Connect your game files"
-        className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-pc-border pb-4"
+        className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-pc-border pb-3"
         data-focus-group
       >
-        <div className="min-w-0 flex-1">
-          <h2 className="m-0 text-sm font-semibold">Find ports for games you own</h2>
-          <p className="mt-1 mb-0 text-sm text-pc-muted-foreground">
-            Browse below, or connect a folder to find matching games. Your originals stay in place.
-          </p>
-        </div>
-        <Button data-focusable variant="outline" onClick={model.onConnectGameFiles}>
+        <p className="m-0 min-w-0 grow basis-64 text-sm text-pc-muted-foreground">
+          Find matching ports. Your originals stay in place.
+        </p>
+        <Button data-focusable variant="outline" size="sm" onClick={model.onConnectGameFiles}>
           Connect game-file folder
         </Button>
       </section>
@@ -1627,14 +1692,16 @@ function renderFavoritesFailurePortBrowserView(
   );
 }
 
-function renderFiltersPortBrowserView(
-  model: Omit<
-    ReturnType<typeof usePortBrowser>,
-    "browserRoot" | "filterButton" | "favorites" | "setCollectionLayout"
-  >,
-  favorites: ReturnType<typeof usePortBrowser>["favorites"],
-  filterButton: ReturnType<typeof usePortBrowser>["filterButton"] | undefined,
-) {
+function BrowserFilterControls({
+  model,
+  favorites,
+  filterButton,
+}: {
+  model: Omit<BrowserModel, "browserRoot" | "filterButton" | "favorites" | "setCollectionLayout">;
+  favorites?: BrowserModel["favorites"];
+  filterButton?: BrowserModel["filterButton"];
+}) {
+  const { t } = useAppTranslation("organization");
   return (
     !model.firstUseEmpty && (
       <div
@@ -1664,9 +1731,8 @@ function renderFiltersPortBrowserView(
             variant={favorites.only ? "selected" : "ghost"}
             ref={filterButton}
             data-favorites-filter
-            aria-label={`Favorites ${model.favoriteCount ?? "unavailable"}`}
             aria-pressed={favorites.only}
-            disabled={!favorites.ids}
+            disabled={model.favoriteCount === undefined}
             onClick={() => {
               if (model.view === "catalog") {
                 model.setOrganizationView("all");
@@ -1678,9 +1744,11 @@ function renderFiltersPortBrowserView(
               favorites.setOnly(!favorites.only);
             }}
           >
-            Favorites{" "}
-            <span className="browse-count" aria-hidden="true">
-              {model.favoriteCount ?? "unavailable"}
+            {t("view.saved")}{" "}
+            <span className="browse-count">
+              {model.favoriteCount === undefined
+                ? t("favorite.countUnavailable")
+                : t("favorite.count", { count: model.favoriteCount })}
             </span>
           </Button>
         )}
@@ -1699,11 +1767,12 @@ function BrowserQuickViews({
   favorites,
   filterButton,
 }: {
-  model: Parameters<typeof renderFiltersPortBrowserView>[0];
+  model: Parameters<typeof BrowserFilterControls>[0]["model"];
   favorites: ReturnType<typeof usePortBrowser>["favorites"];
   filterButton: ReturnType<typeof usePortBrowser>["filterButton"];
 }) {
   const countId = useId();
+  const { t } = useAppTranslation("organization");
   if (!model.composedLibrary || model.firstUseEmpty) return null;
   const active = model.activeQuickView;
   const counts = model.quickViewCounts;
@@ -1721,7 +1790,7 @@ function BrowserQuickViews({
       ? [
           {
             view: "favorites" as const,
-            label: "Favorites",
+            label: t("view.saved"),
             description: "Games you marked as favorites",
           },
         ]
@@ -1739,7 +1808,7 @@ function BrowserQuickViews({
   ];
   const enabled = (view: LibraryQuickView) =>
     view === "favorites"
-      ? Boolean(favorites?.ids)
+      ? counts.favorites !== "unavailable" || model.favoriteCount !== undefined
       : view === "updates"
         ? !model.unresolvedFilter && !hasCustomUpdateFilter(model.filter)
         : true;
@@ -1772,6 +1841,12 @@ function BrowserQuickViews({
     >
       {views.map(({ view, label }) => {
         const count = counts[view];
+        const favoriteCount =
+          view === "favorites"
+            ? count === "unavailable"
+              ? t("favorite.countUnavailable")
+              : t("favorite.count", { count })
+            : undefined;
         const checked = active === view;
         return (
           <Button
@@ -1786,7 +1861,7 @@ function BrowserQuickViews({
             aria-checked={checked}
             tabIndex={view === tabStop ? 0 : -1}
             disabled={!enabled(view)}
-            aria-label={view === "favorites" ? `Favorites ${count}` : undefined}
+            aria-label={favoriteCount ? `${label} ${favoriteCount}` : undefined}
             aria-describedby={`${countId}-${view}`}
             onClick={() => {
               if (!checked) select(view);
@@ -1797,12 +1872,17 @@ function BrowserQuickViews({
             }}
           >
             {label}
-            {/* The space keeps visible text matching a counted name ("Favorites 1"). */}
-            {typeof count === "number" && " "}
-            {typeof count === "number" && (
+            {favoriteCount && " "}
+            {favoriteCount ? (
               <span className="browse-count" aria-hidden="true">
-                {count}
+                {favoriteCount}
               </span>
+            ) : (
+              typeof count === "number" && (
+                <span className="browse-count" aria-hidden="true">
+                  {count}
+                </span>
+              )
             )}
           </Button>
         );
@@ -1814,7 +1894,6 @@ function BrowserQuickViews({
             {view === "updates" && hasCustomUpdateFilter(model.filter)
               ? "Unavailable while an Observed updates filter is set. Clear that filter to use this view."
               : `${description}.`}
-            {/* Favorites already names its count. */}
             {view !== "favorites" &&
               ` ${typeof count === "number" ? `${count} ${count === 1 ? "game" : "games"}` : "Count unavailable"}`}
           </span>
@@ -1865,6 +1944,7 @@ function CollectionResultSummary({
   model: Pick<
     ReturnType<typeof usePortBrowser>,
     | "resultsUnavailable"
+    | "loadingResults"
     | "resultCount"
     | "organizationView"
     | "organization"
@@ -1879,29 +1959,13 @@ function CollectionResultSummary({
     | "overview"
   >;
 }) {
-  const constrainedLibrary =
-    model.view === "library" && (model.constrained || model.query.trim().length > 0);
-  const count = constrainedLibrary
-    ? libraryResultCount(model.visiblePorts.length, model.overview.installed)
-    : model.resultCount;
-  // The unfiltered library total already appears under the page heading.
-  const showCount = model.view !== "library" || constrainedLibrary || model.resultsUnavailable;
-  const hasContext =
-    model.organizationView !== "all" ||
-    (model.libraryReadiness !== "all" && model.view === "library") ||
-    Boolean(model.collectionLayoutFailure);
+  const { constrainedLibrary, count, showCount, hasContext } = collectionSummary(model);
   if (!showCount && !hasContext) return null;
   return (
     <div className="collection-result-summary">
       {showCount && <span>{model.resultsUnavailable ? "Ports unavailable" : count}</span>}
       {model.organizationView !== "all" && (
-        <span>
-          Collection:{" "}
-          {model.organizationView.startsWith("collection:")
-            ? (model.organization?.snapshot?.collections[model.organizationView.slice(11)]?.name ??
-              "Unavailable collection")
-            : model.organizationView}
-        </span>
+        <span>Collection: {collectionViewLabel(model.organizationView, model.organization)}</span>
       )}
       {model.libraryReadiness !== "all" && model.view === "library" && (
         <span>Readiness: {filterLabel(model.libraryReadiness as Filter)}</span>
@@ -1922,6 +1986,31 @@ function CollectionResultSummary({
       )}
     </div>
   );
+}
+
+function collectionSummary(model: Parameters<typeof CollectionResultSummary>[0]["model"]) {
+  const constrainedLibrary =
+    model.view === "library" && (model.constrained || model.query.trim().length > 0);
+  const count = constrainedLibrary
+    ? libraryResultCount(model.visiblePorts.length, model.overview.installed)
+    : model.resultCount;
+  // The unfiltered library total already appears under the page heading.
+  const showCount =
+    !model.loadingResults &&
+    (model.view !== "library" || constrainedLibrary || model.resultsUnavailable);
+  const hasContext =
+    model.organizationView !== "all" ||
+    (model.libraryReadiness !== "all" && model.view === "library") ||
+    Boolean(model.collectionLayoutFailure);
+  return { constrainedLibrary, count, showCount, hasContext };
+}
+
+function collectionViewLabel(
+  view: ReturnType<typeof usePortBrowser>["organizationView"],
+  organization: ReturnType<typeof usePortBrowser>["organization"],
+) {
+  if (!view.startsWith("collection:")) return view;
+  return organization?.snapshot?.collections[view.slice(11)]?.name ?? "Unavailable collection";
 }
 
 function libraryResultCount(visible: number, installed: number) {
@@ -2017,11 +2106,7 @@ function BrowserCollectionTools({
         <CatalogFilters
           before={before}
           after={after}
-          advanced={
-            model.composedLibrary
-              ? renderFiltersPortBrowserView(model, undefined, undefined)
-              : undefined
-          }
+          advanced={model.composedLibrary ? <BrowserFilterControls model={model} /> : undefined}
           summary={summary}
           gameFileQuery={model.gameFileQuery}
           view={model.view === "library" ? "library" : "catalog"}
@@ -2171,21 +2256,72 @@ function LibraryUpdateReview({
 }
 
 function PortCardActionMenu({
-  favoriteMenu,
+  organizationMenu,
   port,
   status,
   onSelect,
   overflowOrigin,
 }: Pick<
   Parameters<typeof PortCardStatus>[0] & { overflowOrigin: string },
-  "favoriteMenu" | "port" | "status" | "onSelect" | "overflowOrigin"
+  "organizationMenu" | "port" | "status" | "onSelect" | "overflowOrigin"
 >) {
+  const menu = useLibraryMenu();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
+  const restorePending = useRef(Boolean(menu?.openPortId === port.id && menu.highlightedAction));
+  const restoreHighlighted = () => {
+    if (!restorePending.current) return;
+    restorePending.current = false;
+    const action = menu?.getHighlighted(port.id);
+    const target = action
+      ? popup.current?.querySelector<HTMLElement>(
+          `[data-collection-control="${CSS.escape(action)}"]`,
+        )
+      : undefined;
+    if (
+      target &&
+      !target.matches(':disabled,[aria-hidden="true"]') &&
+      !target.closest("[hidden],[inert]") &&
+      target.getClientRects().length &&
+      getComputedStyle(target).visibility !== "hidden"
+    )
+      target.focus({ preventScroll: true });
+  };
   return (
-    <Menu.Root>
+    <Menu.Root
+      {...(menu
+        ? {
+            open: menu.openPortId === port.id,
+            onItemHighlighted: (item: HTMLElement | undefined, details: { reason: string }) => {
+              // Ignore automatic first-item initialization and unmount cleanup;
+              // only the player's keyboard/pointer selection replaces continuity.
+              if (details.reason !== "keyboard" && details.reason !== "pointer") return;
+              // A new explicit selection wins even before the remounted popup's
+              // automatic focus/open-complete callbacks have finished.
+              restorePending.current = false;
+              menu.highlight(port.id, item?.dataset.collectionControl);
+            },
+            onOpenChange: (open: boolean) => menu.change(port.id, open),
+            onOpenChangeComplete: (open: boolean) => {
+              if (open) {
+                restoreHighlighted();
+                return;
+              }
+              requestAnimationFrame(() => {
+                const target = trigger.current;
+                if (target?.isConnected && document.activeElement === target)
+                  target.scrollIntoView({ block: "nearest", inline: "nearest" });
+                menu.complete(port.id, false);
+              });
+            },
+          }
+        : {})}
+    >
       <Tooltip label="More actions">
         <Menu.Trigger
           render={
             <Button
+              ref={trigger}
               data-focusable
               data-detail-origin={overflowOrigin}
               className="collection-art-action collection-more"
@@ -2201,6 +2337,16 @@ function PortCardActionMenu({
       <Menu.Portal>
         <Menu.Positioner side="bottom" align="end" sideOffset={4} className="z-(--layer-floating)">
           <Menu.Popup
+            ref={popup}
+            finalFocus={
+              menu
+                ? () =>
+                    menu.canReturn(port.id) && trigger.current?.isConnected
+                      ? trigger.current
+                      : false
+                : undefined
+            }
+            onFocus={restoreHighlighted}
             data-portcove-focus-scope
             aria-label={`More actions for ${gameIdentityLabel(port)}`}
             className={cn(
@@ -2208,8 +2354,9 @@ function PortCardActionMenu({
               "max-h-(--available-height) min-w-48 origin-(--transform-origin) overflow-y-auto rounded-pc-md border border-pc-border bg-pc-surface p-1 text-pc-foreground shadow-(--shadow-floating)",
             )}
           >
-            {favoriteMenu}
+            {organizationMenu}
             <Menu.Item
+              data-collection-control="history"
               className={cn(
                 controlFocus,
                 "flex cursor-default items-center gap-2 rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground [&_svg]:size-4 [&_svg]:shrink-0",
@@ -2229,6 +2376,7 @@ function PortCardActionMenu({
             </Menu.Item>
             {port.release && !status?.external_runtime?.user_selected && (
               <Menu.Item
+                data-collection-control="saves"
                 className={cn(
                   controlFocus,
                   "flex cursor-default items-center gap-2 rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground [&_svg]:size-4 [&_svg]:shrink-0",
@@ -2260,19 +2408,6 @@ function cardCanLaunch(
     !action.readiness.blocked &&
     onLaunch,
   );
-}
-
-function favoritePorts(
-  ports: CatalogEntry[],
-  favorites: Parameters<typeof usePortBrowser>[0]["favorites"],
-) {
-  const favoriteCount = favorites?.ids
-    ? ports.filter((port) => favorites.ids?.has(port.id)).length
-    : undefined;
-  const visiblePorts = favorites?.only
-    ? ports.filter((port) => favorites.ids?.has(port.id))
-    : ports;
-  return { favoriteCount, visiblePorts };
 }
 
 function BrowserLastPlayed({

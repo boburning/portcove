@@ -4,12 +4,12 @@
     "id": "star-fox-2-arwing2",
     "name": "Star Fox 2 / Project Arwing (2)",
     "summary": "Explore Star Fox 2 / Project Arwing (2) and follow the upstream project for requirements, downloads and setup.",
-    "project_url": "https://github.com/carlosrmz009/arwing2",
+    "project_url": "https://github.com/carl0srmz/arwing2",
     "issue_number": 1946,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/carlosrmz009/arwing2",
+    "setup_url": "https://github.com/carl0srmz/arwing2",
     "artwork": {
       "game_id": 9674,
       "cover_id": 85763,
@@ -19,7 +19,7 @@
       "match_kind": "underlying-game"
     },
     "manual_setup": {
-      "help_url": "https://github.com/carlosrmz009/arwing2/blob/f683ae57c05277aef1cd7e07ff30c3b6a4358a84/README.md",
+      "help_url": "https://github.com/carl0srmz/arwing2/blob/f683ae57c05277aef1cd7e07ff30c3b6a4358a84/README.md",
       "steps": [
         {
           "title": "Keep a permitted installed Star Fox 2 player",
@@ -46,6 +46,83 @@
         "This is a hybrid static 65816/SuperFX recompilation with interpreter/hardware fallback, not an emulation-free or full-equivalence qualification. Upstream sampled dispatch/hash, audio and HD claims retain their scoped limitations; no Portcove native game/gameplay/save/audio/hardware pass is made. Upstream documents no true widescreen and only partial HD sub-pixel recovery (approximately 66–90% of vertices); these are upstream limits, not a Portcove measurement.",
         "No Core-managed acquisition/installer/preparation/Update/Backup/Rollback/migration/deletion or protected/installed/human/other-platform acceptance. The selected rolling source is frozen here; later moving-tag packages need their own identity and review."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-fox-2",
+      "evidence_urls": [
+        "https://github.com/carl0srmz/arwing2/blob/f683ae57c05277aef1cd7e07ff30c3b6a4358a84/README.md",
+        "https://github.com/carl0srmz/arwing2",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/star-fox-2-arwing2.json"
+      ],
+      "source_editions": [
+        {
+          "id": "star-fox-2-super-nintendo",
+          "title": "Star Fox 2 (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/carl0srmz/arwing2/blob/f683ae57c05277aef1cd7e07ff30c3b6a4358a84/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/star-fox-2-arwing2.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Star Fox 2"
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "star-fox-2-snes",
+    "origin": {
+      "project_url": "https://github.com/carlosrmz009/arwing2"
+    },
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/carlosrmz009/arwing2"
+        },
+        "to": {
+          "project_url": "https://github.com/carl0srmz/arwing2",
+          "repository": {
+            "host": "github.com",
+            "id": "1412651601"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The account carlosrmz009 no longer exists, and the repository's history and contributors continue under carl0srmz, which is how a renamed owner account appears. A GitHub account rename keeps the repository, its ID and its history. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/carl0srmz/arwing2/commit/8810170b152a66a5c3ef5d5092163c0aae93e476",
+            "note": "An early commit is authored as 134228961+carlosrmz009@users.noreply.github.com, the former login under the account's numeric ID."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/users/carl0srmz",
+            "note": "Account ID 134228961 is now carl0srmz, the current owner."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/users/carlosrmz009",
+            "note": "The former owner login carlosrmz009 returns HTTP 404."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/carl0srmz/arwing2/commit/f683ae57c05277aef1cd7e07ff30c3b6a4358a84",
+            "note": "The commit this listing's setup guide pins is present in the current repository, authored by claude."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/carlosrmz009/arwing2",
+            "note": "The listed path resolves to carl0srmz/arwing2, repository ID 1412651601."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "33bef5837ae79e5c9f190d83af5260f08ddc85af9aae6bab23459871842d33d3"
+        }
+      }
+    ]
   }
 }

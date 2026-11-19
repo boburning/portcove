@@ -34,6 +34,10 @@ import {
 import { inspectFixedJobJournalAuthorities } from "./release-authority-configuration.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { assessBoundedCapacity, retainedRenewalCapacityRebind } from "./release-capacity.mts";
+import {
+  matchesRetainedCatalogReviewRecoverySource,
+  retainedCatalogReviewRecoveryResources,
+} from "./release-retained-catalog-review-resources.mts";
 import { inspectReleaseReviewWithdrawal } from "./release-review-withdrawal.mts";
 
 // The original immutable r45 child survives its interrupted publication. A
@@ -80,6 +84,20 @@ export const retainedCatalogNativeAdoptionClaim = {
   original_run: "43069742240",
   original_job: 130697078365,
   successor_ref: "refs/tags/portcove-production-controller-catalog-adoption-settle-20261111",
+} as const;
+
+/** The failed v13 adoption reserved this exact unsigned child before signing. */
+export const retainedCatalogV13AdoptionClaim = {
+  previous: "d23b4f108b03ecd81c1696a407c740ca24e5d705",
+  child: "7b7388fe8eeb04fe11f4afd336f4ddb0359ef1b4",
+  tree: "25833904b3e147808bb25fb9b7568d9ed94290e6",
+  state_sha256: "ad063814109d9b7da32334afe02530a403e11afcf0bc49f33fd04ef0e1d4628b",
+  clock: "2026-11-13T06:56:26.026Z",
+  original_source: "eb1e59a29c70ab1548eb2ffb6c126d9252fb9dd1",
+  original_ref: "portcove-production-controller-catalog-adoption-v13-proof",
+  original_run: "43381386061",
+  original_job: 131741624813,
+  successor_ref: "refs/tags/portcove-production-controller-catalog-adoption-v13-settle",
 } as const;
 
 /** The r52 application claim already exists, so r53 may only settle these bytes. */
@@ -162,6 +180,45 @@ export function matchesRetainedReviewWithdrawalHandoff(
   );
 }
 
+/** The separately appointed withdrawal may authenticate the exact signed v13
+ * adoption. The provider job, signature and current mutation controls still apply. */
+export function matchesRetainedV13ReviewWithdrawalHandoff(
+  checkpoint: { checkpoint: string; previous: string | null },
+  producer: Record<string, unknown>,
+  source: { execution_ref: string; workflow_sha256: string },
+  rawWithdrawal: unknown,
+  purpose: "application" | "catalog-publication" | undefined,
+) {
+  const withdrawal = inspectReleaseReviewWithdrawal(rawWithdrawal);
+  const adoption = retainedCatalogV13AdoptionClaim;
+  const workflow = "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb";
+  return (
+    purpose === "application" &&
+    [
+      "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57",
+      "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57-r2",
+      "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57-r3",
+    ].includes(source.execution_ref) &&
+    source.workflow_sha256 === workflow &&
+    withdrawal !== null &&
+    withdrawal.request_checkpoint === adoption.child &&
+    withdrawal.request_id === "87a32458456f8b24bfe545a89a98c93a2315af9e9e15f37e0c1e4b821f480176" &&
+    withdrawal.source_commit === "29f33f577dd08888daa308f6534e1ba2e0d10eaf" &&
+    withdrawal.source_tree === "e5f44b9f1c2b541fb2c932d6d203198c33ca2d57" &&
+    withdrawal.technical_stop_sha256 ===
+      "73704d29b23be7aeffcddf2776ce1598dbf3a1d2c76efac0e11fbc10d36d4be0" &&
+    checkpoint.checkpoint === adoption.child &&
+    checkpoint.previous === adoption.previous &&
+    producer.controller_revision === "dc5aee2e8cb67c92e36f1507a09b2a2b6a391372" &&
+    producer.controller_ref === adoption.successor_ref &&
+    producer.workflow_sha256 === workflow &&
+    producer.run_id === "43388566615" &&
+    producer.run_attempt === 1 &&
+    producer.job_id === "131764663738" &&
+    producer.check_run_id === "131764663738"
+  );
+}
+
 /** Only catalog-purpose admission can carry the settled fd4 withdrawal into
  * forward adoption. It still has to verify the original coordinator signature. */
 export function matchesRetainedCatalogAdoptionWithdrawal(
@@ -179,6 +236,68 @@ export function matchesRetainedCatalogAdoptionWithdrawal(
       "9a126152d549d913b57689404ca51bf755d88e2b0aa3d76631c4bb7e487ea136" &&
     producer.run_id === "42755307254" &&
     producer.job_id === "129631097635"
+  );
+}
+
+export const retainedChameleonReviewClaim = {
+  previous: "9d687629c60fc85c9a150a38eaf1dd8081934a87",
+  child: "21a0966d794b1e35c25a5f302db7593052e7cc9c",
+  tree: "6e54642ea8c272a78d2c746f9197cd4e18f9df0a",
+  state_sha256: "4f16e23205f32c0d04340d61b8a13502b6b5d98a6261e920a05023b55960385d",
+  request_id: "be18be3b8a760b4805281924444926d85f5c5c3f3489ed437b125884b0ced140",
+  source: "2e0699dc8b6bc4cc6d28b6648d2ad79d0517d2f8",
+  source_tree: "b4cb930ee6fcbd1c6693a17b895dc8076513f3f2",
+  clock: "2026-11-13T15:09:18.154Z",
+  original_revision: "3551454a53fee6bf898f8d0f00fd798384f1b0ea",
+  original_ref: "refs/tags/portcove-production-controller-catalog-chameleon-canary",
+  original_run: "43448527355",
+  original_job: 131966991529,
+  recovery_ref: "refs/tags/portcove-production-controller-catalog-chameleon-review-settle",
+  early_recovery_ref:
+    "refs/tags/portcove-production-controller-catalog-chameleon-review-settle-early",
+} as const;
+
+export function selectRetainedChameleonReviewClaim(executionRef: string, runAttempt: number) {
+  const claim = retainedChameleonReviewClaim;
+  if (
+    executionRef !== claim.recovery_ref &&
+    executionRef !== claim.early_recovery_ref &&
+    executionRef !== retainedCatalogReviewRecoveryResources.execution_ref
+  )
+    return undefined;
+  if (runAttempt !== 1)
+    throw new Error("Chameleon review recovery requires its appointed first attempt");
+  return claim;
+}
+
+/** The Chameleon coordinator may authenticate the exact stopped application
+ * request's signed withdrawal as its idle predecessor. */
+export function matchesRetainedChameleonWithdrawalHandoff(
+  checkpoint: { checkpoint: string; previous: string | null },
+  producer: Record<string, unknown>,
+  source: { execution_ref: string; workflow_sha256: string },
+  purpose: "application" | "catalog-publication" | undefined,
+) {
+  const workflow = "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb";
+  return (
+    purpose === "catalog-publication" &&
+    (matchesRetainedCatalogReviewRecoverySource(source) ||
+      (source.workflow_sha256 === workflow &&
+        [
+          retainedChameleonReviewClaim.original_ref,
+          retainedChameleonReviewClaim.recovery_ref,
+          retainedChameleonReviewClaim.early_recovery_ref,
+        ].some((ref) => ref === source.execution_ref))) &&
+    checkpoint.checkpoint === retainedChameleonReviewClaim.previous &&
+    checkpoint.previous === retainedCatalogV13AdoptionClaim.child &&
+    producer.controller_revision === "4cd5a0d9f9e3f3184bb680a298489a9db5dc18ba" &&
+    producer.controller_ref ===
+      "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57-r3" &&
+    producer.workflow_sha256 === workflow &&
+    producer.run_id === "43441976472" &&
+    producer.run_attempt === 1 &&
+    producer.job_id === "131944380144" &&
+    producer.check_run_id === "131944380144"
   );
 }
 
@@ -350,6 +469,21 @@ export function matchesRetainedNativeAdoptionPredecessor(
   source: { workflow_sha256: string },
   purpose: "application" | "catalog-publication" | undefined,
 ) {
+  const settled = retainedCatalogNativeAdoptionClaim;
+  if (checkpoint.checkpoint === settled.child) {
+    return (
+      purpose === "catalog-publication" &&
+      source.workflow_sha256 === retainedApplicationContextSettlement.workflow_sha256 &&
+      checkpoint.previous === settled.previous &&
+      producer.controller_revision === "d7f5e10b7644e9d2b8c8823c39c6175a9b3efdb3" &&
+      producer.controller_ref === settled.successor_ref &&
+      producer.workflow_sha256 === source.workflow_sha256 &&
+      producer.run_id === "43127719974" &&
+      producer.run_attempt === 1 &&
+      producer.job_id === "130886155058" &&
+      producer.check_run_id === "130886155058"
+    );
+  }
   return (
     purpose === "catalog-publication" &&
     source.workflow_sha256 === retainedApplicationContextSettlement.workflow_sha256 &&
@@ -436,7 +570,15 @@ export async function authenticateFixedJobCoordinatorHistory(
     producer !== null &&
     (matchesRetainedCatalogBootstrapHandoff(checkpoint, producer, source) ||
       matchesRetainedReviewWithdrawalHandoff(checkpoint, producer, withdrawal) ||
+      matchesRetainedV13ReviewWithdrawalHandoff(
+        checkpoint,
+        producer,
+        source,
+        withdrawal,
+        purpose,
+      ) ||
       matchesRetainedCatalogAdoptionWithdrawal(checkpoint, producer, purpose) ||
+      matchesRetainedChameleonWithdrawalHandoff(checkpoint, producer, source, purpose) ||
       matchesRetainedCatalogForwardAdoptionHandoff(checkpoint, producer, source, purpose) ||
       matchesRetainedApplicationRenewalHandoff(checkpoint, producer, source, purpose) ||
       matchesRetainedNativeAdoptionPredecessor(checkpoint, producer, source, purpose));

@@ -266,22 +266,45 @@ pub(crate) fn admission_route_exclusion(
     platform: crate::Platform,
     action: PortAction,
 ) -> Option<PortActionReason> {
+    route_exclusion(
+        port,
+        RouteHolding {
+            external_runtime: status.external_runtime.is_some(),
+            installation: status.active.is_some()
+                || status.previous.is_some()
+                || status.staged.is_some(),
+        },
+        platform,
+        action,
+    )
+}
+
+/// What a library already holds for a port, as far as route offering cares.
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct RouteHolding {
+    pub(crate) external_runtime: bool,
+    pub(crate) installation: bool,
+}
+
+/// The one route-offering predicate: [`admission_route_exclusion`] supplies a
+/// library's holding; target inspection supplies a fresh library's.
+pub(crate) fn route_exclusion(
+    port: &crate::PortDefinition,
+    holding: RouteHolding,
+    platform: crate::Platform,
+    action: PortAction,
+) -> Option<PortActionReason> {
     let user_prepared = port.release.provider == crate::ReleaseSource::UserPrepared;
     let on_platform = port.platforms.contains(&platform);
     match action {
-        PortAction::Install if status.external_runtime.is_some() => {
+        PortAction::Install if holding.external_runtime => {
             Some(PortActionReason::AlreadyRegistered)
         }
         PortAction::Install if user_prepared => Some(PortActionReason::RouteNotOffered),
         PortAction::Install if !on_platform => Some(PortActionReason::UnsupportedPlatform),
         PortAction::RegisterExternal if !user_prepared => Some(PortActionReason::RouteNotOffered),
         PortAction::RegisterExternal if !on_platform => Some(PortActionReason::UnsupportedPlatform),
-        PortAction::RegisterExternal
-            if status.external_runtime.is_some()
-                || status.active.is_some()
-                || status.previous.is_some()
-                || status.staged.is_some() =>
-        {
+        PortAction::RegisterExternal if holding.external_runtime || holding.installation => {
             Some(PortActionReason::AlreadyRegistered)
         }
         _ => None,

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "medal-of-honor-allied-assault-spearhead-openmohaa",
+    "artwork": {
+      "game_id": 9228,
+      "cover_id": 117327,
+      "image_id": "co2ij3",
+      "image_sha256": "5edafb96670c4028ebabeb0e5e2c0af732499003009610ba333a62bf89035319",
+      "game_slug": "medal-of-honor-allied-assault-spearhead",
+      "match_kind": "underlying-game"
+    },
     "name": "Medal of Honor: Allied Assault Spearhead (OpenMoHAA)",
     "summary": "Use the official OpenMoHAA player on Windows, Linux or Mac for Spearhead with your own matching PC data. Keep original files and the external save profile backed up.",
     "original_game_title": "Medal of Honor: Allied Assault Spearhead",
@@ -48,6 +56,16 @@
           "instruction": "On Windows ARM64, choose the official ARM64 ZIP. After preparing the same original files, use launch_openmohaa_spearhead.exe in the extracted folder. You and upstream own that copy and its profile."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "medal-of-honor-allied-assault-spearhead",
+      "evidence_urls": [
+        "https://github.com/openmoh/openmohaa#readme",
+        "https://github.com/openmoh/openmohaa/blob/main/docs/markdown/01-intro/01-installation.md",
+        "https://github.com/openmoh/openmohaa"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
@@ -68,6 +86,18 @@
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "adapter": "native-portable",
     "reviewed_package_layouts": {
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["launch_openmohaa_spearhead", "openmohaa"]
+      },
+      "macos-x86-64": {
+        "directories": [],
+        "executables": ["launch_openmohaa_spearhead", "openmohaa"]
+      },
+      "macos-aarch64": {
+        "directories": [],
+        "executables": ["launch_openmohaa_spearhead", "openmohaa"]
+      },
       "windows-x86-64": {
         "directories": [],
         "executables": [

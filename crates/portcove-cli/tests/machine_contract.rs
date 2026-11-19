@@ -40,6 +40,9 @@ mod launcher_library;
 #[path = "machine_contract/folder_setup.rs"]
 mod folder_setup;
 
+#[path = "machine_contract/ready_notices.rs"]
+mod ready_notices;
+
 #[cfg(all(windows, feature = "qualification-fixtures"))]
 #[path = "machine_contract/source_discovery.rs"]
 mod source_discovery_contract;
@@ -1124,7 +1127,7 @@ fn disc_tool_commands_are_library_free_restart_safe_and_machine_readable() {
     assert_eq!(listed["data"].as_array().unwrap().len(), 2);
     assert_eq!(
         listed["data"][0]["official_url"],
-        "https://docs.mamedev.org/tools/chdman.html"
+        "https://www.mamedev.org/release.html"
     );
     assert!(!library.exists());
     assert!(!preferences.exists());
@@ -1204,6 +1207,62 @@ fn disc_tool_commands_are_library_free_restart_safe_and_machine_readable() {
     let human = String::from_utf8(human.stdout).unwrap();
     assert!(human.contains("Disc tools (2)"));
     assert!(human.contains("OFFICIAL SITE"));
+    assert!(!library.exists());
+}
+
+#[test]
+fn dat_commands_save_list_and_forget_references_without_a_library() {
+    let temporary = tempfile::tempdir().unwrap();
+    let preferences = temporary.path().join("preferences.json");
+    let library = temporary.path().join("library");
+    let dat = temporary.path().join("Example - Console.dat");
+    std::fs::write(
+        &dat,
+        format!(
+            "<?xml version=\"1.0\"?><datafile><header><name>Example - Console</name></header><game name=\"Example (Europe)\"><rom name=\"Example (Europe).bin\" size=\"4\" sha1=\"{}\"/></game></datafile>",
+            "1".repeat(40)
+        ),
+    )
+    .unwrap();
+
+    let added = json_stdout(&portcove_tool(
+        &preferences,
+        &library,
+        &["--json", "dat", "add", dat.to_str().unwrap()],
+    ));
+    assert_eq!(added["data"]["name"], "Example - Console");
+    assert_eq!(added["data"]["state"], "ready");
+    let id = added["data"]["id"].as_str().unwrap().to_owned();
+
+    let listed = json_stdout(&portcove_tool(
+        &preferences,
+        &library,
+        &["--jsonl", "dat", "list"],
+    ));
+    assert_eq!(listed["command"], "dat.list");
+    assert_eq!(listed["data"][0]["id"], id);
+
+    let invalid = temporary.path().join("invalid.dat");
+    std::fs::write(&invalid, "<datafile>").unwrap();
+    let refused = portcove_tool(
+        &preferences,
+        &library,
+        &["--json", "dat", "add", invalid.to_str().unwrap()],
+    );
+    assert_ne!(refused.status.code(), Some(0));
+
+    let human = portcove_tool(&preferences, &library, &["dat", "list"]);
+    let human = String::from_utf8(human.stdout).unwrap();
+    assert!(human.contains("DAT files (1)"), "{human}");
+    assert!(human.contains("They don’t change which files a game accepts."));
+
+    let removed = json_stdout(&portcove_tool(
+        &preferences,
+        &library,
+        &["--json", "dat", "remove", &id],
+    ));
+    assert_eq!(removed["data"].as_array().unwrap().len(), 0);
+    assert!(dat.exists(), "removing a reference leaves the DAT file");
     assert!(!library.exists());
 }
 
@@ -2271,7 +2330,7 @@ fn saved_game_file_roots_survive_unavailability_and_relink_by_stable_identity() 
         &["--json", "source", "roots", "scan", "--max-entries", "4"],
     ));
     assert_eq!(scan["command"], "source.roots.scan");
-    assert_eq!(scan["data"]["format_version"], 12);
+    assert_eq!(scan["data"]["format_version"], 13);
     assert_eq!(scan["data"]["limits"]["max_entries"], 4);
     assert_eq!(scan["data"]["limits"]["max_depth"], 6);
     assert_eq!(scan["data"]["freshness"], "inputs_match");
@@ -2282,6 +2341,36 @@ fn saved_game_file_roots_survive_unavailability_and_relink_by_stable_identity() 
         scan["data"]["report"]["limits_reached"],
         serde_json::json!([])
     );
+
+    assert_eq!(scan["data"]["matches"]["exact_matches"], 0);
+    assert_eq!(scan["data"]["matches"]["preview_complete"], true);
+    let scan_id = scan["data"]["matches"]["scan_id"].as_str().unwrap();
+    let matches = json_stdout(&portcove(
+        &library,
+        &[
+            "--json",
+            "source",
+            "roots",
+            "matches",
+            "--limit",
+            "8",
+            "--root",
+            &first_id,
+            "--scan-id",
+            scan_id,
+        ],
+    ));
+    assert_eq!(matches["command"], "source.roots.matches");
+    assert_eq!(matches["data"]["scan_id"], scan_id);
+    assert_eq!(matches["data"]["kind"], "exact");
+    assert_eq!(matches["data"]["total"], 0);
+    assert_eq!(matches["data"]["candidates"], serde_json::json!([]));
+    assert_eq!(matches["data"]["next_offset"], Value::Null);
+    let refused = portcove(
+        &library,
+        &["--json", "source", "roots", "matches", "--limit", "0"],
+    );
+    assert!(!refused.status.success(), "{refused:?}");
 
     let snapshot = json_stdout(&portcove(
         &library,
@@ -2945,6 +3034,47 @@ fn capabilities_are_one_clean_versioned_json_document() {
 }
 
 #[test]
+fn capabilities_include_the_registered_public_command_paths() {
+    let root = tempfile::tempdir().unwrap();
+    let response = json_stdout(&portcove(root.path(), &["--json", "capabilities"]));
+    let commands = response["data"]["commands"].as_array().unwrap();
+    for id in [
+        "dat.list",
+        "dat.add",
+        "dat.remove",
+        "output.show",
+        "output.preview",
+        "external.select-preview",
+        "catalog.inspect-package-shape",
+    ] {
+        let mut args: Vec<_> = id.split('.').collect();
+        args.push("--help");
+        assert!(portcove(root.path(), &args).status.success(), "{id}");
+        assert!(commands.iter().any(|value| value == id), "{id}");
+    }
+    assert!(commands.iter().any(|value| value == "remove.preview"));
+    assert!(commands.iter().all(|value| value != "remove-preview"));
+    assert!(commands.iter().any(|value| value == "external.review"));
+    assert!(!commands.iter().any(|value| {
+        value
+            .as_str()
+            .unwrap()
+            .starts_with("installation.qualification-")
+    }));
+    let unique: std::collections::HashSet<_> = commands
+        .iter()
+        .map(|value| value.as_str().unwrap())
+        .collect();
+    assert_eq!(unique.len(), commands.len());
+    for old in portcove_core::CapabilityDocument::current().commands {
+        assert!(
+            unique.contains(old.as_str()),
+            "previous CLI capability {old}"
+        );
+    }
+}
+
+#[test]
 fn command_errors_keep_the_machine_envelope_and_stable_exit_code() {
     let root = tempfile::tempdir().unwrap();
     let output = portcove(
@@ -3196,7 +3326,7 @@ fn catalog_detail_shows_accepted_runtime_and_return_command_without_changing_mac
     let player_file = root.path().join("synthetic-player-file.bin");
     let player_bytes = b"synthetic player bytes outside the selected library";
     std::fs::write(&player_file, player_bytes).unwrap();
-    let id = "wave-race-64-recomp";
+    let id = "dkc2-recomp";
     let catalog = portcove_core::Catalog::embedded().unwrap();
     let port = catalog.port(id).unwrap();
     let expected = serde_json::to_value(port).unwrap();
@@ -3249,12 +3379,11 @@ fn catalog_detail_shows_accepted_runtime_and_return_command_without_changing_mac
         human
             .contains("Maintenance: user-owned; Portcove does not download or update this runtime")
     );
-    assert!(human.contains("Preparation: Extract the official v1.0.2 Windows ZIP"));
-    assert!(human.contains("create an empty portable.txt"));
+    assert!(human.contains("Preparation: Prepare the exact official v0.0.2 Windows runtime"));
     assert!(human.contains("Saves and settings: user-owned"));
     assert!(!human.contains("Accepted runtime (Linux"));
     assert!(!human.contains("Accepted runtime (macOS"));
-    assert!(!human.contains("n64-recomp-portable"));
+    assert!(!human.contains("staged-source-portable"));
     assert_eq!(std::fs::read(&player_file).unwrap(), player_bytes);
 }
 

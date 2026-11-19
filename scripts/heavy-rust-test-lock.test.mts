@@ -20,6 +20,7 @@ import test from "node:test";
 import {
   acquireHeavyRustTestLock,
   heavyRustLockTiming,
+  heavyRustOwnerActivity,
   processTreeMembers,
   readProcessIdentity,
 } from "./heavy-rust-test-lock.mts";
@@ -58,7 +59,7 @@ async function readPersistedOwner(lockPath: string) {
 
 function owner(processRecord: unknown, child: unknown = null) {
   return {
-    format_version: 1,
+    format_version: 1 as const,
     token: "existing-token",
     process: processRecord,
     child,
@@ -635,6 +636,102 @@ void test("Unix watchdog cleanup must prove quiescence before a dead lock is rec
   }
 });
 
+void test(
+  "a prior Linux boot releases local watchdog custody through normal admission",
+  {
+    skip: process.platform !== "linux",
+  },
+  async () => {
+    const { root, lockPath } = await fixture();
+    const previous = "1031e709-2ed8-45f3-bbe3-44d414c0fc62";
+    const current = "b924a278-2380-4056-b815-8f9226b17a62";
+    const existing = {
+      ...owner(null),
+      process: { pid: 915, identity: `linux:${previous}:915:100` },
+      child: {
+        pid: 916,
+        identity: `linux:${previous}:916:200`,
+        containment: "unix-watchdog" as const,
+        cleanup_receipt: path.join(root, "missing-cleanup.json"),
+      },
+    };
+    const identities = new Map([[process.pid, `linux:${current}:${process.pid}:300`]]);
+    try {
+      await writeFile(lockPath, JSON.stringify({ ...existing, child: null }));
+      await writeFile(
+        `${lockPath}.child-${existing.token}`,
+        JSON.stringify({
+          format_version: 1,
+          token: existing.token,
+          child: existing.child,
+        }),
+      );
+      const acquired = await acquireHeavyRustTestLock(
+        {},
+        {
+          lockPath,
+          waitMilliseconds: 0,
+          inspectProcessIdentity: identityInspector(identities),
+        },
+      );
+      assert.notEqual(acquired.owner.token, existing.token);
+      await acquired.release();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+void test(
+  "Linux boot recovery retains ambiguous, same-boot and external custody",
+  {
+    skip: process.platform !== "linux",
+  },
+  async (t) => {
+    const previous = "1031e709-2ed8-45f3-bbe3-44d414c0fc62";
+    const current = "b924a278-2380-4056-b815-8f9226b17a62";
+    const existing = {
+      ...owner(null),
+      process: { pid: 915, identity: `linux:${previous}:915:100` },
+      child: {
+        pid: 916,
+        identity: `linux:${previous}:916:200`,
+        containment: "unix-watchdog" as const,
+        cleanup_receipt: "/missing-receipt.json",
+      },
+    };
+    const self = `linux:${current}:${process.pid}:300`;
+    for (const [name, candidate, identity] of [
+      ["same boot", existing, `linux:${previous}:${process.pid}:300`],
+      ["unavailable current boot", existing, null],
+      ["malformed current identity", existing, "linux:invalid:1:1"],
+      [
+        "mixed boots",
+        { ...existing, child: { ...existing.child, identity: `linux:${current}:916:200` } },
+        self,
+      ],
+      [
+        "mismatched PID",
+        { ...existing, child: { ...existing.child, identity: `linux:${previous}:917:200` } },
+        self,
+      ],
+      ["legacy child", { ...existing, child: { ...existing.child, containment: undefined } }, self],
+      ["foreign tree", { ...existing, child: { ...existing.child, tree_platform: "win32" } }, self],
+      ["external custody", { ...existing, external: { kind: "remote" } }, self],
+    ] as const) {
+      await t.test(name, () => {
+        assert.ok(
+          heavyRustOwnerActivity(candidate, {
+            inspectProcessIdentity: (pid) => (pid === process.pid ? identity : null),
+            inspectProcessTree: () => [],
+            readCleanupReceipt: () => '{"outcome":"failed:EPERM"}',
+          }),
+        );
+      });
+    }
+  },
+);
+
 void test("ambiguous legacy child containment blocks automatic reclamation", async () => {
   const { root, lockPath } = await fixture();
   const identities = new Map([[process.pid, "current-process"]]);
@@ -671,6 +768,116 @@ void test("legacy Unix process-group metadata blocks automatic reclamation", () 
     () => processTreeMembers({ pid: 914, tree_platform: "linux" }),
     /cannot be reclaimed automatically/u,
   );
+});
+
+void test("Windows signal-zero absence skips CIM while possible liveness retains creation identity", () => {
+  for (const code of [
+    undefined,
+    false,
+    "ESRCH",
+    "EPERM",
+    "EACCES",
+    "EIO",
+    "ERR_OUT_OF_RANGE",
+    "unclassified",
+  ] as const) {
+    const calls: unknown[] = [];
+    const identity = readProcessIdentity(980, {
+      platform: "win32",
+      signalZero: (pid, signal) => {
+        calls.push([pid, signal]);
+        if (code === "unclassified") throw new Error("unclassified existence failure");
+        if (code) throw Object.assign(new Error("existence probe"), { code });
+        return code;
+      },
+      spawnSync: (command, args, options) => {
+        calls.push("CIM");
+        assert.equal(command, "pwsh.exe");
+        assert.ok(args.at(-1)?.includes("ProcessId = 980"));
+        assert.equal(options.timeout, 15_000);
+        return { status: 0, stdout: "639306200352970610", stderr: "" };
+      },
+    });
+    assert.equal(identity, code === "ESRCH" ? null : "win32:980:639306200352970610");
+    assert.deepEqual(calls, code === "ESRCH" ? [[980, 0]] : [[980, 0], "CIM"]);
+  }
+});
+
+void test("uncertain Windows existence retains the original CIM timeout failure", () => {
+  for (const code of [undefined, "EPERM", "EIO"] as const) {
+    const error = Object.assign(new Error("CIM timed out"), { code: "ETIMEDOUT" });
+    assert.throws(
+      () =>
+        readProcessIdentity(981, {
+          platform: "win32",
+          signalZero: () => {
+            if (code) throw Object.assign(new Error("existence uncertain"), { code });
+          },
+          spawnSync: () => ({ error, status: null, stdout: "", stderr: "" }),
+        }),
+      (failure: unknown) =>
+        failure instanceof Error &&
+        failure.cause === error &&
+        errorCode(failure) === "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE",
+    );
+  }
+});
+
+void test("an injected Windows CIM runner never probes native test-host PID existence", () => {
+  let calls = 0;
+  assert.equal(
+    readProcessIdentity(982, {
+      platform: "win32",
+      spawnSync: () => {
+        calls++;
+        return { status: 0, stdout: "639306200352970611", stderr: "" };
+      },
+    }),
+    "win32:982:639306200352970611",
+  );
+  assert.equal(calls, 1);
+});
+
+void test("Windows absent owners do not dismiss live children or uncertain containment", () => {
+  const processRecord = { pid: 983, identity: "win32:983:old" };
+  const liveChild = { pid: 984, identity: "win32:984:639306200352970612" };
+  const existing = { ...owner(null), process: processRecord, child: liveChild };
+  const inspectProcessIdentity = (pid: number) =>
+    readProcessIdentity(pid, {
+      platform: "win32",
+      signalZero: (_pid, signal) => {
+        assert.equal(signal, 0);
+        if (pid !== liveChild.pid) throw Object.assign(new Error("absent"), { code: "ESRCH" });
+      },
+      spawnSync: () => ({ status: 0, stdout: "639306200352970612", stderr: "" }),
+    });
+  assert.equal(heavyRustOwnerActivity(existing, { inspectProcessIdentity })?.kind, "child");
+  const missingChild = { pid: 985, identity: "win32:985:old" };
+  for (const [candidate, expected] of [
+    [{ ...existing, external: { kind: "remote" } }, "external work awaiting quiescence proof"],
+    [{ ...existing, child: missingChild }, "legacy child"],
+    [{ ...existing, child: { ...missingChild, tree_platform: "win32" } }, "child tree"],
+    [
+      {
+        ...existing,
+        child: {
+          ...missingChild,
+          containment: "unix-watchdog" as const,
+          cleanup_receipt: "owned-cleanup.json",
+        },
+      },
+      "Unix cleanup failed",
+    ],
+  ] as const) {
+    assert.equal(
+      heavyRustOwnerActivity(candidate, {
+        inspectProcessIdentity,
+        inspectProcessTree: () => ["retained descendant"],
+        readCleanupReceipt: () => '{"outcome":"failed"}',
+      })?.kind,
+      expected,
+    );
+  }
 });
 
 void test("platform identity probes fail closed on their bounded timeout", () => {

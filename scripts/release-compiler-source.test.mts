@@ -253,7 +253,7 @@ void test("actual deterministic four version edits pass while dependencies and e
     },
   );
   const run = async (preparedTree: string) => {
-    const prepared = sourceFixtureCommit(preparedTree, [source.sha], "prepared\n");
+    const prepared = sourceFixtureCommit(preparedTree, [source.sha], "prepared\n", true);
     const api = {
       request(method: string, endpoint: string) {
         assert.equal(method, "GET");

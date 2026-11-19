@@ -35,6 +35,21 @@
       "image_sha256": "fccbb3ccfb6c3f3a4bd9b5c1d6d8bc40a8f5c0725f661748937c93781a72fd7d",
       "game_slug": "kirby-air-ride",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kirby-air-ride",
+      "evidence_urls": ["https://github.com/lunchbox-recomp/dragoon"],
+      "source_editions": [
+        {
+          "id": "kirby-air-ride-nintendo-gamecube",
+          "title": "Kirby Air Ride (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/lunchbox-recomp/dragoon/blob/dc9156ce33aa847805b28258ac3ca1d7e5034c85/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -233,6 +233,10 @@ async fn listing_replay_equivocation_and_failed_refresh_preserve_last_selection(
         listing_delivery::load(&connection, Catalog::embedded().unwrap(), i64::MAX);
     assert!(!status.selected);
     assert!(status.fallback_reason.unwrap().contains("expired"));
+    assert_eq!(
+        status.fallback_code,
+        Some(crate::CatalogFallbackCode::ListingDirectoryUnavailable)
+    );
     assert!(fallback.listing("new-unmanaged-port").is_err());
     assert_eq!(
         library.listing_delivery_status().unwrap().target_sha256,
@@ -423,8 +427,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
     let original = library.listing_delivery_status().unwrap().target_sha256;
     let (catalog, _) = library.load_catalog().unwrap();
-    // The embedded base now carries first-listed dates, so the combined directory is format 9.
-    assert_eq!(catalog.listing_document().format_version, 9);
+    // Embedded implementation descriptions require format 12 in the combined directory.
+    assert_eq!(catalog.listing_document().format_version, 12);
     assert_eq!(
         catalog
             .listing("new-unmanaged-port")
@@ -445,8 +449,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     );
     assert!(catalog.port("new-unmanaged-port").is_err());
     candidate["revision"] = json!(2);
-    // The next unknown format; 9 is now the first-listed-date format this reader accepts.
-    candidate["directory"]["format_version"] = json!(10);
+    // The next unknown format follows the accepted implementation format 12.
+    candidate["directory"]["format_version"] = json!(13);
     let next_root = publish(&fixture, &key, 2, &candidate).await;
     assert!(refresh(&library, &fixture, &next_root).await.is_err());
     assert_eq!(
@@ -460,6 +464,403 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
             .0
             .listing_document()
             .format_version,
-        9
+        catalog.listing_document().format_version
+    );
+}
+
+#[tokio::test]
+async fn a_delivered_format_nine_directory_replaces_its_own_records_over_funded_embedded_listings()
+{
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let embedded = Catalog::embedded().unwrap();
+    assert!(
+        embedded
+            .listing("severed-chains")
+            .unwrap()
+            .funding_urls
+            .is_some()
+    );
+    // A format-9 snapshot (no funding links) that corrects one funded embedded record.
+    let mut corrected = serde_json::to_value(embedded.listing("severed-chains").unwrap()).unwrap();
+    corrected.as_object_mut().unwrap().remove("funding_urls");
+    corrected["summary"] = json!("Corrected descriptive summary.");
+    let mut candidate = feed(1);
+    candidate["directory"]["format_version"] = json!(9);
+    candidate["directory"]["listings"]
+        .as_array_mut()
+        .unwrap()
+        .push(corrected);
+    let root = publish(&fixture, &key, 1, &candidate).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let (catalog, _) = library.load_catalog().unwrap();
+    // Snapshot replacement: the delivered record carries no links, so none are shown for it.
+    let replaced = catalog.listing("severed-chains").unwrap();
+    assert_eq!(replaced.summary, "Corrected descriptive summary.");
+    assert!(replaced.funding_urls.is_none());
+    // Omitted bundled records keep their metadata, including format-11 collections.
+    assert!(
+        catalog
+            .listing("ambermoon-ambermoon-net")
+            .unwrap()
+            .funding_urls
+            .is_some()
+    );
+    assert_eq!(catalog.listing_document().format_version, 12);
+
+    // A delivered format-10 snapshot carries links for this reader.
+    candidate["revision"] = json!(2);
+    candidate["directory"]["format_version"] = json!(10);
+    candidate["directory"]["listings"][1]["funding_urls"] = json!(["https://ko-fi.com/example"]);
+    let next_root = publish(&fixture, &key, 2, &candidate).await;
+    assert!(
+        refresh(&library, &fixture, &next_root)
+            .await
+            .unwrap()
+            .selected
+    );
+    let (catalog, _) = library.load_catalog().unwrap();
+    assert_eq!(
+        catalog
+            .listing("severed-chains")
+            .unwrap()
+            .funding_urls
+            .as_deref(),
+        Some(&["https://ko-fi.com/example".to_owned()][..])
+    );
+}
+
+/// Owner decision on #534 (2026-11-15): official catalog updates are on by
+/// default, refresh quietly, never overlap and keep prior state on failure.
+/// One test owns the process-wide refresh guard so parallel tests cannot race it.
+#[tokio::test]
+async fn automatic_official_refresh_defaults_on_stays_quiet_and_preserves_state() {
+    use crate::OfficialCatalogAutomaticOutcome as Outcome;
+    use policy::provisioning::official_catalog::{
+        automatic_refresh_fixture, hold_refresh_guard_fixture,
+    };
+    const SOURCE: &[u8] = br#"{"metadata_base_url":"https://catalog.invalid/metadata/","targets_base_url":"https://catalog.invalid/targets/"}"#;
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let root = authority_provisioning::single_owner_root(&fixture).await;
+    let (_temp, library) = library();
+    let host = tempfile::tempdir().unwrap();
+    let preferences =
+        crate::HostPreferenceStore::new(host.path().join("preferences.json")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let repository = DefinitionRepositorySource {
+        metadata_base_url: fixture.metadata_url(),
+        targets_base_url: fixture.targets_url(),
+    };
+    let installed =
+        |library: &Library| policy::provisioning::review_single_owner_fixture(library, &root);
+    let observer = library.connection().unwrap();
+
+    // An explicit off persists and stops the schedule before any trust, I/O or write.
+    preferences
+        .set_official_catalog_automatic_updates(false)
+        .unwrap();
+    let before = authority_provisioning::data_version(&observer);
+    let off = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        FilesystemTransport,
+    )
+    .await
+    .unwrap();
+    assert_eq!(off.outcome, Outcome::TurnedOff);
+    assert!(!installed(&library).unwrap().installed);
+    assert_eq!(authority_provisioning::data_version(&observer), before);
+
+    // On (the default once the choice is cleared), nothing published yet: the
+    // compiled anchor is installed from Core's own reviewed plan, and the
+    // absent metadata is a quiet "not served" with no activity or selection.
+    preferences
+        .set_official_catalog_automatic_updates(true)
+        .unwrap();
+    let unpublished = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        FilesystemTransport,
+    )
+    .await
+    .unwrap();
+    assert_eq!(unpublished.outcome, Outcome::Unavailable);
+    assert_eq!(
+        unpublished.serving,
+        Some(crate::DefinitionDeliveryServing::NotServed)
+    );
+    assert!(installed(&library).unwrap().installed);
+    assert!(library.activities(10).unwrap().is_empty());
+    assert!(
+        library
+            .listing_delivery_status()
+            .unwrap()
+            .revision
+            .is_none()
+    );
+
+    // Published: the existing authenticated listing delivery selects it.
+    publish(&fixture, &key, 1, &feed(1)).await;
+    let refreshed = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        FilesystemTransport,
+    )
+    .await
+    .unwrap();
+    assert_eq!(refreshed.outcome, Outcome::Refreshed);
+    assert_eq!(refreshed.status.unwrap().revision, Some(1));
+    let selected = |library: &Library| {
+        library
+            .load_catalog()
+            .unwrap()
+            .0
+            .listing("new-unmanaged-port")
+            .is_ok()
+    };
+    assert!(selected(&library));
+    let activities = library.activities(10).unwrap().len();
+
+    // A refresh already in progress makes the scheduled one skip, not overlap.
+    {
+        let _running = hold_refresh_guard_fixture().await;
+        let skipped = automatic_refresh_fixture(
+            &service,
+            &preferences,
+            &root,
+            SOURCE,
+            &repository,
+            FilesystemTransport,
+        )
+        .await
+        .unwrap();
+        assert_eq!(skipped.outcome, Outcome::AlreadyRunning);
+    }
+
+    // A verified publication this client refuses (here, changed bytes at the
+    // same listing revision) is quiet too: no failed activity, selection kept.
+    let mut equivocation = feed(1);
+    equivocation["directory"]["listings"][0]["name"] = json!("Equivocated title");
+    publish(&fixture, &key, 2, &equivocation).await;
+    let refused = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        FilesystemTransport,
+    )
+    .await
+    .unwrap();
+    assert_eq!(refused.outcome, Outcome::Unavailable);
+    assert_eq!(
+        refused.serving,
+        Some(crate::DefinitionDeliveryServing::VerificationFailed)
+    );
+    assert_eq!(library.activities(10).unwrap().len(), activities);
+    assert_eq!(
+        library
+            .load_catalog()
+            .unwrap()
+            .0
+            .listing("new-unmanaged-port")
+            .unwrap()
+            .name,
+        "New unmanaged port"
+    );
+
+    // Tampered metadata and an outage both keep the accepted selection.
+    let timestamp = fixture.metadata.join("timestamp.json");
+    let signed = fs::read(&timestamp).unwrap();
+    fs::write(&timestamp, b"{\"signed\":{}}").unwrap();
+    let tampered = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        FilesystemTransport,
+    )
+    .await
+    .unwrap();
+    assert_eq!(tampered.outcome, Outcome::Unavailable);
+    assert_eq!(
+        tampered.serving,
+        Some(crate::DefinitionDeliveryServing::VerificationFailed)
+    );
+    fs::write(&timestamp, signed).unwrap();
+    fs::remove_dir_all(&fixture.metadata).unwrap();
+    let outage = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        FilesystemTransport,
+    )
+    .await
+    .unwrap();
+    assert_eq!(outage.outcome, Outcome::Unavailable);
+    assert_eq!(library.listing_delivery_status().unwrap().revision, Some(1));
+    assert!(selected(&library));
+    assert_eq!(library.activities(10).unwrap().len(), activities);
+}
+
+#[tokio::test]
+async fn signed_shared_observation_reopens_into_offline_preliminary_download_browsing() {
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let now = time::OffsetDateTime::now_utc();
+    let stamp = |value: time::OffsetDateTime| {
+        value
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap()
+    };
+    let mut candidate = feed(1);
+    candidate["directory"]["format_version"] = json!(4);
+    let listing = &mut candidate["directory"]["listings"][0];
+    listing["project_url"] = json!("https://github.com/example/game");
+    listing["availability"] = json!("unknown");
+    listing["upstream_observation"] = json!({
+        "provider":"github","repository":"example/game","repository_id":7,"status":"complete",
+        "attempted_at":stamp(now),"observed_at":stamp(now-time::Duration::seconds(1)),
+        "fresh_until":stamp(now+time::Duration::hours(1)),"facts_sha256":"a".repeat(64),
+        "release_limit":4,"releases":[{"id":11,"version":"v1","release_url":"https://github.com/example/game/releases/tag/v1",
+        "published_at":"2026-01-01T00:00:00Z","provider_prerelease":false,"assets_complete":true,
+        "assets":[{"id":21,"name":"game.zip","url":"https://github.com/example/game/releases/download/v1/game.zip",
+        "size":42,"sha256":null,"platform_hints":[]}]}]
+    });
+    let root = publish(&fixture, &key, 1, &candidate).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    // The unchanged consumer reopens retained signed state. This route has no
+    // provider transport when its fresh observation satisfies preliminary browse.
+    let service = PortcoveService::new(Library::open(library.root()).unwrap()).unwrap();
+    let result = service
+        .catalog_download_options("new-unmanaged-port", None, crate::ReleaseChannel::Stable)
+        .await
+        .unwrap();
+    assert!(result.allowed);
+    assert_eq!(result.selected_release_id, Some(11.into()));
+    assert_eq!(
+        result.candidates[0].asset_id,
+        crate::CatalogDownloadAssetId::from(21_u64)
+    );
+    assert!(
+        result
+            .reason
+            .unwrap()
+            .contains("Upstream metadata observed at")
+    );
+    assert!(service.catalog().port("new-unmanaged-port").is_err());
+}
+
+#[tokio::test]
+async fn signed_legacy_observation_directory_preserves_authored_comparison_descriptions_on_reopen()
+{
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let embedded = Catalog::embedded().unwrap();
+    let ids = ["2ship2harkinian", "zelda64-recomp"];
+    let mut legacy = embedded.listing_document().export_format(11).unwrap();
+    legacy
+        .listings
+        .retain(|listing| ids.contains(&listing.id.as_str()));
+    assert_eq!(legacy.listings.len(), ids.len());
+    assert!(
+        legacy
+            .listings
+            .iter()
+            .all(|listing| listing.implementation.is_none())
+    );
+    let candidate = json!({
+        "listing_delivery_schema":1,"revision":1,"withdrawn_ids":[],"directory":legacy
+    });
+    let root = publish(&fixture, &key, 1, &candidate).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let service = PortcoveService::new(Library::open(library.root()).unwrap()).unwrap();
+    for id in ids {
+        let original = embedded.listing(id).unwrap();
+        assert!(original.implementation.is_some());
+        assert_eq!(
+            service.catalog().listing(id).unwrap().implementation,
+            original.implementation
+        );
+    }
+    assert_eq!(
+        serde_json::to_value(service.catalog().authoritative_document()).unwrap(),
+        serde_json::to_value(embedded.authoritative_document()).unwrap()
+    );
+}
+
+#[tokio::test]
+async fn observer_produced_target_reaches_signed_cache_and_preliminary_browse_without_a_route_grant()
+ {
+    // Node's maintained contract recreates these exact bytes through the real
+    // projectListingObservation and publication builder, from synthetic provider
+    // facts. The fixed source clock is explicit; no fresh/live upstream claim.
+    let produced: Value = serde_json::from_str(include_str!(
+        "testdata/listing-observation-delivery.generated.json"
+    ))
+    .unwrap();
+    assert_eq!(produced["directory"]["format_version"], 11);
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let root = publish(&fixture, &key, 1, &produced).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let service = PortcoveService::new(Library::open(library.root()).unwrap()).unwrap();
+    let listing = service.catalog().listing("new-unmanaged-port").unwrap();
+    assert!(
+        listing.implementation.is_none(),
+        "format-11 readers never meet the new inert key"
+    );
+    assert!(service.catalog().port("new-unmanaged-port").is_err());
+    let provider = crate::GithubReleaseProvider::with_api_root("https://api.github.com").unwrap();
+    let at = |value| {
+        time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339).unwrap()
+    };
+    let (candidates, coverage, _, selected) = provider
+        .observed_catalog_download_options(
+            listing,
+            None,
+            crate::ReleaseChannel::Stable,
+            None,
+            at("2026-11-10T01:00:00Z"),
+        )
+        .unwrap();
+    assert_eq!(selected, Some(7));
+    assert_eq!(
+        candidates[0].asset_id,
+        crate::CatalogDownloadAssetId::Github(11)
+    );
+    assert!(!coverage.release_history_complete);
+    assert!(
+        provider
+            .observed_catalog_download_options(
+                listing,
+                None,
+                crate::ReleaseChannel::Stable,
+                None,
+                at("2026-11-11T01:00:00Z")
+            )
+            .is_none(),
+        "expiry cannot be advanced by signed delivery or cache reads"
     );
 }

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "marathon-aleph-one",
+    "artwork": {
+      "game_id": 8709,
+      "cover_id": 272194,
+      "image_id": "co5u0y",
+      "image_sha256": "3bd435a19179213afd3b8d69bf4d1fcf670666365f73c08fc72663c1c127bb50",
+      "game_slug": "marathon",
+      "match_kind": "underlying-game"
+    },
     "name": "Marathon (Aleph One)",
     "summary": "Marathon uses its complete official Aleph One Windows package. Shared player profiles remain upstream-owned.",
     "original_game_title": "Marathon",
@@ -10,6 +18,7 @@
     "setup_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf",
     "issue_number": 2588,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://www.patreon.com/treellama"],
     "release_url": "https://github.com/Aleph-One-Marathon/alephone/releases/tag/release-20260930",
     "manual_setup": {
       "steps": [
@@ -26,11 +35,11 @@
       "references": [
         {
           "title": "Install the matching Marathon scenario on Linux",
-          "instruction": "Use the official Marathon x86-64 Flatpak bundle and install it with Flatpak. Start Classic Marathon from the desktop launcher or run flatpak run org.bungie.source.Marathon. Its packaged scenario data is included. This bundle has home-directory access. Preserve your actual ~/.alephone profile, which the three games can share, and any overrides before replacement."
+          "instruction": "Use the official Marathon x86-64 Flatpak bundle and install it with Flatpak. Start Classic Marathon from the desktop launcher or run flatpak run org.bungie.source.Marathon. Its packaged scenario data is included. The current publisher bundle uses the end-of-life Freedesktop 23.08 runtime. It has home-directory and network access. Keep network play off with this build. Preserve your actual ~/.alephone profile, which the three games can share, and any overrides before replacement."
         },
         {
           "title": "Open the matching Marathon application on Mac",
-          "instruction": "Use the official Marathon Mac disk image. Copy Classic Marathon.app out of the image and open the complete app. The package includes the scenario and supports Intel and Apple Silicon. Preserve the actual Aleph One or title-specific data in ~/Library/Application Support, its preferences in ~/Library/Preferences and custom scenarios before replacing it."
+          "instruction": "Use the official Marathon Mac disk image. Copy Classic Marathon.app to Applications and open the complete app. The package includes the scenario and supports Intel and Apple Silicon. Preserve the actual Aleph One or title-specific data in ~/Library/Application Support, its preferences in ~/Library/Preferences and custom scenarios before replacing it."
         }
       ]
     },

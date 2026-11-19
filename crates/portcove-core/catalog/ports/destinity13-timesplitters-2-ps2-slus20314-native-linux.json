@@ -2,47 +2,75 @@
   "format_version": 1,
   "listing": {
     "id": "destinity13-timesplitters-2-ps2-slus20314-native-linux",
-    "name": "TimeSplitters 2 — Destinity13 native Linux recompilation",
+    "artwork": {
+      "game_id": 2143,
+      "cover_id": 515651,
+      "image_id": "cob1vn",
+      "image_sha256": "e58e9bf9bc151bd06b83e8ef20c7152da2a9ad11ba433b389f26b9faaeb8739a",
+      "game_slug": "timesplitters-2",
+      "match_kind": "underlying-game"
+    },
+    "name": "TimeSplitters 2 — Destinity13 native recompilation",
     "original_game_title": "TimeSplitters 2",
-    "summary": "Prepare a native Linux player from your own USA PlayStation 2 disc image.",
-    "project_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp",
+    "summary": "Prepare a native Windows or Linux player from your own USA PlayStation 2 disc image.",
+    "project_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck",
     "issue_number": 4759,
     "listed_at": "2026-11-09",
-    "platforms": ["linux-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
-    "release_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/releases/tag/v0.9.9",
-    "setup_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/blob/e9be41d9b5d8d87350c9b5ba74201cd506807f7e/README.md",
-    "download_block_reason": "Portcove downloads are paused while the bundled compiler and first-start recovery are being reviewed. These steps cover an upstream copy you already trust and are permitted to use.",
+    "release_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/releases/tag/v1.1.0",
+    "setup_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/blob/v1.1.0/README.md",
+    "download_block_reason": "Portcove downloads are paused while the complete bundle and first-start recovery are being reviewed. Use these steps for an upstream copy you already trust and are permitted to use.",
     "manual_setup": {
       "steps": [
         {
           "title": "Choose your original USA PlayStation 2 disc",
-          "instruction": "Use an ISO from your own TimeSplitters 2 USA disc, SLUS-20314. Setup checks SHA-1 01f074637a0328dd8e4ae62ac7564548e56ee126 for SLUS_203.14 inside the ISO. This check covers the game executable inside the disc."
+          "instruction": "Use an ISO from your own TimeSplitters 2 USA disc, SLUS-20314. Setup checks SHA-1 01f074637a0328dd8e4ae62ac7564548e56ee126 for SLUS_203.14 inside the ISO. This identifies the game executable inside the disc."
         },
         {
-          "title": "Keep the Linux x86-64 package together",
-          "instruction": "Extract TS2-Recomp-0.9.9-linux-x86_64.tar.xz into a writable folder. Use Python 3 and keep its tools, compiler and gs libraries together. The included graphics bridge requires glibc 2.34 or newer, libstdc++ with GLIBCXX_3.4.30 and the X11, udev, D-Bus, curl and zlib host libraries."
+          "title": "Prepare on Windows x64",
+          "instruction": "Extract the Windows package into a new writable folder. Run TS2-Recomp.bat from that folder, choose your ISO and wait for the launcher to build the game. Choose Play when setup finishes. Keep the launcher, compiler and app folder together."
         },
         {
-          "title": "Finish the upstream build",
-          "instruction": "Run TS2-Recomp.sh from its extracted folder and choose your ISO. Wait for both compilation passes and local graphics preparation. The launcher starts the resulting build/ts2/ps2EntryRunner_spiel with its data and library paths. If setup fails, check build/einrichten.log before retrying."
+          "title": "Prepare on Linux x64",
+          "instruction": "Extract the Linux package into a new writable folder. With Python 3 available, run TS2-Recomp.sh, choose your ISO and wait for setup before choosing Play. The included graphics bridge requires glibc 2.34 or newer, libstdc++ with GLIBCXX_3.4.30, and the X11, udev, D-Bus, curl and zlib libraries. The graphical launcher also needs glibc 2.39 and WebKitGTK 4.1. If its dependencies are missing, the script falls back to setup and launch without automatic updates."
         }
       ],
       "warnings": [
-        "Keep the disc image, extracted game files and generated game code private. Retain the complete working copy before unpacking a newer release.",
-        "Use this route with a copy you already trust and are permitted to use. Maintain the package and generated player through upstream."
+        "Keep the disc image, extracted game files and generated game code private. Keep a complete working copy before replacing or updating it.",
+        "Use this route with a copy you already trust and are permitted to use. The upstream launcher owns updates and may rebuild the game from your remembered ISO."
       ],
       "references": [
         {
-          "title": "Keep saves and settings",
-          "instruction": "Back up build/spielstand and the whole ts2-recomp folder under XDG_CONFIG_HOME, normally ~/.config/ts2-recomp. Keep your original ISO and the working folder that contains disc/inhalt, the generated build and any custom data."
+          "title": "Preserve saves and settings",
+          "instruction": "To move from 1.0.x to 1.1, keep the old folder and prepare the new release separately. Copy the contents of the old app/build/spielstand into the new savedata folder. Keep any separate savedata_onlineplus folder and your ts2-recomp settings under %APPDATA% on Windows or XDG_CONFIG_HOME on Linux, normally ~/.config. Keep the original ISO and working copy until you have confirmed your saves."
         },
         {
           "title": "Use the upstream Steam Deck launcher",
-          "instruction": "Follow the upstream Steam Deck guide to complete the same build in Desktop Mode, then add TS2-SteamDeck.sh as a non-Steam game. Steam Deck behavior is documented by the upstream maintainer."
+          "instruction": "Follow the upstream Steam Deck guide in Desktop Mode, then add TS2-SteamDeck.sh as a non-Steam game. Return to Desktop Mode to use the graphical launcher for updates."
         }
       ],
-      "help_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/blob/e9be41d9b5d8d87350c9b5ba74201cd506807f7e/README.md"
+      "help_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/blob/v1.1.0/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "timesplitters-2",
+      "evidence_urls": [
+        "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/blob/v1.1.0/README.md",
+        "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck",
+        "https://api.github.com/repositories/1449120748",
+        "https://api.github.com/repos/Destinity13/TimeSplitters-2-Native-Linux-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "timesplitters-2-playstation-2",
+          "title": "TimeSplitters 2 (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/blob/736af9d3b30fa8db64e3cf68402fe6393e7fa9f1/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -55,6 +83,43 @@
         "id": "1449120748"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1449120748"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck",
+          "repository": {
+            "host": "github.com",
+            "id": "1449120748"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The owner Destinity13 renamed the repository it listed; the same repository answers at Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1449120748",
+            "note": "Repository ID 1449120748, recorded when this port was listed, resolves to Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/Destinity13/TimeSplitters-2-Native-Linux-Recomp",
+            "note": "The listed path resolves to Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck, repository ID 1449120748."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "23ff8a01c59649fcf8f14804d24161a9a7a7d198cf3234a1aabc562c0007fa9f"
+        }
+      }
+    ]
   }
 }

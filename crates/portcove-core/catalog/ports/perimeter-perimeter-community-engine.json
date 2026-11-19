@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "perimeter-perimeter-community-engine",
+    "artwork": {
+      "game_id": 8964,
+      "cover_id": 114000,
+      "image_id": "co2fyo",
+      "image_sha256": "40edd16071877da61a3325fb0643a524ebb1309ab0b94296677b750d03fd82f2",
+      "game_slug": "perimeter",
+      "match_kind": "underlying-game"
+    },
     "name": "Perimeter (Perimeter community engine)",
     "summary": "Prepare Perimeter through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Perimeter",

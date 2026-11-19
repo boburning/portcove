@@ -17,8 +17,11 @@ import { test, vi } from "vite-plus/test";
 import { Session, WebDriver } from "selenium-webdriver";
 import {
   createInstallFixture,
+  prepareLargeSetupReviewFixture,
   INSTALL_FIXTURE_PORT_ID,
   INSTALL_REFRESH_FIXTURE_PORT_ID,
+  UPDATE_REVIEW_PORT_ID,
+  UPDATE_REVIEW_VERSION,
 } from "./desktop-install-fixture.mts";
 import { installScenarios, selectInstallTheme } from "./desktop-install-test.mts";
 import { runInNewContext } from "node:vm";
@@ -30,6 +33,67 @@ import {
 import { run as runLifecycleCommand } from "../../../integrations/playnite/lifecycle-check.mts";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
+
+test("large native review uses distinct game bytes, retained copies and one unresolved implementation pair", async () => {
+  const output = await mkdtemp(path.join(tmpdir(), "portcove-large-review-contract-"));
+  const fixture = await createInstallFixture({
+    root,
+    output,
+    sourceJourney: true,
+    revision: "a".repeat(40),
+  });
+  try {
+    const before = await readFile(fixture.catalogPath, "utf8");
+    await assert.rejects(prepareLargeSetupReviewFixture(fixture, "unknown"), /frozen source/);
+    assert.equal(await readFile(fixture.catalogPath, "utf8"), before);
+    const large = await prepareLargeSetupReviewFixture(fixture, "a".repeat(40));
+    assert.equal(large.eligiblePorts.length, 20);
+    assert.equal(large.choicePorts.length, 2);
+    assert.equal(large.exactMatches, 525);
+    assert.equal(new Set(large.originals.map((item) => item.sha256)).size, 21);
+    const authored = await readFixtureCatalog(fixture.catalogPath);
+    const introduced = authored.ports.filter((port) => port.id.startsWith("desktop-large-review-"));
+    assert.equal(introduced.length, 22);
+    assert.equal(
+      authored.ports.some((port) => [fixture.port.id, fixture.refreshPort.id].includes(port.id)),
+      false,
+    );
+    const choices = introduced.filter((port) => large.choicePorts.includes(port.id));
+    assert.equal(new Set(choices.map((port) => port.source_profile)).size, 1);
+    assert.equal(
+      new Set(
+        introduced
+          .filter((port) => large.eligiblePorts.includes(port.id))
+          .map((port) => port.source_profile),
+      ).size,
+      20,
+    );
+    for (const original of large.originals) {
+      assert.equal(original.copies.length, 25);
+      for (const file of original.copies)
+        assert.equal(
+          createHash("sha256")
+            .update(await readFile(file))
+            .digest("hex"),
+          original.sha256,
+        );
+      for (const port of introduced.filter((item) => item.source_profile === original.profile)) {
+        assert.ok(
+          authored.source_catalog.contracts.some(
+            (item) => item.port_id === port.id && item.profile_id === original.profile,
+          ),
+        );
+      }
+    }
+    assert.equal(fixture.requests.length, 0);
+    const retained = await readFile(fixture.catalogPath, "utf8");
+    await assert.rejects(prepareLargeSetupReviewFixture(fixture, "a".repeat(40)));
+    assert.equal(await readFile(fixture.catalogPath, "utf8"), retained);
+  } finally {
+    await fixture.close();
+    await rm(output, { recursive: true, force: true });
+  }
+});
 
 test("owned fixture path checks accept Core's extended spelling and reject a different path", () => {
   const expected = path.join(root, "owned-source-fixture");
@@ -535,6 +599,41 @@ test("fixture failures preserve the original assertion and independent cleanup e
       return true;
     },
   );
+});
+
+test("update review serves its offered release from the owned fixture, not the provider API", async () => {
+  const output = await mkdtemp(path.join(tmpdir(), "portcove-update-review-fixture-"));
+  const ordinaryOutput = await mkdtemp(path.join(tmpdir(), "portcove-update-review-ordinary-"));
+  const fixture = await createInstallFixture({ root, output, updateReviewJourney: true });
+  const ordinary = await createInstallFixture({ root, output: ordinaryOutput });
+  try {
+    const reviewed = (await readFixtureCatalog(fixture.catalogPath)).ports.find(
+      (item) => item.id === UPDATE_REVIEW_PORT_ID,
+    );
+    assert.ok(reviewed);
+    assert.equal(reviewed.release.provider, "direct-manifest");
+    assert.ok(reviewed.platforms.length > 0);
+    const sha256 = createHash("sha256").update(fixture.artifact).digest("hex");
+    const offered = reviewed.release.direct;
+    for (const platform of reviewed.platforms) {
+      const release: { version: string; url: string; sha256: string } = present(offered[platform]);
+      assert.equal(release.version, UPDATE_REVIEW_VERSION);
+      assert.equal(release.url, fixture.url);
+      assert.equal(new URL(release.url).hostname, "127.0.0.1");
+      assert.equal(release.sha256, sha256);
+    }
+    // Without the journey the maintained definition keeps its own provider.
+    const maintained = (await readFixtureCatalog(ordinary.catalogPath)).ports.find(
+      (item) => item.id === UPDATE_REVIEW_PORT_ID,
+    );
+    assert.ok(maintained);
+    assert.notEqual(maintained.release.provider, "direct-manifest");
+  } finally {
+    await fixture.close();
+    await ordinary.close();
+    await rm(output, { recursive: true, force: true });
+    await rm(ordinaryOutput, { recursive: true, force: true });
+  }
 });
 
 test("install fixture is isolated, pinned, interruptible, and retryable", async () => {

@@ -84,6 +84,7 @@ export function AuthoredPreparationGuidance({
   port,
   ownership = "external",
   setup,
+  openGuide,
 }: {
   port: CatalogEntry;
   ownership?: "managed" | "external";
@@ -91,6 +92,7 @@ export function AuthoredPreparationGuidance({
     | Pick<NonNullable<PortDefinition["presentation"]>, "manual_setup" | "manual_preparation">
     | null
     | undefined;
+  openGuide?: ((url: string) => Promise<void>) | undefined;
 }) {
   const guide = setup === undefined ? port.presentation?.manual_setup : setup?.manual_setup;
   const note =
@@ -128,7 +130,9 @@ export function AuthoredPreparationGuidance({
             </details>
           )}
           {guide.help_url && (
-            <ExternalLink href={guide.help_url}>Detailed preparation guide</ExternalLink>
+            <ExternalLink href={guide.help_url} {...(openGuide ? { openUrl: openGuide } : {})}>
+              Detailed preparation guide
+            </ExternalLink>
           )}
           {note && !externalManaged && (
             <details className="text-xs">
@@ -167,7 +171,10 @@ function ExternalPreparationRequirements({ port }: { port: PortDefinition }) {
         {Object.entries(port.release.user_prepared).map(([platform, required]) => (
           <li key={platform}>
             {platformLabel(platform)}: Prepare {required.archive_name} version {required.version},
-            then choose the folder containing <code>{required.executable}</code>.{" "}
+            then choose the folder containing this file:{" "}
+            <code dir="ltr" className="path-value block w-full whitespace-normal">
+              {required.executable}
+            </code>
             <details>
               <summary>File details</summary>Archive SHA-256: <code>{required.archive_sha256}</code>
             </details>
@@ -220,10 +227,13 @@ function ExternalRuntimeContext({
     <>
       {registered ? (
         <div>
-          <p>
-            Portcove uses version {registered.version} in place at <code>{registered.path}</code>.
-            It does not copy, update, back up, or delete these files.
-          </p>
+          <div className="grid min-w-0 gap-2">
+            <p>Portcove uses version {registered.version} in place at:</p>
+            <code dir="ltr" className="path-value block w-full whitespace-normal">
+              {registered.path}
+            </code>
+            <p>It does not copy, update, back up, or delete these files.</p>
+          </div>
           <Button
             data-focusable
             variant="outline"
@@ -285,8 +295,10 @@ type SelectedLaunch = { executable: string; workingDirectory: string; arguments:
 
 type UserSelectedRuntimeProps = Omit<ExternalRuntimeControlProps, "port"> & {
   port: CatalogEntry;
+  devicePlatform?: PortDefinition["platforms"][number] | undefined;
   listingStatus?: PortListingStatus | undefined;
   initialDirectory?: string | undefined;
+  openGuide?: ((url: string) => Promise<void>) | undefined;
 };
 
 export function UserSelectedRuntimeControl(props: UserSelectedRuntimeProps) {
@@ -307,6 +319,7 @@ export function UserSelectedRuntimeControl(props: UserSelectedRuntimeProps) {
 
 function useUserSelectedRuntimeEditor({
   port,
+  devicePlatform,
   status,
   generation,
   busy,
@@ -314,6 +327,7 @@ function useUserSelectedRuntimeEditor({
   listingStatus,
   initialDirectory,
   libraryRoot,
+  openGuide,
 }: UserSelectedRuntimeProps) {
   const workingDirectoryId = useId();
   const launchDetailsId = useId();
@@ -388,7 +402,16 @@ function useUserSelectedRuntimeEditor({
     try {
       const path = await pickHostToolExecutable("game", executable || workingDirectory);
       if (pickerRequests.current.isCurrent(request) && typeof path === "string") {
-        const directory = path.slice(0, Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")));
+        const parent = path.slice(0, Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")));
+        const platform = devicePlatform ?? registered?.platform;
+        const bundle = path.slice(parent.length + 1);
+        const reviewedBundle =
+          (platform === "macos-aarch64" || platform === "macos-x86-64") &&
+          path.startsWith("/") &&
+          port.definition?.executable_hints?.[platform]?.some((hint) =>
+            hint.startsWith(`${bundle}/Contents/MacOS/`),
+          );
+        const directory = reviewedBundle ? `${path}/Contents/MacOS` : parent;
         setExecutable(path);
         setWorkingDirectory(directory);
         rememberSetup({ executable: path, workingDirectory: directory });
@@ -457,6 +480,7 @@ function useUserSelectedRuntimeEditor({
     canRemove,
     chooseExecutable,
     chooseDirectory,
+    openGuide,
   };
 }
 
@@ -493,6 +517,50 @@ function UserSelectedRuntimeEditorView(model: ReturnType<typeof useUserSelectedR
         />
       )}
     </section>
+  );
+}
+
+export function RuntimeLaunchFacts({
+  executable,
+  workingDirectory,
+  launchArguments,
+}: {
+  executable: string;
+  workingDirectory: string;
+  launchArguments?: readonly string[] | undefined;
+}) {
+  return (
+    <dl className="grid min-w-0 gap-2 [overflow-wrap:anywhere]">
+      <dt>Game program</dt>
+      <dd dir="ltr" className="path-value whitespace-normal">
+        {executable}
+      </dd>
+      <dt>Start in folder</dt>
+      <dd dir="ltr" className="path-value whitespace-normal">
+        {workingDirectory}
+      </dd>
+      {launchArguments && (
+        <>
+          <dt>Launch options (advanced)</dt>
+          <dd>
+            {launchArguments.length
+              ? launchArguments.map((argument, index) => (
+                  <div key={index}>
+                    <span className="text-xs text-pc-muted-foreground">Argument {index + 1}</span>
+                    {argument ? (
+                      <code dir="ltr" className="block whitespace-pre-wrap">
+                        {argument}
+                      </code>
+                    ) : (
+                      <span className="block">Empty argument</span>
+                    )}
+                  </div>
+                ))
+              : "None"}
+          </dd>
+        </>
+      )}
+    </dl>
   );
 }
 
@@ -560,6 +628,7 @@ function SelectedRuntimeDialog({
     failureMessage:
       "Portcove couldn't register these launch details. Review the selected executable and working directory.",
   });
+  const launchArguments = preview?.user_selected?.arguments ?? selected.arguments;
   const content = (
     <>
       {inline ? (
@@ -584,27 +653,11 @@ function SelectedRuntimeDialog({
           </DialogDescription>
         </>
       )}
-      <dl hidden={inline} className="grid gap-2 [overflow-wrap:anywhere]">
-        <dt>Game program</dt>
-        <dd>{selected.executable}</dd>
-        <dt>Start in folder</dt>
-        <dd>{selected.workingDirectory}</dd>
-        <dt>Launch options (advanced)</dt>
-        <dd>
-          {selected.arguments.length
-            ? selected.arguments.map((argument, index) => (
-                <div key={index}>
-                  <span className="text-xs text-pc-muted-foreground">Argument {index + 1}</span>
-                  {argument ? (
-                    <code className="block whitespace-pre-wrap">{argument}</code>
-                  ) : (
-                    <span className="block">Empty argument</span>
-                  )}
-                </div>
-              ))
-            : "None"}
-        </dd>
-      </dl>
+      <RuntimeLaunchFacts
+        executable={preview?.executable ?? selected.executable}
+        workingDirectory={preview?.path ?? selected.workingDirectory}
+        launchArguments={launchArguments}
+      />
       {pending === "review" && <p role="status">Checking executable and paths…</p>}
       <ActionReviewFailure error={error} />
       <DialogFooter>
@@ -732,13 +785,17 @@ function RegisterExternalDialog({
         </DialogDescription>
         {pending === "review" && <p role="status">Checking runtime files…</p>}
         {preview?.previous_path && (
-          <p className="[overflow-wrap:anywhere]">
-            Previous folder: <code>{preview.previous_path}</code>. Its files stay where they are.
-          </p>
+          <div className="grid min-w-0 gap-2">
+            <p>Previous folder:</p>
+            <code dir="ltr" className="path-value block w-full whitespace-normal">
+              {preview.previous_path}
+            </code>
+            <p>Its files stay where they are.</p>
+          </div>
         )}
         {preview && (
           <div
-            className="metadata grid grid-cols-[1fr_1fr] gap-[10px]"
+            className="metadata grid grid-cols-2 gap-[10px]"
             aria-label="External runtime review"
           >
             <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
@@ -746,16 +803,20 @@ function RegisterExternalDialog({
               {preview.version}
             </span>
             <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-              <small className="mb-[5px] block text-[var(--color-text-muted)]">Folder</small>
-              {preview.path}
-            </span>
-            <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-              <small className="mb-[5px] block text-[var(--color-text-muted)]">Game program</small>
-              {preview.executable}
-            </span>
-            <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
               <small className="mb-[5px] block text-[var(--color-text-muted)]">Checked files</small>
               {preview.immutable_file_count}
+            </span>
+            <span className="col-span-2 min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
+              <small className="mb-[5px] block text-[var(--color-text-muted)]">Folder</small>
+              <code dir="ltr" className="path-value block w-full whitespace-normal">
+                {preview.path}
+              </code>
+            </span>
+            <span className="col-span-2 min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
+              <small className="mb-[5px] block text-[var(--color-text-muted)]">Game program</small>
+              <code dir="ltr" className="path-value block w-full whitespace-normal">
+                {preview.executable}
+              </code>
             </span>
             {preview.shared_preferences && (
               <p className="col-span-2 [overflow-wrap:anywhere]">
@@ -839,7 +900,10 @@ function RemoveExternalDialog({
         {pending === "review" && <p role="status">Checking saved location…</p>}
         {preview && (
           <p>
-            Files will stay in: <code>{preview.path}</code>
+            Files will stay in:{" "}
+            <code dir="ltr" className="path-value block w-full whitespace-normal">
+              {preview.path}
+            </code>
           </p>
         )}
         <ActionReviewFailure error={error} />
@@ -898,7 +962,7 @@ function RuntimeArgumentEditor(
 ) {
   return (
     <details>
-      <summary data-focusable className="cursor-pointer py-2 font-medium">
+      <summary data-focusable className="disclosure-pad-2 cursor-pointer font-medium">
         Advanced launch options
       </summary>
       {model.preserveStructuredArguments ? (
@@ -908,7 +972,7 @@ function RuntimeArgumentEditor(
             you change the executable or working directory. This editor can replace the list with
             one argument per line.
           </p>
-          <pre className="min-w-0 [overflow-wrap:anywhere] whitespace-pre-wrap">
+          <pre dir="ltr" className="min-w-0 [overflow-wrap:anywhere] whitespace-pre-wrap">
             {JSON.stringify(model.savedArguments, null, 2)}
           </pre>
           <Button
@@ -928,8 +992,8 @@ function RuntimeArgumentEditor(
           <label className="grid gap-1">
             Launch options (advanced) (one per line, optional)
             <textarea
+              dir="ltr"
               className="rounded-pc-md border border-pc-input bg-pc-surface p-2"
-              aria-label="Launch arguments"
               value={model.argumentLines}
               disabled={model.busy}
               onChange={(event) => {
@@ -993,6 +1057,12 @@ function RuntimeLaunchSuggestions({
                   disabled={model.busy || !model.canEdit}
                   options={[
                     { value: "", label: "Choose a native application…" },
+                    ...(model.executable &&
+                    !suggestions.candidates.some(
+                      (candidate) => candidate.executable === model.executable,
+                    )
+                      ? [{ value: model.executable, label: "Selected game program" }]
+                      : []),
                     ...suggestions.candidates.map((candidate) => ({
                       value: candidate.executable,
                       label: `${candidate.executable}${candidate.supporting_program ? " · Supporting program" : ""}`,
@@ -1014,7 +1084,10 @@ function RuntimeLaunchSuggestions({
               )}
             {model.executable === suggestions.recommended_executable && (
               <p className="[overflow-wrap:anywhere]">
-                Game or launcher: <code>{model.executable}</code>
+                Game or launcher:{" "}
+                <code dir="ltr" className="path-value block w-full whitespace-normal">
+                  {model.executable}
+                </code>
               </p>
             )}
           </>
@@ -1070,6 +1143,7 @@ function RuntimeRegistrationForm({
   | "canRemove"
   | "chooseExecutable"
   | "chooseDirectory"
+  | "openGuide"
 >) {
   return registered && !model.editing ? (
     <ExistingRuntimeActions {...{ registered, model }} />
@@ -1086,11 +1160,14 @@ function RuntimeRegistrationForm({
         Confirm the game executable or its supported native launcher. You or upstream provide
         runtime updates. Adding it saves launch details; Play remains a separate action.
       </p>
-      <AuthoredPreparationGuidance port={model.port} />
+      <AuthoredPreparationGuidance port={model.port} openGuide={model.openGuide} />
       {<RuntimeLaunchSuggestions {...model} />}
       {model.executable && model.executable !== model.suggestions?.recommended_executable && (
         <p className="[overflow-wrap:anywhere]">
-          Game or launcher: <code>{model.executable}</code>
+          Game or launcher:{" "}
+          <code dir="ltr" className="path-value block w-full whitespace-normal">
+            {model.executable}
+          </code>
         </p>
       )}
       <Button
@@ -1168,13 +1245,17 @@ function RuntimeLaunchDetails(
         </Button>
         {model.executable && (
           <p className="[overflow-wrap:anywhere]">
-            Game program: <code>{model.executable}</code>
+            Game program:{" "}
+            <code dir="ltr" className="path-value block w-full whitespace-normal">
+              {model.executable}
+            </code>
           </p>
         )}
         <label className="grid gap-1" htmlFor={model.workingDirectoryId}>
           Start in folder
           <Input
             id={model.workingDirectoryId}
+            dir="ltr"
             aria-label="Start in folder"
             value={model.workingDirectory}
             disabled={model.busy}
@@ -1413,9 +1494,25 @@ function ExistingRuntimeActions({
   return (
     <>
       <p>
-        You or the upstream launcher manage this installation and its updates. Portcove launches{" "}
-        <code>{registered.executable}</code> using <code>{registered.path}</code> as its working
-        directory. It does not manage its files, settings or saves.
+        You or the upstream launcher manage this installation and its updates. Portcove launches
+        using these details:
+      </p>
+      <dl className="grid min-w-0 gap-3">
+        <div className="min-w-0">
+          <dt>Game program</dt>
+          <dd dir="ltr" className="path-value font-mono whitespace-normal">
+            {registered.executable}
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt>Start in folder</dt>
+          <dd dir="ltr" className="path-value font-mono whitespace-normal">
+            {registered.path}
+          </dd>
+        </div>
+      </dl>
+      <p>
+        It does not manage its files, settings or saves.
         {registered.user_selected && " It does not authenticate it as an official package."}
       </p>
       <Button

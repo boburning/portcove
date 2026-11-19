@@ -28,6 +28,7 @@
     },
     "issue_number": 3273,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://ko-fi.com/yapel"],
     "artwork": {
       "game_id": 2480,
       "cover_id": 82643,
@@ -35,6 +36,21 @@
       "image_sha256": "286377ae8e414e6c00fe226220656fbfa77164f7fec91bea5e344386bbc7ac41",
       "game_slug": "torchlight",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "torchlight-xbox-live-arcade",
+      "evidence_urls": ["https://github.com/YaPeL/torchlight-recomp"],
+      "source_editions": [
+        {
+          "id": "torchlight-xbox-live-arcade-xbox-360",
+          "title": "Torchlight (Xbox Live Arcade) (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/YaPeL/torchlight-recomp/blob/b70470135e72c31945b1ecf9c74596e75a785b40/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -32,6 +32,7 @@
     },
     "compare": {
       "files": "Required files",
+      "filesOptional": "Optional files",
       "filesUnlisted": "Requirements are not listed here. Check the project’s setup instructions.",
       "instructions": "Project instructions",
       "noChannel": "No update channel is listed.",
@@ -59,7 +60,7 @@
     "groupLabel_other": "{{title}}. {{count}} separate port projects; {{matching}} matching.",
     "identity": {
       "matching": "{{title}} {{project}}. Matching port: {{port}}. {{state}}. {{action}}",
-      "single": "{{title}} {{project}}. {{state}}. {{action}}"
+      "single": "{{identity}}. {{state}}. {{action}}"
     },
     "label": "Discover games",
     "matchingPort": "Matching port: <port />",
@@ -71,7 +72,8 @@
       "unavailable": "Installation ownership is unavailable. Check the project instructions."
     },
     "separateProjects_one": "{{count}} separate port project",
-    "separateProjects_other": "{{count}} separate port projects"
+    "separateProjects_other": "{{count}} separate port projects",
+    "unavailableFor": "Not available for {{platform}}"
   },
   "hero": {
     "continueLabel": "{{title}} recently played",
@@ -94,6 +96,7 @@
     "chosen": "<name/> · Your choice",
     "chosenOutside": "<name/> · Your choice · Outside current filters",
     "independence": "Choosing a project does not select a release, transfer saves or replace another installation.",
+    "label": "Library entries",
     "outside": "<name/> · Outside current filters",
     "portCount_one": "{{count, number}} port",
     "portCount_other": "{{count, number}} ports",
@@ -151,8 +154,16 @@
   },
   "search": {
     "clear": "Clear search",
+    "cleared": "Search cleared.",
     "discover": "Search Discover",
     "library": "Search your library",
     "placeholder": "Game or port name"
+  },
+  "upstreamActivity": {
+    "archived": "GitHub reported on {{checked}} that the project's authors archived it and no longer accept changes. New versions are unlikely.",
+    "label": "Upstream activity on GitHub",
+    "quiet": "GitHub reported on {{checked}} that the project had not changed since {{date}}. New versions are unlikely unless work resumes.",
+    "recent": "GitHub reported on {{checked}} that the project last changed in {{date}}.",
+    "unknown": "GitHub was checked on {{checked}}. The latest change date is unknown."
   }
 }

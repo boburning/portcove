@@ -8,7 +8,7 @@ import { SettingsView, Sidebar, StatusLayer } from "./Chrome";
 import { DetailPanel } from "./DetailPanel";
 import { PortBrowser } from "./PortBrowser";
 import { UpdateCenter } from "./UpdateCenter";
-import { port, actions, defaultNoticeProps } from "./rendered-test-fixtures";
+import { port, actions, defaultNoticeProps, idleApplicationUpdate } from "./rendered-test-fixtures";
 
 describe("desktop components", () => {
   it("places feature-owned notices alongside failures and current operation progress", () => {
@@ -18,16 +18,12 @@ describe("desktop components", () => {
         clearError={vi.fn()}
         busy="backup"
         featureNotices={
-          <ApplicationUpdateNotices
-            {...defaultNoticeProps}
-            updateChoiceRequired
-            reviewUpdate={vi.fn()}
-          />
+          <ApplicationUpdateNotices {...defaultNoticeProps} version="0.2.0" review={vi.fn()} />
         }
       />,
     );
     expect(html).toContain("Disk unavailable");
-    expect(html).toContain("Portcove updates");
+    expect(html).toContain("Portcove 0.2.0 is available");
     expect(html).toContain("Backup in progress");
   });
 
@@ -118,7 +114,13 @@ describe("desktop components", () => {
   it("groups Settings capabilities with a separate About destination", () => {
     const html = renderToStaticMarkup(
       <SettingsView
-        applicationUpdates={<ApplicationUpdateSettings currentVersion="0.1.0-alpha.2" />}
+        applicationUpdates={
+          <ApplicationUpdateSettings
+            update={idleApplicationUpdate}
+            currentVersion="0.1.0-alpha.2"
+            generation={1}
+          />
+        }
         libraryRoot="C:/Portcove"
         appearance={{
           preference: "system",
@@ -180,7 +182,13 @@ describe("desktop components", () => {
   it("keeps all Settings tasks in ordered full-width rows with their actions and warnings", () => {
     const html = renderToStaticMarkup(
       <SettingsView
-        applicationUpdates={<ApplicationUpdateSettings currentVersion="0.1.0-alpha.2" />}
+        applicationUpdates={
+          <ApplicationUpdateSettings
+            update={idleApplicationUpdate}
+            currentVersion="0.1.0-alpha.2"
+            generation={1}
+          />
+        }
         createSupportBundle={vi.fn()}
         refreshDiagnostics={vi.fn()}
       />,
@@ -192,12 +200,12 @@ describe("desktop components", () => {
     const groups = [
       ["appearance", "library-storage", 2],
       ["library-storage", "game-files", 4],
-      ["game-files", "updates", 3],
+      ["game-files", "updates", 4],
       ["updates", "integrations", 3],
-      ["integrations", "controls", 2],
+      ["integrations", "controls", 3],
       ["controls", "advanced", 2],
-      ["advanced", "about", 4],
-      ["about", null, 2],
+      ["advanced", "about", 3],
+      ["about", null, 3],
     ] as const;
     for (const [id, next, rowCount] of groups) {
       const start = html.indexOf(`data-settings-group="${id}"`);
@@ -218,7 +226,10 @@ describe("desktop components", () => {
       html.indexOf('data-settings-group="game-files"'),
     );
     expect(libraryStorage).toContain("Snapshot saved data before version changes");
-    expect(html.indexOf("Game-file libraries")).toBeLessThan(html.indexOf("Game files and BIOS"));
+    expect(html).toContain("Folders Portcove scans");
+    expect(html.indexOf("Folders Portcove scans")).toBeLessThan(
+      html.indexOf("Game files and BIOS"),
+    );
     expect(html.indexOf("Game files and BIOS")).toBeLessThan(html.indexOf("Disc tools"));
     expect(html.indexOf("Portcove updates")).toBeLessThan(html.indexOf("Official catalog updates"));
     expect(html.indexOf("Official catalog updates")).toBeLessThan(html.indexOf("Game catalog"));
@@ -226,8 +237,9 @@ describe("desktop components", () => {
       advanced.indexOf(">Create a support report</button>"),
     );
     expect(advanced).toContain("Original game files stay local");
-    expect(advanced).toContain("Report a problem or send feedback");
+    expect(advanced).not.toContain("Report a problem or send feedback");
     const about = html.slice(html.indexOf('data-settings-group="about"'));
+    expect(about).toContain("Report a problem or send feedback");
     expect(about).toContain("Open project repository");
     expect(about).toContain("Licensed under MIT or Apache-2.0.");
     expect(about).toContain("Open diagnostics");

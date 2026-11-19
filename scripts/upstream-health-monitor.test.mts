@@ -98,7 +98,83 @@ void test("a completed 404 observation remains visible and repeated incidents re
   assert.match(repeated.summary, /\*\*1 continuing\*\*/u);
   assert.match(repeated.summary, /2 observation\(s\); 1d 0h observed span/u);
   assert.match(repeated.summary, /github:owner\/port-1/u);
+  assert.match(repeated.summary, /observe-availability.*artifact scope unknown/u);
+  assert.equal(repeated.report.known_conditions[0]?.artifact_scope, null);
   assert.match(repeated.summary, /Unaccounted observation; investigate exact scope/u);
+});
+
+void test("a shared location reports only each incident's own declared artifact variants", async () => {
+  const url = "https://downloads.example.com/shared.zip";
+  const windows = { url, version: "win-1", sha256: "1".repeat(64), size: 32 };
+  const linux = { url, version: "linux-2", sha256: "2".repeat(64), size: 64 };
+  const input = {
+    ports: [
+      {
+        id: "windows-port",
+        release: { provider: "direct-manifest", direct: { "windows-x86-64": windows } },
+      },
+      {
+        id: "linux-port",
+        release: { provider: "direct-manifest", direct: { "linux-x86-64": linux } },
+      },
+    ],
+  };
+  const first = await advanceHealthMonitor(input, null, options({ fetch: response(404) }));
+  const conditions = new Map(first.report.known_conditions.map((item) => [item.port_id, item]));
+  assert.deepEqual(
+    [...conditions.values()].map((item) => item.rule),
+    ["identity-mismatch", "identity-mismatch"],
+  );
+  assert.deepEqual(conditions.get("windows-port")?.artifact_scope, {
+    direct: [
+      {
+        port_id: "windows-port",
+        platform: "windows-x86-64",
+        version: windows.version,
+        sha256: windows.sha256,
+        size: windows.size,
+      },
+    ],
+    historical: [],
+  });
+  assert.deepEqual(conditions.get("linux-port")?.artifact_scope, {
+    direct: [
+      {
+        port_id: "linux-port",
+        platform: "linux-x86-64",
+        version: linux.version,
+        sha256: linux.sha256,
+        size: linux.size,
+      },
+    ],
+    historical: [],
+  });
+  assert.match(first.summary, /windows-port.*observe-availability.*windows-x86-64 win-1/u);
+  assert.match(first.summary, /linux-port.*observe-availability.*linux-x86-64 linux-2/u);
+  assert.doesNotMatch(first.summary, /linux-port[^\n]*windows-x86-64/u);
+  assert.doesNotMatch(first.summary, /windows-port[^\n]*linux-x86-64/u);
+  assert.equal(first.report.collection.consumed.requests, 0);
+  assert.ok(first.checkpoint);
+  assert.ok(
+    first.checkpoint.incident_history.every((port) =>
+      port.canonical_incidents.every((item) => !("artifact_scope" in item)),
+    ),
+  );
+
+  const compatible = structuredClone(input);
+  compatible.ports[1]!.release.direct = { "linux-x86-64": windows };
+  const observed = await advanceHealthMonitor(compatible, null, options({ fetch: response(404) }));
+  assert.equal(observed.report.collection.consumed.requests, 1);
+  assert.deepEqual(
+    observed.report.known_conditions.map((item) => [
+      item.rule,
+      item.artifact_scope?.direct.map((identity) => identity.platform),
+    ]),
+    [
+      ["inaccessible-or-missing", ["windows-x86-64"]],
+      ["inaccessible-or-missing", ["linux-x86-64"]],
+    ],
+  );
 });
 
 void test("inconclusive failures retain missing-incident history without reporting it as current", async () => {
@@ -135,6 +211,14 @@ void test("inconclusive failures retain missing-incident history without reporti
     options({ now: () => epoch + 3000 }),
   );
   assert.ok(recovered.report.collection.resolved_incidents.includes(original.key));
+  const receipt = recovered.report.recovery_evidence.find(
+    (entry) => entry.incident.key === original.key,
+  );
+  assert.equal(receipt?.kind, "endpoint");
+  assert.equal(receipt?.incident.first_seen, original.first_seen);
+  assert.equal(receipt?.incident.occurrences, 2);
+  assert.equal(receipt?.recovered_observed_at, new Date(epoch + 3000).toISOString());
+  assert.equal(receipt?.reused_observation, false);
   assert.deepEqual(recovered.checkpoint?.incident_history[0]?.canonical_incidents, []);
 });
 
@@ -215,6 +299,10 @@ void test("changed provider pin identities stay visible and metadata recovery do
   assert.equal(recovered.exitCode, 0);
   assert.deepEqual(recovered.report.collection.resolved_incidents, []);
   assert.equal(recovered.report.collection.assessment_recovered_incidents.length, 1);
+  assert.deepEqual(
+    recovered.report.recovery_evidence.map((entry) => entry.kind),
+    ["provider-metadata"],
+  );
   assert.match(
     recovered.summary,
     /\*\*0 endpoint recoveries\*\*, \*\*1 metadata assessments recovered\*\*/u,
@@ -862,8 +950,18 @@ void test("physical byte envelopes replace catalog and historical cardinality ce
   assert.equal(recollected.report.collection.collection_status, "complete");
   assert.equal(recollected.report.collection.consumed.requests, 1);
   assert.equal(recollected.checkpoint!.observations.length, 1);
+  const enlarged = await advanceHealthMonitor(
+    { ...catalog(), extra: "x".repeat(5 * 1024 * 1024) },
+    initial.checkpoint,
+    options(),
+  );
+  assert.equal(enlarged.report.collection.collection_status, "complete");
   await assert.rejects(
-    advanceHealthMonitor({ ...catalog(), extra: "x".repeat(4 * 1024 * 1024) }, null, options()),
+    advanceHealthMonitor(
+      { ...catalog(), extra: "x".repeat(16 * 1024 * 1024) },
+      initial.checkpoint,
+      options(),
+    ),
     /bounded catalog/,
   );
   await assert.rejects(
@@ -987,10 +1085,19 @@ void test("per-location progress survives interruption, preserves source binding
     /fixture interrupted/,
   );
   assert.equal(calls, 5);
+  const poisoned = structuredClone(saved) as {
+    continuation: { observations: Record<string, unknown>[] };
+  };
+  for (const record of poisoned.continuation.observations) {
+    record.artifact_identities = "unchecked cached field";
+    record.historical_artifact_identities = [
+      { port_id: "port-1", platform: "windows-x86-64", upstream_ref: "unbound-history" },
+    ];
+  }
   let resumedCalls = 0;
   const resumed = await advanceHealthMonitor(
     input,
-    saved,
+    poisoned,
     options({
       now: () => epoch + 1000,
       fetch: async (...args) => {
@@ -1013,6 +1120,15 @@ void test("per-location progress survives interruption, preserves source binding
         condition.occurrences === 1,
     ),
   );
+  for (const condition of retainedConditions) {
+    const historical = input.source_catalog.qualification
+      .map(({ scope }) => scope)
+      .filter((scope) => scope.upstream_ref === condition.release_ref);
+    assert.deepEqual(
+      condition.artifact_scope,
+      historical.length ? { direct: [], historical } : null,
+    );
+  }
   assert.equal(
     resumed.report.known_conditions.filter(
       (condition) => condition.observed_this_run && condition.changed_in_this_run,

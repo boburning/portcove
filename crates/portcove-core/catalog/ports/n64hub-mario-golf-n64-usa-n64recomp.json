@@ -1,0 +1,54 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "n64hub-mario-golf-n64-usa-n64recomp",
+    "name": "Mario Golf (N64) / n64hub",
+    "summary": "Play Mario Golf in a native Windows or Linux build using your own USA Nintendo 64 ROM.",
+    "project_url": "https://github.com/n64hub/mario-golf-recomp",
+    "original_game_title": "Mario Golf",
+    "issue_number": 6275,
+    "listed_at": "2026-11-18",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "download_asset_hints": {
+      "windows-x86-64": ["MarioGolfRecompiled-", "-windows-x64.zip"],
+      "linux-x86-64": ["MarioGolfRecompiled-", "-linux-x64.tar.gz"]
+    },
+    "release_url": "https://github.com/n64hub/mario-golf-recomp/releases/tag/v0.1.28",
+    "setup_url": "https://github.com/n64hub/mario-golf-recomp/blob/v0.1.28/README.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Open the project launcher",
+          "instruction": "Extract the archive for your system and open MarioGolfRecompiled.exe on Windows or MarioGolfRecompiled on Linux from the extracted folder. Keep the assets beside the program. Windows needs the Visual C++ 2015–2022 x64 Redistributable. Linux needs glibc 2.35 or newer, a Vulkan driver, GTK 3 and FreeType."
+        },
+        {
+          "title": "Load your original game",
+          "instruction": "Choose Load ROM and select your own USA Mario Golf cartridge dump in big-endian .z64 format. The launcher accepts the 32 MiB image or the common 24 MiB dump and pads the latter. Choose Start Game."
+        }
+      ],
+      "references": [
+        {
+          "title": "Keep your tournaments and settings",
+          "instruction": "The project uses %LOCALAPPDATA%/MarioGolfRecompiled on Windows and ~/.config/MarioGolfRecompiled on Linux by default. Keep the actual profile if you use the project’s portable.txt marker or a Linux APP_FOLDER_PATH override. The project reports that Save and Quit writes tournament progress. Resuming it after restart remains unverified. You maintain the downloaded program and should back up the profile separately."
+        }
+      ],
+      "warnings": ["The project’s game saves and settings stay outside Portcove’s backups."]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-golf-nintendo-64",
+      "evidence_urls": ["https://github.com/n64hub/mario-golf-recomp/blob/v0.1.28/README.md"],
+      "source_editions": [
+        {
+          "id": "mario-golf-nintendo-64-nintendo-64",
+          "title": "Mario Golf (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/n64hub-mario-golf-n64-usa-n64recomp.json"
+          ]
+        }
+      ]
+    }
+  }
+}

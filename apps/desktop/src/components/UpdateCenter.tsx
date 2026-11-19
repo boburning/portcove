@@ -43,6 +43,7 @@ import type {
   ActivityRecord,
   OperationEvent,
   DoctorReport,
+  GithubAuthStatus,
   PortDefinition,
   PortStatus,
   SourceProfile,
@@ -61,9 +62,8 @@ import {
 
 const initialActivityNowSeconds = Date.now() / 1000;
 const activityTargetButton =
-  "-mx-1 h-auto min-h-6 min-w-0 max-w-full shrink justify-start px-1 py-0 text-start text-sm font-semibold whitespace-normal wrap-anywhere text-pc-foreground no-underline hover:text-pc-interactive-foreground hover:no-underline";
-const activityDetailsClass =
-  "activity-details mt-[calc(var(--space-1)_*_-1)] col-[2/-1] min-w-0 text-xs";
+  "-mx-1 h-auto min-h-6 min-w-0 max-w-full shrink justify-start [scroll-margin-block:var(--space-2)] px-1 py-0 text-start text-sm font-semibold whitespace-normal wrap-anywhere text-pc-foreground no-underline hover:text-pc-interactive-foreground hover:no-underline";
+const activityDetailsClass = "activity-details min-w-0 text-xs wrap-anywhere";
 const activityTones: Record<string, { indicator: string; status: string }> = {
   succeeded: {
     indicator: "bg-pc-success-subtle text-pc-success-foreground",
@@ -121,8 +121,10 @@ function useUpdateCenter({
   busy,
   checkAll,
   signInOffer,
+  githubStatus,
   onCheckAnyway,
   onDismissSignInOffer,
+  onReviewGithub,
   onSelect,
   onOpenSettings,
   generation,
@@ -168,8 +170,10 @@ function useUpdateCenter({
   busy?: string | undefined;
   checkAll: () => void | Promise<void>;
   signInOffer?: SignInOffer | undefined;
+  githubStatus?: GithubAuthStatus | undefined;
   onCheckAnyway?: (() => void | Promise<void>) | undefined;
   onDismissSignInOffer?: (() => void) | undefined;
+  onReviewGithub?: (() => void) | undefined;
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onOpenSettings: (target: ActivitySettingsTarget, sourceProfileId?: string) => void;
 }) {
@@ -249,7 +253,7 @@ function useUpdateCenter({
   const failedInstalled = installed.filter((port) => byPort.get(port.id)?.ok === false).length;
   const staged = installed.filter((port) => statuses.get(port.id)?.staged).length;
   const renderStatistics = () => (
-    <div className="update-stats grid grid-cols-[repeat(4,minmax(78px,1fr))] gap-2">
+    <div className="update-stats grid grid-cols-4">
       <UpdateStat label="Installed" value={installed.length} icon={PackageCheck} />
       <UpdateStat
         label={earlierBatch ? "Updates at last check" : "Updates available"}
@@ -285,8 +289,10 @@ function useUpdateCenter({
     busy,
     checkAll,
     signInOffer,
+    githubStatus,
     onCheckAnyway,
     onDismissSignInOffer,
+    onReviewGithub,
     onSelect,
     onOpenSettings,
     generation,
@@ -346,10 +352,7 @@ type InstalledUpdateRowContext = {
 
 function renderUpdateCheckToolbar(model: ReturnType<typeof useUpdateCenter>) {
   return (
-    <div
-      className="update-toolbar mb-3.5 flex flex-wrap items-stretch justify-between gap-5 max-[75rem]:flex-col max-[75rem]:items-start"
-      data-focus-group
-    >
+    <div className="update-toolbar" data-focus-group>
       <div className="update-check-summary">
         <h2>
           {model.installed.length === 0
@@ -360,11 +363,24 @@ function renderUpdateCheckToolbar(model: ReturnType<typeof useUpdateCenter>) {
                 ? "Updates not checked"
                 : `${model.available}${model.complete ? "" : "+"} ${model.available === 1 && model.complete ? "update" : "updates"} available${model.earlierBatch ? " at last check" : ""}`}
         </h2>
-        <p className="text-sm text-pc-muted-foreground">
-          {model.checked.length} of {model.installed.length} installed{" "}
-          {model.installed.length === 1 ? "port has" : "ports have"} a check result. Unchecked or
-          failed ports may still have updates.
-        </p>
+        {model.installed.length > 0 ? (
+          <p className="text-pc-muted-foreground">
+            {model.earlierBatch ? "Earlier update results cover " : "Update results cover "}
+            {model.checked.length} of {model.installed.length} installed{" "}
+            {model.installed.length === 1 ? "port" : "ports"}.
+            {!model.complete && " Unchecked or failed ports may still have updates."}
+            {model.latestSavedCheck > 0 &&
+              ` Latest saved check: ${formatActivityTime(model.latestSavedCheck)}.`}
+          </p>
+        ) : (
+          <p className="text-pc-muted-foreground">
+            {model.retainedArchives.length > 0
+              ? "Retained archives can still be reviewed and discarded below."
+              : model.external.length > 0
+                ? "Registered runtimes are updated externally. Install a managed port or copy in an existing installation to check it for updates here."
+                : "Install a port or copy in an existing installation first. Portcove will then show its update channel, update setting, latest available release, and previous installed version here."}
+          </p>
+        )}
       </div>
       <UpdateCheckControl
         busy={model.busy}
@@ -372,8 +388,10 @@ function renderUpdateCheckToolbar(model: ReturnType<typeof useUpdateCenter>) {
         hasInstalled={model.installed.length > 0}
         checkAll={model.checkAll}
         signInOffer={model.signInOffer}
+        githubStatus={model.githubStatus}
         onCheckAnyway={model.onCheckAnyway}
         onDismissSignInOffer={model.onDismissSignInOffer}
+        onReviewGithub={model.onReviewGithub}
       />
     </div>
   );
@@ -399,13 +417,12 @@ function renderInstalledUpdateRow(model: ReturnType<typeof useUpdateCenter>, por
   );
   const row = { model, port, status, action, outcome, state, failure, canReviewUpdate, canLaunch };
   return (
-    <div
-      key={port.id}
-      className="update-entry @container/update-entry grid min-w-0 gap-3 rounded-pc-lg border border-pc-border bg-pc-surface p-3"
-    >
+    <div key={port.id} className="update-entry grid min-w-0">
       {renderInstalledUpdateHeader(row)}
-      {renderInstalledUpdateActions(row)}
-      {renderInstalledUpdateDetails(row)}
+      <div className="update-entry-tools">
+        {renderInstalledUpdateActions(row)}
+        {renderInstalledUpdateDetails(row)}
+      </div>
       {renderInstalledUpdateFailure(row)}
     </div>
   );
@@ -416,7 +433,7 @@ function renderInstalledUpdateHeader({ model, port, status, state }: InstalledUp
     <button
       data-focusable
       data-detail-origin={`updates:installed:${port.id}`}
-      className={cn(updateRowClass, "border-0 bg-transparent p-0 shadow-none")}
+      className={cn(updateRowClass, controlFocus, "border-0 bg-transparent")}
       onClick={() => model.onSelect(port.id, `updates:installed:${port.id}`)}
     >
       <ArtworkImage port={port} quietFallback className="update-artwork" />
@@ -456,7 +473,7 @@ function renderInstalledUpdateActions({
   return (
     (canReviewUpdate || canLaunch) && (
       <div
-        className="flex flex-wrap items-center gap-2"
+        className="flex min-w-0 flex-wrap items-start gap-2"
         role="group"
         aria-label={`Actions for ${gameIdentityLabel(port)}`}
       >
@@ -511,8 +528,8 @@ function renderInstalledUpdateActions({
 
 function renderInstalledUpdateDetails({ model, port, status, outcome }: InstalledUpdateRowContext) {
   return (
-    <details className="col-span-full text-xs text-pc-muted-foreground">
-      <summary className="cursor-pointer py-1">Update details</summary>
+    <details className="update-entry-details text-xs text-pc-muted-foreground">
+      <summary data-focusable>Update details</summary>
       <p>
         Latest eligible{model.earlierBatch ? " at last check" : ""}:{" "}
         {releaseLabel(model.effectiveCheck(port.id), outcome)}
@@ -609,53 +626,25 @@ function GameUpdatesContent({ model }: { model: UpdateCenterModel }) {
   return (
     <>
       {renderUpdateCheckToolbar(model)}
+      <Button
+        data-focusable
+        variant="link"
+        size="sm"
+        onClick={() => model.onOpenSettings("application-updates")}
+      >
+        Open Portcove update settings
+      </Button>
       <UpdateBatchNotice read={model.batchRead} />
       <details className="update-check-details">
-        <summary>About update checks</summary>
+        <summary data-focusable>About update checks</summary>
         <p>
           Checking does not install. Review an update before downloading or installing; Play uses
           your current version.
         </p>
         <h3>Update statistics</h3>
         {model.renderStatistics()}
-        <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-          Looking for Portcove or catalog updates?{" "}
-          <Button
-            data-focusable
-            variant="link"
-            size="xs"
-            onClick={() => model.onOpenSettings("application-updates")}
-          >
-            Open Portcove update settings
-          </Button>
-        </p>
       </details>
       {model.installed.length > 0 && (
-        <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-          {model.earlierBatch ? "Earlier update results cover " : "Update results cover "}
-          {model.checked.length} of {model.installed.length} installed{" "}
-          {model.installed.length === 1 ? "port" : "ports"}.
-          {model.latestSavedCheck > 0 &&
-            ` Latest saved check: ${formatActivityTime(model.latestSavedCheck)}.`}
-        </p>
-      )}
-      {model.installed.length === 0 && model.retainedArchives.length > 0 ? (
-        <p className="mb-5 text-sm text-pc-muted-foreground">
-          No managed installations can be updated here. Retained archives can still be reviewed and
-          discarded below.
-        </p>
-      ) : model.installed.length === 0 ? (
-        <EmptyState
-          icon={RefreshCw}
-          eyebrow="UPDATE CENTER"
-          title="No managed installations to check"
-          description={
-            model.external.length > 0
-              ? "Registered runtimes are updated externally. Install a managed port or copy in an existing installation to check it for updates here."
-              : "Install a port or copy in an existing installation first. Portcove will then show its update channel, update setting, latest available release, and previous installed version here."
-          }
-        />
-      ) : (
         <div className="update-list grid max-w-5xl gap-3" data-focus-group>
           {model.installed.map((port) => renderInstalledUpdateRow(model, port))}
         </div>
@@ -715,7 +704,7 @@ function GameUpdatesContent({ model }: { model: UpdateCenterModel }) {
                 <button
                   data-focusable
                   data-detail-origin={`updates:external:${port.id}`}
-                  className={updateRowClass}
+                  className={cn(updateRowClass, controlFocus)}
                   key={port.id}
                   onClick={() => model.onSelect(port.id, `updates:external:${port.id}`)}
                 >
@@ -852,22 +841,30 @@ function UpdateCheckControl({
   hasInstalled,
   checkAll,
   signInOffer,
+  githubStatus,
   onCheckAnyway,
   onDismissSignInOffer,
+  onReviewGithub,
 }: {
   busy?: string | undefined;
   status?: UpdateBatchRead["status"] | undefined;
   hasInstalled: boolean;
   checkAll: () => void | Promise<void>;
   signInOffer?: SignInOffer | undefined;
+  githubStatus?: GithubAuthStatus | undefined;
   onCheckAnyway?: (() => void | Promise<void>) | undefined;
   onDismissSignInOffer?: (() => void) | undefined;
+  onReviewGithub?: (() => void) | undefined;
 }) {
   const pendingCheck = useRef<typeof checkAll | undefined>(undefined);
+  const checkButton = useRef<HTMLButtonElement>(null);
   const labelId = useId();
+  const signedIn = githubStatus?.authenticated ? githubStatus : undefined;
+  const allowance = signedIn?.rate_limit;
   return (
     <div className="update-buttons flex min-w-0 flex-wrap items-center gap-2">
       <Button
+        ref={checkButton}
         data-focusable
         variant="outline"
         className="max-w-full min-w-0 text-start whitespace-normal [&_span]:min-w-0 [&_span]:wrap-anywhere"
@@ -897,16 +894,45 @@ function UpdateCheckControl({
           role="status"
           className="basis-full text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground"
         >
-          <p>
-            Checking every installed port may use about {signInOffer.countedRequests} GitHub
-            requests, and about {signInOffer.remainingRequests} are left without signing in. Signing
-            in under Settings raises that allowance. Nothing is checked until you choose.
-          </p>
+          {signedIn ? (
+            <p>
+              {signedIn.login?.trim()
+                ? `Signed in to GitHub as ${signedIn.login}.`
+                : "Signed in to GitHub."}{" "}
+              {allowance
+                ? `${allowance.remaining.toLocaleString()} of ${allowance.limit.toLocaleString()} GitHub requests remaining.`
+                : "GitHub request limit unavailable."}{" "}
+              Nothing is checked until you choose.
+            </p>
+          ) : (
+            <p>
+              Checking every installed port may use about {signInOffer.countedRequests} GitHub
+              requests, and about {signInOffer.remainingRequests} are left without signing in.
+              Signing in under Settings raises that allowance. Nothing is checked until you choose.
+            </p>
+          )}
           <div className="mt-2 flex flex-wrap gap-2">
-            <Button data-focusable variant="outline" onClick={() => void onCheckAnyway?.()}>
-              Check anyway
+            {onReviewGithub && !signedIn && (
+              <Button data-focusable variant="link" onClick={onReviewGithub}>
+                Open GitHub connection
+              </Button>
+            )}
+            <Button
+              data-focusable
+              variant="outline"
+              data-github-check-decision
+              onClick={() => void onCheckAnyway?.()}
+            >
+              {signedIn ? "Check for updates" : "Check anyway"}
             </Button>
-            <Button data-focusable variant="ghost" onClick={() => onDismissSignInOffer?.()}>
+            <Button
+              data-focusable
+              variant="ghost"
+              onClick={() => {
+                checkButton.current?.focus();
+                onDismissSignInOffer?.();
+              }}
+            >
               Not now
             </Button>
           </div>
@@ -1041,25 +1067,25 @@ function ActivityHistory({
   ).length;
   return (
     <section className="activity-history" data-record-view={mode}>
-      <div className="activity-heading mb-3 flex items-end justify-between gap-4">
+      <div className="activity-heading">
         <div>
           <h2>{mode === "history" ? "Task history" : "Current tasks"}</h2>
+          <p className="text-pc-muted-foreground">
+            {activityFeed ? (
+              <>
+                {mode === "history"
+                  ? `Showing ${visibleFinishedCount} recent finished tasks, plus retained review records.`
+                  : "Showing current tasks and records needing attention."}
+                {!activityFeed.active_and_actionable_complete &&
+                  " Current work and attention coverage is incomplete."}
+                {!activityFeed.terminal_history_complete &&
+                  " Earlier finished tasks exist beyond the records loaded here."}
+              </>
+            ) : (
+              "Activity from the CLI and desktop appears here."
+            )}
+          </p>
         </div>
-        <small className="text-xs text-pc-muted-foreground">
-          {activityFeed ? (
-            <>
-              {mode === "history"
-                ? `Showing ${visibleFinishedCount} recent finished tasks, plus retained review records.`
-                : "Showing current tasks and records needing attention."}
-              {!activityFeed.active_and_actionable_complete &&
-                " Current work and attention coverage is incomplete."}
-              {!activityFeed.terminal_history_complete &&
-                " Earlier finished tasks exist beyond the records loaded here."}
-            </>
-          ) : (
-            "Activity from the CLI and desktop appears here."
-          )}
-        </small>
         {mode === "history" && (
           <Button variant="outline" size="sm" onClick={() => onOpenSettings("diagnostics")}>
             Diagnostics
@@ -1081,7 +1107,7 @@ function ActivityHistory({
           }
         />
       )}
-      <div className="activity-list grid gap-1.5">
+      <div className="activity-list grid">
         {groups
           .filter((group) => group.records.length > 0)
           // Keep rows under one parent: settlement changes their group, not
@@ -1089,7 +1115,7 @@ function ActivityHistory({
           .flatMap((group) => [
             <h3
               key={`group:${group.label}`}
-              className="mt-3 mb-1 text-sm text-pc-muted-foreground"
+              className="activity-group-heading"
               hidden={!group.records.some(visibleInMode)}
             >
               {mode === "history" && group.label === "Recent" ? "Finished tasks" : group.label}
@@ -1189,42 +1215,25 @@ function ActivityRow({
           {operationLabel(activity.operation)}
         </span>
       </div>
-      <span
-        className="activity-time text-end text-xs text-pc-muted-foreground max-[65rem]:col-start-2 max-[65rem]:row-start-2 max-[65rem]:text-start"
-        title={
-          activity.finished_at ? `Finished ${formatActivityTime(activity.finished_at)}` : undefined
-        }
-      >
-        {presentation.time}
-      </span>
-      <span
-        className={`activity-status justify-self-end text-xs font-medium whitespace-nowrap max-[65rem]:col-start-3 max-[65rem]:row-start-1 max-[65rem]:whitespace-normal ${tone?.status ?? "text-pc-muted-foreground"}`}
-      >
-        {presentation.label}
-      </span>
+      <div className="activity-meta">
+        <span
+          className={`activity-status font-semibold ${tone?.status ?? "text-pc-muted-foreground"}`}
+        >
+          {presentation.label}
+        </span>
+        <span
+          className="activity-time text-pc-muted-foreground"
+          title={
+            activity.finished_at
+              ? `Finished ${formatActivityTime(activity.finished_at)}`
+              : undefined
+          }
+        >
+          {presentation.time}
+        </span>
+      </div>
       {presentation.state === "unfinished" && (
-        <div className={activityDetailsClass}>
-          <p>
-            This task didn’t report whether it finished.{" "}
-            {activity.liveness !== "interrupted" && "It may still be running in another window. "}
-            {target.portId
-              ? "Check the game’s current state before trying again."
-              : "Review its details before trying again."}
-          </p>
-          {/* A read-only look at current state; it never repeats the task. */}
-          {target.portId && !activity.failure && (
-            <Button
-              data-focusable
-              variant="link"
-              size="sm"
-              aria-label={`Check game: ${target.label}`}
-              data-detail-origin={`updates:activity:${activity.id}:check`}
-              onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:check`)}
-            >
-              Check game
-            </Button>
-          )}
-        </div>
+        <UnfinishedActivity activity={activity} target={target} onSelect={onSelect} />
       )}
       {activity.status === "running" && operation && operation.type !== "finished" && (
         <div className={activityDetailsClass}>
@@ -1242,24 +1251,55 @@ function ActivityRow({
         </div>
       )}
       <ActivityFailure activity={activity} target={target} onSelect={onSelect} />
+      {activity.operation === "prepare" && (
+        <div className={`${activityDetailsClass} pt-2`}>
+          <ActivityDiagnostic activityId={activity.id} generation={generation} />
+        </div>
+      )}
       <details className={activityDetailsClass}>
-        <summary data-focusable className="cursor-pointer py-1">
-          Task details
-        </summary>
+        <summary data-focusable>Task details</summary>
         <dl className="mt-2 grid gap-1">
           <dt className="text-pc-muted-foreground">Operation ID</dt>
           <dd className="m-0 [overflow-wrap:anywhere] select-text">
             <code>{activity.id}</code>
           </dd>
         </dl>
-        {activity.operation === "prepare" && (
-          <ActivityDiagnostic
-            key={`${generation}:${activity.id}`}
-            activityId={activity.id}
-            generation={generation}
-          />
-        )}
       </details>
+    </div>
+  );
+}
+
+function UnfinishedActivity({
+  activity,
+  target,
+  onSelect,
+}: {
+  activity: ActivityRecord;
+  target: ReturnType<typeof activityTarget>;
+  onSelect: (portId: string, originKey?: string) => void;
+}) {
+  return (
+    <div className={activityDetailsClass}>
+      <p>
+        This task didn’t report whether it finished.{" "}
+        {activity.liveness !== "interrupted" && "It may still be running in another window. "}
+        {target.portId
+          ? "Check the game’s current state before trying again."
+          : "Review its details before trying again."}
+      </p>
+      {/* A read-only look at current state; it never repeats the task. */}
+      {target.portId && !activity.failure && (
+        <Button
+          data-focusable
+          variant="link"
+          size="sm"
+          aria-label={`Check game: ${target.label}`}
+          data-detail-origin={`updates:activity:${activity.id}:check`}
+          onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:check`)}
+        >
+          Check game
+        </Button>
+      )}
     </div>
   );
 }
@@ -1468,7 +1508,7 @@ function activityPresentation(activity: ActivityRecord, nowSeconds: number) {
   return {
     state: "running",
     label: "In progress",
-    time: "In progress",
+    time: `Started ${formatActivityTime(activity.started_at)}`,
     icon: LoaderCircle,
   };
 }
@@ -1487,18 +1527,18 @@ function UpdateStat({
   warning?: boolean;
 }) {
   return (
-    <div className="update-stat grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 rounded-pc-lg border border-pc-border bg-pc-surface px-3.5 py-3 wrap-anywhere">
+    <div className="update-stat grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-x-2 gap-y-1 wrap-anywhere">
       <div
         className={`row-span-2 ${warning ? "text-pc-danger-foreground" : accent ? "text-pc-interactive-foreground" : "text-pc-muted-foreground"}`}
       >
         <Icon glyph={icon} />
       </div>
       <strong
-        className={`block text-xl leading-none ${warning ? "text-pc-danger-foreground" : accent ? "text-pc-interactive-foreground" : ""}`}
+        className={`text-sm leading-none font-semibold tabular-nums ${warning ? "text-pc-danger-foreground" : accent ? "text-pc-interactive-foreground" : ""}`}
       >
         {value}
       </strong>
-      <span className="text-xs tracking-[0.08em] text-pc-muted-foreground uppercase">{label}</span>
+      <span className="text-xs text-pc-muted-foreground">{label}</span>
     </div>
   );
 }

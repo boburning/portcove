@@ -6,7 +6,7 @@
     "original_game_title": "50 Cent: Blood on the Sand",
     "summary": "The project claims all nine story missions are playable on all four platforms and reports a limited 36-minute run. Portcove has not confirmed these results. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/nlwstein/skullburglar",
-    "platforms": [],
+    "platforms": ["macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/nlwstein/skullburglar",
     "manual_setup": {
@@ -28,6 +28,7 @@
     },
     "issue_number": 3136,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://github.com/sponsors/nlwstein"],
     "artwork": {
       "game_id": 5472,
       "cover_id": 100400,
@@ -35,6 +36,24 @@
       "image_sha256": "eceead5ed2003999afafd86eb4aee5481caa3ba86536fa1201cee16eeb536755",
       "game_slug": "50-cent-blood-on-the-sand",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "50-cent-blood-on-the-sand",
+      "evidence_urls": [
+        "https://github.com/nlwstein/skullburglar",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/skullburglar-nlwstein-50-cent-blood-on-the-sand.json"
+      ],
+      "source_editions": [
+        {
+          "id": "50-cent-blood-on-the-sand-xbox-360",
+          "title": "50 Cent: Blood on the Sand (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/skullburglar-nlwstein-50-cent-blood-on-the-sand.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

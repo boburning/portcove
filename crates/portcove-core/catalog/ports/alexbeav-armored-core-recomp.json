@@ -4,7 +4,7 @@
   "listing": {
     "id": "alexbeav-armored-core-recomp",
     "name": "Armored Core / Alexbeav PSXRecomp",
-    "summary": "Build and play Armored Core on Windows or Linux with your own matching single-track Europe PlayStation disc and bundled OpenBIOS. The Mac setup kit uses upstream preparation.",
+    "summary": "Build and play Armored Core on Windows or Linux with your own matching single-track Europe PlayStation disc and retail SCPH-5552 BIOS. The Mac setup kit uses upstream preparation.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp",
     "original_game_title": "Armored Core",
     "artwork": {
@@ -19,8 +19,6 @@
     "listed_at": "2026-10-23",
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "download_asset_hints": {
-      "windows-x86-64": ["Armored-Core-Recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["Armored-Core-Recomp-", "-linux-x64.zip"],
       "macos-x86-64": ["Armored-Core-Recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["Armored-Core-Recomp-", "-macos-arm64.zip"]
     },
@@ -36,7 +34,7 @@
         },
         {
           "title": "Supply your original files",
-          "instruction": "Use your original single-track Europe disc (SCES-00842). Use the kit’s included OpenBIOS or follow its guide for a supported retail BIOS. Follow the kit’s README-SETUP.txt for the image format and BIOS options."
+          "instruction": "Use your original single-track Europe disc (SCES-00842). Follow the kit’s README-SETUP.txt for the image format and the BIOS it needs."
         },
         {
           "title": "Build and add the prepared player",
@@ -53,8 +51,27 @@
           "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "armored-core",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/armored-core-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/armored-core-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "armored-core-playstation",
+          "title": "Armored Core (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/blob/80060c45a009ed8963e83fbb742eb3ef956cc9fc/game.toml"
+          ]
+        }
+      ]
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -83,7 +100,12 @@
       "config.ini",
       "disc.cfg",
       "bios.cfg",
-      "mods",
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "mods/texture-packs",
       "overlay-captures"
     ],
     "runtime_mutable_paths": [
@@ -104,7 +126,7 @@
     "launch_environment": {
       "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
     },
-    "launch_arguments": ["--no-launcher", "--bios", "bios/openbios.bin"],
+    "launch_arguments": ["--no-launcher"],
     "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
@@ -114,10 +136,27 @@
           "profile_id": "armored-core-psx",
           "label": "Armored Core (Europe PAL) disc",
           "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-5552-bios",
+          "label": "PlayStation SCPH-5552 BIOS (Europe)",
+          "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching single-track CHD for SCES-00842. The Windows and Linux v0.3.6 routes use bundled OpenBIOS and skip the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
-    }
+      "manual_preparation": "Provide your own matching single-track CHD for SCES-00842 and retail SCPH-5552 BIOS. The managed Windows and Linux routes build with that BIOS and skip the setup launcher when playing. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-5552 BIOS. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": ["Generation, runtime, lifecycle and gameplay are untested."],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp#readme"
+      }
+    },
+    "bios_source_profile": "psx-scph-5552-bios"
   }
 }

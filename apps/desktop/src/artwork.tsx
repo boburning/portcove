@@ -18,10 +18,15 @@ import type {
   CatalogDocument,
   CatalogListingDocument,
   CatalogMediaAsset,
+  IgdbArtwork,
 } from "./types";
 
 const ArtworkContext = createContext<ArtworkCache | undefined>(undefined);
 const unavailable: ArtworkDisplay = { loading: false };
+const noCollection: readonly ArtworkDisplay[] = [];
+const CollectionCoversContext = createContext<ReadonlyMap<string, readonly IgdbArtwork[]>>(
+  new Map(),
+);
 
 export function ArtworkProvider({
   generation,
@@ -41,9 +46,16 @@ export function ArtworkProvider({
         catalog?.ports.map(({ id, presentation }) => [
           id,
           presentation?.artwork,
+          presentation?.companion_cover,
+          presentation?.collection_covers,
           presentation?.media,
         ]) ?? [],
-        listings?.listings.map(({ id, artwork, media }) => [id, artwork, media]) ?? [],
+        listings?.listings.map(({ id, artwork, media, collection_covers }) => [
+          id,
+          artwork,
+          media,
+          collection_covers,
+        ]) ?? [],
       ]),
     [catalog, listings],
   );
@@ -51,7 +63,80 @@ export function ArtworkProvider({
     () => new ArtworkCache(generation, catalogArtworkKey),
     [generation, catalogArtworkKey],
   );
-  return <ArtworkContext.Provider value={cache}>{children}</ArtworkContext.Provider>;
+  const collections = useMemo(() => {
+    const result = new Map<string, readonly IgdbArtwork[]>();
+    for (const listing of listings?.listings ?? [])
+      if (listing.collection_covers) result.set(listing.id, listing.collection_covers);
+    for (const port of catalog?.ports ?? [])
+      if (port.presentation?.collection_covers)
+        result.set(port.id, port.presentation.collection_covers);
+    return result;
+  }, [catalog, listings]);
+  return (
+    <ArtworkContext.Provider value={cache}>
+      <CollectionCoversContext.Provider value={collections}>
+        {children}
+      </CollectionCoversContext.Provider>
+    </ArtworkContext.Provider>
+  );
+}
+
+/** Collection defaults remain subordinate to every explicit local choice, even an unavailable one. */
+export function useCollectionCovers(
+  portId: string | undefined,
+  primary: ArtworkDisplay,
+  visible: boolean,
+) {
+  const cache = useContext(ArtworkContext);
+  const collections = useContext(CollectionCoversContext);
+  const covers = portId ? collections.get(portId) : undefined;
+  const revision = primary.state?.choice.revision;
+  const enabled =
+    primary.state !== undefined && !primary.state.choice.asset_sha256 && !primary.stale;
+  const keys = useMemo(
+    () =>
+      cache && portId && enabled && revision !== undefined
+        ? (covers ?? []).slice(0, 4).map((cover) => ({
+            sha256: cover.image_sha256,
+            key: cache.collectionKey(portId, cover.image_sha256, revision),
+          }))
+        : [],
+    [cache, portId, enabled, revision, covers],
+  );
+  const read = useCallback(() => (keys.length ? (cache?.displayVersion ?? 0) : 0), [cache, keys]);
+  const subscribe = useCallback(
+    (listener: () => void) => {
+      const stop =
+        cache && visible ? keys.map(({ key }) => cache.subscribeCollection(key, listener)) : [];
+      return () => {
+        for (const unsubscribe of stop) unsubscribe();
+      };
+    },
+    [cache, keys, visible],
+  );
+  useSyncExternalStore(subscribe, read, () => 0);
+  const displays = keys.length
+    ? keys.map(({ key }) => cache?.readCollection(key) ?? unavailable)
+    : noCollection;
+  useEffect(() => {
+    let current = true;
+    if (visible && !primary.loading && cache && portId && revision !== undefined)
+      for (const { key, sha256 } of keys)
+        cache.loadCollectionCover(key, portId, sha256, revision, () => current);
+    return () => {
+      current = false;
+    };
+  }, [visible, primary.loading, cache, portId, revision, keys]);
+  return displays;
+}
+
+/** The current library's artwork cache, when one is provided. */
+export function useArtworkCache() {
+  return useContext(ArtworkContext);
+}
+
+export function useCoverCollection(portId: string) {
+  return useContext(CollectionCoversContext).get(portId);
 }
 
 export function useArtwork(portId: string, slot: ArtworkSlot, visible = true) {
@@ -64,18 +149,59 @@ export function useArtwork(portId: string, slot: ArtworkSlot, visible = true) {
     [cache, portId, slot, visible],
   );
   const read = useCallback(
-    () => (visible ? (cache?.read(portId, slot) ?? unavailable) : unavailable),
-    [cache, portId, slot, visible],
+    // A retained image stays mounted after its card scrolls away, so scrolling back
+    // does not re-decode it. Only loading and live updates need visibility.
+    () => cache?.read(portId, slot) ?? unavailable,
+    [cache, portId, slot],
   );
   const display = useSyncExternalStore(subscribe, read, () => unavailable);
   useEffect(() => {
     let current = true;
-    if (visible) void cache?.load(portId, slot, true, () => current);
+    if (visible) {
+      // A loaded, current image is kept; a missing or stale one is read again.
+      const shown = cache?.read(portId, slot);
+      void cache?.load(portId, slot, !shown?.image || Boolean(shown.stale), () => current);
+    }
     return () => {
       current = false;
     };
   }, [cache, portId, slot, visible]);
   return { cache, display };
+}
+
+export function useCompanionCover(
+  portId: string,
+  sha256: string | undefined,
+  primary: ArtworkDisplay,
+  visible: boolean,
+) {
+  const cache = useContext(ArtworkContext);
+  const source = primary.state?.resolved_source;
+  const primaryCacheId = source?.kind === "igdb_cover" ? source.cache_id : undefined;
+  const revision = primary.state?.choice.revision;
+  const key =
+    primaryCacheId && sha256 && revision !== undefined
+      ? cache?.companionKey(portId, primaryCacheId, sha256, revision)
+      : undefined;
+  const subscribe = useCallback(
+    (listener: () => void) =>
+      cache && key && visible ? cache.subscribeCompanion(key, listener) : () => {},
+    [cache, key, visible],
+  );
+  const read = useCallback(
+    () => (key ? cache?.readCompanion(key) : undefined) ?? unavailable,
+    [cache, key],
+  );
+  const display = useSyncExternalStore(subscribe, read, () => unavailable);
+  useEffect(() => {
+    let current = true;
+    if (visible && key && sha256 && primaryCacheId && revision !== undefined)
+      cache?.loadCompanion(key, portId, primaryCacheId, sha256, revision, () => current);
+    return () => {
+      current = false;
+    };
+  }, [cache, key, portId, primaryCacheId, revision, sha256, visible]);
+  return display;
 }
 
 export function useArtworkVisibility() {
@@ -86,7 +212,7 @@ export function useArtworkVisibility() {
     if (typeof IntersectionObserver === "undefined") return;
     const observer = new IntersectionObserver(
       (entries) => setVisible(entries.some((entry) => entry.isIntersecting)),
-      { rootMargin: "200px" },
+      { rootMargin: "800px 200px" },
     );
     observer.observe(element.current);
     return () => observer.disconnect();

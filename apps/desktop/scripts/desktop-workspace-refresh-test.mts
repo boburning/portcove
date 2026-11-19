@@ -20,6 +20,8 @@ interface RefreshWindow extends Window {
     original: typeof fetch;
     calls: string[];
     remaining: number;
+    /** Keeps failing every workspace read while the scenario captures the failure. */
+    holding: boolean;
     injected: number;
   };
   __portcoveExternalReconciliationProbe?: {
@@ -38,6 +40,7 @@ interface RefreshObservations {
   failure_text?: string;
   after_cards?: number;
   commands?: string[];
+  retry_commands?: string[];
   failure?: string;
   probe?: { installed: false } | { injected: number; commands: string[]; restored: boolean };
 }
@@ -89,8 +92,11 @@ import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { copyFile, mkdir, writeFile } from "node:fs/promises";
-import { By, until } from "selenium-webdriver";
+import { By, until, type WebElement } from "selenium-webdriver";
 import { revealDetailSection, captureAccessibilityReport } from "./desktop-review-controls.mts";
+import { observeVisibleTarget } from "./browser-readiness.mts";
+import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../test/capture-target.ts";
+import { captureSettledVisual } from "../../../scripts/native-readiness.mts";
 
 export const installWorkspaceRefreshProbe = (done: (value: unknown) => void) => {
   const runtime = window as RefreshWindow;
@@ -102,6 +108,7 @@ export const installWorkspaceRefreshProbe = (done: (value: unknown) => void) => 
     original,
     calls: [],
     remaining: 1,
+    holding: false,
     injected: 0,
   };
   window.fetch = function (input, ...args) {
@@ -119,7 +126,7 @@ export const installWorkspaceRefreshProbe = (done: (value: unknown) => void) => 
     const parsed = new URL(url, location.href);
     if (parsed.hostname === "ipc.localhost")
       probe.calls.push(decodeURIComponent(parsed.pathname.slice(1)));
-    if (url === target && probe.remaining-- > 0) {
+    if (url === target && (probe.holding || probe.remaining-- > 0)) {
       probe.injected++;
       return Promise.resolve(
         new Response(
@@ -173,6 +180,15 @@ export const restoreWorkspaceRefreshProbe = (): NonNullable<RefreshObservations[
   delete runtime.__portcoveRefreshProbe;
   return result;
 };
+
+/** Retry must read current state without repeating any operation. */
+export function assertReadOnlyWorkspaceRetry(commands: readonly string[]) {
+  assert.ok(commands.includes("get_workspace_snapshot"), JSON.stringify(commands));
+  assert.ok(
+    commands.every((command) => command.startsWith("get_") || command.startsWith("plugin:")),
+    JSON.stringify(commands),
+  );
+}
 
 export const installExternalReconciliationProbe = () => {
   const runtime = window as RefreshWindow;
@@ -263,6 +279,13 @@ export const releaseReconciliationSupportGate = () => {
   probe.releaseSupport?.();
 };
 
+// The passive probe applies only on a full snapshot read. A visible, unchanged
+// workspace polls every 10 s but reads the full snapshot only once the previous
+// full read is 60 s old (use-workspace-data.ts canRefreshActivities). One full-read
+// cadence plus one poll and rendering margin; was 10 s, then 25 s, both of which
+// expired on hosted Windows before that read.
+const sourceFormatRefreshBudgetMs = 90_000;
+
 export const installSourceFormatProbe = (portId: string) => {
   const previous = window.fetch;
   const runtime = window as RefreshWindow;
@@ -316,6 +339,9 @@ export const installSourceFormatProbe = (portId: string) => {
               source: "current",
               blockers: ["incompatible_source"],
               required_source_extension: "z64",
+              // A coherent injected state: setup is complete, only the file format
+              // blocks launch. Pending setup would correctly take precedence.
+              pending_setup: false,
             },
             port_actions: assessments.map((assessment) =>
               assessment.action === "launch"
@@ -372,7 +398,7 @@ export async function workspaceRefreshScenario({
     const before = await browser.findElements(By.css(".discover-game"));
     const observations: RefreshObservations = {
       injection:
-        "one synthetic get_workspace_snapshot rejection; subsequent requests use actual native IPC",
+        "synthetic get_workspace_snapshot rejections until Retry; subsequent requests use actual native IPC",
       before_cards: before.length,
     };
     try {
@@ -383,6 +409,13 @@ export async function workspaceRefreshScenario({
         until.elementLocated(By.xpath('//button[normalize-space(.)="Retry refresh"]')),
         10_000,
       );
+      // Keep the failure visible while the slow native captures run; an automatic
+      // poll would otherwise clear the banner before Retry is exercised.
+      await executeBrowserScript(browser, () => {
+        const runtime = window as RefreshWindow;
+        if (!runtime.__portcoveRefreshProbe) throw new Error("Refresh probe unavailable");
+        runtime.__portcoveRefreshProbe.holding = true;
+      });
       assert.equal(await retry.getAttribute("data-slot"), "button");
       assert.equal(await retry.getAttribute("data-variant"), "outline");
       observations.failure_text = await executeBrowserScript(
@@ -405,8 +438,31 @@ export async function workspaceRefreshScenario({
         flag: "wx",
       });
       artifacts.push(screenshot);
-      await retry.click();
-      await browser.wait(until.stalenessOf(retry), 10_000);
+      // The banner can re-render during the captures above; act on the current one.
+      // An automatic refresh can still be running ("Refreshing library…", disabled);
+      // wait for the settled, enabled retry action before acting on it.
+      const currentRetry = await browser.wait<WebElement>(
+        async () => {
+          const [candidate] = await browser.findElements(
+            By.xpath('//button[normalize-space(.)="Retry refresh"]'),
+          );
+          return candidate && (await candidate.isEnabled()) ? candidate : undefined;
+        },
+        30_000,
+        "Retry refresh did not become available after the failed refresh settled",
+      );
+      // The probe's library-change event also schedules standing setup, and
+      // startup's catalog check can finish during capture. Keep the full trace,
+      // but attribute only commands after this marker to the player's retry.
+      const retryStart = await executeBrowserScript(browser, () => {
+        const runtime = window as RefreshWindow;
+        if (!runtime.__portcoveRefreshProbe) throw new Error("Refresh probe unavailable");
+        const start = runtime.__portcoveRefreshProbe.calls.length;
+        runtime.__portcoveRefreshProbe.holding = false;
+        return start;
+      });
+      await currentRetry.click();
+      await browser.wait(until.stalenessOf(currentRetry), 10_000);
       await browser.wait(
         async () =>
           executeBrowserScript(
@@ -424,32 +480,29 @@ export async function workspaceRefreshScenario({
         if (!runtime.__portcoveRefreshProbe) throw new Error("Refresh probe unavailable");
         return runtime.__portcoveRefreshProbe.calls;
       });
-      assert.equal(
-        await executeBrowserScript(browser, () => {
+      // At least the first read failed; a visible-idle poll during the captures
+      // may also have failed while the failure was held.
+      assert.ok(
+        (await executeBrowserScript(browser, () => {
           const runtime = window as RefreshWindow;
           if (!runtime.__portcoveRefreshProbe) throw new Error("Refresh probe unavailable");
           return runtime.__portcoveRefreshProbe.injected;
-        }),
-        1,
+        })) >= 1,
       );
-      assert.equal(
-        observations.commands.filter((command) => command === "get_workspace_snapshot").length,
-        2,
+      // The failed read and the retry read, plus any visible-idle poll (every 10 s,
+      // use-workspace-data.ts) or focus refetch in between. The retry's own
+      // command slice is checked separately from background work during capture.
+      assert.ok(
+        observations.commands.filter((command) => command === "get_workspace_snapshot").length >= 2,
+        JSON.stringify(observations.commands),
       );
       assert.equal(
         observations.commands.filter((command) => command === "discover_orphaned_operations")
           .length,
         1,
       );
-      assert.ok(
-        observations.commands.every(
-          (command: string) =>
-            command.startsWith("get_") ||
-            command.startsWith("plugin:") ||
-            command === "discover_orphaned_operations",
-        ),
-        JSON.stringify(observations.commands),
-      );
+      observations.retry_commands = observations.commands.slice(retryStart);
+      assertReadOnlyWorkspaceRetry(observations.retry_commands);
     } catch (error) {
       observations.failure = errorMessage(error);
       throw error;
@@ -606,7 +659,7 @@ export async function workspaceRefreshScenario({
       await executeBrowserScript(browser, installReconciliationSupportGate);
       try {
         await browser
-          .findElement(By.xpath('//button[normalize-space(.)="Create support bundle"]'))
+          .findElement(By.xpath('//button[normalize-space(.)="Create a support report"]'))
           .click();
         await browser.wait(
           async () =>
@@ -673,10 +726,12 @@ export async function workspaceRefreshScenario({
         await executeBrowserScript(browser, installSourceFormatProbe, port.id);
         const expected =
           "This runtime requires an uncompressed .z64 game file. Select and validate that file before playing.";
+        // The probe rewrites only the next full snapshot read (see sourceFormatRefreshBudgetMs).
         await browser.wait(
           async () =>
             (await browser.findElement(By.css(".detail-panel")).getText()).includes(expected),
-          10_000,
+          sourceFormatRefreshBudgetMs,
+          "Injected source-format guidance did not render within one full-read cadence",
         );
         const launchControls = await browser.findElements(
           By.xpath(
@@ -702,12 +757,68 @@ export async function workspaceRefreshScenario({
           return probe.formatInjections;
         });
         assert.ok(sourceFormat.injections > 0);
-        const screenshot = path.join(output, "native-source-format-guidance.png");
-        await writeFile(screenshot, await browser.takeScreenshot(), {
-          encoding: "base64",
-          flag: "wx",
+        const selector = ".detail-panel #detail-game-actions";
+        const actions = await browser.findElement(By.css(selector));
+        const preparedTarget = await prepareCaptureTarget({
+          target: selector,
+          label: "Incompatible source guidance and game-file recovery",
+          scroll: () =>
+            executeBrowserScript(
+              browser,
+              (element) =>
+                element.scrollIntoView({
+                  block: "center",
+                  inline: "nearest",
+                  behavior: "instant",
+                }),
+              actions,
+            ),
+          observe: () =>
+            executeBrowserScript(browser, observeVisibleTarget, selector, "visual" as const),
         });
-        artifacts.push(screenshot);
+        const capture = await captureSettledVisual({
+          browser,
+          output,
+          name: "native-source-format-guidance",
+          scenario: "native-external-cli-reconciliation",
+          target: selector,
+          observeTarget: async () => {
+            const state = await executeBrowserScript(
+              browser,
+              observeVisibleTarget,
+              selector,
+              "visual" as const,
+            );
+            requireUnchangedCaptureTarget(preparedTarget.observation, state);
+            return { ...state, capture_target_preflight: preparedTarget };
+          },
+          readiness: () =>
+            executeBrowserScript(
+              browser,
+              (target, guidance) => {
+                const region = document.querySelector(target);
+                const recovery = [
+                  ...(region?.querySelectorAll(".primary-actions button") ?? []),
+                ].find((button) => button.textContent?.trim() === "Select game files");
+                return {
+                  ready: Boolean(
+                    document.fonts.status === "loaded" &&
+                    [...(region?.querySelectorAll('[role="status"]') ?? [])].some(
+                      (status) => status.textContent?.trim() === guidance,
+                    ) &&
+                    recovery instanceof HTMLButtonElement &&
+                    !recovery.matches(":disabled") &&
+                    recovery.getAttribute("aria-disabled") !== "true",
+                  ),
+                  guidance,
+                  recovery_action: "Select game files",
+                };
+              },
+              selector,
+              expected,
+            ),
+        });
+        artifacts.push(capture.image.path, capture.receipt);
         await captureAccessibilityReport(
           browser,
           path.join(output, "source-format-accessibility.json"),
@@ -725,7 +836,8 @@ export async function workspaceRefreshScenario({
           !(await browser.findElement(By.css(".detail-panel")).getText()).includes(
             "This runtime requires an uncompressed .z64 game file.",
           ),
-        10_000,
+        sourceFormatRefreshBudgetMs,
+        "Restored Core status did not replace the injected guidance within one full-read cadence",
       );
     } finally {
       const probe = await executeBrowserScript(browser, restoreExternalReconciliationProbe);

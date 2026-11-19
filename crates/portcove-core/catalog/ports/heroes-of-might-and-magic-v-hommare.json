@@ -1,0 +1,67 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "heroes-of-might-and-magic-v-hommare",
+    "artwork": {
+      "game_id": 370,
+      "cover_id": 130420,
+      "image_id": "co2sms",
+      "image_sha256": "e04cfa7518d8c13e87dc54d50a12747c46e493fcdc75da76cce7f5a6e93008a5",
+      "game_slug": "heroes-of-might-and-magic-v",
+      "match_kind": "underlying-game"
+    },
+    "project_url": "https://github.com/livmaster-dev/HommaRe-public",
+    "name": "Heroes of Might and Magic V / HommaRe",
+    "original_game_title": "Heroes of Might and Magic V",
+    "summary": "Play Heroes V and its expansions in HommaRe using your own GOG game data.",
+    "issue_number": 6108,
+    "listed_at": "2026-11-14",
+    "platforms": ["macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/livmaster-dev/HommaRe-public/blob/v0.1-playable-457/README.md#quick-start",
+    "release_url": "https://github.com/livmaster-dev/HommaRe-public/releases/tag/v0.1-playable-457",
+    "download_asset_hints": {
+      "macos-aarch64": ["HommaRe-", "-macOS.dmg"]
+    },
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "help_url": "https://github.com/livmaster-dev/HommaRe-public/blob/v0.1-playable-457/README.md",
+      "steps": [
+        {
+          "title": "Choose the upstream Apple Silicon app",
+          "instruction": "On Apple Silicon with macOS 14 or later, open the publisher's DMG and copy HommaRe to Applications. The upstream app is not notarized. Follow the upstream first-launch instructions."
+        },
+        {
+          "title": "Prepare your GOG copy in HommaRe",
+          "instruction": "Use your own GOG copy of Heroes V (which includes Hammers of Fate), Tribes of the East, or both. In HommaRe, select Install from GOG, choose Use installer files for matching offline installers, or point the launcher at an existing supported game folder. Choose the installed game in HommaRe and press Play."
+        },
+        {
+          "title": "Keep the separate player profiles",
+          "instruction": "On Mac, use HommaRe's Saves action to locate the profile directory. Keep each game's saves, profiles and settings separately from the game installation. Copy any Windows saves into a separate backup before trying import. Save sync is optional and separate from local backups."
+        }
+      ],
+      "warnings": [
+        "Linux x64 and ARM64 have upstream Vulkan source-build instructions. The publisher offers a separate iPhone and iPad package with its own setup. There is no Intel Mac, Windows or Android HommaRe package in this release."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "heroes-of-might-and-magic-v",
+      "evidence_urls": [
+        "https://github.com/livmaster-dev/HommaRe-public/blob/v0.1-playable-457/README.md#quick-start",
+        "https://github.com/livmaster-dev/HommaRe-public/blob/v0.1-playable-457/README.md",
+        "https://github.com/livmaster-dev/HommaRe-public"
+      ],
+      "source_editions": [
+        {
+          "id": "heroes-of-might-and-magic-v-pc",
+          "title": "Heroes of Might and Magic V (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/livmaster-dev/HommaRe-public/blob/d04e4ba07f7643e61924abe3995b10f93c8a5cc9/README.md"
+          ]
+        }
+      ]
+    }
+  }
+}

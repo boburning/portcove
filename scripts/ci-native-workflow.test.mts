@@ -20,6 +20,7 @@ import {
 
 // Independently expected contract pin; Renovate updates it with the Action group.
 const reviewedInstallAction = "taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b"; // v2.90.1
+const prepareHostedWebview = "./.github/actions/prepare-hosted-webview";
 
 void test("candidate consumer selects only existing selected, compiled and history jobs", () => {
   const jobs = workflowJobs(nativeDesignCompatibilityWorkflow);
@@ -215,7 +216,8 @@ void test("normal-app presentation uses fixed isolated Windows selections and bo
     (step) =>
       typeof step.run === "string" && step.run.includes("bootstrap-quality-tools.ps1 -Desktop"),
   );
-  assert.ok(bootstrap >= 0);
+  const prepare = steps.findIndex((step) => step.uses === prepareHostedWebview);
+  assert.ok(prepare >= 0 && prepare < bootstrap);
   for (const [selection, arguments_] of [
     ["presentation", "--profile presentation"],
     ["interface-size", "--scenario native-interface-size"],
@@ -251,7 +253,8 @@ void test("fixed native product groups preserve owned lifecycle coverage and iso
   const job = workflowJob("product_workflows", source);
   const section = workflowJobSource(source, "product_workflows");
   assert.equal(job["runs-on"], "windows-2022");
-  assert.equal(job["timeout-minutes"], 60);
+  // Calibrated for hosted inventory, build, harness and driver-wait time (#4879).
+  assert.equal(job["timeout-minutes"], 90);
   assert.equal(
     job.if,
     "${{ inputs.operation == 'product-workflows' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}",
@@ -268,6 +271,7 @@ void test("fixed native product groups preserve owned lifecycle coverage and iso
     }),
     [
       "owned-ready",
+      "owned-update-review",
       "owned-recovery",
       "owned-backups",
       "owned-steam",
@@ -319,6 +323,12 @@ void test("fixed native product groups preserve owned lifecycle coverage and iso
   assert.match(section, /bootstrap-quality-tools\.ps1 -Desktop/);
   assert.ok(Array.isArray(job.steps));
   const steps = job.steps.filter(isRecord);
+  const bootstrap = steps.findIndex(
+    (step) =>
+      typeof step.run === "string" && step.run.includes("bootstrap-quality-tools.ps1 -Desktop"),
+  );
+  const prepare = steps.findIndex((step) => step.uses === prepareHostedWebview);
+  assert.ok(prepare >= 0 && prepare < bootstrap);
   const execution = requiredFixture(
     steps.find((step) => typeof step.run === "string" && step.run.includes("@scenarioArguments")),
   );

@@ -145,7 +145,11 @@ fn directory_exists(path: &Path) -> Result<bool> {
     }
 }
 
-pub(crate) fn require_pristine_package(root: &Path, executable: &Path, name: &str) -> Result<()> {
+pub(crate) fn require_pristine_package(
+    root: &Path,
+    executable: &Path,
+    name: &str,
+) -> Result<std::path::PathBuf> {
     let path = directory(root, executable, name)?;
     crate::install::require_staged_path(root, executable)?;
     crate::permissions::require_platform_executable(
@@ -164,7 +168,7 @@ pub(crate) fn require_pristine_package(root: &Path, executable: &Path, name: &st
             "the publisher package contains files in the player-owned portable data directory",
         ));
     }
-    Ok(())
+    Ok(path)
 }
 
 pub(crate) fn prepare(

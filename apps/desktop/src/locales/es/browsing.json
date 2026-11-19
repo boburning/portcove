@@ -32,6 +32,7 @@
     },
     "compare": {
       "files": "Archivos necesarios",
+      "filesOptional": "Archivos opcionales",
       "filesUnlisted": "Los requisitos no figuran aquí. Consulta las instrucciones de configuración del proyecto.",
       "instructions": "Instrucciones del proyecto",
       "noChannel": "No figura ningún canal de actualización.",
@@ -60,7 +61,7 @@
     "groupLabel_other": "{{title}}. {{count}} proyectos de adaptación independientes; {{matching}} coincidentes.",
     "identity": {
       "matching": "{{title}} {{project}}. Adaptación coincidente: {{port}}. {{state}}. {{action}}",
-      "single": "{{title}} {{project}}. {{state}}. {{action}}"
+      "single": "{{identity}}. {{state}}. {{action}}"
     },
     "label": "Descubrir juegos",
     "matchingPort": "Adaptación coincidente: <port />",
@@ -73,7 +74,8 @@
     },
     "separateProjects_one": "{{count}} proyecto de adaptación independiente",
     "separateProjects_many": "{{count}} proyectos de adaptación independientes",
-    "separateProjects_other": "{{count}} proyectos de adaptación independientes"
+    "separateProjects_other": "{{count}} proyectos de adaptación independientes",
+    "unavailableFor": "No disponible para {{platform}}"
   },
   "hero": {
     "continueLabel": "{{title}}, jugado recientemente",
@@ -97,6 +99,7 @@
     "chosen": "<name/> · Tu elección",
     "chosenOutside": "<name/> · Tu elección · Fuera de los filtros actuales",
     "independence": "Elegir un proyecto no selecciona una versión, no transfiere partidas ni reemplaza otra instalación.",
+    "label": "Elementos de la biblioteca",
     "outside": "<name/> · Fuera de los filtros actuales",
     "portCount_one": "{{count, number}} adaptación",
     "portCount_many": "{{count, number}} adaptaciones",
@@ -155,8 +158,16 @@
   },
   "search": {
     "clear": "Borrar la búsqueda",
+    "cleared": "Se borró la búsqueda.",
     "discover": "Buscar en Descubrir",
     "library": "Buscar en tu biblioteca",
     "placeholder": "Nombre del juego o de la adaptación"
+  },
+  "upstreamActivity": {
+    "archived": "GitHub informó el {{checked}} que los autores archivaron el proyecto y ya no aceptan cambios. Es poco probable que haya versiones nuevas.",
+    "label": "Actividad del origen en GitHub",
+    "quiet": "GitHub informó el {{checked}} que el proyecto no había cambiado desde {{date}}. Es poco probable que haya versiones nuevas salvo que se reanude el trabajo.",
+    "recent": "GitHub informó el {{checked}} que el último cambio del proyecto fue en {{date}}.",
+    "unknown": "Se consultó GitHub el {{checked}}. Se desconoce la fecha del último cambio."
   }
 }

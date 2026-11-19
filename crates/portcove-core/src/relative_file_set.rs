@@ -11,6 +11,18 @@ use std::{
 pub(crate) const MAX_MEMBERS: usize = 256;
 const MAX_MEMBER_BYTES: u64 = 128 * 1024 * 1024;
 const MAX_TOTAL_BYTES: u64 = 512 * 1024 * 1024;
+// Exact installed data folders can include the classic Doom 3 expansion's
+// 538,385,153-byte PK4. Keep the established ZIP intake bounds.
+const MAX_DIRECTORY_MEMBER_BYTES: u64 = 640 * 1024 * 1024;
+const MAX_DIRECTORY_TOTAL_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+
+pub(crate) fn requires_directory(members: &[RelativeSourceMemberIdentity]) -> bool {
+    members.iter().any(|member| member.size > MAX_MEMBER_BYTES)
+        || members
+            .iter()
+            .fold(0_u64, |total, member| total.saturating_add(member.size))
+            > MAX_TOTAL_BYTES
+}
 
 pub(crate) fn validate(members: &[RelativeSourceMemberIdentity]) -> Result<()> {
     if members.is_empty() || members.len() > MAX_MEMBERS {
@@ -27,7 +39,7 @@ pub(crate) fn validate(members: &[RelativeSourceMemberIdentity]) -> Result<()> {
             || !ids.insert(&member.id)
             || member.path.contains('\\')
             || member.size == 0
-            || member.size > MAX_MEMBER_BYTES
+            || member.size > MAX_DIRECTORY_MEMBER_BYTES
             || member.sha256.len() != 64
             || !member.sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
             || names.insert(key, false).is_some()
@@ -40,9 +52,9 @@ pub(crate) fn validate(members: &[RelativeSourceMemberIdentity]) -> Result<()> {
             .checked_add(member.size)
             .ok_or_else(|| PortcoveError::usage("relative file set size overflow"))?;
     }
-    if total > MAX_TOTAL_BYTES {
+    if total > MAX_DIRECTORY_TOTAL_BYTES {
         return Err(PortcoveError::unsupported(
-            "relative file set exceeds 512 MiB expanded bytes",
+            "relative file set exceeds 2 GiB of declared original data",
         ));
     }
     namespace(&names)
@@ -98,7 +110,7 @@ fn scan_limit(name: &str) -> PortcoveError {
 }
 
 impl ReadLimits {
-    fn entry(&mut self, name: &str, size: u64) -> Result<()> {
+    fn entry(&mut self, name: &str, size: u64, member_limit: u64) -> Result<()> {
         if self.entries >= self.max_entries {
             return Err(scan_limit("entries"));
         }
@@ -106,7 +118,7 @@ impl ReadLimits {
         if name.split('/').count().saturating_sub(1) > self.max_depth as usize {
             return Err(scan_limit("depth"));
         }
-        if size > self.max_file_bytes.min(MAX_MEMBER_BYTES) {
+        if size > self.max_file_bytes.min(member_limit) {
             return Err(scan_limit("file_size"));
         }
         Ok(())
@@ -115,6 +127,7 @@ impl ReadLimits {
 
 fn directory_files(
     root: &Path,
+    member_limit: u64,
     limits: &mut ReadLimits,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<BTreeMap<String, PathBuf>> {
@@ -143,6 +156,7 @@ fn directory_files(
                 } else {
                     0
                 },
+                member_limit,
             )?;
             crate::path::refuse_symlink_ancestors(&path)?;
             let (_, key) = crate::archive::validate_relative_path(&relative, metadata.is_dir())?;
@@ -168,7 +182,7 @@ fn directory_files(
 impl Input {
     fn size(&mut self, name: &str) -> Result<u64> {
         match self {
-            Self::Directory { files, .. } => Ok(fs::metadata(
+            Self::Directory { files, .. } => Ok(fs::symlink_metadata(
                 files.get(&name.to_ascii_lowercase()).ok_or_else(|| {
                     PortcoveError::source("required relative source member is missing")
                 })?,
@@ -191,6 +205,8 @@ impl Input {
     fn open(path: &Path, checkpoint: &dyn Fn() -> Result<()>) -> Result<Self> {
         Self::open_progress(
             path,
+            MAX_MEMBER_BYTES,
+            true,
             4096,
             &mut ReadLimits::default(),
             checkpoint,
@@ -200,6 +216,8 @@ impl Input {
 
     fn open_progress(
         path: &Path,
+        directory_member_limit: u64,
+        allow_zip: bool,
         maximum_entries: usize,
         limits: &mut ReadLimits,
         checkpoint: &dyn Fn() -> Result<()>,
@@ -210,8 +228,13 @@ impl Input {
         let metadata = fs::symlink_metadata(path)?;
         if metadata.is_dir() {
             let root = fs::canonicalize(path)?;
-            let files = directory_files(&root, limits, checkpoint)?;
+            let files = directory_files(&root, directory_member_limit, limits, checkpoint)?;
             return Ok(Self::Directory { root, files });
+        }
+        if !allow_zip {
+            return Err(PortcoveError::source(
+                "select the installed original data folder for this file set",
+            ));
         }
         if !metadata.is_file()
             || path
@@ -252,6 +275,7 @@ impl Input {
             limits.entry(
                 name.trim_end_matches('/'),
                 if entry.is_dir() { 0 } else { entry.size() },
+                MAX_MEMBER_BYTES,
             )?;
             let kind = entry.unix_mode().unwrap_or(0) & 0o170000;
             if !matches!(kind, 0 | 0o100000 | 0o040000)
@@ -425,6 +449,13 @@ pub(crate) fn validate_profile(
         });
     }
     validate(&members)?;
+    // The compatibility projection has no authenticated member sizes.
+    // Only schema-2 inspection can opt into the larger directory bounds.
+    if requires_directory(&members) {
+        return Err(PortcoveError::unsupported(
+            "large relative file sets require an exact catalog identity",
+        ));
+    }
     for member in &members {
         input.verify(member, &|| Ok(()))?;
     }
@@ -498,8 +529,24 @@ fn inspect_with_limits_and_checkpoint(
         }
         Ok(())
     };
+    let directory_only = profile
+        .variants
+        .iter()
+        .filter(|variant| !variant.legacy_projection_only)
+        .flat_map(|variant| &variant.representations)
+        .any(|representation| {
+            matches!(&representation.kind, crate::SourceRepresentationKind::RelativeFileSet { members }
+                if requires_directory(members))
+        });
+    let directory_limit = if directory_only {
+        MAX_DIRECTORY_MEMBER_BYTES
+    } else {
+        MAX_MEMBER_BYTES
+    };
     let mut input = Input::open_progress(
         path,
+        directory_limit,
+        !directory_only,
         budget.max_zip_entries,
         limits,
         &checkpoint,
@@ -524,6 +571,17 @@ fn inspect_with_limits_and_checkpoint(
             validate(members)?;
             let observation = (|| -> Result<Vec<crate::ObservedSourceComponent>> {
                 let mut components = Vec::new();
+                if directory_only {
+                    for member in members {
+                        checkpoint()?;
+                        if input.size(&member.path)? != member.size {
+                            return Err(PortcoveError::source(format!(
+                                "original data has the wrong size: {}",
+                                member.path
+                            )));
+                        }
+                    }
+                }
                 for member in members {
                     budget.reserve(member.size)?;
                     budget.hashed += member.size;
@@ -590,6 +648,7 @@ fn inspect_with_limits_and_checkpoint(
         });
     }
     Ok(crate::SourceInspection {
+        integrity_advisories: Vec::new(),
         profile_id: profile_id.into(),
         path: path.into(),
         observed_digests: digests,
@@ -610,12 +669,10 @@ fn inspect_with_limits_and_checkpoint(
     })
 }
 
-pub(crate) fn materialize(
+fn checked_runtime_members(
     port: &crate::PortDefinition,
     source: &crate::SourceRecord,
-    directory: &Path,
-    checkpoint: &dyn Fn() -> Result<()>,
-) -> Result<()> {
+) -> Result<Vec<RelativeSourceMemberIdentity>> {
     let facts = source.observed_identity.as_ref().ok_or_else(|| {
         PortcoveError::verification("relative runtime data needs checked source facts")
     })?;
@@ -627,11 +684,9 @@ pub(crate) fn materialize(
                 "relative runtime target needs one exact source path",
             ));
         };
-        if target.destination != format!("GameData/{name}")
-            || target.materialization != crate::RuntimeSourceMaterialization::Copy
-        {
+        if target.materialization != crate::RuntimeSourceMaterialization::Copy {
             return Err(PortcoveError::verification(
-                "relative runtime target changed its fixed GameData destination",
+                "relative runtime target requires an exact copy",
             ));
         }
         let component = facts
@@ -675,8 +730,57 @@ pub(crate) fn materialize(
             "relative runtime targets omit checked source components",
         ));
     }
-    let mut input = Input::open(&source.path, checkpoint)?;
-    let actual = record(&source.profile_id, &source.path, &members, &input);
+    Ok(members)
+}
+
+pub(crate) fn materialize_native(
+    port: &crate::PortDefinition,
+    source: &crate::SourceRecord,
+    directory: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    let members = checked_runtime_members(port, source)?;
+    let directory_only = requires_directory(&members);
+    let member_limit = if directory_only {
+        MAX_DIRECTORY_MEMBER_BYTES
+    } else {
+        MAX_MEMBER_BYTES
+    };
+    let mut input = Input::open_progress(
+        &source.path,
+        member_limit,
+        !directory_only,
+        4096,
+        &mut ReadLimits::default(),
+        checkpoint,
+        &mut |_| checkpoint(),
+    )?;
+    require_same_record(source, &members, &input)?;
+    for (target, member) in port.runtime_source_set.iter().zip(&members) {
+        checkpoint()?;
+        let (relative, _) = crate::archive::validate_relative_path(&target.destination, false)?;
+        let path = directory.join(relative);
+        crate::path::refuse_symlink_ancestors(&path)?;
+        let parent = path.parent().ok_or_else(|| {
+            PortcoveError::verification("relative runtime target has no parent directory")
+        })?;
+        fs::create_dir_all(parent)?;
+        let mut output = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path)?;
+        input.copy_verified(member, &mut output, checkpoint)?;
+        output.sync_all()?;
+    }
+    Ok(())
+}
+
+fn require_same_record(
+    source: &crate::SourceRecord,
+    members: &[RelativeSourceMemberIdentity],
+    input: &Input,
+) -> Result<()> {
+    let actual = record(&source.profile_id, &source.path, members, input);
     if actual.sha256 != source.sha256
         || actual.size != source.size
         || actual.storage_sha256 != source.storage_sha256
@@ -686,6 +790,35 @@ pub(crate) fn materialize(
             "relative source changed after review",
         ));
     }
+    Ok(())
+}
+
+pub(crate) fn materialize(
+    port: &crate::PortDefinition,
+    source: &crate::SourceRecord,
+    directory: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    for target in &port.runtime_source_set {
+        let [name] = target.source_filenames.as_slice() else {
+            return Err(PortcoveError::verification(
+                "relative runtime target needs one exact source path",
+            ));
+        };
+        if target.destination != format!("GameData/{name}") {
+            return Err(PortcoveError::verification(
+                "relative runtime target changed its fixed GameData destination",
+            ));
+        }
+    }
+    let members = checked_runtime_members(port, source)?;
+    if requires_directory(&members) {
+        return Err(PortcoveError::unsupported(
+            "large relative original data is not supported by this preparation route",
+        ));
+    }
+    let mut input = Input::open(&source.path, checkpoint)?;
+    require_same_record(source, &members, &input)?;
     crate::path::refuse_symlink_ancestors(directory)?;
     let destination = directory.join("GameData");
     let reusable = verify_cache(&members, &destination, checkpoint)?;
@@ -869,7 +1002,7 @@ pub(crate) fn check_runtime(
         });
     }
     validate(&members)?;
-    if !verify_cache(&members, &root, checkpoint)? {
+    if requires_directory(&members) || !verify_cache(&members, &root, checkpoint)? {
         return Err(PortcoveError::verification(
             "prepared original data changed before launch; prepare it again",
         ));

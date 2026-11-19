@@ -520,6 +520,46 @@ mod tests {
     }
 
     #[test]
+    fn move_rebases_retained_original_locations_in_the_copied_database() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let destination = temporary.path().join("destination");
+        let service = fixture(&source);
+        let inbox = service.library().source_inbox_dir().join("owned.z64");
+        let external = temporary.path().join("external.z64");
+        fs::create_dir_all(inbox.parent().unwrap()).unwrap();
+        fs::write(&inbox, [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4]).unwrap();
+        fs::write(&external, [0x80, 0x37, 0x12, 0x40, 5, 6, 7, 8]).unwrap();
+        let requirement = "star-fox-64";
+        let retained = service.register_source(requirement, &inbox).unwrap();
+        let current_default = service.register_source(requirement, &external).unwrap();
+        let binding = crate::profile::bind_original(requirement, &retained);
+        let plan = service.plan_library_move(&destination).unwrap();
+        assert_eq!(plan.metadata.schema_version, 12);
+        drop(service);
+
+        let moved =
+            PortcoveService::move_library(&source, &destination, &plan.plan_sha256).unwrap();
+        assert!(moved.completed);
+        let reopened = PortcoveService::new(Library::open(&source).unwrap()).unwrap();
+        let moved_original = reopened.registered_profile_original(&binding).unwrap();
+        assert_eq!(
+            moved_original.path,
+            reopened.library().source_inbox_dir().join("owned.z64")
+        );
+        assert_eq!(
+            reopened
+                .library()
+                .source(requirement)
+                .unwrap()
+                .unwrap()
+                .path,
+            current_default.path
+        );
+        crate::source_inspection::verify_registered(reopened.catalog(), &moved_original).unwrap();
+    }
+
+    #[test]
     fn late_credentials_hold_move_before_authority_or_destination_activation() {
         for phase in [TransferPhase::Verified, TransferPhase::Published] {
             let temporary = tempfile::tempdir().unwrap();

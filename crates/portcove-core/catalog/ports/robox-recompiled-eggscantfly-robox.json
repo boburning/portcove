@@ -6,7 +6,7 @@
     "original_game_title": "Robox",
     "summary": "Experimental project. The project describes a native runtime, game features, local setup, mods and saves. Use a Release build for audio pacing; Debug is too slow. A clean source build needs original font assets before building. Portcove has not confirmed broad gameplay, completion or package integrity. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Eggscantfly/robox-recompiled",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Eggscantfly/robox-recompiled",
     "manual_setup": {

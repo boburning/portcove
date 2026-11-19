@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef } from "react";
-import { FolderInput, FolderOpen, ShieldCheck, X } from "lucide-react";
+import { FolderInput, FolderOpen, X } from "lucide-react";
 import { Trans } from "react-i18next";
 import { useAppTranslation } from "../localization";
 import { formatBytes } from "../view-model";
@@ -77,33 +77,35 @@ export function AdoptionModal({
           data-focusable
           variant="ghost"
           size="icon-sm"
-          className="absolute top-2 right-2"
+          className="absolute end-4 top-4"
           aria-label={t("adoption.closeLabel")}
           onClick={dismiss}
           disabled={applying}
         >
           <Icon glyph={X} />
         </Button>
-        <span className="mb-4 grid size-11 place-items-center rounded-lg border border-pc-interactive bg-pc-selection text-pc-selection-foreground">
-          <Icon glyph={FolderInput} size="lg" />
-        </span>
-        <DialogTitle ref={titleRef} tabIndex={-1} id="adopt-title" className="mb-2 text-xl">
+        <DialogTitle
+          ref={titleRef}
+          tabIndex={-1}
+          id="adopt-title"
+          className="me-8 mb-2 pe-0 text-xl"
+        >
           {t("adoption.title")}
         </DialogTitle>
         <DialogDescription id="adopt-description" className="mb-4 leading-relaxed">
           {t("adoption.description")}
         </DialogDescription>
-        <p className="inline-assurance mb-5 flex items-center gap-2 text-[length:var(--text-xs)] text-[var(--color-success-text)]">
-          <Icon glyph={ShieldCheck} /> {t("adoption.assurance")}
-        </p>
         <NavigationHints />
         {launcherImport}
-        <label htmlFor="adopt-path">{t("adoption.folder")}</label>
+        <label className="mb-2 font-medium" htmlFor="adopt-path">
+          {t("adoption.folder")}
+        </label>
         <div className="flex items-stretch gap-2 [&_input]:min-w-0">
           <Input
             ref={pathInput}
             data-focusable
             id="adopt-path"
+            dir="ltr"
             value={path}
             disabled={Boolean(busy) || applying}
             onChange={(event) => setPath(event.target.value)}
@@ -124,7 +126,7 @@ export function AdoptionModal({
         </div>
         {preview && (
           <section
-            className="adoption-plan adoption-review m-[var(--space-4)_0] max-h-[none] overflow-visible rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-4 [overflow-wrap:anywhere]"
+            className="adoption-plan adoption-review my-4 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 border-t border-pc-border pt-4 wrap-anywhere"
             aria-label={t("adoption.plan")}
           >
             <p
@@ -153,14 +155,17 @@ export function AdoptionModal({
                 </>
               )}
             </p>
+            {portIdentity?.kind === "none" && (
+              <p className="m-0 text-pc-muted-foreground">{t("adoption.tryDifferentFolder")}</p>
+            )}
             {portIdentity?.kind === "ambiguous" && (
               <>
                 <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
                   {t("adoption.ambiguous")}
                 </p>
-                <ul className="ps-5" aria-label={t("adoption.detected")}>
+                <ul className="m-0 grid list-none gap-2 p-0" aria-label={t("adoption.detected")}>
                   {portIdentity.ports.map((port) => (
-                    <li key={port.id}>
+                    <li key={port.id} className="min-w-0">
                       <Button
                         data-focusable
                         variant="outline"
@@ -173,31 +178,30 @@ export function AdoptionModal({
                           review(port.id);
                         }}
                       >
-                        <Trans
-                          t={t}
-                          i18nKey="adoption.reviewPort"
-                          components={{
-                            name: <bdi>{port.name ?? t("adoption.unknownPort")}</bdi>,
-                            id: <code dir="ltr">{port.id}</code>,
-                          }}
-                        />
+                        <span className="min-w-0 wrap-anywhere">
+                          <Trans
+                            t={t}
+                            i18nKey="adoption.reviewPort"
+                            components={{
+                              name: <bdi>{port.name ?? t("adoption.unknownPort")}</bdi>,
+                              id: <code dir="ltr">{port.id}</code>,
+                            }}
+                          />
+                        </span>
                       </Button>
                     </li>
                   ))}
                 </ul>
               </>
             )}
-            <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
-              {preview.selected_port_id
-                ? t("adoption.copyCount", {
-                    count: preview.copy_plan.files.length,
-                    size: formatBytes(preview.copy_plan.total_bytes),
-                  })
-                : t("adoption.foundCount", {
-                    count: preview.copy_plan.files.length,
-                    size: formatBytes(preview.copy_plan.total_bytes),
-                  })}
-            </p>
+            {portIdentity?.kind !== "none" && (
+              <p className="m-0 text-pc-muted-foreground">
+                {t(preview.selected_port_id ? "adoption.copyCount" : "adoption.foundCount", {
+                  count: preview.copy_plan.files.length,
+                  size: formatBytes(preview.copy_plan.total_bytes),
+                })}
+              </p>
+            )}
             {preview.copy_plan.skipped_entries.length > 0 && (
               <details>
                 <summary className="cursor-pointer text-[var(--color-warning-text)]">
@@ -226,16 +230,14 @@ export function AdoptionModal({
                 components={{ strong: <strong />, path: <bdi dir="ltr">{preview.source}</bdi> }}
               />
             </p>
-            {preview.destination && <AdoptionConsequences destination={preview.destination} />}
-            <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
-              {t("adoption.unchanged")}
-            </p>
-            <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
-              {t("adoption.noUndo")}
-            </p>
-            <p className="m-[0_0_var(--space-2)] mb-0 text-[var(--color-text-secondary)]">
-              {t("adoption.stopFirst")}
-            </p>
+            {preview.destination && (
+              <>
+                <AdoptionConsequences destination={preview.destination} />
+                <p className="m-0 text-pc-muted-foreground">{t("adoption.unchanged")}</p>
+                <p className="m-0 text-pc-muted-foreground">{t("adoption.noUndo")}</p>
+                <p className="m-0 text-pc-muted-foreground">{t("adoption.stopFirst")}</p>
+              </>
+            )}
           </section>
         )}
         {copyFailed && <p role="alert">{t("adoption.copyFailed")}</p>}

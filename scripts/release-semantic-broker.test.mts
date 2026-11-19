@@ -2089,10 +2089,10 @@ void test("only explicit complete-opportunity acceptance passes event integrity;
       ({ snapshot, path, start, end }) =>
         snapshot === "baseline" &&
         path === "app.rs" &&
-        start === before.file.bytes.length &&
-        end === start,
+        start === 0 &&
+        end === before.file.bytes.length,
     ),
-    "preserve the existing gate's fail-closed empty range",
+    "require the last old line when the change starts at EOF",
   );
   assert.ok(
     ranges.some(
@@ -2167,6 +2167,36 @@ void test("only explicit complete-opportunity acceptance passes event integrity;
       },
     ];
   };
+  const appendedResult = {
+    ...result,
+    bundle_sha256: appendedBundle.bundle_sha256,
+  };
+  const appendedEvidence = [
+    ...readEvents("manifest", "manifest.json", Buffer.from(JSON.stringify(appendedManifest))),
+    ...readEvents(
+      "source",
+      "app.rs",
+      appended.file.bytes,
+      appended.file.bytes.length - before.file.bytes.length,
+      before.file.bytes.length,
+    ),
+    ...readEvents("published", "app.rs", normalized.file.bytes),
+  ];
+  assert.throws(
+    () => inspectSemanticRuntimeEvents(events(appendedResult, appendedEvidence), appendedBundle),
+    /lacks relevant frozen evidence: baseline:app.rs/,
+  );
+  assert.equal(
+    inspectSemanticRuntimeEvents(
+      events(appendedResult, [
+        ...appendedEvidence,
+        ...readEvents("baseline", "app.rs", before.file.bytes),
+      ]),
+      appendedBundle,
+    ).report,
+    appendedResult.report,
+  );
+
   const metadata = readEvents("manifest", "manifest.json", Buffer.from(JSON.stringify(manifest)));
   const meaningful = [
     ...metadata,

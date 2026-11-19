@@ -45,14 +45,31 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["tenchu-stealth-assassins-recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["tenchu-stealth-assassins-recomp-", "-linux-x64.zip"],
       "macos-x86-64": ["tenchu-stealth-assassins-recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["tenchu-stealth-assassins-recomp-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "tenchu-stealth-assassins",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "tenchu-stealth-assassins-playstation",
+          "title": "Tenchu: Stealth Assassins (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/blob/2d3ce1718f6e47e3be6d35d15a688f44e1034060/game.toml"
+          ]
+        }
+      ]
+    }
   },
-  "psx_managed_windows_v1": true,
+  "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -90,7 +107,20 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching one-track USA Rev 1 CHD (SLUS-00706) and retail SCPH-1001 BIOS. Portcove verifies the data track and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved."
+      "manual_preparation": "Provide your own matching one-track USA Rev 1 CHD (SLUS-00706) and retail SCPH-1001 BIOS. Portcove verifies the data track and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "Native build, gameplay and save compatibility remain unobserved."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
   }

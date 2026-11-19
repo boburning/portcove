@@ -2,19 +2,26 @@
   "format_version": 1,
   "listing": {
     "id": "darkuni-afterburner-climax-recomp",
+    "artwork": {
+      "game_id": 20085,
+      "cover_id": 117692,
+      "image_id": "co2it8",
+      "image_sha256": "ad86e1041f7cb8e7fd7965a2b8d38b6eb88420c72c7306079cb83a9107227104",
+      "game_slug": "after-burner-climax",
+      "match_kind": "underlying-game"
+    },
     "name": "After Burner Climax (darkuni Recomp)",
-    "summary": "Player-managed Windows setup for After Burner Climax using its own Xbox 360 package.",
+    "summary": "Play After Burner Climax with darkuni’s Windows recompilation and your own purchased Xbox 360 package.",
     "project_url": "https://github.com/darkuni/afterburner-climax-recomp",
     "original_game_title": "After Burner Climax",
     "issue_number": 4134,
     "listed_at": "2026-11-08",
-    "platforms": ["windows-x86-64"],
-    "availability": "unknown",
+    "availability": "packages",
     "manual_setup": {
       "steps": [
         {
-          "title": "Prepare your original in the upstream folder",
-          "instruction": "With an already permitted Windows x64 copy, keep its files together in a writable folder. Put your own Xbox 360 LIVE package for title 58410A06 beside after_burner_climax.exe. Keep both bundled executables and the matching original variant together."
+          "title": "Prepare your original beside the program",
+          "instruction": "Copy your own purchased full After Burner Climax Xbox 360 LIVE package (title 58410A06), either the original release whose default.xex is 1.0.0.0 or the World release whose default.xex is 0.0.1.2, beside after_burner_climax.exe as the complete 58410A06 console export folder (58410A06/000D0000/<package>). Keep your original export separately."
         },
         {
           "title": "Use the documented Windows prerequisites",
@@ -22,23 +29,69 @@
         },
         {
           "title": "Complete first-run setup",
-          "instruction": "Start after_burner_climax.exe in that folder and let the upstream program prepare assets. Keep your original export separately."
+          "instruction": "Start after_burner_climax.exe and let it prepare assets from your package on first start. For the World release it starts after_burner_climax_world.exe and closes itself; keep both programs together. If it says your files are a different version, delete assets, replace the 58410A06 folder with a supported package and start again."
         },
         {
-          "title": "Let the upstream entry point select the variant",
-          "instruction": "The tagged source describes separate World 0.0.1.2 and Original 1.0.0.0 default.xex variants. Start after_burner_climax.exe with either supported original. It can hand off to after_burner_climax_world.exe for the World variant. Close the actual game before changing the folder."
-        },
-        {
-          "title": "Preserve the creating folder",
-          "instruction": "Keep the generated assets, after_burner_climax.toml and any game-created profile, saves or diagnostic files alongside the creating version."
+          "title": "Keep your settings and saves",
+          "instruction": "Keep the generated assets, after_burner_climax.toml and the 58410A06 folder with the program. Saves and the shader cache stay in Documents\\after_burner_climax."
         }
       ],
       "warnings": [
-        "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
-        "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+        "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own purchased full game package; the program always runs as the full game and does not grant or change an entitlement.",
+        "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
       ],
       "help_url": "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md"
     },
-    "download_block_reason": "Fresh Portcove downloads are held because the selected After Burner Climax executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
-  }
+    "release_url": "https://github.com/darkuni/afterburner-climax-recomp/releases",
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "after-burner-climax",
+      "evidence_urls": [
+        "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md",
+        "https://github.com/darkuni/afterburner-climax-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "after-burner-climax-xbox-360",
+          "title": "After Burner Climax (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md"
+          ]
+        }
+      ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "darkuni/afterburner-climax-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["AfterBurnerClimax-", "-win64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["after_burner_climax.exe"]
+    },
+    "persistent_paths": ["58410A06", "assets", "after_burner_climax.toml"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Before first Play, copy your own purchased full After Burner Climax Xbox 360 LIVE package (title 58410A06) into the managed After Burner Climax folder as the complete 58410A06 console export folder (58410A06/000D0000/<package>), and keep your original separately. The original release (default.xex 1.0.0.0) and the World release (default.xex 0.0.1.2) are supported; the game checks the exact default.xex and refuses any other version. If it says your files are a different version, delete assets, replace the 58410A06 folder with a supported package and start again. After Burner Climax always runs as the full game; that does not grant or change an entitlement, so use only a full package you own. On first Play, the game finds the package and extracts it into assets beside after_burner_climax.exe; without a package it explains what it needs and closes. For the World release it starts after_burner_climax_world.exe from the same folder and closes itself, and Portcove keeps tracking the game it started. This download is the recompiled program with its runtime and contains no game data; the project license does not cover the recompiled game code. Portcove preserves the 58410A06 folder, assets and after_burner_climax.toml across updates and backups. Once the game has started, you can delete the copied 58410A06 folder so it is not kept in backups; assets is all the game needs. Logs and crash reports beside the program are diagnostics. Saves and the shader cache are in Documents\\after_burner_climax, outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if the game does not start. Portcove replaces the program; upstream owns package import and save formats."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["licenses"],
+        "executables": ["after_burner_climax.exe", "after_burner_climax_world.exe"]
+      }
+    },
+    "windows_tracked_handoff": true
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

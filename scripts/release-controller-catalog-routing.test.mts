@@ -40,6 +40,7 @@ import {
 } from "./release-input-protections.mts";
 import { catalogEnvironmentFixture } from "./fixtures/release-live-control-fixture.mts";
 import { capacityDigest, slice4CapacityResources } from "./release-capacity.mts";
+import { retainedCatalogReviewRecoveryResources } from "./release-retained-catalog-review-resources.mts";
 import { maximumProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
 import {
   isCatalogBootstrapRecoveryRef,
@@ -49,9 +50,19 @@ import {
   retainedCatalogBootstrapClaim,
   retainedCatalogForwardAdoptionClaim,
   retainedCatalogNativeAdoptionClaim,
+  retainedCatalogV13AdoptionClaim,
 } from "./release-coordinator-checkpoint-authentication.mts";
 
 void test("catalog recovery distinguishes exact renewal claims from historical bootstrap", () => {
+  const v13 = retainedCatalogV13AdoptionClaim;
+  assert.equal(selectCatalogBootstrapRecovery(v13.successor_ref, 1, v13.previous, "native"), v13);
+  assert.equal(
+    selectCatalogBootstrapRecovery(`refs/tags/${v13.original_ref}`, 1, v13.previous, "native"),
+    undefined,
+  );
+  assert.throws(() => selectCatalogBootstrapRecovery(v13.successor_ref, 2, v13.previous, "native"));
+  assert.throws(() => selectCatalogBootstrapRecovery(v13.successor_ref, 1, v13.child, "native"));
+  assert.throws(() => selectCatalogBootstrapRecovery(v13.successor_ref, 1, v13.previous, true));
   const old = retainedCatalogBootstrapClaim;
   const forward = retainedCatalogForwardAdoptionClaim;
   const native = retainedCatalogNativeAdoptionClaim;
@@ -841,8 +852,7 @@ void test("installed two-purpose workflow remains mutually exclusive under the e
     hash(Buffer.from(appointed)),
     "a57e277b51e00fd20b42f4e61a712c468cae523dd523930bc37cfc248b418aa4",
   );
-  assert.equal(hash(bytes), slice4CapacityResources.aggregate_workflow_sha256);
-  assert.equal(hash(bytes), slice4CapacityResources.input_workflow_sha256);
+  assert.equal(hash(bytes), retainedCatalogReviewRecoveryResources.workflow_sha256);
   assert.ok(isRecord(jobs.coordinator));
   assert.deepEqual(jobs.coordinator.permissions, {
     contents: "write",

@@ -1,4 +1,4 @@
-import { countMessage } from "../localization";
+import { countMessage, useAppTranslation } from "../localization";
 import {
   SidebarCollections,
   OrganizationControls,
@@ -13,12 +13,15 @@ import { controlFocus } from "./ui/control-style";
 import { ActionRow, Notice, SettingsRow } from "./ui/patterns";
 import { SourceRemovalControl } from "./SourceRemoval";
 import { AutomaticSnapshotsSetting } from "./AutomaticSnapshotsSetting";
+import { DatReferenceSettings } from "./DatReferences";
 import { ReportProblem } from "./ReportProblem";
+import { SteamGridDbSettings } from "./SteamGridDbSettings";
 import { SupportBundleExport } from "./SupportBundleExport";
 import { desktopApi } from "../api";
 import {
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type Dispatch,
@@ -82,6 +85,7 @@ import {
   formatBytes,
   navigationActivityState,
   progressPresentation,
+  type DetailDestination,
   type NavigationActivityState,
   type SourceRequirement,
   type View,
@@ -91,7 +95,7 @@ import type { SourceInspectionReadState } from "../features/source-health/use-so
 import { BrandAvatar, BrandMascot } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
 import { LibraryRecovery } from "./LibraryRecovery";
-import { CatalogOrigin, CatalogSettings } from "./CatalogUpdates";
+import { CatalogOrigin, CatalogSettings, CatalogUpdatesDialog } from "./CatalogUpdates";
 import { OfficialCatalogUpdates } from "./OfficialCatalogUpdates";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { invocationFailure, type InvocationRecord } from "../features/operations/invocation-state";
@@ -279,7 +283,7 @@ export function Sidebar({
             <span className="sr-only">Portcove</span>
             <strong
               aria-hidden="true"
-              className="block text-[length:var(--text-lg)] tracking-[-0.05em]"
+              className="block text-[length:var(--text-lg)] tracking-[-0.035em]"
             >
               portcove<span className="text-[var(--color-primary)]">.</span>
             </strong>
@@ -441,15 +445,13 @@ export function WorkspaceToolbar({
   return (
     <div className="workspace-toolbar @container/workspace-header flex min-w-0 items-center justify-between gap-3 border-b border-pc-border text-xs text-pc-muted-foreground">
       <div className="flex min-w-0 items-center gap-3" role="group" aria-label="Current location">
-        <span className="max-[42rem]:hidden">Portcove</span>
-        <span className="max-[42rem]:hidden" aria-hidden="true">
-          /
-        </span>
         <span>{label}</span>
         {detailTitle && (
           <>
             <span aria-hidden="true">/</span>
-            <span className="truncate">{detailTitle}</span>
+            <span className="min-w-0 truncate text-pc-foreground" title={detailTitle}>
+              {detailTitle}
+            </span>
           </>
         )}
       </div>
@@ -463,7 +465,7 @@ export function WorkspaceToolbar({
         aria-label={`Search games and pages ${commandShortcut("K")}: open command palette`}
       >
         <Icon glyph={Search} />
-        <span className="max-[65rem]:hidden">Search games and pages</span>{" "}
+        <span className="max-[56rem]:hidden">Search games and pages</span>{" "}
         <Shortcut className="max-[42rem]:hidden">{commandShortcut("K")}</Shortcut>
       </Button>
     </div>
@@ -503,6 +505,7 @@ export function StatusLayer({
   dismissInvocation,
   openActivity,
   preparationRecovery,
+  readyToPlay,
   onActivity = false,
 }: {
   /** Activity is open: a link may reveal a known task there but never re-open Activity. */
@@ -519,7 +522,10 @@ export function StatusLayer({
   dismissInvocation?: (id: number) => void;
   openActivity?: ((id?: string) => void) | undefined;
   preparationRecovery?: (record: InvocationRecord) => (() => void) | undefined;
+  /** Returns Play only when current readback reports the record's port launchable. */
+  readyToPlay?: (record: InvocationRecord) => (() => void) | undefined;
 }) {
+  const { t } = useAppTranslation("common");
   const acknowledgedSuccess = useRef(new Set<number>());
   const [latestSuccess, setLatestSuccess] = useState<number>();
   useLayoutEffect(() => {
@@ -542,7 +548,9 @@ export function StatusLayer({
       {invocations && (
         <InvocationAnnouncements
           messages={[...invocations.values()].flatMap((record) => {
-            const text = invocationAnnouncement(record, operationEvents);
+            const text = invocationAnnouncement(record, operationEvents, (game) =>
+              t("launchRequestAccepted", { game }),
+            );
             return text === undefined ? [] : [{ id: record.id, text }];
           })}
         />
@@ -557,7 +565,9 @@ export function StatusLayer({
               className={
                 record.phase === "settled" &&
                 invocationFailure(record) === undefined &&
-                record.id !== latestSuccess
+                // A successful launch needs no visible message; the game itself is the result.
+                (record.id !== latestSuccess ||
+                  (record.context.operation === "launch" && record.outcome === "succeeded"))
                   ? "sr-only"
                   : "mb-3 min-w-0"
               }
@@ -575,65 +585,21 @@ export function StatusLayer({
                 />
               )}
               {record.phase === "pending" ? (
-                <>
-                  <p className="mb-1 text-sm font-semibold [overflow-wrap:anywhere]">
-                    {record.context.action} · {record.context.target.label}
-                  </p>
-                  <OperationProgress
-                    // Invocation and event identities are distinct. Only an actual
-                    // explicitly owned ID permits this progress association.
-                    operation={
-                      record.context.activityId
-                        ? operationEvents?.get(record.context.activityId)
-                        : undefined
-                    }
-                    busy={record.outcome ? "refresh current state" : record.name}
-                    announcePhase={false}
-                  />
-                  {openActivity && (!onActivity || record.context.activityId) && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      onClick={() => openActivity(record.context.activityId)}
-                    >
-                      {activityLinkLabel(record.context.activityId, onActivity)}
-                    </Button>
-                  )}
-                </>
+                <PendingInvocation
+                  record={record}
+                  operationEvents={operationEvents}
+                  openActivity={openActivity}
+                  onActivity={onActivity}
+                />
               ) : (
-                invocationFailure(record) === undefined &&
-                (record.id === latestSuccess ? (
-                  <Notice intent="success" className="mb-0 items-center">
-                    <p data-slot="notice-body">
-                      {record.context.action} · {record.context.target.label}: finished.
-                    </p>
-                    <div data-slot="notice-actions">
-                      {record.context.activityId && openActivity && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openActivity(record.context.activityId)}
-                        >
-                          {onActivity ? "Show task" : "View in Activity"}
-                        </Button>
-                      )}
-                      {dismissInvocation && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          aria-label={`Dismiss completion for ${record.context.action}`}
-                          onClick={() => dismissInvocation(record.id)}
-                        >
-                          Dismiss
-                        </Button>
-                      )}
-                    </div>
-                  </Notice>
-                ) : record.outcome === "cancelled" ? (
-                  <p className="sr-only">
-                    {record.context.action} · {record.context.target.label}: cancelled.
-                  </p>
-                ) : null)
+                <SettledInvocation
+                  record={record}
+                  latestSuccess={latestSuccess}
+                  readyToPlay={readyToPlay}
+                  dismissInvocation={dismissInvocation}
+                  openActivity={openActivity}
+                  onActivity={onActivity}
+                />
               )}
             </div>
           ))
@@ -659,6 +625,7 @@ export function StatusLayer({
 function invocationAnnouncement(
   record: InvocationRecord,
   events: ReadonlyMap<string, OperationEvent> | undefined,
+  acceptedLaunchAnnouncement: (game: string) => string,
 ) {
   const identity = `${record.context.action} · ${record.context.target.label}`;
   const failure = invocationFailure(record);
@@ -672,6 +639,10 @@ function invocationAnnouncement(
         ? ""
         : ` Refreshing the current state also failed: ${errorText(record.refreshFailure)}. The original action result is retained.`;
     return `${identity}: cancelled.${detail}${readback}`;
+  }
+  // A launch acknowledgement can arrive before the supervisor starts a game process.
+  if (record.context.operation === "launch" && record.outcome === "succeeded") {
+    return acceptedLaunchAnnouncement(record.context.target.label);
   }
   const outcome = record.outcome === "succeeded" ? "finished" : record.outcome;
   if (record.phase === "pending") {
@@ -833,9 +804,7 @@ function GithubConnection({ status }: { status?: GithubAuthStatus | undefined })
   };
   const connected = Boolean(status?.authenticated);
   const source =
-    status && Object.hasOwn(labels, status.source)
-      ? labels[status.source]
-      : "Sign-in source unavailable";
+    status && Object.hasOwn(labels, status.source) ? labels[status.source] : "Unavailable";
   const connectionStatus = !status
     ? "Connection status unavailable"
     : connected
@@ -843,7 +812,7 @@ function GithubConnection({ status }: { status?: GithubAuthStatus | undefined })
         ? `Connected as ${status.login}`
         : "Connected to GitHub"
       : "Not signed in";
-  const stateClass = `inline-flex items-center gap-1 rounded-full border px-[9px] py-[5px] text-xs ${
+  const stateClass = `inline-flex max-w-full min-w-0 items-center gap-1 rounded-full wrap-anywhere border px-[9px] py-[5px] text-xs ${
     connected
       ? "border-[var(--color-success-border)] bg-pc-success-subtle text-pc-success-foreground"
       : "border-[var(--color-border-strong)] text-pc-muted-foreground"
@@ -852,7 +821,9 @@ function GithubConnection({ status }: { status?: GithubAuthStatus | undefined })
   return (
     <>
       <div className="settings-title flex flex-wrap items-center justify-between gap-[12px]">
-        <h2 className="m-0 flex items-center gap-2">GitHub connection</h2>
+        <h2 id="settings-github-connection" tabIndex={-1} className="m-0 flex items-center gap-2">
+          GitHub connection
+        </h2>
         <span className={stateClass}>
           <Icon glyph={StateIcon} size="sm" />
           {connectionStatus}
@@ -861,7 +832,7 @@ function GithubConnection({ status }: { status?: GithubAuthStatus | undefined })
       {!status ? (
         <p>Refresh status to check the GitHub connection.</p>
       ) : (
-        !connected && <p>Not signed in. Signing in increases the limit for release checks.</p>
+        !connected && <p>Signing in increases the limit for release checks.</p>
       )}
       <details className="mt-3 text-sm text-pc-muted-foreground">
         <summary className="cursor-pointer font-semibold">Connection details</summary>
@@ -919,11 +890,11 @@ function TokenEntry({
       <label className="block font-semibold" htmlFor="github-personal-access-token">
         Personal access token
       </label>
-      <div className="mt-2 flex gap-2">
+      <div className="mt-2 flex max-w-lg flex-wrap items-center gap-2">
         <Input
           id="github-personal-access-token"
           data-focusable
-          className="flex-1"
+          className="min-w-0 flex-[1_1_12rem]"
           type="password"
           autoComplete="off"
           value={github?.token ?? ""}
@@ -954,7 +925,7 @@ function GithubActions({
 }) {
   const status = github?.status;
   return (
-    <div className="actions compact mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
+    <ActionRow className="mt-2">
       {!status?.authenticated &&
         status?.source !== "environment" &&
         status?.device_login_available && (
@@ -994,7 +965,7 @@ function GithubActions({
       >
         Refresh status
       </Button>
-    </div>
+    </ActionRow>
   );
 }
 
@@ -1152,6 +1123,7 @@ type SourceInspectionReadback = {
 };
 
 function SourceHealth({
+  active,
   generation,
   ports,
   sources,
@@ -1168,6 +1140,7 @@ function SourceHealth({
   onAdded,
   openEvidence,
 }: {
+  active: boolean;
   generation: number;
   ports: PortDefinition[];
   sources: SourceRecord[];
@@ -1184,6 +1157,39 @@ function SourceHealth({
   onAdded?: (() => Promise<unknown>) | undefined;
   openEvidence?: ((evidenceId: string) => void) | undefined;
 }) {
+  const sourceHeading = useRef<HTMLHeadingElement>(null);
+  const visit = useMemo(() => (active ? Symbol() : undefined), [active]);
+  const activeVisit = useRef(visit);
+  const pendingRemoval = useRef<{ generation: number; profileId: string } | undefined>(undefined);
+  useLayoutEffect(() => {
+    activeVisit.current = visit;
+    const removal = pendingRemoval.current;
+    if (!removal) return;
+    if (!active || removal.generation !== generation) {
+      pendingRemoval.current = undefined;
+      return;
+    }
+    if (
+      requirementsState !== "available" ||
+      sources.some((source) => source.profile_id === removal.profileId)
+    ) {
+      return;
+    }
+    pendingRemoval.current = undefined;
+    if (document.activeElement === document.body) sourceHeading.current?.focus();
+  }, [active, generation, requirementsState, sources, visit]);
+
+  const refreshAfterRemoval = async (profileId: string) => {
+    const removal = { generation, profileId };
+    if (visit && activeVisit.current === visit) pendingRemoval.current = removal;
+    try {
+      await onAdded?.();
+    } catch (error) {
+      if (pendingRemoval.current === removal) pendingRemoval.current = undefined;
+      throw error;
+    }
+  };
+
   const inspection =
     "reports" in inspectionInput
       ? inspectionInput
@@ -1197,7 +1203,9 @@ function SourceHealth({
   return (
     <SettingsRow className="source-health col-span-full min-h-0 grid-cols-1" data-focus-group>
       <div className="settings-title flex flex-wrap items-center justify-between gap-[12px]">
-        <h2 className="m-0 flex items-center gap-2">Game files and BIOS</h2>
+        <h2 ref={sourceHeading} tabIndex={-1} className="m-0 flex items-center gap-2">
+          Game files and BIOS
+        </h2>
         <Button
           data-focusable
           variant="outline"
@@ -1237,7 +1245,7 @@ function SourceHealth({
                 profile={profilesById.get(source.profile_id)}
                 generation={generation}
                 ports={ports}
-                onRemoved={onAdded}
+                onRemoved={onAdded ? () => refreshAfterRemoval(source.profile_id) : undefined}
                 report={inspection.reports.get(source.profile_id)}
                 inspectionRead={inspection.reads.get(source.profile_id)}
                 retryInspection={inspection.retry}
@@ -1425,7 +1433,11 @@ function SourceInspectionPresentation({
     <div className="col-span-full min-w-0">
       <div>
         {currentReport ? (
-          <SourceIdentityPanel report={currentReport} openEvidence={openEvidence} />
+          <SourceIdentityPanel
+            report={currentReport}
+            evidenceLabel="File details and test results"
+            openEvidence={openEvidence}
+          />
         ) : (
           <p
             className={
@@ -1559,23 +1571,42 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState | undefine
   );
 }
 
-function AboutCard({ onOpenDiagnostics }: { onOpenDiagnostics: () => void }) {
+function AboutCard({
+  generation,
+  onOpenDiagnostics,
+}: {
+  generation: number;
+  onOpenDiagnostics: () => void;
+}) {
   return (
     <div className="about-card" data-focus-group>
-      <SettingsRow className="settings-field-row mb-4 gap-5 rounded-[7px] border border-pc-border bg-pc-surface p-6">
+      <SettingsRow className="settings-field-row">
         <div className="settings-field-copy">
           <h3>Portcove {desktopPackage.version}</h3>
-          <p>Tauri 2 · Rust · React</p>
           <p>Licensed under MIT or Apache-2.0.</p>
         </div>
         <ExternalLink
-          className="settings-field-control inline-flex min-h-10 items-center rounded-pc-md border border-pc-border px-3 py-2 text-sm no-underline hover:bg-pc-secondary"
+          className="settings-field-control min-h-10 text-sm"
           href="https://github.com/boburning/portcove"
         >
           Open project repository
         </ExternalLink>
       </SettingsRow>
-      <SettingsRow className="settings-field-row mb-4 gap-5 rounded-[7px] border border-pc-border bg-pc-surface p-6">
+      <SettingsRow className="settings-field-row">
+        <div className="settings-field-copy">
+          <h3>Feedback</h3>
+          <p>
+            Tell us when something broke, or when something was hard, confusing or missing. You
+            review the pre-filled text, and nothing is sent until you choose how: from your GitHub
+            account when signed in, on GitHub, or as copied text. Folder paths and your user name
+            are replaced. Don't include original game files or saves.
+          </p>
+        </div>
+        <div className="settings-field-control justify-self-start">
+          <ReportProblem key={generation} generation={generation} />
+        </div>
+      </SettingsRow>
+      <SettingsRow className="settings-field-row">
         <div className="settings-field-copy">
           <h3>Support</h3>
           <p>Save logs and system details to help troubleshoot a problem.</p>
@@ -1612,7 +1643,11 @@ function DiagnosticsCard({
 }) {
   return (
     <SettingsRow className="diagnostics-card" data-focus-group>
-      <h2 className="flex items-center gap-2">
+      <h2
+        id="settings-diagnostics-heading"
+        tabIndex={-1}
+        className="settings-target-heading flex items-center gap-2"
+      >
         <Icon glyph={ShieldCheck} />
         Create a support report
       </h2>
@@ -1648,7 +1683,7 @@ function ThemeOption({ option }: { option: ThemePreference }) {
     <Radio.Root
       data-focusable
       value={option}
-      className={`theme-option grid min-w-0 cursor-pointer justify-items-start gap-2 rounded-pc-md border-2 border-pc-border p-2 text-sm font-normal text-pc-muted-foreground data-checked:border-pc-interactive data-checked:text-pc-foreground ${controlFocus}`}
+      className={`theme-option grid min-w-0 cursor-pointer content-start justify-items-start gap-2 rounded-pc-md border-2 border-pc-border p-2 text-sm font-normal text-pc-muted-foreground hover:bg-pc-surface-muted data-checked:border-pc-interactive data-checked:text-pc-foreground ${controlFocus}`}
     >
       <span className="theme-preview" data-preview={option} aria-hidden="true">
         <i />
@@ -1658,9 +1693,9 @@ function ThemeOption({ option }: { option: ThemePreference }) {
           <b />
         </span>
       </span>
-      <span className="flex w-full min-w-0 items-center gap-2 text-start">
+      <span className="flex w-full min-w-0 items-center gap-1.5 text-start">
         <Icon glyph={option === "dark" ? Moon : option === "light" ? Sun : Monitor} size="sm" />
-        <span className="min-w-0">
+        <span className="min-w-0 wrap-anywhere">
           {option === "system" ? "Follow system" : option.charAt(0).toUpperCase() + option.slice(1)}
         </span>
         <Radio.Indicator className="ms-auto shrink-0">
@@ -1703,11 +1738,15 @@ type SettingsViewProps = {
   exportMetadata?: (() => Promise<LibraryMetadataFile | undefined>) | undefined;
   sourceProfiles?: SourceProfile[];
   onSourceAdded?: () => Promise<unknown>;
-  onOpenPort?: ((portId: string, originKey: string) => void) | undefined;
+  onOpenPort?:
+    | ((portId: string, originKey: string, destination?: DetailDestination) => void)
+    | undefined;
   setupSource?: SourceRecord | undefined;
   setSetupSource?: (source?: SourceRecord) => void;
   onCatalogChanged?: () => Promise<unknown>;
   onOpenGameUpdates?: () => void;
+  onOpenGameFileScan?: () => void;
+  onReturnToUpdateDecision?: (() => void) | undefined;
   onOpenActivity?: () => void;
   onReviewSaves?: (portId: string, origin: string) => void;
   hostToolActions?: HostToolActions | undefined;
@@ -1755,6 +1794,8 @@ export function SettingsView(props: SettingsViewProps) {
     setSetupSource,
     onCatalogChanged,
     onOpenGameUpdates,
+    onOpenGameFileScan,
+    onReturnToUpdateDecision,
     onOpenActivity,
     onReviewSaves,
     hostToolActions,
@@ -1769,13 +1810,10 @@ export function SettingsView(props: SettingsViewProps) {
   const [localCategory, setLocalCategory] = useState<SettingsCategory>("appearance");
   const selectedCategory = category ?? localCategory;
   const [steamOpen, setSteamOpen] = useState(false);
+  const [catalogManagerOpen, setCatalogManagerOpen] = useState(false);
 
   const renderCategoryNavigation = () => (
-    <nav
-      className="settings-section-index sticky top-0 z-10 flex min-w-0 flex-nowrap items-start gap-1 overflow-x-auto bg-pc-background py-2 min-[56.3125rem]:flex-col min-[56.3125rem]:overflow-visible"
-      aria-label="Settings categories"
-      data-focus-group
-    >
+    <nav className="settings-section-index" aria-label="Settings categories" data-focus-group>
       {settingsCategories.map(({ id, label }) => (
         <Button
           key={id}
@@ -1783,7 +1821,7 @@ export function SettingsView(props: SettingsViewProps) {
           variant={selectedCategory === id ? "selected" : "ghost"}
           size="sm"
           className={cn(
-            "max-w-full shrink-0 justify-start gap-2.5 border-transparent text-start font-normal whitespace-nowrap after:hidden min-[56.3125rem]:w-full min-[56.3125rem]:whitespace-normal",
+            "settings-category justify-start gap-2.5 border-transparent text-start font-normal",
             selectedCategory !== id && "text-pc-muted-foreground",
           )}
           aria-current={selectedCategory === id ? "page" : undefined}
@@ -1794,7 +1832,7 @@ export function SettingsView(props: SettingsViewProps) {
           }}
           onClick={() => {
             (onCategoryChange ?? setLocalCategory)(id);
-            jumpToSettingsSection(id);
+            revealSettingsHeading(`settings-${id}-heading`);
           }}
         >
           <Icon
@@ -1840,7 +1878,7 @@ export function SettingsView(props: SettingsViewProps) {
       />
       <AutomaticSnapshotsSetting key={generation} generation={generation} />
       <LibraryRecovery
-        key={generation}
+        key={`recovery-${generation}`}
         libraryRoot={storage?.library_root ?? libraryRoot}
         ports={ports}
         statuses={statuses}
@@ -1860,6 +1898,8 @@ export function SettingsView(props: SettingsViewProps) {
     >
       <GameFileLibraries
         key={generation}
+        active={selectedCategory === "game-files"}
+        onOpenScan={onOpenGameFileScan}
         generation={generation}
         ports={ports}
         statuses={statuses}
@@ -1872,6 +1912,7 @@ export function SettingsView(props: SettingsViewProps) {
         setSetupSource={setSetupSource}
       />
       <SourceHealth
+        active={selectedCategory === "game-files"}
         generation={generation}
         ports={ports}
         sources={sources}
@@ -1888,6 +1929,7 @@ export function SettingsView(props: SettingsViewProps) {
         onAdded={onSourceAdded}
         openEvidence={openSourceEvidence}
       />
+      <DatReferenceSettings />
       <HostReadiness
         doctor={doctor}
         busy={busy}
@@ -1920,15 +1962,6 @@ export function SettingsView(props: SettingsViewProps) {
         refresh={refreshDiagnostics}
         hasSnapshot={Boolean(doctor)}
       />
-      <SettingsRow data-focus-group>
-        <h2>Report a problem or send feedback</h2>
-        <p>
-          Tell us when something broke, or when something was hard, confusing or missing. You review
-          the pre-filled text before anything is sent. Portcove sends nothing itself, and folder
-          paths and your user name are replaced.
-        </p>
-        <ReportProblem key={generation} generation={generation} />
-      </SettingsRow>
       <SettingsRow className="privacy-card">
         <h2>Original game files stay local</h2>
         <p>
@@ -1971,18 +2004,22 @@ export function SettingsView(props: SettingsViewProps) {
         <Button
           data-focusable
           variant="link"
-          onClick={() => {
-            (onCategoryChange ?? setLocalCategory)("advanced");
-            jumpToSettingsSection("advanced");
-          }}
+          disabled={Boolean(busy)}
+          onClick={() => setCatalogManagerOpen(true)}
         >
           Manage custom catalog sources
         </Button>
+        {catalogManagerOpen && (
+          <CatalogUpdatesDialog
+            close={() => setCatalogManagerOpen(false)}
+            onChanged={onCatalogChanged}
+          />
+        )}
       </SettingsRow>
     </SettingsSection>
   );
   return (
-    <section className="settings-grid grid max-w-[62rem] items-start gap-8 min-[56.3125rem]:grid-cols-[11.875rem_minmax(0,47.5rem)]">
+    <section className="settings-grid">
       {renderCategoryNavigation()}
       <div className="min-w-0">
         <SettingsSection
@@ -2027,13 +2064,20 @@ export function SettingsView(props: SettingsViewProps) {
               />
             ) : steamOpen ? (
               <SteamBatchEntryDialog
+                allowSingle
                 ports={steamPorts}
                 generation={generation}
                 close={() => setSteamOpen(false)}
               />
             ) : null}
           </SettingsRow>
+          {onReturnToUpdateDecision && (
+            <Button data-focusable variant="outline" onClick={onReturnToUpdateDecision}>
+              Return to update check
+            </Button>
+          )}
           <GithubSettings github={github} busy={busy} />
+          <SteamGridDbSettings generation={generation} />
         </SettingsSection>
         <SettingsSection
           id="controls"
@@ -2078,15 +2122,15 @@ export function SettingsView(props: SettingsViewProps) {
         <SettingsSection
           id="about"
           active={selectedCategory === "about"}
-          title="Portcove"
-          headingLabel="About Portcove"
-          identity={<BrandMascot className="mb-5 size-14" decorative transparent />}
+          title="About Portcove"
+          identity={<BrandMascot className="size-14 shrink-0" decorative transparent />}
           description="Install, update, and play native game ports."
         >
           <AboutCard
+            generation={generation}
             onOpenDiagnostics={() => {
               (onCategoryChange ?? setLocalCategory)("advanced");
-              jumpToSettingsSection("advanced");
+              revealSettingsHeading("settings-diagnostics-heading");
             }}
           />
         </SettingsSection>
@@ -2100,7 +2144,6 @@ function SettingsSection({
   id,
   title,
   description,
-  headingLabel,
   identity,
   action,
   children,
@@ -2109,7 +2152,6 @@ function SettingsSection({
   id: string;
   title: string;
   description: string;
-  headingLabel?: string;
   identity?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
@@ -2119,36 +2161,19 @@ function SettingsSection({
     <section
       id={`settings-${id}`}
       hidden={!active}
-      className={cn(
-        "settings-section @container/section",
-        identity ? "gap-0" : "gap-6",
-        active ? "grid" : "hidden",
-      )}
+      className="settings-section @container/section"
       data-settings-group={id}
       aria-labelledby={headingId}
     >
-      <div className={cn("settings-section-heading", identity ? "about-identity" : "py-2")}>
+      <div className="settings-section-heading">
         {identity}
-        <h2
-          id={headingId}
-          tabIndex={-1}
-          aria-label={headingLabel}
-          className={cn(
-            "scroll-mt-3 focus:outline-3 focus:outline-offset-3 focus:outline-pc-ring focus:outline-solid",
-            identity ? "m-0 text-[2.2rem] tracking-[-0.035em]" : "mb-1 text-[1.25rem]",
-          )}
-        >
-          {title}
-        </h2>
-        <p
-          className={cn(
-            "settings-section-description leading-[var(--leading-relaxed)] text-pc-muted-foreground",
-            identity ? "mt-4 max-w-[24.375rem] text-xs" : "m-0 max-w-[52rem]",
-          )}
-        >
-          {description}
-        </p>
-        {action}
+        <div className="min-w-0">
+          <h2 id={headingId} tabIndex={-1} className="settings-target-heading">
+            {title}
+          </h2>
+          <p className="settings-section-description text-pc-muted-foreground">{description}</p>
+          {action}
+        </div>
       </div>
       <div className="settings-section-content min-w-0">{children}</div>
     </section>
@@ -2354,7 +2379,7 @@ function HostReadiness({
   failure?: unknown;
 }) {
   return (
-    <SettingsRow className="col-span-full min-h-0">
+    <SettingsRow className="col-span-full min-h-0 grid-cols-1">
       <h2 className="flex items-center gap-2" id="disc-tools-heading" tabIndex={-1}>
         <Icon glyph={Wrench} />
         Disc tools
@@ -2366,7 +2391,7 @@ function HostReadiness({
           {(stale || Boolean(failure)) && (
             <p role="status">Showing the last successful host check.</p>
           )}
-          <p className="host-summary mb-3 flex items-center justify-between gap-3">
+          <p className="host-summary mb-3 flex max-w-none flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <code className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-pc-muted-foreground">
               {doctor.platform}
             </code>
@@ -2375,11 +2400,15 @@ function HostReadiness({
               {doctor.registered_source_count} sources
             </span>
           </p>
-          <div className="mb-4 grid grid-cols-1 gap-2 @min-[32rem]/section:grid-cols-2">
-            {doctor.host_tools.map((tool) => (
-              <HostToolRow key={tool.id} tool={tool} busy={Boolean(busy)} actions={actions} />
-            ))}
-          </div>
+          {doctor.host_tools.length > 0 ? (
+            <div className="mb-4 grid grid-cols-1 gap-2 @min-[32rem]/section:grid-cols-2">
+              {doctor.host_tools.map((tool) => (
+                <HostToolRow key={tool.id} tool={tool} busy={Boolean(busy)} actions={actions} />
+              ))}
+            </div>
+          ) : (
+            <p>No disc tools were listed in the host check.</p>
+          )}
         </>
       ) : failure ? (
         <p>Disc-tool status is unavailable until the check succeeds.</p>
@@ -2492,13 +2521,14 @@ export function HostToolRow({
           : "Not resolved";
   return (
     <div
-      className="host-tool-row grid min-w-0 gap-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3"
+      className="host-tool-row grid min-w-0 grid-cols-1 gap-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3"
       data-focus-group
       data-host-tool-id={tool.id}
       tabIndex={-1}
     >
-      <div className="flex items-center justify-between gap-3">
-        <strong>{tool.display_name}</strong>
+      {/* Wraps the status below the name at 400% interface size. */}
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <strong className="min-w-0 [overflow-wrap:anywhere]">{tool.display_name}</strong>
         <span
           className={`inline-flex items-center gap-1 text-xs whitespace-nowrap ${
             tool.state === "available"
@@ -2515,8 +2545,8 @@ export function HostToolRow({
       <small className="text-[var(--color-text-secondary)]">{tool.purpose}</small>
       {tool.state === "missing" && (
         <p>
-          Portcove couldn’t find {tool.display_name}. If it’s installed, choose its program file.
-          Otherwise, install it from its official site first.
+          Portcove couldn’t find {tool.display_name}. If you already have it, choose its program
+          file. Otherwise, open Official downloads for installation options.
         </p>
       )}
       {tool.state === "misconfigured" &&
@@ -2559,7 +2589,7 @@ export function HostToolRow({
             void run("site", () => actions?.openOfficial(tool.id));
           }}
         >
-          Official site
+          Official downloads
         </Button>
         {configured && (
           <Button
@@ -2579,10 +2609,7 @@ export function HostToolRow({
         <summary className="cursor-pointer text-sm text-[var(--color-text-secondary)]">
           Tool details
         </summary>
-        <code
-          className="mt-2 block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-pc-muted-foreground"
-          title={location}
-        >
+        <code dir="ltr" className="mt-2 block min-w-0 wrap-anywhere text-pc-muted-foreground">
           {location}
         </code>
         <small className="mt-2 block text-[var(--color-text-secondary)]">
@@ -2666,9 +2693,9 @@ function StorageCard({
   );
 }
 
-function jumpToSettingsSection(id: string) {
+function revealSettingsHeading(targetId: string) {
   window.requestAnimationFrame(() => {
-    const heading = document.getElementById(`settings-${id}-heading`);
+    const heading = document.getElementById(targetId);
     if (!heading || heading.closest("[hidden]")) return;
     heading.focus({ preventScroll: true });
     heading.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -2714,4 +2741,119 @@ function noticePresentation(error: unknown, invocation: InvocationRecord | undef
   const cancelled = code === "cancelled";
   const readbackOnly = invocation?.outcome === "succeeded" && invocation.failure === undefined;
   return { presentation, committed, neutral, summary, code, cancelled, readbackOnly };
+}
+
+function PendingInvocation({
+  record,
+  operationEvents,
+  openActivity,
+  onActivity,
+}: {
+  record: InvocationRecord;
+  operationEvents: ReadonlyMap<string, OperationEvent> | undefined;
+  openActivity: ((id?: string) => void) | undefined;
+  onActivity: boolean;
+}) {
+  return (
+    <>
+      <p className="mb-1 text-sm font-semibold [overflow-wrap:anywhere]">
+        {record.context.action} · {record.context.target.label}
+      </p>
+      <OperationProgress
+        // Invocation and event identities are distinct. Only an actual
+        // explicitly owned ID permits this progress association.
+        operation={
+          record.context.activityId ? operationEvents?.get(record.context.activityId) : undefined
+        }
+        busy={record.outcome ? "refresh current state" : record.name}
+        announcePhase={false}
+      />
+      {openActivity && (!onActivity || record.context.activityId) && (
+        <Button variant="link" size="sm" onClick={() => openActivity(record.context.activityId)}>
+          {activityLinkLabel(record.context.activityId, onActivity)}
+        </Button>
+      )}
+    </>
+  );
+}
+
+function SettledInvocation({
+  record,
+  latestSuccess,
+  readyToPlay,
+  dismissInvocation,
+  openActivity,
+  onActivity,
+}: {
+  record: InvocationRecord;
+  latestSuccess: number | undefined;
+  readyToPlay: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
+  dismissInvocation: ((id: number) => void) | undefined;
+  openActivity: ((id?: string) => void) | undefined;
+  onActivity: boolean;
+}) {
+  return (
+    invocationFailure(record) === undefined &&
+    (record.id === latestSuccess && readyToPlay?.(record) ? (
+      <Notice intent="success" className="mb-0 items-center">
+        <p data-slot="notice-body">{record.context.target.label} is ready to play.</p>
+        <div data-slot="notice-actions">
+          <Button
+            data-focusable
+            variant="primary"
+            size="sm"
+            aria-label={`Play: ${record.context.target.label}`}
+            onClick={() => {
+              readyToPlay(record)?.();
+              dismissInvocation?.(record.id);
+            }}
+          >
+            Play
+          </Button>
+          {dismissInvocation && (
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={`Dismiss completion for ${record.context.action}`}
+              onClick={() => dismissInvocation(record.id)}
+            >
+              Dismiss
+            </Button>
+          )}
+        </div>
+      </Notice>
+    ) : record.id === latestSuccess &&
+      !(record.context.operation === "launch" && record.outcome === "succeeded") ? (
+      <Notice intent="success" className="mb-0 items-center">
+        <p data-slot="notice-body">
+          {record.context.action} · {record.context.target.label}: finished.
+        </p>
+        <div data-slot="notice-actions">
+          {record.context.activityId && openActivity && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => openActivity(record.context.activityId)}
+            >
+              {onActivity ? "Show task" : "View in Activity"}
+            </Button>
+          )}
+          {dismissInvocation && (
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={`Dismiss completion for ${record.context.action}`}
+              onClick={() => dismissInvocation(record.id)}
+            >
+              Dismiss
+            </Button>
+          )}
+        </div>
+      </Notice>
+    ) : record.outcome === "cancelled" ? (
+      <p className="sr-only">
+        {record.context.action} · {record.context.target.label}: cancelled.
+      </p>
+    ) : null)
+  );
 }

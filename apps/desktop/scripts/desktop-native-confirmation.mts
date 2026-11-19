@@ -22,6 +22,7 @@ interface PickerInput {
   button: string;
   filePath?: string | undefined;
   directoryPath?: string | undefined;
+  ownedSaveRoot?: string | undefined;
 }
 // UI automation is limited to one exact executable descended from this harness's driver.
 import assert from "node:assert/strict";
@@ -45,12 +46,13 @@ async function retainPickerObservation(
   return observation;
 }
 
-async function validatePickerInput({
+export async function validatePickerInput({
   output,
   title,
   button,
   filePath,
   directoryPath,
+  ownedSaveRoot,
 }: PickerInput) {
   assert.ok(!(filePath && directoryPath), "Choose only one native picker input");
   const pickerPath = filePath ?? directoryPath;
@@ -68,6 +70,43 @@ async function validatePickerInput({
     assert.ok(["Choose Portcove library", "Choose game files folder"].includes(title));
     assert.equal(button, "Select Folder");
     assert.ok((await stat(directoryPath)).isDirectory(), "Owned picker fixture is not a directory");
+  }
+  if (ownedSaveRoot) {
+    assert.equal(button, "Save", "Owned save roots apply only to Save");
+    assert.ok(filePath && !directoryPath, "Save roots require exactly one file target");
+  }
+  if (filePath && button === "Save") {
+    assert.ok(["Export library information", "Export saves"].includes(title));
+    assert.ok(ownedSaveRoot, "Save requires an explicit owned fixture root");
+    assert.ok(path.isAbsolute(ownedSaveRoot));
+    assert.equal(path.relative(path.resolve(output), path.resolve(ownedSaveRoot)), "");
+    assert.ok(
+      !filePath.split(/[\\/]/u).includes("..") && !ownedSaveRoot.split(/[\\/]/u).includes(".."),
+      "Save paths must not contain traversal",
+    );
+    const parent = await lstat(ownedSaveRoot);
+    assert.ok(
+      parent.isDirectory() && !parent.isSymbolicLink(),
+      "Save root must be an owned directory",
+    );
+    assert.equal(
+      path.relative(path.resolve(ownedSaveRoot), path.dirname(path.resolve(filePath))),
+      "",
+    );
+    assert.equal(path.extname(filePath).toLowerCase(), ".json");
+    const leaf = path.basename(filePath);
+    assert.ok(!/[<>:"/\\|?*]/u.test(leaf), "Save target must be a literal file leaf");
+    for (let unit = 0; unit < leaf.length; unit++)
+      assert.ok(leaf.charCodeAt(unit) >= 32, "Save target must not contain control characters");
+    assert.ok(!/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu.test(leaf));
+    const absent = await lstat(filePath).then(
+      () => false,
+      (error: unknown) => {
+        assert.ok(error instanceof Error && "code" in error && error.code === "ENOENT");
+        return true;
+      },
+    );
+    assert.ok(absent, "Owned Save must not overwrite an existing target");
   }
 }
 
@@ -174,7 +213,12 @@ function ownedRuntimePicker(
           ? ["-PreparedRuntimeDirectory", directoryPath]
           : []),
       ],
-      { encoding: "utf8", windowsHide: true, timeout: 15_000 },
+      // Calibrated from 15 s: in -ObservePicker mode the helper waits up to 10 s
+      // for the picker and 2 s for it to close, after a cold pwsh start, process
+      // lookups and UI Automation scans. The 15 s outer budget killed it
+      // (spawnSync pwsh ETIMEDOUT at 20.7 s, hosted job 132369155635) before it
+      // could report which phase it was in.
+      { encoding: "utf8", windowsHide: true, timeout: 60_000 },
     );
     return retainPickerResult({ output, artifacts }, name, before, result);
   };
@@ -558,13 +602,14 @@ export function nativeConfirmation({
     filePath?: string,
     directoryPath?: string,
     captureWindow = false,
+    ownedSaveRoot?: string,
   ) => {
     assert.equal(
       process.platform,
       "win32",
       "Owned native confirmation automation currently requires Windows",
     );
-    await validatePickerInput({ output, title, button, filePath, directoryPath });
+    await validatePickerInput({ output, title, button, filePath, directoryPath, ownedSaveRoot });
     assert.match(name, /^[a-z0-9-]+$/u, "Native evidence names must be simple owned file names");
     const screenshot = captureWindow ? path.join(output, `${name}.png`) : null;
     const result = spawnCommand(
@@ -585,9 +630,11 @@ export function nativeConfirmation({
         button,
         ...(filePath ? ["-FilePath", filePath] : []),
         ...(directoryPath ? ["-DirectoryPath", directoryPath] : []),
+        ...(ownedSaveRoot ? ["-OwnedSaveRoot", ownedSaveRoot] : []),
         ...(screenshot ? ["-ScreenshotPath", screenshot] : []),
       ],
-      { encoding: "utf8", windowsHide: true, timeout: filePath ? 30_000 : 15_000 },
+      // Covers the script's 30 s appearance poll plus its button and close waits.
+      { encoding: "utf8", windowsHide: true, timeout: filePath ? 60_000 : 45_000 },
     );
     if (result.status !== 0) await retainConfirmationFailure({ output, artifacts }, name, result);
     const observation = await retainPickerObservation(result, output, name, artifacts);

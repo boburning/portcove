@@ -62,6 +62,16 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | ArtworkCommand::HandoffBytes { .. }
             | ArtworkCommand::Show { .. }
             | ArtworkCommand::Unused => ReadOnly,
+            ArtworkCommand::Steamgriddb { command } => match command {
+                SteamGridDbCommand::Status
+                | SteamGridDbCommand::Search { .. }
+                | SteamGridDbCommand::Candidates { .. } => ReadOnly,
+                // The check records listing evidence in the library.
+                SteamGridDbCommand::SetKey { .. }
+                | SteamGridDbCommand::ClearKey
+                | SteamGridDbCommand::Choose { .. }
+                | SteamGridDbCommand::CheckListings => Recovering,
+            },
             ArtworkCommand::Import { .. }
             | ArtworkCommand::Reset { .. }
             | ArtworkCommand::ClearCache
@@ -105,7 +115,10 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | CatalogCommand::Status
             | CatalogCommand::ListingStatus
             | CatalogCommand::InspectProposal { .. }
+            | CatalogCommand::InspectTargets { .. }
+            | CatalogCommand::InspectDefinitionDelivery
             | CatalogCommand::InspectPackageLayout { .. }
+            | CatalogCommand::InspectPackageShape { .. }
             | CatalogCommand::InspectSettingsQualification { .. } => ReadOnly,
             CatalogCommand::InspectDefinitionPublication { .. } => ReadOnly,
             CatalogCommand::DefinitionAuthority { apply, .. }
@@ -136,7 +149,11 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
                 SourceInboxCommand::Open { .. } | SourceInboxCommand::Scan(_) => Recovering,
             },
             SourceCommand::Roots { command } => match command {
-                GameFileRootCommand::List | GameFileRootCommand::Snapshot => ReadOnly,
+                GameFileRootCommand::List
+                | GameFileRootCommand::Snapshot
+                | GameFileRootCommand::Matches(_)
+                | GameFileRootCommand::Profiles { .. }
+                | GameFileRootCommand::Stores { .. } => ReadOnly,
                 GameFileRootCommand::Scan(_)
                 | GameFileRootCommand::Add { .. }
                 | GameFileRootCommand::Relink { .. }
@@ -174,7 +191,9 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
         },
         Commands::Installation { command } => match command {
             InstallationCommand::Plan { .. }
+            | InstallationCommand::Runtimes { .. }
             | InstallationCommand::Retained { .. }
+            | InstallationCommand::PackageShape { .. }
             | InstallationCommand::Reference { .. }
             | InstallationCommand::ReferencePlan { .. }
             | InstallationCommand::ReferenceRemovalPlan { .. }
@@ -208,6 +227,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | GamesCommand::BatchPlan { .. }
             | GamesCommand::BatchShow { .. }
             | GamesCommand::Intents
+            | GamesCommand::Notices { state: None }
             | GamesCommand::FolderSetups => ReadOnly,
             GamesCommand::Add { .. }
             | GamesCommand::Remove { .. }
@@ -215,10 +235,12 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | GamesCommand::BatchResume { .. }
             | GamesCommand::BatchCancel { .. }
             | GamesCommand::Intent { .. }
+            | GamesCommand::Notices { state: Some(_) }
             | GamesCommand::IntentsAcknowledge { .. }
             | GamesCommand::SetupReady
             | GamesCommand::FolderSetup { .. }
-            | GamesCommand::FolderSetupChoose { .. } => Recovering,
+            | GamesCommand::FolderSetupChoose { .. }
+            | GamesCommand::FolderSetupCopy { .. } => Recovering,
         },
         // These commands return before shared service construction. Preserve the
         // historical policy bit without moving their own dispatch/constructors.
@@ -239,6 +261,9 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             ToolCommand::List | ToolCommand::SetPath { .. } | ToolCommand::ClearPath { .. } => {
                 Recovering
             }
+        },
+        Commands::Dat { command } => match command {
+            DatCommand::List | DatCommand::Add { .. } | DatCommand::Remove { .. } => Recovering,
         },
         Commands::Schema { command } => match command {
             SchemaCommand::Export { .. } => Recovering,
@@ -316,6 +341,8 @@ mod tests {
     fn retained_build_reads_preserve_recovery_and_writes_require_a_review_digest() {
         for arguments in [
             "installation retained port",
+            "installation runtimes port",
+            "installation package-shape port",
             "installation reference port setup",
             "installation reference-plan port setup install",
             "installation reference-removal-plan port setup",
@@ -381,6 +408,9 @@ mod tests {
             "artwork handoff-bytes p --role portrait-cover --expected-library-id l --expected-revision 1 --expected-asset-sha256 a",
             "artwork show p",
             "artwork unused",
+            "artwork steamgriddb status",
+            "artwork steamgriddb search name",
+            "artwork steamgriddb candidates 1 --role portrait-cover",
             "auth status",
             "backup list p",
             "catalog list",
@@ -389,6 +419,8 @@ mod tests {
             "catalog status",
             "catalog inspect-proposal file",
             "catalog inspect-package-layout file --platform windows-x86-64 --size 1 --sha256 hash",
+            "catalog inspect-package-shape file --port p --platform windows-x86-64 --size 1 --sha256 hash",
+            "catalog inspect-package-drift file --port p --platform windows-x86-64 --size 1 --sha256 hash",
             "catalog inspect-definition-publication directory",
             "catalog definition-authority",
             "catalog update --file file",
@@ -401,6 +433,10 @@ mod tests {
             "source inbox import p file",
             "source roots list",
             "source roots snapshot",
+            "source roots matches",
+            "source roots profiles --root r",
+            "source roots stores",
+            "source roots stores --profile bstone-aliens-of-gold-originals",
             "external preview p dir",
             "external removal-preview p",
             "installation plan p",
@@ -424,6 +460,10 @@ mod tests {
             "artwork reset p",
             "artwork clear-cache",
             "artwork remove-unused hash",
+            "artwork steamgriddb set-key --stdin",
+            "artwork steamgriddb clear-key",
+            "artwork steamgriddb choose p --game 1 --candidate 2",
+            "artwork steamgriddb check-listings",
             "auth login",
             "auth set-token --stdin",
             "auth logout",
@@ -479,6 +519,9 @@ mod tests {
             "tool list",
             "tool set-path tool file",
             "tool clear-path tool",
+            "dat list",
+            "dat add file",
+            "dat remove id",
             "cancel op",
             "about",
             "schema export",

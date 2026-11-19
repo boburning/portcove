@@ -8,6 +8,7 @@ import { Trans } from "react-i18next";
 import { useAppTranslation } from "../localization";
 import { escapeKeyName } from "../keyboard-shortcuts";
 import { normalizeGameSearchText } from "../search-text";
+import { focusableControls } from "../focus";
 
 export interface PaletteCommand {
   id: string;
@@ -47,6 +48,7 @@ function OpenCommandPalette({
 }) {
   const [query, setQuery] = useState("");
   const { t } = useAppTranslation("commands");
+  const { t: commonT } = useAppTranslation("common");
   const [selectedId, setSelectedId] = useState<string>();
   const activeCommand = useRef<HTMLButtonElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
@@ -59,8 +61,9 @@ function OpenCommandPalette({
   const activeId = eligible.some((command) => command.id === selectedId) ? selectedId : fallbackId;
   const activeIndex = filtered.findIndex((command) => command.id === activeId);
   useEffect(() => {
-    activeCommand.current?.scrollIntoView({ block: "nearest" });
-  }, [activeId]);
+    if (activeCommand.current) activeCommand.current.scrollIntoView({ block: "nearest" });
+    else palette.current?.scrollTo({ top: 0 });
+  }, [activeId, query]);
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       const focused = document.activeElement;
@@ -97,9 +100,25 @@ function OpenCommandPalette({
           // Base UI moves focus to the popup when its focused option vanishes.
           if (event.target === event.currentTarget) searchInput.current?.focus();
         }}
+        onKeyDown={(event) => {
+          if (event.key !== "Tab" || event.defaultPrevented) return;
+          const controls = focusableControls(event.currentTarget).filter(
+            (control) => control.tabIndex >= 0,
+          );
+          const first = controls[0];
+          const last = controls.at(-1);
+          const boundary = event.shiftKey ? first : last;
+          const target = event.shiftKey ? last : first;
+          if (target && event.target === boundary) {
+            // Keep focus in the palette before the portal guard restores it on the next frame.
+            event.preventDefault();
+            target.focus();
+          }
+        }}
         initialFocus={searchInput}
         showCloseButton={false}
-        className="command-palette top-[12vh] w-[min(40rem,_calc(100vw_-_var(--space-12)))] max-w-none -translate-y-0 gap-0 overflow-hidden rounded-pc-lg border border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)] p-0 shadow-[var(--shadow-floating)] sm:max-w-none"
+        className="command-palette top-[12dvh] w-[min(40rem,_calc(100vw_-_var(--space-12)))] max-w-none -translate-y-0 gap-0 overflow-x-hidden rounded-pc-lg border border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)] p-0 shadow-[var(--shadow-floating)] sm:max-w-none min-[42rem]:max-h-[calc(88dvh_-_var(--space-2))]"
+        aria-modal={true}
         aria-describedby={undefined}
       >
         <DialogTitle className="sr-only" id="command-palette-title">
@@ -158,11 +177,6 @@ function OpenCommandPalette({
           />
           <Shortcut>{escapeKeyName}</Shortcut>
         </label>
-        {filtered.length > 0 && (
-          <h3 className="m-0 px-5 pt-4 pb-2 text-[length:var(--text-xs)] font-medium text-[var(--color-text-muted)]">
-            {query.trim() ? t("palette.results") : t("palette.quickActions")}
-          </h3>
-        )}
         <div
           className="palette-results max-h-[min(27rem,_58vh)] overflow-auto p-2"
           id="command-palette-results"
@@ -187,7 +201,7 @@ function OpenCommandPalette({
                 {group.label && (
                   <div
                     aria-hidden="true"
-                    className="px-3 pt-3 pb-2 text-[length:var(--text-xs)] font-medium text-[var(--color-text-muted)]"
+                    className="px-3 pt-2 pb-1 text-[length:var(--text-xs)] font-medium text-[var(--color-text-muted)]"
                   >
                     {group.label}
                   </div>
@@ -232,8 +246,11 @@ function OpenCommandPalette({
             ))
           )}
         </div>
-        <footer className="palette-footer flex items-center gap-4 p-[var(--space-2)_var(--space-4)] text-[length:var(--text-2xs)] text-[var(--color-text-muted)] [border-top:1px_solid_var(--color-border)]">
-          <NavigationHints className="mt-0 w-full" />
+        <footer className="palette-footer flex flex-wrap items-center gap-2 p-[var(--space-2)_var(--space-4)] text-[length:var(--text-2xs)] text-[var(--color-text-muted)] [border-top:1px_solid_var(--color-border)]">
+          <NavigationHints className="mt-0 min-w-0 flex-1" />
+          <Button variant="ghost" size="sm" onClick={close}>
+            {commonT("close")}
+          </Button>
         </footer>
       </DialogContent>
     </Dialog>

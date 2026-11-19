@@ -108,11 +108,52 @@ impl CatalogDownloadCoverage {
     }
 }
 
+/// Why the upstream listing download is not this host's route. Each one leaves
+/// existing-installation registration and every installed copy unchanged.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum CatalogDownloadRefusal {
+    /// Portcove's managed integration offers Install for this host.
+    ManagedRoute,
+}
+
+impl CatalogDownloadRefusal {
+    pub fn message(self) -> &'static str {
+        match self {
+            Self::ManagedRoute => {
+                "Portcove installs and updates this game on your system. Use Install instead of downloading the upstream package."
+            }
+        }
+    }
+}
+
+/// Refuse the listing download only when Install is a usable next step: allowed,
+/// or waiting only for the player's game files. A held, not-offered or already
+/// registered Install keeps the download, so neither route is a dead end.
+pub(crate) fn managed_route_refusal(
+    port_actions: &[crate::PortActionAssessment],
+) -> Option<CatalogDownloadRefusal> {
+    port_actions
+        .iter()
+        .any(|assessment| {
+            assessment.action == PortAction::Install
+                && matches!(
+                    assessment.availability,
+                    crate::PortActionAvailability::Allowed | crate::PortActionAvailability::Waiting
+                )
+        })
+        .then_some(CatalogDownloadRefusal::ManagedRoute)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CatalogDownloadCandidates {
     pub port_id: String,
     pub allowed: bool,
     pub reason: Option<String>,
+    /// Present when the listing download is refused because another route
+    /// serves this host; `reason` carries the same player explanation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refusal: Option<CatalogDownloadRefusal>,
     pub candidates: Vec<CatalogDownloadCandidate>,
     /// Absent when an availability or provider refusal prevented discovery.
     pub coverage: Option<CatalogDownloadCoverage>,
@@ -462,10 +503,36 @@ impl PortcoveService {
         Ok(())
     }
 
+    /// One fresh route per host: when this library's own Install assessment for
+    /// the host is allowed or waiting only for the player's game files, Install
+    /// replaces the upstream download. That assessment already folds in the
+    /// library's registrations and installations, acquisition holds, pending
+    /// setup and the definition's Install eligibility, and Desktop uses the same
+    /// test to prefer Install. Descriptive listing platforms never refuse a host.
+    pub(crate) fn listing_download_refusal(
+        &self,
+        port_id: &str,
+    ) -> Result<Option<CatalogDownloadRefusal>> {
+        self.catalog.listing(port_id)?;
+        if self.catalog.port(port_id).is_err() {
+            return Ok(None);
+        }
+        // An unreadable status offers no Install to point at, so it keeps the
+        // download; the download path repeats its own state checks.
+        let Ok(status) = self.status(port_id) else {
+            return Ok(None);
+        };
+        Ok(managed_route_refusal(&status.port_actions))
+    }
+
     fn require_download_available(&self, port_id: &str) -> Result<()> {
         crate::managed_runtime_policy::require_acquisition_available(&self.catalog, port_id)?;
         if let Some(reason) = &self.catalog.listing(port_id)?.download_block_reason {
             return Err(PortcoveError::unsupported(reason.clone()));
+        }
+        if let Some(refusal) = self.listing_download_refusal(port_id)? {
+            return Err(PortcoveError::unsupported(refusal.message())
+                .detail("refusal", enum_value(refusal)?));
         }
         self.require_no_pending_setup(port_id)?;
         let state = self.library.status(port_id, ReleaseChannel::Stable)?;
@@ -599,6 +666,7 @@ impl PortcoveService {
             port_id: port_id.into(),
             allowed: false,
             reason: None,
+            refusal: None,
             candidates: Vec::new(),
             coverage: None,
             default_destination_parent: None,
@@ -610,6 +678,9 @@ impl PortcoveService {
             recommendation_reason: String::new(),
         };
         if let Err(error) = self.require_download_available(port_id) {
+            result.refusal = error.details.get("refusal").and_then(|refusal| {
+                serde_json::from_value(serde_json::Value::String(refusal.clone())).ok()
+            });
             result.reason = Some(error.message);
             return Ok(result);
         }
@@ -636,14 +707,38 @@ impl PortcoveService {
                 .eq_ignore_ascii_case(repository.name())
         });
         let rolling_tag = definition.and_then(|port| port.release.rolling_tag.as_deref());
-        let (candidates, coverage, releases, selected) = provider
-            .options(
-                repository.name(),
-                selected_release_id.as_ref(),
-                channel,
-                rolling_tag,
-            )
-            .await?;
+        // Shared observations only serve the non-managed browse window. They never
+        // enter the managed release resolver or the exact preview/download path.
+        let observed = match provider {
+            CatalogDownloadProvider::Github(provider) if self.catalog.port(port_id).is_err() => {
+                provider
+                    .observed_catalog_download_options(
+                        listing,
+                        selected_release_id.as_ref(),
+                        channel,
+                        rolling_tag,
+                        time::OffsetDateTime::now_utc(),
+                    )
+                    .map(|(candidates, coverage, releases, selected)| {
+                        (candidates, coverage, releases, selected.map(Into::into))
+                    })
+            }
+            _ => None,
+        };
+        let reused_observation = observed.is_some();
+        let (candidates, coverage, releases, selected) = match observed {
+            Some(options) => options,
+            None => {
+                provider
+                    .options(
+                        repository.name(),
+                        selected_release_id.as_ref(),
+                        channel,
+                        rolling_tag,
+                    )
+                    .await?
+            }
+        };
         result.releases = releases;
         result.selected_release_id = selected.clone();
         let platform = Platform::current()?;
@@ -679,6 +774,18 @@ impl PortcoveService {
         result.candidates = candidates;
         result.allowed = true;
         result.reason = coverage.reason(result.candidates.is_empty());
+        if reused_observation {
+            let observation = listing
+                .upstream_observation
+                .as_ref()
+                .expect("reused observation");
+            result.reason = Some(format!(
+                "Upstream metadata observed at {} (fresh until {}). Preview checks the selected file upstream before download. {}",
+                observation.observed_at.as_deref().unwrap_or_default(),
+                observation.fresh_until.as_deref().unwrap_or_default(),
+                result.reason.as_deref().unwrap_or_default(),
+            ));
+        }
         result.coverage = Some(coverage);
         result.default_destination_parent = directories::UserDirs::new().and_then(|directories| {
             let mut choices = vec![directories.home_dir().join("Games")];
@@ -700,6 +807,66 @@ impl PortcoveService {
         request: &CatalogDownloadRequest,
     ) -> Result<CatalogDownloadPreview> {
         self.catalog_download_preview_inner(request, None).await
+    }
+
+    /// Recheck the exact offered package before handing its notes to the browser.
+    pub async fn catalog_download_release_notes(
+        &self,
+        port_id: &str,
+        release_id: &CatalogDownloadReleaseId,
+        asset_id: &CatalogDownloadAssetId,
+        displayed_url: &str,
+    ) -> Result<String> {
+        self.catalog_download_release_notes_inner(
+            port_id,
+            release_id,
+            asset_id,
+            displayed_url,
+            None,
+        )
+        .await
+    }
+
+    async fn catalog_download_release_notes_inner(
+        &self,
+        port_id: &str,
+        release_id: &CatalogDownloadReleaseId,
+        asset_id: &CatalogDownloadAssetId,
+        displayed_url: &str,
+        provider: Option<&CatalogDownloadProvider>,
+    ) -> Result<String> {
+        let listing = self.catalog.listing(port_id)?;
+        listing.validate()?;
+        self.require_download_available(port_id)?;
+        let (repository, provider) = self.catalog_download_source(listing, provider)?;
+        let release_url = provider
+            .candidate_release_notes_url(repository.name(), release_id, asset_id)
+            .await?;
+        if release_url != displayed_url {
+            return Err(PortcoveError::conflict(
+                "The selected release page changed. Check downloads again.",
+            ));
+        }
+        Ok(release_url)
+    }
+
+    fn catalog_download_source(
+        &self,
+        listing: &PortListing,
+        provider: Option<&CatalogDownloadProvider>,
+    ) -> Result<(CatalogDownloadRepository, CatalogDownloadProvider)> {
+        let repository = CatalogDownloadRepository::parse(
+            listing
+                .release_url
+                .as_deref()
+                .unwrap_or(&listing.project_url),
+        )?;
+        let provider = match provider {
+            Some(provider) => provider.clone(),
+            None => CatalogDownloadProvider::for_repository(&self.library, &repository)?,
+        };
+        provider.require_repository(&repository)?;
+        Ok((repository, provider))
     }
 
     #[cfg(test)]
@@ -724,22 +891,7 @@ impl PortcoveService {
         listing.validate()?;
         self.require_download_available(&request.port_id)?;
         let destination_path = self.download_destination(request)?;
-        let repository = CatalogDownloadRepository::parse(
-            listing
-                .release_url
-                .as_deref()
-                .unwrap_or(&listing.project_url),
-        )?;
-        let default_provider;
-        let provider = match provider {
-            Some(provider) => provider,
-            None => {
-                default_provider =
-                    CatalogDownloadProvider::for_repository(&self.library, &repository)?;
-                &default_provider
-            }
-        };
-        provider.require_repository(&repository)?;
+        let (repository, provider) = self.catalog_download_source(listing, provider)?;
         let artifact = provider
             .candidate(repository.name(), &request.release_id, &request.asset_id)
             .await?;
@@ -755,6 +907,14 @@ impl PortcoveService {
             return Err(PortcoveError::verification(
                 "upstream digest conflicts with this exact artifact's known checksum; self-service cannot bypass that failure",
             ));
+        }
+        if let Some(digest) = artifact.sha256.as_deref().or(expected.as_deref()) {
+            crate::managed_runtime_policy::require_artifact_available(
+                &self.catalog,
+                &request.port_id,
+                &artifact.release_tag,
+                digest,
+            )?;
         }
         let preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
             1_u32,
@@ -958,11 +1118,18 @@ impl PortcoveService {
                 &activity.id,
             )?;
             let transfer_result = async {
+                // Either digest is verified below, so either may enable resume.
+                let expected_sha256 = match &record.artifact.sha256 {
+                    Some(digest) => digest.clone(),
+                    None => self
+                        .known_catalog_artifact_hash(&request.port_id, &record.artifact)?
+                        .unwrap_or_default(),
+                };
                 let artifact = crate::ReleaseAsset {
                     name: record.artifact.name.clone(),
                     url: record.artifact.download_url.clone(),
                     size: record.artifact.size,
-                    sha256: record.artifact.sha256.clone().unwrap_or_default(),
+                    sha256: expected_sha256,
                 };
                 let source = stage.path().join("artifact.download");
                 Installer::download_with_client(
@@ -989,6 +1156,12 @@ impl PortcoveService {
                         .detail("actual", &archive_sha256));
                     }
                 }
+                crate::managed_runtime_policy::require_artifact_available(
+                    &self.catalog,
+                    &request.port_id,
+                    &record.artifact.release_tag,
+                    &archive_sha256,
+                )?;
                 record.archive_sha256 = archive_sha256;
                 record.downloaded_at = time::OffsetDateTime::now_utc()
                     .format(&time::format_description::well_known::Rfc3339)
@@ -1356,5 +1529,53 @@ impl PortcoveService {
             ));
         }
         Ok(stored.record.path)
+    }
+
+    /// Read-only browser handoff from the exact saved setup and its retained guide.
+    pub fn pending_setup_resource(
+        &self,
+        port_id: &str,
+        pending_id: &str,
+        url: &str,
+    ) -> Result<String> {
+        let (record, _) = self
+            .pending_setup_registration(port_id)?
+            .filter(|(record, _)| record.id == pending_id)
+            .ok_or_else(|| PortcoveError::conflict("pending setup changed or no longer exists"))?;
+        let listing = &record.listing;
+        let retains_guide = [
+            listing.setup_url.as_deref(),
+            listing
+                .manual_setup
+                .as_ref()
+                .and_then(|guide| guide.help_url.as_deref()),
+        ]
+        .contains(&Some(url));
+        let retains_release = url == record.artifact.release_url
+            && CatalogDownloadRepository::parse(
+                listing
+                    .release_url
+                    .as_deref()
+                    .unwrap_or(&listing.project_url),
+            )
+            .ok()
+            .and_then(|repository| repository.release_notes_url(&record.artifact.release_tag))
+            .is_some_and(|expected| expected == url);
+        if url.len() <= 4096
+            && url.trim() == url
+            && !url.chars().any(char::is_control)
+            && (retains_guide || retains_release)
+            && reqwest::Url::parse(url).is_ok_and(|parsed| {
+                parsed.scheme() == "https"
+                    && parsed.host_str().is_some()
+                    && parsed.username().is_empty()
+                    && parsed.password().is_none()
+            })
+        {
+            return Ok(url.to_owned());
+        }
+        Err(PortcoveError::usage(
+            "This link does not belong to the saved setup.",
+        ))
     }
 }

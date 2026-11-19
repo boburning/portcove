@@ -16,7 +16,57 @@
       "game_slug": "castlevania-legacy-of-darkness",
       "match_kind": "underlying-game"
     },
-    "issue_number": 320
+    "issue_number": 320,
+    "release_url": "https://github.com/fliperama86/cvlod_recomp/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your game files",
+          "instruction": "Use your own stock North American Castlevania: Legacy of Darkness ROM. Extract the full matching package into a separate folder. Put the original in that folder as rom.z64 or choose it in ROM Setup. To keep saves with this copy, create an empty portable.txt beside the executable or LodRecomp.app before opening it."
+        },
+        {
+          "title": "Set up Linux x64",
+          "instruction": "Use the Linux x64 archive and keep LodRecomp beside its assets folder. The v0.2.29 executable needs glibc 2.38 or later and the system SDL2, FreeType and GTK 3 libraries. Start LodRecomp from the extracted folder."
+        },
+        {
+          "title": "Set up Apple Silicon Mac",
+          "instruction": "Use the ARM64 Mac package. The v0.2.29 app links to the Homebrew sdl2-compat and freetype libraries. Keep rom.z64 next to LodRecomp.app. If the app cannot see the adjacent file, choose the original in ROM Setup."
+        }
+      ],
+      "warnings": [
+        "Back up the whole saves and settings folder before trying a replacement. Keep your original ROM and working copy separately.",
+        "Earlier Windows releases crashed on ordinary close. The v0.2.29 Windows package still needs a fresh close and save check. Preserve the working installation when testing an update."
+      ],
+      "references": [
+        {
+          "title": "Find saves and settings in an upstream copy",
+          "instruction": "Portable mode uses the folder beside LodRecomp or LodRecomp.app. Keep its portable.txt, saves, settings and mods together. For default upstream settings, check %APPDATA%\\LodRecomp on Windows or ~/Library/Application Support/LodRecomp/ on Mac. The upstream README also describes --save-path and --save-dir for separate saves."
+        },
+        {
+          "title": "Check platform and version",
+          "instruction": "The official v0.2.29 desktop release has Windows x64, Linux x64 and Apple Silicon Mac packages. The Mac app is ARM64 only. On Windows, Settings can still report v0.2.28 for the v0.2.29 package."
+        }
+      ],
+      "help_url": "https://github.com/fliperama86/cvlod_recomp/blob/v0.2.29/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "castlevania-legacy-of-darkness",
+      "evidence_urls": [
+        "https://github.com/fliperama86/cvlod_recomp/blob/v0.2.29/README.md",
+        "https://github.com/fliperama86/cvlod_recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "castlevania-legacy-of-darkness-nintendo-64",
+          "title": "Castlevania: Legacy of Darkness (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/fliperama86/cvlod_recomp/blob/89566dd74781d39e19944c8ba29a116ee31b963e/castlevania2.yaml"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

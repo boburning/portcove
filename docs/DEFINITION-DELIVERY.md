@@ -1,25 +1,27 @@
 # Independent definition delivery contract
 
-This is the successor design for #245. It does not extend signed catalog format
-1, admit a new port, provision a publisher, or activate automatic delivery.
-`portcove-core` remains the sole definition, admission and lifecycle authority.
-The CLI and Tauri expose its outcomes; React and external clients present them.
-The Project owns scheduling. Completed #245/#397/#398 components supply the
-design, compatible client and configured observer; completed #254 supplies bounded
-authoring tooling. #177 owns continued discovery and normalized observations,
-#247 scoped release-health incidents/recovery, and #246 the actual protected
-publication and unchanged-client journey. #534 retains provisioning acceptance;
-component fixtures do not complete either production outcome.
+This document describes the successor design for #245. Signed catalog format 1
+keeps its own contract. Use the separate procedures for port admission, publisher
+setup, and automatic delivery.
+
+`portcove-core` decides which definitions and lifecycle operations to accept.
+The CLI and Tauri expose those results. React and external clients display them.
+Use the Project for scheduling.
+
+Completed work in #245, #397, and #398 covers the design, client, and observer.
+Completed work in #254 covers authoring tools. Find ongoing discovery and
+normalized observations in #177. Find release health and recovery in #247.
+Find protected publication and the unchanged-client workflow in #246.
+Issue #534 holds publisher setup acceptance. Both production outcomes need
+evidence beyond component fixtures.
 
 ## Implemented engine capability negotiation
 
-Core advertises each installed `AdapterKind` template with contract version 1.
-The public inventory additionally advertises Libultraship portable version 2,
-native portable versions 2–9, managed PS1 version 2, N64 portable versions 2–4
-and staged-source portable versions 2–5, 8, 10–12 and 15–31. The inventory owner is
-`EngineTemplateCapability::current()` in
-[`definition_capabilities.rs`](../crates/portcove-core/src/definition_capabilities.rs);
-the version semantics and admission limits below remain part of each contract.
+Run `portcove --json capabilities` using the client you intend to support.
+Its `engine_templates` lists the exact adapter and contract versions it can
+interpret. [Check a client's capabilities](#check-a-clients-capabilities)
+before choosing a definition. The source inventory is
+[`EngineTemplateCapability::current()`](../crates/portcove-core/src/definition_capabilities.rs).
 
 Staged-source creation versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
@@ -159,6 +161,55 @@ retain the same effective Linux directory contract. Other platforms keep their
 creating launch and persistence rules.
 Fresh and retained indexed entries declaring this field require version 25.
 
+Native portable version 28 consumes `windows_tracked_handoff`. With it, a
+supervised Windows session also waits for its job members whose program lies in
+the installation; an older reader would drop the field and collect player data
+while a successor still runs. Fresh and retained indexed entries declaring the
+field require native-portable version 28 whatever their adapter, listed beside
+their own adapter requirement. Format-1 signed catalogs cannot deliver it, and
+a legacy installation without a retained definition cannot inherit it from the
+current catalog on Windows.
+
+Native portable version 29 is required by fresh indexed entries
+that combine a reviewed Unix package layout with
+`release.grant_declared_executable`. Core applies the verified grant to the
+declared program in private staging before comparing the executable inventory.
+Retained entries and Windows-only layout declarations can still use the
+earlier grant capability.
+
+Native portable version 30 recognizes `ignore_verified_macos_libraries` in
+reviewed macOS package layouts. Fresh and retained entries using that option
+require version 30. Core still fingerprints launcher paths and any executable
+whose file kind cannot be established as a matching shared library.
+
+Native portable version 31 consumes `vcmi-windows-v1` for the official
+VCMI Windows ZIP. Fresh and retained indexed entries declaring it require
+version 31. The direct client uses its external Windows Documents profile.
+Core refuses the runtime-directory fallback and custom directory configuration.
+
+Native portable version 32 combines a Linux reviewed package layout with the
+existing dedicated portable-data directory. Fresh and retained entries using
+both require version 32. After validating the data directory, Core excludes an
+empty declared directory at the observed package root. Packaged data, aliases
+and links remain subject to the portable-data checks.
+
+Native portable version 33 checks reviewed OpenMoHAA Linux and macOS ZIP
+layouts after the existing staging preparation grants execute permission to the
+verified title launcher and engine. Fresh and retained entries with an OpenMoHAA
+Unix layout require version 33. The existing Windows layout and earlier
+unfingerprinted Unix entries use their existing capability rules.
+
+Native portable version 35 covers Windows recovery when a Snap64 successor
+starts without inheriting the job handle. Fresh and retained indexed Snap64
+entries that declare the tracked handoff require version 35. Previously
+admitted tracked definitions for other ports retain their original minimum.
+
+Native portable version 36 recognizes `classify_linux_programs_by_format` in
+reviewed Linux x86-64 package layouts. Fresh and retained entries using that
+option require version 36. Core still fingerprints ELF programs, `#!` scripts,
+program and script names, and any library-named file whose header is not a
+verified shared object.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted
@@ -265,6 +316,21 @@ reading unscoped legacy manifests. A bounded, install/manifest-bound Core receip
 records completed data restoration before first Play; it establishes no launch,
 game-file, mod, publisher or gameplay qualification. See the
 [PS1 data boundary](CATALOG.md#managed-ps1-package-and-player-data-restoration).
+
+Managed PS1 version 3 keeps each existing installation's retained persistent
+scope when a newer definition only adds `mods/texture-packs`. Indexed PS1
+entries that declare it require minimum version 3, so an older reader refuses
+the entry instead of treating existing installations as a changed scope. A
+format-1 signed catalog built from a catalog with the folder changes those
+ports' persistent paths, so an older reader refuses the whole catalog and asks
+for a Portcove update, as for earlier persistent-path changes.
+
+Managed PS1 version 4 installs a `psx-raw-set` disc set whose discs carry more
+than one track, keeping every track beside the data track. The track counts
+live in the source profile, so the catalog projection, not the entry alone,
+requires minimum version 4 for an indexed entry whose set has such a disc. An
+older reader would refuse the catalog only generically, because its validation
+admits a managed set only when every disc has one track.
 
 Staged-source version 22 covers ready managed archives without a source, build,
 setup-helper, initialization or shared-account contract. New indexed entries of
@@ -474,6 +540,8 @@ provider result before applying a review. Older clients refuse this combination;
 direct manifests retain version 19. This capability does not authenticate a
 publisher, authorize publication or widen the policies' data and consent scope.
 
+### Check a client's capabilities
+
 API schema 45 exposes the inventory as `capabilities.engine_templates`. The CLI
 `catalog check-capabilities <file>` and Tauri `check_definition_capabilities`
 delegate to the same core negotiation. Tauri `get_engine_capabilities` returns
@@ -533,6 +601,42 @@ updating or launching, and nothing is unpacked or removed until one is registere
 `optional_game_source` must require staged-source minimum version 31, so an older reader,
 which would treat the source as required and hold Play, refuses it instead. The version
 adds no source, installation or publisher authority and does not change versions 2–30.
+
+Staged-source version 32 admits `runtime_stfs_package` on an `stfs-directory` port,
+together with the `PIRS` container, the verified STFS hash tree and `stfs-content`
+source identities that such a port may use (see
+[STFS package extraction](CATALOG.md#stfs-package-extraction)). An indexed entry that
+declares `runtime_stfs_package` must require staged-source minimum version 32, so an
+older reader, which would extract without the header binding, refuses it. A content
+identity is valid only for a port that declares the binding, so the same requirement
+covers it. The version adds no source, installation or publisher authority and does not
+change versions 2–31; NocturneRecomp declares no binding and keeps its requirement.
+
+Staged-source version 33 admits the `rom-patch` source materialization with its
+`runtime_rom_patch` declaration (see [ROM patching](CATALOG.md#rom-patching)): an exactly
+identified IPS, BPS or UPS patch is applied to an exactly identified original, both
+supplied by the player in one file-set source, and the result is used only when it
+matches its pinned identity. An indexed entry that declares `runtime_rom_patch` must
+require staged-source minimum version 33, so an older reader, which cannot apply a patch,
+refuses it instead of copying an unpatched file. The version adds no source, download,
+installation or publisher authority and does not change versions 2–32.
+
+Staged-source version 35 admits exact release exclusions in a managed
+acquisition hold. Indexed and retained definitions with `excluded_artifacts`
+must declare a staged-source minimum version of 35. Earlier readers reject
+the capability. Holds that omit this field keep their existing behavior and
+capability requirements. The new field grants no additional acquisition authority.
+
+Staged-source version 36 admits SNES sources whose dump may carry a 512-byte
+copier header (the `snes-copier-header-optional` source representation and its
+`snes-headerless-content` digest scope) and the `snes-headerless` source
+materialization that writes their content without the header (see [copier
+headers](CATALOG.md#snes-copier-headers)). An indexed entry using either must
+require staged-source minimum version 36, so an older reader refuses it instead
+of copying a headered file whole. Changing an existing source identity record
+still cannot ship by indexed definition; converted routes ship in the
+application's embedded catalog. The version adds no source, download,
+installation or publisher authority.
 
 ## Decision and threat model
 
@@ -729,9 +833,10 @@ but occur once in the inventory. Empty snapshots are structurally valid; parsing
 one cannot remove catalog availability. Unknown or duplicate fields at every
 index boundary fail closed. Index bytes are retained exactly, not reserialized.
 
-The parser enforces the 4 MiB index, 4,096 definitions, 4 MiB per content target
-and 32 MiB aggregate bounds below before exposing an immutable inventory. This
-first representation conservatively bounds all listed content, including records
+The parser enforces a 4 MiB index, at most 4,096 definitions and a 32 MiB aggregate
+content bound before exposing an immutable inventory. The general per-target
+ceiling is 16 MiB. Individual definition entries keep their 4 MiB limit. This
+representation conservatively bounds all listed content, including records
 not referenced by a definition. A transport can obtain each target's validated
 length before its bounded read and then check supplied bytes against that length
 and SHA-256. Repeated reads remain the transport's responsibility.
@@ -800,7 +905,7 @@ persistence contracts and referenced artifact/evidence identities. Bound entry
 count, individual and total bytes, depth, path lengths and fetched references;
 reject cycles and missing references. No reference can become an executable URL.
 The initial content contract uses a 4 MiB index, at most 4,096 entries, 4 MiB per
-entry, 32 MiB total fetched definition/contract content, depth 32, at most 1,024
+entry, 16 MiB per projection target, 32 MiB total fetched definition/contract content, depth 32, at most 1,024
 references per entry, and 255 UTF-8 bytes per relative path component. Existing
 stricter core path/archive limits still apply. TUF metadata retains the maintained
 client's own separate limits. An unsupported larger document cannot evict the
@@ -849,8 +954,9 @@ remain required. An indexed empty object is not a usable execution contract.
 `DefinitionContentIndex::inspect_catalog_projection` interprets supplied entry
 and contract bytes through the existing core validators. Its terminal record has
 exactly `contract_schema: 1`, `representation: "catalog_projection"` and `catalog`.
-The catalog is the complete authoritative schema-1 or schema-2 document. Schema 2
-omits derived `source_profiles`; the existing loader reconstructs that projection.
+The catalog is an authoritative schema-1, schema-2 or schema-3 document.
+Schemas 2 and 3 omit derived `source_profiles`. The catalog loader reconstructs
+those profiles from the supplied source graph.
 Every field emitted by the authoritative serializer must be present, including
 default-valued port fields. Unknown, missing or discarded semantics and duplicate
 decoded JSON keys fail closed. Whitespace and object-key order are immaterial;
@@ -868,8 +974,9 @@ The leaf has no outgoing target references. Additional graph fields, distinct
 role leaves or record types require a separately implemented versioned contract;
 they are rejected rather than silently ignored or traversed. Thus this supported
 target graph is exactly one edge deep with one distinct leaf, within the index's
-existing byte and reference bounds. The projected catalog also keeps its existing
-4 MiB bound. Source-graph references are checked by the current catalog validators.
+existing byte and reference bounds. As one content target, the projected catalog
+has a 16 MiB content bound. Its decoded catalog independently shares the
+16 MiB signed-catalog bound ([size bounds](SIGNED-CATALOG.md#size-bounds-and-older-clients)). Source-graph references are checked by the current catalog validators.
 
 All catalog semantics must validate, the selected port must exactly match the
 entry, and its installed template requirements must be supported. A failure
@@ -893,6 +1000,15 @@ recaptures the complete record. Format 2 stays readable as supplied successor
 content but gains no invented authentication. Writer protocols 25 and 27 prevent
 older clients from dropping exact successor bytes or the authenticated admission
 record.
+At authenticated selection and reopen, Core can add a new identity from a
+legacy schema-2 projection that supplies one port and its source graph to a
+schema-3 baseline. Core validates the combined graph and applies the existing
+scope checks, including source ownership and collision checks. The effective
+catalog keeps the baseline schema and unrelated ports, and the receipt retains
+the exact verified projection bytes. Other transitions still require the
+complete scoped replacement graph. Clients built before this compatibility
+change require a complete projection matching their baseline schema and scope.
+
 Authenticated loading, freshness/revocation, transactional catalog selection and
 scoped runtime activation are implemented in core. Production root and grant
 provisioning remain required before automatic public delivery can use this path.
@@ -1024,12 +1140,10 @@ select definitions or install games. Deleting all history or rolling back the
 entire database cannot be detected without an independent witness; this seam
 does not claim that protection.
 
-The CLI operator command retains its explicit reviewed-plan confirmation.
-Normal Desktop setup uses the same Core transaction through its separate official
-catalog review and enablement bridge. API87 binds that confirmation to the existing
-library/Root/history plan and the exact compiled transport-source bytes. The CLI
-plan is unchanged. Neither review nor enablement emits a lifecycle event or selects
-a definition, policy or installation.
+The CLI operator command retains its explicit reviewed-plan confirmation, and
+the CLI plan is unchanged. Desktop uses the same Core transaction without a
+separate confirmation; see normal official-catalog setup below. Installing the
+anchor emits no lifecycle event and selects no definition, policy or installation.
 
 **Normal official-catalog setup.**
 
@@ -1041,22 +1155,56 @@ trust, policy, a key or a publisher grant; unknown fields, unsafe addresses and 
 over 4,096 bytes refuse. There is no runtime, environment or caller override to
 these normal-client defaults. Explicit operator transport commands remain available.
 
-Desktop's ordinary update settings review this fixed pair and request one explicit
-enablement confirmation. Its generation-bound adapter accepts only the reviewed
-plan, never Root or source bytes. Core recomputes the source-bound plan and delegates
-to its existing provisioning transaction. Exact still-unadmitted lost-response
-retries remain idempotent; changed sources/libraries, conflicting anchors, corrupt
-history and advanced initialization preimages refuse without repair or floor reset.
-Opening a library or refreshing a directory never silently installs trust.
+**Official catalog updates are on by default** (owner decision on #534,
+2026-11-15). Desktop asks for no separate enablement confirmation. When a library
+has no installed authority, the official catalog refresh, the scheduled refresh
+and **Check setup availability** first install this release's compiled anchor
+through the existing provisioning transaction, using the plan Core has just
+reviewed for that library; the transaction rechecks that exact plan. A concurrent
+installation of the same anchor is accepted. Changed sources/libraries,
+conflicting anchors, corrupt history and advanced initialization preimages still
+refuse without repair or floor reset. Only the compiled Root and source are used;
+no adapter supplies Root, source bytes or a plan. Desktop therefore installs the
+compiled official anchor automatically at the first scheduled check, shortly
+after a library loads, unless the player turned automatic updates off. Reviewing
+settings alone never installs trust. **Refresh official catalog** and **Check
+setup availability** are explicit player actions, so they install the compiled
+anchor even while automatic updates are off. `Library::enable_official_catalog`
+keeps its exact-plan confirmation for callers that want an explicit step.
 
-Once enabled, the normal refresh action uses those compiled locations through
-the existing authenticated listing-delivery path and cancellation/lifecycle owner.
+Desktop schedules one refresh about 15 seconds after a library has loaded, then
+about every 24 hours while it runs. Checks never overlap: Core allows one official
+catalog refresh at a time per process, a scheduled check skips while another runs
+and a player's refresh waits for it. Desktop also waits while another task holds
+the library. Before recording an activity, the scheduled refresh acquires the
+listing target through the same authenticated TUF path and strict parser as the
+manual refresh and runs every admission check without writing. An outage, an
+absent publication (HTTP 404 or 410), expired metadata, a bad signature, a listing
+format this client cannot read, stale metadata or a replay/equivocation returns a
+quiet `unavailable` result with its serving status. No activity is recorded and
+the directory, replay floors and selection do not change. On a library's first
+check, the compiled anchor may already have been installed as described above
+even when the result is `unavailable`. An admissible candidate is published
+through the ordinary update-catalog activity, cancellation and atomic admission
+owner. A player's manual refresh still reports its failures. Any failure keeps
+the accepted directory, replay floors and bundled fallback.
+Settings shows the latest result, including a player's successful refresh. A failed scheduled check never raises an
+error notice.
+
+The **Update the catalog automatically** choice in Settings is host-wide and
+stored in host preferences as `official_catalog_automatic_updates`. An absent
+value means on, so new installations and existing ones that never changed the
+choice are on. Turning updates off stores an explicit `false`. Core then skips
+each scheduled refresh before any trust, network or library write. Turning
+updates on removes the value and requests a check soon. **Refresh official
+catalog** stays available while updates are off.
+
 The built-in catalog and installed games remain available when this optional
-source is unconfigured or its refresh fails. Enabling the source does not install
-a game, authorize a definition or replace executable/player data. The configured
-Windows/native baseline, authenticated feed and protected progression
-acceptance remain separate obligations after this source appointment. Neither
-compiled input nor a library enablement receipt establishes those outcomes.
+source is unconfigured or its refresh fails. A refresh does not install a game,
+authorize a definition or replace executable/player data. The configured
+Windows/native baseline, authenticated feed and protected progression acceptance
+remain separate obligations after this source appointment. Neither compiled input
+nor an installed anchor establishes those outcomes.
 
 Selected Desktop details expose **Check setup availability** for the selected port.
 The generation-bound private command accepts only its known port ID and operation
@@ -1064,8 +1212,9 @@ channel. Core resolves a retained definition's exact official namespace/stable I
 or the exact known listing/embedded port ID; it refuses unknown IDs and does not
 strip namespace prefixes, infer identities from titles or map related editions.
 It delegates to the existing definition-refresh pipeline using the compiled source
-and explicitly enabled authority. Catalog update settings remain the normal
-enablement route; checking cannot provision trust, install a game or replace files.
+and authority. Like the catalog refresh, it installs only this release's compiled
+anchor when the library has none; checking cannot rotate trust, install a game or
+replace files.
 
 The detail action supplies the maintained propagating mutation-readback callback
 to the existing application-lifetime operation owner. It reloads the current
@@ -1094,11 +1243,16 @@ atomic commit and rechecks current authority, so a concurrent revocation defeats
 an older eligibility proof. Ordinary selection also validates the transition
 against the current format-1/embedded catalog in that same immediate transaction,
 including exact retries; a definition cannot remove or change unrelated entries.
-Existing service instances keep their constructor
-catalog; a new service (the next CLI invocation) consumes the durable selection.
-This explicit command adds no startup polling, Tauri binding, game lifecycle
-side effects or production feed activation. The default root remains absent;
-fixture orchestration is not the protected unchanged-client journey.
+For its own port, that transition may keep or narrow a managed acquisition hold
+but not remove it or add a reviewed artifact, may replace but not remove a
+reviewed package layout, and may keep or remove `release.accepted_uploaders`
+but not add an uploader the embedded catalog has not accepted
+([uploader continuity](CATALOG.md#release-selection-and-maintenance)). An entry
+for a port absent from the embedded catalog therefore cannot accept uploaders.
+An existing service keeps its constructor catalog. A new service, such as the
+next CLI invocation, consumes the durable selection. See [official catalog
+provisioning](SIGNED-CATALOG.md) for the compiled root and the
+first refresh of an unconfigured library.
 
 Policy schema 1 authorizes **availability only**, binding the namespace,
 stable ID, grant and monotonic policy revision to the exact index, definition
@@ -1418,14 +1572,13 @@ definition before publishing staged bytes and before registering published bytes
 A refused operation keeps its journal and recovery evidence; the current fallback
 catalog cannot authorize its retained definition. Committed cleanup remains distinct.
 
-Disposable TUF authority and owned HTTP/native probe fixtures exercise this component.
-They do not qualify production TLS, gameplay or automatic publisher delivery.
-Production root/grant provisioning, protected publisher custody and write/signing
-authority, automatic publication and the unchanged-client new-definition,
-next-artifact and correction proof remain distinct #246 acceptance. This is not
-activation of a production feed or whole-issue delivery.
+Disposable authority and HTTP/native fixtures exercise this component in isolation.
+The [current production catalog publisher](RELEASING.md#current-release-process)
+and [workflow](../.github/workflows/catalog-publish.yml) describe today's
+isolated role signing, guarded publication and readback.
 
-#246 uses the existing strict required checks and distinct review under Protect
+**Historical controller design.** The following account records the earlier
+protected-controller design for #246. It used distinct checks and review under Protect
 main ruleset 22155633, including its zero approval count. That rule supplies
 routine merge authority, not signing authority. A separately authorized trusted
 controller runs from a pinned protected revision and accepts inert candidate data.
@@ -1474,8 +1627,8 @@ contains `definitions/index.json`, exactly its `sha256/*.json` content, and the
 corresponding `policy/official/<stable_id>.json` plus required `.launch.json`
 records. Core reuses the definition, capability, publisher and launch parsers;
 missing, extra, changed, linked or unsupported content refuses. The bounds are
-16,385 files and 32 MiB in total, with 4 MiB indexed leaves and 64 KiB policy
-records. Its exact file/definition manifest grants no semantic or publisher
+16,385 files and 32 MiB in total, with 16 MiB indexed projection leaves, 4 MiB indexes and individual
+definition entries, and 64 KiB policy records. Its exact file/definition manifest grants no semantic or publisher
 acceptance. An empty index is bootstrap preparation, not a delivered definition.
 
 The maintained release inspector and its real-CLI build fixtures accept API84
@@ -1506,12 +1659,19 @@ sole Pages writer. The site's 6,000-file / 256 MiB bound remains independent of
 producer and historical-repository bounds. Protected configuration, admission,
 source/producer binding and the live controller integration remain required.
 
+Since 2026-11-15 the bundle below is published by
+[`catalog-publish.yml`](../.github/workflows/catalog-publish.yml), described in
+[Catalog publication](RELEASING.md#current-release-process). The coordinator,
+review and journal steps described in the rest of this section are retired.
+
 The automatic catalog authoring boundary is the fixed inert source subtree
 `release/catalog-publication/`: strict `request.json` plus `bundle/` containing
 the managed index, checksum-addressed definitions and official policy/launch
 records. This is separate from the compiled catalog. The existing coordinator
 freezes exact raw Git inputs, actual Core projection, accumulated changes from
-the accepted catalog baseline and current component/site identities. Its neutral
+the accepted catalog baseline and current component/site identities. The catalog
+source readers reconstruct at most 6,144 entries per complete Git tree and refuse
+truncated or mismatched trees. Its neutral
 request is consumed by the selected independent whole-opportunity producer;
 parser success or persistence does not establish acceptance. Negative results
 retain the actual authenticated Check and bounded repair history in the same
@@ -1660,7 +1820,10 @@ corrupt or no-longer-authorized cached data falls back to the bundled directory;
 the retained revision/replay floor is not lowered. Status exposes the actual
 selection, revision, target and authority digests, expiry, counts, withdrawals
 and fallback reason. An expired tombstone is not an indefinite new authority over
-the bundled fallback. There is no startup fetch or unsigned GitHub JSON fallback.
+the bundled fallback. Desktop refreshes the official directory shortly after
+startup and about daily unless the player turned automatic updates off; see
+[normal official-catalog setup](#exact-definition-availability-policy). There is
+no unsigned GitHub JSON fallback.
 
 The existing target can carry listing format8 for supported GitLab descriptive
 observations. Exact native tag identities use the existing project/tag reference; GitHub numeric
@@ -1668,13 +1831,30 @@ IDs retain their shape, and older incapable readers refuse the directory while
 retaining their last-good selection. This is data compatibility, not a publisher
 grant or permission to acquire or execute a package.
 
+Listing format 12 adds optional implementation methods and shared dependencies.
+Earlier-format exports omit that inert envelope while preserving setup facts and
+acquisition restrictions. A format-12 publication needs compatible reader coverage;
+this implementation does not authorize a protected publication or change its keys.
+
+Listing formats 9 (first-listed dates) and 10 (funding links) follow the same rule.
+A delivered directory declares one format for the whole snapshot, so publishing at
+format 10 stops listing updates for every reader that understands at most format 9:
+such a reader refuses the new target and keeps its last accepted directory (or its
+bundled one) until its application is updated. A reader at format 10 accepts a
+format-9 snapshot; the snapshot replaces its own records by ID, so a record it
+delivers without links shows none, while bundled records it omits keep theirs.
+Which format a publication uses is a publication decision; this contract does not
+change it. `catalog listings --format-version 9` produces the same directory
+without funding links, which format-9 readers accept.
+
 CLI `catalog listing-refresh --metadata-base-url <https-base>
 --targets-base-url <https-base>` performs an explicit refresh under the installed
 authority. `catalog listing-status` reports its selection. Tauri delegates the
-same operations to Core; settings exposes the manual refresh and existing catalog
-and artwork projections display the resulting data after a workspace reload.
-Authority provisioning still requires the existing exact-plan consent. Automatic
-scheduling and real production configuration remain with their existing owners.
+same operations to Core; settings exposes the automatic-update choice and the
+manual refresh, and existing catalog and artwork projections display the resulting
+data after a workspace reload. The CLI listing refresh still requires an installed
+authority; the CLI does not install the compiled anchor or schedule refreshes.
+Real production configuration remains with its existing owner.
 
 Publication inspection schema 2 includes a separately bound listing summary
 (target, revision, exact digest and listing/withdrawal counts). The
@@ -1711,3 +1891,27 @@ manifest, encoded current/prior content and changed-source evidence. Attempts
 that exhaust that budget refuse complete review and remain held. The transport
 fixture exercises a 2 MiB current directory and retained prior copy; it supplies
 no actual semantic-review acceptance or production qualification.
+
+### Reviewed mod provider bindings
+
+An indexed definition can carry one exact GameBanana game ID and one
+Thunderstore community under `mod_provider_bindings`. The port must already
+have a reviewed mod loader. Indexed Libultraship and N64 recomp bindings
+require template versions 6 and 8 respectively. Legacy signed catalog
+envelopes cannot appoint a binding. An omitted field keeps the compiled scopes.
+An explicit empty list withdraws the provider choices. The library records
+which ports have adopted explicit scopes. If that selection expires, is
+revoked or is replaced by another port, its compiled provider is held until
+a fresh authenticated definition appoints an exact scope. Shared profile writes
+require library schema 69 or newer. Recipes carrying an explicit scope use
+format 4.
+
+When multiple providers are available, select the provider before requesting
+a project or planning an install. Desktop offers the choices and the CLI
+accepts `--provider`. A plan or installed reference for a new scope carries its
+exact binding. A historical reference with no binding resolves only to its
+original compiled scope. Install, update and recipe replay refuse a changed
+scope.
+
+Keep newly authored scopes out of public projections until the matching
+reader and profile writer are available to the clients using those scopes.

@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { canonicalJson, sha256 } from "./maintenance-inventory.mts";
 import {
+  managedReleaseEligibilityWindow,
   readUpstreamObservations,
   upstreamAttention,
   upstreamFacts,
@@ -10,7 +11,8 @@ import {
   type UpstreamTransport,
 } from "./maintenance-upstream.mts";
 import { newCatalogObserverCheckpoint } from "./catalog-upstream-observer.mts";
-import { snapshotName } from "./observer-checkpoint-artifact.mts";
+import { encodeStreamingObserverSnapshot, snapshotName } from "./observer-checkpoint-artifact.mts";
+import { encodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import {
   catalog,
@@ -23,6 +25,50 @@ import {
 } from "./fixtures/upstream-checkpoint-fixture.mts";
 
 const now = Date.parse("2026-11-11T00:00:00.000Z");
+
+void test("rolling eligibility counts one candidate per target separately from client availability", () => {
+  const published = "2026-11-08T12:00:00.000Z";
+  const row = (
+    key: string,
+    recorded_at: string,
+    eligible = false,
+    published_at: string | null = published,
+  ) => ({
+    candidate_key: key.repeat(64),
+    recorded_at,
+    published_at,
+    state: eligible ? "eligible" : "pending",
+    hold_reasons: eligible ? [] : ["missing-digest", "missing-digest"],
+  });
+  const result = managedReleaseEligibilityWindow(
+    [
+      row("a", "2026-11-10T12:00:00.000Z", true),
+      row("a", "2026-11-09T12:00:00.000Z"),
+      row("a", "2026-11-10T18:00:00.000Z", true),
+      row("b", "2026-11-09T12:00:00.000Z"),
+      row("c", "2026-11-09T12:00:00.000Z", false, null),
+      row("d", "2026-11-09T12:00:00.000Z", false, "2026-09-08T12:00:00.000Z"),
+      row("e", "2026-11-12T12:00:00.000Z", true),
+    ],
+    new Date(now),
+  );
+  assert.equal(result.first_recorded_evidence_at, "2026-11-09T12:00:00.000Z");
+  assert.equal(result.distinct_candidates, 2);
+  assert.equal(result.eligible_candidates, 1);
+  assert.equal(result.pending_candidates, 1);
+  assert.equal(result.unknown_publication_times, 1);
+  assert.equal(result.oldest_pending_age_ms, 216_000_000);
+  assert.deepEqual(result.hold_reasons, [{ reason: "missing-digest", distinct_candidates: 1 }]);
+  assert.deepEqual(result.publication_to_recorded_eligibility_ms, {
+    samples: 1,
+    median: 172_800_000,
+    max: 172_800_000,
+  });
+  assert.equal(result.released_client_unattended_availability, null);
+  assert.equal(result.human_interventions, null);
+  assert.equal(result.signed_automatic_repairs, null);
+  assert.equal(result.operating_cost, null);
+});
 
 void test("upstream facts keep stable source facts and report coverage gaps", () => {
   const result = upstreamFacts(
@@ -69,6 +115,69 @@ void test("a port added after its source completed is a scope change, not a fact
   );
   assert.deepEqual(result.facts.size, 0);
   assert.equal(result.gaps[0]?.code, "scope-changed");
+});
+
+void test("retained managed candidates keep their identity from pending to eligible under one tag", () => {
+  const offered = {
+    platform: "linux-x86-64",
+    channel: "stable",
+    channel_candidate: { id: 19, tag: "v2", published_at: "2026-11-10T09:00:00Z" },
+  };
+  const prior = progress("owner/alpha", ["alpha"]);
+  const read = (row: Record<string, unknown>) =>
+    upstreamFacts(
+      checkpoint({
+        [keyOf("owner/alpha")]: {
+          ...prior,
+          last_complete_policies: [
+            {
+              ...prior.last_complete_policies[0],
+              projections: [
+                row,
+                { ...row, channel: "rolling" },
+                { ...row, platform: "windows-x86-64" },
+              ],
+            },
+          ],
+        },
+      }),
+      {
+        ports: [
+          {
+            ...catalog.ports[0],
+            release: { repository: "owner/alpha", curated: { "windows-x86-64": {} } },
+          },
+        ],
+      },
+      now,
+    ).facts.get("port:alpha");
+  const pending = read({
+    ...offered,
+    latest_eligible: { release_id: 18, release: { version: "v1" } },
+    hold_reasons: ["checksum-observation-incomplete"],
+  });
+  const eligible = read({
+    ...offered,
+    latest_eligible: { release_id: 19, release: { version: "v2" } },
+    hold_reasons: [],
+  });
+  const identity = {
+    candidate_key: sha256(JSON.stringify(["alpha", "github", 7, 19, "linux-x86-64", "stable"])),
+    platform: "linux-x86-64",
+    channel: "stable",
+    release_id: 19,
+    tag: "v2",
+    published_at: "2026-11-10T09:00:00.000Z",
+  };
+  for (const [value, state, reasons] of [
+    [pending, "pending", ["checksum-observation-incomplete"]],
+    [eligible, "eligible", []],
+  ] as const) {
+    const fact = value as { sources: { managed_release_candidates: unknown }[] };
+    assert.deepEqual(fact.sources[0]?.managed_release_candidates, [
+      { ...identity, state, hold_reasons: reasons },
+    ]);
+  }
 });
 
 void test("observer exceptions are facts that need attention, or gaps when never completed", () => {
@@ -277,6 +386,7 @@ function observerRuns() {
       artifact?: Record<string, unknown>;
       producer?: Partial<{ run: number; attempt: number; source: string }>;
       archive?: (bytes: Buffer) => Buffer;
+      member?: Buffer;
     } = {},
   ) => {
     const producer = {
@@ -297,7 +407,9 @@ function observerRuns() {
       producer,
       files: { "catalog/checkpoint.json": newCatalogObserverCheckpoint() },
     };
-    const archive = createAuditZip([["checkpoint.json", JSON.stringify(snapshot)]]);
+    const archive = createAuditZip([
+      ["checkpoint.json", options.member ?? JSON.stringify(snapshot)],
+    ]);
     const id = 1000 + archives.size;
     artifacts.get(value.id)!.push({
       id,
@@ -390,6 +502,38 @@ void test("the newest qualifying schedule or push run is selected and bound", as
   assert.deepEqual(input.checkpoint, newCatalogObserverCheckpoint());
   assert.deepEqual(input.catalog, { ...observerCatalog, listings: observerListings.listings });
   assert.deepEqual(fixture.downloads, [`repos/boburning/portcove/actions/artifacts/${id}/zip`]);
+});
+
+void test("streaming snapshots deliver a logical controller to maintenance facts", async () => {
+  const fixture = observerRuns();
+  const run = fixture.run(108, "schedule", 5);
+  const controller = checkpoint({
+    [keyOf("owner/alpha")]: progress("owner/alpha", ["alpha"]),
+  });
+  const stored = encodeStoredObserverCheckpoint(controller);
+  assert.notEqual(stored, controller, "fixture controller must be compacted on read");
+  const snapshot = await encodeStreamingObserverSnapshot(
+    {
+      format: 1,
+      authority: "observer-checkpoint-cache-only",
+      repository: "boburning/portcove",
+      repository_id: 1354613114,
+      workflow: ".github/workflows/configured-upstream-observer.yml",
+      ref: "refs/heads/main",
+      config_sha256: observerConfigDigest,
+      created_at: new Date(Date.now() - 1000).toISOString(),
+      producer: { run: run.id, attempt: run.run_attempt, source: run.head_sha },
+      files: { "catalog/checkpoint.json": controller },
+    },
+    Date.now() + 60_000,
+  );
+  fixture.retain(run, { member: snapshot.bytes });
+  const input = await fixture.read();
+  assert.deepEqual(input.checkpoint, controller);
+  assert.deepEqual(
+    [...upstreamFacts(input.checkpoint, input.catalog, now).facts.keys()],
+    ["port:alpha"],
+  );
 });
 
 void test("a foreign producer run is refused before any artifact is read", async () => {

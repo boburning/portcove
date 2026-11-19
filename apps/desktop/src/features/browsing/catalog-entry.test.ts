@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { portDefinition, portStatus } from "../../test-fixtures";
 import type {
   CatalogMediaAsset,
@@ -8,7 +8,12 @@ import type {
   PortStatus,
 } from "../../types";
 import { filterPorts } from "../../view-model";
-import { catalogEntries, usesSelfServiceDetail, listingAvailabilityLabel } from "./catalog-entry";
+import {
+  availablePlatforms,
+  catalogEntries,
+  usesSelfServiceDetail,
+  listingAvailabilityLabel,
+} from "./catalog-entry";
 import { evaluateCatalogQuery } from "./catalog-query";
 import { gameGroupId, originalSystems } from "./original-game";
 
@@ -309,6 +314,33 @@ describe("lightweight catalog entries", () => {
     expect(filtered.unavailablePortIds).toEqual([listing.id]);
   });
 
+  it("offers a managed port on the extra platforms its listing downloads cover", () => {
+    const definition = {
+      ...portDefinition(),
+      id: listing.id,
+      platforms: ["windows-x86-64" as const],
+    };
+    const [entry] = catalogEntries(
+      { schema_version: 1, source_profiles: [], ports: [definition] },
+      directory,
+      [],
+      [],
+    );
+    // Managed actions keep the definition's platforms; browsing adds the listing's.
+    expect(entry!.platforms).toEqual(["windows-x86-64"]);
+    expect(availablePlatforms(entry!)).toEqual(["windows-x86-64", "linux-x86-64"]);
+    const linux = { devicePlatform: "linux-x86-64" as const };
+    expect(
+      evaluateCatalogQuery([entry!], { version: 1, platforms: ["linux-x86-64"] }, linux).ports,
+    ).toEqual([entry]);
+    expect(
+      evaluateCatalogQuery([entry!], { version: 1, platforms: ["this-device"] }, linux).ports,
+    ).toEqual([entry]);
+    expect(
+      evaluateCatalogQuery([entry!], { version: 1, platforms: ["macos-aarch64"] }).ports,
+    ).toEqual([]);
+  });
+
   it("uses the observed external platform for combined membership filters", () => {
     const status: PortStatus = {
       ...portStatus(),
@@ -402,6 +434,75 @@ it("keeps accepted listing facts, uncertainty, staleness and reason-bearing over
   };
   const current = Date.parse("2026-10-27T06:00:00Z");
   expect(listingAvailabilityLabel(observed, current)).toBe("Package candidates observed");
+  const other = {
+    ...listing,
+    id: "other-project",
+    platforms: [],
+    availability: "unknown",
+  } as const;
+  const featured = (candidate: PortListing, now: number) => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    try {
+      const entries = catalogEntries(
+        undefined,
+        { format_version: 1, listings: [{ ...other, platforms: [] }, candidate] },
+        [],
+        [],
+      );
+      return filterPorts(entries, new Map(), "catalog", "all", "", "catalog", {
+        devicePlatform: "windows-x86-64",
+      })[0]?.id;
+    } finally {
+      clock.mockRestore();
+    }
+  };
+  expect(featured(observed, current)).toBe(observed.id);
+  const linux = catalogEntries(
+    undefined,
+    {
+      format_version: 1,
+      listings: [
+        { ...other, platforms: [] },
+        { ...observed, availability: "packages", platforms: ["linux-x86-64"] },
+      ],
+    },
+    [],
+    [],
+  );
+  expect(
+    filterPorts(
+      linux,
+      new Map(),
+      "catalog",
+      "all",
+      "",
+      "catalog",
+      {
+        devicePlatform: "linux-x86-64",
+      },
+      current,
+    )[0]?.id,
+  ).toBe(observed.id);
+  expect(featured(observed, Date.parse("2026-10-28T00:00:00Z"))).toBe(other.id);
+  expect(
+    featured(
+      {
+        ...observed,
+        upstream_observation: { ...observed.upstream_observation!, status: "incomplete" },
+      },
+      current,
+    ),
+  ).toBe(other.id);
+  expect(
+    featured(
+      {
+        ...observed,
+        availability_override_reason: "Reviewed distribution restriction",
+      },
+      current,
+    ),
+  ).toBe(other.id);
+
   expect(listingAvailabilityLabel(gitlab, current)).toBe(
     listingAvailabilityLabel(observed, current),
   );
@@ -419,7 +520,7 @@ it("keeps accepted listing facts, uncertainty, staleness and reason-bearing over
       { ...observed, availability_override_reason: "Reviewed distribution restriction" },
       current,
     ),
-  ).toBe("Source only (authored override)");
+  ).toBe("Source only (catalog setting)");
   expect(listingAvailabilityLabel(observed, Date.parse("2026-10-28T00:00:00Z"))).toContain(
     "stale observation",
   );
@@ -454,7 +555,7 @@ it("keeps accepted listing facts, uncertainty, staleness and reason-bearing over
     },
   };
   expect(listingAvailabilityLabel(unknown, current)).toBe(
-    "Package availability unknown (check unavailable)",
+    "Source only. Package availability unknown (check unavailable)",
   );
   const assetsOnly = {
     ...observed,
@@ -475,6 +576,6 @@ it("keeps accepted listing facts, uncertainty, staleness and reason-bearing over
     },
   };
   expect(listingAvailabilityLabel(assetsOnly, current)).toBe(
-    "Release assets observed; package availability unknown",
+    "Source only. Release assets observed; package availability unknown",
   );
 });

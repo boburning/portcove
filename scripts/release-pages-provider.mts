@@ -9,6 +9,17 @@ const endpoint = "repos/boburning/portcove/pages/deployments";
 const publicUrl = "https://boburning.github.io/portcove/";
 const audience = "https://github.com/boburning";
 const deploymentId = /^[A-Za-z0-9_-]{1,128}$/u;
+const remoteIdentityPrefix = "github-pages:boburning/portcove:";
+
+/** Interpret an already retained effect locator. The caller still verifies the
+ * original operation, provider status and public generation. */
+export function retainedPagesDeploymentId(remoteIdentity: string) {
+  const id = remoteIdentity.slice(remoteIdentityPrefix.length);
+  if (!remoteIdentity.startsWith(remoteIdentityPrefix) || !deploymentId.test(id))
+    throw new Error("retained Pages deployment identity differs");
+  return id;
+}
+
 const terminalFailures = new Set([
   "cancelled",
   "failed",

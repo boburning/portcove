@@ -8,7 +8,8 @@ use crate::{PortcoveError, Result};
 
 pub(crate) const MAX_INDEX_BYTES: usize = 4 * 1024 * 1024;
 const MAX_DEFINITIONS: usize = 4096;
-pub(crate) const MAX_CONTENT_BYTES: u64 = 4 * 1024 * 1024;
+pub(crate) const MAX_ENTRY_BYTES: usize = 4 * 1024 * 1024;
+pub(crate) const MAX_CONTENT_BYTES: u64 = 16 * 1024 * 1024;
 const MAX_TOTAL_BYTES: u64 = 32 * 1024 * 1024;
 
 #[derive(Debug, Deserialize)]
@@ -115,9 +116,12 @@ impl DefinitionContentIndex {
                     "duplicate indexed definition identity",
                 ));
             }
-            if !contents.contains_key(&definition.target) {
+            let target = contents.get(&definition.target).ok_or_else(|| {
+                PortcoveError::verification("definition target is outside the index")
+            })?;
+            if target.length > MAX_ENTRY_BYTES as u64 {
                 return Err(PortcoveError::verification(
-                    "definition target is outside the index",
+                    "definition entry exceeds its byte bound",
                 ));
             }
         }
@@ -135,6 +139,13 @@ impl DefinitionContentIndex {
 
     pub fn definitions(&self) -> &[IndexedDefinition] {
         &self.definitions
+    }
+
+    /// The indexed SHA-256 and byte length of one content target.
+    pub fn content_digest(&self, target: &str) -> Option<(&str, u64)> {
+        self.contents
+            .get(target)
+            .map(|content| (content.sha256.as_str(), content.length))
     }
 
     /// Give a transport the validated per-target read bound before acquisition.

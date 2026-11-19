@@ -65,7 +65,34 @@ impl PortabilityAuthority {
 
 /// Oldest reader contract that can carry this metadata without dropping state.
 fn exported_schema(metadata: &LibraryMetadata, base: u32) -> u32 {
-    if !metadata.library_memberships.is_empty() {
+    if !metadata.source_instances.is_empty()
+        || metadata.source_references.iter().any(|source| {
+            crate::portability::saved_inbox_relative(&metadata.original_root, &source.path)
+                .is_some()
+        })
+    {
+        12
+    } else if crate::profile::has_retired_history(
+        &metadata.profiles,
+        &metadata.retained_build_references,
+    ) {
+        11
+    } else if metadata.artwork.as_ref().is_some_and(|artwork| {
+        !artwork.withdrawals.is_empty() || !artwork.evicted_assets.is_empty()
+    }) {
+        10
+    } else if metadata.artwork.as_ref().is_some_and(|artwork| {
+        artwork
+            .choices
+            .iter()
+            .any(|choice| choice.slot == crate::ArtworkSlot::Landscape)
+    }) {
+        9
+    } else if metadata.artwork.as_ref().is_some_and(|artwork| {
+        !artwork.providers.is_empty() || !artwork.provider_only_assets.is_empty()
+    }) {
+        8
+    } else if !metadata.library_memberships.is_empty() {
         7
     } else if !metadata.profiles.is_empty() {
         6
@@ -99,8 +126,8 @@ pub(crate) fn seal(
 pub(crate) fn verify(metadata: &LibraryMetadata, entries: Vec<PortabilityAdmission>) -> Result<()> {
     let entries = canonical_entries(entries)?;
     match (&metadata.portability_authority, entries.is_empty()) {
-        (None, true) if matches!(metadata.schema_version, 1..=3 | 5..=7) => return Ok(()),
-        (Some(authority), false) if matches!(metadata.schema_version, 4..=7) => {
+        (None, true) if matches!(metadata.schema_version, 1..=3 | 5..=12) => return Ok(()),
+        (Some(authority), false) if matches!(metadata.schema_version, 4..=12) => {
             if authority.format != 1 || authority.entries != entries {
                 return Err(PortcoveError::verification(
                     "portability authority does not match the retained installations",
@@ -283,9 +310,9 @@ fn credential_entry() -> Result<keyring::Entry> {
 
 #[cfg(not(test))]
 fn credential_error(action: &str, error: keyring::Error) -> PortcoveError {
-    PortcoveError::state(format!(
-        "could not {action} the portability authority in operating-system secure storage: {error}"
-    ))
+    // Import and move reach this key after copying files, so the transfer
+    // journal keeps owning the mutation state.
+    crate::credential_store::store_error("portability authority", action, error, false)
 }
 
 #[cfg(test)]

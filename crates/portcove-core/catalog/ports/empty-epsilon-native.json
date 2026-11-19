@@ -1,0 +1,63 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "empty-epsilon-native",
+    "artwork": {
+      "game_id": 97604,
+      "cover_id": 72092,
+      "image_id": "co1jmk",
+      "image_sha256": "00dbfcb32b16ceda084fbb7e770984d897dba3294e520a6f0fd6183927b37d7a",
+      "game_slug": "emptyepsilon",
+      "match_kind": "underlying-game"
+    },
+    "name": "EmptyEpsilon",
+    "summary": "Run a spaceship bridge with friends, with separate crew roles, scenarios, and a Game Master mode.",
+    "project_url": "https://github.com/daid/EmptyEpsilon",
+    "issue_number": 6130,
+    "listed_at": "2026-11-14",
+    "original_game_title": "EmptyEpsilon",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/daid/EmptyEpsilon/wiki/Build#define-the-version-number",
+    "release_url": "https://github.com/daid/EmptyEpsilon/releases/tag/EE-2024.12.08",
+    "download_asset_hints": {
+      "windows-x86-64": ["Win32_EmptyEpsilon_", ".zip"],
+      "linux-x86-64": ["Linux_EmptyEpsilon_", ".deb"]
+    },
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "help_url": "https://github.com/daid/EmptyEpsilon/releases/tag/EE-2024.12.08",
+      "steps": [
+        {
+          "title": "Start the Windows or Linux player",
+          "instruction": "On Windows x64, extract the full Win32 ZIP and open EmptyEpsilon.exe from its own folder. On Debian-compatible Linux x64, install the publisher’s .deb with your system package manager and open EmptyEpsilon. The Linux package depends on SDL2 and FreeType."
+        },
+        {
+          "title": "Use the upstream Android or Mac setup",
+          "instruction": "Choose the publisher’s ARM64 or ARM32 Android APK for your device. For Intel or Apple Silicon Mac, follow the community source-build instructions. The release includes the standalone game and its scenarios."
+        },
+        {
+          "title": "Match the crew’s release",
+          "instruction": "Use the same EmptyEpsilon version on the host and every device. If you build from source, set the version to match the host using the upstream build guide. Use Tutorials to try the local controls."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Keep your settings and custom scenarios",
+          "instruction": "Keep options.ini and keybindings.json in the directory set by EE_CONF_DIR, or in the .emptyepsilon folder in your home directory by default. If the game uses its start folder for settings, preserve them there. Keep custom scripts, resources and packs in the locations where you added them."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "emptyepsilon",
+      "evidence_urls": [
+        "https://github.com/daid/EmptyEpsilon/wiki/Build#define-the-version-number",
+        "https://github.com/daid/EmptyEpsilon/releases/tag/EE-2024.12.08",
+        "https://github.com/daid/EmptyEpsilon"
+      ],
+      "source_editions": []
+    }
+  }
+}

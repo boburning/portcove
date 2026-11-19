@@ -778,6 +778,8 @@ void test("exact qualified neutral request holds unsettled or unadopted state be
   const checkpoint = "f".repeat(40);
   let unresolved = false;
   let active = false;
+  let adopted = false;
+  let catalog: Record<string, unknown> = {};
   const run = runInNewContext(
     stripTypeScriptTypes(source.slice(start, end)) + "; requestTrustedSemanticReviewAt;",
     {
@@ -790,16 +792,31 @@ void test("exact qualified neutral request holds unsettled or unadopted state be
       inspectCoordinatorRemoteNamespace: () => "fixed",
       recoverRemoteCoordinator: async () => ({
         checkpoint,
-        input: { active_candidate: active ? {} : null },
+        input: { active_candidate: active ? {} : null, ...catalog },
       }),
       coordinatorHasUnresolvedEffect: () => unresolved,
       selectCoordinatorPendingContextRecovery: () => null,
       selectCoordinatorPendingPagesRecovery: () => null,
       inspectSettledPagesMetadataHandoff: () => null,
       selectCoordinatorCandidateSigningRecovery: () => null,
+      selectCoordinatorMetadataRenewal: () => "not-due",
       inspectReleaseReviewRequest: () => null,
       isRecord: (value: unknown) => typeof value === "object" && value !== null,
-      inspectPublishedMetadata: () => null,
+      inspectPublishedMetadata: () => (adopted ? {} : null),
+      requireControllerJobSourceConfiguration: async () => ({
+        binding: {
+          purpose: "application",
+          namespace: "fixed",
+          qualified_application: {
+            source_commit: "a".repeat(40),
+            run_id: 42407004590,
+            run_attempt: 1,
+          },
+        },
+        recheck() {},
+      }),
+      capacityDigest: JSON.stringify,
+      retainedApplicationReviewClaim: { successor_ref: "refs/tags/recovery" },
       CoordinatorRemoteError: Error,
     },
   ) as (...args: unknown[]) => Promise<{ decision: string; checkpoint: string }>;
@@ -825,6 +842,14 @@ void test("exact qualified neutral request holds unsettled or unadopted state be
   const held = await invoke();
   assert.equal(held.decision, "held-existing-release-operation");
   assert.equal(held.checkpoint, checkpoint);
+  active = false;
+  adopted = true;
+  for (const field of ["catalog_review_request", "catalog_publication"]) {
+    catalog = { [field]: {} };
+    const result = await invoke();
+    assert.equal(result.decision, "held-existing-catalog-operation");
+    assert.equal(result.checkpoint, checkpoint);
+  }
 });
 
 void test("fixed bundled coordinator caller rejects imported routing and expired inherited clock before effects", async () => {
@@ -1863,6 +1888,10 @@ void test("paused withdrawal rechecks the same controls and refreshes aging obse
       },
       recheck() {},
     }),
+    appendRetainedReviewWithdrawal: (prior: unknown, receipt: unknown) => {
+      assert.equal(prior, undefined);
+      return receipt;
+    },
     matchesRetainedReviewWithdrawal: () => false,
     matchesWithdrawnReviewRequest: () => true,
     inspectReleaseReviewRequest: () => ({}),

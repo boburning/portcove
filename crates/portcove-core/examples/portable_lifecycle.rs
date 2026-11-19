@@ -154,6 +154,7 @@ mod tests {
             checked_files: 3,
             valid: true,
             failures: Vec::new(),
+            ..VerificationReport::default()
         }
     }
 
@@ -180,7 +181,8 @@ mod tests {
         assert_eq!(
             serde_json::to_value(accepted).unwrap(),
             serde_json::json!({
-                "install_id": "expected-install", "checked_files": 3, "valid": true, "failures": []
+                "install_id": "expected-install", "checked_files": 3, "valid": true, "failures": [],
+                "unknown_file_count": 0
             })
         );
     }

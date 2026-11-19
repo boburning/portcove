@@ -33,9 +33,15 @@ impl PortcoveService {
         }
         self.require_completed_backup_restore(port_id)?;
         self.require_completed_backup_deletion(port_id)?;
-        let install = self.status(port_id)?.active.ok_or_else(|| {
-            PortcoveError::not_found("no active managed installation offers settings")
-        })?;
+        // Settings only need the active record. Full status also inspects the
+        // rollback target and sources while this port's lock is held.
+        let install = self
+            .library
+            .status(port_id, ReleaseChannel::Stable)?
+            .active
+            .ok_or_else(|| {
+                PortcoveError::not_found("no active managed installation offers settings")
+            })?;
         self.managed_install_root(port_id, &install.path)?;
         let installer = Installer::new(self.library.clone())?;
         // Do not use installed_catalog's historical current-catalog fallback.
@@ -83,7 +89,7 @@ impl PortcoveService {
     pub fn inspect_settings_qualification_scope(&self, port_id: &str) -> Result<serde_json::Value> {
         let _ownership = self
             .library
-            .try_lock_port(port_id, "inspect-settings-qualification")?;
+            .try_read_lock_port(port_id, "inspect-settings-qualification")?;
         let context = self.settings_context_already_locked(port_id)?;
         let descriptor =
             context.port.game_settings.as_ref().ok_or_else(|| {
@@ -103,7 +109,9 @@ impl PortcoveService {
     }
 
     pub fn get_game_settings(&self, port_id: &str) -> Result<GameSettingsView> {
-        let _ownership = self.library.try_lock_port(port_id, "read-game-settings")?;
+        let _ownership = self
+            .library
+            .try_read_lock_port(port_id, "read-game-settings")?;
         let context = match self.settings_context_already_locked(port_id) {
             Ok(context) => context,
             Err(error) => {

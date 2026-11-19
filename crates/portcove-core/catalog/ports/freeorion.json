@@ -1,0 +1,56 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "freeorion",
+    "name": "FreeOrion",
+    "original_game_title": "FreeOrion",
+    "artwork": {
+      "game_id": 91478,
+      "cover_id": 135704,
+      "image_id": "co2wpk",
+      "image_sha256": "b5cb9428cbeaa20e1860f0a9d2313ea10e2437eddb94f94626b14be768b24f96",
+      "game_slug": "freeorion",
+      "match_kind": "underlying-game"
+    },
+    "summary": "Explore the galaxy, develop colonies, and lead a space empire in turn-based strategy.",
+    "project_url": "https://github.com/freeorion/freeorion",
+    "issue_number": 6461,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/freeorion/freeorion/releases",
+    "setup_url": "https://github.com/freeorion/freeorion/blob/v0.5.1.2/README.md",
+    "download_asset_hints": {
+      "windows-x86-64": ["freeorion_", "_win32_setup.exe"],
+      "macos-x86-64": ["freeorion_", "_macosx_", "_x86_64.dmg"],
+      "macos-aarch64": ["freeorion_", "_macosx_", "_arm64.dmg"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install the stable client",
+          "instruction": "On 64-bit Windows, run the official setup program and follow its installer prompts. The 0.5.1.2 installer filename says Win32 and contains a 64-bit client. On Mac, choose the Intel or Apple Silicon disk image and copy the complete FreeOrion app into Applications. The current package needs macOS 10.15 or newer on Intel and macOS 11 or newer on Apple Silicon."
+        },
+        {
+          "title": "Use your Linux package manager",
+          "instruction": "Install org.freeorion.FreeOrion from Flathub, or use the FreeOrion package from your Linux distribution. Update the copy through the same package manager. The source archive in the project’s releases is for building the game."
+        },
+        {
+          "title": "Keep your saves and settings",
+          "instruction": "Close FreeOrion before backing up. Copy the FreeOrion folder under %APPDATA% on Windows or ~/Library/Application Support on Mac. On Linux, keep the freeorion folders under ~/.config and ~/.local/share, using your configured XDG folders if they differ. For Flathub, keep ~/.var/app/org.freeorion.FreeOrion. Also keep any separate save directory you chose in the game."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/freeorion/freeorion/blob/v0.5.1.2/README.md"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "freeorion",
+    "origin": {
+      "project_url": "https://github.com/freeorion/freeorion",
+      "repository": { "host": "github.com", "id": "33066062" }
+    },
+    "decisions": []
+  }
+}

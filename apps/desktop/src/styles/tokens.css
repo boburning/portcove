@@ -115,7 +115,6 @@
     --color-library-favorite-ink: #e7e9ee;
     --color-library-favorite-selected: #ffaaa2;
     --color-library-favorite-surface: rgb(25 27 32 / 91%);
-    --color-card-saved: var(--n64-blue-200);
     --color-theme-preview-cover-blue: var(--n64-blue-300);
     --color-theme-preview-cover-green: var(--n64-green-300);
     --color-theme-preview-cover-red: var(--n64-red-300);
@@ -132,11 +131,11 @@
     --font-mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
     --font-weight-regular: 400;
     --font-weight-medium: 600;
-    --font-weight-bold: 650;
-    --font-weight-black: 750;
-    --text-2xs: 0.6875rem;
+    --font-weight-bold: 600;
+    --font-weight-black: 600;
+    --text-2xs: 0.8125rem;
     --text-xs: 0.8125rem;
-    --text-sm: 0.9375rem;
+    --text-sm: 0.875rem;
     --text-md: 1rem;
     --text-lg: 1.125rem;
     --text-xl: 1.375rem;

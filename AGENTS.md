@@ -63,7 +63,9 @@ the Roadmap route when none owns authorized work.
 Implement with focused feedback, complete the applicable review, repair blocking
 findings, satisfy required exact-head CI and explicit acceptance, then guarded
 merge and targeted roadmap reconciliation. Local checks are optional and hosted CI
-remains the merge authority. Do not merge `main` into a candidate because `main`
+remains the merge authority. Keep the pull request in draft until review
+repairs are complete, then mark it ready so the full Windows test partitions run
+once ([draft pacing](docs/CONTRIBUTION-CONVENTIONS.md#review-and-merge)). Do not merge `main` into a candidate because `main`
 advanced; merge it only for a conflict or a relevant interaction
 ([QUALITY](docs/QUALITY.md#routine-merge-freshness)). The
 verified Renovate exception is owned by [QUALITY](docs/QUALITY.md#bounded-dependency-delivery).
@@ -74,6 +76,37 @@ For substantial outcomes, define the complete issue boundary and review the
 consequential ownership/compatibility decisions early. Internal checkpoints do
 not require additional owner approvals or separate PRs. Inspect the existing
 complete-diff plan for surrounding contracts before choosing bespoke test filters.
+
+## Delegation, review and escalation
+
+Shared instructions name responsibilities, not models: implementation owner,
+independent reviewer, critical reviewer, specialist, research scout and visual
+helper. [Agent model selection](docs/DEVELOPMENT-TOOLS.md#agent-model-selection)
+owns the one dated model/effort table and what instructions cannot enforce.
+Stay with the session's provider, environment, account and spending boundaries.
+
+The implementation owner starts from the current issue, acceptance, relevant
+architecture and actual dependencies, and implements in its own session. It keeps
+decisions, integration and delivery, including every wait for CI, review and
+merge. Delegate only bounded work worth its coordination cost: a research scout
+answers stated questions with evidence, sources and open uncertainty; a
+specialist takes a named hard problem; a visual helper inspects presentation;
+a reviewer reviews. Delegate implementation itself only when the person who assigned the work
+explicitly asks for parallel delegated implementation. Every delegated
+assignment ends by returning its report, findings or pushed draft candidate; it
+never waits on CI, review or merge. Most issues need only some responsibilities.
+
+Substantive candidates follow the [review and repair loop](docs/QUALITY.md#review-and-repair-loop):
+a fresh non-writing reviewer who did not help design or implement the candidate,
+a complete review packet, classified evidence-backed findings, repair and
+reassessment. Only changes in the loop's listed critical areas use a critical
+reviewer. After repeated unsuccessful attempts, change approach, investigate a
+discriminating reproduction or bring in a specialist; no attempt count turns a
+blocker into approval. While CI, review or an external prerequisite is pending,
+keep the waiting head frozen. When the local Codex watcher is available, obtain
+its durable handoff receipt and end the turn while waiting. The same owner resumes
+on an actionable event. Follow the [local PR watcher](docs/DEVELOPMENT-TOOLS.md#local-codex-pr-handoff)
+for setup and recovery.
 
 ## Task map
 

@@ -352,7 +352,7 @@ export function* preparedCompilerSourceRequests(
       source_commit: candidate.prepared_commit,
       source_tree: candidate.prepared_tree,
     },
-    { deadline },
+    { deadline, preparedApplication: true },
   );
   if (
     delta.base_tree !== candidate.source_tree ||

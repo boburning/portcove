@@ -28,8 +28,8 @@ Keep that foreground session open
 through collection, research, delivery and explicit `finish`.
 Use the structured protocol and completion criteria in the contract; `status`
 reads the latest receipt. Recover retained candidate identities before new intake.
-`collect` includes complementary lead searches; use `discover` to inspect their
-retained queue and continuation. Research at least two distinct noncanonical
+`collect` includes curated list hints and complementary lead searches; use
+`discover` to inspect their retained queue and continuation. Research at least two distinct noncanonical
 queued upstreams (or all when fewer remain) before quiet `recheck`. Prioritize
 observed runtime packages and supported setup over source-only tooling. Finish
 with explicit `lead-dispose` reasons and resume conditions for held research;
@@ -40,8 +40,8 @@ the complete inventory guards and records doctor `not_run`, scope `none`; neithe
 receipt proves a historical full-doctor acceptance requirement. Full doctor is
 for substantial Roadmap changes or release readiness, without a periodic audit.
 Port metadata does not require a separate model reviewer. Use the selected hosted
-investigator for hosted discovery; local collection and research can use
-GPT-6.1-Sol Medium. Software changes retain independent review and CI under QUALITY.
+investigator for hosted discovery; local collection and research use the research scout
+or implementation owner from [agent model selection](../../../docs/DEVELOPMENT-TOOLS.md#agent-model-selection). Software changes retain independent review and CI under QUALITY.
 Ordinary and cold budgets
 are selected by the runner. Retain an explicit continuation when work does not fit.
 The one permitted Project revision/count-drift recollection spends the existing delivery reserve

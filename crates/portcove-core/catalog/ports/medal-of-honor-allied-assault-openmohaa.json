@@ -56,6 +56,16 @@
           "instruction": "On Windows ARM64, choose the official ARM64 ZIP. After preparing the same original files, use launch_openmohaa_base.exe in the extracted folder. You and upstream own that copy and its profile."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "medal-of-honor-allied-assault",
+      "evidence_urls": [
+        "https://github.com/openmoh/openmohaa#readme",
+        "https://github.com/openmoh/openmohaa/blob/main/docs/markdown/01-intro/01-installation.md",
+        "https://github.com/openmoh/openmohaa"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
@@ -76,6 +86,18 @@
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "adapter": "native-portable",
     "reviewed_package_layouts": {
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["launch_openmohaa_base", "openmohaa"]
+      },
+      "macos-x86-64": {
+        "directories": [],
+        "executables": ["launch_openmohaa_base", "openmohaa"]
+      },
+      "macos-aarch64": {
+        "directories": [],
+        "executables": ["launch_openmohaa_base", "openmohaa"]
+      },
       "windows-x86-64": {
         "directories": [],
         "executables": [

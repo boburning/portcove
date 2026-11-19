@@ -12,6 +12,7 @@ import {
 } from "./release-readonly-child-environment.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import type { GitHubRequestPolicy } from "./github-client.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readCompleteRunArtifactInventoryAsync } from "./release-run-artifact-inventory.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
@@ -271,6 +272,15 @@ export async function waitForControlArtifact(
         get(`actions/runs/${input.run_id}/artifacts?per_page=100&page=${page}`),
       )
     ).artifacts;
+  const coordinatorRefresh = role === "ready" && input.phase === "coordinator" && input.round;
+  let recoveredInventoryRead = false;
+  const maximumUnavailableTransfers = 3;
+  let pendingTransfer: { id: number; digest: string; unavailable: number } | undefined;
+  const waitForPoll = async () => {
+    const wait = remaining(3000);
+    if (options.sleep) await options.sleep(wait);
+    else await delay(wait, undefined, { signal: AbortSignal.timeout(remaining()) });
+  };
   const name = controlHandshakeArtifactName(role, input);
   const providerTimeout = input.phase === "coordinator" ? 15000 : 5000;
   let polls = 0;
@@ -305,7 +315,27 @@ export async function waitForControlArtifact(
     }
     while (++polls <= 81) {
       stage = "artifact-inventory";
-      const matches = (await inventory()).filter((a) => a.name === name);
+      let rows: Awaited<ReturnType<typeof inventory>>;
+      try {
+        rows = await inventory();
+      } catch (error) {
+        if (
+          !coordinatorRefresh ||
+          recoveredInventoryRead ||
+          !(error instanceof GitHubApiError) ||
+          !(
+            error.code === "deadline_exceeded" ||
+            [408, 500, 502, 503, 504].includes(error.status ?? 0)
+          )
+        )
+          throw error;
+        // A new bounded inventory read still requires the complete producer and
+        // artifact joins. A failed request never counts as an empty inventory.
+        recoveredInventoryRead = true;
+        await waitForPoll();
+        continue;
+      }
+      const matches = rows.filter((a) => a.name === name);
       if (matches.length > 1) throw new Error("control artifact name ambiguous");
       stage = "producer-inventory";
       const allJobs = await jobs();
@@ -330,6 +360,8 @@ export async function waitForControlArtifact(
           ))
       )
         throw new Error("control producer job failed, ended or differs");
+      if (!artifact && pendingTransfer)
+        throw new Error("control artifact disappeared while its archive was unavailable");
       if (artifact) {
         stage = "artifact-identity";
         if (
@@ -350,17 +382,43 @@ export async function waitForControlArtifact(
         stage = "artifact-transfer";
         const transferDeadline = Math.min(deadline, performance.now() + remaining(providerTimeout));
         const item = { id: Number(artifact.id), bytes: Number(artifact.size_in_bytes) };
-        const zip = options.download
-          ? await options.download(item, transferDeadline)
-          : await (
-              await import("./github-artifact-download.mts")
-            ).downloadGitHubArtifactArchive(`${base}/actions/artifacts/${item.id}/zip`, {
-              credential: { kind: "explicit", token },
-              deadline: transferDeadline,
-              maxBytes: item.bytes,
-              fetch,
-              lookup: { reserve },
-            });
+        if (
+          pendingTransfer &&
+          (pendingTransfer.id !== item.id || pendingTransfer.digest !== artifact.digest)
+        )
+          throw new Error("control artifact changed while its archive was unavailable");
+        let zip: Buffer;
+        try {
+          zip = options.download
+            ? await options.download(item, transferDeadline)
+            : await (
+                await import("./github-artifact-download.mts")
+              ).downloadGitHubArtifactArchive(`${base}/actions/artifacts/${item.id}/zip`, {
+                credential: { kind: "explicit", token },
+                deadline: transferDeadline,
+                maxBytes: item.bytes,
+                fetch,
+                lookup: { reserve },
+              });
+        } catch (error) {
+          // A just-listed coordinator control artifact can briefly 404 on its
+          // archive. Re-list and re-join the same artifact identity, boundedly.
+          if (
+            input.phase !== "coordinator" ||
+            !(error instanceof GitHubApiError) ||
+            error.status !== 404 ||
+            (pendingTransfer?.unavailable ?? 0) >= maximumUnavailableTransfers
+          )
+            throw error;
+          pendingTransfer = {
+            id: item.id,
+            digest: artifact.digest,
+            unavailable: (pendingTransfer?.unavailable ?? 0) + 1,
+          };
+          stage = "poll-wait";
+          await waitForPoll();
+          continue;
+        }
         stage = "artifact-validation";
         remaining();
         await writeFile(path.join(privateRoot, `control-${role}.zip`), zip, {
@@ -474,13 +532,19 @@ export async function waitForControlArtifact(
         return proof;
       }
       stage = "poll-wait";
-      const wait = remaining(3000);
-      if (options.sleep) await options.sleep(wait);
-      else await delay(wait, undefined, { signal: AbortSignal.timeout(remaining()) });
+      await waitForPoll();
     }
     throw new Error("control handshake poll count exhausted");
-  } catch {
-    const receipt = { stage, polls, api_requests: requests, elapsed_ms: Math.floor(elapsed()) };
+  } catch (error) {
+    const receipt = {
+      stage,
+      polls,
+      api_requests: requests,
+      elapsed_ms: Math.floor(elapsed()),
+      ...(error instanceof GitHubApiError && error.status !== null
+        ? { provider_status: error.status }
+        : {}),
+    };
     options.onRefusal?.(receipt);
     await writeFile(
       path.join(privateRoot, `control-${role}-refusal.json`),

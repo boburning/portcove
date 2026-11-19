@@ -1,0 +1,90 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "star-wars-atari-darkuni",
+    "artwork": {
+      "game_id": 12858,
+      "cover_id": 136614,
+      "image_id": "co2xeu",
+      "image_sha256": "afe76c1966766a2dfc1b3cfb0913f98f6ee831d43b8c6427e7d9c0dc74f8a44a",
+      "game_slug": "star-wars",
+      "match_kind": "underlying-game"
+    },
+    "project_url": "https://github.com/darkuni/starwars-arcade-recomp",
+    "name": "Star Wars (Atari arcade) / darkuni",
+    "original_game_title": "Star Wars (Atari arcade)",
+    "summary": "Play Atari’s 1983 Star Wars with darkuni’s arcade hardware recreation and your own ROM set.",
+    "issue_number": 6000,
+    "listed_at": "2026-11-14",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/darkuni/starwars-arcade-recomp/tree/df540960302ba42df26b2432986b6df92af97c6a#running",
+    "release_url": "https://github.com/darkuni/starwars-arcade-recomp/releases/tag/V1.1.0b",
+    "download_asset_hints": {
+      "windows-x86-64": ["starwars.exe"],
+      "macos-x86-64": ["StarWars-mac.zip"],
+      "macos-aarch64": ["StarWars-mac.zip"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare your own Star Wars arcade ROM set",
+          "instruction": "Use your own starwars.zip from Atari’s 1983 arcade game, matching the MAME starwars revision 2 set, and keep a separate copy. Put it in your home folder as starwars.zip (%USERPROFILE% on Windows); each Windows, Linux and Mac build finds it there. The game checks the 13 ROM and PROM parts by content. The tagged README lists their sizes, CRCs and accepted original-revision alternatives."
+        },
+        {
+          "title": "Start the Windows or Mac player",
+          "instruction": "Choose the release tagged V1.1.0b. On Windows, use starwars.exe; it also finds the ZIP beside it. On Intel Mac or Apple Silicon, extract the universal Star Wars.app and open it."
+        },
+        {
+          "title": "Keep your high scores and settings",
+          "instruction": "Back up nvram.bin and settings.json from the starwars folder under your user configuration directory. This is normally %APPDATA% on Windows, ~/.config or XDG_CONFIG_HOME on Linux and ~/Library/Application Support on Mac."
+        }
+      ],
+      "warnings": [
+        "The Linux x64 binary requires glibc 2.38 or later, X11 and ALSA libraries.",
+        "The publisher does not provide a license for its project code."
+      ],
+      "help_url": "https://github.com/darkuni/starwars-arcade-recomp/releases/tag/V1.1.0b"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "darkuni/starwars-arcade-recomp",
+      "asset_hints": {
+        "linux-x86-64": ["StarWars-linux.tar.gz"],
+        "macos-x86-64": ["StarWars-mac.zip"],
+        "macos-aarch64": ["StarWars-mac.zip"]
+      }
+    },
+    "executable_hints": {
+      "linux-x86-64": ["starwars"],
+      "macos-x86-64": ["Star Wars.app/Contents/MacOS/starwars"],
+      "macos-aarch64": ["Star Wars.app/Contents/MacOS/starwars"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Before first Play, put your own starwars.zip, matching the MAME starwars revision 2 set, in your home folder as ~/starwars.zip, not into Portcove's install folder, and keep a separate copy. The game checks the 13 ROM and PROM parts by content; without them it shows Star Wars ROMs not found or incomplete, lists the missing parts and suggests putting the ZIP next to the program; keep it in your home folder instead. The package is the publisher's hardware recreation only and contains no ROM data; the publisher does not provide a license for its code. The Linux x86-64 player needs glibc 2.38 or later, X11, ALSA and OpenGL. The macOS player needs macOS 26 or later; upstream signs it ad hoc without notarization and gives no Gatekeeper steps; if macOS blocks the first start, open System Settings › Privacy & Security and choose Open Anyway. Play has not been tested through Portcove on a Mac. High scores (nvram.bin) and settings (settings.json) are in ~/.config/starwars, or starwars under XDG_CONFIG_HOME, on Linux and in ~/Library/Application Support/starwars on macOS. Those stay outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Portcove replaces the player; you own the ROM set, high scores and settings."
+    },
+    "reviewed_package_layouts": {
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["starwars"]
+      },
+      "macos-x86-64": {
+        "directories": ["contents"],
+        "executables": ["contents/macos/starwars"]
+      },
+      "macos-aarch64": {
+        "directories": ["contents"],
+        "executables": ["contents/macos/starwars"]
+      }
+    }
+  }
+}

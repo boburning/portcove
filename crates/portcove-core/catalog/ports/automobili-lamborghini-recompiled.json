@@ -41,6 +41,24 @@
           "instruction": "Use in-place updates signed by the same upstream signer to keep the app-private saves, Controller Pak data and settings. Clearing app data or uninstalling erases that profile. Use the diagnostics ZIP for troubleshooting."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "automobili-lamborghini",
+      "evidence_urls": [
+        "https://github.com/alondero/automobililamborghini-recomp/blob/main/docs/ANDROID.md",
+        "https://github.com/alondero/automobililamborghini-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "automobili-lamborghini-nintendo-64",
+          "title": "Automobili Lamborghini (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+          ]
+        }
+      ]
     }
   },
   "integration": {
@@ -85,7 +103,16 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Set up the managed copy",
+            "instruction": "Select your own US Automobili Lamborghini cartridge dump. Portcove checks the original and installs the managed package for this computer."
+          }
+        ]
+      }
     }
   }
 }

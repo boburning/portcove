@@ -18,6 +18,12 @@
     },
     "issue_number": 2708,
     "listed_at": "2026-10-25",
+    "funding_urls": [
+      "https://github.com/sponsors/OpenXRay",
+      "https://www.patreon.com/openxray",
+      "https://opencollective.com/openxray",
+      "https://boosty.to/openxray"
+    ],
     "release_url": "https://github.com/OpenXRay/xray-16/releases/tag/latest-nightly",
     "download_asset_hints": {
       "windows-x86-64": ["OpenXRay.Release.Master.Gold.64-bit.7z"]
@@ -63,6 +69,15 @@
           "instruction": "Keep the complete engine and original files and the actual app_data_root defined by the selected fsgame.ltx. The CI packages and source instructions describe player-managed setup. Confirm a normal start and quit before attaching any prepared native player."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "s-t-a-l-k-e-r-clear-sky",
+      "evidence_urls": [
+        "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play",
+        "https://github.com/OpenXRay/xray-16"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -16,7 +16,7 @@ pub(super) fn separated_fixture() -> RepositoryFixture {
     fixture
 }
 
-async fn single_owner_root(fixture: &RepositoryFixture) -> Vec<u8> {
+pub(super) async fn single_owner_root(fixture: &RepositoryFixture) -> Vec<u8> {
     let original: Signed<Root> = serde_json::from_slice(&fixture.root(true).await).unwrap();
     let mut root = original.signed;
     let roots = root.roles.get_mut(&RoleType::Root).unwrap();
@@ -81,7 +81,7 @@ async fn explicit_single_owner_bootstrap_preserves_legacy_and_existing_anchor_re
     );
 }
 
-fn data_version(connection: &rusqlite::Connection) -> i64 {
+pub(super) fn data_version(connection: &rusqlite::Connection) -> i64 {
     connection
         .query_row("PRAGMA data_version", [], |row| row.get(0))
         .unwrap()
@@ -124,7 +124,7 @@ fn official_catalog_keeps_explicit_unconfigured_inputs_inert() {
 }
 
 #[tokio::test]
-async fn official_catalog_appointed_defaults_require_explicit_enablement() {
+async fn official_catalog_appointed_defaults_review_without_writes_and_respect_the_off_switch() {
     let (_directory, library) = library();
     let observer = library.connection().unwrap();
     let before = data_version(&observer);
@@ -140,12 +140,25 @@ async fn official_catalog_appointed_defaults_require_explicit_enablement() {
         "https://boburning.github.io/portcove/catalog/targets/"
     );
     assert!(library.enable_official_catalog(&"0".repeat(64)).is_err());
+    // A player who turned automatic updates off gets no trust, I/O or activity.
+    let preferences_directory = tempfile::tempdir().unwrap();
+    let preferences =
+        crate::HostPreferenceStore::new(preferences_directory.path().join("preferences.json"))
+            .unwrap();
+    preferences
+        .set_official_catalog_automatic_updates(false)
+        .unwrap();
     let service = PortcoveService::new(library.clone()).unwrap();
-    let error = service
-        .refresh_official_catalog(|_| panic!("unprovisioned catalog emitted activity"))
+    let skipped = service
+        .refresh_official_catalog_automatically(&preferences, |_| {
+            panic!("a turned-off refresh emitted activity")
+        })
         .await
-        .unwrap_err();
-    assert_eq!(error.code, ErrorCode::Conflict);
+        .unwrap();
+    assert_eq!(
+        skipped.outcome,
+        crate::OfficialCatalogAutomaticOutcome::TurnedOff
+    );
     assert_eq!(data_version(&observer), before);
     assert!(!library.review_definition_authority().unwrap().installed);
 

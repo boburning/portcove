@@ -35,6 +35,21 @@
       "image_sha256": "6b0cad0c6cb8f89b43b8e6f23576e33c5976ca4cd4676e71f7e586aa7156b442",
       "game_slug": "conker-live-reloaded",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "conker-live-reloaded",
+      "evidence_urls": ["https://github.com/yacineolivier-maker/ConkerLR-Recomp"],
+      "source_editions": [
+        {
+          "id": "conker-live-reloaded-xbox",
+          "title": "Conker: Live & Reloaded (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/yacineolivier-maker/ConkerLR-Recomp/blob/2013160850c78dad4c2fd3f2517cbc2e11e094ed/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

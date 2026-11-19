@@ -64,7 +64,7 @@ export function useAppShellState(
       ? { ...restored, library: { ...restored.library, sort: initialLibrarySort } }
       : restored;
   });
-  const [catalogSort, setCatalogSort] = useState<CatalogSort>(initial?.catalogSort ?? "catalog");
+  const [catalogSort, setCatalogSort] = useState<CatalogSort>(initial?.catalogSort ?? "name");
   const [selectedId, setSelectedId] = useState<string>();
   const [reviewedActivityId, setReviewedActivityId] = useState<string>();
   // Each explicit reveal request (e.g. "Show task") counts, even for the same task.

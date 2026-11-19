@@ -28,7 +28,7 @@
         },
         {
           "title": "Set up the Android beta",
-          "instruction": "Install the official Android APK on an ARM64 device with Android 10 or newer and a Vulkan 1.2 driver. To use Internal storage > Snap64, allow the storage permission on Android 10 or All files access on Android 11 and newer. Choose Not now to use the app’s private folder instead. Select your original in the app’s file picker."
+          "instruction": "Install the official APK on ARM64 with Android 10 or newer and a Vulkan 1.2 driver. Android may ask your browser or file manager to allow app installation. For Internal storage > Snap64, allow storage permission on Android 10 or All files access on Android 11 and newer. Not now uses the app’s own folder and asks again on the next start. Don’t ask again keeps using the app’s own folder. Select your original in the app’s file picker."
         },
         {
           "title": "Supply your original",
@@ -48,10 +48,45 @@
         },
         {
           "title": "Keep the Android game folder",
-          "instruction": "Back up Internal storage > Snap64 if you use the shared folder. If you chose the private folder, keep an accessible backup before uninstalling or clearing app data. Install updates over the same upstream signer."
+          "instruction": "Back up Internal storage > Snap64 if you use the shared folder. If you use the app’s own folder, keep an accessible backup before uninstalling or clearing app data. To move to the shared folder later, enable All files access or the storage permission for Snap64 Recomp, then open the game. It copies missing game files and keeps existing files in Snap64. Check the shared saves before clearing the private folder. Install updates over the copy signed by the same upstream key."
+        },
+        {
+          "title": "Set up the game on Steam Deck",
+          "instruction": "Use the official Linux x64 tarball or Flatpak and follow the project’s Steam Deck guide to add it from Desktop Mode. The publisher tested both 1.1.8 packages on a Steam Deck OLED in Desktop Mode. Earlier builds with the 1.1.7 Deck fixes also ran in Gaming Mode, where gyro aim sometimes felt slow. Follow the guide’s controller settings for the gyro mode you choose."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-snap",
+      "evidence_urls": [
+        "https://github.com/JackandBeans/Snap64Recomp#readme",
+        "https://github.com/JackandBeans/Snap64Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "pokemon-snap-nintendo-64",
+          "title": "Pokémon Snap (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/JackandBeans/Snap64Recomp/blob/1a4e208ad7e1551af9a9d38866bb998b71ccf4e6/README.md"
+          ]
         }
       ]
     }
+  },
+  "managed_setup_platform_warnings": {
+    "linux-x86-64": [
+      "The managed Linux package needs glibc 2.38 or newer, SDL2, GTK 3 and a Vulkan 1.2 driver."
+    ],
+    "macos-x86-64": [
+      "The unsigned Mac app needs macOS 14 or newer. If macOS refuses its first launch, follow the upstream instructions in START HERE.txt.",
+      "Upstream reports testing on GitHub-hosted Macs only. Portcove has no native Mac execution result for this app."
+    ],
+    "macos-aarch64": [
+      "The unsigned Mac app needs macOS 14 or newer. If macOS refuses its first launch, follow the upstream instructions in START HERE.txt.",
+      "Upstream reports testing on GitHub-hosted Macs only. Portcove has no native Mac execution result for this app."
+    ]
   },
   "integration": {
     "support_tier": "beta",
@@ -60,6 +95,7 @@
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "adapter": "n64-recomp-portable",
+    "windows_tracked_handoff": true,
     "release": {
       "repository": "JackandBeans/Snap64Recomp",
       "asset_hints": {
@@ -90,6 +126,9 @@
     ],
     "portable_marker": true,
     "user_data_environment": "SNAP_DATA_DIR",
+    "launch_environment": {
+      "SNAP_NO_STEAM_ART": "1"
+    },
     "runtime_source_filename": "pokemonsnap.z64",
     "runtime_source_materialization": "n64-big-endian",
     "presentation": {
@@ -102,7 +141,16 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Install with Portcove",
+            "instruction": "Choose your own unmodified USA Pokémon Snap cartridge dump. Portcove checks the original and installs the managed package for this device. Select Play when setup is complete."
+          }
+        ],
+        "warnings": []
+      }
     }
   }
 }

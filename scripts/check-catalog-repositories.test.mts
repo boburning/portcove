@@ -475,23 +475,29 @@ function requiredFixture<T>(value: T | null | undefined): T {
     );
     assert.equal(atCeiling.consumed.requests, 352);
     assert.equal(atCeiling.request_plan.status, "admitted");
-    let overflowCalls = 0;
-    const overflow = await collect(
-      catalog(...Array.from({ length: 353 }, (_, i) => port(`overflow-${i}`))),
-      async () => {
-        overflowCalls += 1;
-        assert.fail("overflow must refuse before network");
-      },
+    // The batch ceiling never refuses a full collection; the forecast bounds it.
+    const beyondBatch = await collect(
+      catalog(...Array.from({ length: 353 }, (_, i) => port(`beyond-${i}`))),
     );
-    assert.equal(overflow.request_plan.status, "overflow");
-    assert.equal(overflow.consumed.requests, 0);
-    assert.equal(overflowCalls, 0);
-    assert.equal(overflow.observations.length, 353);
-    assert.ok(
-      overflow.observations.every(
-        (record) => record.reason === "budget" && record.attempted === false,
-      ),
+    assert.equal(beyondBatch.request_plan.status, "admitted");
+    assert.equal(beyondBatch.request_plan.hard_ceiling, 352);
+    assert.equal(beyondBatch.limits.requests, 353);
+    assert.equal(beyondBatch.consumed.requests, 353);
+    assert.equal(beyondBatch.collection_status, "complete");
+    assert.ok(beyondBatch.observations.every((record) => record.attempted));
+    // More locations than one scheduled batch never refuses a full collection.
+    const beyondOperation = await collect(
+      catalog(...Array.from({ length: 513 }, (_, i) => port(`beyond-operation-${i}`))),
     );
+    assert.equal(beyondOperation.request_plan.status, "overflow");
+    assert.equal(beyondOperation.limits.requests, 513);
+    assert.equal(beyondOperation.consumed.requests, 513);
+    assert.equal(beyondOperation.collection_status, "complete");
+    assert.equal(
+      beyondOperation.scope.global_health,
+      "collection attempted; not an installability claim",
+    );
+    assert.ok(beyondOperation.observations.every((record) => record.attempted));
     let elapsed = 0;
     const timeLimited = await collect(
       input,
@@ -582,7 +588,9 @@ function requiredFixture<T>(value: T | null | undefined): T {
         const tag=decodeURIComponent(ref);
         const ports=catalog.ports.filter(port=>port.release.repository===repository || port.project_url?.toLowerCase()==='https://github.com/'+repository.toLowerCase()).map(port=>port.id);
         const digests=catalog.source_catalog.qualification.filter(value=>ports.includes(value.scope.port_id)&&value.scope.upstream_ref===tag).map(value=>({digest:'sha256:'+value.scope.artifact_sha256}));
-        return new Response(JSON.stringify({id:2,tag_name:tag,assets:github?digests:{links:digests}}),{headers:{'content-type':'application/json'}});
+        const reviewed=github&&accounting.pins.find(pin=>pin.historical_version&&pin.repository===repository&&pin.tag===tag);
+        if(reviewed) digests.push({digest:'sha256:'+reviewed.sha256});
+        return new Response(JSON.stringify({id:reviewed?reviewed.release_id:2,tag_name:tag,assets:github?digests:{links:digests}}),{headers:{'content-type':'application/json'}});
       }
       const github=url.startsWith('https://api.github.com/');
       const repository=decodeURIComponent(github?url.split('/repos/')[1]:url.split('/projects/')[1]);

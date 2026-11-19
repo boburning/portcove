@@ -1,9 +1,9 @@
 # Configured upstream observations
 
-The read-only observer supplies inert provider facts to independent definition
-delivery (#246). It does not admit a port, download game artifacts, sign or
-publish definitions, install updates, or execute upstream instructions.
-`portcove-core` remains the sole release-policy authority.
+The read-only observer collects facts from providers for independent definition
+delivery (#246). It records its findings as data. It never admits ports,
+downloads game artifacts, signs or publishes definitions, or installs updates.
+It never runs instructions from a provider. `portcove-core` owns release policy.
 
 ## Scope and cadence
 
@@ -329,9 +329,12 @@ Each source operation admits response bytes, including identity lookups, while
 reading. Its finite byte envelope does not cap cumulative catalog-session work:
 further bounded operations continue while actual quota and runtime remain.
 Failed reads without accepted page/Core progress are not immediately requeued.
+An exhausted observation deadline during provider setup or a batch-limited
+Core inspection is a budget stop. The next admitted batch resumes the retained
+state.
 The new handoff has the existing sixteen-MiB response envelope as its aggregate
 byte budget, with four MiB reserved for the summary and one-day artifact retention.
-The output reserves eight MiB separately for a complete inert recovery snapshot.
+The output reserves sixteen MiB separately for a complete inert recovery snapshot.
 The four-MiB summary and eight-MiB standalone handoff limits still apply across
 all batches. Provider request and response budgets are unchanged.
 A hosted opportunity gives source handoffs thirty-two MiB in aggregate,
@@ -343,7 +346,7 @@ it excludes reports, locks, temporary files and executables. Production format 4
 streams source checkpoint JSON records through one Brotli compressor, preserving
 cross-file redundancy that nested source gzip/base64 cannot share. A fixed binary
 magic and closed header of at most 512 bytes bind record count, complete framed
-byte count and SHA-256. The format 4 ZIP is limited to eight MiB, with sixteen KiB reserved for ZIP
+byte count and SHA-256. The format 4 ZIP is limited to sixteen MiB, with sixteen KiB reserved for ZIP
 framing. Formats 1, 2 and 3 remain readable within their original four-MiB ZIP
 limit. Record, expansion and recovery metadata bounds are unchanged.
 
@@ -402,11 +405,10 @@ projected fact JSON, stored JSON bytes, largest source and file count. Export lo
 the complete stored graph, framed logical-transfer bytes and actual transferred bytes; controller size and
 compressed Actions-cache size alone cannot establish snapshot fit.
 
-If the lossless encoding cannot fit its reserve, publication fails visibly and
-the original checkpoints and cache remain retained. This is no increase to the
-request, runtime, response or
-aggregate output allowances, and does not guarantee capacity for every future
-catalog workset.
+If the lossless encoding cannot fit its reserve, export fails visibly and the
+original checkpoints and cache remain retained. The snapshot transfer has its
+own reserve. The request, runtime, provider response, summary and handoff
+allowances retain their existing bounds.
 
 A handoff that cannot fit the remaining batch stays checkpointed for a later
 automatic batch. An individual handoff exceeding the physical response envelope
@@ -425,6 +427,34 @@ the controller's retired-configuration journal. Each source/controller checkpoin
 retains the thirty-two-MiB byte bound; there is no growing per-revision cache list
 or new storage service. Cache eviction and unavailable physical storage still
 provide no durability guarantee.
+
+### Scheduled managed package drift
+
+The configured observer’s existing schedule supplies the exact current GitHub
+release and asset selected by Core. A downstream inspection reads only those
+complete source handoffs from the same run and attempt. It compares eligible
+packages for catalog listings with reviewed shape baselines. A listing's stable
+port ID identifies its inspections even when no issue is linked.
+An older reviewed fallback stays distinct from the latest candidate. Other
+providers, incomplete scopes and unavailable archives have no current shape
+assessment from this job.
+
+The read-only inspection verifies size and SHA-256 before comparing the archive
+through `portcove catalog inspect-package-drift`, an alias for the verified
+package-shape inspector. Nothing from the archive runs. The inspection retains a
+bounded report and reuses finished comparisons only for matching package,
+definition, reviewed baseline and built inspector bytes. Failed archive checks remain visible
+and can be retried in a later observation. Installed-state eligibility stays
+with Core.
+
+A separate main-branch job has only the issue write permission for the notice.
+When a listing links a canonical issue, it records one bot-owned marker comment
+per affected issue, with the
+platform, channel, artifact identity, changed components and inspection run.
+Issue-free observations remain in the inspection report.
+Compatible or unknown evidence leaves existing observations in issue history.
+The notice job keeps an unchanged marker and refuses duplicate or concurrently
+changed markers. It does not publish or edit the catalog.
 
 ## Resource bounds and availability evidence
 
@@ -599,7 +629,11 @@ may omit archive state; the report then records `archived: null`. Direct artifac
 and other project locations use credential-free HEAD requests. Matching declared
 size establishes endpoint reachability only. Historical release metadata retains
 exact refs and provider digest claims, with incomplete or contradictory asset
-collections remaining unknown. Metadata and HEAD never verify accepted bytes.
+collections remaining unknown. A reviewed GitHub pin can supply the publisher tag
+for a different retained install version when port, platform, repository, version
+and artifact digest all match. The observation requires the reviewed release ID
+and provider-reported digest, and keeps the original qualification scope.
+Metadata and HEAD never verify accepted bytes.
 
 The report separates two outcomes. `collection_status: complete` means the
 selected observations completed; a collected 404, redirect or identity change can
@@ -697,6 +731,14 @@ summary; material changes to observed pin identities remain visible as new or
 changed conditions. Metadata assessment recovery is reported separately from
 endpoint recovery and does not establish destination availability.
 
+The health monitor shows the observed operation and the affected artifact
+platforms and variants when the incident matches the active inventory in the
+monitoring session. The JSON report includes the exact declared direct or
+historical identities for that port. Repository-only incidents and conditions
+retained from a prior session without that match show unknown artifact scope.
+Reporting scope leaves observation history, byte verification and operational
+hold decisions with their existing owners.
+
 Optional reviewed source-archive bindings remain a distinct path for literal
 GitHub `/owner/repository/archive/<40-lowercase-hex>.zip` URLs. They bind the exact
 artifact scope, numeric repository identity and immutable commit/tree/ordered
@@ -713,7 +755,7 @@ The coordinator validates the complete inventory and accounting policy before
 network work. It selects ports oldest-attempt-first and admits at most one
 individually oversized port alongside normally fitting scopes. Within that
 scope, locations rotate fairly across owners and oldest actual attempts. Each
-operation permits at most **352 requests**, **512 newly assessed locations**,
+incremental operation permits at most **352 requests**, **512 newly assessed locations**,
 three minutes, fifteen seconds per request, one MiB per response and sixteen MiB
 consumed response bytes. Compatible completed locations may be replayed from the
 validated checkpoint without spending another operation slot or request; their
@@ -730,8 +772,20 @@ resumed invocations and defer related reads without
 blocking unrelated providers. Unknown capacity retains the finite request
 bootstrap. Failed reads are not retried within the same logical job.
 
-The standalone full collector keeps its strict preflight refusal when the
-selected logical inventory exceeds either historical ceiling. The maintained
+The standalone full collector, which the release workflow and the local release
+preflight run, is never refused by inventory size. The 352-request and
+512-location ceilings size scheduled monitor operations only; a plan above the
+location ceiling still reports `request_plan.status: "overflow"` so the monitor's
+planner splits it, but a full collection attempts it. Every request is admitted
+against the collection's own conservative forecast, the provider quota reserve,
+the three-minute limit and the byte limits. Locations the time or byte limits
+leave unattempted are reported as `budget`, and the collection is `partial`. In
+observed release runs 34761853116, 34769169958, 34847939207 and 35158181486
+(2026-09-13 to 2026-09-16), the "Verify active catalog upstreams" step took 14–17
+seconds; this is an observation of a smaller catalog, not a guarantee. Without
+provider quota headers, the forecast is the only request bound, so the local
+preflight requires a GitHub token. Catalog edits run the real-catalog collector
+test, so growth that breaks it fails on the pull request. The maintained
 workflow uses incremental admission instead: completed locations are checkpointed
 atomically after each operation, under the existing lock and 16 MiB envelope.
 Continuation binds the accounting policy and exact per-owner health contracts.
@@ -816,6 +870,13 @@ freshly verified. The human summary is capped at 20 rows; the complete bounded
 JSON report remains the diagnostic record. Stale accepted-provider conditions
 cannot be silently hidden by a prior metadata-accounting result.
 
+The report's batch-level `recovery_evidence` joins each recorded recovery to the
+prior condition's exact location, contract, observation clocks and occurrence
+count. Endpoint recovery and provider-metadata recovery have separate kinds.
+The recovery timestamp comes from the matching observation, and reused
+observations retain their original clock. This evidence does not change which
+conditions recover or modify the checkpoint format.
+
 This is presentation-only triage of location observations. It does not infer
 an affected platform/variant when none was measured, available fallback,
 expected-version-vs-same-identity byte replacement, installation safety or an
@@ -867,7 +928,7 @@ inventory, accepted artifact or exception to required hosted validation.
 ### Growing monitoring inventories
 
 The monitor retains fair oldest-attempt rotation across bounded collector runs.
-The collector's 352-request and 512-new-location envelopes bound one operation,
+The collector's 352-request and 512-new-location envelopes bound one monitor operation,
 not the logical catalog or retained cross-run history. Checkpoints use their
 existing 16 MiB physical envelope rather than separate 4,096-port, 8,192-record
 or 512-incident historical count ceilings. Input catalogs are bounded to 4 MiB,
@@ -1014,3 +1075,225 @@ observed headers trigger a bounded reconsideration report with its reason and
 resume condition. They establish neither package compatibility nor an accepted
 managed replacement. Marathon's archive-root/shared-profile contract and Super
 Metroid's build-specific quickstates retain their pins.
+
+## Release content scan
+
+The [`release-content-scan.yml`](../.github/workflows/release-content-scan.yml)
+workflow applies the automated half of the
+[rights basis for upstream-hosted packages](CATALOG.md#rights-basis-for-upstream-hosted-packages)
+([#5353](https://github.com/boburning/portcove/issues/5353)). Every six hours it reads
+every unheld GitHub or GitLab listing that offers a download, finds the newest
+release in the listing's recommended channel and the single asset each
+platform's hints select, and downloads each asset it has not scanned before.
+`scripts/release-content-scan.mts` lists the package with `7z`, `tar` or
+`unsquashfs` and inspects the first bytes of up to 64 candidate files of at
+most 64 MiB each; `tar` stops at the first matching member. Nothing is extracted to run, executed or
+installed. Member names that a lister could read as an option, list file or
+wildcard are never passed to it, every lister call has a hard timeout, and
+encrypted archives fail instead of waiting for a password. A provider-published
+SHA-256 digest must match the downloaded bytes.
+
+`scripts/release-content-signals.mts` flags concrete game-data signals: ROM,
+disc and original executable files by name; copied cartridge headers by
+Nintendo's boot logo bytes; Nintendo 64 and iNES ROM headers, ISO 9660 (cooked
+or raw sectors), XEX and Xenia shader storage by content; and PlayStation BIOS
+images that are not OpenBIOS. Fonts, icons, launcher art and code are not
+signals. Homebrew ROMs and similar legitimate files can also match; a finding
+is review evidence, so a person confirms it and, unless the material falls
+under a rights-basis owner exception, sets the listing's
+`download_block_reason` in a reviewed change.
+
+Each scanned asset is remembered in a cached checkpoint by rules version,
+provider, repository, tag, name and, where the provider gives them, digest or
+size, so a successfully scanned
+release is downloaded once; a rules change rescans. Each scheduled run has an
+asset budget of 160 packages that counts every attempt, a 40 GB byte budget
+that counts failed transfers too, and a 75-minute deadline that also caps every release read (each at
+most one minute), download, listing and file read, so a slow provider or
+package cannot outlast the job. No release read or download starts after the
+deadline; those targets are reported as `time-budget`. Targets that need no
+further I/O keep their outcome after the deadline: a resolved skip, a package
+reused from the checkpoint, a remembered failure, or a remembered unlistable
+retry, which stays `unlistable`. Targets that share one package
+re-check it once per run. Every target not scanned
+is reported with a stable code. Persistent targets are reported as not
+scannable: `no-release`,
+`no-single-asset`, `release-unavailable` (the release read answers with a
+redirect, 404 or 410, for example a renamed repository), `asset-too-large`
+(over the per-asset limit, also when a transfer of unknown size reaches it),
+`digest-mismatch`, `encrypted-archive` and `unlistable` (no lister can read
+the package). The checkpoint remembers `asset-too-large`, `digest-mismatch`
+and `encrypted-archive` for a downloaded asset, so it is not fetched again
+until its release, the rules or, for its size, the per-asset limit changes.
+`unlistable` is remembered as a retry instead, because a lister or environment
+fault can cause it too. Known retries are re-checked in rotation under their
+own allowance (4 attempts and 2 GB by default, `--max-retry-assets` and
+`--max-retry-bytes`), which never spends the main asset or byte budget. The
+least recently checked come first, and the checkpoint records each retry's
+last check (`checked_at`, a retry-run counter). A retry outside this run's
+rotation or byte allowance is reported as `unlistable` again, never deferred,
+so it cannot keep a port's coverage partial, and every retry is re-checked in
+turn. A retry that now lists cleanly becomes an ordinary scanned record. Each
+not-scanned target also names its provider. The rest (`time-budget`,
+`asset-budget`, `time-cut`,
+`release-read-failed` and `scan-failed` for transient network, provider or tool
+failures) continues in a later run. The report (format 3) declares how many
+targets the listings produced and a digest of that list, and a run with no
+targets fails. Each record notes candidate files it could not read or did not
+reach, and keeps at most 20 signals, sorted, with `signal_count` giving the
+true total. The job summary lists findings first, each unaccounted finding is
+also a workflow warning, and the report artifact keeps every record for 30
+days.
+
+A confirmed false positive, such as a homebrew test ROM, is dismissed in
+[`.github/release-content-accounting.json`](../.github/release-content-accounting.json)
+by a reviewed change. Each entry names the port, platform, package SHA-256 and
+rules version, a reason, and the reviewed `boburning/portcove` issue or pull
+request as evidence. The scan validates the file strictly against the listings
+and fails on a malformed or duplicate entry, wrong evidence or an unknown port.
+A finding that matches an entry under the current rules is reported as
+`accounted` with that reason and evidence: the summary lists it separately and
+it raises no warning. A new package digest or rules version is not covered, so
+the finding returns for review. The summary also lists entries no finding
+matched in that run (stale, or their target was not reached).
+Nested archives and installers are listed only at their outer level.
+Findings from the latest scheduled `main` report reach the
+[maintenance inventory](MAINTENANCE-STORE.md#release-content) with their
+listing and evidence, together with every target it could not scan. A
+`complete` report opens one routine handoff per port, carrying its findings and
+any package the scan could not inspect.
+
+## Shared observations in preliminary package browsing
+
+Core can reuse a complete, unexpired GitHub observation from the existing
+signed descriptive directory when opening a non-managed project's package
+chooser. It preserves the repository/release/asset identities, original
+observation time, expiry and provider digest claim. The chooser dates the
+reused metadata and explains that preview checks the selected file upstream.
+This window never claims complete provider release history. Preview without
+an observed prerelease, an unknown explicit release, stale/future-dated,
+failed, incomplete, unavailable or malformed enrichment falls back to the
+existing provider read. The observation is never retimed by a local read.
+
+This projection does not enter managed release resolution or update checking.
+Preview and acquisition retain the existing exact upstream candidate,
+checksum/hold, destination, package and publication checks. Offline browsing
+can display fresh retained metadata; offline acquisition retains its normal
+failure. A report-only release can supply descriptive file facts without
+creating a playable runtime or managed support.
+
+The targeted HTTP-fixture measurement in
+`service::catalog_download::tests::shared_observation_browse_counts_requests_and_keeps_exact_preview_live`
+opens the package chooser for 1, 20 and 100 distinct game entries, including
+shared repositories. It distinguishes baseline provider metadata reads,
+repeated shared-observation reads and subsequent exact preview reads. This
+is a browse-workflow measurement, not a forecast of managed library updates,
+live production latency or payload-download savings. Existing signed listing
+delivery supplies the reusable projection; this change creates no additional
+feed, account, scheduler or publication grant.
+
+The current CI-green main catalog publisher derives the existing
+`policy/official/catalog.listings.json` target from the canonical directory plus
+completed policies in the existing observer checkpoint artifact. The maintained
+artifact reader binds the source workflow, run, commit, configuration and digest.
+Only `upstream_observation` may differ from the current canonical row. Changes to
+the repository, hints, restrictions, setup or operational route invalidate reuse.
+Core exports the exact supplied directory to format 11 before enrichment; this
+preserves its original guide and current strict-reader compatibility, while the
+authored directory and public browse projection retain format 12 metadata.
+Newer clients retain their existing implementation descriptions when a format-11
+row has the same project URL and exact original-game identity. The older delivery
+cannot express that field; a format-12 delivery can explicitly clear it. Changed
+projects or game/edition identities do not inherit descriptions.
+
+Prior observations are reused only after the existing compiled repository
+verifier succeeds, the exact logical target is referenced by its role, and its
+physical bytes match the verified hash and length. Unavailable or partial source
+reads preserve applicable prior facts and original clocks. Identical directories
+retain exact bytes and revision. The unchanged signer still verifies the entire
+prior repository and historical revision bounds before renewal. Publication uses
+the existing official-policy namespace and keys.
+
+The target remains a partial directory under the existing eight-MiB limit. It
+admits whole canonical rows, prioritizes prior rows before new observations, and
+never drops requirements to make a row fit. Omissions and source exceptions appear
+in `observation-projection.json` beside the publication evidence; omission does not
+mean withdrawal or complete provider coverage. Existing scheduled renewals refresh
+optional observations, while unrelated main commits do not become changed solely
+because the fixed source bundle omits this derived target.
+
+The maintained snapshot codec has a finite 180-second validation harness ceiling.
+The previous 60-second budget failed during a real retained-checkpoint decode and
+re-encode. Provider request deadlines, artifact/record byte bounds, Brotli window
+checks, original observation expiry and cancellation checks remain independent.
+Optional source failure does not prevent publication of the canonical bundle.
+The generated Core fixture is produced by `projectListingObservation` and the same
+target builder, then signed and reopened through the real cache in the Core test;
+its synthetic fixed clock is not a live provider or production acceptance claim.
+
+## Optional research-progress observations
+
+The existing maintenance collection accepts `--progress FILE`, a bounded
+format-1 source manifest. The reviewed initial scope is
+[`scripts/upstream-progress/sources-v1.json`](../scripts/upstream-progress/sources-v1.json).
+The existing daily maintenance job consumes it; no new scheduler or executor is
+introduced. Collection uses the maintained discovery HTTP transport, its byte,
+redirect, request and deadline limits, with a generic JSON/text Accept header for
+external providers. GitHub-specific media types remain scoped to the GitHub API.
+Each source failure is isolated and retains its last-good observation.
+Progress-provider `Retry-After` applies to its HTTPS origin. Independent origins
+can continue, while request, byte and time limits remain shared across the batch.
+
+Adapters read ByteMatch and decomp.dev version-specific structured JSON,
+frogress's exact reviewed project/version/category/measure, and project-owned
+JSON or column-mapped CSV reports. They never discover ownership from a copied
+badge, search title or shared name. Provider JSON must identify the configured
+repository and exact edition; project-report URLs and methodology require
+reviewed primary evidence. Source keys retain game, implementation, edition,
+provider and report/measure scope, allowing several games to use one repository.
+
+Records retain provider/evidence URLs, full source commit when available,
+observation/check times, source-content digest and methodology. Matching code,
+fuzzy similarity, linked code, matched functions and decompiled code remain
+separate metrics. JSON numeric source tokens and integer counts retain their
+original decimal precision; derived CSV/frogress percentages retain the raw
+numerator and denominator. For example, Fire Emblem's frogress `code` counts bytes
+in `src`, including potentially nonmatching code, and is described as decompiled
+code rather than matching code. Display rounds downward below 100; milestone
+comparisons use exact decimal/count arithmetic, so 99.999999999999999999 does not
+become a completion claim. Neither 100 nor a published GitHub release grants a
+playable package, admission, platform support or qualification.
+
+Each source has an independent changes-only observation history and freshness
+clock in the existing maintenance store. Polling timestamps do not rewrite
+unchanged content. Failed reads do not advance its successful clock. Optional
+`reconsider` names an existing recorded research condition, exact metric and
+threshold. Only a changed condition result or comparability scope records a
+transition; repeated reads stay quiet and A→B→A remains ordered history. The
+existing changes-only digest can carry those transitions; dispatch remains
+disabled. The initial source manifest deliberately sets no new reconsideration
+conditions and creates no unsolicited progress notices.
+
+A project opt-out on any configured source suppresses all its provider/fallback
+reads. Current opt-out observations also suppress older progress rows and pending
+historical notifications from newly generated reports/digests. Immutable private
+store evidence remains retained for recovery; no public history reader bypasses
+that current suppression. Re-enrichment requires an explicit reviewed source
+change. Malformed stored optional progress, including unsafe links, is excluded
+from the report and cannot affect player operations.
+
+Provider disposition and live evidence on November 17, 2026:
+
+| Source          | Disposition and exercised scope                                                                                                                                                                                                                                                                                                                           |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ByteMatch       | Implemented and exercised: OpenRAC/rac3-decomp, PAL SCES_524.56, version-specific JSON. The provider's [API contract](https://bytematch.dev/docs/api) documents this read shape.                                                                                                                                                                          |
+| decomp.dev      | Implemented and exercised: doldecomp/melee, GALE01 JSON. The global `projects.json` index returned HTTP 410; collection does not depend on that retired index.                                                                                                                                                                                            |
+| frogress        | Implemented and exercised: fireemblem8/us/default `code` and `code/total`, bound to the project's [upload template](https://github.com/FireEmblemUniverse/fireemblem8u/blob/3b89a0880e5b1b1d7c09ff3259608e8f1a233c46/scripts/progress-template.txt). Its [guide](https://github.com/decompals/frogress/blob/main/GUIDE.md) documents scoped latest reads. |
+| Project reports | Implemented and exercised: Paper Mario US matching-code CSV from papermar.io, linked by the project's [README](https://github.com/pmret/papermario/blob/222af07f2ce4250c1eb70f751fefe8a8476fae96/README.md). Project JSON parsing also has fixture coverage.                                                                                              |
+
+Direct generic HTTP probes initially received 403 from ByteMatch/frogress; that
+was host/transport evidence, not proof of retirement. The maintained transport
+exposed a GitHub-only Accept header causing frogress HTTP 406. After scoping that
+header correctly, all four configured sources returned usable HTTP 200 reports.
+The actual live observation packet is retained with the implementation evidence;
+fixtures and a local manual read do not establish unattended production operation.

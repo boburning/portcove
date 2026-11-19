@@ -5,10 +5,10 @@
     "name": "Blast Corps — blastcorps (Doridian)",
     "original_game_title": "Blast Corps",
     "summary": "Native port replays all-platinum TAS upstream; exact full human-play/hardware coverage unverified. Matching decomp alone is not this native evidence. Original files and setup are described below. Portcove has not verified setup or gameplay.",
-    "project_url": "https://github.com/Doridian/BlastCorps",
+    "project_url": "https://github.com/Doridian/DozerEncore",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/Doridian/BlastCorps",
+    "setup_url": "https://github.com/Doridian/DozerEncore",
     "manual_setup": {
       "steps": [
         {
@@ -24,7 +24,7 @@
         "Native port replays all-platinum TAS upstream; exact full human-play/hardware coverage unverified. Matching decomp alone is not this native evidence.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/Doridian/BlastCorps"
+      "help_url": "https://github.com/Doridian/DozerEncore"
     },
     "issue_number": 3587,
     "listed_at": "2026-10-25",
@@ -35,6 +35,25 @@
       "image_sha256": "1ec211e7b4b84301a702907c5bb9f70a42f9c2d99db35c5d90886983b62e58e5",
       "game_slug": "blast-corps",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "blast-corps",
+      "evidence_urls": [
+        "https://github.com/Doridian/DozerEncore",
+        "https://api.github.com/repositories/1363091017",
+        "https://api.github.com/repos/Doridian/BlastCorps"
+      ],
+      "source_editions": [
+        {
+          "id": "blast-corps-nintendo-64",
+          "title": "Blast Corps (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/Doridian/DozerEncore/blob/c979ff5c0bd2ec6631dbfaa4e535f7e0a2b46dfb/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -47,6 +66,43 @@
         "id": "1363091017"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/Doridian/BlastCorps",
+          "repository": {
+            "host": "github.com",
+            "id": "1363091017"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/Doridian/DozerEncore",
+          "repository": {
+            "host": "github.com",
+            "id": "1363091017"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The owner Doridian renamed the repository it listed; the same repository answers at Doridian/DozerEncore. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1363091017",
+            "note": "Repository ID 1363091017, recorded when this port was listed, resolves to Doridian/DozerEncore."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/Doridian/BlastCorps",
+            "note": "The listed path resolves to Doridian/DozerEncore, repository ID 1363091017."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "86a07952ec294aa004044826c74e2be6a8bdeea5c8552188024c0cf3c7660f5e"
+        }
+      }
+    ]
   }
 }

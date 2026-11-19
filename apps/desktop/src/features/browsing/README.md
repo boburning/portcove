@@ -66,7 +66,7 @@ Future/unreadable preference records retain their bytes and the existing explici
 retry/reset guards; no second preference store or durable authority is introduced.
 
 Reset Library filters resets only the declared query. All resets only readiness.
-Reset view clears search, query, readiness, session Favorites and selected collection. Clear filters retains search; inline Clear search retains filters.
+Reset view clears search, query, readiness, session Favorites and selected collection. Clear filters retains search. Inline Clear search retains filters, returns focus to the field, and announces that the search was cleared.
 Catalog resets retain their prior behavior. Section/root isolation, details/back,
 restart, existing sort and in-session scroll/selection context are retained.
 The shared button and inline panel controls provide keyboard dismissal and trigger focus

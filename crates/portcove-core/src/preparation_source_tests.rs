@@ -96,11 +96,6 @@ impl Fixture {
                 target.destination = format!("originals/{}", target.destination);
                 target.materialization = RuntimeSourceMaterialization::Copy;
             }
-            if wrapped {
-                for hint in port.executable_hints.values_mut().flatten() {
-                    *hint = format!("publisher/{hint}");
-                }
-            }
             if siblings {
                 for (platform, executable) in [
                     (Platform::WindowsX86_64, "publisher/game.exe"),
@@ -119,6 +114,13 @@ impl Fixture {
                 port.windows_temp_directory = Some("profile".into());
                 port.windows_runtime_path_policy =
                     Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath);
+            }
+        }
+        if wrapped {
+            for hint in port.executable_hints.values_mut().flatten() {
+                if !hint.contains('/') {
+                    *hint = format!("publisher/{hint}");
+                }
             }
         }
         let mut profile_id = port.source_profile.clone().unwrap();
@@ -316,6 +318,7 @@ impl Fixture {
                             sha256: digest,
                             size,
                         },
+                        uploader_continuity: None,
                     },
                     activate,
                     managed: None,
@@ -376,6 +379,8 @@ fn source_only_inventory_excludes_existing_mutable_and_managed_owners() {
             "blake-stone-planet-strike-bstone",
             "diablo-devilutionx",
             "diablo-hellfire-devilutionx",
+            "doom-3-classic-dhewm3",
+            "doom-3-resurrection-of-evil-classic-dhewm3",
             "g-diffuser",
             "openpete"
         ]
@@ -418,6 +423,67 @@ async fn assert_source_only_install_survives_two_launches(zip_source: bool) {
     assert!(fixture.service.prepare_launch(PORT, None).is_err());
 }
 
+/// Owner decision on #966: a sealed install holds every game input, so it
+/// launches while its registered original is disconnected; the original is
+/// needed only to prepare or rebuild again.
+async fn assert_sealed_install_launches_without_its_original(zip_source: bool) {
+    let fixture = Fixture::new(zip_source);
+    let install = fixture.install(true).await;
+    let parked = fixture.source.path.with_extension("parked");
+    fs::rename(&fixture.source.path, &parked).unwrap();
+    let readiness = fixture.service.status(PORT).unwrap().readiness.unwrap();
+    assert!(
+        !readiness
+            .blockers
+            .contains(&crate::LaunchBlocker::MissingSource),
+        "{:?}",
+        readiness.blockers
+    );
+    let outcome = fixture
+        .service
+        .supervise_launch(
+            PORT,
+            None,
+            &["--observe-launch".into()],
+            LaunchStdio::Null,
+            |_| {},
+        )
+        .unwrap();
+    assert!(outcome.successful);
+    assert!(fixture.service.verify(PORT).unwrap().valid);
+    // Installed data is still the launch authority.
+    fs::write(install.path.join(FILES[0].0), b"modified sealed original").unwrap();
+    assert!(fixture.service.prepare_launch(PORT, None).is_err());
+    fs::rename(&parked, &fixture.source.path).unwrap();
+}
+
+#[tokio::test]
+async fn launch_that_would_still_consume_the_original_is_never_self_contained() {
+    let fixture = Fixture::new(false);
+    let install = fixture.install(true).await;
+    let library = fixture.service.library();
+    let port = fixture.service.catalog().port(PORT).unwrap().clone();
+    assert!(crate::preparation::self_contained_launch(
+        library, &port, &install
+    ));
+    // Exporting the original to the game keeps it required.
+    let mut exported = port.clone();
+    exported.source_environment = Some("GAME_ROM".into());
+    assert!(!crate::preparation::self_contained_launch(
+        library, &exported, &install
+    ));
+}
+
+#[tokio::test]
+async fn sealed_directory_install_launches_without_its_original() {
+    assert_sealed_install_launches_without_its_original(false).await;
+}
+
+#[tokio::test]
+async fn sealed_zip_install_launches_without_its_original() {
+    assert_sealed_install_launches_without_its_original(true).await;
+}
+
 #[tokio::test]
 async fn source_only_directory_install_survives_two_launches_and_full_verify() {
     assert_source_only_install_survives_two_launches(false).await;
@@ -426,6 +492,61 @@ async fn source_only_directory_install_survives_two_launches_and_full_verify() {
 #[tokio::test]
 async fn source_only_zip_install_survives_two_launches_and_full_verify() {
     assert_source_only_install_survives_two_launches(true).await;
+}
+
+#[tokio::test]
+async fn source_only_install_seals_originals_beside_nested_executable() {
+    let fixture = Fixture::with_route(PORT, false, false, true, false);
+    let install = fixture.install(true).await;
+    let executable = install.path.join(&install.selected_executable);
+    let working = executable.parent().unwrap();
+    assert_ne!(working, install.path);
+    for (name, bytes) in FILES {
+        assert_eq!(fs::read(working.join(name)).unwrap(), bytes);
+        assert!(!install.path.join(name).exists());
+    }
+    assert!(fixture.service.verify(PORT).unwrap().valid);
+    assert!(fixture.service.prepare_launch(PORT, None).is_ok());
+    fs::write(working.join(FILES[0].0), b"modified sealed original").unwrap();
+    assert!(!fixture.service.verify(PORT).unwrap().valid);
+    assert!(fixture.service.prepare_launch(PORT, None).is_err());
+}
+
+#[test]
+fn nested_source_only_preparation_preserves_publisher_files() {
+    let fixture = Fixture::with_route(PORT, false, false, true, false);
+    let catalog = fixture.service.catalog();
+    let port = catalog.port(PORT).unwrap();
+    let host = Platform::current().unwrap();
+    let inputs = plan(catalog, port, &fixture.source, host).unwrap();
+    let payload = fixture._temporary.path().join("wrapped-package");
+    let executable = payload.join(&port.executable_hints[&host][0]);
+    let working = executable.parent().unwrap();
+    fs::create_dir_all(working).unwrap();
+    fs::copy(&fixture.probe, &executable).unwrap();
+    let occupied = working.join(FILES[0].0);
+    fs::write(&occupied, b"publisher member").unwrap();
+
+    let error = materialize(
+        catalog,
+        port,
+        &inputs,
+        MaterializationRoot {
+            payload: &payload,
+            working,
+            replace_prepared: false,
+        },
+        &|| Ok(()),
+        &Cell::new(true),
+    )
+    .unwrap_err();
+
+    assert_eq!(
+        error.message,
+        "publisher package occupies an original output or receipt"
+    );
+    assert_eq!(fs::read(occupied).unwrap(), b"publisher member");
+    assert!(!payload.join(RECEIPT).exists());
 }
 
 #[tokio::test]
@@ -576,10 +697,13 @@ fn source_only_materialization_checkpoint_retains_private_payload_on_cancellatio
     let fixture = Fixture::new(false);
     let catalog = fixture.service.catalog();
     let port = catalog.port(PORT).unwrap();
-    let inputs = plan(catalog, port, &fixture.source, Platform::current().unwrap()).unwrap();
+    let host = Platform::current().unwrap();
+    let inputs = plan(catalog, port, &fixture.source, host).unwrap();
     let payload = fixture._temporary.path().join("cancelled-payload");
     fs::create_dir(&payload).unwrap();
-    fs::write(payload.join("owned-runtime"), b"preserved runtime").unwrap();
+    let executable = payload.join(&port.executable_hints[&host][0]);
+    fs::copy(&fixture.probe, &executable).unwrap();
+    let executable_bytes = fs::read(&executable).unwrap();
     let cancelled = Cell::new(false);
     let result = materialize(
         catalog,
@@ -604,7 +728,7 @@ fn source_only_materialization_checkpoint_retains_private_payload_on_cancellatio
     );
     assert_eq!(result.unwrap_err().code, crate::ErrorCode::Cancelled);
     assert!(cancelled.get());
-    assert!(payload.join("owned-runtime").is_file());
+    assert_eq!(fs::read(executable).unwrap(), executable_bytes);
     assert!(!payload.join(RECEIPT).exists());
     assert_eq!(
         fs::read(fixture.source.path.join(FILES[0].0)).unwrap(),
@@ -759,6 +883,57 @@ async fn assert_native6_originals_launch(zip: bool, wrapped: bool) {
     .unwrap();
     assert!(!fixture.service.verify(NATIVE_PORT).unwrap().valid);
     assert!(fixture.service.prepare_launch(NATIVE_PORT, None).is_err());
+}
+
+#[tokio::test]
+async fn native_relative_originals_keep_equal_basenames_in_distinct_directories() {
+    let mut fixture = Fixture::native(false, true);
+    let mut document = fixture.service.catalog().authoritative_document();
+    let port = &mut document.ports[0];
+    let originals = [
+        ("base/pak000.pk4", b"synthetic base".as_slice()),
+        ("d3xp/pak000.pk4", b"synthetic expansion".as_slice()),
+    ];
+    let mut members = Vec::new();
+    port.runtime_source_set.clear();
+    for (index, (path, bytes)) in originals.iter().enumerate() {
+        let source = fixture.source.path.join(path);
+        fs::create_dir_all(source.parent().unwrap()).unwrap();
+        fs::write(&source, bytes).unwrap();
+        let sha256 = crate::signed_catalog::digest(bytes).to_ascii_uppercase();
+        members.push(crate::RelativeSourceMemberIdentity {
+            id: format!("fixture-pak-{index}"),
+            path: (*path).into(),
+            size: bytes.len() as u64,
+            sha256: sha256.clone(),
+        });
+        port.runtime_source_hashes.insert((*path).into(), sha256);
+        port.runtime_source_set.push(crate::RuntimeSourceTarget {
+            source_filenames: vec![(*path).into()],
+            destination: (*path).into(),
+            materialization: RuntimeSourceMaterialization::Copy,
+        });
+    }
+    let identity = &mut document.source_catalog.as_mut().unwrap().identities[0];
+    identity.variants[0].representations[0].kind =
+        crate::SourceRepresentationKind::RelativeFileSet { members };
+
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    fixture.service.replace_catalog_for_test(catalog);
+    fixture.source = fixture
+        .service
+        .register_source(NATIVE_PROFILE, &fixture.source.path)
+        .unwrap();
+    let install = fixture.install(true).await;
+    for (path, bytes) in originals {
+        assert_eq!(
+            fs::read(install.path.join("publisher").join(path)).unwrap(),
+            bytes
+        );
+        assert_eq!(fs::read(fixture.source.path.join(path)).unwrap(), bytes);
+    }
+    assert!(!install.path.join("publisher").join(FILES[0].0).exists());
+    assert!(fixture.service.verify(NATIVE_PORT).unwrap().valid);
 }
 
 #[tokio::test]
@@ -986,7 +1161,9 @@ async fn native6_mixed_sets_and_same_profile_edition_replacement_cannot_reprepar
             .plan_preparation(NATIVE_PORT, fixture.options())
             .is_err()
     );
-    assert!(fixture.service.prepare_launch(NATIVE_PORT, None).is_err());
+    // The sealed installation, not the replaced original, is the launch
+    // authority (owner decision on #966); it still launches unchanged.
+    assert!(fixture.service.prepare_launch(NATIVE_PORT, None).is_ok());
     assert_eq!(
         crate::library_transfer::reviewed_tree(&install.path).unwrap(),
         before
@@ -1492,6 +1669,7 @@ fn native_fixture_release(
                 sha256,
                 size,
             },
+            uploader_continuity: None,
         },
         server,
     )

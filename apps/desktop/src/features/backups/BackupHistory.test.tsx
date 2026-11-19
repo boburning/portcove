@@ -60,6 +60,71 @@ describe("backup history presentation", () => {
     expect(populated).not.toContain(`${backup.sha256.slice(0, 10)}…`);
   });
 
+  it("names unrecognized files a backup keeps and that restore leaves them out", () => {
+    const backup = {
+      id: "backup-1",
+      port_id: port.id,
+      path: "backups/sample/backup-1",
+      created_at: 1,
+      file_count: 1,
+      size: 1024,
+      sha256: "a".repeat(64),
+    };
+    const plain = renderToStaticMarkup(
+      <BackupHistory backups={[backup]} restore={vi.fn()} remove={vi.fn()} />,
+    );
+    const withUnknown = renderToStaticMarkup(
+      <BackupHistory
+        backups={[{ ...backup, unknown_file_count: 2 }]}
+        restore={vi.fn()}
+        remove={vi.fn()}
+      />,
+    );
+    expect(plain).not.toContain("didn&#x27;t install");
+    expect(withUnknown).toContain("Also keeps 2 files Portcove didn&#x27;t install.");
+    expect(withUnknown).toContain("Restoring this backup doesn&#x27;t put them back.");
+  });
+
+  it("allows restore only for rows containing saves when the inventory is restorable", () => {
+    const savedData = {
+      id: "saved-data",
+      port_id: port.id,
+      path: "backups/sample/saved-data",
+      created_at: 1,
+      file_count: 1,
+      size: 1024,
+      sha256: "a".repeat(64),
+    };
+    const unknownOnly = {
+      ...savedData,
+      id: "unknown-only",
+      path: "backups/sample/unknown-only",
+      created_at: 2,
+      file_count: 0,
+      unknown_file_count: 1,
+    };
+    const html = renderToStaticMarkup(
+      <BackupHistory
+        backups={[unknownOnly, savedData]}
+        restoreAssessment={{
+          action: "backup_restore",
+          availability: "allowed",
+          reason: "available",
+        }}
+        restore={vi.fn()}
+        remove={vi.fn()}
+      />,
+    );
+    const unknownRow = html.split('data-backup-id="unknown-only"')[1]?.split("data-backup-id=")[0];
+    const savedRow = html.split('data-backup-id="saved-data"')[1]?.split("data-backup-id=")[0];
+    expect(unknownRow).toMatch(
+      /<button(?=[^>]*data-backup-action="restore")(?=[^>]*\sdisabled="")[^>]*>/u,
+    );
+    expect(savedRow).toMatch(
+      /<button(?=[^>]*data-backup-action="restore")(?![^>]*\sdisabled="")[^>]*>/u,
+    );
+  });
+
   it("keeps verified backups listed but blocks actions during required recovery", () => {
     const backups = [
       {

@@ -35,6 +35,24 @@
       "image_sha256": "4ec863861f428a18e90c7ef61f5add5376c85e393905bb98a9964092ced7d74f",
       "game_slug": "nhl-14",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "nhl-14",
+      "evidence_urls": [
+        "https://github.com/griby-man/bardown",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/bardown-griby-man-nhl-14.json"
+      ],
+      "source_editions": [
+        {
+          "id": "nhl-14-xbox-360",
+          "title": "NHL 14 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/bardown-griby-man-nhl-14.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

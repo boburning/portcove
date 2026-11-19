@@ -1,0 +1,66 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "death-rally-drally",
+    "project_url": "https://github.com/urxp/dRally",
+    "name": "Death Rally / dRally",
+    "original_game_title": "Death Rally",
+    "artwork": {
+      "game_id": 665,
+      "cover_id": 112851,
+      "image_id": "co2f2r",
+      "image_sha256": "ed345f1b1f7c79cc4bb1c9fdb1dc2c38e662691ffb4e11578ae41a8eabad3beb",
+      "game_slug": "death-rally",
+      "match_kind": "underlying-game"
+    },
+    "summary": "Prepare the upstream Windows or Linux alpha with files from your original DOS game.",
+    "issue_number": 5661,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/urxp/dRally/releases/tag/v0.2",
+    "setup_url": "https://github.com/urxp/dRally/blob/v0.2/README.md",
+    "download_asset_hints": {
+      "windows-x86-64": ["dRally_Windows_x64.zip"],
+      "linux-x86-64": ["dRally_Linux_x64.zip"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/urxp/dRally/blob/v0.2/README.md",
+      "steps": [
+        {
+          "title": "Prepare a separate game folder",
+          "instruction": "Extract the v0.2 archive for your x64 system into its own writable folder. Copy the files listed in the upstream guide from the full DOS game into that working folder. The v0.2 player rejects the 1.1 shareware MENU.BPA. Keep the upstream uppercase names, including CINEM and the .BPA files. In the working folder, set CDROM.INI to ./CINEM and leave your original installation unchanged."
+        },
+        {
+          "title": "Start the upstream player",
+          "instruction": "On Windows, keep the supplied SDL2.dll and SDL2_net.dll beside dRally.exe and open it from the working folder. On Linux, use your distribution's SDL2 and SDL2_net runtimes and run ./dRally from the same working folder. The normal player is the file without the _debug suffix."
+        },
+        {
+          "title": "Keep your progress",
+          "instruction": "Close the player and save a separate copy of the working folder's DR.CFG and any DR.SG save files before replacing or removing that folder. Keep the original game files independently so you can prepare a fresh copy."
+        }
+      ],
+      "warnings": [
+        "The upstream alpha omits the original game data and does not offer multiplayer. Setup, runtime replacement and backups are player-managed."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "death-rally",
+      "evidence_urls": [
+        "https://github.com/urxp/dRally/blob/v0.2/README.md",
+        "https://github.com/urxp/dRally"
+      ],
+      "source_editions": [
+        {
+          "id": "death-rally-pc",
+          "title": "Death Rally (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/urxp/dRally/blob/920d85a7f3c3b95abb685bc26b5f6d67a2f4b982/README.md"
+          ]
+        }
+      ]
+    }
+  }
+}

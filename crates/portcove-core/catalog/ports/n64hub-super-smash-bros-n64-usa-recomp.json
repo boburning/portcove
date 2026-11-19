@@ -2,34 +2,61 @@
   "format_version": 1,
   "listing": {
     "id": "n64hub-super-smash-bros-n64-usa-recomp",
+    "artwork": {
+      "game_id": 1626,
+      "cover_id": 131928,
+      "image_id": "co2tso",
+      "image_sha256": "b8c0edf9685259b4e1cfb879e8d5275dd1c1aa124f98c9612ee4cd03f6ed0d9e",
+      "game_slug": "super-smash-bros",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/n64hub/super-smash-bros-recomp",
     "name": "Super Smash Bros. (Smash Bros. Recompiled)",
     "summary": "A Windows port of the original Super Smash Bros. Set it up with your own US Nintendo 64 game file.",
     "issue_number": 4337,
     "listed_at": "2026-11-05",
     "original_game_title": "Super Smash Bros.",
-    "availability": "unknown",
-    "platforms": [],
+    "availability": "packages",
     "setup_url": "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
     "manual_setup": {
       "help_url": "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
       "steps": [
         {
-          "title": "Prepare your Windows copy",
-          "instruction": "Use a complete Windows x64 copy that you are permitted to use. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open SmashBrosRecompiled.exe, choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). Choose Start Game."
+          "title": "Prepare the game",
+          "instruction": "Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. On first start, choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf), then choose Start Game. The player checks the file and keeps a copy in its profile; keep your original separately."
         }
       ],
       "warnings": [
-        "Keep the profile that contains your SRAM and settings. Changing portable mode does not move existing data."
+        "Keep the profile that contains your SRAM and settings. Changing portable mode does not move existing data.",
+        "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
       ],
       "references": [
         {
-          "title": "Setup instructions for the inspected release",
-          "instruction": "https://github.com/n64hub/super-smash-bros-recomp/releases/tag/v0.1.5"
+          "title": "Upstream releases and their setup notes",
+          "instruction": "https://github.com/n64hub/super-smash-bros-recomp/releases"
         }
       ]
     },
-    "download_block_reason": "Portcove downloads are paused until the applicable permission for the bundled Fontworks Chiaro fonts is established or upstream publishes a package with appropriately licensed replacements. You can add a complete copy you are permitted to use."
+    "release_url": "https://github.com/n64hub/super-smash-bros-recomp/releases",
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros",
+      "evidence_urls": [
+        "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
+        "https://github.com/n64hub/super-smash-bros-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "super-smash-bros-nintendo-64",
+          "title": "Super Smash Bros. (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/n64hub/super-smash-bros-recomp/blob/fbd1fef8d6ec2cdba5779d30d1ea275a0bda3013/README.md"
+          ]
+        }
+      ]
+    }
   },
   "route_facts_v1": {
     "format_version": 1,
@@ -40,6 +67,44 @@
       "data_locations": [
         "%LOCALAPPDATA%/SmashBrosRecompiled by default, or the game folder if it already uses portable.txt"
       ]
+    },
+    "managed_native": {
+      "preparation": {
+        "title": "Set up the managed copy on first Play",
+        "instruction": "Use Load ROM to select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). The player verifies it and keeps a private copy in its profile with SRAM and settings. Back up that profile separately before changing versions."
+      },
+      "warnings": [
+        "Use a separate upstream copy for portable.txt mode. A separately prepared copy without portable.txt uses the same %LOCALAPPDATA%\\SmashBrosRecompiled profile as the managed copy."
+      ]
     }
-  }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "n64hub/super-smash-bros-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["SmashBrosRecompiled-", "-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["SmashBrosRecompiled.exe"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned"
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["assets"],
+        "executables": ["smashbrosrecompiled.exe"]
+      }
+    }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

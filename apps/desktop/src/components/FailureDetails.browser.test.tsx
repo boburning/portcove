@@ -188,11 +188,19 @@ describe("diagnostic clipboard outcomes", () => {
   it.each([
     [
       "portable_runtime_modified",
-      "Portcove found changed runtime files or unrecognized additions and stopped this operation. Your existing files were preserved. Review the affected paths in technical details. Back up your changes outside the managed installation, then restore changed package files or move unrecognized additions before trying again.",
+      "Portcove found changed game files or unrecognized programs, scripts or libraries and stopped this operation. Your existing files were preserved. Review the affected paths in technical details. Back up your changes outside the managed installation, then restore changed game files or move the added programs, scripts or libraries before trying again.",
     ],
     [
       "portable_data_contract_changed",
       "This package changes where player data is stored or how it is located. Portcove stopped the transition and kept the current installation and files. Keep using the current version; use upstream instructions until a compatible package or supported data migration is available.",
+    ],
+    [
+      "appended_settings_diverged",
+      "The settings file sonic1-sound.ini is different in the version you're using now and in your saved settings, so Portcove can't tell which one to keep. Both copies were kept. Delete the copy you don't want, then try again.\nCopy in the version you're using now: C:\\Games\\Sonic\\v0.8.3\\sonic1-sound.ini\nSaved copy: C:\\Portcove\\user\\sonic1-sound.ini",
+    ],
+    [
+      "appended_settings_path_blocked",
+      "Portcove can't carry over this game's settings because the item at this settings file location is not an ordinary settings file, or is larger than 16 MB. Nothing there was changed. Move that item out of the folder, then try again.\nLocation: C:\\Games\\Sonic\\v0.8.3\\sonic1-sound.ini",
     ],
   ])("shows %s recovery instructions before technical details", async (key, summary) => {
     const error = failureReport();

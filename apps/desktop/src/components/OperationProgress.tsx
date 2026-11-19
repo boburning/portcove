@@ -48,8 +48,8 @@ export function OperationProgress({
       >
         <i
           className={cn(
-            "block h-full bg-pc-loading motion-safe:transition-[width] motion-safe:duration-300 motion-reduce:animate-none",
-            !range && "w-[32%] animate-pc-progress",
+            "block h-full bg-pc-loading motion-safe:transition-[width] motion-safe:duration-300 motion-reduce:animate-none forced-colors:border-t-[3px] forced-colors:border-[Highlight]",
+            !range && "w-[32%] animate-pc-progress motion-reduce:mx-auto",
           )}
           style={range ? { width: `${range.percent}%` } : undefined}
         />

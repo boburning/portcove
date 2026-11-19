@@ -54,6 +54,8 @@ export const storeTables = [
   ["portcove_maintenance.reconsiderations", 'reconsideration_id COLLATE "C"'],
   ["portcove_maintenance.notifications", 'notification_key COLLATE "C"'],
   ["portcove_maintenance.operations", 'operation_id COLLATE "C"'],
+  ["portcove_maintenance.discovery_intake_batches", "request_comment"],
+  ["portcove_maintenance.discovery_intake_candidates", "request_comment, candidate_index"],
 ] as const;
 
 const queryParameters = new Map([
@@ -179,15 +181,54 @@ function runTool(
 const psqlBase = ["-X", "-q", "-v", "ON_ERROR_STOP=1"] as const;
 
 /** Run SQL in one transaction and return unaligned tuples-only output. */
-export function runSql(environment: NodeJS.ProcessEnv, sql: string) {
+export function runSql(
+  environment: NodeJS.ProcessEnv,
+  sql: string,
+  /** A longer budget for one known-large transaction; the default suits ordinary queries. */
+  options: { timeoutMs?: number } = {},
+) {
   return runTool(
     "psql",
     [...psqlBase, "-A", "-t", "--single-transaction", "-f", "-"],
     environment,
     {
       input: sql,
+      ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
     },
   );
+}
+
+/**
+ * Join statements with psql's `\;` so the whole list reaches the server as one
+ * query: one network round trip instead of one per statement. Each statement
+ * must be complete; the transaction still stops at the first error.
+ */
+export function batchedStatements(statements: readonly string[]) {
+  return `${statements.map((statement) => statement.trimEnd().replace(/;$/u, "")).join("\\;\n")};`;
+}
+
+/**
+ * Column attribute options that a managed provider adds to its own catalog and
+ * that standard PostgreSQL refuses (Neon's `pg_attver`). The store sets no
+ * column options, so the restore drops exactly these statements.
+ */
+const providerColumnOption =
+  /^ALTER TABLE ONLY [a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]* ALTER COLUMN [a-z_][a-z0-9_]* SET \(pg_attver=[0-9]+\);$/u;
+
+export function portableRestoreSql(sql: string) {
+  let copying = false;
+  return sql
+    .split("\n")
+    .filter((line) => {
+      // COPY data passes through untouched, whatever it looks like.
+      if (copying) {
+        if (line === "\\.") copying = false;
+        return true;
+      }
+      if (/^COPY .* FROM stdin;$/u.test(line)) copying = true;
+      return !providerColumnOption.test(line);
+    })
+    .join("\n");
 }
 
 function queryJson(environment: NodeJS.ProcessEnv, sql: string): unknown {
@@ -291,7 +332,7 @@ function readLedger(environment: NodeJS.ProcessEnv): AppliedMigration[] {
   return rows as AppliedMigration[];
 }
 
-function sqlLiteral(value: string) {
+export function sqlLiteral(value: string) {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
@@ -343,14 +384,27 @@ export function migrate(environment: NodeJS.ProcessEnv, directory = defaultMigra
   return { ...migrationStatus(environment, directory), newly_applied: applied };
 }
 
+/**
+ * The server's version and the current database's size, so an operator can pick a
+ * client of the matching major version and measure storage against provider limits.
+ */
+export function serverInfo(environment: NodeJS.ProcessEnv) {
+  const info = queryJson(
+    environment,
+    `SELECT json_build_object('server_version_num', current_setting('server_version_num')::integer,
+       'database_size_bytes', pg_catalog.pg_database_size(current_database()));`,
+  ) as { server_version_num: number; database_size_bytes: number };
+  return { ...info, server_major: Math.floor(info.server_version_num / 10_000) };
+}
+
 export type StoreDigest = Record<string, { rows: number; sha256: string }>;
 
 /** Settings that make row text identical on every host; applied inside the digest's transaction. */
 const digestSettings =
   "SET LOCAL TimeZone = 'UTC'; SET LOCAL DateStyle = 'ISO, MDY'; SET LOCAL IntervalStyle = 'postgres'; SET LOCAL extra_float_digits = 1;";
 
-function digestExpression() {
-  const fields = storeTables.map(
+function digestExpression(tables = storeTables.slice()) {
+  const fields = tables.map(
     ([table, order]) =>
       `${sqlLiteral(table)}, (SELECT json_build_object('rows', count(*), 'sha256', encode(sha256(convert_to(coalesce(string_agg(t::text, E'\\n' ORDER BY ${order}), ''), 'UTF8')), 'hex')) FROM ${table} t)`,
   );
@@ -366,7 +420,7 @@ export function restoreVerification(tables: StoreDigest) {
   return `${digestSettings}
 DO $portcove_verify$
 DECLARE
-  actual jsonb := (SELECT ${digestExpression()})::jsonb;
+  actual jsonb := (SELECT ${digestExpression(storeTables.filter(([table]) => Object.hasOwn(tables, table)))})::jsonb;
   expected jsonb := ${sqlLiteral(JSON.stringify(tables))}::jsonb;
   mismatched text;
 BEGIN
@@ -535,12 +589,13 @@ async function writeBackup(environment: NodeJS.ProcessEnv, output: string) {
 }
 
 /** Exactly the store's tables, each with an integer row count and a SHA-256 digest. */
-function validTableDigests(tables: unknown): tables is StoreDigest {
+function validTableDigests(tables: unknown, schemaVersion: number): tables is StoreDigest {
   if (typeof tables !== "object" || tables === null || Array.isArray(tables)) return false;
   const entries: [string, unknown][] = Object.entries(tables);
+  const expected = schemaVersion < 5 ? storeTables.slice(0, -2) : storeTables;
   return (
-    entries.length === storeTables.length &&
-    storeTables.every(([table]) => Object.hasOwn(tables, table)) &&
+    entries.length === expected.length &&
+    expected.every(([table]) => Object.hasOwn(tables, table)) &&
     entries.every(
       ([, digest]) =>
         typeof digest === "object" &&
@@ -567,7 +622,9 @@ export function readBackupManifest(input: string): BackupManifest {
     value.dump?.file !== dumpFileName ||
     !/^[0-9a-f]{64}$/u.test(value.dump.sha256 ?? "") ||
     !Array.isArray(value.migrations) ||
-    !validTableDigests(value.tables)
+    !Number.isSafeInteger(value.schema_version) ||
+    value.schema_version !== value.migrations.length ||
+    !validTableDigests(value.tables, value.schema_version)
   )
     throw new MaintenanceStoreError("Backup manifest has an unsupported format");
   return value as BackupManifest;
@@ -610,6 +667,8 @@ export function restore(
       environment,
       { timeoutMs: dumpTimeoutMs },
     );
+    // A provider's own column options are not part of the store and do not restore elsewhere.
+    writeFileSync(script, portableRestoreSql(readFileSync(script, "utf8")));
     writeFileSync(roles, roleContract());
     writeFileSync(verification, restoreVerification(manifest.tables));
     // Verify against the backup's own schema, then bring it to this checkout's schema.
@@ -630,6 +689,8 @@ export function restore(
         ...migrations.flat(),
         "-f",
         roles,
+        "-c",
+        "UPDATE portcove_maintenance_meta.discovery_intake_activation SET active = false;",
       ],
       environment,
       { timeoutMs: dumpTimeoutMs },
@@ -660,6 +721,7 @@ commands:
   status    report applied, pending and drifted migrations
   migrate   apply pending migrations and the limited-role contract
   digest    print per-table row counts and content digests
+  server    print the server version, its major version and the database size in bytes
   backup    --output DIR   write maintenance.dump and manifest.json to a new DIR
   restore   --input DIR    restore a backup into a database without maintenance schemas
 
@@ -685,10 +747,13 @@ export async function main(argv = process.argv.slice(2)) {
   if (args.length)
     throw new MaintenanceStoreError(`Unexpected arguments: ${args.join(" ")}\n${usage}`);
   const environment = connectionFromEnvironment(environmentName, process.env, envFile);
+  // Child processes receive only the libpq translation, never the URL itself.
+  delete process.env[environmentName];
   let result: unknown;
   if (command === "status") result = migrationStatus(environment, directory);
   else if (command === "migrate") result = migrate(environment, directory);
   else if (command === "digest") result = storeDigest(environment);
+  else if (command === "server") result = serverInfo(environment);
   else if (command === "backup") {
     if (!output) throw new MaintenanceStoreError("backup requires --output DIR");
     result = await backup(environment, path.resolve(output), directory);

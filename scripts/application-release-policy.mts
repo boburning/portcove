@@ -95,7 +95,8 @@ export function applicationReleaseMaximumMinutes(purpose: unknown, executionPath
 export function applicationReleaseRemainingMinutes(
   purpose: unknown,
   executionPath: unknown = "ordinary",
-) {
+  servedRenewal = false,
+): Readonly<Record<string, number>> {
   const ordinary = applicationReleaseBudgetMinutes(purpose);
   assert.ok(
     executionPath === "ordinary" ||
@@ -118,6 +119,23 @@ export function applicationReleaseRemainingMinutes(
   }
   if (executionPath === "metadata-maintenance") {
     assert.equal(purpose, "metadata-renewal");
+    if (servedRenewal) {
+      return Object.freeze(
+        Object.fromEntries(
+          Object.entries(applicationReleaseRemainingMinutes(purpose, executionPath))
+            .filter(
+              ([name]) =>
+                !/^renewal_protection_(releases|preview|stable|snapshot|timestamp) \/ execute$/u.test(
+                  name,
+                ),
+            )
+            .map(([name, minutes]) => [
+              name,
+              /^(releases|preview|stable|snapshot|timestamp) \/ execute$/u.test(name) ? 2 : minutes,
+            ]),
+        ),
+      );
+    }
     const applicationWork = new Set([
       "package / package",
       "package / provenance",
@@ -250,12 +268,13 @@ export async function verifyApplicationReleaseTrust() {
 
 /** Secret-free main qualification may build and attest public packages. Its
  * caller identity is never admitted by the private release execution guard. */
-export function inspectApplicationPackageExecution(environment: NodeJS.ProcessEnv) {
-  if (environment.PORTCOVE_APPLICATION_PACKAGE_MODE !== "qualification")
-    return inspectApplicationReleaseExecution(environment);
+export function inspectApplicationQualificationExecution(environment: NodeJS.ProcessEnv) {
   assert.equal(environment.GITHUB_REPOSITORY, "boburning/portcove");
   assert.equal(environment.GITHUB_REPOSITORY_ID, "1354613114");
-  assert.equal(environment.GITHUB_EVENT_NAME, "workflow_dispatch");
+  assert.ok(
+    environment.GITHUB_EVENT_NAME === "workflow_dispatch" ||
+      environment.GITHUB_EVENT_NAME === "schedule",
+  );
   assert.equal(environment.GITHUB_REF, "refs/heads/main");
   assert.equal(
     environment.GITHUB_WORKFLOW_REF,
@@ -270,6 +289,12 @@ export function inspectApplicationPackageExecution(environment: NodeJS.ProcessEn
   const attempt = Number(environment.GITHUB_RUN_ATTEMPT);
   assert.ok(Number.isSafeInteger(attempt) && attempt >= 1 && attempt <= 3);
   return { source, ref: "refs/heads/main", run_id: run, run_attempt: attempt };
+}
+
+export function inspectApplicationPackageExecution(environment: NodeJS.ProcessEnv) {
+  return environment.PORTCOVE_APPLICATION_PACKAGE_MODE === "qualification"
+    ? inspectApplicationQualificationExecution(environment)
+    : inspectApplicationReleaseExecution(environment);
 }
 
 /** Raw observation only. A paused control can never authorize a signing/feed job. */

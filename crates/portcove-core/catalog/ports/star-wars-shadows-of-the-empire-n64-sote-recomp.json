@@ -3,11 +3,11 @@
   "listing": {
     "id": "star-wars-shadows-of-the-empire-n64-sote-recomp",
     "name": "Star Wars: Shadows of the Empire — N64 / SotE-Recomp",
-    "summary": "Research this distinct N64 Shadows of the Empire implementation; the current MIT project grant does not resolve the retained package texture-provenance condition.",
+    "summary": "Use your own USA Rev 2 cartridge image with an already permitted Windows or experimental Linux copy of Shadows of the Empire: Recompiled.",
     "project_url": "https://github.com/GTTeancum/SotE-Recomp",
     "issue_number": 343,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/GTTeancum/SotE-Recomp",
     "artwork": {
@@ -18,28 +18,49 @@
       "game_slug": "star-wars-shadows-of-the-empire",
       "match_kind": "underlying-game"
     },
-    "download_block_reason": "The exact 0.9.7 Windows and experimental Linux packages include two texture packs. The MIT project grant excludes game-derived and third-party media. Fresh acquisition remains held pending permission for the bundled content or a reviewed asset-clean package.",
+    "download_block_reason": "The exact 0.9.7 and 0.9.8 Windows and experimental Linux packages include two game-derived texture packs. The MIT project grant excludes game-derived and third-party media. Fresh acquisition remains held pending permission for the bundled content or a reviewed asset-clean package.",
     "manual_setup": {
-      "help_url": "https://github.com/GTTeancum/SotE-Recomp/releases/tag/0.9.7",
+      "help_url": "https://github.com/GTTeancum/SotE-Recomp/releases/tag/0.9.8",
       "steps": [
         {
           "title": "Keep your permitted Windows copy together",
-          "instruction": "For an already permitted 0.9.7 Windows copy, keep its program and companion files together. Put your own USA Rev 2 original beside Shadows of the Empire.exe as sote.us.v1.2.z64. Verify upstream launch in that folder, then select the executable and its containing folder in Portcove. Save the details before choosing Play."
+          "instruction": "For an already permitted 0.9.7 or 0.9.8 Windows copy, keep its program and companion files together. Put your own USA Rev 2 original beside Shadows of the Empire.exe as sote.us.v1.2.z64. Verify upstream launch in that folder, then select the executable and its containing folder in Portcove. Save the details before choosing Play."
         },
         {
           "title": "Check the experimental Linux requirements",
-          "instruction": "Keep the permitted Linux x64 kit on a Linux filesystem. Put your matching USA Rev 2 ROM in that folder as sote.us.v1.2.z64, then run ./Play.sh from the folder. Keep its bundled libraries beside the launcher. The game needs glibc 2.43 or newer, libstdc++ with GLIBCXX_3.4.32, and Vulkan. The publisher’s Linux run reached early gameplay and later showed solid-blue output."
+          "instruction": "Keep the permitted Linux x64 kit on a Linux filesystem. Put your matching USA Rev 2 ROM in that folder as sote.us.v1.2.z64, then run ./Play.sh from the folder. Keep its bundled libraries beside the launcher. The game needs glibc 2.43 or newer, libstdc++ with GLIBCXX_3.4.32, and Vulkan. The publisher’s 0.9.7 Linux run reached early gameplay and later showed solid-blue output. That issue remains open for the experimental Linux route."
         }
       ],
       "references": [
         {
           "title": "Preserve the working copy and player data",
-          "instruction": "Before changing kits, keep saves, settings, custom texture packs and your own optional PC movies, voices and music. The upstream Windows release defaults to Vulkan on first launch and then remembers your renderer choice."
+          "instruction": "Before changing kits, back up your saves, settings and custom texture packs. Also keep your optional PC movies, voices and music in Sdata. When updating an already permitted copy to 0.9.8, use the matching program files and two bundled pack folders from the same release. Keep other custom packs separately. Keep the old working copy until you have checked your progress in the new one."
         }
       ],
       "warnings": [
         "The release’s MIT grant applies to eligible project code. Use a copy and bundled components you are already permitted to use. Fresh package acquisition remains held."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-shadows-of-the-empire",
+      "evidence_urls": [
+        "https://github.com/GTTeancum/SotE-Recomp/releases/tag/0.9.8",
+        "https://github.com/GTTeancum/SotE-Recomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/star-wars-shadows-of-the-empire-n64-sote-recomp.json"
+      ],
+      "source_editions": [
+        {
+          "id": "star-wars-shadows-of-the-empire-nintendo-64",
+          "title": "Star Wars: Shadows of the Empire (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/GTTeancum/SotE-Recomp/releases/tag/0.9.8",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/star-wars-shadows-of-the-empire-n64-sote-recomp.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Star Wars: Shadows of the Empire"
   }
 }

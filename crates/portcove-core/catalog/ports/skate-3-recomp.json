@@ -7,7 +7,7 @@
     "project_url": "https://github.com/mchughalex/skate3recomp",
     "issue_number": 150,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/mchughalex/skate3recomp",
     "artwork": {
@@ -33,17 +33,29 @@
           "instruction": "Select skate3.exe with the actual working copy’s creating working directory and literal arguments. A prepared copy can use normal zero arguments; retain the supported --game_data_root path form used by your working launch when required. Keep actual --user_data_root and --cache_path overrides when used; cache_path is this SDK’s option, not an invented cache_root argument. Without an explicit game root, upstream can resolve game below the working directory or configuration directory, so changing CWD can select other data. Save launch details, then choose Play separately."
         },
         {
+          "title": "Use a permitted Linux copy upstream",
+          "instruction": "Keep the v2.0.2 Linux x64 skate3 executable and its matching librexruntime.so together in a writable folder. The archive needs Vulkan, GTK 3, glibc 2.35 and libstdc++ with GLIBCXX_3.4.30. Run skate3 from that folder. Complete the base game and TU3 setup with your own inputs in the upstream wizard."
+        },
+        {
+          "title": "Use a permitted Apple Silicon copy upstream",
+          "instruction": "Keep the experimental v2.0.2 skate3recomp.app intact in a writable folder you control. Open it there and use the upstream wizard with your own base game and TU3. Keep the adjacent game and config data with this app. The bundled player targets macOS 12 on Apple Silicon."
+        },
+        {
           "title": "Leave replacement, restart and data management upstream",
           "instruction": "Upstream owns runtime and player-data mutation. Backend Apply & Restart can start a successor and close the selected process; complete that separately before relinking and choosing Play again. Core supervises the selected native process, not every successor. The SDK has a ten-second forced-exit shutdown watchdog, so an exit code is not proof of graceful saving or clean shutdown. Registration offers no managed update, backup, rollback, migration or external-file deletion. Removing registration preserves all external files."
         }
       ],
       "warnings": [
         "The native renderer is early and upstream has not tested the whole game. Retain known texture/asset pop-in, skater-customization, Hall of Meat and park-editor rendering limitations; upstream performance claims are not Portcove measurements or a gameplay/save pass.",
-        "The root project has no inspected complete project/package license or notices; the pinned SDK BSD terms and an own-copy play invitation do not grant original/component/redistribution rights. This is a conditional existing-copy handoff, not completion of #150’s permission/base/TU/package acceptance or a Supported promotion. Other platforms require separate qualification.",
+        "The root project has no inspected complete project/package license or notices; the pinned SDK BSD terms and an own-copy play invitation do not grant original/component/redistribution rights. This is a conditional existing-copy handoff, not completion of #150’s permission/base/TU/package acceptance or a Supported promotion. Linux and Apple Silicon steps describe upstream setup for an already-permitted copy. The prepared registration described here is for Windows.",
         "A pre-existing saves directory beside the executable redirects saved-game content only and does not migrate earlier saves. Do not create/remove portable markers or switch profiles as part of registration. Keep the whole runtime, game/TU3/originals, DLC/imported content, settings/profile files, saves, caches, mods, logs, unknowns, old histories and all custom paths before upstream changes."
       ],
       "help_url": "https://github.com/mchughalex/skate3recomp#readme",
       "references": [
+        {
+          "title": "Find Linux and Mac player data",
+          "instruction": "Back up the actual game, settings, saves and mods before replacing the copy. Preserve data beside the Linux executable or Mac app and any separate profile. The default POSIX profile is under XDG_DATA_HOME/skate3, or ~/.local/share/skate3 when XDG_DATA_HOME is unset. Keep any existing portable marker, saves folder and custom roots with their creating copy."
+        },
         {
           "title": "Preserve the creating profile and portable choices",
           "instruction": "The normal Windows user root is APPDATA/skate3, with its actual Documents fallback/history and explicit user-root choices preserved. Existing portable.txt beside the executable takes precedence for the whole user root; an explicitly custom cache can remain separate. A pre-existing saves directory beside the executable redirects saved-game content only and does not migrate earlier saves. Do not create/remove portable markers or switch profiles as part of registration. Keep the whole runtime, game/TU3/originals, DLC/imported content, settings/profile files, saves, caches, mods, logs, unknowns, old histories and all custom paths before upstream changes."

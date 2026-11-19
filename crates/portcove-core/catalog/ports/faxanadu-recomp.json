@@ -49,6 +49,24 @@
       "image_sha256": "4aa37e16660fbbebd7b31132d3d8f4f87b9f09eacec4dc88a72417a555daf35e",
       "game_slug": "faxanadu",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "faxanadu",
+      "evidence_urls": [
+        "https://github.com/mstan/FaxanaduRecomp#quick-start",
+        "https://github.com/mstan/FaxanaduRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "faxanadu-nes",
+          "title": "Faxanadu (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/mstan/FaxanaduRecomp/blob/e8ef305e0d36cdcc7b3689cfd3fdc695ff87c660/README.md"
+          ]
+        }
+      ]
     }
   }
 }

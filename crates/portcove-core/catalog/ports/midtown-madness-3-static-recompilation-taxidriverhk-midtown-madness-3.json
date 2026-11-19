@@ -5,10 +5,10 @@
     "name": "Midtown Madness 3 — Midtown Madness 3 — Static Recompilation (taxidriverhk)",
     "original_game_title": "Midtown Madness 3",
     "summary": "Upstream estimates roughly 80%; boots, movies, loading screens and full Paris/Washington races with audio/gamepad at about 40–50 FPS and 2x internal resolution; ten-minute sessions claimed. New supersampling/FXAA, resizable 4:3 window, cached background shader compilation and rumble forwarding remain upstream claims. Loading/results hitches, occasional missing colour grade, 43 unchecked caller-flag-sensitive functions and unconfirmed physical rumble remain; networking stubbed out. No full progression/completion or Portcove runtime qualification. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-    "project_url": "https://github.com/taxidriverhk/mm3recomp",
+    "project_url": "https://github.com/xbox-games-recomp/mm3recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/taxidriverhk/mm3recomp",
+    "setup_url": "https://github.com/xbox-games-recomp/mm3recomp",
     "manual_setup": {
       "steps": [
         {
@@ -24,7 +24,7 @@
         "Upstream estimates roughly 80%; boots, movies, loading screens and full Paris/Washington races with audio/gamepad at about 40–50 FPS and 2x internal resolution; ten-minute sessions claimed. New supersampling/FXAA, resizable 4:3 window, cached background shader compilation and rumble forwarding remain upstream claims. Loading/results hitches, occasional missing colour grade, 43 unchecked caller-flag-sensitive functions and unconfirmed physical rumble remain; networking stubbed out. No full progression/completion or Portcove runtime qualification.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/taxidriverhk/mm3recomp"
+      "help_url": "https://github.com/xbox-games-recomp/mm3recomp"
     },
     "issue_number": 3455,
     "listed_at": "2026-10-25",
@@ -35,6 +35,21 @@
       "image_sha256": "888cf0e287d705f4688fc1a4e203efc7e8046965c260500f0412aa4f9d659451",
       "game_slug": "midtown-madness-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "midtown-madness-3",
+      "evidence_urls": ["https://github.com/xbox-games-recomp/mm3recomp"],
+      "source_editions": [
+        {
+          "id": "midtown-madness-3-xbox",
+          "title": "Midtown Madness 3 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/xbox-games-recomp/mm3recomp/blob/199bfc1045db39bfc0ccc9845c97c7177e8f740b/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -47,6 +62,48 @@
         "id": "1431918853"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/taxidriverhk/mm3recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1431918853"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/xbox-games-recomp/mm3recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1431918853"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The repository moved from taxidriverhk to xbox-games-recomp. GitHub only lets an administrator of the original repository transfer it, and taxidriverhk authored its history and remains a contributor. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1431918853",
+            "note": "Repository ID 1431918853, recorded when this port was listed, resolves to xbox-games-recomp/mm3recomp."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repos/xbox-games-recomp/mm3recomp/contributors",
+            "note": "taxidriverhk is listed among the current repository's contributors."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/taxidriverhk/mm3recomp",
+            "note": "The listed path resolves to xbox-games-recomp/mm3recomp, repository ID 1431918853."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "7ce81bc38ff733d4f7d0ccde2af1c5fc4fc166dfd2aa45fbdc4b0466d6b8de40"
+        }
+      }
+    ]
   }
 }

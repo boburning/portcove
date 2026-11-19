@@ -1,16 +1,15 @@
 # External frontend integration
 
-Portcove exposes shared native-port management through its public CLI. An
-external client uses those supported operations and their current assessments
-rather than implementing separate per-port installation or recovery rules.
+Use Portcove's public CLI to manage native ports from an external client.
+Read the current state from the CLI. Use Core's installation and recovery
+rules through the CLI.
 
-Portcove Desktop remains the flagship player experience; using another
-frontend is optional and never requires a player to use a terminal. The shared
-core owns source requirements, admission, installation, updates, activation,
-rollback, persistence, launch, and recovery. The CLI exposes supported external
-entry points. An integration may translate those entry points into its own
-presentation and platform conventions, but it does not become another authority
-for Portcove lifecycle or catalog policy.
+Portcove Desktop is the main player interface. Players can use a different
+interface without opening a terminal. Core sets game-file requirements and
+decides which operations are available. It owns installation, updates,
+activation, rollback, storage, launch, and recovery. Integrations can present
+the CLI results in their own interface. Core still decides catalog and
+lifecycle policy.
 
 This document is the stable integration direction and support vocabulary. The
 [live Project](https://github.com/users/boburning/projects/1) owns priority,
@@ -329,6 +328,24 @@ must not hard-code usernames, Deck mount paths, versioned install directories,
 or assumptions shared only by similarly derived frontends. They do not mutate
 arbitrary third-party libraries, copy original game data, or bypass consent.
 
+## Automatic setup and frontend handoff
+
+Automatic game setup (a game's "set up when ready" choice or a folder's
+automatic setup) never writes to a frontend and never needs one. A prepared
+installation reaches a frontend only through that frontend's own authorization:
+
+- The Playnite library plugin reads Portcove's installed games through the
+  public CLI on Playnite's own library refresh, so a newly prepared game appears
+  there as installed on the next refresh. A game that is waiting or failed stays
+  uninstalled there; Portcove adds no unprepared entry.
+- Steam entries have no standing enablement: the Steam installation and
+  profile are chosen in each game's review, and every write needs the reviewed
+  plan, a closed Steam client and a separate native confirmation. Automatic setup
+  therefore never adds Steam shortcuts; a prepared game stays available for the
+  existing per-game Add to Steam review.
+
+A frontend that is unavailable or not set up never delays or blocks game setup.
+
 ## Steam and Steam Deck without Decky
 
 Steam integration puts Portcove-managed games in the Steam library. A Decky
@@ -531,9 +548,11 @@ exposes the writer's `writer_plan_sha256`; the apply result reports the latter
 as `plan_sha256`.
 The durable writer applies the batch as one shortcut-file publication, retaining
 its original backup and journal recovery behavior.
-The user chooses a Steam installation folder, then explicitly selects a
-discovered local numeric profile folder or enters its ID manually. Discovery
-reads only bounded regular profile directories beneath that installation's
+Both shortcut flows can show local Steam installations found through Windows
+registration or the usual Linux, Flatpak and macOS locations. A suggestion
+must have a usable local profile. The player chooses a suggested installation
+or selects a folder manually, then explicitly selects a local numeric profile
+or enters its ID. Profile discovery reads bounded regular directories beneath the installation's
 `userdata`; it does not infer the active Steam account. Changing the installation
 clears the prior profile selection. The user then reviews the resolved shortcut
 file, library, standalone CLI and Add/Repair/Remove result before a separate
@@ -549,6 +568,13 @@ and offers Check again after a running-client review so the player can close
 Steam and refresh the plan before applying it. A completed result says whether
 the shortcut changed or already matched; the full profile and file path remain
 available in the review and result.
+On Linux and macOS, you can keep the extracted `portcove` CLI at
+`~/.local/bin/portcove`. Desktop checks this location when it cannot find a
+compatible CLI beside itself or on its search path. Verify the archive against
+the checksum manifest from the same release. When you upgrade Desktop, replace
+the CLI with the same release's executable at that path. Steam can use the
+same shortcut path, and **Repair** can review the new executable identity.
+
 Add/Repair accepts only a standalone CLI whose passive embedded marker advertises
 this Portcove version's Steam `exec` contract, shows its SHA-256 in the review,
 binds that identity into the plan, and rehashes the same no-follow regular file
@@ -566,9 +592,10 @@ library and game's Portcove ownership marker and reads each role through Core's
 versioned destination handoff; the renderer supplies no bytes, paths or provider
 data. It publishes the selected imported cover original as
 `config/grid/<shortcut AppID>p.png` or `.jpg` and, when the selected detail image
-is displayed wider than tall, that original as `<shortcut AppID>_hero.png` or `.jpg`. The
-landscape role reports unavailable until #527 provides it, a detail image that is
-not wide is reported rather than cropped, and a catalog default or generated
+is displayed wider than tall, that original as `<shortcut AppID>_hero.png` or `.jpg`.
+When the selected landscape image is displayed wider than tall, it publishes that
+original as the library capsule `<shortcut AppID>.png` or `.jpg`. A detail or
+landscape image that is not wide is reported rather than cropped, and a catalog default or generated
 fallback is reported rather than copied. Existing art for a role is preserved by
 default. Replacement requires the explicit **Replace artwork already in Steam**
 choice, accepts exactly one readable existing file and keeps a content-addressed
@@ -587,6 +614,25 @@ preserved with recovery required. Identical bytes another program placed are
 kept but never claimed. A role's art recorded for an earlier shortcut AppID must
 be removed before new art is added. Only lower-case `png`, `jpg` and `jpeg`
 names are inspected. Shortcut Repair still never writes artwork.
+
+Removal can also cover one role. **Review removing this image** opens a review
+for that role alone, with the same ownership, unchanged-bytes, backup, journal,
+Steam-closed and consent rules. The operation is a general owned-role removal, but
+Desktop offers it only for a role marked as described below. When the player changed or deleted the file, the review says
+nothing is removed and its action only stops tracking the image. Each artwork
+review also marks a role whose Portcove-owned, unchanged Steam file came from a
+SteamGridDB image that Portcove later removed from its library after a confirmed
+withdrawal (#527), and offers that per-role review there. This mark is display
+only: Core answers it from the eviction marker, a failed lookup or unreadable
+record leaves the role unmarked, and it is not part of the reviewed plan. Nothing
+changes in Steam until the player reviews and confirms the removal. If the player
+later removes the evicted image with `remove-unused`, its provenance goes and the
+Steam file is no longer marked; the full **Review artwork removal** still applies.
+For this path the withdrawal acceptance item has unit-fixture evidence only: the
+Core lookup, the writer's single-role plans and recovery, the preview's mapping
+with a stubbed lookup, and the review in a browser test with mocked transport.
+No test drives a real eviction through the Desktop command, and native Steam
+evidence remains with #292 and #217.
 
 Single and selected-batch shortcut setup offer **Include artwork when adding a
 shortcut**, on by default. For each game the shortcut plan newly adds, the same
@@ -613,7 +659,7 @@ naming is an official Valve interface.
 | Portcove writes in the selected profile's `config` folder                                                                                                                                                              | Purpose                                                                                                                      |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `shortcuts.vdf`                                                                                                                                                                                                        | Only entries carrying this library and game's Portcove ownership marker; unrelated entries and unknown fields are preserved. |
-| `grid/<AppID>p.png\|jpg`, `grid/<AppID>_hero.png\|jpg`                                                                                                                                                                 | Portrait and hero art for an owned shortcut, from the selected imported originals.                                           |
+| `grid/<AppID>p.png\|jpg`, `grid/<AppID>_hero.png\|jpg`, `grid/<AppID>.png\|jpg`                                                                                                                                        | Portrait, hero and landscape capsule art for an owned shortcut, from the selected imported originals.                        |
 | `portcove-steam-artwork.json`                                                                                                                                                                                          | Which art files Portcove wrote, so cleanup touches only unchanged Portcove art.                                              |
 | `shortcuts.vdf.portcove-backup-<sha256>`, `portcove-steam-artwork-backup-<sha256>.<ext>`                                                                                                                               | Content-addressed backups of every shortcut file and art file Portcove replaced or removed; Portcove never deletes them.     |
 | `shortcuts.vdf.portcove-lock`                                                                                                                                                                                          | Empty per-profile lock that serializes Portcove shortcut and artwork changes; it stays in place.                             |
@@ -623,8 +669,9 @@ naming is an official Valve interface.
 where `Exe` is the stored quoted CLI path. Steam ROM Manager uses the same value
 for the same grid names (`<id>p`, `<id>`, `<id>_hero`, `<id>_logo`, `<id>_icon`) and
 still reads and writes `shortcuts.vdf` directly through `steam-shortcut-editor`.
-Portcove takes neither project as a dependency. It does not yet write landscape
-art (`<AppID>.<ext>`, unavailable until #527), and it never writes logo, icon or
+Portcove takes neither project as a dependency. It writes the landscape capsule
+`<AppID>.<ext>` only from a wide Landscape image, preserving an existing capsule it
+did not write unless replacement is chosen, and it never writes logo, icon or
 `screenshots.vdf`.
 
 **Supported Steam versions:** none is qualified yet. All evidence so far uses

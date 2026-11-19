@@ -23,7 +23,7 @@
       "steps": [
         {
           "title": "Set up Dark Forces on Linux",
-          "instruction": "Use the upstream-recommended Flathub package io.github.theforceengine.tfe on desktop Linux or through Discover in Steam Deck Desktop Mode. Supply your own installed PC Dark Forces data. The Flatpak can read the default Steam game folder or use your copy, including DARK.GOB, in ~/.var/app/io.github.theforceengine.tfe/data/. Follow the upstream Linux guide to build the engine yourself if you use a different distribution route."
+          "instruction": "Install io.github.theforceengine.tfe from Flathub on x86-64 or ARM64 Linux. On Steam Deck, use Discover in Desktop Mode. Supply your own installed PC Dark Forces data. The Flatpak can read the default Steam game folder or use your copy, including DARK.GOB, in ~/.var/app/io.github.theforceengine.tfe/data/. Use Flathub for package updates. Follow the upstream Linux guide if you prefer a local build."
         }
       ],
       "warnings": [],
@@ -32,6 +32,24 @@
         {
           "title": "Preserve your Linux game profile",
           "instruction": "Flatpak settings, pilots and saves are under ~/.var/app/io.github.theforceengine.tfe/config/. Keep its data/ folder too if it contains your original files. A native Linux build normally uses ~/.local/share/TheForceEngine or the configured TFE_DATA_HOME. Keep your actual pilot, saves, settings, mods and original PC data before replacing the engine. Use Flathub or upstream for replacement. This Linux guide is separate from Portcove’s managed Windows route."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-dark-forces",
+      "evidence_urls": [
+        "https://github.com/TheForceEngine/TheForceEngine#linux",
+        "https://github.com/TheForceEngine/TheForceEngine"
+      ],
+      "source_editions": [
+        {
+          "id": "star-wars-dark-forces-pc",
+          "title": "Star Wars: Dark Forces (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/TheForceEngine/TheForceEngine/blob/cc25205cc94c36a396f6f50295772f6ec83069a2/TheForceEngine/TFE_DarkForces/darkForcesMain.cpp"
+          ]
         }
       ]
     }
@@ -64,7 +82,16 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Set up the managed copy",
+            "instruction": "Select your complete installed PC Dark Forces folder or add a ZIP of it. Portcove checks the game files and installs the managed Windows player."
+          }
+        ]
+      }
     },
     "managed_initialization": "tfe-dark-forces-portable-v1",
     "launch_from_install_root": true,

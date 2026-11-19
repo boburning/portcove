@@ -123,6 +123,14 @@ impl EngineTemplateCapability {
             contract_version: 2,
         });
         supported.push(Self {
+            template: AdapterKind::PsxRecompManaged,
+            contract_version: crate::persistence::PSX_RETAINED_SCOPE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::PsxRecompManaged,
+            contract_version: crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY,
+        });
+        supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 2,
         });
@@ -223,6 +231,30 @@ impl EngineTemplateCapability {
             contract_version: 31,
         });
         supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 32,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 33,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: crate::archive_data::ADDITIVE_DATA_POLICY_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: crate::adapter::SNES_COPIER_HEADER_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: crate::managed_chocolate::CAPABILITY,
+        });
+        supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: 15,
         });
@@ -273,6 +305,60 @@ impl EngineTemplateCapability {
         supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: crate::native_external_profile::openomf::NATIVE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::launch::TRACKED_HANDOFF_NATIVE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::package_layout::EXECUTABLE_GRANT_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_external_profile::VCMI_WINDOWS_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::package_layout::PORTABLE_DATA_LAYOUT_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::package_layout::OPENMOHAA_PREPARED_LAYOUT_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::launch::LAUNCH_JOB_KEEPER_NATIVE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::package_layout::LINUX_PROGRAM_FORMAT_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_external_profile::endless_sky::NATIVE_CAPABILITY,
+        });
+        supported.extend(AdapterKind::ALL.into_iter().filter_map(|template| {
+            crate::package_shape::enforcement_capability(template).map(|contract_version| Self {
+                template,
+                contract_version,
+            })
+        }));
+        supported.push(Self {
+            template: AdapterKind::LibultrashipPortable,
+            contract_version: crate::provider_binding::LIBULTRASHIP_BINDING_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: crate::provider_binding::N64_RECOMP_BINDING_CAPABILITY,
         });
         supported
     }
@@ -886,12 +972,52 @@ mod tests {
     }
 
     #[test]
+    fn reviewed_provider_bindings_require_a_version_newer_than_package_shape() {
+        for (template, adapter, binding_version) in [
+            (
+                "libultraship-portable",
+                AdapterKind::LibultrashipPortable,
+                crate::provider_binding::LIBULTRASHIP_BINDING_CAPABILITY,
+            ),
+            (
+                "n64-recomp-portable",
+                AdapterKind::N64RecompPortable,
+                crate::provider_binding::N64_RECOMP_BINDING_CAPABILITY,
+            ),
+        ] {
+            let shape_version = crate::package_shape::enforcement_capability(adapter).unwrap();
+            assert!(binding_version > shape_version);
+            let previous: Vec<_> = EngineTemplateCapability::current()
+                .into_iter()
+                .filter(|entry| {
+                    entry.template != adapter || entry.contract_version <= shape_version
+                })
+                .collect();
+            let shape = request(template, shape_version, shape_version);
+            let binding = request(template, binding_version, binding_version);
+            assert!(check_with_inventory(&shape, &previous).unwrap().compatible);
+            assert!(
+                !check_with_inventory(&binding, &previous)
+                    .unwrap()
+                    .compatible
+            );
+            assert!(check_definition_capabilities(&shape).unwrap().compatible);
+            assert!(check_definition_capabilities(&binding).unwrap().compatible);
+        }
+    }
+
+    #[test]
     fn psx_preservation_v2_is_advertised_without_retiring_historical_v1() {
         for (minimum, maximum, compatible, selected) in [
             (1, 1, true, 1),
             (2, 2, true, 2),
             (1, 2, true, 2),
-            (3, 3, false, 2),
+            (3, 3, true, 3),
+            (1, 3, true, 3),
+            (4, 4, true, 4),
+            (3, 4, true, 4),
+            (5, 5, true, 5),
+            (6, 6, false, 5),
         ] {
             let report =
                 check_definition_capabilities(&request("psx-recomp-managed", minimum, maximum))
@@ -907,6 +1033,29 @@ mod tests {
             .collect();
         assert!(
             !check_with_inventory(&request("psx-recomp-managed", 2, 2), &old)
+                .unwrap()
+                .compatible
+        );
+        // A retained-scope reader cannot keep a multi-track disc set.
+        let retained_scope_only: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::PsxRecompManaged
+                    || entry.contract_version < crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY
+            })
+            .collect();
+        let multi_track = request(
+            "psx-recomp-managed",
+            crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY,
+            crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY,
+        );
+        assert!(
+            !check_with_inventory(&multi_track, &retained_scope_only)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&multi_track)
                 .unwrap()
                 .compatible
         );
@@ -939,9 +1088,16 @@ mod tests {
         let catalog = crate::Catalog::embedded().unwrap();
         for (id, minimum) in [
             ("sonic-3-and-knuckles-recomp", 26),
-            ("super-metroid-recomp", 29),
+            (
+                "super-metroid-recomp",
+                crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY,
+            ),
             ("mega-man-x2-snes-recomp", 28),
-            ("sonic-the-hedgehog-recomp", 28),
+            // Its v1.2.0 settings files append to the predecessor policy.
+            (
+                "sonic-the-hedgehog-recomp",
+                crate::archive_data::ADDITIVE_DATA_POLICY_CAPABILITY,
+            ),
         ] {
             let bundle = crate::test_fixture::indexed_catalog_bundle(&catalog, id);
             let index = crate::DefinitionContentIndex::parse(&bundle.index).unwrap();
@@ -1015,10 +1171,38 @@ mod tests {
         assert_eq!(staged.checks[0].installed_version, Some(3));
         let n64 = check_definition_capabilities(&request("n64-recomp-portable", 99, 99)).unwrap();
         assert!(!n64.compatible);
-        assert_eq!(n64.checks[0].installed_version, Some(6));
+        assert_eq!(
+            n64.checks[0].installed_version,
+            Some(crate::provider_binding::N64_RECOMP_BINDING_CAPABILITY)
+        );
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 32, 32)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 39, 39)).unwrap();
         assert!(!future.compatible);
+    }
+
+    #[test]
+    fn chocolate_profile_v38_is_refused_by_the_previous_staged_inventory() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version < 38
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("staged-source-portable", 38, 38), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_with_inventory(&request("staged-source-portable", 37, 37), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("staged-source-portable", 38, 38))
+                .unwrap()
+                .compatible
+        );
     }
 
     #[test]
@@ -1265,18 +1449,21 @@ mod tests {
     fn shared_preferences_require_v8_and_refuse_v7_readers() {
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
-            .filter(|entry| entry.contract_version <= 7)
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 7
+            })
             .collect();
+        // N64's provider binding at version 8 cannot satisfy a staged-source requirement.
+        assert!(
+            check_with_inventory(&request("n64-recomp-portable", 8, 8), &previous)
+                .unwrap()
+                .compatible
+        );
         let required = request("staged-source-portable", 8, 8);
         let old = check_with_inventory(&required, &previous).unwrap();
         assert!(!old.compatible);
         assert_eq!(old.checks[0].installed_version, Some(5));
         assert!(check_definition_capabilities(&required).unwrap().compatible);
-        assert!(
-            !check_definition_capabilities(&request("n64-recomp-portable", 8, 8))
-                .unwrap()
-                .compatible
-        );
         assert!(
             check_retained_definition_capabilities(&request("staged-source-portable", 7, 7))
                 .unwrap()
@@ -1385,7 +1572,7 @@ mod tests {
                 DefinitionCapabilityOutcome::UnsupportedTemplate
             ]
         );
-        assert_eq!(report.checks[1].installed_version, Some(3));
+        assert_eq!(report.checks[1].installed_version, Some(4));
         assert_eq!(report.checks[2].installed_version, None);
     }
 

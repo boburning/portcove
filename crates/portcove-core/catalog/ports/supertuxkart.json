@@ -1,0 +1,64 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "supertuxkart",
+    "artwork": {
+      "game_id": 10763,
+      "cover_id": 117991,
+      "image_id": "co2j1j",
+      "image_sha256": "ae9268429976f25014ad6928cc5f8dac58e987f2a33e14c7e6c1f2a8b9734a7a",
+      "game_slug": "supertuxkart",
+      "match_kind": "underlying-game"
+    },
+    "name": "SuperTuxKart",
+    "original_game_title": "SuperTuxKart",
+    "summary": "Race open-source karts with an offline profile or join multiplayer races.",
+    "project_url": "https://github.com/supertuxkart/stk-code",
+    "issue_number": 6408,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/supertuxkart/stk-code/releases",
+    "setup_url": "https://supertuxkart.net/Download.html",
+    "download_asset_hints": {
+      "windows-x86-64": ["supertuxkart-", "-win.zip"],
+      "linux-x86-64": ["supertuxkart-", "-linux-x86_64.tar.gz"],
+      "macos-x86-64": ["supertuxkart-", "-mac-signed.zip"],
+      "macos-aarch64": ["supertuxkart-", "-mac-signed.zip"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Start the official desktop package",
+          "instruction": "On Windows, use the installer for your architecture or extract the complete portable ZIP and run run_game.bat at its root. On Linux, extract the complete archive for your architecture, open its folder in a terminal and run ./run_game.sh. On Mac, extract the signed ZIP and open the SuperTuxKart application as a complete bundle. The 1.5 universal package contains Intel and Apple Silicon players."
+        },
+        {
+          "title": "Make an offline profile",
+          "instruction": "Start the game and select Offline Account in the new player setup. Enter a player name and select that profile at sign-in to play without an online account. All required base game data comes with the full packages."
+        },
+        {
+          "title": "Keep your profile and custom data",
+          "instruction": "Close SuperTuxKart and copy %APPDATA%/supertuxkart on Windows, ~/Library/Application Support/SuperTuxKart on Mac, or both ~/.config/supertuxkart and ~/.local/share/supertuxkart on Linux. If you have customized the data or configuration locations, preserve those actual folders. Keep any custom files you added to the package separately."
+        }
+      ],
+      "warnings": [
+        "The package’s license notes leave the source recording for its rain sound uncertain."
+      ],
+      "references": [
+        {
+          "title": "Get the Android release",
+          "instruction": "Use the Android store link or the official APK on the upstream Downloads page. Android handles installation and updates. Preserve your Android app data before uninstalling or switching package sources."
+        }
+      ],
+      "help_url": "https://supertuxkart.net/Download.html"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "supertuxkart",
+    "origin": {
+      "project_url": "https://github.com/supertuxkart/stk-code"
+    },
+    "decisions": []
+  }
+}

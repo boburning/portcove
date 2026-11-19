@@ -5,6 +5,14 @@
     "name": "Uncharted3: Drakes Deception — PS4 remaster (bc160201983 Uncharted PC port)",
     "summary": "Attach an independently permitted, prepared Windows Nathan Drake Collection installation starting Uncharted: Drake’s Deception. The BilalReloaded launcher keeps title-specific settings; upstream owns preparation, runtime replacement and external player data.",
     "original_game_title": "Uncharted3: Drakes Deception",
+    "artwork": {
+      "game_id": 41876,
+      "cover_id": 85167,
+      "image_id": "co1tpr",
+      "image_sha256": "8e58189719436a60d252ffba26b165fd5e9c1708e021bcef45f5be2b97d4c9c8",
+      "game_slug": "uncharted-3-drakes-deception-remastered",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

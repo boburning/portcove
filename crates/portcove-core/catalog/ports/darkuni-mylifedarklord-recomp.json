@@ -2,39 +2,94 @@
   "format_version": 1,
   "listing": {
     "id": "darkuni-mylifedarklord-recomp",
+    "artwork": {
+      "game_id": 41856,
+      "cover_id": 198218,
+      "image_id": "co48y2",
+      "image_sha256": "b672dc27272bfa474e920c658ae44da34c836d707a85cfcdbd5e549a78e3cbed",
+      "game_slug": "final-fantasy-crystal-chronicles-my-life-as-a-darklord",
+      "match_kind": "underlying-game"
+    },
     "name": "Final Fantasy Crystal Chronicles: My Life as a Darklord (darkuni Recomp)",
-    "summary": "Player-managed My Life as a Darklord setup using its own WiiWare WAD.",
+    "summary": "Play My Life as a Darklord with darkuni's Windows recompilation and your own WiiWare WAD.",
     "project_url": "https://github.com/darkuni/mylifedarklord-recomp",
     "original_game_title": "Final Fantasy Crystal Chronicles: My Life as a Darklord",
     "issue_number": 4121,
     "listed_at": "2026-11-08",
-    "platforms": ["windows-x86-64"],
-    "availability": "unknown",
+    "availability": "packages",
     "manual_setup": {
       "steps": [
         {
           "title": "Prepare the WiiWare originals",
-          "instruction": "For an already permitted Windows x64 copy, keep the runtime and its DLLs together in a writable folder. Put your own NTSC-U My Life as a Darklord base WAD (WF2E) there. Add the matching optional DLC WAD only if you have it."
+          "instruction": "Copy your own NTSC-U My Life as a Darklord base WAD (WF2E) beside mylifedarklord.exe, plus the matching optional add-on content WAD if you have it, and keep your originals separately. On first start the game builds its game folder from them in a few seconds; after that the copied WADs are no longer needed."
         },
         {
-          "title": "Let the upstream player import the WADs",
-          "instruction": "Run mylifedarklord.exe from the upstream folder. The first launch populates game and, with matching DLC, game/dlc. Keep both original WADs separately from the generated files."
+          "title": "Let the game import the WADs",
+          "instruction": "Run mylifedarklord.exe. The first start populates game and, with the add-on WAD, game/dlc. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. If the first start failed or used the wrong WAD, delete the game folder and start again with the right WAD in place."
         },
         {
-          "title": "Preserve the upstream profile",
-          "instruction": "Keep nand, mylifedarklord.ini, the generated game folder and the creating runtime together."
+          "title": "Keep saves and settings",
+          "instruction": "Keep nand, mylifedarklord.ini and the generated game folder with the program."
         },
         {
-          "title": "Keep any optional King save import separate",
-          "instruction": "The upstream instructions describe reading a copied King save at nand/title/00010001/57464345/data/ARCH.SAV. Close both games, preserve the original King profile, and follow the upstream copy instructions only if you want the optional import."
+          "title": "Optionally bring your King save",
+          "instruction": "To let My Life as a Darklord read your My Life as a King save, close both games and copy the folder nand/title/00010001/57464345 from My Life as a King's folder into this game's nand/title/00010001 folder. Keep the original King save."
         }
       ],
       "warnings": [
-        "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
-        "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+        "The package includes recompiled game code and bundled fonts that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+        "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
       ],
       "help_url": "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md"
     },
-    "download_block_reason": "Fresh Portcove downloads are held because the selected Final Fantasy Crystal Chronicles: My Life as a Darklord executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
-  }
+    "release_url": "https://github.com/darkuni/mylifedarklord-recomp/releases",
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-crystal-chronicles-my-life-as-a-darklord",
+      "evidence_urls": [
+        "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md",
+        "https://github.com/darkuni/mylifedarklord-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "final-fantasy-crystal-chronicles-my-life-as-a-darklord-wii",
+          "title": "Final Fantasy Crystal Chronicles: My Life as a Darklord (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md"
+          ]
+        }
+      ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "darkuni/mylifedarklord-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["MyLifeAsADarklord-", "-win64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["mylifedarklord.exe"]
+    },
+    "persistent_paths": ["game", "nand", "mylifedarklord.ini"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Before first Play, copy your own NTSC-U My Life as a Darklord base WAD (WF2E), and the matching add-on content WAD if you have it, into the managed folder beside mylifedarklord.exe, and keep your originals separately. On first Play the game builds its game folder from them; without a base WAD it shows Game files not found and closes. Once the game has started, delete the copied WADs so they are not kept in backups. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. If the first start failed or used the wrong WAD, delete the game folder and start again with the right WAD in place. The download is the recompiled program with SDL2 and contains no game data; the project license does not cover the recompiled game code, and its system font replacements are Apache-licensed Droid Sans with a DejaVu Sans Mono bitmap. Portcove preserves game, nand (saves) and mylifedarklord.ini across updates and backups. The log beside the program is a diagnostic; record-audio.bat starts the game outside Portcove and records mld_audio.wav beside the program for sound bug reports; delete that file when you no longer need it. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns WAD import and save formats."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["mylifedarklord.exe", "record-audio.bat"]
+      }
+    }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

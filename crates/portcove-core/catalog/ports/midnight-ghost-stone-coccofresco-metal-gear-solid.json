@@ -6,7 +6,7 @@
     "original_game_title": "Metal Gear Solid",
     "summary": "Experimental project. The project marks alpha.1 as UNTESTED for gameplay and platform compatibility. Most logic uses static MIPS-to-native translation with selected adapted decompiled routines. A continuous playthrough has not been confirmed. Preserve Codec saves and backups. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/coccofresco/mgsone-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/coccofresco/mgsone-recomp",
     "manual_setup": {
@@ -35,6 +35,21 @@
       "image_sha256": "2acd6f7ec640cb08c1c6bd7b52aec1d69133d371905f8c0a89d09bb68dd58863",
       "game_slug": "metal-gear-solid",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-gear-solid",
+      "evidence_urls": ["https://github.com/coccofresco/mgsone-recomp"],
+      "source_editions": [
+        {
+          "id": "metal-gear-solid-playstation",
+          "title": "Metal Gear Solid (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/coccofresco/mgsone-recomp/blob/2ae09d4f9a29332a4058393dab0bc1435af27dc6/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

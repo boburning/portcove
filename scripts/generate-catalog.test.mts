@@ -5,6 +5,17 @@ import { tmpdir } from "node:os";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
 import { readCatalogSource } from "./catalog-authoring.mts";
+import {
+  checkShapeTable,
+  coreShapeVersion,
+  entriesDigest,
+  pruneTable,
+  recordEntry,
+  reviewedArtifacts,
+  serializeTable,
+  tablePath as shapeTablePath,
+} from "./package-shape-baselines.mts";
+import type { ShapeTable } from "./package-shape-baselines.mts";
 
 import {
   requiredFixture,
@@ -248,4 +259,158 @@ void test("proposal artwork retains accepted listing covers without widening ope
     assert.equal(typeof evidence.accepted_artwork_context_sha256, "string");
     assert.notEqual(evidence.accepted_artwork_context_sha256, evidence.accepted_catalog_sha256);
   }
+});
+
+// Generated reviewed package shapes (#5359): the offline --check refuses a stale table.
+const shapeCatalog = () =>
+  record(JSON.parse(readFileSync(join(catalogRoot, "catalog.json"), "utf8")));
+const shapeTableText = () => readFileSync(shapeTablePath, "utf8");
+const firstShapeEntry = (table: ShapeTable) => {
+  const entry = table.entries[0];
+  assert.ok(entry, "the committed table has entries");
+  return entry;
+};
+
+void test("the committed package shape table is current for the catalog and Core", () => {
+  assert.deepEqual(checkShapeTable(shapeTableText(), shapeCatalog(), coreShapeVersion()), []);
+});
+
+void test("package shape check refuses a digest the catalog no longer marks as reviewed", () => {
+  const catalog = shapeCatalog();
+  const entry = firstShapeEntry(JSON.parse(shapeTableText()) as ShapeTable);
+  for (const contract of record(catalog.source_catalog).contracts as Record<string, unknown>[])
+    if (contract.port_id === entry.port_id)
+      contract.applicability = (contract.applicability as Record<string, unknown>[]).filter(
+        (row) => row.artifact_sha256 !== entry.sha256,
+      );
+  const problems = checkShapeTable(shapeTableText(), catalog, coreShapeVersion());
+  assert.ok(
+    problems.some((problem) => problem.includes("no longer marks this digest as reviewed")),
+    problems.join("\n"),
+  );
+});
+
+void test("package shape check refuses a removed route, hand edits and a new derivation", () => {
+  const table = JSON.parse(shapeTableText()) as ShapeTable;
+  const entry = firstShapeEntry(table);
+  const catalog = shapeCatalog();
+  catalog.ports = (catalog.ports as Record<string, unknown>[]).filter(
+    (port) => port.id !== entry.port_id,
+  );
+  assert.ok(
+    checkShapeTable(shapeTableText(), catalog, coreShapeVersion()).some((problem) =>
+      problem.includes("no longer in the catalog"),
+    ),
+  );
+  const edited = structuredClone(table);
+  firstShapeEntry(edited).shape.programs.push("zz-hand-added.exe");
+  assert.ok(
+    checkShapeTable(
+      `${JSON.stringify(edited, null, 2)}\n`,
+      shapeCatalog(),
+      coreShapeVersion(),
+    ).some((problem) => problem.includes("entries_sha256")),
+  );
+  assert.ok(
+    checkShapeTable(shapeTableText(), shapeCatalog(), coreShapeVersion() + 1).some((problem) =>
+      problem.includes("re-derive every entry"),
+    ),
+  );
+  const unsorted = structuredClone(table);
+  firstShapeEntry(unsorted).shape.config_files.unshift("zz.ini");
+  unsorted.entries_sha256 = entriesDigest(unsorted.entries);
+  assert.ok(
+    checkShapeTable(
+      `${JSON.stringify(unsorted, null, 2)}\n`,
+      shapeCatalog(),
+      coreShapeVersion(),
+    ).some((problem) => problem.includes("not strictly sorted")),
+  );
+});
+
+void test("recording a package shape requires a reviewed artifact and keeps canonical order", () => {
+  const catalog = shapeCatalog();
+  const table = JSON.parse(shapeTableText()) as ShapeTable;
+  const { version: _version, reviewed_by: _reviewed, ...derived } = firstShapeEntry(table);
+  assert.equal(
+    recordEntry(shapeTableText(), catalog, coreShapeVersion(), derived),
+    shapeTableText(),
+  );
+  assert.throws(
+    () =>
+      recordEntry(shapeTableText(), catalog, coreShapeVersion(), {
+        ...derived,
+        sha256: "f".repeat(64),
+      }),
+    /not a reviewed catalog artifact/u,
+  );
+  // A CLI built before a catalog edit reports the old derivation inputs.
+  const port = (catalog.ports as Record<string, unknown>[]).find(
+    (candidate) => candidate.id === derived.port_id,
+  );
+  assert.ok(port);
+  port.persistent_paths = [...(port.persistent_paths as string[]), "new-state.ini"];
+  assert.throws(
+    () => recordEntry(shapeTableText(), catalog, coreShapeVersion(), derived),
+    /rebuild the CLI/u,
+  );
+  assert.throws(
+    () =>
+      recordEntry(shapeTableText(), shapeCatalog(), coreShapeVersion(), {
+        ...derived,
+        derivation_inputs_sha256: "absent",
+      }),
+    /rebuild the CLI/u,
+  );
+  const reviewed = reviewedArtifacts(catalog);
+  assert.ok(reviewed.every((artifact) => /^[0-9a-f]{64}$/u.test(artifact.sha256)));
+  assert.equal(serializeTable(table.entries, coreShapeVersion(), reviewed), shapeTableText());
+});
+
+void test("package shape check flags changed derivation inputs and prune repairs offline", () => {
+  const table = JSON.parse(shapeTableText()) as ShapeTable;
+  const entry = firstShapeEntry(table);
+  const catalog = shapeCatalog();
+  const port = (catalog.ports as Record<string, unknown>[]).find(
+    (candidate) => candidate.id === entry.port_id,
+  );
+  assert.ok(port);
+  port.persistent_paths = [...(port.persistent_paths as string[]), "new-state.ini"];
+  assert.ok(
+    checkShapeTable(shapeTableText(), catalog, coreShapeVersion()).some((problem) =>
+      problem.includes("catalog facts the shape derivation reads changed"),
+    ),
+  );
+  const pruned = pruneTable(shapeTableText(), catalog, coreShapeVersion());
+  assert.equal(pruned.removed.length, 1);
+  assert.match(pruned.removed[0] ?? "", /derivation inputs changed/u);
+  assert.deepEqual(checkShapeTable(pruned.text, catalog, coreShapeVersion()), []);
+  assert.equal((JSON.parse(pruned.text) as ShapeTable).entries.length, table.entries.length - 1);
+  // A current table is unchanged by pruning.
+  const current = pruneTable(shapeTableText(), shapeCatalog(), coreShapeVersion());
+  assert.deepEqual(current, { text: shapeTableText(), removed: [] });
+});
+
+void test("package shape prune drops unreviewed digests and adopts the catalog version", () => {
+  const table = JSON.parse(shapeTableText()) as ShapeTable;
+  const entry = firstShapeEntry(table);
+  const catalog = shapeCatalog();
+  for (const contract of record(catalog.source_catalog).contracts as Record<string, unknown>[])
+    for (const row of (contract.applicability ?? []) as Record<string, unknown>[])
+      if (contract.port_id === entry.port_id && row.artifact_sha256 === entry.sha256)
+        row.upstream_ref = "relabelled";
+  const relabelled = pruneTable(shapeTableText(), catalog, coreShapeVersion());
+  assert.deepEqual(relabelled.removed, []);
+  assert.deepEqual(checkShapeTable(relabelled.text, catalog, coreShapeVersion()), []);
+  for (const contract of record(catalog.source_catalog).contracts as Record<string, unknown>[])
+    if (contract.port_id === entry.port_id)
+      contract.applicability = ((contract.applicability ?? []) as Record<string, unknown>[]).filter(
+        (row) => row.artifact_sha256 !== entry.sha256,
+      );
+  const pruned = pruneTable(shapeTableText(), catalog, coreShapeVersion());
+  assert.match(pruned.removed.join("\n"), /digest no longer reviewed/u);
+  assert.deepEqual(checkShapeTable(pruned.text, catalog, coreShapeVersion()), []);
+  const reset = pruneTable(shapeTableText(), shapeCatalog(), coreShapeVersion() + 1);
+  assert.equal(reset.removed.length, table.entries.length);
+  assert.equal((JSON.parse(reset.text) as ShapeTable).entries.length, 0);
 });

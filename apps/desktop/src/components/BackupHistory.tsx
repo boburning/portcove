@@ -56,6 +56,12 @@ export function BackupHistory({
     index: number;
   }>();
   const visible = expanded ? backups : backups.slice(0, 3);
+  const showEmpty =
+    backups.length === 0 &&
+    problems.length === 0 &&
+    state === "healthy" &&
+    readState?.status === "current" &&
+    readState.hasInventory;
   const restoreAllowed =
     (!readState || readState.status === "current") &&
     restoreAssessment?.action === "backup_restore" &&
@@ -182,22 +188,24 @@ export function BackupHistory({
             </ul>
           </div>
         )}
-        <details>
-          <summary className="cursor-pointer" data-focusable>
-            {t("history.technicalDetails")}
-          </summary>
-          {problems.map((problem) => (
-            <div
-              className="backup-problem mt-[10px] grid gap-[3px]"
-              key={`${problem.operation_id ?? "entry"}-${problem.path}`}
-            >
-              <strong>{problemLabel(t, problem.kind)}</strong>
-              <span className="[overflow-wrap:anywhere]">{problem.message}</span>
-              <span className="[overflow-wrap:anywhere]">{problem.proposed_action}</span>
-              <small className="[overflow-wrap:anywhere]">{problem.path}</small>
-            </div>
-          ))}
-        </details>
+        {problems.length > 0 && (
+          <details>
+            <summary className="cursor-pointer" data-focusable>
+              {t("history.technicalDetails")}
+            </summary>
+            {problems.map((problem) => (
+              <div
+                className="backup-problem mt-[10px] grid gap-[3px]"
+                key={`${problem.operation_id ?? "entry"}-${problem.path}`}
+              >
+                <strong>{problemLabel(t, problem.kind)}</strong>
+                <span className="[overflow-wrap:anywhere]">{problem.message}</span>
+                <span className="[overflow-wrap:anywhere]">{problem.proposed_action}</span>
+                <small className="[overflow-wrap:anywhere]">{problem.path}</small>
+              </div>
+            ))}
+          </details>
+        )}
       </div>
     );
   const renderRestoreAssessment = () =>
@@ -269,24 +277,22 @@ export function BackupHistory({
         <span ref={heading} role="heading" aria-level={3} tabIndex={-1}>
           {t("history.title")}
         </span>
-        <small className="text-xs text-[var(--color-text-muted)]">
-          {backupSummary(t, backups.length, problems.length, state, readState)}
-        </small>
+        {!showEmpty && (
+          <small className="text-xs text-pc-muted-foreground">
+            {backupSummary(t, backups.length, problems.length, state, readState)}
+          </small>
+        )}
       </div>
       {!embedded && <p>{t("history.description")}</p>}
-      {backups.length === 0 &&
-        problems.length === 0 &&
-        state === "healthy" &&
-        readState?.status === "current" &&
-        readState.hasInventory && (
-          <div className="detail-backup-empty">
-            <Icon glyph={Archive} />
-            <div>
-              <strong>{t("history.empty")}</strong>
-              <p>{t("history.emptyDescription")}</p>
-            </div>
+      {showEmpty && (
+        <div className="detail-backup-empty">
+          <Icon glyph={Archive} />
+          <div>
+            <strong>{t("history.empty")}</strong>
+            <p>{t("history.emptyDescription")}</p>
           </div>
-        )}
+        </div>
+      )}
       {renderReadStatus()}
       {renderInventoryNotice()}
       {renderRestoreAssessment()}
@@ -306,6 +312,14 @@ export function BackupHistory({
               <small className="mt-[3px] text-xs text-[var(--color-text-muted)]">
                 {t("details.summary", { count: backup.file_count, size: formatBytes(backup.size) })}
               </small>
+              {(backup.unknown_file_count ?? 0) > 0 && (
+                <small
+                  className="mt-[3px] block text-xs [overflow-wrap:anywhere] text-[var(--color-text-muted)]"
+                  data-unknown-files
+                >
+                  {t("details.unknownFiles", { total: backup.unknown_file_count ?? 0 })}
+                </small>
+              )}
               {automaticLabel && (
                 <small
                   className="mt-[3px] block text-xs [overflow-wrap:anywhere] text-[var(--color-text-muted)]"
@@ -315,23 +329,17 @@ export function BackupHistory({
                 </small>
               )}
             </span>
-            <details>
-              <summary
-                data-focusable
-                aria-label={t("history.rowDetailsLabel", { time: createdLabel })}
-              >
-                {t("history.technicalDetails")}
-              </summary>
-              <small className="backup-checksum mt-[3px] font-mono text-xs [overflow-wrap:anywhere] text-[var(--color-text-muted)]">
-                {t("history.checksum", { sha256: backup.sha256 })}
-              </small>
-            </details>
             <span className="backup-actions flex flex-wrap gap-2">
               <Button
                 data-focusable
                 data-backup-action="restore"
                 variant="outline"
-                disabled={Boolean(busy) || state === "recovery_required" || !restoreAllowed}
+                disabled={
+                  Boolean(busy) ||
+                  state === "recovery_required" ||
+                  !restoreAllowed ||
+                  backup.file_count === 0
+                }
                 onClick={(event) =>
                   setSelection({ backup, action: "restore", opener: event.currentTarget, index })
                 }
@@ -355,8 +363,9 @@ export function BackupHistory({
               <Button
                 data-focusable
                 data-backup-action="delete"
-                variant="destructive"
+                variant="outline"
                 size="icon"
+                className="hover:text-pc-danger-foreground"
                 aria-label={t("history.deleteLabel", { time: createdLabel })}
                 disabled={Boolean(busy) || state === "recovery_required"}
                 onClick={(event) =>
@@ -366,6 +375,17 @@ export function BackupHistory({
                 <Icon glyph={Trash2} />
               </Button>
             </span>
+            <details>
+              <summary
+                data-focusable
+                aria-label={t("history.rowDetailsLabel", { time: createdLabel })}
+              >
+                {t("history.technicalDetails")}
+              </summary>
+              <small className="backup-checksum mt-[3px] font-mono text-xs [overflow-wrap:anywhere] text-[var(--color-text-muted)]">
+                {t("history.checksum", { sha256: backup.sha256 })}
+              </small>
+            </details>
           </div>
         );
       })}

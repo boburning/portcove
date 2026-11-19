@@ -222,7 +222,7 @@ async fn ordinary_unconfigured_and_unprovisioned_refresh_refuse_before_transport
 }
 
 #[tokio::test]
-async fn official_definition_refresh_preserves_known_identity_and_requires_enabled_authority() {
+async fn official_definition_refresh_preserves_known_identity_without_network_or_writes() {
     use policy::provisioning::official_catalog::official_definition_id;
 
     let (_directory, library) = library();
@@ -241,18 +241,15 @@ async fn official_definition_refresh_preserves_known_identity_and_requires_enabl
         fn require_send<T: Send>(future: T) -> T {
             future
         }
-        let error =
-            require_send(service.refresh_official_definition(id, |_| {
-                panic!("unprovisioned check emitted activity")
-            }))
-            .await
-            .unwrap_err();
-        assert_eq!(error.code, ErrorCode::Conflict);
-        assert!(
-            error
-                .message
-                .contains("Enable official catalog updates in Settings")
-        );
+        // Constructing the future runs nothing. Awaiting a known identity would
+        // install the compiled anchor (official updates are on by default) and
+        // contact the appointed production location, which tests never do; the
+        // default-on installation is covered with a local fixture transport in
+        // `automatic_official_refresh_defaults_on_stays_quiet_and_preserves_state`.
+        drop(require_send(
+            service
+                .refresh_official_definition(id, |_| panic!("an unpolled check emitted activity")),
+        ));
     }
     for id in [format!("official/{port_id}"), "unknown-new-port".to_owned()] {
         let error = service
@@ -261,6 +258,8 @@ async fn official_definition_refresh_preserves_known_identity_and_requires_enabl
             .unwrap_err();
         assert_eq!(error.code, ErrorCode::NotFound);
     }
+    // An unknown identity is refused before any trust is installed.
+    assert!(!library.review_definition_authority().unwrap().installed);
     assert!(library.activities(10).unwrap().is_empty());
     assert!(
         library
@@ -355,9 +354,11 @@ async fn ordinary_refresh_uses_one_authenticated_snapshot_and_exact_retry_preser
         .unwrap();
     let mut baseline = crate::test_fixture::indexed_fixture_document(&Catalog::embedded().unwrap());
     // The legacy signature changes metadata. The reader supplies the
-    // independent working-directory authority compiled into the client.
+    // independent working-directory authority and tracked handoff compiled
+    // into the client; a legacy catalog cannot deliver either.
     for port in &mut baseline.ports {
         port.windows_shipwright_persistence = false;
+        port.windows_tracked_handoff = false;
     }
     baseline.ports[0].summary = "Changed independently signed baseline fixture".into();
     let now = Library::now();

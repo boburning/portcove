@@ -18,6 +18,10 @@ import { MaintenanceStoreError, runSql } from "./maintenance-store.mts";
 import { attentionConditions } from "./maintenance-release-health.mts";
 import { upstreamExceptions } from "./maintenance-upstream.mts";
 import { hostedIntakeAttention, type HostedIntakeFact } from "./maintenance-hosted-intake.mts";
+import {
+  releaseContentFindings,
+  releaseContentUnscannable,
+} from "./maintenance-release-content.mts";
 import { originalLocationReasons } from "./upstream-location-reasons.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -29,10 +33,15 @@ export type HandoffKind =
   | "release-health-condition"
   | "upstream-observer-exception"
   | "hosted-intake-blocked"
-  | "hosted-intake-holds";
+  | "hosted-intake-holds"
+  | "release-content-finding";
 
 /** The collection source whose complete run decides a kind. */
-export type HandoffSource = "release-health" | "upstream-observations" | "hosted-intake";
+export type HandoffSource =
+  | "release-health"
+  | "upstream-observations"
+  | "hosted-intake"
+  | "release-content";
 
 export interface HandoffEntry {
   kind: HandoffKind;
@@ -166,6 +175,29 @@ export const handoffRegistry: readonly HandoffEntry[] = [
     resume_condition:
       "The owner delegates process dispatch to a named executor that revalidates each hold's resume condition and records the new bot receipt.",
   },
+  {
+    kind: "release-content-finding",
+    source: "release-content",
+    action:
+      "A person confirms the flagged files against the package, and inspects manually any package the scan could not read (digest mismatch, encrypted, unlistable or over the size limit); an unavailable GitHub release goes through the owner-only release-health relocation route, an unavailable GitLab release through a reviewed location change. If it bundles original game data outside the rights-basis owner exceptions, a reviewed catalog change sets the listing's download_block_reason (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); a confirmed false positive gets a reviewed .github/release-content-accounting.json entry instead. The scan itself never writes a hold.",
+    invocation:
+      "Review the finding's package entries in the scan report, or download and inspect the unscannable package, then a reviewed catalog PR setting download_block_reason when it is game data, or a reviewed .github/release-content-accounting.json entry for a confirmed false positive; the next scheduled run of release-content-scan.yml on main reports the result",
+    authority: "routine",
+    executor: "release-content-scan.yml",
+    workflow: {
+      file: ".github/workflows/release-content-scan.yml",
+      name: "Release content scan",
+      trigger: "schedule",
+      inputs: [],
+    },
+    receipt:
+      "The next scheduled main release-content scan report no longer reports the finding or the not-scannable package; a held listing leaves the scan targets.",
+    dispatch: "disabled",
+    disabled_reason:
+      "Confirming game data needs a person to review the package, the hold is a reviewed catalog change, and only a scheduled main report counts (a dispatched scan is never read as the receipt); no executor is authorized to open or merge that change unattended.",
+    resume_condition:
+      "A named executor is authorized to deliver reviewed hold PRs through the normal guarded merge route after a person confirms the finding, with the next scheduled main scan report as its receipt.",
+  },
 ];
 
 /** Sources that deliberately have no handoff, with the reason. */
@@ -203,12 +235,24 @@ export function parseHandoffSubject(subject: string) {
 /** Characters the operation and notification identity checks refuse map to '.'. */
 export const identityPart = (value: string) => value.replace(/[^A-Za-z0-9._:-]/gu, ".");
 
-/** `handoff.<kind>.<source>.<fence>`, hashed only when it would exceed the store's 200 characters. */
-export function handoffOperationId(kind: string, source: string, fence: number) {
-  const id = `handoff.${kind}.${identityPart(source)}.${fence}`;
-  return id.length <= 200
+/**
+ * `handoff.<kind>.<source>.<fence>[.a<assessment>]`, hashed only when it would
+ * exceed the store's 200 characters (less room for the planner's `.<n>` suffix
+ * when the assessment is named). The applicable assessment is part of the
+ * identity; the planner adds `.<n>` for the n-th plan of one fence and
+ * assessment, so a plan replaced and later needed again gets a new operation.
+ */
+export function handoffOperationId(
+  kind: string,
+  source: string,
+  fence: number,
+  assessment?: number,
+) {
+  const suffix = assessment === undefined ? `${fence}` : `${fence}.a${assessment}`;
+  const id = `handoff.${kind}.${identityPart(source)}.${suffix}`;
+  return id.length <= (assessment === undefined ? 200 : 190)
     ? id
-    : `handoff.${kind}.sha256-${createHash("sha256").update(source).digest("hex").slice(0, 40)}.${fence}`;
+    : `handoff.${kind}.sha256-${createHash("sha256").update(source).digest("hex").slice(0, 40)}.${suffix}`;
 }
 
 export interface HandoffCondition {
@@ -330,6 +374,44 @@ export function hostedIntakeHandoffs(facts: ReadonlyMap<string, unknown>): Hando
   return result;
 }
 
+/** Flagged release packages and packages the scan could not inspect, per port, from stored facts only. */
+export function releaseContentHandoffs(facts: ReadonlyMap<string, unknown>): HandoffCondition[] {
+  const result: HandoffCondition[] = [];
+  for (const [source, payload] of facts) {
+    // A finding dismissed by reviewed accounting is not attention.
+    const findings = releaseContentFindings(payload).filter((entry) => !entry.accounted);
+    // Coverage notes (no release, no single asset) are not attention.
+    const unscannable = releaseContentUnscannable(payload)
+      .filter(({ attention }) => attention)
+      .map(({ platform, code, provider }) => ({
+        platform,
+        code,
+        ...(provider ? { provider } : {}),
+      }));
+    if (findings.length || unscannable.length)
+      result.push({
+        kind: "release-content-finding",
+        source,
+        condition: {
+          findings: findings.map(
+            ({ platform, repository, tag, asset, sha256, rules, signals, signal_count }) => ({
+              platform,
+              repository,
+              tag,
+              asset,
+              sha256,
+              rules,
+              signals: signals.map(({ path, kind, reason }) => ({ path, kind, reason })),
+              signal_count: signal_count ?? signals.length,
+            }),
+          ),
+          unscannable,
+        },
+      });
+  }
+  return result;
+}
+
 const literal = (value: string) => `'${value.replaceAll("'", "''")}'`;
 const digestSql = (text: string) => `encode(sha256(convert_to(${text}, 'UTF8')), 'hex')`;
 
@@ -390,13 +472,22 @@ INSERT INTO portcove_maintenance.assessments (subject_key, policy_version, input
     FROM target
   ON CONFLICT (subject_key, policy_version, input_digest) DO NOTHING;`,
     `${target}
-INSERT INTO portcove_maintenance.subject_transitions (subject_key, sequence, assessment_id)
-  SELECT a.subject_key, coalesce(c.sequence, 0) + 1, a.assessment_id
+INSERT INTO portcove_maintenance.subject_transitions (subject_key, sequence, assessment_id, verified_run_id)
+  SELECT a.subject_key, coalesce(c.sequence, 0) + 1, a.assessment_id, ${literal(input.run)}
     FROM target t
     JOIN portcove_maintenance.assessments a
       ON a.subject_key = t.key AND a.policy_version = ${policy} AND a.input_digest = t.input_digest
     LEFT JOIN portcove_maintenance.subject_current c ON c.subject_key = t.key
    WHERE c.result_digest IS DISTINCT FROM a.result_digest;`,
+    // An unchanged condition is still verified by this complete run, quietly.
+    `${target}
+SELECT portcove_maintenance.verify_current(a.assessment_id, ${literal(input.run)})
+    FROM target t
+    JOIN portcove_maintenance.assessments a
+      ON a.subject_key = t.key AND a.policy_version = ${policy} AND a.input_digest = t.input_digest
+    JOIN portcove_maintenance.subject_current c ON c.subject_key = t.key
+   WHERE c.result_digest = a.result_digest
+     AND (c.applicable_assessment_id <> a.assessment_id OR c.verified_run_id IS DISTINCT FROM ${literal(input.run)});`,
     `INSERT INTO portcove_maintenance.notifications (notification_key, subject_key, transition_sequence, created_at)
   SELECT 'transition:' || regexp_replace(t.subject_key, '[^A-Za-z0-9._:-]', '.', 'g') || ':' || t.sequence,
          t.subject_key, t.sequence, statement_timestamp()
@@ -410,21 +501,25 @@ INSERT INTO portcove_maintenance.subject_transitions (subject_key, sequence, ass
 /** Open handoffs and each one's newest open operation, as one JSON value. */
 export const openHandoffsSql = `(SELECT coalesce(json_agg(json_build_object(
       'subject_key', c.subject_key, 'sequence', c.sequence, 'updated_at', c.updated_at,
+      'assessment_id', c.applicable_assessment_id,
       'policy_version', a.policy_version, 'explanation', a.explanation,
       'operation', (SELECT json_build_object('operation_id', o.operation_id, 'state', o.state,
-                     'fence_sequence', o.fence_sequence, 'revision', o.revision, 'executor', o.executor)
+                     'fence_sequence', o.fence_sequence, 'fence_assessment_id', o.fence_assessment_id,
+                     'revision', o.revision, 'executor', o.executor)
                       FROM portcove_maintenance.operations o
                      WHERE o.subject_key = c.subject_key AND o.state IN ('planned', 'dispatched', 'ambiguous')
                      ORDER BY o.fence_sequence DESC, o.operation_id COLLATE "C" LIMIT 1))
       ORDER BY c.subject_key COLLATE "C"), '[]')
     FROM portcove_maintenance.subject_current c
-    JOIN portcove_maintenance.assessments a ON a.assessment_id = c.assessment_id
+    JOIN portcove_maintenance.assessments a ON a.assessment_id = c.applicable_assessment_id
    WHERE starts_with(c.subject_key, 'handoff:') AND a.state = 'needs-attention')`;
 
 export interface HandoffOperation {
   operation_id: string;
   state: string;
   fence_sequence: number;
+  /** Null for a plan recorded before migration 0003 that the backfill could not bind. */
+  fence_assessment_id: number | null;
   revision: number;
   executor: string;
 }
@@ -434,6 +529,8 @@ export interface OpenHandoff {
   kind: string;
   source_subject: string;
   sequence: number;
+  /** The latest applicable assessment that a plan must bind. */
+  assessment_id: number;
   updated_at: string;
   condition: unknown;
   /** Null for a kind this registry version does not know. */
@@ -447,17 +544,19 @@ export function openHandoffs(rows: unknown): OpenHandoff[] {
     rows as {
       subject_key: string;
       sequence: number;
+      assessment_id: number;
       updated_at: string;
       explanation: { condition?: unknown };
       operation: HandoffOperation | null;
     }[]
-  ).map(({ subject_key, sequence, updated_at, explanation, operation }) => {
+  ).map(({ subject_key, sequence, assessment_id, updated_at, explanation, operation }) => {
     const parsed = parseHandoffSubject(subject_key);
     return {
       subject_key,
       kind: parsed?.kind ?? "unknown",
       source_subject: parsed?.source ?? subject_key,
       sequence,
+      assessment_id,
       updated_at,
       condition: explanation.condition ?? null,
       registry: handoffEntry(parsed?.kind ?? "") ?? null,
@@ -483,12 +582,22 @@ export function readOpenHandoffs(environment: NodeJS.ProcessEnv) {
  * evidence or accounting, so the monitor's own recorded `resume_condition`
  * replaces that prescription.
  */
-export function handoffGuidance(entry: HandoffEntry, condition: unknown) {
+/** The action, invocation, resume condition and receipt shown for one handoff. */
+export interface HandoffGuidance {
+  action: string;
+  invocation: string;
+  resume_condition: string;
+  receipt: string;
+}
+
+export function handoffGuidance(entry: HandoffEntry, condition: unknown): HandoffGuidance {
   const guidance = {
     action: entry.action,
     invocation: entry.invocation,
     resume_condition: entry.resume_condition,
+    receipt: entry.receipt,
   };
+  if (entry.kind === "release-content-finding") return releaseContentGuidance(guidance, condition);
   if (entry.kind !== "release-health-condition" && entry.kind !== "release-health-relocation")
     return guidance;
   const conditions = (condition as { conditions?: unknown } | null)?.conditions;
@@ -515,6 +624,81 @@ export function handoffGuidance(entry: HandoffEntry, condition: unknown) {
     invocation:
       "The condition's recorded resume_condition; the next scheduled run of upstream-health.yml on main reports the result",
     resume_condition: recorded,
+    receipt: entry.receipt,
+  };
+}
+
+/**
+ * The action and receipt for one release-content handoff, by what it holds:
+ * flagged files to confirm, packages to inspect by hand, and releases the scan
+ * cannot read, which go through the release-health relocation route before
+ * any package can be reviewed.
+ */
+function releaseContentGuidance(guidance: HandoffGuidance, condition: unknown): HandoffGuidance {
+  const value = isRecord(condition) ? condition : {};
+  const findings = Array.isArray(value.findings) ? value.findings.length : 0;
+  const targets = (Array.isArray(value.unscannable) ? value.unscannable : []).filter(isRecord);
+  const codes = targets.flatMap((target) => (typeof target.code === "string" ? [target.code] : []));
+  const unavailable = targets.filter((target) => target.code === "release-unavailable");
+  // The relocation evidence route reads GitHub repositories only.
+  const github = unavailable.some((target) => target.provider === "github");
+  const gitlab = unavailable.some((target) => target.provider === "gitlab");
+  // A condition recorded before the provider was stored names no route.
+  const unknown = unavailable.some(
+    (target) => target.provider !== "github" && target.provider !== "gitlab",
+  );
+  const inspect = [...new Set(codes.filter((code) => code !== "release-unavailable"))];
+  const actions: string[] = [];
+  const invocations: string[] = [];
+  const receipts: string[] = [];
+  if (findings) {
+    actions.push("A person confirms the flagged files against the package.");
+    receipts.push("no longer reports the finding");
+  }
+  if (inspect.length) {
+    actions.push(
+      `A person downloads and inspects by hand the package the scan could not read (${inspect.join(", ")}).`,
+    );
+    receipts.push("no longer reports the not-scannable package");
+  }
+  if (findings || inspect.length) {
+    actions.push(
+      "If it bundles original game data outside the rights-basis owner exceptions, a reviewed catalog change sets the listing's download_block_reason (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); a confirmed false positive gets a reviewed .github/release-content-accounting.json entry instead.",
+    );
+    invocations.push(guidance.invocation);
+  }
+  if (github) {
+    actions.push(
+      "The GitHub release read is redirected or gone. The routine part of this handoff is only to confirm that the release is unavailable; relocation evidence (upstream-relocation-evidence.yml) and any rename are owner-only and follow the port's release-health-relocation handoff and its authority, not this one.",
+    );
+    invocations.push(
+      "confirm the release read still fails; relocation evidence and the rename follow the owner-only release-health-relocation handoff; the next scheduled run of release-content-scan.yml on main reports the result",
+    );
+  }
+  if (unknown) {
+    actions.push(
+      "The release read is redirected or gone: confirm it, then fix the listing's upstream location in a reviewed catalog change (for a GitHub repository through the owner-only release-health-relocation handoff and its authority).",
+    );
+    invocations.push(
+      "confirm the release read still fails; a reviewed catalog change to the listing's upstream location, through the owner-only release-health-relocation handoff for a GitHub repository; the next scheduled run of release-content-scan.yml on main reports the result",
+    );
+  }
+  if (gitlab) {
+    actions.push(
+      "The GitLab release read is redirected or gone: fix the listing's upstream location in a reviewed catalog change, then wait for the next scan.",
+    );
+    invocations.push(
+      "a reviewed catalog change to the listing's upstream location; the next scheduled run of release-content-scan.yml on main reports the result",
+    );
+  }
+  if (unavailable.length)
+    receipts.push("reads the release (the target is no longer release-unavailable)");
+  if (!actions.length) return guidance;
+  return {
+    ...guidance,
+    action: `${actions.join(" ")} The scan itself never writes a hold.`,
+    invocation: invocations.join("; for the unavailable release, "),
+    receipt: `The next scheduled main release-content scan report ${receipts.join(" and ")}; a held listing leaves the scan targets.`,
   };
 }
 
@@ -522,24 +706,25 @@ export function handoffGuidance(entry: HandoffEntry, condition: unknown) {
 export function nextAction(handoff: OpenHandoff) {
   const entry = handoff.registry;
   const operation = handoff.operation
-    ? `operation ${handoff.operation.operation_id} ${handoff.operation.state} at fence ${handoff.operation.fence_sequence}${handoff.operation.fence_sequence === handoff.sequence ? "" : ` (stale; current ${handoff.sequence})`}`
+    ? `operation ${handoff.operation.operation_id} ${handoff.operation.state} at fence ${handoff.operation.fence_sequence}${handoff.operation.fence_sequence === handoff.sequence && handoff.operation.fence_assessment_id === handoff.assessment_id ? "" : ` (stale; current ${handoff.sequence} on assessment ${handoff.assessment_id})`}`
     : `no operation recorded (fence ${handoff.sequence})`;
   if (!entry) return `Unregistered handoff kind ${handoff.kind}; dispatch disabled. ${operation}.`;
   const guidance = handoffGuidance(entry, handoff.condition);
-  return `${guidance.action} Invocation: ${guidance.invocation}. Authority: ${entry.authority}. Dispatch disabled: ${entry.disabled_reason} Resume: ${guidance.resume_condition} Receipt: ${entry.receipt} ${operation}.`;
+  return `${guidance.action} Invocation: ${guidance.invocation}. Authority: ${entry.authority}. Dispatch disabled: ${entry.disabled_reason} Resume: ${guidance.resume_condition} Receipt: ${guidance.receipt} ${operation}.`;
 }
 
 /**
  * Executor bookkeeping on the local store only: plans one operation per open
  * handoff at its current fence, and abandons each planned handoff operation
- * whose subject has moved on (cleared or a newer condition). Nothing is
+ * whose subject has moved on (cleared, a newer condition, or a newer applicable
+ * assessment of the same result). Nothing is
  * dispatched or completed and no receipt is recorded; replays change nothing.
  */
 export function recordHandoffOperations(environment: NodeJS.ProcessEnv) {
   const open = readOpenHandoffs(environment).filter(({ registry }) => registry !== null);
   const rows = open.map(
-    ({ subject_key, kind, source_subject, sequence, registry }) =>
-      `(${literal(handoffOperationId(kind, source_subject, sequence))}, ${literal(`handoff.${kind}`)}, ${literal(subject_key)}, ${sequence}::bigint, ${literal(registry!.executor)})`,
+    ({ subject_key, kind, source_subject, sequence, assessment_id, registry }) =>
+      `(${literal(handoffOperationId(kind, source_subject, sequence, assessment_id))}, ${literal(`handoff.${kind}`)}, ${literal(subject_key)}, ${sequence}::bigint, ${assessment_id}::bigint, ${literal(registry!.executor)})`,
   );
   const output = runSql(
     environment,
@@ -549,16 +734,30 @@ WITH abandoned AS (
      SET state = 'abandoned', revision = o.revision + 1, updated_at = greatest(clock_timestamp(), o.updated_at)
     FROM portcove_maintenance.subject_current c
    WHERE c.subject_key = o.subject_key AND o.state = 'planned' AND starts_with(o.kind, 'handoff.')
-     AND c.sequence <> o.fence_sequence
+     AND (c.sequence <> o.fence_sequence OR c.applicable_assessment_id IS DISTINCT FROM o.fence_assessment_id)
   RETURNING 1)
 SELECT count(*) FROM abandoned;
 ${
   rows.length
     ? `WITH planned AS (
-  INSERT INTO portcove_maintenance.operations (operation_id, kind, subject_key, fence_sequence, executor, created_at, updated_at)
-    SELECT v.operation_id, v.kind, v.subject_key, v.fence, v.executor, clock_timestamp(), clock_timestamp()
-      FROM (VALUES ${rows.join(",\n      ")}) AS v (operation_id, kind, subject_key, fence, executor)
-      JOIN portcove_maintenance.subject_current c ON c.subject_key = v.subject_key AND c.sequence = v.fence
+  INSERT INTO portcove_maintenance.operations (operation_id, kind, subject_key, fence_sequence, fence_assessment_id, executor, created_at, updated_at)
+    SELECT v.operation_id || CASE WHEN earlier.plans = 0 THEN '' ELSE '.' || (earlier.plans + 1) END,
+           v.kind, v.subject_key, v.fence, v.assessment, v.executor, clock_timestamp(), clock_timestamp()
+      FROM (VALUES ${rows.join(",\n      ")}) AS v (operation_id, kind, subject_key, fence, assessment, executor)
+      JOIN portcove_maintenance.subject_current c
+        ON c.subject_key = v.subject_key AND c.sequence = v.fence AND c.applicable_assessment_id = v.assessment
+      -- Earlier plans of the same fence and assessment, so a later one gets its own identity.
+      CROSS JOIN LATERAL (SELECT count(*) AS plans FROM portcove_maintenance.operations o
+                           WHERE o.operation_id = v.operation_id
+                              OR starts_with(o.operation_id, v.operation_id || '.')) earlier
+     -- One open operation per handoff: a current plan (including one recorded before
+     -- migration 0003 under the older identity) or any dispatched or ambiguous
+     -- operation, which resolves only through its original executor's receipt.
+     WHERE NOT EXISTS (SELECT 1 FROM portcove_maintenance.operations o
+                        WHERE o.subject_key = v.subject_key
+                          AND (o.state IN ('dispatched', 'ambiguous')
+                               OR (o.state = 'planned' AND o.fence_sequence = v.fence
+                                   AND o.fence_assessment_id = v.assessment)))
   ON CONFLICT (operation_id) DO NOTHING
   RETURNING 1)
 SELECT count(*) FROM planned;`

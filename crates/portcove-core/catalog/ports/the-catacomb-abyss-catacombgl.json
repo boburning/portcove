@@ -55,6 +55,24 @@
     "download_asset_hints": {
       "windows-x86-64": ["CatacombGL-Windows-64bit-", ".zip"],
       "linux-x86-64": ["CatacombGL-Linux-", ".tar.xz"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-catacomb-abyss",
+      "evidence_urls": [
+        "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
+        "https://github.com/ArnoAnsems/CatacombGL"
+      ],
+      "source_editions": [
+        {
+          "id": "the-catacomb-abyss-pc",
+          "title": "The Catacomb Abyss (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/ArnoAnsems/CatacombGL/blob/907bd6ec934d7f1dc2031fe9f0f3a8a405ca7330/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

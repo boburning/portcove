@@ -1,7 +1,7 @@
 import type { WebDriver, WebElement, Locator } from "selenium-webdriver";
 import type { PortDefinition } from "../src/transport-types.generated.js";
 import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
-import { executeBrowserScript } from "./browser-script.mts";
+import { exactButtonXPath, executeBrowserScript } from "./browser-script.mts";
 import { decodeDiscoverPortIds } from "./desktop-review-presentation.mts";
 // Shared native review interactions; visibility waits never bypass product consent.
 import assert from "node:assert/strict";
@@ -9,13 +9,19 @@ import { writeFile } from "node:fs/promises";
 import axe from "axe-core";
 import { By, Key, until } from "selenium-webdriver";
 
-/** Reveal the retained log through its real enclosing disclosure. */
+/** Edit through real keys, releasing the modifier before a separate text command.
+ * WebKitGTK can keep Control held through text after Element Send Keys' NULL.
+ */
+export async function replaceKeyboardText(browser: WebDriver, element: WebElement, text: string) {
+  await clickVisible(browser, element);
+  const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+  await browser.actions().keyDown(modifier).sendKeys("a").keyUp(modifier).perform();
+  await element.sendKeys(Key.BACK_SPACE);
+  if (text.length > 0) await element.sendKeys(text);
+}
+
+/** Find the direct preparation log disclosure in the Activity row. */
 export async function preparationLogControl(browser: WebDriver, row: WebElement) {
-  const taskDetails = await row.findElement(
-    By.xpath('.//summary[normalize-space(.)="Task details"]'),
-  );
-  const details = await taskDetails.findElement(By.xpath(".."));
-  if ((await details.getAttribute("open")) === null) await clickVisible(browser, taskDetails);
   const log = await row.findElement(
     By.xpath('.//summary[normalize-space(.)="View preparation log"]'),
   );
@@ -23,10 +29,26 @@ export async function preparationLogControl(browser: WebDriver, row: WebElement)
   return log;
 }
 
+/** Open the scan workspace from the Game files settings category. */
+export async function openGameFileScan(browser: WebDriver) {
+  const trigger = await browser.wait(
+    until.elementLocated(By.css("[data-open-game-file-scan]")),
+    5_000,
+  );
+  await clickVisible(browser, trigger);
+  await browser.wait(until.elementLocated(By.id("add-games-folders-heading")), 5_000);
+}
+
 /** Reveal the real panel through its tab; scrolling cannot reveal hidden content. */
 export async function revealDetailSection(
   browser: WebDriver,
-  label: "Overview" | "Game files" | "Saves & backups" | "Versions & updates" | "Manage",
+  label:
+    | "Overview"
+    | "Game files"
+    | "Saves & backups"
+    | "Versions & updates"
+    | "Game settings & mods"
+    | "Manage",
 ) {
   const tab = await browser.wait(
     until.elementLocated(
@@ -64,11 +86,7 @@ export async function openCatalogPortAfterRefresh(
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
   await selectPrimaryNavigation(browser, "Discover");
   const search = await browser.findElement(By.id("port-search"));
-  await search.sendKeys(
-    Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
-    Key.BACK_SPACE,
-    query,
-  );
+  await replaceKeyboardText(browser, search, query);
   await clearCatalogFilters(browser);
   await selectCatalogPort(browser, port.id);
 }
@@ -97,6 +115,21 @@ async function catalogPortGroup(browser: WebDriver, portId: string): Promise<Web
 
 /** Use the real single-port action or comparison dialog, never a direct state change. */
 export async function selectCatalogPort(browser: WebDriver, portId: string) {
+  // Search and filter results re-render after input, which can replace the
+  // located group between lookup and click. Opening a port's detail is
+  // non-mutating, so re-locate a bounded number of times on a stale reference.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await selectCatalogPortOnce(browser, portId);
+    } catch (error) {
+      if (!(error instanceof Error && error.name === "StaleElementReferenceError") || attempt >= 3)
+        throw error;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+}
+
+async function selectCatalogPortOnce(browser: WebDriver, portId: string) {
   const group = await catalogPortGroup(browser, portId);
   const matching = decodeDiscoverPortIds(
     await group.getAttribute("data-discover-matching-port-ids"),
@@ -137,7 +170,7 @@ export async function catalogResultPortIds(browser: WebDriver): Promise<string[]
 
 export async function openCatalogFilters(browser: WebDriver) {
   const trigger = await browser.wait(
-    until.elementLocated(By.xpath('//button[starts-with(normalize-space(.),"Filters (")]')),
+    until.elementLocated(By.xpath('//button[starts-with(@aria-label,"Filters (")]')),
     15_000,
   );
   if ((await trigger.getAttribute("aria-expanded")) !== "true")
@@ -266,23 +299,30 @@ export async function selectPrimaryNavigation(
     `//nav[@aria-label="Primary navigation"]//button[.//span[normalize-space(.)="${label}"]]`,
   );
   const renderedDestination = async () => {
+    let rendered: WebElement | undefined;
     for (const candidate of await browser.findElements(locator)) {
       // A wide navigation item can be clipped by document scrolling. Choose its
       // rendered route before clickVisible reveals it; responsive display:none
       // destinations still require the shipping narrow sheet.
-      if (
-        await executeBrowserScript(
-          browser,
-          (element) =>
+      const state = await executeBrowserScript(
+        browser,
+        (element) => ({
+          rendered:
             element.getClientRects().length > 0 &&
             getComputedStyle(element).visibility !== "hidden" &&
             !element.closest("[hidden], [inert]"),
-          candidate,
-        )
-      )
-        return candidate;
+          inSheet: element.closest(".navigation-sheet") !== null,
+        }),
+        candidate,
+      );
+      if (!state.rendered) continue;
+      // Below 42rem the icon rail stays beside the sheet. An open sheet's modal
+      // overlay covers that rail, so its own destination is the one that can be
+      // clicked.
+      if (state.inSheet) return candidate;
+      rendered ??= candidate;
     }
-    return undefined;
+    return rendered;
   };
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
   let destination = await renderedDestination();
@@ -323,7 +363,7 @@ export const setupConfirmButton = () =>
 
 export function reviewControls(browser: WebDriver) {
   return {
-    button: (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`),
+    button: (label: string) => By.xpath(exactButtonXPath(label)),
     click: async (locator: Locator) =>
       clickVisible(browser, await browser.wait(until.elementLocated(locator), 15_000)),
   };
@@ -414,6 +454,20 @@ export async function assertCompactReview(browser: WebDriver, selector: string) 
                 element.getBoundingClientRect().right > bounds.right + 1,
             )
             .slice(0, 30)
+            .map(geometry),
+          // Outermost page elements past the viewport, outside the review, so a
+          // page-level reflow failure names its source.
+          pageOverflowing: [...document.body.querySelectorAll("*")]
+            .filter(
+              (element) =>
+                !review.contains(element) &&
+                element.getBoundingClientRect().right > window.innerWidth + 1 &&
+                !(
+                  element.parentElement &&
+                  element.parentElement.getBoundingClientRect().right > window.innerWidth + 1
+                ),
+            )
+            .slice(0, 10)
             .map(geometry),
         },
       };
@@ -522,7 +576,12 @@ export async function observeAccessibility(browser: WebDriver): Promise<unknown>
       typeof injected.run !== "function"
     )
       throw new Error("Accessibility engine was not injected");
-    const result: unknown = Reflect.apply(injected.run, injected, []);
+    // Full node detail only where a finding is reported: passing rules keep one
+    // example node each, so a whole-catalog page stays inside the evidence bound.
+    const result: unknown = Reflect.apply(injected.run, injected, [
+      document,
+      { resultTypes: ["violations", "incomplete"] },
+    ]);
     return Promise.resolve(result).then(done);
   });
 }

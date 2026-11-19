@@ -45,6 +45,27 @@
       "warnings": [
         "Select Rush2Recompiled.exe and preserve its current marker/root and 32 KiB Controller Pak. Optional imported games, source permissions and other implementations’ acceptance do not carry over."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "rush-2-extreme-racing-usa",
+      "evidence_urls": [
+        "https://github.com/bryantmh/rush2recompiled/blob/cd1ea58eda9f6040c5b85df717d936a89af64598/README.md",
+        "https://github.com/bryantmh/rush2recompiled",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/rush-2-recompiled.json"
+      ],
+      "source_editions": [
+        {
+          "id": "rush-2-extreme-racing-usa-nintendo-64",
+          "title": "Rush 2: Extreme Racing USA (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/bryantmh/rush2recompiled/blob/cd1ea58eda9f6040c5b85df717d936a89af64598/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/rush-2-recompiled.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Rush 2: Extreme Racing USA"
   }
 }

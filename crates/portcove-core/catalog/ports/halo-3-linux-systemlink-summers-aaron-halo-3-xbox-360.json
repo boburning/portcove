@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "halo-3-linux-systemlink-summers-aaron-halo-3-xbox-360",
+    "artwork": {
+      "game_id": 987,
+      "cover_id": 90048,
+      "image_id": "co1xhc",
+      "image_sha256": "026e609d82d4877a549ff5c1f3de5600e77561d47de3be86e047e1fa26363cbc",
+      "game_slug": "halo-3",
+      "match_kind": "underlying-game"
+    },
     "name": "Halo 3 — summers-aaron Halo3 Linux/SystemLink runtime family (summers-aaron)",
     "original_game_title": "Halo 3",
     "summary": "Upstream reports startup, menus, campaign progress from Arrival into Sierra 117 and beyond, and System Link across instances or machines. A full campaign is unconfirmed. The experimental native graphics path is separate from the default Xenos renderer; Portcove has not tested either route. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/summers-aaron/xenon-pc-comp"
     },
-    "issue_number": 3615
+    "issue_number": 3615,
+    "original_game": {
+      "format_version": 1,
+      "id": "halo-3",
+      "evidence_urls": ["https://github.com/summers-aaron/xenon-pc-comp"],
+      "source_editions": [
+        {
+          "id": "halo-3-xbox-360",
+          "title": "Halo 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/summers-aaron/xenon-pc-comp/blob/30fd36f4d73d3ae53079dc1df6ae86a5c18e730c/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

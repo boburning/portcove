@@ -5,8 +5,16 @@
     "name": "WET (WET Recomp)",
     "summary": "Attach an independently permitted, already prepared WET Windows player through wet.exe and its actual imported game directory. Preserve the existing SDK-selected data roots; exact original revision and default persistence placement remain unverified.",
     "original_game_title": "WET",
+    "artwork": {
+      "game_id": 3057,
+      "cover_id": 324769,
+      "image_id": "co6yld",
+      "image_sha256": "a404fdd26bd5c0d04bcc574434cd1fadfaea442cd6b455b163355a777c106cf1",
+      "game_slug": "wet",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/Supermedo/wet-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Supermedo/wet-recomp",
     "issue_number": 2720,
@@ -37,6 +45,24 @@
       ],
       "warnings": [
         "Exact original revision and default SDK save-root placement remain unknown. Preserve the actual existing prepared installation and all active data roots; direct wet.exe launch does not inherit every launcher option."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wet",
+      "evidence_urls": [
+        "https://github.com/Supermedo/wet-recomp/blob/d324f40eedef7fdd79241e6b7c4197380c4768e7/README.md",
+        "https://github.com/Supermedo/wet-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "wet-xbox-360",
+          "title": "WET (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Supermedo/wet-recomp/blob/c9d36b2fe37d8006f0437ce95706e3d0dbdf5d49/README.md"
+          ]
+        }
       ]
     }
   },

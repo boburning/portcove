@@ -5,10 +5,10 @@
     "name": "Kamen Rider: Battride War — Battride War native port (robertoqimin)",
     "original_game_title": "Kamen Rider: Battride War",
     "summary": "An experimental Linux port of Kamen Rider: Battride War. The AppImage builds the game from your own Japanese disc image. The project has reported testing through one mission.",
-    "project_url": "https://github.com/robertoqimin/battride-war-port",
+    "project_url": "https://github.com/robertoqimin/battride-war-recomp",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/robertoqimin/battride-war-port",
+    "setup_url": "https://github.com/robertoqimin/battride-war-recomp",
     "manual_setup": {
       "steps": [
         {
@@ -24,7 +24,7 @@
         "The first build needs about 8 GB RAM and 8 GB free space. Keep your original disc files for later play.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/robertoqimin/battride-war-port",
+      "help_url": "https://github.com/robertoqimin/battride-war-recomp",
       "references": [
         {
           "title": "Project testing notes",
@@ -41,6 +41,12 @@
       "image_sha256": "ff1b0d0001d8964b38b00369d3ab379d4e09d5b64b033c7662835d5eccf9435d",
       "game_slug": "kamen-rider-battride-war",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kamen-rider-battride-war",
+      "evidence_urls": ["https://github.com/robertoqimin/battride-war-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
@@ -53,6 +59,43 @@
         "id": "1430407098"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/robertoqimin/battride-war-port",
+          "repository": {
+            "host": "github.com",
+            "id": "1430407098"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/robertoqimin/battride-war-recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1430407098"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The owner robertoqimin renamed the repository it listed; the same repository answers at robertoqimin/battride-war-recomp. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1430407098",
+            "note": "Repository ID 1430407098, recorded when this port was listed, resolves to robertoqimin/battride-war-recomp."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/robertoqimin/battride-war-port",
+            "note": "The listed path resolves to robertoqimin/battride-war-recomp, repository ID 1430407098."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "5f1686193e58fc4606a375e6ee0705aa190e715f5c97b06cc6c2d0c34e723a07"
+        }
+      }
+    ]
   }
 }

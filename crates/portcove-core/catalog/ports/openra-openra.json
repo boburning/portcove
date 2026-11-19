@@ -5,8 +5,17 @@
     "name": "Command & Conquer: Red Alert, Tiberian Dawn & Dune 2000 / OpenRA (OpenRA)",
     "summary": "Choose Red Alert, Tiberian Dawn or Dune 2000, then let OpenRA prepare the game content on first Play.",
     "project_url": "https://github.com/OpenRA/OpenRA",
+    "artwork": {
+      "game_id": 57205,
+      "cover_id": 198255,
+      "image_id": "co48z3",
+      "image_sha256": "da301705205bb3596cd69bdf6464dca6bf50eee06c09bd257c7f77c0a34ad898",
+      "game_slug": "openra",
+      "match_kind": "port"
+    },
     "issue_number": 1852,
     "listed_at": "2026-10-23",
+    "funding_urls": ["https://www.patreon.com/orahosting"],
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/README.md",
@@ -32,6 +41,14 @@
           "instruction": "Choose the stable x86-64 AppImage named for Red Alert, Tiberian Dawn or Dune 2000. Make the complete AppImage executable and open it outside Portcove to finish that game’s content setup. Each AppImage starts its own game by default. Keep server and utility commands for their separate tasks."
         },
         {
+          "title": "Use the OpenRA Windows ARM64 playtest",
+          "instruction": "Choose the official ARM64 Windows portable ZIP from a playtest release. Extract the whole ZIP and open RedAlert.exe, TiberianDawn.exe or Dune2000.exe from its own folder. The ARM64 package is a preview. Use the same OpenRA release as the other players if you play online."
+        },
+        {
+          "title": "Use the OpenRA Flatpak on Linux",
+          "instruction": "Install net.openra.OpenRA from Flathub on Linux x64 or ARM64. Use the desktop launcher for Red Alert, Tiberian Dawn or Dune 2000 and finish content setup in that player. Back up the game’s Flatpak app data separately and update it through Flatpak. Use the official x64 AppImage if you need to switch between official and community mods outside the Flatpak sandbox."
+        },
+        {
           "title": "Choose the matching OpenRA application on Mac",
           "instruction": "The stable upstream DMG contains a separate Red Alert, Tiberian Dawn and Dune 2000 application. The reviewed launchers include Intel and Apple Silicon. Copy the complete app you want out of the DMG and open it to finish content setup. Open that app directly to play and preserve its actual OpenRA profile."
         }
@@ -47,5 +64,13 @@
         }
       ]
     }
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The exact Windows/macOS/Linux routes provide separate RedAlert, TiberianDawn and Dune2000 players. Retain explicit game choice instead of assigning one original to the shared project.",
+    "evidence_urls": [
+      "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/README.md",
+      "https://github.com/OpenRA/OpenRA"
+    ]
   }
 }

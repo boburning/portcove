@@ -6,7 +6,7 @@
     "original_game_title": "Rampage: Total Destruction",
     "summary": "This has a statically translated native game runtime and a separate native-engine viewer. Windows play is claimed; portable build targets do not establish tested physical platforms. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/jjmhalew/RampageRE",
-    "platforms": [],
+    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/jjmhalew/RampageRE",
     "manual_setup": {
@@ -28,6 +28,7 @@
     },
     "issue_number": 3046,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://github.com/sponsors/jjmhalew"],
     "artwork": {
       "game_id": 2634,
       "cover_id": 157350,
@@ -35,6 +36,24 @@
       "image_sha256": "cb27ac5e4002ec6828cff6049627b0260199326470b45360860a66476782a31a",
       "game_slug": "rampage-total-destruction",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "rampage-total-destruction",
+      "evidence_urls": [
+        "https://github.com/jjmhalew/RampageRE",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/rampagere-jjmhalew-rampage-total-destruction.json"
+      ],
+      "source_editions": [
+        {
+          "id": "rampage-total-destruction-playstation-2",
+          "title": "Rampage: Total Destruction (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/rampagere-jjmhalew-rampage-total-destruction.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

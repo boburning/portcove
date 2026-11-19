@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "jedeyesniv-art-pacman-ce-pc-recomp",
+    "artwork": {
+      "game_id": 20900,
+      "cover_id": 234086,
+      "image_id": "co50me",
+      "image_sha256": "cea44b3c05ed406820122ae52dd28231d5b2ce4a21e7089304610d89a8066b56",
+      "game_slug": "pac-man-championship-edition",
+      "match_kind": "underlying-game"
+    },
     "name": "Pac-Man Championship Edition (Pac-Man Championship Edition (2007): native PC port)",
     "summary": "Prepared native Windows Pac-Man Championship Edition (2007) player using your own Xbox 360 package or matching extracted files. Upstream owns runtime updates and portable saves; Steam Deck uses Proton.",
     "original_game_title": "Pac-Man Championship Edition",
@@ -34,6 +42,24 @@
         "This guide follows the selected upstream source and release descriptions. Portcove has not checked the archive’s contents or checksum, installed prerequisites, or tested launch, graphics, gameplay or restoring real saves."
       ],
       "help_url": "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp#readme"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pac-man-championship-edition",
+      "evidence_urls": [
+        "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp",
+        "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp#readme"
+      ],
+      "source_editions": [
+        {
+          "id": "pac-man-championship-edition-xbox-360",
+          "title": "Pac-Man Championship Edition (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp/blob/47d15962913edd4547afcbc396120a6a67b5c884/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -45,13 +45,30 @@ const runtimeLayout = {
   runtime_subdirectory: "build-portcove",
 };
 
+// PSXRecomp 7192402 also creates the player's HD texture replacements and
+// dumps under mods/texture-packs/<game id> on every start.
 const splitModPaths = [
   "mods/installed",
   "mods/packages",
   "mods/.staging",
   "mods/state.toml",
   "mods/state.toml.tmp",
+  "mods/texture-packs",
 ];
+
+// Retail BIOS profiles a reviewed kit's own `bios_config` can name. Core's
+// kit guard (psx.rs `kit_bios_profile`) maps the same images.
+const retailBiosProfiles = new Set<unknown>([
+  "psx-scph-1001-bios",
+  "psx-scph-5552-bios",
+  "psx-scph-5500-bios",
+]);
+
+const multidiscFields = [
+  "runtime_source_filename",
+  "launch_disc_choice",
+  "runtime_source_materialization",
+] as const;
 
 const explicitFields = new Set([
   "support_tier",
@@ -65,6 +82,7 @@ const explicitFields = new Set([
   "executable_hints",
   "presentation",
   "bios_source_profile",
+  ...multidiscFields,
 ]);
 
 function isAssetSelector(value: unknown): value is string[] {
@@ -73,6 +91,31 @@ function isAssetSelector(value: unknown): value is string[] {
     value.length > 0 &&
     value.every((hint) => typeof hint === "string" && hint.trim())
   );
+}
+
+class PsxLayoutMismatch extends Error {}
+
+/** Prefer a shared layout only when it reproduces the exact authored integration. */
+export function compactPsxManagedWindows(record: AuthoredPort): AuthoredPort {
+  const { integration } = record;
+  if (record.psx_managed_windows_v1 !== undefined || integration?.adapter !== "psx-recomp-managed")
+    return record;
+  const layoutFields = Object.keys(runtimeLayout);
+  if (layoutFields.some((field) => !Object.hasOwn(integration, field))) return record;
+  const explicitIntegration = JSON.stringify(integration);
+  const facts = { ...integration };
+  for (const field of layoutFields) delete facts[field];
+  const layouts = [true, "bundled-openbios", "split-mods", "split-mods-openbios"] as const;
+  for (const layout of layouts) {
+    const proposed = { ...record, psx_managed_windows_v1: layout, integration: facts };
+    try {
+      if (JSON.stringify(projectPsxManagedWindows(proposed).integration) === explicitIntegration)
+        return proposed;
+    } catch (error) {
+      if (!(error instanceof PsxLayoutMismatch)) throw error;
+    }
+  }
+  return record;
 }
 
 export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
@@ -107,7 +150,7 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
     !integration.source_profile ||
     (bundledOpenBios
       ? Object.hasOwn(integration, "bios_source_profile")
-      : biosProfile !== "psx-scph-1001-bios" && biosProfile !== "psx-scph-5552-bios") ||
+      : !retailBiosProfiles.has(biosProfile)) ||
     !Array.isArray(executable) ||
     executable.length !== 1 ||
     typeof executable[0] !== "string" ||
@@ -120,8 +163,8 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
     record.settings_qualification_v1 !== undefined ||
     record.settings_observation_v1 !== undefined
   )
-    throw new Error(
-      "PSX managed Windows authoring requires the reviewed Windows GitHub kit, a generated player, an explicit disc profile and either retail SCPH-1001 BIOS, an explicit retail SCPH-5552 BIOS, or explicit bundled OpenBIOS without a retail profile. A Linux x64 sibling requires the same generated player basename and an explicit asset selector.",
+    throw new PsxLayoutMismatch(
+      "PSX managed Windows authoring requires the reviewed Windows GitHub kit, a generated player, an explicit disc profile and either retail SCPH-1001 BIOS, an explicit retail SCPH-5552 or SCPH-5500 BIOS, or explicit bundled OpenBIOS without a retail profile. A Linux x64 sibling requires the same generated player basename and an explicit asset selector.",
     );
 
   if (
@@ -138,23 +181,42 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
       linuxAssets[1] !== "-linux-x64.zip" ||
       Object.keys(executableHints).length !== 2)
   )
-    throw new Error(
+    throw new PsxLayoutMismatch(
       "PSX split-mods authoring requires exact Windows and Linux x64 kit selectors and generated players.",
+    );
+
+  const hasMultidiscContract = multidiscFields.some((field) => Object.hasOwn(integration, field));
+  if (
+    hasMultidiscContract &&
+    (layout !== "split-mods" ||
+      integration.runtime_source_filename !== "runtime-discs" ||
+      integration.launch_disc_choice !== "psx-settings-selected" ||
+      integration.runtime_source_materialization !== "psx-raw-set")
+  )
+    throw new PsxLayoutMismatch(
+      "PSX multidisc authoring requires the retail split-mods kit and its reviewed raw-disc settings contract.",
     );
 
   for (const field of Object.keys(runtimeLayout))
     if (Object.hasOwn(integration, field))
-      throw new Error(
+      throw new PsxLayoutMismatch(
         `PSX managed Windows authoring already owns ${field}; use an explicit integration for a different layout.`,
       );
 
   for (const field of Object.keys(integration))
     if (!explicitFields.has(field))
-      throw new Error(
+      throw new PsxLayoutMismatch(
         `PSX managed Windows authoring does not cover ${field}; use an explicit integration for a different layout.`,
       );
 
-  const { presentation, bios_source_profile, ...operation } = integration;
+  const {
+    presentation,
+    bios_source_profile,
+    runtime_source_filename,
+    launch_disc_choice,
+    runtime_source_materialization,
+    ...operation
+  } = integration;
   const projectedLayout = structuredClone(runtimeLayout);
   if (splitMods) {
     projectedLayout.persistent_paths = projectedLayout.persistent_paths.flatMap((path) =>
@@ -171,6 +233,9 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
         : {}),
       ...(presentation === undefined ? {} : { presentation }),
       ...(bios_source_profile === undefined ? {} : { bios_source_profile }),
+      ...(hasMultidiscContract
+        ? { runtime_source_filename, launch_disc_choice, runtime_source_materialization }
+        : {}),
     },
   };
 }

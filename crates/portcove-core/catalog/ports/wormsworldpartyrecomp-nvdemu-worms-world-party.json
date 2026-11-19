@@ -5,10 +5,10 @@
     "name": "Worms World Party — WormsWorldPartyRecomp (NVDEMU)",
     "original_game_title": "Worms World Party",
     "summary": "Experimental project. This native WWP project includes generic mods that are mostly experimental and disabled by default. The README does not establish full-game or platform completion. Updater signature procedures do not establish Portcove executable trust. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-    "project_url": "https://github.com/NVDEMU/WormsWorldPartyRecomp",
+    "project_url": "https://github.com/nvd123-YT/WormsWorldPartyRecomp",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64", "macos-x86-64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/NVDEMU/WormsWorldPartyRecomp",
+    "setup_url": "https://github.com/nvd123-YT/WormsWorldPartyRecomp",
     "manual_setup": {
       "steps": [
         {
@@ -24,7 +24,7 @@
         "This native WWP project includes generic mods that are mostly experimental and disabled by default. The README does not establish full-game or platform completion. Updater signature procedures do not establish Portcove executable trust.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/NVDEMU/WormsWorldPartyRecomp"
+      "help_url": "https://github.com/nvd123-YT/WormsWorldPartyRecomp"
     },
     "issue_number": 3475,
     "listed_at": "2026-10-25",
@@ -35,6 +35,21 @@
       "image_sha256": "1684d392682f169410893ad887957e8f246ad4939ac6f572d521207f15c616a1",
       "game_slug": "worms-world-party",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "worms-world-party",
+      "evidence_urls": ["https://github.com/nvd123-YT/WormsWorldPartyRecomp"],
+      "source_editions": [
+        {
+          "id": "worms-world-party-playstation",
+          "title": "Worms World Party (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/nvd123-YT/WormsWorldPartyRecomp/blob/227645dde0c6382b411b9cb36f4de36bdb715f08/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -47,6 +62,48 @@
         "id": "1428474414"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/NVDEMU/WormsWorldPartyRecomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1428474414"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/nvd123-YT/WormsWorldPartyRecomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1428474414"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The account NVDEMU no longer exists, and the repository's history and contributors continue under nvd123-YT, which is how a renamed owner account appears. A GitHub account rename keeps the repository, its ID and its history. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1428474414",
+            "note": "Repository ID 1428474414, recorded when this port was listed, resolves to nvd123-YT/WormsWorldPartyRecomp."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/users/NVDEMU",
+            "note": "The former owner login NVDEMU returns HTTP 404."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/NVDEMU/WormsWorldPartyRecomp",
+            "note": "The listed path resolves to nvd123-YT/WormsWorldPartyRecomp, repository ID 1428474414."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "9737a88ca2c904c82428cdfb496281a70ae5bd8faa88bcdfaae37300ea06c83c"
+        }
+      }
+    ]
   }
 }

@@ -55,7 +55,22 @@
         }
       ]
     },
-    "download_block_reason": "Fresh bundled-package acquisition remains held for the separately excluded launcher artwork scope in assets/NOTICE.md: boxart.jpg, logo.png and rekhcom.ico belong to Square Enix/Disney and the source-code licence explicitly does not apply. Use only an independently permitted existing copy. Resume fresh acquisition with applicable permission for these exact components or a reviewed compatible package resolving that scope; CC0 source terms do not clear them."
+    "download_block_reason": "Portcove downloads are paused because the package includes scene images captured from the game. They can resume when upstream publishes a package that creates them from your own game files.",
+    "original_game": {
+      "format_version": 1,
+      "id": "kingdom-hearts-chain-of-memories-gba",
+      "evidence_urls": ["https://github.com/MatyMeatBoy/ReKHCoM"],
+      "source_editions": [
+        {
+          "id": "kingdom-hearts-chain-of-memories-gba-game-boy-advance",
+          "title": "Kingdom Hearts: Chain of Memories (GBA) (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/MatyMeatBoy/ReKHCoM/blob/51edf7efa2c49c97a1c389ae2e4cd7e3b749448c/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

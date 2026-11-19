@@ -32,6 +32,25 @@
       "warnings": [],
       "help_url": "https://github.com/izzy2lost/SpaghettiKart/blob/2.0.0/README.md"
     },
-    "release_url": "https://github.com/izzy2lost/SpaghettiKart/releases"
+    "release_url": "https://github.com/izzy2lost/SpaghettiKart/releases",
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-kart-64",
+      "evidence_urls": [
+        "https://github.com/izzy2lost/SpaghettiKart/blob/2.0.0/README.md",
+        "https://github.com/izzy2lost/SpaghettiKart"
+      ],
+      "source_editions": [
+        {
+          "id": "mario-kart-64-nintendo-64",
+          "title": "Mario Kart 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/izzy2lost/SpaghettiKart/blob/9253aad869c96a8e660f707a74fe57c5d4ebdd2a/README.md"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Mario Kart 64"
   }
 }

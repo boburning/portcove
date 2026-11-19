@@ -1,9 +1,9 @@
 name: Release
 run-name: ${{ inputs.report_only_repair && format('Report repair {0}', inputs.report_repair_sha256) || github.event.head_commit.message || github.ref_name }}
 
+# Retired from tag publication by the owner decision on #534 (2026-11-13); `v*` tags
+# now run app-release.yml. Kept for manual historical rehearsal until cleanup.
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
     inputs:
       release_profile:
@@ -519,7 +519,7 @@ jobs:
           path: .
           format: spdx-json
           output-file: release-assets-aggregate/Portcove-SBOM.spdx.json
-          syft-version: v1.56.0
+          syft-version: v1.57.1
           dependency-snapshot: false
           upload-artifact: false
           upload-release-assets: false

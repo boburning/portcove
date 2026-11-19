@@ -1,0 +1,71 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-doom-retro",
+    "name": "Doom / DOOM Retro",
+    "original_game_title": "Doom",
+    "summary": "Play Doom or Freedoom with DOOM Retro’s lighting, display and gameplay options.",
+    "project_url": "https://github.com/bradharding/doomretro",
+    "artwork": {
+      "game_id": 673,
+      "cover_id": 268663,
+      "image_id": "co5rav",
+      "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+      "game_slug": "doom",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 5664,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/bradharding/doomretro/wiki/Starting-a-Game",
+    "release_url": "https://github.com/bradharding/doomretro/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your game data",
+          "instruction": "Use the IWAD from your own Doom installation or a freely available Freedoom IWAD. Pass -iwad followed by the quoted path if you start the engine from a terminal. Keep doomretro.wad in the engine resources directory."
+        },
+        {
+          "title": "Start DOOM Retro on Windows",
+          "instruction": "Extract the complete official x64 ZIP. Start doomretro.exe from that directory and choose your game data. Keep the support files with the executable. In the game console, discordpresence off disables the Windows Discord Rich Presence feature."
+        },
+        {
+          "title": "Build DOOM Retro on Linux",
+          "instruction": "Use tagged upstream source, CMake and the SDL2 and SDL2_mixer development packages. Install the result into a local prefix so bin/doomretro and share/doomretro stay together."
+        },
+        {
+          "title": "Find the Mac source build",
+          "instruction": "The upstream source includes a macOS build target. The v6.3 release supplies no Mac binary. Intel and Apple Silicon builds and runtime behavior still need verification."
+        }
+      ],
+      "warnings": [
+        "The upstream package or your external build owns runtime updates. Keep your game data separate and preserve the active profile before replacing the player."
+      ],
+      "references": [
+        {
+          "title": "Keep your actual configuration and saves",
+          "instruction": "The Windows ZIP stores settings and saves beside the executable. An installed Linux build writes to ~/.config/doomretro, with saves grouped by IWAD under savegames. If your Linux home lacks ~/.config, create it before the first run so the player can make its profile. A portable build can write beside the executable."
+        }
+      ]
+    },
+    "download_block_reason": "The engine WAD includes bonus maps with permission documented for upstream and in-game assets whose terms need verification for Portcove Download. Use the upstream project for an external copy."
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "doom-doom-retro",
+    "origin": {
+      "project_url": "https://github.com/bradharding/doomretro",
+      "repository": {
+        "host": "github.com",
+        "id": "15365681"
+      }
+    },
+    "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The authored source/setup scope explicitly permits Doom or Freedoom originals, with per-IWAD game/save choices. This broad engine record is not scoped to one original game.",
+    "evidence_urls": ["https://github.com/bradharding/doomretro"]
+  }
+}

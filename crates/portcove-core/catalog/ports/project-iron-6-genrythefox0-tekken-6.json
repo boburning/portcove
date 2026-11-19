@@ -7,7 +7,7 @@
     "summary": "Information only. The creator reports Project Iron 6 at 60 FPS and 1080p; it is a beta, with multiplayer and Photo V2 planned. Its files expressly include modified/game-derived content despite containing no ISO. New downloads and redistribution are unavailable until applicable file/source rights and release-manifest provenance are reviewed. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/GenryTheFox0/Project-Iron-6",
     "platforms": [],
-    "availability": "unknown",
+    "availability": "unavailable",
     "download_block_reason": "New downloads and redistribution remain unavailable until the declared modified/game-derived PC files and applicable source/distribution rights are reviewed. A no-ISO statement does not resolve that condition. Information about Project Iron 6 is retained under its existing identity; release-manifest and source provenance must be established before offering the files.",
     "issue_number": 3130,
     "listed_at": "2026-10-25",
@@ -18,6 +18,13 @@
       "image_sha256": "9ee8d6115d06e5e81f2f7c3068c6012528cae77ceb24bc799a66ee46623f93f4",
       "game_slug": "tekken-6--3",
       "match_kind": "underlying-game"
+    },
+    "availability_override_reason": "GitHub has blocked access to this project's repository for legal reasons (checked November 15, 2026). Portcove keeps this listing for reference and offers no setup or download. If the project becomes available again, Portcove can review it again.",
+    "original_game": {
+      "format_version": 1,
+      "id": "tekken-6",
+      "evidence_urls": ["https://github.com/GenryTheFox0/Project-Iron-6"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

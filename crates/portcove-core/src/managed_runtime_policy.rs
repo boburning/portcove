@@ -2,6 +2,50 @@
 //! provider. Offline checks bind the hashed manifest to its registered artifact.
 use crate::{ArtifactIdentity, Platform, PortDefinition, PortcoveError, Result};
 
+pub(crate) const EXACT_EXCLUSION_STAGED_CAPABILITY: u32 = 35;
+
+pub(crate) fn has_exact_exclusions(port: &PortDefinition) -> bool {
+    port.managed_acquisition_hold
+        .as_ref()
+        .is_some_and(|hold| !hold.excluded_artifacts.is_empty())
+}
+
+pub(crate) fn validate_exact_exclusions(port: &PortDefinition) -> Result<()> {
+    let Some(hold) = port
+        .managed_acquisition_hold
+        .as_ref()
+        .filter(|_| has_exact_exclusions(port))
+    else {
+        return Ok(());
+    };
+    if port.adapter != crate::AdapterKind::StagedSourcePortable
+        || port.release.provider != crate::ReleaseSource::Github
+    {
+        return Err(PortcoveError::verification(format!(
+            "{} requires a GitHub staged-source release for exact exclusions",
+            port.id
+        )));
+    }
+    let mut seen = std::collections::HashSet::new();
+    for artifact in hold
+        .excluded_artifacts
+        .iter()
+        .chain(&hold.reviewed_artifacts)
+    {
+        if artifact.version.trim().is_empty()
+            || artifact.sha256.len() != 64
+            || !artifact.sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
+            || !seen.insert((&artifact.version, artifact.sha256.to_ascii_lowercase()))
+        {
+            return Err(PortcoveError::verification(format!(
+                "{} has an invalid or duplicate exact hold artifact",
+                port.id
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Catalog-owned containment for a managed route whose upstream release still
 /// matches its selector but changed reviewed behavior. Ports absent from the
 /// catalog have no hold; their retained definitions keep their own checks.
@@ -20,7 +64,19 @@ pub(crate) fn acquisition_hold_reason<'a>(
     catalog: &'a crate::Catalog,
     port_id: &str,
 ) -> Option<&'a str> {
-    acquisition_hold(catalog, port_id).map(|hold| hold.reason.as_str())
+    acquisition_hold(catalog, port_id)
+        .filter(|hold| hold.excluded_artifacts.is_empty())
+        .map(|hold| hold.reason.as_str())
+}
+
+/// The routes a catalog acquisition hold withdraws: fresh managed acquisition,
+/// whether a first install or an update. Shared by a library's action table and
+/// library-free target inspection so both report the same offering.
+pub(crate) fn hold_withdraws(action: crate::PortAction) -> bool {
+    matches!(
+        action,
+        crate::PortAction::Install | crate::PortAction::Update
+    )
 }
 
 pub(crate) fn require_acquisition_available(catalog: &crate::Catalog, port_id: &str) -> Result<()> {
@@ -30,6 +86,49 @@ pub(crate) fn require_acquisition_available(catalog: &crate::Catalog, port_id: &
     }
 }
 
+pub(crate) fn require_adoption_available(catalog: &crate::Catalog, port_id: &str) -> Result<()> {
+    if acquisition_hold(catalog, port_id).is_some_and(|hold| !hold.excluded_artifacts.is_empty()) {
+        return Err(PortcoveError::unsupported(
+            "Install through Portcove to verify the release archive. An extracted folder cannot prove which release package it came from.",
+        ));
+    }
+    Ok(())
+}
+
+impl crate::ManagedAcquisitionHold {
+    pub(crate) fn excludes(&self, version: &str, sha256: &str) -> bool {
+        self.excluded_artifacts
+            .iter()
+            .any(|artifact| artifact.matches(version, sha256))
+    }
+
+    pub(crate) fn reviewed(&self, version: &str, sha256: &str) -> bool {
+        self.reviewed_artifacts
+            .iter()
+            .any(|artifact| artifact.matches(version, sha256))
+    }
+}
+
+impl crate::ReviewedHoldArtifact {
+    fn matches(&self, version: &str, sha256: &str) -> bool {
+        self.version == version && self.sha256.eq_ignore_ascii_case(sha256)
+    }
+}
+
+pub(crate) fn require_artifact_available(
+    catalog: &crate::Catalog,
+    port_id: &str,
+    version: &str,
+    sha256: &str,
+) -> Result<()> {
+    if let Some(hold) = acquisition_hold(catalog, port_id)
+        && hold.excludes(version, sha256)
+    {
+        return Err(PortcoveError::unsupported(hold.reason.clone()));
+    }
+    Ok(())
+}
+
 pub(crate) fn require_managed_activation_available(
     catalog: &crate::Catalog,
     install: &crate::InstallRecord,
@@ -37,12 +136,11 @@ pub(crate) fn require_managed_activation_available(
     let Some(hold) = acquisition_hold(catalog, &install.port_id) else {
         return Ok(());
     };
-    if hold.reviewed_artifacts.iter().any(|reviewed| {
-        reviewed.version == install.version
-            && reviewed
-                .sha256
-                .eq_ignore_ascii_case(&install.artifact.sha256)
-    }) {
+    let version = &install.version;
+    let sha256 = &install.artifact.sha256;
+    if !hold.excludes(version, sha256)
+        && (!hold.excluded_artifacts.is_empty() || hold.reviewed(version, sha256))
+    {
         return Ok(());
     }
     Err(PortcoveError::unsupported(hold.activation_reason.clone()))
@@ -50,10 +148,14 @@ pub(crate) fn require_managed_activation_available(
 
 pub(crate) fn requires_provider_resolution(port: &PortDefinition) -> bool {
     port.release.provider == crate::ReleaseSource::Github
-        && (port.managed_initialization
-            == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
-            || port.managed_shared_preferences
-                == Some(crate::PreparedSharedPreferencesContract::GbRecompiledWindowsV1)
+        && (matches!(
+            port.managed_initialization,
+            Some(
+                crate::ManagedInitialization::TfeDarkForcesPortableV1
+                    | crate::ManagedInitialization::ChocolateFamilyPortableV1
+            )
+        ) || port.managed_shared_preferences
+            == Some(crate::PreparedSharedPreferencesContract::GbRecompiledWindowsV1)
             || port.runtime_data_policy
                 == Some(crate::RuntimeDataPolicy::VersionLocalRetroAchievementsV1)
             || port.archive_data_compatibility_v1.is_some())
@@ -78,6 +180,7 @@ pub(crate) fn require_native_appimage_artifact(
                     | crate::ExternalProfilePolicy::VkquakeLinuxV1
                     | crate::ExternalProfilePolicy::CorsixthLinuxV1
                     | crate::ExternalProfilePolicy::OpenlocoUnixV1
+                    | crate::ExternalProfilePolicy::EndlessSkyDesktopV1
             )
         )
     {
@@ -271,7 +374,11 @@ mod tests {
         let other = document
             .ports
             .iter()
-            .find(|port| port.id != held && port.managed_acquisition_hold.is_none())
+            .find(|port| {
+                port.adapter == crate::AdapterKind::StagedSourcePortable
+                    && port.release.provider == crate::ReleaseSource::Github
+                    && port.managed_acquisition_hold.is_none()
+            })
             .unwrap()
             .id
             .clone();
@@ -281,6 +388,7 @@ mod tests {
         let hold = crate::ManagedAcquisitionHold {
             reason: "held for review".into(),
             activation_reason: "unreviewed package".into(),
+            excluded_artifacts: Vec::new(),
             reviewed_artifacts: vec![crate::ReviewedHoldArtifact {
                 version: "1.0.0".into(),
                 sha256: "b".repeat(64),
@@ -322,6 +430,83 @@ mod tests {
         install.version = "1.0.1".into();
         let refusal = require_managed_activation_available(&changed, &install).unwrap_err();
         assert!(refusal.message.contains("unreviewed package"));
+
+        let policy = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == other)
+            .unwrap()
+            .managed_acquisition_hold
+            .as_mut()
+            .unwrap();
+        policy.excluded_artifacts.push(crate::ReviewedHoldArtifact {
+            version: "1.0.1".into(),
+            sha256: "b".repeat(64),
+        });
+        let exact = crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        assert!(require_acquisition_available(&exact, &other).is_ok());
+        assert!(require_artifact_available(&exact, &other, "1.0.1", &"B".repeat(64)).is_err());
+        assert!(require_managed_activation_available(&exact, &install).is_err());
+        install.version = "1.0.2".into();
+        assert!(require_managed_activation_available(&exact, &install).is_ok());
+    }
+
+    #[test]
+    fn super_metroid_excludes_v0_4_6_without_withdrawing_acquisition() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let id = "super-metroid-recomp";
+        assert!(require_acquisition_available(&catalog, id).is_ok());
+
+        let staged = |version: &str, sha256: &str| crate::InstallRecord {
+            id: "staged".into(),
+            port_id: id.into(),
+            version: version.into(),
+            path: std::path::PathBuf::from("staged"),
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: true,
+            artifact: crate::ArtifactIdentity {
+                asset_name: format!("supermetroid-{}-windows-x64.zip", &version[1..]),
+                sha256: sha256.into(),
+                size: 1,
+            },
+            manifest_sha256: "a".repeat(64),
+            selected_executable: "SuperMetroidSNESRecomp.exe".into(),
+            runtime: None,
+        };
+        for (version, sha256) in [
+            (
+                "v0.4.2",
+                "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531",
+            ),
+            (
+                "v0.4.5",
+                "337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314",
+            ),
+        ] {
+            assert!(
+                require_managed_activation_available(&catalog, &staged(version, sha256)).is_ok(),
+                "{version}"
+            );
+        }
+        // A published Linux sibling is reviewed too, so it activates.
+        let mut linux = staged(
+            "v0.4.5",
+            "72e6d67a0de4115a1bd943cd33d9e2e2a282315b6f6bd84199c0d05b83f65cbe",
+        );
+        linux.artifact.asset_name = "supermetroid-0.4.5-linux-x64.zip".into();
+        linux.selected_executable = "SuperMetroidSNESRecomp".into();
+        assert!(require_managed_activation_available(&catalog, &linux).is_ok());
+        let refusal = require_managed_activation_available(
+            &catalog,
+            &staged(
+                "v0.4.6",
+                "9a765fdc4ce80ac9cf6147f776f98220b7013ed36210e71f4053463496ec8429",
+            ),
+        )
+        .unwrap_err();
+        assert!(refusal.message.contains("new window"));
     }
 
     const PORTS: [&str; 3] = [

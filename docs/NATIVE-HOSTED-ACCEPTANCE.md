@@ -171,15 +171,33 @@ unreadable logs never establish native acceptance. Failure or an exceeded retent
 bound remains visible and incomplete. The proven reader route is not a promise that
 all future large logs will fit: complete real evidence recovery is an execution gate.
 
+### Linux prerequisite calibration
+
+The permanent `linux-preparation-continuity` route keeps its Ubuntu 22.04 host,
+two existing native selections and 10-minute observation step. Its prerequisite
+step now requests the maintained archive-mirror preference and a 1,200-second APT
+install allowance inside a 30-minute step. The job grows from 60 to 75 minutes,
+retaining its previous 45-minute allowance outside prerequisites. No Windows
+selection or product deadline changes.
+
+The calibration follows temporary qualification run `44395415654/1` on Ubuntu
+24.04: its package index passed, but downloads exhausted the 600-second install
+budget (exit 124) before any application build or native journey. That failed
+attempt is not evidence of the permanent route running. The maintained mirror
+preference selectively rewrites supported Azure entries, without guaranteeing an
+EC2 mirror replacement. Timeout statuses 124/137 still refuse mirror retry on
+possibly interrupted package state; intentional recovery uses a fresh runner.
+
 ## Normal-app presentation and interface sizing
 
 The fixed manual `presentation` operation in `native-design-compatibility.yml`
 uses two isolated standard public `windows-2022` jobs: the maintained
 `presentation` profile and the standalone `native-interface-size` scenario.
 The latter cannot share a selection/library with the profile. Each job records
-its exact source and hosted session before setup, uses the repository-pinned
-quality/native bootstrap and the normal `desktop-verify` plan/build/run owner,
-and retains existing resource, signature, process-identity and cleanup guards.
+its exact source and hosted session before setup, uses the shared hosted Windows
+WebView2 preparation before the repository-pinned quality/native bootstrap and
+the normal `desktop-verify` plan/build/run owner, and retains existing resource,
+signature, process-identity and cleanup guards.
 The 60-minute job allocation leaves setup/build headroom without changing child
 or product deadlines. A failure in one selection does not cancel the other.
 
@@ -208,12 +226,28 @@ standard public Windows setup and native runner as `presentation`. A source-owne
 matrix contains fixed scenario arrays; no dispatch input supplies commands,
 scenario names or alternate source. Each group receives a fresh hosted machine
 and output/temp roots. At most four groups run concurrently, each with a finite
-60-minute outer allowance and unchanged native child deadlines.
+90-minute outer allowance (calibrated from 60 under #4879: about 23 minutes of
+checkpoint inventory and 7.5 minutes of builds precede the harness allowance and
+the driver-availability wait; run 43513519698 lost `update-acquisition` evidence
+at 60) and unchanged product deadlines.
 
-Six bounded groups retain the entire maintained `owned-lifecycle` selection and
-its dependency closure: ready/return/preferences, preparation recovery,
-backup/removal, singleton and batch Steam, source intake/removal/pickers, and
-adoption/library/CLI handoff. The fresh Steam group requires the retained singleton
+Seven bounded groups retain the entire maintained `owned-lifecycle` selection and
+its dependency closure: ready/return/preferences, game update review, preparation
+recovery, backup/removal, singleton and batch Steam, source intake/removal/pickers,
+and adoption/library/CLI handoff. The game update review has its own group because
+its offered release comes from the owned install fixture's direct manifest on
+127.0.0.1, which needs the qualification-fixtures build; the other ready scenarios
+keep the plain build and maintained catalog. Run 43743277016 showed the live
+anonymous provider API failing that review with HTTP 403 on a shared runner. A combined
+local session sees the fixture definition only in the app and the preparation seed.
+Moving the review left owned-ready at eight executed scenarios, below the count that
+granted its 20-minute harness allowance; branch run 43781898959 stopped it at the
+180 s default, so its release-channel restart journey now keeps that allowance, and
+the standalone review receives 10 minutes for its three 60 s-bounded outcome cases.
+That run also stopped two uncalibrated owned-ready waits behind debug-build workspace
+refreshes: a restored launch hold returning to Try launch (10 s) and a failed
+verification re-enabling its action (5 s). Both are calibrated to 60 s.
+The fresh Steam group requires the retained singleton
 report to show the Settings integration entry and exactly one matching eligible
 installation; the broad-profile Manage fallback cannot qualify this group.
 The workflow contract resolves each group through
@@ -224,12 +258,93 @@ acquisition, staged update composition, inert external-runtime registration,
 artwork picking, appearance restart/refresh recovery, and each of the three
 standalone startup-preferences/startup-library/library-switch recovery journeys.
 This preserves the planner's standalone and incompatible-fixture refusals.
+The shared hosted Windows preparation also serves the presentation jobs.
+Public `windows-2022` registers WebView2 below the application's floor, so the
+application correctly refuses to start there. With owner approval (#4879: runtime
+provisioning 2026-11-12; the debugging-port policy and process auditing below
+2026-11-13), a group whose runtime is below the floor downloads Microsoft's Evergreen
+bootstrapper, requires a valid Microsoft Authenticode signature before running it,
+records its digest and the before/after runtime versions, and refuses to continue
+below the floor. Evergreen installs Microsoft's newest runtime, and driver
+bootstrap still requires the exactly matching `msedgedriver`. After Microsoft
+services WebView2 and before it publishes that driver, the exact match cannot be
+met (run 43338537697: runtime 157.0.4341.57, driver 404). The step after
+provisioning checks for that driver once a minute for at most 20 minutes, records
+`webview2-driver-availability.json` when it is available, and otherwise stops the
+group before bootstrap with the runtime version and a re-run instruction. A check
+that gets no response or a server error is retried within the same bound (run
+43502064190 lost `staged-update` to one connection timeout); any other status stops
+the group at once. On the elevated runner
+WebView2 ignores the driver's `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, so the
+step also sets the WebView2 `AdditionalBrowserArguments` machine policy for
+`portcove-desktop.exe` to `--remote-debugging-port=0`; without it no session can
+be created. Groups also enable process-creation auditing, and a failed group
+prints bounded startup diagnostics, scenario failures and its largest retained
+outputs. The acquisition journey calibrates its WebDriver script budget from 15 s
+to 60 s for the debug build's IPC status reads, and its wait for a held fixture
+transfer to start from 10 s to 60 s, and its wait for each update check's review from
+15 s to 60 s; it records the slowest of each. The Windows folder-picker helper's
+outer budget is calibrated from 15 s to 60 s, because its own picker and close waits
+plus a cold `pwsh` start exceeded 15 s, and the selected-setup preparation completion
+wait from 15 s to 120 s, because a hosted preparation was still running at 15 s. A new
+preparation that ends failed or cancelled is reported at once rather than at the deadline.
+The harness IPC bridge raises the WebDriver script budget to at least 60 s for each
+native IPC call and restores the prior budget, because full reads such as `get_statuses`
+during Try launch and `preview_steam_batch_add` exceeded the session's 15 s. The
+preparation scenario calibrates its waits for
+primary navigation after a full reload from 15 s to 60 s, matching the existing Library
+reload wait, because the debug build's re-bootstrap exceeded 15 s. Its wait for Try launch to record a
+successful launch, and the backup review's wait to close after a deletion, are calibrated
+from 15 s to 60 s for the same debug-build status and refresh reads, its waits for the game
+update review after Check for updates and after Update now, and for the ready detail cover
+to settle, from 15 s to 60 s. A product-workflows group of more than eight scenarios that
+includes the preparation journey gets a 20-minute harness watchdog instead of 10, and the
+selected-setup completion journey gets 10 minutes instead of 3. The wait for the
+rollback snapshot's row in Saves & backups is calibrated from 15 s to 60 s: a hosted
+diagnostic (job 132474930950) showed the page's `get_backups` reads settling after
+20.6 s and a fresh read taking 7.4 s, so the reads are slow, not lost. Windows native
+runs enable debug host diagnostics and retain the latest IPC dispatch and
+blocking-worker records beside each scenario failure. With reads no longer serialized,
+run 43616138586 measured debug-build capability reads at 12-15 s, update plans at
+about 10 s and workspace snapshots at 6-15 s. The game update review's release and
+keep-for-later waits are calibrated from 5 s to 60 s, the readiness omission waits
+from 10 s to 60 s, and the library-move and source-intake groups' watchdogs from
+300 s and 180 s to 600 s. The wait for a settled update outcome to close its observation
+review is calibrated from 5 s to 60 s: the review closes after the outcome's
+workspace refresh, and run 43646110119 measured 4-8 s snapshots with a retried read. The waits for a
+supplied update outcome to render after Apply and to show its summary are calibrated
+from 5 s to 60 s: run 43680800015 still showed "Updating…" after 5 s while 12 s
+capability reads ran. The update-acquisition journey's wait for an action to stop
+being busy is calibrated from 15 s to 60 s: the same run kept Play busy past 15 s after
+rollback while a 14 s workspace snapshot, a 6 s follow-up and 13-15 s capability reads
+settled. The wait is shared by every click in that journey, and its report records
+`slowest_actionable_ms`. The waits for Prepare for later to open the game update
+review are calibrated from 5 s to 60 s: run 43707489255 still showed "Checking
+preparation…" after 5 s while the debug build planned the update. The selected-setup
+wait for explicit BIOS registration to expose the Core-eligible selection is calibrated
+from 15 s to 60 s: in the same run the import finished at 23.5 s but the selection
+waits for a fresh ~14 s workspace snapshot. The source-removal wait for the removed
+location's row to leave Game files is calibrated from 15 s to 60 s: in run 43725858503
+the removal write took 6.5 s of the wait, a snapshot started before consent was refused
+as a retryable stale-snapshot conflict after 11 s, and its retry was still running at
+15 s. The
+preparation journey's
+pre-publication catalog copies stay SHA-256 bound but their raw bytes are not
+retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
+the unchanged 12 MiB bound. This makes the fixture
+observable; Server 2022 with a provisioned runtime is not the Windows 11 26H2
+first-beta baseline.
 The update-acquisition group also observes #4879's automatic snapshot surfaces
 after its real activating update of a played fixture: the review and rollback
 copy, exactly one Core snapshot labelled with the from/to versions that holds the
 played save, its Automatic label in history and in a cancelled restore review,
-and the per-library Settings control round-tripping through Core. These are owned
-fixture observations, not real-save (#48) or human-comprehension acceptance.
+and the per-library Settings control round-tripping through Core. Right after
+those checks, and before the later acquisitions and reviewed uninstall, it presses
+a real Restore previous version, which must keep the saves and add exactly one
+snapshot labelled as a rollback with the reverse versions, labelled in history and
+holding the current saves. The fixture save does not change between the update and
+the rollback, so the snapshot's bytes alone do not distinguish it from the update
+snapshot; its distinct identity and rollback label do. These are owned fixture observations, not real-save (#48) or human-comprehension acceptance.
 
 These scenarios exercise real Core/native mutations in disposable first-party
 fixtures. Streamed installation/update bytes, owned process launch and native
@@ -245,3 +360,87 @@ coverage does not relax any scenario assertion, process cleanup, source custody
 or retention limit. A real packet that exceeds the bound remains a failed
 retention obligation; recover and inspect each job's exact images independently.
 The operation supplies no required CI replacement or automatic acceptance claim.
+
+## Hosted installed application update
+
+The manual `hosted-installed-update.yml` workflow (#52) proves one real
+installed application update from the production feed on a fresh standard
+public `windows-2022` runner. It reads public HTTPS only (GitHub Release assets,
+the fixed channel feed and the from-version's own locale file) with
+`contents: read`, no secrets, environments or write tokens. It runs only on
+`workflow_dispatch`; there is no pull-request, push or schedule trigger.
+
+Dispatch it with the installed `from_version` exactly as published (for example
+`0.1.0-preview.2`), its `from_tag` when that is not `v<from_version>` (for
+example `nightly-0.1.0-preview.3`), the `channel` to seed (default `preview`)
+and `wait_minutes` (0-180) to let the feed catch up after a publication. The
+first job compares the production feed with the from-version and retains the
+feed bytes. If the feed does not offer a strictly newer version the Windows job
+is skipped and the final verdict job fails with "not accepted"; a skipped or
+failed run is never acceptance.
+
+The Windows job reuses the shared hosted WebView2 preparation, the pinned
+`native-drivers` bootstrap (tauri-driver and the signature-checked matching
+EdgeDriver) and the installed-update harness helpers for driver startup,
+connection, hashing and Settings navigation. The job points
+`PORTCOVE_SHARED_TOOL_CACHE` into its work directory, because the shared tool
+cache otherwise defaults to `%LOCALAPPDATA%\Portcove\tool-cache`, a default
+Portcove location the scenario requires to be absent before it starts. The
+scenario in `apps/desktop/scripts/desktop-hosted-installed-update.mts`:
+
+1. Downloads the from-version installer and CLI ZIP and verifies both against
+   that release's `SHA256SUMS`, then installs per-user with NSIS `/S` into a
+   work directory and checks the single HKCU registration names that root.
+2. Before the first launch, isolates every Portcove process the harness starts
+   with the existing overrides (`PORTCOVE_LIBRARY`, `PORTCOVE_PREFERENCES`,
+   `PORTCOVE_APPLICATION_UPDATE_PREFERENCES`, `PORTCOVE_APPLICATION_RUNTIME_LOCK`,
+   `PORTCOVE_TEMP_DIR`, `WEBVIEW2_USER_DATA_FOLDER`). It writes the channel
+   preference with automatic checks off, creates the library with the release
+   CLI and seeds deterministic save and settings files under
+   `user/hosted-update-acceptance/`, recording their SHA-256 values. The process
+   the NSIS installer relaunches does not inherit the installer's environment:
+   from an elevated installer, the `/R` relaunch uses
+   `nsis_tauri_utils::RunAsUser`, which starts the app with Explorer's token and
+   an environment Windows builds from the user profile, including
+   `HKCU\Environment`. Before the first session the harness therefore also
+   writes the same overrides there and restores the previous values when the
+   run ends. Step 5 checks that the shipping relaunch, given these
+   profile-level overrides, stays isolated; it does not test whether
+   process-scoped overrides survive the relaunch.
+3. Launches the installed application under WebDriver, opens Settings, Updates,
+   presses Check for updates and requires the offered version to equal the
+   feed's newer version.
+4. Refusal: the release CLI waits at `output reset`'s confirmation prompt, which
+   holds the shared application runtime lease and an open library exactly as a
+   player's terminal would. Download and restart must then show the
+   from-version's localized "library in use" copy, leave the same process
+   running at the same version, executable and registration, and keep the app
+   usable. Answering `n` cancels the CLI with no change.
+5. Presses Download and restart again and observes the application exit, the
+   plugin's passive `/UPDATE` NSIS installer and the automatic relaunch. No
+   relaunch fails the run. A second baseline is taken once the isolated
+   from-version session is ready: Tauri creates its default data folder
+   `%LOCALAPPDATA%\io.github.portcove.portcove` even when WebView2 is redirected,
+   so that bare folder is recorded as what the isolated app creates, not a
+   failure. The run fails if, after the relaunch or by the end, a marker only an
+   unisolated Portcove would write appears since that baseline: the default
+   `%LOCALAPPDATA%\Portcove\Portcove\config\preferences.json`, the
+   `.application-runtime.lock` beside it, the default `data\library`, or
+   WebView2 data under `io.github.portcove.portcove\EBWebView` (the named check
+   reports which). The remaining checks still run
+   so the evidence is complete. The relaunched process is closed, then a fresh
+   WebDriver session checks the new reported version, HKCU registration,
+   replaced executable, unchanged preference bytes and channel, byte-identical
+   player data, a further check and Library navigation. The new release's CLI
+   confirms the library identity is unchanged when that release publishes one.
+
+Evidence (`report.json` with every check, timeline and SHA-256, feed bytes,
+`SHA256SUMS`, locale files, screenshots, driver/CLI/process logs and Portcove
+diagnostics) is uploaded as a workflow artifact for 30 days, including after
+failure or a scenario timeout: `report.json` is rewritten after every event and
+check, and the scenario step's own limit stays below the job's. The step summary
+lists skipped checks separately, the relaunch mode and any default locations
+that appeared. The hosted runner account is an administrator, so this is
+not ordinary-user, physical-device or minimum-OS evidence, and it does not change
+any release, signing or publication authority. Its pure rules are unit-tested in
+`scripts/hosted-installed-update.test.mts`.

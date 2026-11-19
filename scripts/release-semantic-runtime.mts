@@ -393,7 +393,10 @@ export function* semanticObservationRanges(bundle: FrozenSemanticSnapshot) {
       if (!bytes?.length) continue;
       // Include the containing line, so an isolated token or shared prefix is
       // insufficient; binary changes use their actual differing byte extent.
-      const start = prefix === 0 ? 0 : Math.max(0, bytes.lastIndexOf(10, prefix - 1) + 1);
+      // At a line-boundary append or truncation, read the final existing line
+      // to verify the shorter side's boundary and EOF.
+      const boundary = prefix === bytes.length && bytes.at(-1) === 10 ? prefix - 1 : prefix;
+      const start = boundary === 0 ? 0 : bytes.lastIndexOf(10, boundary - 1) + 1;
       const newline = bytes.indexOf(10, Math.max(prefix, bytes.length - suffix));
       const end = newline < 0 ? bytes.length : newline + 1;
       yield range(snapshot, change.path, start, end);

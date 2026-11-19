@@ -35,6 +35,21 @@
       "image_sha256": "2b634bf5a1b84bcdd3bb4d10e9063a3187291781f36f49dc763b81266a9158fc",
       "game_slug": "disgaea-d2-a-brighter-darkness",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "disgaea-d2-a-brighter-darkness",
+      "evidence_urls": ["https://github.com/Sean13128/disgaea-d2-recomp"],
+      "source_editions": [
+        {
+          "id": "disgaea-d2-a-brighter-darkness-playstation-3",
+          "title": "Disgaea D2: A Brighter Darkness (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/Sean13128/disgaea-d2-recomp/blob/d74f8effc6022276851afae95257036307cf4501/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

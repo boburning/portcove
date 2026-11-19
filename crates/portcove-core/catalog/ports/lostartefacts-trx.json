@@ -5,6 +5,14 @@
     "name": "Tomb Raider I-III / TRX (LostArtefacts)",
     "summary": "Set up Tomb Raider I–III with TRX and the original files for the games you own.",
     "project_url": "https://github.com/LostArtefacts/TRX",
+    "artwork": {
+      "game_id": 154439,
+      "cover_id": 163597,
+      "image_id": "co3i8d",
+      "image_sha256": "8953c916fdd82cf8b5f0049f31f22571ffd938762ff69b18a3b2f2ffc95d47e4",
+      "game_slug": "tomb-raider-1-plus-2-plus-3",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 1898,
     "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
@@ -27,7 +35,7 @@
         },
         {
           "title": "Intel and Apple Silicon Mac setup",
-          "instruction": "Mount the universal Mac DMG, copy TRX.app to Applications, and open the installed app once as described by upstream. Use the upstream manual setup guide to place the original game files under the corresponding Contents/Resources/games/<game-id>/ folders. Open TRX.app from Applications to play."
+          "instruction": "The universal TRX 1.12 Mac package requires macOS 14 or later on Intel and Apple Silicon. Mount the DMG, copy TRX.app to Applications, and open the installed app once as described by upstream. Use the upstream manual setup guide to place the original game files under the corresponding Contents/Resources/games/<game-id>/ folders. Open TRX.app from Applications to play."
         }
       ],
       "warnings": [
@@ -41,6 +49,10 @@
           "instruction": "Keep a backup of your original game files, cfg, saves, screenshots and any custom profile directories before replacing the runtime. On Mac, preserve any original game files or player data stored inside the bundle before replacing TRX.app. The upstream guide explains migration from the older combined layout."
         },
         {
+          "title": "Try the bundled Tomb Raider I PC Demo",
+          "instruction": "The TRX 1.12 Linux ZIP and universal Mac DMG include the PC Demo. Choose Tomb Raider I PC Demo in the game selector, or launch the Linux player with --mod tr1-demo-pc. The full game still needs files from your own copy."
+        },
+        {
           "title": "Keep a working copy before updating",
           "instruction": "Extract each new ZIP into a separate folder. Follow the upstream file map for the originals you supply and keep the build-provided files with their version. Preserve saves, screenshots, configuration and any paths selected through TRX_DIR or the documented TRX path overrides before switching your registration."
         }
@@ -51,6 +63,15 @@
       "linux-x86-64": ["TRX-", "-Linux.zip"],
       "macos-x86-64": ["TRX-", "-Mac.dmg"],
       "macos-aarch64": ["TRX-", "-Mac.dmg"]
-    }
+    },
+    "download_block_reason": "Published TRX packages bundle the Tomb Raider II Golden Mask expansion levels, converted game images and music, and data injections built from the original games. The engine licence does not cover that game content and Portcove has no permission for it, so Portcove does not download these packages. Use an existing copy you are permitted to use. Reconsider with a program-only package or attributable permission for the included content."
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The record explicitly spans TombRaiderI–III through a shared engine. Those are distinct original games; do not choose one as the umbrella identity.",
+    "evidence_urls": [
+      "https://github.com/LostArtefacts/TRX/blob/develop/docs/trx/INSTALLING.md",
+      "https://github.com/LostArtefacts/TRX"
+    ]
   }
 }

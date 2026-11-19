@@ -135,6 +135,38 @@ it("lists every affected path, removed settings and preserved data before explic
   expect(close).toHaveBeenCalledOnce();
 });
 
+it("names unrecognized files and their backup before consent", async () => {
+  vi.spyOn(desktopApi, "previewRemoval").mockResolvedValue({
+    ...review,
+    unknown_file_count: 3,
+    unknown_files: ["player/settings.ini", "player/logs/replay.txt"],
+    unknown_file_bytes: 3 * 1024 * 1024,
+  });
+  await root.rerender(
+    <RemovalReviewDialog port={port} generation={7} apply={vi.fn()} close={vi.fn()} />,
+  );
+  await expect.poll(() => dialog().textContent).toContain("Files Portcove didn't install: 3.");
+  for (const text of [
+    "player/settings.ini",
+    "player/logs/replay.txt",
+    "copies them to a new backup before uninstalling",
+    "Restoring a backup doesn't put them back.",
+    "Files not listed here: 1",
+    "These files take 3.0 MiB in the backup, which stays until you delete it.",
+  ])
+    expect(dialog().textContent).toContain(text);
+});
+
+it("omits unrecognized files when there are none", async () => {
+  vi.spyOn(desktopApi, "previewRemoval").mockResolvedValue(review);
+  await root.rerender(
+    <RemovalReviewDialog port={port} generation={7} apply={vi.fn()} close={vi.fn()} />,
+  );
+  await expect.poll(() => dialog().textContent).toContain(review.persistent_data_path);
+  expect(dialog().textContent).not.toContain("didn't install");
+  expect(dialog().textContent).not.toContain("in the backup");
+});
+
 it("dismisses a removal review without applying it", async () => {
   vi.spyOn(desktopApi, "previewRemoval").mockResolvedValue(review);
   const apply = vi.fn();

@@ -1,0 +1,70 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "populous-the-beginning-openpoptb",
+    "artwork": {
+      "game_id": 5525,
+      "cover_id": 100323,
+      "image_id": "co25er",
+      "image_sha256": "e41e163b6dc71ebbb75dedaa74cf7d8bfe14b66989166513cead45dd86863149",
+      "game_slug": "populous-the-beginning",
+      "match_kind": "underlying-game"
+    },
+    "project_url": "https://github.com/iagodemacedo/OpenPopTB-MacOS",
+    "name": "Populous: The Beginning / OpenPopTB",
+    "original_game_title": "Populous: The Beginning",
+    "summary": "Prepare the upstream Apple Silicon player from your own Populous: The Beginning files.",
+    "issue_number": 6100,
+    "listed_at": "2026-11-15",
+    "platforms": ["macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/iagodemacedo/OpenPopTB-MacOS/releases/tag/v0.2.1",
+    "setup_url": "https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/v0.2.1/README.md",
+    "download_block_reason": "Open the publisher’s release for the Apple Silicon ZIP. The app builds from your owned game files.",
+    "manual_setup": {
+      "help_url": "https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/v0.2.1/README.md",
+      "steps": [
+        {
+          "title": "Choose the Apple Silicon app",
+          "instruction": "The standard Populous TB.app uses the original software renderer. Populous TB (Direct3D).app uses your D3DPopTB.exe, and Populous UW.app needs popTBUW.exe for Undiscovered Worlds. The ZIP requires macOS 14 or later and Apple’s Command Line Tools for first launch."
+        },
+        {
+          "title": "Prepare a writable working copy",
+          "instruction": "Make a separate writable copy of your installed GOG game, including QMixer.dll, WEANETR.dll, and the data, levels, sound, and fmv folders. Choose that folder in the app. Compare the executable and libraries to the tested hashes in upstream’s guide. For Direct3D, see the D3DPopTB.exe hash in the tagged runtime source. The app builds locally from your copy and can also unpack the owned GOG offline installer with its companion files."
+        },
+        {
+          "title": "Back up the actual save directory",
+          "instruction": "Keep save from the chosen working folder and retain your original files. The apps share ~/Library/Application Support/OpenPopTB for the remembered directory and generated code. Before selecting an installer again or changing variants, back up the active save folder and any app-extracted Game folder. Use the upstream release when replacing the app."
+        }
+      ],
+      "warnings": [
+        "Installer extraction can replace the shared Game folder. Keep separate working folders for variants when you want separate saves.",
+        "The exact downloadable package is Apple Silicon only. Multiplayer is still in development."
+      ],
+      "references": [
+        {
+          "title": "Check the Direct3D original",
+          "instruction": "The D3DPopTB.exe hash is listed at https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/e888d11ddb4810758c33d55bd6e0a7144e804409/runtime/prepare.c#L350."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "populous-the-beginning",
+      "evidence_urls": [
+        "https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/v0.2.1/README.md",
+        "https://github.com/iagodemacedo/OpenPopTB-MacOS"
+      ],
+      "source_editions": [
+        {
+          "id": "populous-the-beginning-pc",
+          "title": "Populous: The Beginning (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/1b1c58ef33e0e45b502ec8f09301617e1098d51f/README.md"
+          ]
+        }
+      ]
+    }
+  }
+}

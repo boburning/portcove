@@ -4,6 +4,14 @@
     "id": "luigismansion-sp00nznet-luigi-s-mansion",
     "name": "Luigi's Mansion — luigismansion (sp00nznet)",
     "original_game_title": "Luigi's Mansion",
+    "artwork": {
+      "game_id": 2485,
+      "cover_id": 89101,
+      "image_id": "co1wr1",
+      "image_sha256": "b8e7dc5883d4c3c523f75c3d558fa5d119da65196f8ad3c32e477685cb3f6601",
+      "game_slug": "luigi-s-mansion",
+      "match_kind": "underlying-game"
+    },
     "summary": "Upstream reports early runtime, audio and operating-system initialization, followed by a scheduler loop polling RunQueueBits with an uninitialized interrupt-handler table. No title screen or gameplay is available. Yasiki’s completed decompilation supplies symbols; it does not make this port complete. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/luigismansion",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/sp00nznet/luigismansion"
     },
-    "issue_number": 3436
+    "issue_number": 3436,
+    "original_game": {
+      "format_version": 1,
+      "id": "luigi-s-mansion",
+      "evidence_urls": ["https://github.com/sp00nznet/luigismansion"],
+      "source_editions": [
+        {
+          "id": "luigi-s-mansion-nintendo-gamecube",
+          "title": "Luigi's Mansion (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/luigismansion/blob/99a4188d3ce7902ef7efbf9c3ab497b8984ad8b8/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -4,12 +4,20 @@
     "id": "soulcalibur-iii-recomp-arzaroth-soulcalibur-iii",
     "name": "Soulcalibur III — Soulcalibur III Recomp (Arzaroth)",
     "original_game_title": "Soulcalibur III",
+    "artwork": {
+      "game_id": 1566,
+      "cover_id": 213347,
+      "image_id": "co4kmb",
+      "image_sha256": "59c5025aa359bf8c20063b21b73d13444cd32e141723a9eea26c41e08865923d",
+      "game_slug": "soulcalibur-iii",
+      "match_kind": "underlying-game"
+    },
     "summary": "This work in progress is reported to reach menus, character selection and fights with voices and music at one-third speed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-    "project_url": "https://github.com/Arzaroth/SoulCaliburIII_Recomp",
+    "project_url": "https://github.com/TheBozos/SoulCaliburIII_Recomp",
     "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Arzaroth/SoulCaliburIII_Recomp",
+    "setup_url": "https://github.com/TheBozos/SoulCaliburIII_Recomp",
     "manual_setup": {
       "steps": [
         {
@@ -25,9 +33,24 @@
         "This work in progress is reported to reach menus, character selection and fights with voices and music at one-third speed.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/Arzaroth/SoulCaliburIII_Recomp"
+      "help_url": "https://github.com/TheBozos/SoulCaliburIII_Recomp"
     },
-    "issue_number": 3033
+    "issue_number": 3033,
+    "original_game": {
+      "format_version": 1,
+      "id": "soulcalibur-iii",
+      "evidence_urls": ["https://github.com/TheBozos/SoulCaliburIII_Recomp"],
+      "source_editions": [
+        {
+          "id": "soulcalibur-iii-playstation-2",
+          "title": "Soulcalibur III (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/TheBozos/SoulCaliburIII_Recomp/blob/98d189bfb5dbf9e3965d247a3eee4119fef15f89/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -39,6 +62,48 @@
         "id": "1429680367"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/Arzaroth/SoulCaliburIII_Recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1429680367"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/TheBozos/SoulCaliburIII_Recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1429680367"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The repository moved from Arzaroth to TheBozos. GitHub only lets an administrator of the original repository transfer it, and Arzaroth authored its history and remains a contributor. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1429680367",
+            "note": "Repository ID 1429680367, recorded when this port was listed, resolves to TheBozos/SoulCaliburIII_Recomp."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repos/TheBozos/SoulCaliburIII_Recomp/contributors",
+            "note": "Arzaroth is listed among the current repository's contributors."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/Arzaroth/SoulCaliburIII_Recomp",
+            "note": "The listed path resolves to TheBozos/SoulCaliburIII_Recomp, repository ID 1429680367."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "1d6219401008c90933534a15021e612735fcf2fff850c2bdf18993f27be63644"
+        }
+      }
+    ]
   }
 }

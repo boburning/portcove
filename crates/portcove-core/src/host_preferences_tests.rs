@@ -609,3 +609,42 @@ fn locale_preference_persists_independently_and_rejects_invalid_tags() {
     assert_eq!(restarted.locale_preference().unwrap(), None);
     assert!(restarted.load().unwrap().library_root.is_some());
 }
+
+#[test]
+fn official_catalog_automatic_updates_default_on_and_persist_an_explicit_off() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("preferences.json");
+    let store = HostPreferenceStore::new(path.clone()).unwrap();
+    // A fresh host and an existing document without the choice are both on.
+    assert!(store.official_catalog_automatic_updates().unwrap());
+    assert!(!path.exists());
+    store.set_locale_preference(Some("en-US")).unwrap();
+    assert!(store.official_catalog_automatic_updates().unwrap());
+
+    store.set_official_catalog_automatic_updates(false).unwrap();
+    let restarted = HostPreferenceStore::new(path.clone()).unwrap();
+    assert!(!restarted.official_catalog_automatic_updates().unwrap());
+    assert_eq!(
+        restarted.locale_preference().unwrap().as_deref(),
+        Some("en-US")
+    );
+
+    restarted
+        .set_official_catalog_automatic_updates(true)
+        .unwrap();
+    assert!(restarted.official_catalog_automatic_updates().unwrap());
+    assert!(
+        !fs::read_to_string(&path)
+            .unwrap()
+            .contains("official_catalog_automatic_updates")
+    );
+
+    fs::write(
+        &path,
+        br#"{"format_version":1,"library_root":null,"official_catalog_automatic_updates":"later"}"#,
+    )
+    .unwrap();
+    assert!(restarted.official_catalog_automatic_updates().is_err());
+    // A malformed choice does not block unrelated preferences.
+    assert_eq!(restarted.locale_preference().unwrap(), None);
+}

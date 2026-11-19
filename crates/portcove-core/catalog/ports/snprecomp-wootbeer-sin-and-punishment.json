@@ -2,11 +2,18 @@
   "format_version": 1,
   "listing": {
     "id": "snprecomp-wootbeer-sin-and-punishment",
+    "artwork": {
+      "game_id": 1467,
+      "cover_id": 85687,
+      "image_id": "co1u47",
+      "image_sha256": "8fecac0c2aacf3b0b0eb0ff86932d3b0f6e8ac2bf81d562d89edefadccb8bf99",
+      "game_slug": "sin-and-punishment",
+      "match_kind": "underlying-game"
+    },
     "name": "Sin and Punishment — snprecomp (wootbeer)",
     "original_game_title": "Sin and Punishment",
     "summary": "Native Sin and Punishment with an original-ROM picker and separate saves for supported Japanese and English versions.",
     "project_url": "https://github.com/wootbeer/snprecomp",
-    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/wootbeer/snprecomp",
     "manual_setup": {
@@ -17,11 +24,7 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Extract the complete package to a writable folder. On Windows run SnPRecompiled.exe. On Linux run SnPRecompiled.sh from the extracted folder. Choose Load ROM and select your own supported copy, then start the game."
-        },
-        {
-          "title": "Use the prepared Linux copy",
-          "instruction": "After completing upstream setup, select the SnPRecompiled binary as the executable and its containing folder as the working directory. Choose Play when you want to start that external copy. The .exe in the next step is for Windows."
+          "instruction": "Extract the complete package to a writable folder. On Windows run SnPRecompiled.exe. On Linux run SnPRecompiled.sh from the extracted folder. Choose Load ROM and select your own supported copy, then start the game. To register a Linux copy, select the SnPRecompiled program, not SnPRecompiled.sh."
         }
       ],
       "warnings": [
@@ -31,10 +34,6 @@
       "help_url": "https://github.com/wootbeer/snprecomp",
       "references": [
         {
-          "title": "Keep the right saves",
-          "instruction": "Keep the installed snprecomp profile and your original files before replacing the package. On Linux, the default profile is ~/.config/snprecomp. The portable.txt mode stores data with the application. Japanese and English profiles have separate saves."
-        },
-        {
           "title": "Set up the separate Android ARM64 app",
           "instruction": "Use SnPRecompiled-0.2.11-android.apk from the upstream release on Android 9 or newer. It needs a Vulkan driver with descriptor indexing. Open the app and choose Load ROM to select your original with the system picker. The app copies it into its own storage."
         }
@@ -43,11 +42,22 @@
     "issue_number": 3564,
     "listed_at": "2026-10-25",
     "release_url": "https://github.com/wootbeer/snprecomp/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["SnPRecompiled-", "-windows.zip"],
-      "linux-x86-64": ["SnPRecompiled-", "-linux-x86_64.tar.gz"]
-    },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "sin-and-punishment",
+      "evidence_urls": ["https://github.com/wootbeer/snprecomp"],
+      "source_editions": [
+        {
+          "id": "sin-and-punishment-nintendo-64",
+          "title": "Sin and Punishment (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/wootbeer/snprecomp/blob/6e76c24c84e6fc65faeae89e8e75d7fac92aba1f/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -70,6 +80,50 @@
       "data_locations": [
         "the existing snprecomp profile or the application folder when portable.txt is present"
       ]
+    },
+    "managed_native": {
+      "preparation": {
+        "title": "Set up the managed copy on first Play",
+        "instruction": "Choose Load ROM and select your own supported Japanese or English Sin and Punishment ROM (see Check the required game files). The player keeps a copy in its snprecomp profile, with separate saves for Japanese and English. Back up that profile separately before changing versions."
+      },
+      "warnings": [
+        "The profile is %LOCALAPPDATA%\\snprecomp on Windows and ~/.config/snprecomp on Linux; a separately prepared copy without portable.txt shares it. Use a separate upstream copy for portable.txt mode. Do not use Add to Steam from the managed copy: the shortcut points at one version folder, starts the game outside Portcove and stays in Steam after removal. The Linux x86-64 player needs glibc 2.38 or later and system SDL2, Vulkan, X11, FreeType and D-Bus libraries; Load ROM uses the desktop file-chooser portal."
+      ]
     }
-  }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "wootbeer/snprecomp",
+      "asset_hints": {
+        "windows-x86-64": ["SnPRecompiled-", "-windows.zip"],
+        "linux-x86-64": ["SnPRecompiled-", "-linux-x86_64.tar.gz"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["SnPRecompiled.exe"],
+      "linux-x86-64": ["SnPRecompiled"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned"
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["assets", "licenses"],
+        "executables": ["snprecompiled.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["assets", "licenses"],
+        "executables": ["snprecompiled", "snprecompiled.sh"]
+      }
+    }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"]
 }

@@ -27,13 +27,14 @@ import assert from "node:assert/strict";
 import { planDesktopExecution } from "../../../scripts/desktop-execution-plan.mts";
 import { runOwnedFixtureJourneys } from "./desktop-owned-fixture-journeys.mts";
 import { observeDesktopScenario, recordDesktopCheck } from "./desktop-scenario-outcomes.mts";
-import { spawn } from "node:child_process";
+import { ChildProcess, spawn } from "node:child_process";
+import { once } from "node:events";
 import {
   DesktopNativeAccountSession,
   AccountDriverView,
 } from "./desktop-native-account-session.mts";
 import { writeFileSync } from "node:fs";
-import { mkdir, readFile, writeFile, lstat } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile, lstat, rename } from "node:fs/promises";
 import path from "node:path";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
@@ -90,10 +91,13 @@ import {
 import { preparationScenarios } from "./desktop-preparation-test.mts";
 import { seedSelectedSetup, selectedSetupScenario } from "./desktop-source-dialog-test.mts";
 import { selectedSetupCompletionScenario } from "./desktop-selected-setup-completion-test.mts";
+import { setupBatchScenario, largeSetupReviewScenario } from "./desktop-setup-batch-test.mts";
+import { standingSetupScenario } from "./desktop-standing-setup-test.mts";
 import { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import { controllerScenario } from "./desktop-controller-test.mts";
 import { accessibleNavigationScenario } from "./desktop-accessibility-test.mts";
 import { interfaceSizeScenario } from "./desktop-interface-size-test.mts";
+import { collectionArtworkScenario } from "./desktop-collection-artwork-test.mts";
 import { reloadScenario } from "./desktop-reload-test.mts";
 import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mts";
 import {
@@ -106,6 +110,7 @@ import {
 import {
   revealDetailSection,
   clickVisible,
+  replaceKeyboardText,
   assertCompactReview,
   captureAccessibilityReport,
   selectPrimaryNavigation,
@@ -115,7 +120,11 @@ import {
   clearCatalogFilters,
   catalogResultPortIds,
 } from "./desktop-review-controls.mts";
-import { createInstallFixture } from "./desktop-install-fixture.mts";
+import {
+  createInstallFixture,
+  prepareLargeSetupReviewFixture,
+  prepareReviewedSetupBatchFixture,
+} from "./desktop-install-fixture.mts";
 import {
   createExternalRuntimeFixture,
   externalFixtureTreeDigest,
@@ -353,6 +362,7 @@ const { inputs, runnerMetadata, metadataPhases } = await observeDesktopHarnessIn
 let acceptancePreflight: Awaited<ReturnType<typeof writeAcceptancePreflight>> | undefined;
 const packetFixtureIdentities: (FileIdentity & { role: string })[] = [];
 type InstallFixture = Awaited<ReturnType<typeof createInstallFixture>>;
+let largeSetupReviewFixture: Awaited<ReturnType<typeof prepareLargeSetupReviewFixture>> | undefined;
 let installFixture:
   | (Omit<InstallFixture, "sourceJourney"> & {
       sourceJourney:
@@ -400,6 +410,7 @@ const linuxSelectedSession =
         [
           "native-selected-setup-completion",
           "native-saved-folder-selected-setup",
+          "native-large-discovery-setup-review",
           "native-linux-packaged-webview-boundary",
           "native-linux-webview-origin-boundary",
           "native-linux-interrupted-preparation",
@@ -614,7 +625,12 @@ async function stopDriver() {
     stopBackupFocusDriver();
     return;
   }
-  if (!driver?.pid || driver.exitCode !== null) return;
+  if (
+    !driver?.pid ||
+    driver.exitCode !== null ||
+    (process.platform === "linux" && driver.signalCode !== null)
+  )
+    return;
   if (historySession) {
     assert.ok(historyInventory, "History cleanup cannot signal without captured driver identity");
     if (!(await historyDriverStillOwned(historyInventory))) return;
@@ -781,17 +797,18 @@ async function verifySettingsRows() {
     await savedFolders.isDisplayed(),
     "saved game-file roots did not load from the native service",
   );
-  assert.equal(
-    await browser
-      .findElement(
-        By.xpath(
-          '//*[@data-settings-group="game-files"]//button[normalize-space(.)="Scan saved folders"]',
-        ),
-      )
-      .isEnabled(),
-    false,
-    "an empty saved-root registry must not start a scan",
+  const scanLink = await browser.findElement(By.css("[data-open-game-file-scan]"));
+  await scanLink.click();
+  const scan = await browser.wait(
+    until.elementLocated(
+      By.xpath('//*[@id="add-games-scan"]//button[normalize-space(.)="Scan saved folders"]'),
+    ),
+    5_000,
   );
+  assert.equal(await scan.isEnabled(), false, "an empty saved-root registry must not start a scan");
+  await browser
+    .findElement(By.xpath('//button[normalize-space(.)="Back to Game files settings"]'))
+    .click();
   await selectSettingsCategory("advanced");
   const bundleWarningVisible = await executeBrowserScript(browser, () => {
     const card = document.querySelector('[data-settings-group="advanced"] .diagnostics-card');
@@ -812,7 +829,7 @@ async function verifySettingsRows() {
   await browser
     .findElement(
       By.xpath(
-        '//*[@data-settings-group="advanced"]//button[normalize-space(.)="Create support bundle"]',
+        '//*[@data-settings-group="advanced"]//button[normalize-space(.)="Create a support report"]',
       ),
     )
     .click();
@@ -855,21 +872,16 @@ async function verifySettingsRows() {
                   fits: element.scrollWidth <= element.clientWidth + 1,
                 };
               };
-              const groups = [group];
+              const content = document.querySelector(
+                `[data-settings-group="${group}"] .settings-section-content`,
+              );
+              if (!(content instanceof HTMLElement)) throw new Error(`Missing ${group}`);
+              const children = [...content.children];
+              if (!children.every((child) => child.classList.contains("settings-row")))
+                throw new Error(`${group} contains an unmigrated Settings card`);
               return {
                 viewportWidth: window.innerWidth,
-                groups: Object.fromEntries(
-                  groups.map((group) => {
-                    const content = document.querySelector(
-                      `[data-settings-group="${group}"] .settings-section-content`,
-                    );
-                    if (!(content instanceof HTMLElement)) throw new Error(`Missing ${group}`);
-                    const children = [...content.children];
-                    if (!children.every((child) => child.classList.contains("settings-row")))
-                      throw new Error(`${group} contains an unmigrated Settings card`);
-                    return [group, { content: rect(content), rows: children.map(rect) }];
-                  }),
-                ),
+                groups: { [group]: { content: rect(content), rows: children.map(rect) } },
                 bundlePathFits:
                   group !== "advanced" ||
                   (() => {
@@ -880,19 +892,32 @@ async function verifySettingsRows() {
                       throw new Error("Saved bundle path is missing");
                     return path.scrollWidth <= path.clientWidth + 1;
                   })(),
-                recommendationFits:
+                updatePreferencesFit:
                   group !== "updates" ||
                   (() => {
-                    const label = document.querySelector(
-                      '[aria-label="Application update mode"] button small',
+                    const channelGroup = content.querySelector(
+                      '[role="group"][aria-labelledby="application-update-channel-label"]',
                     );
-                    const button = label?.closest("button");
-                    if (!(label instanceof HTMLElement) || !(button instanceof HTMLElement))
-                      throw new Error("Recommended update-mode label is missing");
-                    return (
-                      label.getBoundingClientRect().bottom <=
-                      button.getBoundingClientRect().bottom - 2
+                    const channels = [...(channelGroup?.querySelectorAll("button") ?? [])];
+                    const description = content.querySelector(
+                      "#application-update-automatic-checks-description",
                     );
+                    if (channels.length !== 2 || !(description instanceof HTMLElement)) {
+                      throw new Error(
+                        "Expected the update channel controls and automatic-check description",
+                      );
+                    }
+                    return [...channels, description].every((element) => {
+                      const bounds = element.getBoundingClientRect();
+                      const parentBounds = element.parentElement!.getBoundingClientRect();
+                      return (
+                        bounds.width > 0 &&
+                        bounds.left >= parentBounds.left - 1 &&
+                        bounds.right <= parentBounds.right + 1 &&
+                        element.scrollWidth <= element.clientWidth + 1 &&
+                        element.scrollHeight <= element.clientHeight + 1
+                      );
+                    });
                   })(),
               };
             },
@@ -957,15 +982,15 @@ interface SettingsRows {
   viewportWidth: number;
   groups: Record<string, { content: SettingsRect; rows: SettingsRect[] }>;
   bundlePathFits: boolean;
-  recommendationFits: boolean;
+  updatePreferencesFit: boolean;
 }
 function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; height: number }) {
   const expectedRows: Record<string, number> = {
     appearance: 3,
-    "library-storage": 3,
-    "game-files": 3,
-    updates: 2,
-    integrations: 2,
+    "library-storage": 4,
+    "game-files": 4,
+    updates: 3,
+    integrations: 3,
     controls: 2,
     advanced: 3,
   };
@@ -985,11 +1010,18 @@ function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; he
   }
   assert.ok(rows.viewportWidth <= size.width);
   assert.equal(rows.bundlePathFits, true, "saved bundle path is clipped");
-  assert.equal(rows.recommendationFits, true, "recommended update mode label is clipped");
+  assert.equal(rows.updatePreferencesFit, true, "update preferences are clipped");
 }
 
 async function verifyLongTitleCatalogDetail(theme: string) {
   const browser = driverBrowser();
+  // The full catalog is windowed: find the target through normal search before
+  // requiring its exact port action, rather than assuming every card is mounted.
+  await replaceKeyboardText(
+    browser,
+    await browser.findElement(By.id("port-search")),
+    "Castlevania",
+  );
   await selectCatalogPort(browser, "cvlod-recomp");
   await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
   await browser.wait(
@@ -1050,7 +1082,7 @@ async function verifyLongTitleCatalogDetail(theme: string) {
     assert.equal(layout.title, "Castlevania: Legacy of Darkness");
     assert.equal(layout.project, "Castlevania: Legacy of Darkness Recompiled");
     assert.equal(layout.titleFits, true, JSON.stringify(layout));
-    assert.equal(layout.action.label, "Finish setup");
+    assert.equal(layout.action.label, "Choose files");
     assert.equal(layout.horizontalOverflow, false);
     assert.ok(
       layout.action.top >= 0 &&
@@ -1072,23 +1104,33 @@ async function refreshSettings(category?: string) {
   // WebView's refresh command can return while the previous renderer is still visible.
   // Select the category only after the new document and workspace have settled.
   await browser.wait(until.stalenessOf(previousDocument), 15_000);
-  await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
+  // Calibrated from 15 s, like the preparation reload waits: hosted job
+  // 132439346494 left the reloaded Settings document without primary navigation
+  // at 15 s while the debug build re-bootstrapped. Returns once it renders.
+  await browser.wait(
+    until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+    60_000,
+    "Reloaded Settings did not render primary navigation",
+  );
   await browser.wait(
     () => executeBrowserScript(browser, () => document.querySelector(".loading-state") === null),
-    15_000,
+    60_000,
+    "Reloaded Settings did not finish loading",
   );
   await selectPrimaryNavigation(browser, "Settings");
   if (category) await selectSettingsCategory(category);
 }
 
-async function selectSettingsCategory(id: string) {
+async function selectSettingsCategory(id: string, activation: "pointer" | "keyboard" = "pointer") {
   const browser = driverBrowser();
   await selectPrimaryNavigation(browser, "Settings");
   const category = By.css(
     `nav[aria-label="Settings categories"] button[aria-controls="settings-${id}"]`,
   );
   await browser.wait(until.elementLocated(category), 15_000);
-  await clickVisible(browser, await browser.findElement(category));
+  const control = await browser.findElement(category);
+  if (activation === "keyboard") await control.sendKeys(Key.ENTER);
+  else await clickVisible(browser, control);
   await browser.wait(
     () =>
       executeBrowserScript(
@@ -1140,6 +1182,29 @@ async function requireUnusedPort(number: number) {
     server.close((error) => (error ? reject(error) : resolve())),
   );
 }
+
+// Timeout calibration (docs/QUALITY.md): the WebDriver script budget bounds the
+// IPC bridge below, and on hosted Windows debug builds full reads such as
+// get_statuses and preview_steam_batch_add exceeded the session's 15 s (jobs
+// 132410024452, 132417354793). IPC calls use at least 60 s and restore the prior
+// budget; DOM scripts and product deadlines are unchanged.
+const ipcScriptBudgetMs = 60_000;
+
+async function withIpcScriptBudget<Result>(run: () => Promise<Result>): Promise<Result> {
+  const timeouts = required(browser).manage() as {
+    getTimeouts?: () => Promise<{ script?: number | null }>;
+    setTimeouts(values: { script: number }): Promise<void>;
+  };
+  // The Linux inspector protocol has no WebDriver script budget to widen.
+  if (typeof timeouts.getTimeouts !== "function") return run();
+  const prior = (await timeouts.getTimeouts()).script ?? 15_000;
+  await timeouts.setTimeouts({ script: Math.max(prior, ipcScriptBudgetMs) });
+  try {
+    return await run();
+  } finally {
+    await timeouts.setTimeouts({ script: prior });
+  }
+}
 function invoke(
   command: "get_bootstrap_status",
   args?: object | null,
@@ -1179,21 +1244,23 @@ function invoke(
 function invoke(command: string, args?: object | null): Promise<IpcReply<unknown>>;
 async function invoke(command: string, args: object | null = {}): Promise<IpcReply<unknown>> {
   const observer: MainBoundaryBrowser = required(browser);
-  const serialized = await observer.executeAsyncScript(
-    (name, input, done) => {
-      const native = (
-        window as Window & {
-          __TAURI_INTERNALS__?: { invoke(name: string, input: object | null): Promise<unknown> };
-        }
-      ).__TAURI_INTERNALS__;
-      if (!native) throw new Error("Native IPC bridge is missing");
-      void native.invoke(name, input).then(
-        (value) => done(JSON.stringify({ ok: true, value })),
-        (error: unknown) => done(JSON.stringify({ ok: false, error })),
-      );
-    },
-    command,
-    args,
+  const serialized = await withIpcScriptBudget(() =>
+    observer.executeAsyncScript(
+      (name, input, done) => {
+        const native = (
+          window as Window & {
+            __TAURI_INTERNALS__?: { invoke(name: string, input: object | null): Promise<unknown> };
+          }
+        ).__TAURI_INTERNALS__;
+        if (!native) throw new Error("Native IPC bridge is missing");
+        void native.invoke(name, input).then(
+          (value) => done(JSON.stringify({ ok: true, value })),
+          (error: unknown) => done(JSON.stringify({ ok: false, error })),
+        );
+      },
+      command,
+      args,
+    ),
   );
   const parsed: unknown = JSON.parse(text(serialized));
   const reply = object(parsed);
@@ -1274,6 +1341,29 @@ async function captureScenarioDiagnostics(name: string, setup: boolean) {
     artifacts.push(report);
   } catch {
     /* Preserve the original failure if its window is unavailable. */
+  }
+  await captureIpcTrace(`${setup ? "setup-" : ""}${name}`);
+}
+
+/** Retains the latest debug IPC dispatch and blocking-worker records from the
+ * host diagnostics log, so a stalled read shows whether the backend received,
+ * started and completed it. Best effort; never replaces the scenario failure. */
+async function captureIpcTrace(name: string) {
+  if (!ipcTraceRequested) return;
+  try {
+    const root = path.join(runtimeRoot, "diagnostics");
+    const logs = (await readdir(root, { recursive: true }))
+      .filter((entry) => path.basename(entry) === "portcove-desktop.jsonl")
+      .map((entry) => path.join(root, entry));
+    const lines: string[] = [];
+    for (const log of logs)
+      for (const line of (await readFile(log, "utf8")).split("\n"))
+        if (/IPC command dispatched|blocking worker/u.test(line)) lines.push(line);
+    const trace = path.join(output, `${name}-ipc-trace.jsonl`);
+    await writeFile(trace, `${lines.slice(-200).join("\n")}\n`, { flag: "wx" });
+    artifacts.push(trace);
+  } catch (error) {
+    console.error(`Could not retain the IPC trace for ${name}: ${String(error)}`);
   }
 }
 
@@ -1391,13 +1481,13 @@ async function captureOutputDestinationReview(name: string) {
   );
   await browser.wait(
     async () =>
-      (await outputControl.findElements(By.css('[aria-label="Current output destination"] dl')))
+      (await outputControl.findElements(By.css('[aria-label="Current install folder"] dl')))
         .length === 1,
     15_000,
   );
   const outputLayout = await executeBrowserScript(browser, () => {
     const control = document.querySelector(".output-location-control");
-    const current = control?.querySelector('[aria-label="Current output destination"]');
+    const current = control?.querySelector('[aria-label="Current install folder"]');
     if (!(control instanceof HTMLElement) || !(current instanceof HTMLElement)) return null;
     const facts = current.querySelector("dl");
     const factValue = facts?.querySelector("dd");
@@ -1426,7 +1516,7 @@ async function captureOutputDestinationReview(name: string) {
   );
   await reviewOutput.click();
   const outputReview = await browser.wait(
-    until.elementLocated(By.css('[aria-label="Output destination review"]')),
+    until.elementLocated(By.css('[aria-label="Install folder review"]')),
     15_000,
   );
   assert.equal(
@@ -1585,6 +1675,12 @@ async function connect() {
     : selection.prerequisites.includes("design-compatibility-fixture")
       ? ".design-compatibility-fixture"
       : 'nav[aria-label="Primary navigation"]';
+  // A retained Linux keyboard run exceeded 30s while catalog loading continued.
+  // Calibrate fixture readiness only; preserve both semantic predicates.
+  const readinessMs =
+    process.platform === "linux" && selection.selected_scenarios.includes("keyboard-layout")
+      ? 90_000
+      : 30_000;
   await browser.wait(
     () =>
       executeBrowserScript(
@@ -1592,11 +1688,13 @@ async function connect() {
         (selector) => document.querySelector(selector) !== null,
         readyRoot,
       ),
-    30_000,
+    readinessMs,
+    "The native shell did not expose its required root",
   );
   await browser.wait(
     () => executeBrowserScript(browser, () => document.querySelector(".loading-state") === null),
-    30_000,
+    readinessMs,
+    "Native loading state did not clear",
   );
   if (executionPlan.fixtures.acquisitionJourney || executionPlan.fixtures.registeredSourceReuse) {
     const snapshot = path.join(
@@ -1611,10 +1709,23 @@ async function connect() {
 }
 
 async function requestApplicationShutdown(snapshot: string) {
+  const shutdownDriver = process.platform === "linux" ? required(driver) : undefined;
+  if (shutdownDriver) assert.ok(shutdownDriver instanceof ChildProcess);
   await required(browser).quit();
+  if (shutdownDriver)
+    assert.equal(driver, shutdownDriver, "Restart driver changed during application shutdown");
   browser = undefined;
   const driverStop =
     process.platform === "win32" ? observeNativeSession("StopDriver", snapshot) : undefined;
+  if (shutdownDriver) {
+    const exited =
+      !linuxSelectedSession &&
+      shutdownDriver.exitCode === null &&
+      shutdownDriver.signalCode === null
+        ? once(shutdownDriver, "exit", { signal: AbortSignal.timeout(5_000) })
+        : Promise.resolve();
+    await Promise.all([exited, stopDriver()]);
+  }
   driver = undefined;
   return driverStop;
 }
@@ -1656,6 +1767,12 @@ function requiresReadOnlyRestart(name: string, acquisitionRestart: boolean) {
     !preferencesRecoverySession &&
     !hostPublicationSession &&
     !acquisitionRestart &&
+    !(
+      process.platform === "win32" &&
+      selection.selected_scenarios.length === 1 &&
+      selection.selected_scenarios[0] === "native-standing-setup-source-return" &&
+      name === "standing-original-return"
+    ) &&
     !(
       reviewedWorkflowSession &&
       selection.selected_scenarios.includes("native-staged-update-composition") &&
@@ -1712,7 +1829,9 @@ async function restartApplication(
           selectedSetupRestart ||
             acquisitionRestart ||
             interruptedPreparationSession ||
-            reviewedWorkflowSession
+            reviewedWorkflowSession ||
+            selection.selected_scenarios.includes("native-standing-setup-source-return") ||
+            selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch")
             ? name
             : cleanupName,
         );
@@ -2157,6 +2276,8 @@ async function driverReady() {
 }
 
 let publicationRestartRoot: string | undefined;
+// Windows native runs record debug IPC timing for stalled-read diagnosis (#4879).
+const ipcTraceRequested = process.platform === "win32" && !nativeAccount && !linuxBinding;
 function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
   const environment: NodeJS.ProcessEnv = {
     ...(nativeAccount || linuxBinding ? {} : process.env),
@@ -2190,6 +2311,7 @@ function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
     ),
     PORTCOVE_APPLICATION_UPDATE_STAGING: path.join(runtimeRoot, "application-update-state"),
     WEBVIEW2_USER_DATA_FOLDER: profile,
+    ...(ipcTraceRequested ? { PORTCOVE_DIAGNOSTICS_DEBUG: "1" } : {}),
   };
   if (externalBrowser) {
     delete environment.BROWSER;
@@ -2351,7 +2473,7 @@ async function verifyCompactSettingsJumps() {
     index,
   );
   await captureScenarioScreenshot("settings-section-index-compact");
-  await selectSettingsCategory("game-files");
+  await selectSettingsCategory("game-files", "keyboard");
   const jump = await executeBrowserScript(browser, () => {
     const active = document.activeElement;
     if (!(active instanceof HTMLElement)) return null;
@@ -2548,9 +2670,17 @@ try {
       hashResumeJourney: Boolean(executionPlan.fixtures.hashResumeJourney),
       completionJourney: executionPlan.fixtures.completionJourney,
       acquisitionJourney: Boolean(executionPlan.fixtures.acquisitionJourney),
+      updateReviewJourney: Boolean(executionPlan.fixtures.updateReviewJourney),
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
       ...(values["preparation-tool"] ? { preparationTool: values["preparation-tool"] } : {}),
     });
+    if (selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch"))
+      await prepareReviewedSetupBatchFixture(installFixture);
+    if (selection.selected_scenarios.includes("native-large-discovery-setup-review")) {
+      largeSetupReviewFixture = await prepareLargeSetupReviewFixture(installFixture, revision);
+      for (const original of largeSetupReviewFixture.originals)
+        for (const copy of original.copies) inputs.push(await fileIdentity(copy));
+    }
     if (installFixture.sourceJourney) {
       if (installFixture.preliminaryJourney)
         for (const name of ["path", "before"] as const)
@@ -2574,6 +2704,42 @@ try {
         });
     }
     inputs.push(await fileIdentity(installFixture.artifactPath));
+    if (
+      selection.selected_scenarios.some((id) =>
+        ["native-reviewed-discovery-setup-batch", "native-standing-setup-source-return"].includes(
+          id,
+        ),
+      )
+    ) {
+      // Owned pre-state, not native source-registration acceptance. The native
+      // scenario exercises only discovery selection, batch consent and lifecycle.
+      const owned = required(installFixture.sourceJourney);
+      const command = ownedFixtureCommand({
+        cli: required(values["preparation-cli"]),
+        library,
+        output,
+        catalogPath: installFixture.catalogPath,
+      });
+      command(["source", "add", required(owned.profiles[0]), owned.gamePath]);
+      command(["source", "add", required(owned.profiles[1]), owned.biosPath]);
+      if (selection.selected_scenarios.includes("native-standing-setup-source-return")) {
+        const unavailable = `${owned.directory}-unavailable`;
+        assert.ok((await lstat(owned.directory)).isDirectory());
+        assert.equal(path.dirname(owned.directory), path.resolve(output));
+        await assert.rejects(lstat(unavailable), { code: "ENOENT" });
+        await rename(owned.directory, unavailable);
+      }
+    }
+    if (largeSetupReviewFixture) {
+      const command = ownedFixtureCommand({
+        cli: required(values["preparation-cli"]),
+        library,
+        output,
+        catalogPath: installFixture.catalogPath,
+      });
+      for (const original of largeSetupReviewFixture.originals)
+        command(["source", "add", original.profile, original.path]);
+    }
     inputs.push(await fileIdentity(installFixture.catalogPath));
   }
   if (selection.prerequisites.includes("external-runtime-fixture")) {
@@ -3225,15 +3391,6 @@ try {
       /Your library is empty[\s\S]*copy a supported installation without changing its original folder/,
     );
     await captureScenarioScreenshot("empty-library-shared-controls");
-    const updateChoice = await browser.wait(
-      until.elementLocated(
-        By.xpath(
-          '//*[@role="status"][.//strong[normalize-space(.)="Choose how Portcove updates"]]',
-        ),
-      ),
-      15_000,
-    );
-    assert.equal(await updateChoice.isDisplayed(), true);
     await browser.manage().window().setRect({ width: 960, height: 640 });
     const firstUseAction = await executeBrowserScript(
       browser,
@@ -3272,17 +3429,24 @@ try {
       ),
       5_000,
     );
-    for (const name of [
-      "Choose a game or port",
-      "Find games in a folder",
+    assert.equal(
+      (await browser.findElements(By.css('[aria-label="Ways to add games"] button'))).length,
+      3,
+      "Add games must offer exactly three routes",
+    );
+    const routes = await browser.findElements(By.css('[aria-label="Ways to add games"] button'));
+    assert.deepEqual(await Promise.all(routes.map((route) => route.getAccessibleName())), [
+      "Browse games",
+      "Scan a folder",
       "Use an existing installation",
-    ])
+    ]);
+    for (const route of routes)
       assert.equal(
-        await browser.findElement(By.css(`button[aria-label="${name}"]`)).isDisplayed(),
+        await route.isDisplayed(),
         true,
-        `Add games route is missing: ${name}`,
+        `Add games route is hidden: ${await route.getAccessibleName()}`,
       );
-    await browser.findElement(By.xpath('//button[normalize-space(.)="Back to library"]')).click();
+    await browser.findElement(By.xpath('//button[normalize-space(.)="Back to Library"]')).click();
     await browser
       .findElement(By.xpath('//button[normalize-space(.)="Connect game-file folder"]'))
       .click();
@@ -3441,14 +3605,50 @@ try {
         ...(workspace.pending_setups?.map((setup) => setup.port_id) ?? []),
       ]),
     ].sort();
-    const channelButton = async (channel: string) => {
+    const channelChoice = async (channel: string) => {
       const panel = await openCatalogFilters(browser);
       const label = channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling";
-      return panel.findElement(
-        By.xpath(
-          `.//fieldset[legend[normalize-space(.)="Release channels"]]//button[contains(normalize-space(.),"${label}")]`,
+      const trigger = await panel.findElement(By.css('button[aria-label^="Update channels:"]'));
+      if ((await trigger.getAttribute("aria-expanded")) !== "true")
+        await clickVisible(browser, trigger);
+      return browser.wait(
+        until.elementLocated(
+          By.css(
+            `fieldset[aria-label="Update channels"] [role="checkbox"][aria-label^="${label} ("]`,
+          ),
         ),
+        5_000,
       );
+    };
+    const closeChannelChoices = async () => {
+      await browser.actions().sendKeys(Key.ESCAPE).perform();
+      await browser.wait(
+        async () =>
+          (await browser
+            .findElement(By.css('button[aria-label^="Update channels:"]'))
+            .getAttribute("aria-expanded")) === "false",
+        5_000,
+        "Channel choices did not close before the next filter action",
+      );
+    };
+    const toggleChannel = async (channel: string) => {
+      const choice = await channelChoice(channel);
+      const previous = await choice.getAttribute("aria-checked");
+      await clickVisible(browser, choice);
+      await browser.wait(
+        async () => (await choice.getAttribute("aria-checked")) !== previous,
+        5_000,
+        `${channel} channel did not toggle`,
+      );
+      await closeChannelChoices();
+    };
+    const expectSelectedChannels = async (channels: string[]) => {
+      for (const channel of ["stable", "beta", "rolling"])
+        assert.equal(
+          await (await channelChoice(channel)).getAttribute("aria-checked"),
+          String(channels.includes(channel)),
+        );
+      await closeChannelChoices();
     };
     const expectChannels = async (channels: string[]) => {
       const expected =
@@ -3465,27 +3665,23 @@ try {
         5_000,
         `Discover did not display the exact ${channels.join("+") || "All"} matching-port union once`,
       );
-      for (const channel of ["stable", "beta", "rolling"])
-        assert.equal(
-          await (await channelButton(channel)).getAttribute("aria-pressed"),
-          String(channels.includes(channel)),
-        );
+      await expectSelectedChannels(channels);
     };
     await clearCatalogFilters(browser);
-    await (await channelButton("stable")).click();
+    await toggleChannel("stable");
     await expectChannels(["stable"]);
-    await (await channelButton("beta")).click();
+    await toggleChannel("beta");
     await expectChannels(["stable", "beta"]);
-    await (await channelButton("stable")).click();
+    await toggleChannel("stable");
     await expectChannels(["beta"]);
-    await (await channelButton("beta")).click();
+    await toggleChannel("beta");
     await expectChannels([]);
-    await (await channelButton("rolling")).click();
+    await toggleChannel("rolling");
     await expectChannels(["rolling"]);
     await clearCatalogFilters(browser);
     await expectChannels([]);
-    await (await channelButton("stable")).click();
-    await (await channelButton("beta")).click();
+    await toggleChannel("stable");
+    await toggleChannel("beta");
     await expectChannels(["stable", "beta"]);
     await search.sendKeys("zelda");
     await reviewControls(browser).click(
@@ -3495,7 +3691,7 @@ try {
     const sort = By.xpath('//button[@role="combobox"][contains(., "Sort")]');
     await browser.findElement(sort).click();
     await browser
-      .wait(until.elementLocated(By.xpath('//*[@role="option"][contains(., "Name A–Z")]')), 5_000)
+      .wait(until.elementLocated(By.xpath('//*[@role="option"][contains(., "Title A–Z")]')), 5_000)
       .click();
     const card = await browser.findElement(By.css(".discover-game-identity"));
     await executeBrowserScript(browser, "arguments[0].scrollIntoView({block:'center'});", card);
@@ -3531,7 +3727,7 @@ try {
     );
     search = await browser.findElement(By.id("port-search"));
     assert.equal(await search.getAttribute("value"), "zelda");
-    assert.ok((await browser.findElement(sort).getText()).includes("Name A–Z"));
+    assert.ok((await browser.findElement(sort).getText()).includes("Title A–Z"));
     assert.ok(
       Math.abs(
         required(
@@ -3546,9 +3742,12 @@ try {
       "port-search",
     );
     await browser.actions().keyDown(Key.CONTROL).sendKeys("4").keyUp(Key.CONTROL).perform();
-    await browser.wait(until.elementLocated(By.css(".diagnostics-card")), 15_000);
+    await browser.wait(
+      until.elementLocated(By.xpath('//h1[normalize-space(.)="Settings"]')),
+      15_000,
+    );
     const switchTo = async (target: string, artifactName: string, previousGeneration: number) => {
-      await selectPrimaryNavigation(browser, "Settings");
+      await selectSettingsCategory("advanced");
       await browser.wait(
         async () => {
           const diagnostics = await browser.findElement(By.css(".diagnostics-card"));
@@ -3557,6 +3756,7 @@ try {
         15_000,
         "Settings diagnostics did not settle before the library switch",
       );
+      await selectSettingsCategory("integrations");
       await browser.wait(
         async () => {
           const connection = await browser.findElement(
@@ -3571,6 +3771,7 @@ try {
         65_000,
         "GitHub status request retained the outgoing library lease",
       );
+      await selectSettingsCategory("library-storage");
       await browser
         .findElement(By.xpath('//button[normalize-space(.)="Choose another library"]'))
         .click();
@@ -3649,6 +3850,7 @@ try {
         }
       }
       assert.equal(outcome, "switched", `Library switch failed: ${JSON.stringify(outcome)}`);
+      await selectSettingsCategory("library-storage");
       await browser.wait(
         until.elementLocated(By.xpath('//button[normalize-space(.)="Choose another library"]')),
         15_000,
@@ -3658,9 +3860,7 @@ try {
     await selectPrimaryNavigation(browser, "Discover");
     const alternateSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     assert.equal(await alternateSearch.getAttribute("value"), "");
-    const alternateBeta = await channelButton("beta");
-    assert.equal(await alternateBeta.getAttribute("aria-pressed"), "false");
-    assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "false");
+    await expectSelectedChannels([]);
     const alternateStatus = success(await invoke("get_bootstrap_status"));
     await switchTo(library, "library-picker-select-original", alternateStatus.generation);
     await selectPrimaryNavigation(browser, "Discover");
@@ -3671,10 +3871,8 @@ try {
       5_000,
       "Saved catalog focus did not return after library data loaded",
     );
-    const restoredBeta = await channelButton("beta");
-    assert.equal(await restoredBeta.getAttribute("aria-pressed"), "true");
-    assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "true");
-    assert.ok((await browser.findElement(sort).getText()).includes("Name A–Z"));
+    await expectSelectedChannels(["stable", "beta"]);
+    assert.ok((await browser.findElement(sort).getText()).includes("Title A–Z"));
     assert.equal((await browser.findElements(By.css('[role="dialog"]'))).length, 0);
     await browser.wait(
       async () => (await browser.findElements(By.css(".loading-state"))).length === 0,
@@ -3710,30 +3908,38 @@ try {
     const futureFolderSummary = By.xpath(
       '//details[contains(@class,"future-setup-disclosure")]/summary[normalize-space(.)="Folder for a future install"]',
     );
-    const verifySidebarLabels = async () => {
-      const labels = await executeBrowserScript(browser, () =>
-        [...document.querySelectorAll('nav[aria-label="Primary navigation"] .nav-item')]
-          .filter((button) => button.getClientRects().length > 0)
-          .map((button) => {
-            const label = button.querySelector("span:not(.icon)");
-            if (!(button instanceof HTMLElement) || !(label instanceof HTMLElement))
-              throw new Error("Primary navigation label is missing");
-            const labelStyle = getComputedStyle(label);
-            const icon = button.querySelector(".icon");
-            const iconRect = icon?.getBoundingClientRect();
-            return {
-              text: label.textContent,
-              compactLabel:
-                labelStyle.position === "absolute" &&
-                labelStyle.clipPath === "inset(50%)" &&
-                label.clientWidth === 1 &&
-                label.clientHeight === 1,
-              iconVisible: Boolean(iconRect && iconRect.width > 0 && iconRect.height > 0),
-              widthFits: label.scrollWidth <= label.clientWidth + 1,
-              heightFits: label.scrollHeight <= label.clientHeight + 1,
-              buttonFits: button.scrollHeight <= button.clientHeight + 1,
-            };
-          }),
+    // The desktop navigation (full labels, or the icon rail below 42rem) and the
+    // navigation drawer are separate "Primary navigation" landmarks. Check each
+    // one on its own so an open drawer is not counted with the rail behind it.
+    const desktopNavigation = '.sidebar-desktop nav[aria-label="Primary navigation"]';
+    const drawerNavigation = '.navigation-sheet nav[aria-label="Primary navigation"]';
+    const verifySidebarLabels = async (scope: string = desktopNavigation) => {
+      const labels = await executeBrowserScript(
+        browser,
+        (scopeSelector: string) =>
+          [...document.querySelectorAll(`${scopeSelector} .nav-item`)]
+            .filter((button) => button.getClientRects().length > 0)
+            .map((button) => {
+              const label = button.querySelector("span:not(.icon)");
+              if (!(button instanceof HTMLElement) || !(label instanceof HTMLElement))
+                throw new Error("Primary navigation label is missing");
+              const labelStyle = getComputedStyle(label);
+              const icon = button.querySelector(".icon");
+              const iconRect = icon?.getBoundingClientRect();
+              return {
+                text: label.textContent,
+                compactLabel:
+                  labelStyle.position === "absolute" &&
+                  labelStyle.clipPath === "inset(50%)" &&
+                  label.clientWidth === 1 &&
+                  label.clientHeight === 1,
+                iconVisible: Boolean(iconRect && iconRect.width > 0 && iconRect.height > 0),
+                widthFits: label.scrollWidth <= label.clientWidth + 1,
+                heightFits: label.scrollHeight <= label.clientHeight + 1,
+                buttonFits: button.scrollHeight <= button.clientHeight + 1,
+              };
+            }),
+        scope,
       );
       assert.deepEqual(
         labels.map((label) => label.text),
@@ -3754,15 +3960,56 @@ try {
       "sidebar-full-labels-default",
       await browser.findElement(By.css(".sidebar nav")),
     );
-    await browser.manage().window().setRect({ width: 640, height: 640 });
-    await browser.findElement(By.css('button[aria-label="Open navigation"]')).click();
-    await browser.wait(
-      until.elementIsVisible(
-        await browser.wait(until.elementLocated(By.css(".navigation-sheet")), 5_000),
-      ),
-      5_000,
+    // Native window minimums may clamp this request. Select the navigation
+    // contract from the rendered viewport, never from the requested rectangle.
+    const requestedWindow = { width: 640, height: 640 };
+    await browser.manage().window().setRect(requestedWindow);
+    const actualWindow = await browser.manage().window().getRect();
+    const navigationLayout = await executeBrowserScript(browser, () => {
+      const trigger = document.querySelector('button[aria-label="Open navigation"]');
+      return {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        compact: window.matchMedia("(width < 42rem)").matches,
+        triggerVisible: Boolean(trigger?.getClientRects().length),
+      };
+    });
+    assert.ok(navigationLayout.width > 0 && navigationLayout.height > 0);
+    assert.equal(
+      navigationLayout.triggerVisible,
+      navigationLayout.compact,
+      "Navigation trigger must agree with the actual responsive breakpoint",
     );
-    await verifySidebarLabels();
+    const navigationEvidence = path.join(output, "keyboard-layout-navigation.json");
+    await writeFile(
+      navigationEvidence,
+      JSON.stringify(
+        {
+          requested_window: requestedWindow,
+          actual_window: actualWindow,
+          viewport: navigationLayout,
+          desktop_navigation: "required",
+          compact_navigation: navigationLayout.compact
+            ? "required"
+            : "not-exercised: actual viewport is outside the compact breakpoint",
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(navigationEvidence);
+    if (navigationLayout.compact) {
+      await browser.findElement(By.css('button[aria-label="Open navigation"]')).click();
+      await browser.wait(
+        until.elementIsVisible(
+          await browser.wait(until.elementLocated(By.css(".navigation-sheet")), 5_000),
+        ),
+        5_000,
+      );
+      await verifySidebarLabels(drawerNavigation);
+    }
+    await verifySidebarLabels(desktopNavigation);
     await selectPrimaryNavigation(browser, "Settings");
     await browser.wait(until.elementLocated(By.css('[data-settings-group="appearance"]')), 15_000);
     const visibleGroups: { name: string; columns: number }[] = [];
@@ -3850,8 +4097,8 @@ try {
     });
     assert.ok(focus);
     assert.notEqual(focus.tag, "BODY");
-    assert.ok(focus.left >= 0 && focus.right <= 640);
-    assert.ok(focus.top >= 0 && focus.bottom <= 640);
+    assert.ok(focus.left >= 0 && focus.right <= navigationLayout.width);
+    assert.ok(focus.top >= 0 && focus.bottom <= navigationLayout.height);
     await selectSettingsCategory("about");
     const about = await browser.findElement(By.css(".about-card"));
     await executeBrowserScript(
@@ -3949,12 +4196,12 @@ try {
     await clearCatalogFilters(browser);
     const filters = await openCatalogFilters(browser);
     const channelChoices = await filters.findElement(
-      By.css('button[aria-label="Release channels: All"]'),
+      By.css('button[aria-label="Update channels: All"]'),
     );
     await clickVisible(browser, channelChoices);
     const selectedFilter = await browser.wait(
       until.elementLocated(
-        By.css('fieldset[aria-label="Release channels"] [role="checkbox"][aria-label^="Stable ("]'),
+        By.css('fieldset[aria-label="Update channels"] [role="checkbox"][aria-label^="Stable ("]'),
       ),
       5_000,
     );
@@ -3995,10 +4242,9 @@ try {
     // WebDriver clear() can empty the DOM without committing React's query;
     // the next render then restores the previous scenario's search. Exercise
     // actual editing with a nonempty preimage, including on standalone runs.
-    const selectAll = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
-    await search.sendKeys(selectAll, "a", Key.NULL, "prior catalog query");
+    await replaceKeyboardText(browser, search, "prior catalog query");
     assert.equal(await search.getAttribute("value"), "prior catalog query");
-    await search.sendKeys(selectAll, "a", Key.NULL, Key.BACK_SPACE);
+    await replaceKeyboardText(browser, search, "");
     await browser.wait(async () => (await search.getAttribute("value")) === "", 5_000);
     await clearCatalogFilters(browser);
     await browser.findElement(By.id("port-search")).sendKeys("Ghostship");
@@ -4072,7 +4318,7 @@ try {
         return {
           state: document.querySelector("[data-detail-readiness]")?.textContent?.trim(),
           reason: document.querySelector("[data-detail-reason]")?.textContent?.trim(),
-          requirement: document.querySelector(".requirements-disclosure")?.textContent,
+          requirement: document.querySelector(".requirements-body")?.textContent,
           tabs: Array.from(document.querySelectorAll("[data-detail-workspace] [role=tab]"), (tab) =>
             tab.textContent?.trim(),
           ),
@@ -4119,7 +4365,7 @@ try {
         "Manage",
       ]);
       assert.equal(hierarchy.selected, "Game files");
-      assert.equal(hierarchy.action, "Finish setup");
+      assert.equal(hierarchy.action, "Choose files");
       assert.equal(hierarchy.actionInHero, true);
       assert.equal(hierarchy.titleFits, true);
       assert.equal(hierarchy.actionFits, true);
@@ -4169,11 +4415,16 @@ try {
     const outputDraft = await browser.wait(
       until.elementLocated(By.css('[id^="output-location-path-"]')),
       15_000,
+      "The output-folder path field did not appear in the opened disclosure",
     );
-    await browser.wait(async () => await outputDraft.isEnabled(), 15_000);
+    await browser.wait(
+      async () => await outputDraft.isEnabled(),
+      15_000,
+      "The output-folder path field stayed disabled (its location did not load or controls were busy)",
+    );
     await captureOutputDestinationReview("game-details");
     const draftPath = "C:\\Portcove-fixture\\Future-install";
-    await outputDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, draftPath);
+    await replaceKeyboardText(browser, outputDraft, draftPath);
     await revealDetailSection(browser, "Game files");
     const sourceDraft = await browser.findElement(
       By.css('.requirements-body input[id^="source-"]'),
@@ -4192,7 +4443,7 @@ try {
     );
     assert.equal(await outputDraft.getAttribute("value"), draftPath);
     await revealDetailSection(browser, "Game files");
-    await sourceDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
+    await replaceKeyboardText(browser, sourceDraft, "");
     await revealDetailSection(browser, "Manage");
     await browser.wait(
       async () =>
@@ -4229,9 +4480,7 @@ try {
     assert.equal(restored.focus, origin.originKey);
     assert.ok(Math.abs(required(restored.scrollTop) - origin.scrollTop) <= 1);
     await captureScenarioScreenshot("game-details-workspace-return");
-    await browser
-      .findElement(By.id("port-search"))
-      .sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
+    await replaceKeyboardText(browser, await browser.findElement(By.id("port-search")), "");
     await browser.wait(
       async () => (await browser.findElements(By.css(".discover-game-identity"))).length > 2,
       15_000,
@@ -4293,6 +4542,7 @@ try {
         }
         await browser.manage().window().setRect({ width: 960, height: 640 });
         await selectPrimaryNavigation(browser, "Discover");
+        await replaceKeyboardText(browser, await browser.findElement(By.id("port-search")), "");
         await browser.wait(
           async () => (await browser.findElements(By.css(".discover-game-identity"))).length > 2,
           15_000,
@@ -4325,6 +4575,17 @@ try {
         );
         await captureScenarioScreenshot(`catalog-short-window-${theme}`);
 
+        await browser.findElement(By.id("port-search")).sendKeys("Ghostship");
+        await browser.wait(
+          () =>
+            executeBrowserScript(browser, () =>
+              [...document.querySelectorAll(".discover-game-identity")].some((card) =>
+                card.textContent?.includes("Ghostship"),
+              ),
+            ),
+          15_000,
+          "The searched Ghostship card did not enter the rendered catalog window",
+        );
         const themedOrigin = await executeBrowserScript(browser, () => {
           const card = [...document.querySelectorAll(".discover-game-identity")].find((item) =>
             item.textContent?.includes("Ghostship"),
@@ -4375,216 +4636,83 @@ try {
   });
   await scenario("native-application-update-preferences", async () => {
     const browser = driverBrowser();
-    const before = await invoke("get_application_update_preferences");
-    assert.ok(before.ok);
-    assert.equal(before.value.choice, null);
-    const initialStatus = await invoke("get_application_update_status");
-    assert.ok(initialStatus.ok);
-    assert.equal(initialStatus.value.staged, null);
-    assert.deepEqual(initialStatus.value.recovery_required, []);
+    assert.deepEqual(success(await invoke("get_application_update_preferences")), {
+      channel: "beta",
+      automatic_checks: true,
+    });
+    const initialStatus = success(await invoke("get_application_update_status"));
+    assert.equal(initialStatus.checking, false);
+    assert.equal(initialStatus.installing, false);
+    assert.equal(initialStatus.available, null);
     const activities = await invoke("get_activities");
     assert.ok(activities.ok);
 
-    const choicePrompt = By.xpath(
-      '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]',
+    await selectSettingsCategory("updates");
+    const channel = By.xpath(
+      '//*[@role="group" and @aria-labelledby="application-update-channel-label"]',
     );
-    await browser.wait(until.elementLocated(choicePrompt), 15_000);
-    await browser.findElement(By.xpath('//button[normalize-space(.)="Review options"]')).click();
-    const settings = By.css('article[aria-labelledby="application-update-settings-title"]');
-    await browser.wait(until.elementLocated(settings), 15_000);
-    try {
-      await browser.wait(
-        async () =>
-          await executeBrowserScript(
-            browser,
-            () =>
-              document.activeElement ===
-              document.querySelector(
-                '.application-update-settings [aria-label="Application update channel"] button:not(:disabled)',
-              ),
-          ),
-        15_000,
-      );
-    } catch (error) {
-      const focus = await executeBrowserScript(browser, () => ({
-        active: document.activeElement?.outerHTML,
-        firstControl: document.querySelector(
-          '.application-update-settings [aria-label="Application update channel"] button:not(:disabled)',
-        )?.outerHTML,
-      }));
-      throw new Error(`Review options focus: ${JSON.stringify(focus)}`, { cause: error });
-    }
-    const initialChoice = await browser.switchTo().activeElement();
-    await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
-    await browser.wait(
-      async () =>
-        await executeBrowserScript(
-          browser,
-          (initial) =>
-            document.activeElement?.closest(".application-update-settings") !== null &&
-            document.activeElement !== initial,
-          initialChoice,
-        ),
-      5_000,
-      "Directional navigation left application update settings",
-    );
-    await browser.wait(
-      until.elementLocated(By.css('[aria-label="Application update channel"]')),
-      15_000,
-    );
-    assert.deepEqual(
-      await executeBrowserScript(browser, () =>
-        [...document.querySelectorAll(".application-update-settings button")]
-          .filter((button) => !button.hasAttribute("data-slot"))
-          .map((button) => button.textContent?.trim() ?? ""),
-      ),
-      [],
-    );
-    await browser
-      .findElement(
-        By.xpath(
-          '//*[@aria-label="Application update channel"]//button[normalize-space(.)="Stable"]',
-        ),
-      )
-      .click();
-    await browser
-      .findElement(
-        By.xpath('//*[@aria-label="Application update mode"]//button[normalize-space(.)="Manual"]'),
-      )
-      .click();
-    await browser
-      .findElement(By.css('[role="checkbox"][aria-labelledby="pause-application-updates-label"]'))
-      .click();
-
-    assert.equal(
-      success(await invoke("get_application_update_preferences")).choice,
-      null,
-      "editing application update settings is not saving",
-    );
-    await browser
-      .findElement(By.xpath('//button[normalize-space(.)="Save application update settings"]'))
-      .click();
-    await browser.wait(async () => {
-      const result = await invoke("get_application_update_preferences");
-      return (
-        result.ok &&
-        result.value.choice?.channel === "stable" &&
-        result.value.choice?.mode === "manual" &&
-        result.value.choice?.paused === true
-      );
-    }, 15_000);
-    assert.deepEqual(success(await invoke("get_activities")), activities.value);
-    await browser.wait(
-      until.elementLocated(
-        By.xpath(
-          '//p[@role="status" and contains(., "Saving these settings does not start an update.")]',
-        ),
-      ),
-      15_000,
-    );
-
-    await refreshSettings("updates");
-    await browser.wait(
-      until.elementLocated(By.css('[aria-label="Application update channel"]')),
-      15_000,
-    );
+    await browser.wait(until.elementLocated(channel), 15_000);
     assert.equal(
       await browser
         .findElement(
-          By.css('[aria-label="Application update channel"] button[aria-pressed="true"]'),
+          By.css(
+            '[aria-labelledby="application-update-channel-label"] button[aria-pressed="true"]',
+          ),
         )
         .getText(),
-      "Stable",
+      "Beta",
     );
+    // Choosing a channel or the automatic-check switch saves immediately and
+    // starts no check, download or install.
+    await browser
+      .findElement(
+        By.xpath(
+          '//*[@aria-labelledby="application-update-channel-label"]//button[normalize-space(.)="Preview"]',
+        ),
+      )
+      .click();
+    await browser.wait(
+      async () => success(await invoke("get_application_update_preferences")).channel === "preview",
+      15_000,
+      "choosing Preview did not save the channel",
+    );
+    const automaticChecks = By.css(
+      'label[for="application-update-automatic-checks"] [role="checkbox"]',
+    );
+    await browser.findElement(automaticChecks).click();
+    await browser.wait(
+      async () =>
+        success(await invoke("get_application_update_preferences")).automatic_checks === false,
+      15_000,
+      "turning off automatic checks was not saved",
+    );
+    assert.deepEqual(success(await invoke("get_activities")), activities.value);
+    assert.equal(success(await invoke("get_application_update_status")).available, null);
+
+    await refreshSettings("updates");
+    await browser.wait(until.elementLocated(channel), 15_000);
     assert.equal(
       await browser
-        .findElement(By.css('[aria-label="Application update mode"] button[aria-pressed="true"]'))
+        .findElement(
+          By.css(
+            '[aria-labelledby="application-update-channel-label"] button[aria-pressed="true"]',
+          ),
+        )
         .getText(),
-      "Manual",
+      "Preview",
     );
-    assert.equal(
-      await browser
-        .findElement(By.css('[role="checkbox"][aria-labelledby="pause-application-updates-label"]'))
-        .getAttribute("aria-checked"),
-      "true",
-    );
+    assert.equal(await browser.findElement(automaticChecks).getAttribute("aria-checked"), "false");
 
     await captureApplicationUpdateSettingsComparison();
 
-    await writeFile(path.join(runtimeRoot, "application-update-schedule.json"), "not-json\n", {
-      flag: "wx",
-    });
-    await browser
-      .findElement(By.xpath('//button[normalize-space(.)="Refresh update status"]'))
-      .click();
-    await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Reset update-check history"]')),
-      15_000,
-    );
-    assert.equal(
-      required(success(await invoke("get_application_update_status")).recovery_required[0]).area,
-      "schedule",
-    );
-    await executeBrowserScript(browser, () =>
-      document.querySelector(".application-update-recovery")?.scrollIntoView({ block: "center" }),
-    );
-    await captureScenarioScreenshot("application-update-recovery-light", true);
-    await browser
-      .findElement(By.xpath('//button[normalize-space(.)="Reset update-check history"]'))
-      .click();
-    await browser.wait(async () => {
-      const result = await invoke("get_application_update_status");
-      return result.ok && result.value.recovery_required.length === 0;
-    }, 15_000);
-    await browser.wait(
-      until.elementLocated(
-        By.xpath('//p[@role="status" and contains(., "Update-check history reset.")]'),
-      ),
-      15_000,
-    );
-    assert.deepEqual(success(await invoke("get_activities")), activities.value);
-
+    // A damaged preference file grants nothing and falls back to the defaults.
     await writeFile(path.join(runtimeRoot, "application-updates.json"), "not-json\n");
     await refreshSettings("updates");
-    await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Reset update settings"]')),
-      15_000,
-    );
-    await browser
-      .findElement(By.xpath('//button[normalize-space(.)="Reset update settings"]'))
-      .click();
-    await browser.wait(
-      async () => {
-        const result = await invoke("get_application_update_preferences");
-        return result.ok && result.value.choice === null && result.value.revision > 0;
-      },
-      15_000,
-      "recovered application update preferences were not published by the host",
-    );
-    await browser.wait(
-      until.elementLocated(choicePrompt),
-      15_000,
-      "application update choice prompt did not return after recovery",
-    );
-    await browser.findElement(By.xpath('//button[normalize-space(.)="Not now"]')).click();
-    await browser.wait(
-      async () => (await browser.findElements(choicePrompt)).length === 0,
-      15_000,
-      "application update choice prompt did not dismiss",
-    );
-    await browser.wait(
-      async () =>
-        (await executeBrowserScript(browser, () => document.activeElement?.tagName)) !== "BODY",
-      15_000,
-      "focus did not return after dismissing the application update choice prompt",
-    );
-    await browser.wait(
-      until.elementLocated(
-        By.xpath('//p[@role="status" and contains(., "Damaged update settings reset.")]'),
-      ),
-      15_000,
-      "application update recovery success notice did not remain visible",
-    );
+    await browser.wait(until.elementLocated(channel), 15_000);
+    assert.deepEqual(success(await invoke("get_application_update_preferences")), {
+      channel: "beta",
+      automatic_checks: true,
+    });
     assert.deepEqual(success(await invoke("get_activities")), activities.value);
     await browser.wait(
       () =>
@@ -4845,6 +4973,16 @@ try {
       capture: captureScenarioScreenshot,
       captureTarget: (name, target) => captureKeyboardTarget(name, target, "native-interface-size"),
     });
+    await collectionArtworkScenario({
+      browser: driverBrowser(),
+      invoke,
+      scenario,
+      output,
+      artifacts,
+      library,
+      setTheme: selectSettingsTheme,
+      runtimeRoot,
+    });
     await workspaceRefreshScenario({
       browser: driverBrowser(),
       invoke,
@@ -4921,11 +5059,21 @@ try {
         install: installScenarios,
         selectedSetup: (context) =>
           selectedFixtureFamilies.has("selected-setup")
-            ? selectedSetupScenario({
-                ...context,
-                fixture: required(context.fixture),
-                cli: required(context.cli),
-              })
+            ? selection.selected_scenarios.includes("native-standing-setup-source-return")
+              ? standingSetupScenario({ ...context, fixture: required(context.fixture) })
+              : selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch")
+                ? setupBatchScenario({ ...context, fixture: required(context.fixture) })
+                : selection.selected_scenarios.includes("native-large-discovery-setup-review")
+                  ? largeSetupReviewScenario({
+                      ...context,
+                      fixture: required(context.fixture),
+                      largeReview: required(largeSetupReviewFixture),
+                    })
+                  : selectedSetupScenario({
+                      ...context,
+                      fixture: required(context.fixture),
+                      cli: required(context.cli),
+                    })
             : Promise.resolve(),
         selectedSetupCompletion: ({ chooseGameFileFolder, ...context }) =>
           selectedFixtureFamilies.has("selected-setup-completion")
@@ -4946,6 +5094,9 @@ try {
                     : context.interruptApplication,
                 cli: required(context.cli),
                 tool: required(context.tool),
+                ...(executionPlan.fixtures.updateReviewJourney
+                  ? { catalogPath: required(installFixture).catalogPath }
+                  : {}),
               })
             : Promise.resolve(),
       },

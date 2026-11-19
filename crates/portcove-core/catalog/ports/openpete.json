@@ -18,6 +18,7 @@
     "issue_number": 113,
     "listed_at": "2026-10-23",
     "setup_url": "https://openpete.com/",
+    "platforms": ["linux-x86-64"],
     "manual_setup": {
       "help_url": "https://openpete.com/",
       "warnings": [
@@ -32,14 +33,24 @@
         {
           "title": "Supply your own Spyro disc through upstream setup",
           "instruction": "Use your own original Spyro the Dragon NTSC-U disc, SCUS-94228. Follow the current player’s first-run import instructions: it copies the disc into library and compiles game code alongside it. Keep the bundled compiler and runtime companions together. Save the completed Windows player’s launch details with that folder as its working directory, then choose Play separately. Portcove discovery does not run the compiler or import a disc automatically."
+        },
+        {
+          "title": "Prepare the upstream Linux x86-64 AppImage",
+          "instruction": "Get the complete AppImage from the official OpenPete page and compare its SHA-256 there. Make it executable and run it on a system with glibc 2.31 or newer and Vulkan 1.2. If FUSE is unavailable, pass --appimage-extract-and-run. Supply your own NTSC-U Spyro disc as a BIN/CUE pair. OpenPete copies it into its private library before building the game, so a failed build can leave a copied disc entry. Keep your original and your existing working library separately."
         }
       ],
       "references": [
         {
           "title": "Keep progress and generated files with their working version",
-          "instruction": "You or upstream update the separate current copy. Preserve your ordinary .mcr memory cards, settings, states, mods and the library folder before changing it. Keep the creating runtime with its generated code and states, and confirm your ordinary game saves in the new copy before retiring the old one. This external copy has no Portcove-managed Update, Backup or Rollback; removing its registration preserves every file. The official Linux AppImage follows its own upstream instructions."
+          "instruction": "You or upstream update the separate current copy. Preserve your ordinary .mcr memory cards, settings, states, mods and the library folder before changing it. Keep the creating runtime with its generated code and states, and confirm your ordinary game saves in the new copy before retiring the old one. This external copy has no Portcove-managed Update, Backup or Rollback; removing its registration preserves every file. The Linux AppImage keeps settings under ~/.config/openpete, cards and states under ~/.local/state/openpete, and the copied disc, compiled code, mods and other game data under ~/.local/share/openpete. Use the corresponding paths if you have set XDG overrides."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "spyro-the-dragon",
+      "evidence_urls": ["https://openpete.com/"],
+      "source_editions": []
     }
   },
   "integration": {

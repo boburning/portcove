@@ -384,7 +384,7 @@ void test("shared toolchain and safe unknown inputs select the entire Windows ba
 });
 void test("native/platform and release implementation edits stay ordinary; full coverage is explicit", () => {
   for (const file of [
-    "apps/desktop/src-tauri/src/application_update_windows.rs",
+    "apps/desktop/src-tauri/src/application_update.rs",
     "scripts/test-linux-package-ownership.sh",
     "scripts/sign-catalog.mts",
   ]) {

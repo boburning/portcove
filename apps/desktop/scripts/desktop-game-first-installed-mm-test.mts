@@ -31,9 +31,10 @@ import {
   selectCatalogPort,
   revealDetailSection,
   selectGameFilesSettings,
+  openGameFileScan,
   selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
-import { gameIdentityLabel, gameProjectLabel } from "../src/port-identity.ts";
+import { gameTitle, gameProjectLabel } from "../src/port-identity.ts";
 
 const scenarioId = "native-game-first-installed-mm";
 import { gameFirstMMHarnessDeadlineMs } from "../../../scripts/desktop-scenarios.mts";
@@ -409,6 +410,7 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
           ).some((item) => samePath(item.path, sourceDirectory)),
         15_000,
       );
+      await openGameFileScan(browser);
       await click(button("Refresh folders"));
       // Refresh reads saved-folder state; this ordinary action actually starts hashing.
       const scanActivitiesBefore = new Set(
@@ -528,7 +530,7 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
       await installBothImplementations();
       await libraryView();
       const group = await browser.findElement(By.css(groupSelector));
-      assert.ok((await group.getText()).includes("Choose an implementation"));
+      assert.ok((await group.getText()).includes("Choose the port to show for this game"));
       assert.equal((await group.findElements(By.css("button.library-card-play"))).length, 0);
       report.ambiguous_without_preference = true;
       const chosenDefinition = required(
@@ -580,8 +582,12 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
       const chosen = required(
         required((await read()).workspace.catalog).ports.find((item) => item.id === portId),
       );
-      await click(By.css(`button[aria-label="Favorite ${gameIdentityLabel(chosen)}"]`));
-      await browser.wait(async () => (await favorites()).includes(portId), 15_000);
+      await click(By.css(`button[aria-label="Favorite ${gameTitle(chosen)}"]`));
+      await browser.wait(
+        async () => (await read()).organization.saved_game_ids.includes(`game-${gameId}`),
+        15_000,
+      );
+      assert.equal((await favorites()).includes(portId), false);
       const installedBeforeFilters = pair.map(async (id) => required((await row(id)).active));
       const activeRecords = await Promise.all(installedBeforeFilters);
       const filter = (method: "portable-package" | "portable-recompilation") =>

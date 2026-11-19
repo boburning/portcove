@@ -75,12 +75,10 @@ export function usePreparationCompletionFocus({
         return;
       }
       if (busy) return;
-      const target =
-        actionScope.querySelector<HTMLElement>("[data-confirmed-play]:not(:disabled)") ??
-        nextStep.current;
+      const playable = launch?.matches(":enabled") ? launch : undefined;
       stop();
       setIntent(undefined);
-      focusAndReveal(target);
+      focusAndReveal(playable ?? nextStep.current, { centerBeforeFocus: Boolean(playable) });
     };
     function schedule() {
       if (!settled && !frame) frame = requestAnimationFrame(attempt);

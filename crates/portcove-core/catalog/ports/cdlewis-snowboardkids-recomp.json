@@ -3,11 +3,11 @@
   "listing": {
     "id": "cdlewis-snowboardkids-recomp",
     "name": "Snowboard Kids / Snowboard Kids: Recompiled (cdlewis)",
-    "summary": "Use a permitted Snowboard Kids player and select your own North American cartridge dump on first Play.",
+    "summary": "Use the Snowboard Kids player and select your own North American or Japanese cartridge dump on first Play.",
     "project_url": "https://github.com/cdlewis/snowboardkids-recomp",
     "issue_number": 1886,
     "listed_at": "2026-10-23",
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/README.md",
     "artwork": {
@@ -22,30 +22,30 @@
     "release_url": "https://github.com/cdlewis/snowboardkids-recomp/releases",
     "recommended_download_channel": "stable",
     "download_asset_hints": {
-      "windows-x86-64": ["SnowboardKidsRecompiled-", "Windows.zip"],
-      "linux-x86-64": ["SnowboardKidsRecompiled-", "Linux-X64.tar.gz"]
+      "linux-x86-64": ["SnowboardKidsRecompiled-", "Linux-X64.tar.gz"],
+      "macos-aarch64": ["SnowboardKidsRecompiled-", "macOS.zip"],
+      "macos-x86-64": ["SnowboardKidsRecompiled-", "macOS.zip"]
     },
     "manual_setup": {
       "steps": [
         {
-          "title": "Keep your complete permitted player",
-          "instruction": "For an existing Windows copy you are permitted to use, select SnowboardKidsRecompiled.exe and its supplied folder. Keep the entire player folder and companions together. On Linux, use the matching native player and supplied working folder; Flatpak and macOS application bundles retain their upstream installation and launchers."
+          "title": "Select your original game on first Play",
+          "instruction": "Choose Play, then select your own North American or Japanese Snowboard Kids ROM in the game menu. The player checks the game identity, normalizes supported byte orders and keeps its own copy in its profile, so keep your original separately."
         },
         {
-          "title": "Select your original game on first Play",
-          "instruction": "Choose Play explicitly, then select your own supported North American Snowboard Kids ROM in the game menu. The player checks the game identity and normalizes supported byte orders. No separate extraction or compiler step is needed for the released player."
+          "title": "Keep the complete player package",
+          "instruction": "For a copy you manage yourself, keep the whole player folder together: SnowboardKidsRecompiled.exe on Windows, or the native player and its folder on Linux. Flatpak and macOS application bundles keep their upstream installation and launchers. To add that copy to Portcove, select the player and its folder."
         }
       ],
       "warnings": [
-        "Upstream lists graphics/CPU requirements and Windows runtime prerequisites. Separately published native builds are not Portcove native or gameplay qualification.",
-        "Preserve the selected location, original ROM, saves, settings and mods; they are outside Portcove backup and rollback.",
-        "Keep both the app data and actual profile when updating; Portcove does not back up or remove them."
+        "Upstream lists graphics and CPU requirements and Windows runtime prerequisites. Portcove has not observed native setup, gameplay or saves.",
+        "The package includes a modified RecompFrontend fork by cdlewis that the project license does not cover. Portcove downloads the package only from the project’s own releases. You need your own original game files."
       ],
       "help_url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/README.md",
       "references": [
         {
           "title": "Preserve your actual profile when updating",
-          "instruction": "You or upstream provide updates. Keep the working copy and actual profile: normally %LOCALAPPDATA%\\SnowboardKidsRecompiled on Windows, ~/.config/SnowboardKidsRecompiled on Linux, or ~/Library/Application Support/SnowboardKidsRecompiled on macOS. On Windows/native Linux, portable.txt in the working folder stores data there; on macOS the marker belongs beside the application bundle and data stays there. Preserve the selected location, original ROM, saves, settings and mods; they are outside Portcove backup and rollback."
+          "instruction": "Keep the player's profile when updating: normally %LOCALAPPDATA%\\SnowboardKidsRecompiled on Windows, ~/.config/SnowboardKidsRecompiled on Linux, or ~/Library/Application Support/SnowboardKidsRecompiled on macOS. It holds the copied originals, game_region.txt, saves, settings and mods, and on Windows local crash reports. On Windows and native Linux, portable.txt in the working folder stores data there instead; on macOS the marker belongs beside the application bundle. Portcove does not back up or remove the profile."
         },
         {
           "title": "Keep Flatpak data alongside the actual profile",
@@ -53,6 +53,54 @@
         }
       ]
     },
-    "download_block_reason": "The official RecompFrontend base now has a GPLv3 grant, but selected cdlewis/RecompFrontend fa4f0ca42ba2efaca631203ef1e0753f2be78985 contains separately modified input/theme/frontend code beyond that licensed official tree. An attributable applicable grant for that fork-specific scope remains unestablished; the parent game-project license does not settle it. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with applicable permission for the exact selected fork or a reviewed appropriately licensed replacement package."
+    "original_game": {
+      "format_version": 1,
+      "id": "snowboard-kids",
+      "evidence_urls": [
+        "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/README.md",
+        "https://github.com/cdlewis/snowboardkids-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "snowboard-kids-nintendo-64",
+          "title": "Snowboard Kids (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/cdlewis/snowboardkids-recomp/blob/68fac1b76fe5bb955bb6c92f20daf622139e05e2/README.md"
+          ]
+        }
+      ]
+    }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "windows_tracked_handoff": true,
+    "release": {
+      "provider": "github",
+      "repository": "cdlewis/snowboardkids-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["SnowboardKidsRecompiled-", "Windows.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["SnowboardKidsRecompiled.exe"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "On first Play, select your own North American or Japanese Snowboard Kids ROM in the game menu. The player checks it and keeps a copy in its profile at %LOCALAPPDATA%\\SnowboardKidsRecompiled, together with game_region.txt, saves, settings, mods and local crash reports; crash uploads are off. Keep your original separately. If the player restarts itself to change region, Portcove keeps the session open until that game closes. A copy you manage yourself without portable.txt shares the profile. Portcove refuses to start a managed copy that contains portable.txt. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. Portcove replaces the player; you own the originals and the profile."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["assets", "licenses"],
+        "executables": ["crashpad_handler.exe", "snowboardkidsrecompiled.exe"]
+      }
+    }
   }
 }

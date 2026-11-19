@@ -78,13 +78,22 @@ fn current_roles(files: &Files) -> Result<Files> {
     }
     Ok(roles)
 }
-async fn authenticate(root: &[u8], files: &Files) -> Result<Files> {
+/// Full Tough verification of a complete catalog site. `Unsafe` expiry enforcement
+/// is used only to read an already-published prior as history: signatures,
+/// version floors and immutable-history checks still apply, so the publisher can
+/// recover after the published timestamp lapses. New output is always `Safe`.
+async fn authenticate(
+    root: &[u8],
+    files: &Files,
+    expiration: tough::ExpirationEnforcement,
+) -> Result<Files> {
     let repository = RepositoryLoader::new(
         &root,
         url::Url::parse("https://catalog.invalid/metadata/").unwrap(),
         url::Url::parse("https://catalog.invalid/targets/").unwrap(),
     )
     .transport(PublicTransport(Arc::new(files.clone())))
+    .expiration_enforcement(expiration)
     .limits(tough::Limits {
         max_root_size: ROOT_MAX,
         max_targets_size: ROLE_MAX,
@@ -125,8 +134,10 @@ async fn authenticate(root: &[u8], files: &Files) -> Result<Files> {
                 8 * 1024 * 1024
             } else if name.raw().starts_with("policy/") {
                 65536
+            } else if name.raw() == "definitions/index.json" {
+                DEFINITION_INDEX_MAX
             } else {
-                4 * 1024 * 1024
+                DEFINITION_CONTENT_MAX
             };
             if target.length == 0 || target.length > maximum {
                 return invalid("catalog prior target byte bound differs");
@@ -198,11 +209,19 @@ fn validate_public_paths(files: &Files) -> Result<()> {
 pub(super) async fn inspect_prior(context: &Context, path: &Path) -> Result<Files> {
     let files = io::tree(path, 65536, 128 * 1024 * 1024)?;
     validate_public_paths(&files)?;
-    let logical = authenticate(&context.root_bytes, &files).await?;
+    let logical = authenticate(
+        &context.root_bytes,
+        &files,
+        tough::ExpirationEnforcement::Unsafe,
+    )
+    .await?;
     let roles = current_roles(&files)?;
     verify_history(context, &files)?;
     let top: Signed<Targets> = serde_json::from_slice(at(&roles, "targets.json")?)?;
-    policy::top(&context.root.signed, &top, context.at)?;
+    // The prior is history: its offline Targets keeps its key inventory check, but
+    // not its lifetime window, so a late offline re-sign can still be published.
+    // The new offline Targets is window-checked in load_context.
+    policy::top_key_inventory(&context.root.signed, &top)?;
     if context.online_targets && at(&roles, "targets.json")? != &context.top_bytes {
         return invalid("catalog online renewal base must equal actual current Targets bytes");
     }
@@ -301,8 +320,10 @@ fn historical_revision_floors(files: &Files, new: &Files) -> Result<()> {
             let raw = at(files, &path)?;
             let maximum = if target.raw() == "policy/official/catalog.listings.json" {
                 8 * 1024 * 1024
+            } else if target.raw() == "definitions/index.json" {
+                DEFINITION_INDEX_MAX as usize
             } else if definition_role {
-                4 * 1024 * 1024
+                DEFINITION_CONTENT_MAX as usize
             } else {
                 65536
             };
@@ -483,7 +504,12 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
         return invalid("catalog retained public repository bound exceeded");
     }
     verify_history(&context, &files)?;
-    let logical = authenticate(&context.root_bytes, &files).await?;
+    let logical = authenticate(
+        &context.root_bytes,
+        &files,
+        tough::ExpirationEnforcement::Safe,
+    )
+    .await?;
     if logical != context.targets {
         return invalid("catalog full Tough readback differs from prepared bundle");
     }
@@ -631,7 +657,7 @@ pub async fn verify_definition_repository(path: &Path) -> Result<DefinitionRepos
     {
         return invalid("catalog public Root differs from pinned trust anchor");
     }
-    let logical = authenticate(&root_bytes, &files).await?;
+    let logical = authenticate(&root_bytes, &files, tough::ExpirationEnforcement::Safe).await?;
     let roles = current_roles(&files)?;
     if at(&roles, "targets.json")? != &top_bytes {
         return invalid("catalog public offline Targets differs from appointed bytes");

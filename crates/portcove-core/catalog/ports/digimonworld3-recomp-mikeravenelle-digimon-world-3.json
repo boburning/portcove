@@ -5,10 +5,10 @@
     "name": "Digimon World 3 — DigimonWorld3-Recomp (MikeRavenelle)",
     "original_game_title": "Digimon World 3",
     "summary": "The project describes a beta that starts and plays, with known rough edges. A complete campaign is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
-    "project_url": "https://github.com/MikeRavenelle/DigimonWorld3-Recomp",
+    "project_url": "https://github.com/ArmDucks/DigimonWorld3-Recomp",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/MikeRavenelle/DigimonWorld3-Recomp",
+    "setup_url": "https://github.com/ArmDucks/DigimonWorld3-Recomp",
     "manual_setup": {
       "steps": [
         {
@@ -24,7 +24,7 @@
         "The project describes a beta that starts and plays, with known rough edges. A complete campaign is unconfirmed.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/MikeRavenelle/DigimonWorld3-Recomp"
+      "help_url": "https://github.com/ArmDucks/DigimonWorld3-Recomp"
     },
     "issue_number": 3388,
     "listed_at": "2026-10-25",
@@ -35,6 +35,12 @@
       "image_sha256": "749fda15ec94cf39a3fd9b294100b690d6701c5c15cde76a3997657e56fe1662",
       "game_slug": "digimon-world-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "digimon-world-2003",
+      "evidence_urls": ["https://github.com/ArmDucks/DigimonWorld3-Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
@@ -47,6 +53,48 @@
         "id": "1413654562"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/MikeRavenelle/DigimonWorld3-Recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1413654562"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/ArmDucks/DigimonWorld3-Recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1413654562"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The repository moved from MikeRavenelle to ArmDucks. GitHub only lets an administrator of the original repository transfer it, and MikeRavenelle authored its history and remains a contributor. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1413654562",
+            "note": "Repository ID 1413654562, recorded when this port was listed, resolves to ArmDucks/DigimonWorld3-Recomp."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repos/ArmDucks/DigimonWorld3-Recomp/contributors",
+            "note": "MikeRavenelle is listed among the current repository's contributors."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/MikeRavenelle/DigimonWorld3-Recomp",
+            "note": "The listed path resolves to ArmDucks/DigimonWorld3-Recomp, repository ID 1413654562."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "4f1691ce1a7f0076183d6df3c72dd3483c2cac42ae0c3e2941b36a2d3e9d455e"
+        }
+      }
+    ]
   }
 }

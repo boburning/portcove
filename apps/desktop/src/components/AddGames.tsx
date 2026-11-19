@@ -1,18 +1,15 @@
 import { useState } from "react";
 import type { PortDefinition, PortStatus, SourceProfile, SourceRecord } from "../types";
-import { gameIdentityLabel, gameTitle, gameProjectLabel } from "../port-identity";
-import { useSetupReviewSelection } from "../features/game-file-discovery/setup-review-selection";
 import { GameFileLibraries } from "./GameFileLibraries";
 import { RegisteredSourceSetup } from "./RegisteredSourceSetup";
 import type { Perform } from "../features/operations/use-operation-state";
 import { Button } from "./ui/button";
-import { SearchChoice } from "./ui/combobox";
-import { ArrowRight, FolderInput, FolderSearch, Gamepad2 } from "lucide-react";
+import { ArrowRight, ChevronDown, FolderInput, FolderSearch, Gamepad2 } from "lucide-react";
 import { Icon } from "./ui";
-import { ArtworkImage } from "./Artwork";
 
 export function AddGames({
   active,
+  scanRequest = 0,
   generation,
   ports,
   profiles,
@@ -22,13 +19,13 @@ export function AddGames({
   perform,
   onAdded,
   onOpenPort,
-  onCheckFiles,
   onBrowseCatalog,
   onCopyInstallation,
   setupSource,
   setSetupSource,
 }: {
   active: boolean;
+  scanRequest?: number;
   generation: number;
   ports: PortDefinition[];
   profiles: SourceProfile[];
@@ -38,43 +35,27 @@ export function AddGames({
   perform: Perform;
   onAdded: () => Promise<unknown>;
   onOpenPort: (id: string, origin: string) => void;
-  onCheckFiles: (id: string, profileId: string) => void;
   onBrowseCatalog: () => void;
   onCopyInstallation: () => void;
   setupSource?: SourceRecord | undefined;
   setSetupSource: (source?: SourceRecord) => void;
 }) {
-  const [mode, setMode] = useState<"choose" | "files" | "folders" | "existing">("choose");
-  const [foldersVisited, setFoldersVisited] = useState(false);
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState("");
-  const { requestReview } = useSetupReviewSelection();
-  const port = ports.find((candidate) => candidate.id === selected);
-  const status = port ? statuses.get(port.id) : undefined;
-  const candidates = ports.filter((candidate) =>
-    gameIdentityLabel(candidate).toLocaleLowerCase().includes(query.toLocaleLowerCase()),
+  // Choosing a game always happens in Discover, where artwork and details help.
+  const [mode, setMode] = useState<"choose" | "folders" | "existing">(
+    scanRequest ? "folders" : "choose",
   );
-  const profile = profiles.find((candidate) => candidate.id === port?.source_profile);
+  const [foldersVisited, setFoldersVisited] = useState(Boolean(scanRequest));
+  const [seenScanRequest, setSeenScanRequest] = useState(scanRequest);
+  if (scanRequest !== seenScanRequest) {
+    setSeenScanRequest(scanRequest);
+    setFoldersVisited(true);
+    setMode("folders");
+  }
   return (
-    <section
-      hidden={!active}
-      aria-label="Add games workspace"
-      className="add-games max-w-[66rem] min-w-0 wrap-anywhere"
-    >
+    <section hidden={!active} aria-label="Add games workspace" className="add-games">
       <p className="add-games-intro">
-        Start with a game, a folder of original files, or an installation you already have. Portcove
-        checks what is supported before you confirm any changes.
+        Start with a game you want to play, original files, or a game you’ve already installed.
       </p>
-      <RegisteredSourceSetup
-        sources={sources}
-        profiles={profiles}
-        statuses={statuses}
-        generation={generation}
-        current={active && !refreshFailed}
-        perform={perform}
-        onChanged={onAdded}
-        onOpenPort={onOpenPort}
-      />
       <div
         className="add-route-choices"
         data-route-selected={mode !== "choose"}
@@ -82,28 +63,28 @@ export function AddGames({
         aria-label="Ways to add games"
       >
         <Button
-          variant={mode === "files" ? "selected" : "outline"}
+          data-focusable
+          variant={mode === "choose" ? "ghost" : "outline"}
           className="add-route-choice"
-          aria-label="Choose a game"
           aria-describedby="add-game-description"
-          aria-pressed={mode === "files"}
-          onClick={() => setMode("files")}
+          onClick={onBrowseCatalog}
         >
           <Icon glyph={Gamepad2} />
           <span>
-            <strong className="block">Choose a game</strong>
-            <span id="add-game-description" className="add-route-description">
-              Find its requirements and choose your original files.
+            <strong className="block">Browse games</strong>
+            <span id="add-game-description" className="add-route-description" aria-hidden="true">
+              Pick a game in Discover, then see what you need to play it.
             </span>
           </span>
           <Icon glyph={ArrowRight} size="sm" className="add-route-arrow" />
         </Button>
         <Button
-          variant={mode === "folders" ? "selected" : "outline"}
+          data-focusable
+          variant={mode === "folders" ? "selected" : mode === "choose" ? "ghost" : "outline"}
           className="add-route-choice"
-          aria-label="Find games in a folder"
           aria-describedby="add-folder-description"
           aria-pressed={mode === "folders"}
+          aria-controls={foldersVisited ? "add-games-scan" : undefined}
           onClick={() => {
             setFoldersVisited(true);
             setMode("folders");
@@ -111,155 +92,74 @@ export function AddGames({
         >
           <Icon glyph={FolderSearch} />
           <span>
-            <strong className="block">Find games in a folder</strong>
-            <span id="add-folder-description" className="add-route-description">
-              Check folders you choose for supported original files.
+            <strong className="block">Scan a folder</strong>
+            <span id="add-folder-description" className="add-route-description" aria-hidden="true">
+              Choose a folder of your game files; Portcove finds the supported ones.
             </span>
           </span>
-          <Icon glyph={ArrowRight} size="sm" className="add-route-arrow" />
+          <Icon glyph={ChevronDown} size="sm" className="add-route-arrow" />
         </Button>
         <Button
-          variant={mode === "existing" ? "selected" : "outline"}
+          data-focusable
+          variant={mode === "existing" ? "selected" : mode === "choose" ? "ghost" : "outline"}
           aria-pressed={mode === "existing"}
+          aria-controls="add-games-existing"
           className="add-route-choice"
-          aria-label="Use an existing installation"
           aria-describedby="add-existing-description"
           onClick={() => setMode("existing")}
         >
           <Icon glyph={FolderInput} />
           <span>
             <strong className="block">Use an existing installation</strong>
-            <span id="add-existing-description" className="add-route-description">
+            <span
+              id="add-existing-description"
+              className="add-route-description"
+              aria-hidden="true"
+            >
               Copy a supported installation or keep using its current folder.
             </span>
           </span>
-          <Icon glyph={ArrowRight} size="sm" className="add-route-arrow" />
+          <Icon glyph={ChevronDown} size="sm" className="add-route-arrow" />
         </Button>
       </div>
       <section
+        id="add-games-existing"
         hidden={mode !== "existing"}
         className="add-route-panel add-existing-options"
         aria-label="Existing installation options"
       >
         <div className="add-existing-choice">
           <div>
-            <h2 className="text-lg">Copy an existing installation</h2>
+            <h2 className="text-lg">Bring a copy into your library</h2>
             <p className="max-w-[65ch] text-pc-muted-foreground">
               Review the detected port, destination and supported saved data before copying. The
               original folder stays in place.
             </p>
           </div>
-          <Button variant="primary" onClick={onCopyInstallation}>
+          <Button data-focusable variant="primary" onClick={onCopyInstallation}>
             Copy an existing installation
             <Icon glyph={ArrowRight} size="sm" />
           </Button>
         </div>
         <div className="add-existing-choice">
           <div>
-            <h3 className="text-base">Use the game where it is</h3>
+            <h2 className="text-lg">Use the game where it is</h2>
             <p className="max-w-[65ch] text-pc-muted-foreground">
               Some ports can use an installation where it is. Choose the game to check its setup
               options. For this option, you’ll handle updates and backups.
             </p>
           </div>
-          <Button variant="outline" onClick={() => setMode("files")}>
-            Choose a game
+          <Button data-focusable variant="outline" onClick={onBrowseCatalog}>
+            Browse games
             <Icon glyph={ArrowRight} size="sm" />
           </Button>
         </div>
       </section>
-      <section
-        hidden={mode !== "files"}
-        className="add-route-panel"
-        aria-label="Selected game-file check"
-      >
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg">Choose the game and port</h2>
-          <Button variant="link" onClick={onBrowseCatalog}>
-            Open Discover
-          </Button>
-        </div>
-        <p>
-          File checks use the chosen port’s requirements. Folder search can recognize multiple
-          games; Portcove will ask you to check files it can’t identify.
-        </p>
-        <SearchChoice
-          label="Game and port"
-          id={active && mode === "files" ? "port-search" : undefined}
-          options={ports.map((candidate) => ({
-            id: candidate.id,
-            label: gameIdentityLabel(candidate),
-            description: `Port project: ${candidate.name} · ${candidate.id}`,
-          }))}
-          query={query}
-          onQueryChange={setQuery}
-          value={selected}
-          onChange={setSelected}
-          disabled={ports.length === 0}
-        />
-        {candidates.length === 0 && (
-          <p role="status">
-            No game or port matches this search. Change the search or open Discover.
-          </p>
-        )}
-        {port && (
-          <>
-            <div className="add-selected-game">
-              <ArtworkImage port={port} quietFallback className="add-selected-artwork" />
-              <div>
-                <strong>{gameTitle(port)}</strong>
-                <span>{gameProjectLabel(port)}</span>
-              </div>
-            </div>
-            {!candidates.includes(port) && (
-              <p className="text-sm text-pc-muted-foreground">
-                This game is still selected, even though it doesn’t match your search.
-              </p>
-            )}
-            {profile ? (
-              <Button
-                id="add-games-check-files"
-                variant="primary"
-                disabled={refreshFailed}
-                onClick={() => onCheckFiles(port.id, profile.id)}
-              >
-                Choose files to check…
-                <Icon glyph={ArrowRight} size="sm" />
-              </Button>
-            ) : (
-              <p>
-                No original game files are listed here. Check this game’s setup instructions before
-                continuing.
-              </p>
-            )}
-            <p>
-              Review this port's requirements and current setup action. Before anything runs, the
-              review explains which files are used and what will change.
-            </p>
-            <Button
-              variant="outline"
-              data-detail-origin="add-games:selected-setup"
-              onClick={() => {
-                if (
-                  !refreshFailed &&
-                  status?.channel &&
-                  status.port_actions?.some(
-                    (action) => action.action === "install" && action.availability === "allowed",
-                  )
-                )
-                  requestReview(port.id, status.channel);
-                onOpenPort(port.id, "add-games:selected-setup");
-              }}
-            >
-              Review setup for {gameIdentityLabel(port)}
-              <Icon glyph={ArrowRight} size="sm" />
-            </Button>
-          </>
-        )}
-      </section>
       {foldersVisited && (
-        <div hidden={mode !== "folders"}>
+        <div id="add-games-scan" hidden={mode !== "folders"} className="add-route-panel">
           <GameFileLibraries
+            active={active && mode === "folders"}
+            scanAfterAdd
             instanceId="add-games-folders"
             generation={generation}
             ports={ports}
@@ -274,10 +174,16 @@ export function AddGames({
           />
         </div>
       )}
-      <p className="add-games-retained-note">
-        You can leave this workspace and keep browsing. Your choices stay here; running tasks remain
-        in Activity.
-      </p>
+      <RegisteredSourceSetup
+        sources={sources}
+        profiles={profiles}
+        statuses={statuses}
+        generation={generation}
+        current={active && !refreshFailed}
+        perform={perform}
+        onChanged={onAdded}
+        onOpenPort={onOpenPort}
+      />
     </section>
   );
 }

@@ -17,6 +17,7 @@ import {
   nextAction,
   openHandoffs,
   parseHandoffSubject,
+  releaseContentHandoffs,
   releaseHealthHandoffs,
   renderHandoffs,
   upstreamHandoffs,
@@ -39,6 +40,7 @@ void test("every attention kind has one disabled registry entry with an exact re
       "upstream-observer-exception",
       "hosted-intake-blocked",
       "hosted-intake-holds",
+      "release-content-finding",
     ],
   );
   for (const entry of handoffRegistry) {
@@ -127,6 +129,14 @@ void test("subject keys and operation identities are deterministic and within th
   assert.equal(
     handoffOperationId("upstream-observer-exception", "port:alpha@linux-x86-64", 3),
     "handoff.upstream-observer-exception.port:alpha.linux-x86-64.3",
+  );
+  assert.equal(
+    handoffOperationId("upstream-observer-exception", "port:alpha@linux-x86-64", 3, 41),
+    "handoff.upstream-observer-exception.port:alpha.linux-x86-64.3.a41",
+  );
+  assert.match(
+    handoffOperationId("release-health-condition", `port:${"a".repeat(190)}`, 12, 7),
+    /^handoff\.release-health-condition\.sha256-[0-9a-f]{40}\.12\.a7$/u,
   );
   const long = handoffOperationId("release-health-condition", `port:${"a".repeat(190)}`, 12);
   assert.match(long, /^handoff\.release-health-condition\.sha256-[0-9a-f]{40}\.12$/u);
@@ -294,17 +304,117 @@ void test("upstream exceptions and hosted intake requests become handoffs by the
   ]);
 });
 
+void test("release-content findings and uninspected packages become routine handoffs that never write a hold", () => {
+  const finding = (platform: string) => ({
+    platform,
+    repository: "up/alpha",
+    tag: "v1",
+    asset: `alpha-${platform}.zip`,
+    sha256: "a".repeat(64),
+    rules: 2,
+    signals: [{ path: "data/x.bin", kind: "cartridge-header", reason: "synthetic header" }],
+    signal_count: 1,
+  });
+  const accounted = {
+    reason: "Synthetic homebrew test cartridge, reviewed.",
+    evidence: "https://github.com/boburning/portcove/issues/9",
+  };
+  const handoffs = releaseContentHandoffs(
+    new Map<string, unknown>([
+      [
+        "port:alpha",
+        {
+          findings: [finding("linux-x86-64"), { ...finding("windows-x86-64"), accounted }],
+          unscannable: [],
+        },
+      ],
+      // A port whose only finding is accounted needs nothing.
+      ["port:delta", { findings: [{ ...finding("linux-x86-64"), accounted }], unscannable: [] }],
+      // Coverage notes are facts, not attention.
+      [
+        "port:beta",
+        {
+          findings: [],
+          unscannable: [
+            { platform: "linux-x86-64", code: "no-release" },
+            { platform: "windows-x86-64", code: "no-single-asset" },
+          ],
+        },
+      ],
+      // A package the scan could not inspect needs the same review.
+      [
+        "port:gamma",
+        {
+          findings: [],
+          unscannable: [
+            { platform: "linux-x86-64", code: "digest-mismatch" },
+            { platform: "macos-arm64", code: "no-release" },
+            { platform: "windows-x86-64", code: "unlistable" },
+          ],
+        },
+      ],
+    ]),
+  );
+  assert.deepEqual(handoffs, [
+    {
+      kind: "release-content-finding",
+      source: "port:alpha",
+      condition: { findings: [finding("linux-x86-64")], unscannable: [] },
+    },
+    {
+      kind: "release-content-finding",
+      source: "port:gamma",
+      condition: {
+        findings: [],
+        unscannable: [
+          { platform: "linux-x86-64", code: "digest-mismatch" },
+          { platform: "windows-x86-64", code: "unlistable" },
+        ],
+      },
+    },
+  ]);
+  const entry = handoffEntry("release-content-finding")!;
+  assert.equal(entry.source, "release-content");
+  assert.equal(entry.authority, "routine");
+  assert.equal(entry.workflow?.trigger, "schedule");
+  assert.match(entry.action, /download_block_reason/u);
+  assert.match(entry.action, /never writes a hold/u);
+  assert.match(entry.action, /inspects manually any package the scan could not read/u);
+  assert.match(
+    entry.receipt,
+    /no longer reports the finding or the not-scannable package; a held listing leaves the scan targets/u,
+  );
+  const text = nextAction({
+    subject_key: handoffSubject("release-content-finding", "port:alpha"),
+    kind: "release-content-finding",
+    source_subject: "port:alpha",
+    sequence: 1,
+    assessment_id: 3,
+    updated_at: "2026-11-13T00:00:00Z",
+    condition: handoffs[0]!.condition,
+    registry: entry,
+    operation: null,
+  });
+  assert.match(
+    text,
+    /Authority: routine\. Dispatch disabled: Confirming game data needs a person/u,
+  );
+  assert.match(text, /no operation recorded \(fence 1\)/u);
+});
+
 void test("open handoffs project onto the registry with their disabled dispatch and operation fence", () => {
   const [open, unknown] = openHandoffs([
     {
       subject_key: "handoff:hosted-intake-holds:intake:40",
       sequence: 2,
+      assessment_id: 9,
       updated_at: "2026-11-11T00:00:00Z",
       explanation: { condition: { request_comment: 40 } },
       operation: {
         operation_id: "handoff.hosted-intake-holds.intake:40.1",
         state: "planned",
         fence_sequence: 1,
+        fence_assessment_id: 4,
         revision: 1,
         executor: "hosted-discovery-intake.yml",
       },
@@ -312,6 +422,7 @@ void test("open handoffs project onto the registry with their disabled dispatch 
     {
       subject_key: "handoff:retired-kind:port:x",
       sequence: 1,
+      assessment_id: 5,
       updated_at: "2026-11-11T00:00:00Z",
       explanation: {},
       operation: null,
@@ -325,7 +436,7 @@ void test("open handoffs project onto the registry with their disabled dispatch 
   assert.match(text, /Resume: The owner delegates process dispatch/u);
   assert.match(
     text,
-    /operation handoff\.hosted-intake-holds\.intake:40\.1 planned at fence 1 \(stale; current 2\)/u,
+    /operation handoff\.hosted-intake-holds\.intake:40\.1 planned at fence 1 \(stale; current 2 on assessment 9\)/u,
   );
   assert.equal(unknown!.registry, null);
   assert.match(nextAction(unknown!), /Unregistered handoff kind retired-kind; dispatch disabled/u);
@@ -448,6 +559,7 @@ void test("accounted release-health conditions follow their recorded resume cond
     action: entry.action,
     invocation: entry.invocation,
     resume_condition: entry.resume_condition,
+    receipt: entry.receipt,
   });
   assert.deepEqual(
     handoffGuidance(handoffEntry("upstream-observer-exception")!, accounted.condition).action,
@@ -554,5 +666,91 @@ void test("accounted GitHub relocation conditions follow their reviewed resume c
     action: entry.action,
     invocation: entry.invocation,
     resume_condition: entry.resume_condition,
+    receipt: entry.receipt,
+  });
+});
+
+void test("release-content guidance follows what the handoff holds", () => {
+  const entry = handoffEntry("release-content-finding")!;
+  const finding = { platform: "linux-x86-64", asset: "a.zip", sha256: "a".repeat(64), signals: [] };
+  const guide = (condition: unknown) => handoffGuidance(entry, condition);
+  const flagged = guide({ findings: [finding], unscannable: [] });
+  assert.match(flagged.action, /^A person confirms the flagged files against the package\./u);
+  assert.doesNotMatch(flagged.action, /relocation/u);
+  assert.equal(
+    flagged.receipt,
+    "The next scheduled main release-content scan report no longer reports the finding; a held listing leaves the scan targets.",
+  );
+  const inspect = guide({
+    findings: [],
+    unscannable: [{ platform: "linux-x86-64", code: "digest-mismatch" }],
+  });
+  assert.match(
+    inspect.action,
+    /inspects by hand the package the scan could not read \(digest-mismatch\)/u,
+  );
+  assert.match(inspect.action, /release-content-accounting\.json/u);
+  assert.match(inspect.receipt, /no longer reports the not-scannable package/u);
+  // An unavailable GitHub release: only confirming it is routine; relocation is owner-only.
+  const moved = guide({
+    findings: [],
+    unscannable: [{ platform: "linux-x86-64", code: "release-unavailable", provider: "github" }],
+  });
+  assert.match(
+    moved.action,
+    /The routine part of this handoff is only to confirm that the release is unavailable/u,
+  );
+  assert.match(
+    moved.action,
+    /relocation evidence \(upstream-relocation-evidence\.yml\) and any rename are owner-only and follow the port's release-health-relocation handoff and its authority/u,
+  );
+  assert.doesNotMatch(moved.action, /download_block_reason/u);
+  assert.match(
+    moved.invocation,
+    /^confirm the release read still fails; relocation evidence and the rename follow the owner-only release-health-relocation handoff/u,
+  );
+  assert.doesNotMatch(moved.invocation, /gh workflow run/u);
+  assert.equal(
+    moved.receipt,
+    "The next scheduled main release-content scan report reads the release (the target is no longer release-unavailable); a held listing leaves the scan targets.",
+  );
+  // GitLab has no relocation evidence route: a reviewed location change, then the next scan.
+  const gitlab = guide({
+    findings: [],
+    unscannable: [{ platform: "linux-x86-64", code: "release-unavailable", provider: "gitlab" }],
+  });
+  assert.match(
+    gitlab.action,
+    /The GitLab release read is redirected or gone: fix the listing's upstream location in a reviewed catalog change, then wait for the next scan\./u,
+  );
+  assert.doesNotMatch(gitlab.action, /relocation|owner-only/u);
+  assert.match(gitlab.invocation, /^a reviewed catalog change to the listing's upstream location/u);
+  const both = guide({
+    findings: [finding],
+    unscannable: [{ platform: "windows-x86-64", code: "release-unavailable", provider: "github" }],
+  });
+  assert.match(both.action, /confirms the flagged files.*owner-only/u);
+  assert.match(both.receipt, /no longer reports the finding and reads the release/u);
+  assert.match(
+    both.invocation,
+    /accounting\.json entry for a confirmed false positive.*; for the unavailable release, confirm/u,
+  );
+  // A condition stored before the provider was recorded gets neutral wording.
+  const unknown = guide({
+    findings: [],
+    unscannable: [{ platform: "linux-x86-64", code: "release-unavailable" }],
+  });
+  assert.doesNotMatch(unknown.action, /GitLab/u);
+  assert.match(
+    unknown.action,
+    /^The release read is redirected or gone: confirm it, then fix the listing's upstream location in a reviewed catalog change \(for a GitHub repository through the owner-only release-health-relocation handoff and its authority\)\./u,
+  );
+  assert.match(unknown.receipt, /reads the release/u);
+  // An unreadable condition keeps the registry entry.
+  assert.deepEqual(guide(null), {
+    action: entry.action,
+    invocation: entry.invocation,
+    resume_condition: entry.resume_condition,
+    receipt: entry.receipt,
   });
 });

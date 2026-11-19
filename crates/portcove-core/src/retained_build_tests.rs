@@ -35,14 +35,19 @@ pub(crate) fn install_port(
     };
     let qualification =
         crate::InstallQualification::from_catalog(&catalog, port_id, platform).unwrap();
+    let version = match port_id {
+        "shipwright" => "v9.3.1",
+        "zelda64-recomp" => "v1.2.2",
+        _ => "v1",
+    };
     let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
         .unwrap()
-        .create_manifest(id, port_id, "v1", &artifact, &qualification, &path)
+        .create_manifest(id, port_id, version, &artifact, &qualification, &path)
         .unwrap();
     let install = InstallRecord {
         id: id.into(),
         port_id: port_id.into(),
-        version: "v1".into(),
+        version: version.into(),
         path,
         channel: ReleaseChannel::Stable,
         installed_at: Library::now(),
@@ -762,6 +767,46 @@ fn advancing_a_binding_keeps_the_offered_older_build_until_it_is_retired() {
             .preview_retained_build_revision_retirement("starship", "custom", retired.revision)
             .is_err()
     );
+}
+
+#[test]
+fn retiring_default_recovery_preserves_another_setups_pin_and_progress() {
+    let (_temporary, service, first) = fixture();
+    let port = "starship";
+    let default = service.ensure_default_profile(port).unwrap();
+    let pinned = service.copy_profile(port, &default.id, "Pinned").unwrap();
+    service.activate_profile(port, &pinned.id).unwrap();
+    let live_save = service.library().user_dir(port).join("saves/file1.sav");
+    fs::create_dir_all(live_save.parent().unwrap()).unwrap();
+    fs::write(&live_save, b"newer player progress").unwrap();
+    install(service.library(), "second", b"second runtime", true);
+
+    let offered = service
+        .resolve_retained_build(port, &default.id)
+        .unwrap()
+        .history;
+    let retired = retire(&service, &default.id, offered[0].revision.revision);
+    assert_eq!(retired.build.install_id, first.id);
+    assert!(
+        service
+            .resolve_retained_build(port, &default.id)
+            .unwrap()
+            .history
+            .is_empty()
+    );
+    assert_eq!(
+        service
+            .resolve_retained_build(port, &pinned.id)
+            .unwrap()
+            .reference
+            .build,
+        retired.build
+    );
+    let held = require_unreferenced_install(&service.library().connection().unwrap(), &first.id)
+        .unwrap_err();
+    assert_eq!(held.details["setup_id"], pinned.id);
+    assert_eq!(fs::read(live_save).unwrap(), b"newer player progress");
+    assert!(first.path.is_dir());
 }
 
 #[test]

@@ -152,7 +152,7 @@ impl PortcoveService {
         let staged_data = recovery.join("staged-data");
         let work = recovery.join("copy-work");
         let payload_work = staging.join("copy-work");
-        let safety = self.create_backup_locked("ghostship")?;
+        let safety = self.create_capped_safety_backup_locked("ghostship")?;
         require_tree(&safety.path.join("data"), &plan.canonical_data)?;
         intent.canonical_safety = Some(safety.clone());
         operation.ghostship_recovery = Some(intent.clone());
@@ -408,6 +408,9 @@ impl PortcoveService {
                 ));
             }
         }
+        // The derivative keeps the legacy artifact and its original acquisition
+        // time. Check that retained acquisition before any data publication.
+        self.require_activation_uploader_continuity(&plan.legacy_install, None)?;
         require_tree(&plan.active_install.path, &plan.active_install_tree)?;
         require_tree(&plan.legacy_install.path, &plan.legacy_install_tree)?;
         let status = self.library.status("ghostship", plan.channel)?;
@@ -893,6 +896,7 @@ impl Library {
         transaction.execute("INSERT INTO ghostship_runtime_safety(backup_id,receipt_sha256,receipt_json) VALUES (?1,?2,?3)",
             rusqlite::params![safety.id, crate::signed_catalog::digest(json.as_bytes()), json])?;
         Self::write_install(&transaction, install, false)?;
+        crate::profile::follow_active_install(&transaction, install)?;
         transaction.execute("UPDATE port_settings SET active_install_id=?1,previous_install_id=?2 WHERE port_id='ghostship'",
             rusqlite::params![install.id, plan.active_install.id])?;
         let changed = transaction.execute("UPDATE lifecycle_operations SET phase='metadata_committed',last_error=NULL,updated_at=?2
@@ -1151,6 +1155,7 @@ mod tests {
             file_count: 0,
             size: 0,
             sha256: "a".repeat(64),
+            unknown_file_count: 0,
         };
         let plan = crate::GhostshipRecoveryPlan {
             format_version: 1,

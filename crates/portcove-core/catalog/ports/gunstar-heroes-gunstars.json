@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "gunstar-heroes-gunstars",
+    "artwork": {
+      "game_id": 6405,
+      "cover_id": 181813,
+      "image_id": "co3wad",
+      "image_sha256": "f7e5092e239205de58efbd3bfeddd433cd49ae5ce454dcc10dbfaae97864573d",
+      "game_slug": "gunstar-heroes",
+      "match_kind": "underlying-game"
+    },
     "name": "Gunstar Heroes (gunstars)",
     "summary": "A native engine for Gunstar Heroes using your own original cartridge data.",
     "original_game_title": "Gunstar Heroes",
@@ -18,7 +26,7 @@
         },
         {
           "title": "Start the Windows or Linux player",
-          "instruction": "The v0.2.2 Windows x64 ZIP runs gunstar.exe. The Linux x86-64 tar.gz runs gunstar and requires SDL2 and a system with glibc 2.28 or later. Keep each package together."
+          "instruction": "The Windows x64 ZIP runs gunstar.exe. The Linux x86-64 tar.gz runs gunstar and requires SDL2 and a system with glibc 2.28 or later. Keep each package together."
         }
       ],
       "warnings": [
@@ -27,10 +35,28 @@
       "references": [
         {
           "title": "Open the universal Mac app",
-          "instruction": "Unzip the v0.2.2 macos-universal ZIP and keep gunstars.app intact. The Intel and Apple silicon app needs macOS 11 or later. Open it in Finder for the profile under ~/Library/Application Support/gunstars. A direct Terminal launch uses its working directory. Maintain this copy outside Portcove."
+          "instruction": "Unzip the macos-universal ZIP and keep gunstars.app intact. The Intel and Apple silicon app needs macOS 11 or later. Open it in Finder for the profile under ~/Library/Application Support/gunstars. A direct Terminal launch uses its working directory. Maintain this copy outside Portcove."
         }
       ],
       "help_url": "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "gunstar-heroes",
+      "evidence_urls": [
+        "https://github.com/1nputs/gunstars",
+        "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "gunstar-heroes-mega-drive-genesis",
+          "title": "Gunstar Heroes (Genesis / Mega Drive)",
+          "system": "mega-drive-genesis",
+          "evidence_urls": [
+            "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -67,6 +93,16 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "On Play, use the upstream in-process file browser to select your own Gunstar Heroes USA 1 MiB cartridge dump, or retain an established --rom argument. The selected engine checks size and CRC32 B813CF0D for compatibility; that is not Core cryptographic source authentication. Core does not acquire, copy or import the ROM. Keep it outside the engine directory and preserve it separately. The Windows player gunstar.exe and Linux player gunstar keeps settings.ini, states (including slots/autosave and previews), screenshots and videos relative to its executable working directory; Core preserves these declared default paths across its engine maintenance. User-configured state/capture paths can point elsewhere and remain external, outside Core backup/removal. Retain every actual override location and compatible old runtime before changes; restore does not promise backward state compatibility. The Linux package needs SDL2 and glibc 2.28 or later. Mac setup is player-managed. Normal local play is offered; multiplayer/replay/GIF/gameplay claims remain upstream-only. Existing external registrations keep their own replacement owner."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["gunstar.exe"]
+      },
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["gunstar"]
+      }
     }
   }
 }

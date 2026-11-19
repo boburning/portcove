@@ -33,7 +33,7 @@ describe("app shell state", () => {
       view: "library",
       filter: "all",
       query: "",
-      catalogSort: "catalog",
+      catalogSort: "name",
       selectedId: undefined,
       sourcePath: "",
       biosPath: "",
@@ -190,7 +190,7 @@ it("composes readiness and declared intent in either update order without changi
 
 it("defaults only an unset Library sort to Title A–Z and retains explicit legacy selections", async () => {
   expect(state.librarySort).toBe("name");
-  expect(state.catalogSort).toBe("catalog");
+  expect(state.catalogSort).toBe("name");
   await act(async () =>
     state.setLibrarySort((previous) => (previous === "name" ? "recent" : "catalog")),
   );
@@ -207,6 +207,20 @@ it("defaults only an unset Library sort to Title A–Z and retains explicit lega
     root = createRoot(host);
     await act(async () => root.render(createElement(Fixture)));
     expect(state.librarySort).toBe(sort);
-    expect(state.catalogSort).toBe("catalog");
+    // The saved Discover sort travels independently of the Library selection.
+    expect(state.catalogSort).toBe("name");
+  }
+});
+
+it("defaults only an unset Discover sort to Title A–Z and retains every saved Discover sort", async () => {
+  expect(initialInputs).toBeUndefined();
+  expect(state.catalogSort).toBe("name");
+  for (const catalogSort of ["catalog", "name-desc", "installed-first", "name"] as const) {
+    initialInputs = { ...state.browsingInputs, catalogSort };
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    await act(async () => root.render(createElement(Fixture)));
+    expect(state.catalogSort).toBe(catalogSort);
+    expect(state.browsingInputs.catalogSort).toBe(catalogSort);
   }
 });

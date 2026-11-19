@@ -7,6 +7,8 @@
     "project_url": "https://github.com/lethal-guitar/RigelEngine",
     "issue_number": 1877,
     "listed_at": "2026-10-23",
+    "funding_urls": ["https://www.paypal.com/donate?hosted_button_id=B3JBDMWJE6F4C"],
+    "platforms": ["linux-x86-64", "macos-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine",
     "artwork": {
@@ -19,36 +21,64 @@
     },
     "release_url": "https://github.com/lethal-guitar/RigelEngine/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["rigelengine_win_x64.zip"]
+      "windows-x86-64": ["rigelengine_win_x64.zip"],
+      "linux-x86-64": ["rigelengine_linux_x64.deb"],
+      "macos-x86-64": ["rigelengine_mac_x64.dmg"]
     },
     "manual_setup": {
       "steps": [
         {
           "title": "Use the Rigel Engine player",
-          "instruction": "Use the native package for your system. The Windows runtime ZIP contains RigelEngine.exe; upstream’s platform instructions cover Debian packages and the macOS application. Keep your original game files in their own folder."
+          "instruction": "On Windows x64, extract the complete rigelengine_win_x64.zip. On Intel Mac, copy the complete Rigel Engine app out of rigelengine_mac_x64.dmg and open it through macOS. Keep your original game files in their own folder."
+        },
+        {
+          "title": "Install the official Debian package on Linux x64",
+          "instruction": "Choose rigelengine_linux_x64.deb and open it with your package manager so it can install the SDL2 and SDL2_mixer dependencies. Start RigelEngine and choose your Duke Nukem II data folder. Use your package manager to replace the engine."
+        },
+        {
+          "title": "Use the Linux x64 or ARM64 Flatpak",
+          "instruction": "Install io.github.lethal_guitar.RigelEngine from Flathub. Copy your Duke Nukem II data, including NUKEM2.CMP, into ~/.var/app/io.github.lethal_guitar.RigelEngine/data/Duke2. Start the app through Flatpak and keep a backup of its app profile. Update the engine through Flatpak."
         },
         {
           "title": "Select your Duke Nukem II files",
           "instruction": "On first Play, choose your Duke Nukem II folder containing NUKEM2.CMP. Shareware and registered editions work. Keep the optional NUKEM2.F1–F5 intro movies with it for movie playback; Rigel Engine remembers your choice."
         },
         {
-          "title": "Add the game and manage your files",
-          "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual RigelEngine.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+          "title": "Register your Windows player",
+          "instruction": "Complete the upstream setup in your working copy before registration. Select the actual RigelEngine.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
         }
       ],
       "warnings": [
         "Rigel Engine imports existing saves, high scores and settings into its own user profile. Keep that profile and your mod files backed up when updating the upstream installation.",
-        "Portcove offers Windows registration in this entry; Linux and macOS operation through Portcove has not been confirmed."
+        "Portcove offers registration for Windows. On Linux, start Rigel Engine through your package manager’s launcher or Flatpak. On Intel Mac, open the complete application."
       ],
       "help_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine",
       "references": [
         {
-          "title": "Keep upstream platform alternatives separate",
-          "instruction": "Upstream also provides Linux packages and a macOS application with their own setup, original-data and profile rules. On macOS, open the normal application rather than registering its private bundle executable. Portcove offers Windows registration in this entry; Linux and macOS operation through Portcove has not been confirmed."
+          "title": "Keep your game data and engine profile",
+          "instruction": "Keep your original Duke Nukem II data and any old saves as separate copies. Preserve Rigel Engine’s profile with your actual saves, high scores, settings and mods. The Flatpak has its own profile inside ~/.var/app/io.github.lethal_guitar.RigelEngine."
         }
       ]
     },
-    "original_game_title": "Duke Nukem II"
+    "original_game_title": "Duke Nukem II",
+    "original_game": {
+      "format_version": 1,
+      "id": "duke-nukem-ii",
+      "evidence_urls": [
+        "https://github.com/lethal-guitar/RigelEngine#running-rigelengine",
+        "https://github.com/lethal-guitar/RigelEngine"
+      ],
+      "source_editions": [
+        {
+          "id": "duke-nukem-ii-pc",
+          "title": "Duke Nukem II (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/lethal-guitar/RigelEngine/blob/30afeff8f0b105eac77ee0a2fbd54b06e1a49b60/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

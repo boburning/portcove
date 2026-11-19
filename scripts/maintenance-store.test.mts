@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
+import { postgresIntakeCheckpoints } from "./hosted-discovery-intake-checkpoint.mts";
 import {
   backup,
+  batchedStatements,
   clientEnvironment,
   connectionFromEnvironment,
   defaultMigrationDirectory,
@@ -14,9 +17,11 @@ import {
   migrationStatus,
   migrationTransaction,
   planMigrations,
+  portableRestoreSql,
   readMigrations,
   restore,
   runSql,
+  serverInfo,
   storeDigest,
 } from "./maintenance-store.mts";
 
@@ -52,6 +57,32 @@ void test("connection URLs become libpq environment without exposing secrets in 
   assert.equal(environment.PGTZ, "UTC");
   assert.throws(() => connectionFromEnvironment("lower", {}), /invalid/u);
   assert.throws(() => connectionFromEnvironment("MISSING_URL", {}), /Set MISSING_URL/u);
+});
+
+void test("a large transaction is one query, and provider column options do not restore", () => {
+  assert.equal(
+    batchedStatements(["SELECT 1;", "SELECT ';\n';  ", "INSERT INTO t VALUES (1)"]),
+    "SELECT 1\\;\nSELECT ';\n'\\;\nINSERT INTO t VALUES (1);",
+  );
+  const rendered = [
+    "CREATE TABLE portcove_maintenance.assessments (assessment_id bigint);",
+    "ALTER TABLE ONLY portcove_maintenance.assessments ALTER COLUMN assessment_id SET (pg_attver=29006896);",
+    "ALTER TABLE ONLY portcove_maintenance.assessments ALTER COLUMN assessment_id SET (n_distinct=1);",
+    "COPY portcove_maintenance.assessments (assessment_id) FROM stdin;",
+    "ALTER TABLE ONLY portcove_maintenance.assessments ALTER COLUMN assessment_id SET (pg_attver=29006896);",
+    "\\.",
+  ].join("\n");
+  assert.equal(
+    portableRestoreSql(rendered),
+    [
+      "CREATE TABLE portcove_maintenance.assessments (assessment_id bigint);",
+      "ALTER TABLE ONLY portcove_maintenance.assessments ALTER COLUMN assessment_id SET (n_distinct=1);",
+      "COPY portcove_maintenance.assessments (assessment_id) FROM stdin;",
+      "ALTER TABLE ONLY portcove_maintenance.assessments ALTER COLUMN assessment_id SET (pg_attver=29006896);",
+      "\\.",
+    ].join("\n"),
+    "only the provider's exact column-version statements are dropped; COPY data is kept",
+  );
 });
 
 void test("repository migrations are contiguous and the plan refuses drift or unknown versions", () => {
@@ -95,6 +126,25 @@ void test("an explicit env file supplies only the selected database URL", (conte
     () => connectionFromEnvironment("MISSING_URL", { MISSING_URL: base.DATABASE_URL }, file),
     /Set MISSING_URL/u,
   );
+  writeFileSync(file, "SELECTED_DATABASE_URL=mysql://user@fixture.test/store\n");
+  for (const script of ["maintenance-store.mts", "maintenance-inventory.mts"]) {
+    const result = spawnSync(
+      process.execPath,
+      [
+        path.join(import.meta.dirname, script),
+        script === "maintenance-store.mts" ? "status" : "handoffs",
+        "--database-env-file",
+        file,
+        "--database-env",
+        "SELECTED_DATABASE_URL",
+      ],
+      { encoding: "utf8", timeout: 15_000 },
+    );
+    assert.ifError(result.error);
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /Maintenance database URL must use postgresql:\/\//u);
+    assert.doesNotMatch(result.stdout + result.stderr, /mysql:\/\//u);
+  }
 });
 
 const server = postgresServer();
@@ -127,8 +177,8 @@ INSERT INTO portcove_maintenance.notifications (notification_key, subject_key, t
 const executorSeed = `
 UPDATE portcove_maintenance.notifications SET status = 'delivered', delivered_at = '2026-11-02T01:00:00Z', delivery_receipt = 'https://github.com/boburning/portcove/issues/177#issuecomment-1'
   WHERE notification_key = 'digest-2';
-INSERT INTO portcove_maintenance.operations (operation_id, kind, subject_key, fence_sequence, executor, created_at, updated_at)
-  VALUES ('op-1', 'intake', 'port:example-port', 3, 'hosted-discovery-intake', '2026-11-03T00:04:00Z', '2026-11-03T00:04:00Z');
+INSERT INTO portcove_maintenance.operations (operation_id, kind, subject_key, fence_sequence, fence_assessment_id, executor, created_at, updated_at)
+  VALUES ('op-1', 'intake', 'port:example-port', 3, 3, 'hosted-discovery-intake', '2026-11-03T00:04:00Z', '2026-11-03T00:04:00Z');
 UPDATE portcove_maintenance.operations SET state = 'dispatched', revision = 2 WHERE operation_id = 'op-1';
 UPDATE portcove_maintenance.operations SET state = 'ambiguous', revision = 3 WHERE operation_id = 'op-1';
 `;
@@ -162,6 +212,29 @@ void test(
     const executor = source.as("executor_login");
     runSql(collector, seed);
     runSql(executor, executorSeed);
+    const journal = postgresIntakeCheckpoints(executor);
+    const first = "prepared";
+    const next = "attempted with 'quoted' evidence";
+    const initialSlot = { port_key: "example-port", delivery: { status: first } };
+    const nextSlot = { ...initialSlot, delivery: { status: "create-attempted" } };
+    assert.equal(journal.load(177), null);
+    assert.equal(journal.save(177, hex("a"), 0, first, null, [initialSlot]), 1);
+    assert.throws(
+      () => journal.save(177, hex("a"), 1, next, { body: "wrong", hash: hex("b") }, [nextSlot]),
+      /advanced concurrently/u,
+    );
+    assert.equal(
+      journal.save(177, hex("a"), 1, next, { body: first, hash: hex("b") }, [nextSlot]),
+      2,
+    );
+    assert.deepEqual(journal.load(177), {
+      revision: 2,
+      request_sha256: hex("a"),
+      receipt_body: next,
+      previous_receipt_sha256: hex("b"),
+      candidates: [nextSlot],
+    });
+    assert.throws(() => postgresIntakeCheckpoints(collector).load(177), /permission denied/u);
 
     const history: unknown = JSON.parse(
       runSql(
@@ -257,6 +330,50 @@ void test(
          VALUES ('op-stale', 'intake', 'port:example-port', 2, 'hosted-discovery-intake', now(), now());`,
       /stale maintenance state/u,
     );
+    // A plan binds the applicable assessment: the same result under new inputs invalidates it.
+    runSql(
+      executor,
+      `INSERT INTO portcove_maintenance.operations (operation_id, kind, subject_key, fence_sequence, fence_assessment_id, executor, created_at, updated_at)
+         VALUES ('op-plan', 'intake', 'port:example-port', 3, 3, 'hosted-discovery-intake', now(), now());`,
+    );
+    rejects(
+      collector,
+      "SELECT portcove_maintenance.verify_current(2, 'run-1');",
+      /requires a transition/u,
+    );
+    runSql(
+      collector,
+      `INSERT INTO portcove_maintenance.assessments (subject_key, policy_version, input_digest, state, result_digest, explanation, assessed_at, run_id)
+         VALUES ('port:example-port', 'policy-2', '${hex("6")}', 'offered', '${hex("a")}', '{"why":"A, new inputs"}', now(), 'run-1');
+       SELECT portcove_maintenance.verify_current((SELECT max(assessment_id) FROM portcove_maintenance.assessments), 'run-1');`,
+    );
+    const refreshed = runSql(
+      source.owner,
+      "SELECT max(assessment_id) FROM portcove_maintenance.assessments;",
+    ).trim();
+    assert.equal(
+      runSql(
+        source.owner,
+        `SELECT sequence || ':' || assessment_id || ':' || applicable_assessment_id
+           FROM portcove_maintenance.subject_current WHERE subject_key = 'port:example-port';`,
+      ).trim(),
+      `3:3:${refreshed}`,
+      "the material transition stays; the applicable assessment moves",
+    );
+    rejects(
+      executor,
+      "UPDATE portcove_maintenance.operations SET state = 'dispatched', revision = 2 WHERE operation_id = 'op-plan';",
+      new RegExp(`operation fenced at 3 on assessment 3, current 3 on ${refreshed}`, "u"),
+    );
+    rejects(
+      executor,
+      `INSERT INTO portcove_maintenance.operations (operation_id, kind, subject_key, fence_sequence, fence_assessment_id, executor, created_at, updated_at)
+         VALUES ('op-old-plan', 'intake', 'port:example-port', 3, 3, 'hosted-discovery-intake', now(), now());`,
+      new RegExp(`operation bound to assessment 3, current ${refreshed}`, "u"),
+    );
+    const rebind = `UPDATE portcove_maintenance.operations SET fence_assessment_id = ${refreshed}, state = 'abandoned', revision = 2 WHERE operation_id = 'op-plan';`;
+    rejects(executor, rebind, /permission denied/u);
+    rejects(source.owner, rebind, /identity is immutable/u);
     // Limited roles.
     const report = source.as("report_login");
     assert.match(runSql(report, "SELECT count(*) FROM portcove_maintenance.observations;"), /1/u);
@@ -291,6 +408,11 @@ void test(
     const archive = path.join(root, "backup");
     const manifest = await backup(source.owner, archive);
     assert.deepEqual(manifest.tables, before);
+    const info = serverInfo(source.owner);
+    assert.equal(info.server_version_num, manifest.server_version_num);
+    assert.equal(info.server_major, Math.floor(manifest.server_version_num / 10_000));
+    assert.ok(info.server_major >= 16);
+    assert.ok(Number.isSafeInteger(info.database_size_bytes) && info.database_size_bytes > 0);
     assert.equal(manifest.schema_version, readMigrations().length);
     await assert.rejects(backup(source.owner, archive), /already exists/u);
     const altered = path.join(root, "altered");
@@ -318,8 +440,24 @@ void test(
     assert.deepEqual(migrationStatus(target.owner).problems, []);
 
     // Guards, sequences and roles work on the restored store.
+    assert.equal(
+      runSql(
+        target.owner,
+        `SELECT portcove_maintenance.acquire_collection() > max(acquisition)
+           FROM portcove_maintenance.collection_runs;`,
+      ).trim(),
+      "t",
+      "a restored store keeps issuing newer acquisitions",
+    );
     runSql(target.owner, "CREATE ROLE executor_login LOGIN IN ROLE portcove_maintenance_executor;");
     const restoredExecutor = target.as("executor_login");
+    const restoredJournal = postgresIntakeCheckpoints(restoredExecutor);
+    assert.throws(() => restoredJournal.load(177), /inactive on the restored maintenance store/u);
+    assert.throws(
+      () => restoredJournal.save(178, hex("a"), 0, first, null, [initialSlot]),
+      /advanced concurrently/u,
+    );
+
     runSql(
       restoredExecutor,
       `UPDATE portcove_maintenance.operations SET state = 'completed', revision = 4,

@@ -16,7 +16,22 @@
       "game_slug": "opengoal-jak-3",
       "match_kind": "port"
     },
-    "issue_number": 116
+    "issue_number": 116,
+    "original_game": {
+      "format_version": 1,
+      "id": "jak-3",
+      "evidence_urls": ["https://github.com/open-goal/jak-project"],
+      "source_editions": [
+        {
+          "id": "jak-3-playstation-2",
+          "title": "Jak 3 (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/open-goal/jak-project/blob/4cd2a71fa15ae214a03925beafa59c7228ec81d3/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

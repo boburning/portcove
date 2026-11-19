@@ -35,6 +35,21 @@
       "image_sha256": "34f5ea12174c809172ade265bf4ad1181002180eea97e8067604207be04e6548",
       "game_slug": "god-of-war-ascension",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war-ascension",
+      "evidence_urls": ["https://github.com/RichardFontoura/gowa-pc"],
+      "source_editions": [
+        {
+          "id": "god-of-war-ascension-playstation-3",
+          "title": "God of War: Ascension (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/RichardFontoura/gowa-pc/blob/45840d709a4e48a1d12d0803e323ba5c8568ab2a/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

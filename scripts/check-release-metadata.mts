@@ -76,7 +76,6 @@ const requiredBundleIcons = [
 ];
 
 const qualificationOnlyDesktopFeatures = [
-  "application-update-qualification",
   "native-compatibility-qualification",
   "qualification-fixtures",
 ];

@@ -21,8 +21,6 @@
     "release_url": "https://github.com/diasurgical/DevilutionX/releases",
     "recommended_download_channel": "stable",
     "download_asset_hints": {
-      "windows-x86-64": ["devilutionx-windows-x86_64.zip"],
-      "linux-x86-64": ["devilutionx-linux-x86_64.appimage"],
       "macos-x86-64": ["devilutionx-macOS-universal.dmg"],
       "macos-aarch64": ["devilutionx-macOS-universal.dmg"]
     },
@@ -66,7 +64,26 @@
         }
       ]
     },
-    "platforms": ["macos-x86-64", "macos-aarch64"]
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "diablo-hellfire",
+      "evidence_urls": [
+        "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md",
+        "https://github.com/diasurgical/DevilutionX",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/diablo-hellfire-devilutionx.json"
+      ],
+      "source_editions": [
+        {
+          "id": "diablo-hellfire-pc",
+          "title": "Diablo: Hellfire (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/diablo-hellfire-devilutionx.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -80,6 +97,7 @@
     },
     "decisions": []
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -149,7 +167,25 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose original game files",
+            "instruction": "Choose a folder or ZIP containing your own matching DIABDAT.MPQ, hellfire.mpq, hfmonk.mpq, hfmusic.mpq and hfvoice.mpq."
+          }
+        ],
+        "warnings": [
+          "The managed DevilutionX 1.5.5 Linux x86-64 AppImage can stop before the menu because its bundled engine files become unavailable. If that is the selected package, follow the upstream Linux instructions for a separate installation. Keep your current originals and profile."
+        ],
+        "help_url": "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md"
+      },
       "manual_preparation": "Select a folder or ZIP containing your complete matching DIABDAT.MPQ plus hellfire.mpq, hfmonk.mpq, hfmusic.mpq and hfvoice.mpq through the original-file chooser. This managed offer accepts the reviewed complete original set; other editions, the shareware demo and optional class archives use the separate upstream-owned route. Originals are not included. Upstream may also read recognized outside data locations; Core does not own or back up those files. Portcove prepares verified immutable copies under originals beside the player, and keeps settings, characters, stash, screenshots, demos and temporary data under the separate profile folder. Play uses the selected Diablo: Hellfire mode. Keep Diablo and Hellfire in their own entries and profiles; character conversion, cross-mode saves and older-reader compatibility are not established. Do not change this entry’s original set in place. Existing registrations stay externally owned; this offer does not adopt their populated runtime, original files or profile. Use a separate library or independently owned upstream copy for another original set, profile or owner. Preserve the creating runtime and current profile before changing versions. Outside-tree paths and unclaimed inside-tree modifications are outside this managed scope and can hold maintenance. Removal preserves the declared profile and external originals; retained profile data requires its creating contract before reuse."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["license"],
+        "executables": ["devilutionx.exe"]
+      }
     }
   }
 }

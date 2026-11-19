@@ -202,6 +202,7 @@ where
             .generation
             .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
     }
+    crate::recent_play_shortcuts::refresh(state.clone());
     result
 }
 

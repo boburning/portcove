@@ -108,13 +108,20 @@ the tree it covered. An unrelated advance can keep the existing review and
 checks. A relevant dependency, schema, generated contract, patch or policy
 interaction requires focused reconciliation before merge.
 Review may begin on an exact local commit and complete before expensive final
-qualification. Blocking findings identify a concrete correctness, security,
-data-loss, compatibility, or acceptance defect; a promised safety hole remains
-substantive even when current configuration does not exercise it. Cosmetic
-preferences, speculative generalization, and unrelated cleanup are nonblocking
-unless acceptance says otherwise. Repairs return to the same reviewer for the
-delta and affected interactions where practical. A new substantive finding still
-blocks; there is no cycle count that creates approval.
+qualification. [QUALITY](QUALITY.md#review-and-repair-loop) owns the reviewer,
+packet, finding classes, repair and escalation loop; a promised safety hole
+remains substantive even when current configuration does not exercise it, and
+there is no cycle count that creates approval.
+
+Keep a pull request in draft while review or repairs can still change its head.
+A draft run defers the eight Windows Rust test partitions
+([QUALITY](QUALITY.md#test-latency-and-reliability)), which are most of a Rust
+run's hosted runner time; every push to a ready pull request runs them again and
+lengthens the runner queue for every other candidate. Publish related repair
+commits in one push. Mark the pull request ready when review findings are repaired
+and its head is the one intended for merge, so the partitions run once on that
+head. Return a ready pull request to draft before pushing further source changes.
+This is delivery pacing: it changes no required context, review or acceptance.
 Before merging, refetch the pull request, confirm its current head still equals
 the reviewed head, confirm required checks and conflict-free mergeability, and
 use the guarded command below. A changed source head requires applicable
@@ -160,7 +167,9 @@ Attempt-bound artifacts retain their producer/consumer chain. Changed artifact
 inputs require rerunning that chain; cross-run checks cannot fill missing jobs.
 Set the absolute UTC deadline once from the actual job start and configured
 timeout, with a bounded allowance for collecting results; track queue time
-separately. Resume with the same run, attempt, head and deadline. The former
+separately. For a queued workflow with no job start, record a finite absolute
+observation cutoff and keep it on restart. Job execution is unmeasured until a
+job actually starts. Resume with the same run, attempt, head and deadline. The former
 invocation-relative `--timeout-seconds` option is removed because restarting it
 extended the wait. The watcher polls silently every three minutes, caps its last
 sleep to the deadline, and stops on changed identity, failed checks, terminal
@@ -184,10 +193,28 @@ before submission, then verifies the actual squash parent and tree. If the
 target advances during the request, GitHub's source SHA precondition can still
 allow the squash. The helper retains the actual commit and expected composition
 for reconciliation in that case. Existing invocations may omit both options.
-After a selective retry, also supply the successful
+GitHub rebuilds its preview lazily, so on a frequently advancing target it can
+remain on an older target commit. Instead of pushing a refresh commit, run the
+helper with the working directory at a non-shallow checkout of the reviewed head
+and add `--verify-local-composition` (invoke `node <main-checkout>/scripts/pr-delivery.mts merge …`
+when the candidate's own scripts should not perform the merge). Fetch the
+reviewed head, current target and observed preview (`refs/pull/<n>/merge`)
+first; the verifier performs no network access, as for
+[snapshot preparation](DEVELOPMENT-TOOLS.md). The helper then verifies the
+historical preview object, that its target is an ancestor of the reviewed
+target, and that `git merge-tree` of the reviewed target and head equals the
+reviewed tree, instead of requiring the preview to sit on the live tip, and
+records that verification in its receipt. A local mismatch refuses before
+submission; a divergence between that composition and GitHub's actual squash is
+caught by the post-merge parent and tree readback, not prevented. After a selective retry, also supply the successful
 workflow's `--run <id> --attempt <number>`. This joins complete check and job
 inventories across attempts and checks that the identified workflow remains
-successfully completed before the merge request. It freezes and rechecks the source SHA and required
+successfully completed before the merge request. When a reopen started another
+workflow run on the same head, bind the intended run the same way. Every required
+context must still be a successful job of the bound run attempt; another
+completed successful check run of the same name on that head (from any run or
+app) is then tolerated, while a failed or pending one, a commit status, or a
+context the bound run has no job for still refuses. It freezes and rechecks the source SHA and required
 contexts, submits that exact SHA, and reads the remote state back before any
 retry or local cleanup. Server-enforced review threads, permissions and
 repository rules remain in force; the helper is a mechanism, not review or
@@ -227,6 +254,16 @@ prevent arbitrary GitHub UI/API edits, and GitHub supplies no atomic relationshi
 precondition alongside the merge SHA guard. Hosted conventions remain advisory;
 existing acceptance, review, current-target/composed-tree and merge authority
 requirements remain separate.
+
+### Local Codex handoff
+
+Use the [local Codex PR handoff](DEVELOPMENT-TOOLS.md#local-codex-pr-handoff)
+when the host can durably accept the owning thread UUID. Managed observations use
+the same exact-head evaluator. They allow a successful workflow's missing
+required evidence to publish until the recorded deadline, and surface the
+missing evidence if it never arrives. A queue receipt or a watcher notification
+grants no review, acceptance or merge authority. On wake, claim the event and
+re-read the current PR before taking the already-authorized action.
 
 ### Connector delivery
 

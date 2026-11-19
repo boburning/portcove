@@ -282,6 +282,24 @@ export function requiredCheckContexts(
         const id = observation.check_run_id;
         const job = id === undefined ? undefined : lineage.checks.get(id);
         const raw = checkRuns.find((check) => check.id === id);
+        // A completed successful check run for the same head from another workflow
+        // run (for example one started by a reopen) adds no authority. It is only
+        // tolerated when the bound run has its own job for this context, which is
+        // then the one selected below and must itself succeed. A foreign failed or
+        // pending observation still refuses.
+        if (
+          latest !== undefined &&
+          observation.source === "check-run" &&
+          id !== undefined &&
+          !job &&
+          !seen.has(id) &&
+          raw?.head_sha === binding.head &&
+          raw.status === "completed" &&
+          observation.outcome === "success"
+        ) {
+          seen.add(id);
+          continue;
+        }
         if (
           observation.source !== "check-run" ||
           id === undefined ||
@@ -601,10 +619,10 @@ export function validateCommitComposition(
     throw new Error("Git commit composition differs from expected source, target, or tree");
 }
 
-function localComposition(
+export function localComposition(
   value: unknown,
   previewSha: string,
-  expected: MergeSnapshotExpectation,
+  expected: Pick<MergeSnapshotExpectation, "head" | "target" | "tree">,
   checkout: string,
   remainingMs: number,
 ) {
@@ -655,8 +673,7 @@ function localComposition(
     };
     const git = (cwd: string, args: string[]) => {
       const remaining = deadline - Date.now();
-      if (remaining <= 0)
-        throw new Error("Local composition exhausted the snapshot collection budget");
+      if (remaining <= 0) throw new Error("Local composition exhausted its time budget");
       const result = spawnSync("git", ["--no-replace-objects", ...args], {
         cwd,
         env,

@@ -15,6 +15,22 @@ use serde::{Deserialize, Serialize};
 use super::DestinationArtworkRole;
 use crate::{PortcoveError, Result};
 
+/// Where a player creates their own key; the only fixed SteamGridDB page Desktop opens.
+pub const STEAMGRIDDB_KEY_PREFERENCES_URL: &str =
+    "https://www.steamgriddb.com/profile/preferences/api";
+
+/// The public SteamGridDB page that credits a stored provider image.
+pub fn steamgriddb_credit_url(attribution: &crate::ArtworkAttribution) -> String {
+    let collection = match attribution.role {
+        DestinationArtworkRole::HeroBanner => "hero",
+        DestinationArtworkRole::PortraitCover | DestinationArtworkRole::LandscapeCover => "grid",
+    };
+    format!(
+        "https://www.steamgriddb.com/{collection}/{}",
+        attribution.asset_id
+    )
+}
+
 /// The only origin that ever receives the player's key.
 pub const STEAMGRIDDB_API_ORIGIN: &str = "https://www.steamgriddb.com/api/v2";
 /// Image and thumbnail URLs are accepted only from this HTTPS host.
@@ -102,15 +118,149 @@ impl From<SteamGridDbFailure> for PortcoveError {
     }
 }
 
-/// One HTTP GET against the fixed API origin; injected so tests use fixtures.
+/// HTTP access injected so tests use fixtures. Only `get` receives the key, and
+/// only for the fixed API origin; `fetch_image` has no key parameter, so the key
+/// can never reach the image host.
 pub(crate) trait SteamGridDbTransport {
     fn get(&self, path_and_query: &str, key: &str) -> Result<TransportResponse>;
+    /// `max_bytes` is enforced while reading; one extra byte reveals overflow.
+    fn fetch_image(&self, url: &str, max_bytes: u64) -> Result<TransportResponse>;
+}
+
+/// A chosen image re-resolved from the provider, with its bounded bytes.
+#[derive(Debug)]
+pub(crate) struct FetchedCandidate {
+    pub(crate) candidate: SteamGridDbCandidate,
+    pub(crate) bytes: Vec<u8>,
+}
+
+/// Re-resolves `candidate_id` from the provider's own listing (never trusting a
+/// client-supplied URL or author) and fetches its image without the key.
+pub(crate) fn fetch_candidate(
+    transport: &impl SteamGridDbTransport,
+    key: &str,
+    game_id: u64,
+    role: DestinationArtworkRole,
+    candidate_id: u64,
+) -> Result<FetchedCandidate> {
+    // Only the first listing page is consulted; an image that moved off it is
+    // reported as no longer listed and the current artwork is kept.
+    let candidate = role_candidates(transport, key, game_id, role)?
+        .into_iter()
+        .find(|candidate| candidate.id == candidate_id)
+        .ok_or_else(|| {
+            PortcoveError::not_found(
+                "SteamGridDB no longer lists this image for this game and role; list the images again",
+            )
+        })?;
+    if !is_image_url(&candidate.url) {
+        return Err(SteamGridDbFailure::InvalidResponse.into());
+    }
+    let response =
+        transport.fetch_image(&candidate.url, crate::artwork_image::MAX_ORIGINAL_BYTES)?;
+    match response.status {
+        200 => {}
+        404 => {
+            return Err(PortcoveError::not_found(
+                "SteamGridDB no longer serves this image; choose another",
+            ));
+        }
+        429 => {
+            return Err(SteamGridDbFailure::RateLimited {
+                retry_after_seconds: retry_after_seconds(response.retry_after.as_deref()),
+            }
+            .into());
+        }
+        500..=599 => return Err(SteamGridDbFailure::Unavailable.into()),
+        // Redirects are never followed; any other status is unexpected.
+        _ => return Err(SteamGridDbFailure::InvalidResponse.into()),
+    }
+    if response.body.is_empty()
+        || response.body.len() as u64 > crate::artwork_image::MAX_ORIGINAL_BYTES
+    {
+        return Err(PortcoveError::verification(
+            "the SteamGridDB image is empty or exceeds the artwork size limit",
+        ));
+    }
+    Ok(FetchedCandidate {
+        candidate,
+        bytes: response.body,
+    })
+}
+
+/// Fetches a chosen candidate with the player's stored key.
+pub(crate) fn fetch_chosen_candidate(
+    game_id: u64,
+    role: DestinationArtworkRole,
+    candidate_id: u64,
+) -> Result<FetchedCandidate> {
+    with_key(|key| fetch_candidate(&HttpTransport, key, game_id, role, candidate_id))
+}
+
+/// Largest thumbnail Portcove downloads to show a candidate before it is chosen.
+const MAX_PREVIEW_BYTES: usize = 4 * 1024 * 1024;
+
+/// A bounded local preview of a candidate thumbnail: fetched from the CDN
+/// without the key, decoded with the shared limits (refusing animation) and
+/// re-encoded as a small PNG, so the renderer never loads a remote image.
+pub fn steamgriddb_preview(thumb_url: &str) -> Result<Vec<u8>> {
+    preview(&HttpTransport, thumb_url)
+}
+
+pub(crate) fn preview(transport: &impl SteamGridDbTransport, thumb_url: &str) -> Result<Vec<u8>> {
+    if !is_image_url(thumb_url) {
+        return Err(PortcoveError::usage(
+            "previews come only from SteamGridDB's image server",
+        ));
+    }
+    let response = transport.fetch_image(thumb_url, MAX_PREVIEW_BYTES as u64)?;
+    match response.status {
+        200 => {}
+        404 => {
+            return Err(PortcoveError::not_found(
+                "this preview is no longer available",
+            ));
+        }
+        429 => {
+            return Err(SteamGridDbFailure::RateLimited {
+                retry_after_seconds: retry_after_seconds(response.retry_after.as_deref()),
+            }
+            .into());
+        }
+        500..=599 => return Err(SteamGridDbFailure::Unavailable.into()),
+        _ => return Err(SteamGridDbFailure::InvalidResponse.into()),
+    }
+    if response.body.is_empty() || response.body.len() > MAX_PREVIEW_BYTES {
+        return Err(PortcoveError::verification(
+            "the SteamGridDB preview is empty or too large",
+        ));
+    }
+    Ok(crate::artwork_image::decode_with_thumbnail_bounds(&response.body, 240, 360)?.thumbnail)
+}
+
+fn retry_after_seconds(value: Option<&str>) -> Option<u64> {
+    value
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .filter(|seconds| *seconds <= 24 * 60 * 60)
 }
 
 pub(crate) struct TransportResponse {
     pub status: u16,
     pub retry_after: Option<String>,
+    /// The response's HTTP `Date`, as sent.
+    pub date: Option<String>,
     pub body: Vec<u8>,
+}
+
+/// An HTTP `Date` (IMF-fixdate, which RFC 2822 parsing accepts) as Unix
+/// seconds; anything unreadable or before 2020 is ignored.
+pub(crate) fn server_date(value: Option<&str>) -> Option<i64> {
+    let parsed = time::OffsetDateTime::parse(
+        value?.trim(),
+        &time::format_description::well_known::Rfc2822,
+    )
+    .ok()?;
+    Some(parsed.unix_timestamp()).filter(|seconds| *seconds >= 1_577_836_800)
 }
 
 /// Stores the player's key; leading/trailing whitespace is removed.
@@ -190,6 +340,15 @@ pub(crate) fn search_games(
         .collect())
 }
 
+/// The provider collection and the documented sizes Portcove offers for a role.
+fn role_listing(role: DestinationArtworkRole) -> (&'static str, &'static str) {
+    match role {
+        DestinationArtworkRole::PortraitCover => ("grids", "600x900,342x482,660x930"),
+        DestinationArtworkRole::LandscapeCover => ("grids", "460x215,920x430"),
+        DestinationArtworkRole::HeroBanner => ("heroes", "1920x620,3840x1240,1600x650"),
+    }
+}
+
 pub(crate) fn role_candidates(
     transport: &impl SteamGridDbTransport,
     key: &str,
@@ -199,11 +358,7 @@ pub(crate) fn role_candidates(
     if game_id == 0 {
         return Err(PortcoveError::usage("choose a SteamGridDB game first"));
     }
-    let (collection, dimensions) = match role {
-        DestinationArtworkRole::PortraitCover => ("grids", "600x900,342x482,660x930"),
-        DestinationArtworkRole::LandscapeCover => ("grids", "460x215,920x430"),
-        DestinationArtworkRole::HeroBanner => ("heroes", "1920x620,3840x1240,1600x650"),
-    };
+    let (collection, dimensions) = role_listing(role);
     let path = format!(
         "/{collection}/game/{game_id}?dimensions={dimensions}&mimes=image/png,image/jpeg\
          &types=static&nsfw=false&humor=false&epilepsy=false&limit={MAX_RESULTS}&page=0"
@@ -262,7 +417,7 @@ pub(crate) fn role_candidates(
             style: image.style.chars().take(40).collect(),
             score: image.score,
             author: SteamGridDbAuthor {
-                name: image.author.name.chars().take(100).collect(),
+                name: author_name(&image.author.name),
                 steam64: image.author.steam64.filter(|id| {
                     !id.is_empty() && id.len() <= 20 && id.bytes().all(|b| b.is_ascii_digit())
                 }),
@@ -283,10 +438,7 @@ fn request<T: for<'de> Deserialize<'de>>(
         404 => return Err(SteamGridDbFailure::NoMatch.into()),
         429 => {
             return Err(SteamGridDbFailure::RateLimited {
-                retry_after_seconds: response
-                    .retry_after
-                    .and_then(|value| value.trim().parse::<u64>().ok())
-                    .filter(|seconds| *seconds <= 24 * 60 * 60),
+                retry_after_seconds: retry_after_seconds(response.retry_after.as_deref()),
             }
             .into());
         }
@@ -316,7 +468,26 @@ fn request<T: for<'de> Deserialize<'de>>(
         .collect())
 }
 
-fn is_image_url(value: &str) -> bool {
+/// Attribution text shown to players and stored with provenance: no control
+/// characters, trimmed, bounded, and never empty.
+pub(crate) fn author_name(value: &str) -> String {
+    let name = value
+        .chars()
+        .filter(|character| !character.is_control())
+        .take(100)
+        .collect::<String>()
+        .trim()
+        .to_owned();
+    if name.is_empty() {
+        UNKNOWN_AUTHOR.into()
+    } else {
+        name
+    }
+}
+
+pub(crate) const UNKNOWN_AUTHOR: &str = "Unnamed SteamGridDB artist";
+
+pub(crate) fn is_image_url(value: &str) -> bool {
     match reqwest::Url::parse(value) {
         Ok(url) => {
             url.scheme() == "https"
@@ -367,9 +538,7 @@ fn credential_entry() -> Result<keyring::Entry> {
 }
 
 fn credential_error(action: &str, error: keyring::Error) -> PortcoveError {
-    PortcoveError::state(format!(
-        "could not {action} the SteamGridDB key in operating-system secure storage: {error}"
-    ))
+    crate::credential_store::store_error("SteamGridDB key", action, error, true)
 }
 
 struct HttpTransport;
@@ -387,6 +556,11 @@ impl SteamGridDbTransport for HttpTransport {
             .get(reqwest::header::RETRY_AFTER)
             .and_then(|value| value.to_str().ok())
             .map(str::to_owned);
+        let date = response
+            .headers()
+            .get(reqwest::header::DATE)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned);
         let mut body = Vec::new();
         use std::io::Read;
         response
@@ -396,6 +570,55 @@ impl SteamGridDbTransport for HttpTransport {
         Ok(TransportResponse {
             status,
             retry_after,
+            date,
+            body,
+        })
+    }
+
+    fn fetch_image(&self, url: &str, max_bytes: u64) -> Result<TransportResponse> {
+        self.fetch(url, max_bytes)
+    }
+}
+
+impl HttpTransport {
+    fn fetch(&self, url: &str, max_bytes: u64) -> Result<TransportResponse> {
+        if !is_image_url(url) {
+            return Err(SteamGridDbFailure::InvalidResponse.into());
+        }
+        // No `bearer_auth`: the image host never receives the player's key.
+        let response = http_client()?
+            .get(url)
+            // Previews are small and share capacity with catalog covers, so a
+            // stalled CDN gives them up sooner than a chosen original.
+            .timeout(if max_bytes <= MAX_PREVIEW_BYTES as u64 {
+                Duration::from_secs(15)
+            } else {
+                Duration::from_secs(60)
+            })
+            .send()
+            .map_err(|_| PortcoveError::from(SteamGridDbFailure::Unavailable))?;
+        let status = response.status().as_u16();
+        let retry_after = response
+            .headers()
+            .get(reqwest::header::RETRY_AFTER)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned);
+        let date = response
+            .headers()
+            .get(reqwest::header::DATE)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned);
+        let mut body = Vec::new();
+        use std::io::Read;
+        // The cap is enforced while reading; one extra byte detects overflow.
+        response
+            .take(max_bytes.saturating_add(1))
+            .read_to_end(&mut body)
+            .map_err(|_| PortcoveError::from(SteamGridDbFailure::Unavailable))?;
+        Ok(TransportResponse {
+            status,
+            retry_after,
+            date,
             body,
         })
     }
@@ -418,6 +641,16 @@ fn http_client() -> Result<&'static reqwest::blocking::Client> {
         .as_ref()
         .map_err(|error| PortcoveError::network(format!("SteamGridDB client unavailable: {error}")))
 }
+
+#[path = "steamgriddb_check.rs"]
+mod check;
+pub(crate) use check::{
+    CheckSubject, ListingRun, ServerDates, check_stored_listings, check_subjects,
+};
+pub use check::{
+    SteamGridDbCheckEffect, SteamGridDbCheckStop, SteamGridDbImageCheck, SteamGridDbListingReport,
+    SteamGridDbListingResult, SteamGridDbSourceStatus, SteamGridDbUnknownReason,
+};
 
 #[cfg(test)]
 #[path = "steamgriddb_tests.rs"]

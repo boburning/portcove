@@ -21,6 +21,23 @@ export function pickModPackagePath(packageTypes: string[]) {
   });
 }
 
+export function pickModRecipePath(title: string, label: string) {
+  return open({
+    title,
+    multiple: false,
+    directory: false,
+    filters: [{ name: label, extensions: ["json"] }],
+  });
+}
+
+export function saveModRecipePath(title: string, label: string) {
+  return save({
+    title,
+    defaultPath: "portcove-setup.json",
+    filters: [{ name: label, extensions: ["json"] }],
+  });
+}
+
 export async function pickSourcePath(
   profile: SourceProfile,
   currentPath: string,
@@ -147,11 +164,37 @@ export function pickMetadataImportPath() {
   });
 }
 
+export function pickDatPath() {
+  return open({
+    title: "Choose a DAT file",
+    multiple: false,
+    directory: false,
+    filters: [{ name: "No-Intro or Redump DAT file", extensions: ["dat", "xml"] }],
+  });
+}
+
 export function pickSignedCatalogPath() {
   return open({
     title: "Choose signed catalog",
     multiple: false,
     directory: false,
     filters: [{ name: "Signed Portcove catalog", extensions: ["json"] }],
+  });
+}
+
+export function pickPortableSavesExportPath(defaultName: string) {
+  return save({
+    title: "Export saves",
+    defaultPath: defaultName,
+    filters: [{ name: "Portcove saves file", extensions: ["json"] }],
+  });
+}
+
+export function pickPortableSavesImportPath() {
+  return open({
+    title: "Import saves",
+    multiple: false,
+    directory: false,
+    filters: [{ name: "Portcove saves file", extensions: ["json"] }],
   });
 }

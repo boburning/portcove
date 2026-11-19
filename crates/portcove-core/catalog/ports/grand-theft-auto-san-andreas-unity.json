@@ -1,0 +1,50 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "grand-theft-auto-san-andreas-unity",
+    "artwork": {
+      "game_id": 732,
+      "cover_id": 120933,
+      "image_id": "co2lb9",
+      "image_sha256": "8f6a8446fea52cb23348258ffc8304e13324ea2366bb9b07d46bcc8171d4843e",
+      "game_slug": "grand-theft-auto-san-andreas",
+      "match_kind": "underlying-game"
+    },
+    "name": "San Andreas Unity",
+    "original_game_title": "Grand Theft Auto: San Andreas",
+    "summary": "Explore San Andreas and use the project’s multiplayer features with game data from your own PC installation.",
+    "project_url": "https://github.com/in0finite/SanAndreasUnity",
+    "issue_number": 6134,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/in0finite/SanAndreasUnity/blob/v4.0/README.md",
+    "download_block_reason": "Portcove downloads are paused while the cover artwork bundled in the Windows, Linux and Android packages is reviewed. Use these instructions for copies you already trust and are permitted to use.",
+    "manual_setup": {
+      "help_url": "https://github.com/in0finite/SanAndreasUnity/blob/v4.0/README.md",
+      "steps": [
+        {
+          "title": "Prepare your installed PC game",
+          "instruction": "Keep your installed PC Grand Theft Auto: San Andreas data outside the San Andreas Unity player folder. In San Andreas Unity, use Change path to GTA to select your installed game folder. The project focuses on free exploration and multiplayer. Expect its own menus and modes."
+        },
+        {
+          "title": "Start an existing Windows or Linux copy",
+          "instruction": "Keep the executable, Unity libraries and SanAndreasUnity_Data folder together in a writable directory. Launch SanAndreasUnity.exe on Windows x64 or SanAndreasUnity.x86_64 on Linux x64 from that directory. If the Linux ZIP extracted with no permissions, restore owner read and directory access on that private copy and make SanAndreasUnity.x86_64 executable."
+        }
+      ],
+      "warnings": [
+        "Keep your original game, working folder and actual user profile before updating or replacing the player. You and upstream own the separate copy."
+      ],
+      "references": [
+        {
+          "title": "Keep your desktop settings",
+          "instruction": "Preserve config.user.json from the directory you start the player in. Also preserve the active Unity user profile and any local Data folder, plugins or mods you use."
+        },
+        {
+          "title": "Android preview and Mac source",
+          "instruction": "The Android v4.0 APK is an ARMv7 debug build and requires a device that can run 32-bit apps. It needs your installed PC game data and keeps its settings in the app’s user data. For Intel Mac and Apple Silicon, refer to the upstream Unity source build instructions. Compatibility for each Mac architecture still needs to be verified."
+        }
+      ]
+    }
+  }
+}

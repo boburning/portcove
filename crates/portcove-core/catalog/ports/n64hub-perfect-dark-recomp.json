@@ -2,11 +2,19 @@
   "format_version": 1,
   "listing": {
     "id": "n64hub-perfect-dark-recomp",
+    "artwork": {
+      "game_id": 1463,
+      "cover_id": 336883,
+      "image_id": "co77xv",
+      "image_sha256": "b4527efe3caaec5486b90fecdad0978574ce819f4024e5dd29f4565443871afc",
+      "game_slug": "perfect-dark",
+      "match_kind": "underlying-game"
+    },
     "name": "Perfect Dark (Perfect Dark: Recompiled)",
     "summary": "A Perfect Dark port with project-reported Defection mission progress and persistent saves. Linux WSL/Dozen GPU tests caused hangs and a host freeze; Windows audio was tested only with a disk driver and short plays. Full-game progress, long sessions and physical controllers remain unconfirmed. Windows/Linux x86-64 and browser routes are documented; Windows uses Direct3D 12. Use your own USA revision 1 N64 ROM, NPDE version 01, 32 MiB, MD5 e03b088b6ac9e0080440efed07c1e40f. Further accepted revision/hashes and BIOS/firmware requirements are unconfirmed. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed setup or gameplay.",
     "original_game_title": "Perfect Dark",
     "project_url": "https://github.com/n64hub/perfect-dark-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/n64hub/perfect-dark-recomp",
     "issue_number": 2776,
@@ -37,6 +45,24 @@
         {
           "title": "Keep the creating profile and portable mode",
           "instruction": "The reviewed Windows profile defaults to %LOCALAPPDATA%/PerfectDarkRecompiled. An existing portable.txt in the working folder selects that folder instead. Keep the creating mode and actual locations; adding or removing the marker does not migrate existing data. Keep the whole profile, its selected original/EEPROM data, all JSON settings, controller profiles, mods and any separately chosen outputs. Preserve the complete runtime folder and any custom or external paths too. Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "perfect-dark",
+      "evidence_urls": [
+        "https://github.com/n64hub/perfect-dark-recomp/blob/cb7a2900cf2b216aa39f44daaece2cdb5599ba32/README.md",
+        "https://github.com/n64hub/perfect-dark-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "perfect-dark-nintendo-64",
+          "title": "Perfect Dark (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/n64hub/perfect-dark-recomp/blob/ea46a3a49da515b5982d98b2270e5782eab98cd3/README.md"
+          ]
         }
       ]
     }

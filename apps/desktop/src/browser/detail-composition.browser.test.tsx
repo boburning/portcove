@@ -40,7 +40,9 @@ async function mount(theme: string, journey: Journey = "comparison") {
     { container: root },
   );
   await expect
-    .poll(() => document.querySelectorAll(".collection-entry").length)
+    .poll(() =>
+      Number(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")),
+    )
     .toBe(journey === "comparison" ? 12 : journey === "details" ? 6 : 2);
   document.documentElement.dataset.theme = theme;
   await document.fonts.ready;
@@ -383,9 +385,9 @@ it.each(["Library", "Discover"])("names and restores the known %s origin", async
   const back = page.getByRole("button", { name: `Back to ${origin}`, exact: true });
   await expect.element(back).toBeVisible();
   await back.click();
-  expect(document.activeElement?.getAttribute("data-detail-origin")).toMatch(
-    new RegExp(`^${origin === "Library" ? "library" : "catalog"}:`),
-  );
+  await expect
+    .poll(() => document.activeElement?.getAttribute("data-detail-origin"))
+    .toMatch(new RegExp(`^${origin === "Library" ? "library" : "catalog"}:`));
 });
 
 it("clears search inline, returns focus and retains the declared platform constraint", async () => {
@@ -400,10 +402,13 @@ it("clears search inline, returns focus and retains the declared platform constr
   await page.getByRole("button", { name: "Clear search", exact: true }).click();
   await expect.element(search).toHaveValue("");
   await expect.element(search).toHaveFocus();
+  await expect.element(page.getByText("Search cleared.", { exact: true })).toBeInTheDocument();
   await expect
     .element(page.getByRole("button", { name: "Remove Runs on: Windows filter", exact: true }))
     .toBeVisible();
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await expect
+    .poll(() => document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize"))
+    .toBe("12");
 });
 
 it.each([1440, 1024, 740])(

@@ -17,7 +17,47 @@
       "game_slug": "star-fox",
       "match_kind": "underlying-game"
     },
-    "issue_number": 124
+    "issue_number": 124,
+    "manual_setup": {
+      "help_url": "https://github.com/kandowontu2/starfox-enhanced/blob/77a5ee84a3d87eb2abfbbf03afb5992557b660bb/README.md",
+      "warnings": [
+        "The older managed Windows download is unavailable upstream. Keep any working Portcove copy and its data. Use these steps for a separate v0.0.8.8.3 copy you have permission to use."
+      ],
+      "steps": [
+        {
+          "title": "Set up a separate Windows or Linux copy",
+          "instruction": "Extract the complete package to a writable folder. Put your own supported .sfc or .smc original beside starfox_pc.exe on Windows or starfox_pc on Linux, then start the player. It validates the original and builds Starfox-Assets.BIN on first run."
+        },
+        {
+          "title": "Set up a separate Mac or Android copy",
+          "instruction": "On Intel or Apple Silicon Mac, open StarFoxEnhanced.app and follow the upstream ROM setup instructions. On Android ARM64, install the upstream APK and select your own original in the first-run picker. Each app keeps its data in its writable user or app storage."
+        }
+      ],
+      "references": [
+        {
+          "title": "Keep progress with your separate copy",
+          "instruction": "Keep the Windows or Linux data beside the player, including starfox-ex.srm, states/ and your settings. Back up those files before applying an update in the game. On Mac, keep the app’s StarFoxEnhanced application data when replacing the bundle. On Android, use the normal package upgrade for the same app and retain its app data."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-fox",
+      "evidence_urls": [
+        "https://github.com/kandowontu2/starfox-enhanced/blob/77a5ee84a3d87eb2abfbbf03afb5992557b660bb/README.md",
+        "https://github.com/kandowontu2/starfox-enhanced"
+      ],
+      "source_editions": [
+        {
+          "id": "star-fox-super-nintendo",
+          "title": "Star Fox (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/kandowontu2/starfox-enhanced/blob/77a5ee84a3d87eb2abfbbf03afb5992557b660bb/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -26,6 +66,16 @@
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "adapter": "staged-source-portable",
+    "managed_acquisition_hold": {
+      "reason": "The older Star Fox Enhanced package is unavailable upstream. Newer desktop packages include parts of the original game. Keep using your existing copy while Portcove checks a replacement.",
+      "activation_reason": "This prepared Star Fox Enhanced package does not match the earlier reviewed Windows release. Keep your current installed copy.",
+      "reviewed_artifacts": [
+        {
+          "version": "v0.0.6.7",
+          "sha256": "e1b8569fe5712b4e2cb99effa50b8527d86311ede55f3570ae1537d414f29abe"
+        }
+      ]
+    },
     "release": {
       "repository": "kandowontu/starfox-enhanced",
       "asset_hints": {

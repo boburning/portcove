@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "pgr3-recomp-jpneagle-project-gotham-racing-3",
+    "artwork": {
+      "game_id": 3322,
+      "cover_id": 86419,
+      "image_id": "co1uoj",
+      "image_sha256": "2341c1d07f2bfd348536ce65410833f962b885c5ca493c730ff2d217ada4afac",
+      "game_slug": "project-gotham-racing-3",
+      "match_kind": "underlying-game"
+    },
     "name": "Project Gotham Racing 3 — PGR3-recomp (jpneagle)",
     "original_game_title": "Project Gotham Racing 3",
     "summary": "Only a small section has been checked using scripted input and frame/audio captures. Expect bugs. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/jpneagle/PGR3-recomp"
     },
-    "issue_number": 3293
+    "issue_number": 3293,
+    "original_game": {
+      "format_version": 1,
+      "id": "project-gotham-racing-3",
+      "evidence_urls": ["https://github.com/jpneagle/PGR3-recomp"],
+      "source_editions": [
+        {
+          "id": "project-gotham-racing-3-xbox-360",
+          "title": "Project Gotham Racing 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/jpneagle/PGR3-recomp/blob/1f2f8794f2e77508f50840909cd96c4c13d7f6a9/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

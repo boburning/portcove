@@ -40,6 +40,24 @@
       ],
       "help_url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/0a9dbbf409accdcc0bebd676455de4f5a192f7e5/README.md"
     },
-    "download_block_reason": "The existing v0.1.0-beta release is a scene prototype without runnable game logic or levels; it is the same artifact covered by this port’s owner-approved useful-output hold. Reconsider fresh setup when upstream supplies a useful game runtime or a separately evidenced useful operation. Already registered permitted development copies retain their contracts."
+    "download_block_reason": "The existing v0.1.0-beta release is a scene prototype without runnable game logic or levels; it is the same artifact covered by this port’s owner-approved useful-output hold. Reconsider fresh setup when upstream supplies a useful game runtime or a separately evidenced useful operation. Already registered permitted development copies retain their contracts.",
+    "original_game": {
+      "format_version": 1,
+      "id": "conker-s-bad-fur-day",
+      "evidence_urls": [
+        "https://github.com/Conker64Recomp/conker64-recompiled/blob/0a9dbbf409accdcc0bebd676455de4f5a192f7e5/README.md",
+        "https://github.com/Conker64Recomp/conker64-recompiled"
+      ],
+      "source_editions": [
+        {
+          "id": "conker-s-bad-fur-day-nintendo-64",
+          "title": "Conker's Bad Fur Day (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/Conker64Recomp/conker64-recompiled/blob/0a9dbbf409accdcc0bebd676455de4f5a192f7e5/README.md"
+          ]
+        }
+      ]
+    }
   }
 }

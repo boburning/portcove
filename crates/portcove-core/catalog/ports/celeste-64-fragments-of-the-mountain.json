@@ -1,0 +1,50 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "celeste-64-fragments-of-the-mountain",
+    "artwork": {
+      "game_id": 284430,
+      "cover_id": 358960,
+      "image_id": "co7oz4",
+      "image_sha256": "98c0527ec93c5bfb4dfc0145123b11fba721b0f0d12a5b7d9f9ba351d21d7b31",
+      "game_slug": "celeste-64-fragments-of-the-mountain",
+      "match_kind": "underlying-game"
+    },
+    "name": "Celeste 64: Fragments of the Mountain",
+    "summary": "Explore a 3D mountain in a short standalone game from the Celeste developers.",
+    "project_url": "https://github.com/EXOK/Celeste64",
+    "issue_number": 6126,
+    "listed_at": "2026-11-14",
+    "original_game_title": "Celeste 64: Fragments of the Mountain",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/EXOK/Celeste64/releases/tag/v1.1.1",
+    "download_asset_hints": {
+      "windows-x86-64": ["Celeste64-", "-Windows-x64.zip"],
+      "linux-x86-64": ["Celeste64-", "-Linux-x64.zip"],
+      "macos-x86-64": ["Celeste64-", "-macOS-x64.zip"],
+      "macos-aarch64": ["Celeste64-", "-macOS-arm64.zip"]
+    },
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "help_url": "https://github.com/EXOK/Celeste64/releases/tag/v1.1.1",
+      "warnings": [],
+      "steps": [
+        {
+          "title": "Choose the package for your computer",
+          "instruction": "The release supports Windows 10 or later on x64, Linux x64 with glibc 2.35 or later, and macOS Monterey or later on Intel or Apple Silicon. The same upstream release has separate Linux ARM64 and ARM32 builds."
+        },
+        {
+          "title": "Extract the complete folder and start Celeste 64",
+          "instruction": "Run Celeste64.exe on Windows or Celeste64 on Linux and Mac, with its containing folder as the start folder. Keep Content/ and the adjacent libraries with the player. The official package includes the game and needs no separate Celeste installation."
+        }
+      ],
+      "references": [
+        {
+          "title": "Keep your progress when replacing a copy",
+          "instruction": "Keep the Celeste64 user data folder in Roaming AppData on Windows, in XDG_DATA_HOME or ~/.local/share on Linux, or in Library/Application Support on Mac. Preserve save.json and the other settings files there when replacing the extracted game folder."
+        }
+      ]
+    }
+  }
+}

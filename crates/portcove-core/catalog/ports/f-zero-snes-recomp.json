@@ -5,7 +5,7 @@
     "id": "f-zero-snes-recomp",
     "name": "F-Zero SNES Recomp",
     "summary": "Native F-Zero recompilation.",
-    "project_url": "https://github.com/RetroPortingToolKit/FZeroSNESRecomp",
+    "project_url": "https://github.com/RetroPortingToolKit/F-ZeroForever",
     "listed_at": "2026-10-23",
     "original_game_title": "F-Zero",
     "variant_label": "SNES",
@@ -17,18 +17,70 @@
       "game_slug": "f-zero",
       "match_kind": "underlying-game"
     },
-    "issue_number": 1114
+    "issue_number": 1114,
+    "manual_setup": {
+      "help_url": "https://github.com/RetroPortingToolKit/F-ZeroForever/releases/tag/v1.8.3",
+      "warnings": [
+        "F-Zero Forever 2.x is a separate package. Keep its runtime and profile outside your existing Portcove installation."
+      ],
+      "steps": [
+        {
+          "title": "Use a separate reviewed Windows v1.8.3 copy",
+          "instruction": "If you already have FZeroSNESRecomp-1.8.3-windows-x64.zip from the linked publisher release, extract the whole ZIP outside your Portcove library. Use a short, writable path with basic Latin characters. Open FZeroSNESRecomp.exe and select your own unmodified, headerless F-Zero (USA) .sfc file."
+        }
+      ],
+      "references": [
+        {
+          "title": "Keep your saves and settings",
+          "instruction": "Keep the original game file separately. Preserve saves/ and config.ini, fzero-video.ini, keybinds.ini and rom.cfg beside the executable when moving your external Windows copy."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "f-zero",
+      "evidence_urls": [
+        "https://github.com/RetroPortingToolKit/F-ZeroForever/releases/tag/v1.8.3",
+        "https://github.com/RetroPortingToolKit/F-ZeroForever",
+        "https://github.com/boburning/portcove/actions/runs/42721674877",
+        "https://github.com/boburning/portcove/actions/runs/42664975992",
+        "https://github.com/RetroPortingToolKit/FZeroSNESRecomp/commit/c70e790e222600a3c4e79081f3f6371732746815",
+        "https://github.com/RetroPortingToolKit/FZeroSNESRecomp/releases/tag/v0.14.1",
+        "https://github.com/boburning/portcove/issues/4784#issuecomment-6886921035",
+        "https://api.github.com/repos/RetroPortingToolKit/F-ZeroForever"
+      ],
+      "source_editions": [
+        {
+          "id": "f-zero-super-nintendo",
+          "title": "F-Zero (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/mstan/FZeroSNESRecomp/blob/1686df46d4fc7c22b5dc8fdfaa5282ca4bd78562/src/sdl_main.c"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
     "platforms": ["windows-x86-64"],
     "adapter": "staged-source-portable",
+    "managed_acquisition_hold": {
+      "reason": "The current F-Zero Forever packages have a different launcher and bundled course data. Portcove is checking a compatible replacement. You can keep using your existing installation or prepare a separate reviewed v1.8.3 copy.",
+      "activation_reason": "This staged F-Zero SNES package does not match the reviewed Windows v1.8.3 release. Keep your current installed copy.",
+      "reviewed_artifacts": [
+        {
+          "version": "v1.8.3",
+          "sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658"
+        }
+      ]
+    },
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
       "provider": "github",
-      "repository": "RetroPortingToolKit/FZeroSNESRecomp",
+      "repository": "RetroPortingToolKit/F-ZeroForever",
       "asset_hints": {
         "windows-x86-64": ["FZeroSNESRecomp-", "-windows-x64.zip"]
       }
@@ -43,15 +95,15 @@
         {
           "role": "game",
           "profile_id": "f-zero-snes-usa",
-          "label": "F-Zero (USA) headerless SNES source",
+          "label": "F-Zero (USA) SNES source",
           "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own F-Zero (USA) .sfc file without a copier header. Portcove installs the Windows port and manages its saves and settings separately from existing external copies. This package enables BS Deluxe changes by default. Other mods, MSU music, developer tracing and capture setups are outside this reviewed route. Windows gameplay remains untested. This Windows build needs a short installation folder using basic Latin characters; original game files can stay in their existing location."
+      "manual_preparation": "Provide your own F-Zero (USA) .sfc or .smc file, with or without a copier header. Existing managed Windows v1.8.3 installations keep their saves and settings separately from external copies. Fresh managed acquisition is paused while the successor package is reviewed. This package enables BS Deluxe changes by default. Other mods, MSU music, developer tracing and capture setups are outside this reviewed route. Windows gameplay remains untested. This Windows build needs a short installation folder using basic Latin characters; original game files can stay in their existing location."
     },
     "runtime_source_filename": "fzero.sfc",
-    "runtime_source_materialization": "copy",
+    "runtime_source_materialization": "snes-headerless",
     "runtime_source_hashes": {
       "fzero.sfc": "bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2"
     },
@@ -133,6 +185,47 @@
         "review": {
           "reference": "https://github.com/boburning/portcove/issues/4784#issuecomment-6754694074",
           "decision_sha256": "860cdffb940734ac808631f6083c6c7e846961c626ba8b76500cf6200a7936e6"
+        }
+      },
+      {
+        "from": {
+          "project_url": "https://github.com/RetroPortingToolKit/FZeroSNESRecomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1348026644"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/RetroPortingToolKit/F-ZeroForever",
+          "repository": {
+            "host": "github.com",
+            "id": "1348026644"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The former repository endpoint returns HTTP 301 to numeric repository 1348026644, and the current name resolves independently to the same ID. The accepted v1.8.3 release 393440319 and Windows asset 580473673 retain their identities. The downloaded exact Windows asset matches the accepted SHA-256 and package length.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/boburning/portcove/issues/4784#issuecomment-6886921035",
+            "note": "Raw response locations, current owner and repository ID, and exact downloaded historical asset evidence. Current v2.0.0 variants use different player and package contracts."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repos/RetroPortingToolKit/F-ZeroForever",
+            "note": "The current API path directly identifies RetroPortingToolKit/F-ZeroForever as repository 1348026644."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/RetroPortingToolKit/F-ZeroForever/releases/tag/v1.8.3",
+            "note": "The same reviewed v1.8.3 historical Windows filename, asset 580473673, size 8247843 and SHA-256 4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658 were verified at the current publisher endpoint."
+          }
+        ],
+        "reconsider_when": "Reassess if either location resolves to a different provider identity, the reviewed artifact changes or becomes unavailable, or new ownership evidence contradicts the relocation. Review F-Zero Forever 2.x package content, launch and data contracts independently.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/4784#issuecomment-6886944416",
+          "decision_sha256": "64b2f3255753c5cec352ca7785a0bcb85f7b5dbc772ce9da86e9fa0ceadcf04e"
         }
       }
     ]

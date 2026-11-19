@@ -68,7 +68,18 @@ for (const id of ids)
       false,
       "authoring facts do not become operational authority",
     );
-    if (raw.integration) {
+    if (raw.integration?.source_profile) {
+      assert.deepEqual(output.integration, raw.integration);
+      const managed = projectAuthoredPort(raw)!.presentation;
+      assert.ok(isRecord(managed) && isRecord(managed.manual_setup));
+      assert.match(JSON.stringify(managed.manual_setup), /Choose your original game folder/u);
+      assert.ok(
+        guide(output).steps.every(
+          (step) =>
+            isRecord(step) && !String(step.instruction).includes("Portcove checks and prepares"),
+        ),
+      );
+    } else if (raw.integration) {
       assert.ok(
         String(
           (projectAuthoredPort(raw)!.presentation as Record<string, unknown>).manual_preparation,

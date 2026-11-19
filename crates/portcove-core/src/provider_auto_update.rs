@@ -15,23 +15,28 @@
 //!
 //! Like standing setup, the policy is consent, never an authorization: each
 //! update is planned again and authorized immediately before it is applied, under
-//! the same checks as a reviewed install. Whether a newer file suits the setup's
-//! game build is not assessed by the provider or by Portcove (UNKNOWN).
+//! the same checks as a reviewed install. The provider's claims do not verify
+//! the Recomp loader contract or the staged package's native dependencies.
 use std::collections::{BTreeMap, BTreeSet};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::{
     ErrorCode, PortcoveError, PortcoveService, ProfileRevision, ProfileUpdatePolicy,
-    ProviderInstallPlan, ProviderUpdateObservation, ProviderUpdateState, Result, asset_conflicts,
-    inspect_asset_archive, profile,
+    ProviderFileCandidate, ProviderInstallPlan, ProviderUpdateObservation, ProviderUpdateState,
+    Result, asset_conflicts, inspect_asset_archive, profile,
     profile_deploy::{Layout, enabled_in_override_order},
     provider_client::ProviderClient,
+    provider_install::{ProviderInstallMode, RECOMP_REVIEW_BINDING, recomp_review_binding},
 };
 
 const HOLDS_FILE: &str = "auto-update-holds.json";
 const MAX_REMEMBERED_HOLDS: usize = 256;
+const CHECKS_FILE: &str = "last-automatic-checks.json";
+const MAX_CHECKS: usize = 256;
+const MAX_CHECKS_BYTES: u64 = 512 * 1024;
 
 /// What one standing pass did about one installed provider file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -61,34 +66,105 @@ pub struct ProviderAutoUpdate {
     pub outcome: ProviderAutoUpdateOutcome,
 }
 
+/// The last automatic check of an installed provider file or setup.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ProviderAutoUpdateCheck {
+    pub checked_at: i64,
+    pub profile_id: String,
+    pub native_ids: Vec<String>,
+    pub project_id: Option<String>,
+    pub candidate_file_id: Option<String>,
+    /// None means a current observation offered no update.
+    pub result: Option<ProviderAutoUpdateOutcome>,
+}
+
+pub(crate) fn last_checks(
+    layout: &Layout,
+    inventory: &crate::ProfileInventory,
+) -> Vec<ProviderAutoUpdateCheck> {
+    let checks: Vec<ProviderAutoUpdateCheck> =
+        crate::path::read_bounded_regular(&layout.store().join(CHECKS_FILE), MAX_CHECKS_BYTES)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+            .unwrap_or_default();
+    checks
+        .into_iter()
+        .take(MAX_CHECKS)
+        .filter(|check| {
+            // Keep observed Unix timestamps within the portable date range.
+            (0..=253_402_300_799).contains(&check.checked_at)
+                && inventory.profiles.iter().any(|view| {
+                    view.profile.id == check.profile_id
+                        && view.profile.intent.update_policy
+                            == ProfileUpdatePolicy::AutomaticEligible
+                })
+        })
+        .collect()
+}
+
+fn remember_checks(layout: &Layout, checks: &[ProviderAutoUpdateCheck]) -> Result<()> {
+    let path = layout.store().join(CHECKS_FILE);
+    if checks.is_empty() && !path.is_file() {
+        return Ok(());
+    }
+    let bytes = serde_json::to_vec(checks)?;
+    if bytes.len() as u64 > MAX_CHECKS_BYTES {
+        return Err(PortcoveError::state(
+            "automatic mod check results exceed their storage bound",
+        ));
+    }
+    std::fs::create_dir_all(layout.store())?;
+    crate::durability::write_bytes_atomically(&path, &bytes, true)?;
+    Ok(())
+}
+
 /// Packages installed from one provider file, and what the provider says about it.
 struct InstalledFile<'a> {
     project: String,
     file: String,
+    binding: Option<&'a crate::ModProviderBinding>,
     packages: Vec<&'a crate::ResolvedPackage>,
     observation: &'a ProviderUpdateObservation,
 }
 
+fn nonlegacy_binding<'a>(
+    port_id: &str,
+    provider: &'a crate::ProviderPackageRef,
+) -> Option<&'a crate::ModProviderBinding> {
+    let legacy = crate::provider_binding::legacy_binding(port_id, &provider.provider);
+    provider
+        .binding
+        .as_ref()
+        .filter(|binding| Some(*binding) != legacy.as_ref())
+}
+
 fn installed_files<'a>(
+    port_id: &str,
     revision: &'a ProfileRevision,
     observations: &'a [ProviderUpdateObservation],
 ) -> Vec<InstalledFile<'a>> {
-    let mut groups = BTreeMap::<(String, String), InstalledFile<'a>>::new();
+    let mut groups = BTreeMap::new();
     for observation in observations {
         let project = observation.provider.project.clone();
         let file = observation.provider.file.clone().unwrap_or_default();
-        let Some(package) = revision
-            .packages
-            .iter()
-            .find(|package| package.native_id == observation.native_id)
-        else {
+        let Some(package) = revision.packages.iter().find(|package| {
+            package.native_id == observation.native_id
+                && package.provider.as_ref() == Some(&observation.provider)
+        }) else {
             continue;
         };
+        let binding = nonlegacy_binding(port_id, &observation.provider);
         groups
-            .entry((project.clone(), file.clone()))
+            .entry((
+                observation.provider.provider.as_str(),
+                binding,
+                project.clone(),
+                file.clone(),
+            ))
             .or_insert_with(|| InstalledFile {
                 project,
                 file,
+                binding,
                 packages: Vec::new(),
                 observation,
             })
@@ -96,6 +172,15 @@ fn installed_files<'a>(
             .push(package);
     }
     groups.into_values().collect()
+}
+
+fn hold_scope(binding: Option<&crate::ModProviderBinding>) -> Option<String> {
+    match binding? {
+        crate::ModProviderBinding::Gamebanana { game_id } => Some(format!("gamebanana:{game_id}")),
+        crate::ModProviderBinding::Thunderstore { community } => {
+            Some(format!("thunderstore:{community}"))
+        }
+    }
 }
 
 /// Asset paths of each enabled package in deployment order, with `replacement`
@@ -175,7 +260,7 @@ fn hold_reason(
     if crate::native_mod_list::recomp_game(&plan.port_id).is_some() {
         return None;
     }
-    let staged = layout.staged(&plan.plan_sha256);
+    let staged = ProviderInstallMode::Automatic.staging(layout, &plan.plan_sha256);
     let replacement = plan
         .members
         .iter()
@@ -221,12 +306,33 @@ fn hold_key(
     profile_id: &str,
     revision: u64,
     installed: &InstalledFile<'_>,
-    candidate: &str,
+    candidate: &ProviderFileCandidate,
 ) -> String {
-    format!(
-        "{profile_id}|{revision}|{}|{}|{candidate}",
-        installed.project, installed.file
-    )
+    // A provider may revise a file without changing its displayed version or ID.
+    // These claims only tell us when to check again. The plan inspects the bytes.
+    let observation = serde_json::json!([
+        candidate.file_name,
+        candidate.size,
+        candidate.added_at,
+        candidate.claimed_md5,
+        candidate.archived,
+        candidate.claimed_scan,
+    ]);
+    let observation = match candidate.thunderstore_dependencies.as_deref() {
+        Some(dependencies) if !dependencies.is_empty() => {
+            serde_json::json!([observation, dependencies])
+        }
+        _ => observation,
+    };
+    let fingerprint = hex::encode(Sha256::digest(observation.to_string()));
+    let key = format!(
+        "{profile_id}|{revision}|{}|{}|{}|{fingerprint}",
+        installed.project, installed.file, candidate.file_id
+    );
+    match hold_scope(installed.binding) {
+        Some(scope) => format!("{key}|{scope}"),
+        None => key,
+    }
 }
 
 /// An unattended update the player has to review, remembered for a setup's
@@ -245,10 +351,12 @@ pub struct HeldModUpdate {
 pub(crate) fn held_updates(
     layout: &Layout,
     inventory: &crate::ProfileInventory,
+    port: &crate::PortDefinition,
 ) -> Vec<HeldModUpdate> {
     let mut held = Vec::new();
     for (key, reason) in read_holds(layout) {
-        let Some((profile_id, revision, project, file, candidate)) = parse_hold_key(&key) else {
+        let Some((profile_id, revision, project, file, candidate, scope)) = parse_hold_key(&key)
+        else {
             continue;
         };
         // Only setups that still allow unattended updates have one waiting.
@@ -265,7 +373,10 @@ pub(crate) fn held_updates(
             .iter()
             .filter(|package| {
                 package.provider.as_ref().is_some_and(|provider| {
-                    provider.project == project && provider.file.as_deref() == Some(file)
+                    provider.project == project
+                        && provider.file.as_deref() == Some(file)
+                        && crate::provider_binding::reference_matches(port, provider)
+                        && hold_scope(nonlegacy_binding(&port.id, provider)).as_deref() == scope
                 })
             })
             .map(|package| package.native_id.clone())
@@ -284,14 +395,24 @@ pub(crate) fn held_updates(
     held
 }
 
-/// The parts of a key `hold_key` built: profile, revision, project, installed
-/// file and candidate file. None for anything else.
-fn parse_hold_key(key: &str) -> Option<(&str, u64, &str, &str, &str)> {
+/// The display identity shared by current keys and legacy keys with no observed
+/// file facts. Legacy keys keep their explanation until the next fresh check.
+fn parse_hold_key(key: &str) -> Option<(&str, u64, &str, &str, &str, Option<&str>)> {
     let parts = key.split('|').collect::<Vec<_>>();
-    let [profile, revision, project, file, candidate] = parts.as_slice() else {
+    let ([profile, revision, project, file, candidate]
+    | [profile, revision, project, file, candidate, _]
+    | [profile, revision, project, file, candidate, _, _]) = parts.as_slice()
+    else {
         return None;
     };
-    Some((profile, revision.parse().ok()?, project, file, candidate))
+    Some((
+        profile,
+        revision.parse().ok()?,
+        project,
+        file,
+        candidate,
+        parts.get(6).copied(),
+    ))
 }
 
 fn write_holds(layout: &Layout, holds: &BTreeMap<String, String>) {
@@ -315,10 +436,14 @@ fn settle_holds(
 ) {
     let mut holds = read_holds(layout);
     let before = holds.len();
+    let scope = hold_scope(installed.binding);
     holds.retain(|key, _| {
         Some(key.as_str()) == keep
-            || !parse_hold_key(key).is_some_and(|(profile, _, project, file, _)| {
-                profile == profile_id && project == installed.project && file == installed.file
+            || !parse_hold_key(key).is_some_and(|(profile, _, project, file, _, held_scope)| {
+                profile == profile_id
+                    && project == installed.project
+                    && file == installed.file
+                    && held_scope == scope.as_deref()
             })
     });
     if holds.len() != before {
@@ -327,9 +452,8 @@ fn settle_holds(
 }
 
 fn read_holds(layout: &Layout) -> BTreeMap<String, String> {
-    std::fs::read(layout.store().join(HOLDS_FILE))
+    crate::path::read_bounded_regular(&layout.store().join(HOLDS_FILE), 256 * 1024)
         .ok()
-        .filter(|bytes| bytes.len() <= 256 * 1024)
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
         .unwrap_or_default()
 }
@@ -398,11 +522,17 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<Vec<ProviderAutoUpdate>> {
-        if crate::provider_install::bound_provider(port_id).is_none() {
+        let port = self.catalog().port(port_id)?;
+        let clients = crate::provider_binding::bindings(port)
+            .iter()
+            .map(|binding| {
+                ProviderClient::for_definition(&self.library, port, Some(binding.provider()))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        if clients.is_empty() && crate::provider_binding::configured_bindings(port).is_none() {
             return Ok(Vec::new());
         }
-        let client = ProviderClient::for_port(&self.library, port_id)?;
-        self.run_eligible_provider_updates_via(&client, port_id)
+        self.run_eligible_provider_updates_for(&clients, port_id)
             .await
     }
 
@@ -417,12 +547,23 @@ impl PortcoveService {
             .await
     }
 
+    #[cfg(test)]
     pub(crate) async fn run_eligible_provider_updates_via(
         &self,
         client: &ProviderClient,
         port_id: &str,
     ) -> Result<Vec<ProviderAutoUpdate>> {
+        self.run_eligible_provider_updates_for(std::slice::from_ref(client), port_id)
+            .await
+    }
+
+    async fn run_eligible_provider_updates_for(
+        &self,
+        clients: &[ProviderClient],
+        port_id: &str,
+    ) -> Result<Vec<ProviderAutoUpdate>> {
         let layout = self.deploy_layout(port_id)?;
+        let port = self.catalog().port(port_id)?;
         let setups = self
             .profile_inventory(port_id)?
             .profiles
@@ -430,50 +571,95 @@ impl PortcoveService {
             .filter(|view| {
                 view.profile.intent.update_policy == ProfileUpdatePolicy::AutomaticEligible
             })
-            .map(|view| view.profile)
             .collect::<Vec<_>>();
         let mut results = Vec::new();
-        for setup in setups {
-            let result = |native_ids: Vec<String>, outcome| ProviderAutoUpdate {
-                port_id: port_id.into(),
-                profile_id: setup.id.clone(),
-                profile_name: setup.display_name.clone(),
-                native_ids,
-                outcome,
-            };
-            let observations = match self
-                .check_provider_updates_via(client, port_id, &setup.id)
-                .await
-            {
-                Ok(observations) => observations,
-                Err(error) => {
-                    results.push(result(Vec::new(), classify(error)));
-                    continue;
+        let mut checks = Vec::new();
+        for view in &setups {
+            let setup = &view.profile;
+            let mut record =
+                |native_ids: Vec<String>,
+                 project_id: Option<String>,
+                 candidate_file_id: Option<String>,
+                 outcome: Option<ProviderAutoUpdateOutcome>| {
+                    if checks.len() < MAX_CHECKS {
+                        checks.push(ProviderAutoUpdateCheck {
+                            checked_at: crate::Library::now(),
+                            profile_id: setup.id.clone(),
+                            native_ids: native_ids.clone(),
+                            project_id,
+                            candidate_file_id,
+                            result: outcome.clone(),
+                        });
+                    }
+                    if let Some(outcome) = outcome {
+                        results.push(ProviderAutoUpdate {
+                            port_id: port_id.into(),
+                            profile_id: setup.id.clone(),
+                            profile_name: setup.display_name.clone(),
+                            native_ids,
+                            outcome,
+                        });
+                    }
+                };
+            if crate::provider_binding::configured_bindings(port).is_some() {
+                for package in &view.revision.packages {
+                    if let Some(reference) = &package.provider
+                        && !clients
+                            .iter()
+                            .any(|client| client.provider() == reference.provider)
+                    {
+                        record(
+                            vec![package.native_id.clone()],
+                            Some(reference.project.clone()),
+                            None,
+                            Some(ProviderAutoUpdateOutcome::Unavailable {
+                                reason: "this package's provider scope is no longer reviewed for this port".into(),
+                            }),
+                        );
+                    }
                 }
-            };
-            let revision =
-                match self.library.connection().and_then(|connection| {
+            }
+            for client in clients {
+                let revision = match self.library.connection().and_then(|connection| {
                     profile::current_revision(&connection, port_id, &setup.id)
                 }) {
                     Ok(revision) => revision,
                     Err(error) => {
-                        results.push(result(Vec::new(), classify(error)));
+                        record(Vec::new(), None, None, Some(classify(error)));
                         continue;
                     }
                 };
-            for installed in installed_files(&revision, &observations) {
-                let names = installed
-                    .packages
-                    .iter()
-                    .map(|package| package.native_id.clone())
-                    .collect::<Vec<_>>();
-                if let Some(outcome) = self
-                    .update_one(client, &layout, port_id, &setup.id, &installed)
+                let observations = match self
+                    .check_provider_updates_for_revision(client, &revision)
                     .await
                 {
-                    results.push(result(names, outcome));
+                    Ok(observations) => observations,
+                    Err(error) => {
+                        record(Vec::new(), None, None, Some(classify(error)));
+                        continue;
+                    }
+                };
+                for installed in installed_files(port_id, &revision, &observations) {
+                    let names = installed
+                        .packages
+                        .iter()
+                        .map(|package| package.native_id.clone())
+                        .collect::<Vec<_>>();
+                    let outcome = self
+                        .update_one(client, &layout, port_id, &setup.id, &installed)
+                        .await;
+                    record(
+                        names,
+                        Some(installed.project.clone()),
+                        chosen_candidate(client, installed.observation)
+                            .map(|file| file.file_id.clone()),
+                        outcome,
+                    );
                 }
             }
+        }
+        if let Err(error) = remember_checks(&layout, &checks) {
+            tracing::warn!(port_id, error = %error, "automatic mod check results could not be saved");
         }
         Ok(results)
     }
@@ -497,9 +683,7 @@ impl PortcoveService {
                 .connection()
                 .and_then(|connection| profile::current_revision(&connection, port_id, profile_id))
                 .ok()
-                .map(|revision| {
-                    hold_key(profile_id, revision.revision, installed, &candidate.file_id)
-                })
+                .map(|revision| hold_key(profile_id, revision.revision, installed, candidate))
                 .filter(|key| read_holds(layout).contains_key(key)),
             _ => None,
         };
@@ -574,7 +758,16 @@ impl PortcoveService {
             Ok(revision) => revision,
             Err(error) => return Some(classify(error)),
         };
-        let key = hold_key(profile_id, revision.revision, installed, &candidate.file_id);
+        if installed
+            .packages
+            .iter()
+            .any(|package| !revision.packages.contains(package))
+        {
+            return Some(ProviderAutoUpdateOutcome::Deferred {
+                reason: "the setup's installed mods changed while checking; check again".into(),
+            });
+        }
+        let key = hold_key(profile_id, revision.revision, installed, candidate);
         if let Some(reason) = read_holds(layout).get(&key) {
             return held(reason);
         }
@@ -583,20 +776,51 @@ impl PortcoveService {
             return Some(ProviderAutoUpdateOutcome::Deferred { reason });
         }
         let plan = match self
-            .plan_provider_install_via(
+            .plan_provider_install_in_mode(
                 client,
                 port_id,
                 profile_id,
                 &installed.project,
                 &candidate.file_id,
+                ProviderInstallMode::Automatic,
             )
             .await
         {
             Ok(plan) => plan,
-            // Refusals here are not remembered: one may be a passing download
-            // fault, and the provider's flags are checked before any download.
+            Err(error)
+                if error.details.get("review_stage").is_some_and(|stage| {
+                    stage == crate::profile_loader::RECOMP_DEPENDENCY_REVIEW
+                }) =>
+            {
+                let same_review =
+                    recomp_review_binding(&revision.digest, candidate).is_ok_and(|binding| {
+                        error.details.get(RECOMP_REVIEW_BINDING) == Some(&binding)
+                    });
+                if !same_review {
+                    return Some(ProviderAutoUpdateOutcome::Deferred {
+                        reason: "the setup or offered file changed while reviewing native dependencies; check again".into(),
+                    });
+                }
+                remember_hold(layout, key, &error.message);
+                return held(&error.message);
+            }
+            // Transport and inspection errors may be transient.
             Err(error) => return Some(classify(error)),
         };
+        if &plan.file != candidate {
+            let _ = self.discard_provider_install_in_mode(&plan, ProviderInstallMode::Automatic);
+            return Some(ProviderAutoUpdateOutcome::Deferred {
+                reason:
+                    "the provider changed the offered file while planning the update; check again"
+                        .into(),
+            });
+        }
+        if plan.expected_revision != revision.revision {
+            let _ = self.discard_provider_install_in_mode(&plan, ProviderInstallMode::Automatic);
+            return Some(ProviderAutoUpdateOutcome::Deferred {
+                reason: "the setup changed while planning the update; check again".into(),
+            });
+        }
         let outcome = match hold_reason(layout, &plan, &revision, installed) {
             Some(reason) => {
                 remember_hold(layout, key, &reason);
@@ -604,8 +828,9 @@ impl PortcoveService {
             }
             None => match self
                 .authorize_provider_install(&plan)
-                .and_then(|authorization| self.apply_provider_install(&plan, &authorization.token))
-            {
+                .and_then(|authorization| {
+                    self.apply_automatic_provider_install(&plan, &authorization.token)
+                }) {
                 Ok(applied) => {
                     return Some(ProviderAutoUpdateOutcome::Applied {
                         revision: applied.revision,
@@ -615,7 +840,7 @@ impl PortcoveService {
                 Err(error) => classify(error),
             },
         };
-        let _ = self.discard_provider_install(&plan);
+        let _ = self.discard_provider_install_in_mode(&plan, ProviderInstallMode::Automatic);
         Some(outcome)
     }
 }

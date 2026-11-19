@@ -5,6 +5,14 @@
     "name": "Uncharted2: Among Thieves — PS4 remaster (Supermedo uncharted_pc)",
     "summary": "Attach the prepared SuperMedo Windows collection launcher and explicitly choose Uncharted: Among Thieves before its Play action. These three title records share a mutable upstream launcher selection, not independent fixed command-line game selectors.",
     "original_game_title": "Uncharted2: Among Thieves",
+    "artwork": {
+      "game_id": 41877,
+      "cover_id": 86368,
+      "image_id": "co1un4",
+      "image_sha256": "8fb52d29479a98fc3594e34abae9a651e390481b04b247239887e0978b11a6c3",
+      "game_slug": "uncharted-2-among-thieves-remastered",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/Supermedo/uncharted_pc",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

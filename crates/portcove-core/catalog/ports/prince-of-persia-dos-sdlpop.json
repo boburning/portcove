@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "prince-of-persia-dos-sdlpop",
+    "artwork": {
+      "game_id": 284766,
+      "cover_id": 359491,
+      "image_id": "co7pdv",
+      "image_sha256": "02c24320961764545a7a51d2df13e9ab2d353b937d5ee73309c6483b8d946836",
+      "game_slug": "prince-of-persia--8",
+      "match_kind": "underlying-game"
+    },
     "name": "Prince of Persia (DOS) (SDLPoP)",
     "summary": "Conditional Windows prepared-player route: attach only an already permitted working native SDLPoP copy. Official external package contents, accepted original/mod DAT set and asset permissions remain unresolved for fresh managed admission; no unsupported external original EXE/ROM requirement is added. Portcove can register this existing copy and start the selected player while upstream owns setup, actual state roots and replacement.",
     "original_game_title": "Prince of Persia (DOS)",
@@ -39,6 +47,24 @@
         "Use only a copy and content you are already permitted to use. These instructions do not establish permission for the original game or other components, or confirm the resulting game files.",
         "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
         "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "prince-of-persia-dos",
+      "evidence_urls": [
+        "https://github.com/NagyD/SDLPoP/tree/3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+        "https://github.com/NagyD/SDLPoP"
+      ],
+      "source_editions": [
+        {
+          "id": "prince-of-persia-dos-pc",
+          "title": "Prince of Persia (DOS) (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/NagyD/SDLPoP/blob/f7be2e939375d369d26e1d10bcdd5ca74d3002a2/README.md"
+          ]
+        }
       ]
     }
   },

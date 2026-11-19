@@ -3,11 +3,10 @@
   "listing": {
     "id": "danielgomesvieira2000-beetle-adventure-racing-recomp",
     "name": "Beetle Adventure Racing! / Beetle Adventure Racing! Recomp (danielgomesvieira2000)",
-    "summary": "Use a permitted Beetle Adventure Racing player and choose your own supported USA cartridge dump.",
+    "summary": "Native Beetle Adventure Racing! for Windows, using your own USA cartridge dump on first Play.",
     "project_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp",
     "issue_number": 1800,
     "listed_at": "2026-10-23",
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md",
     "artwork": {
@@ -21,31 +20,76 @@
     "original_game_title": "Beetle Adventure Racing!",
     "release_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/releases",
     "recommended_download_channel": "beta",
-    "download_asset_hints": {
-      "windows-x86-64": ["beetle-adventure-racing-recomp-", "windows-x64.zip"]
-    },
     "manual_setup": {
       "steps": [
         {
-          "title": "Keep a permitted Windows player",
-          "instruction": "Select beetle-adventure-racing-recomp.exe in your existing permitted copy and use its complete extracted folder as the working directory. Keep assets and all supplied companions together. The selected release is a Windows x64 alpha; debug-symbols ZIPs are not player packages."
+          "title": "Load your original game on first Play",
+          "instruction": "Choose Play, then Load ROM in the player and select your own USA Beetle Adventure Racing cartridge dump. The player checks its expected game identity and keeps its own copy of the selected game in its profile, so keep your original separately. The released player needs no decompilation build or separate game-generation step."
         },
         {
-          "title": "Load your original game on first Play",
-          "instruction": "Choose Play, then Load ROM in the player and select your own supported USA Beetle Adventure Racing cartridge dump. The player checks its expected game identity and caches the selected game. The released player needs no downstream decompilation build or separate game-generation step."
+          "title": "Keep a complete Windows player",
+          "instruction": "For a copy you manage yourself, extract the whole Windows x64 alpha ZIP and keep beetle-adventure-racing-recomp.exe with its assets and DLLs; debug-symbols ZIPs are not player packages. To add that copy to Portcove, select the player and its folder."
         }
       ],
       "warnings": [
-        "This alpha has upstream limitations; a published Windows package does not establish native/gameplay or Linux qualification.",
-        "portable.txt or an unavailable profile directory can move writes beside the executable. Preserve the location actually used and keep the current copy until ready. These external files are outside Portcove backup, runtime rollback and deletion."
+        "The package includes a modified RecompFrontend copy that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+        "This alpha has upstream limitations, and Portcove has not observed native setup, gameplay or saves. Linux is not offered."
       ],
       "help_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md",
       "references": [
         {
           "title": "Preserve the current copy and Controller Pak data",
-          "instruction": "You or upstream provide updates. Back up the whole working folder and normally %LOCALAPPDATA%\\beetle-adventure-racing-recomp, including cached ROM, Controller Pak saves, settings and bindings. portable.txt or an unavailable profile directory can move writes beside the executable. Preserve the location actually used and keep the current copy until ready. These external files are outside Portcove backup, runtime rollback and deletion."
+          "instruction": "For a copy you manage yourself, back up the whole working folder and the profile, normally %LOCALAPPDATA%\\beetle-adventure-racing-recomp, before replacing the player: it holds the copied ROM, Controller Pak saves, settings and bindings. portable.txt beside the player, or an unavailable profile folder, moves these writes beside the executable."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "beetle-adventure-racing",
+      "evidence_urls": [
+        "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md",
+        "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "beetle-adventure-racing-nintendo-64",
+          "title": "Beetle Adventure Racing! (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/6497e67257809401468cd47850393775952b31bb/README.md"
+          ]
+        }
+      ]
+    }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "danielgomesvieira2000/beetle-adventure-racing-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["beetle-adventure-racing-recomp-", "windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["beetle-adventure-racing-recomp.exe"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "On first Play, choose Load ROM and select your own USA Beetle Adventure Racing cartridge dump. The player checks it and keeps a copy in its profile at %LOCALAPPDATA%\\beetle-adventure-racing-recomp, together with Controller Pak saves, settings, bindings and cheats; keep your original separately. A copy you manage yourself without portable.txt shares that profile. Portcove refuses to start a managed copy that contains portable.txt. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. Portcove replaces the player; you own the original and the profile."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["assets", "licenses"],
+        "executables": ["beetle-adventure-racing-recomp.exe"]
+      }
     }
   }
 }

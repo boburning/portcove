@@ -1,13 +1,13 @@
 # Maintenance inventory store
 
-This document owns the stable source, identity, coverage and storage contracts
-for the maintainer-facing maintenance application specified in
-[#4129](https://github.com/boburning/portcove/issues/4129). The issue owns the
-executable acceptance and checkpoint evidence; this page is not a backlog.
+This guide explains how the maintenance application identifies its sources,
+records coverage, and stores data. Use
+[#4129](https://github.com/boburning/portcove/issues/4129) for the implementation
+requirements and checkpoint results.
 
-The application is maintainer tooling. Player installation, update, backup and
-launch never depend on it, and it grants no admission, support, qualification,
-publication or credential authority.
+Maintainers use this application. Players can install, update, back up, and
+launch games without it. Use the separate approval paths for admission,
+support, qualification, publication, and credentials.
 
 ## Ownership boundary
 
@@ -29,6 +29,23 @@ never becomes a second copy of it.
 
 Reporting code never infers capability, compatibility or eligibility from issue
 closure, titles or tags. Those rules stay in Core.
+
+### Discovery executor checkpoints
+
+The hosted intake executor uses migration `0005` with its own PostgreSQL login
+in `portcove_maintenance_executor`, provided to the main-branch workflow as
+`PORTCOVE_DISCOVERY_DATABASE_URL`. The existing maintenance migration job applies
+the schema. Configure the login after that migration. The executor checks the
+active store and advances each batch by exact request hash, previous receipt and
+revision. GitHub comments remain the portable public receipts.
+
+The deployment activation row is local to the database being used for writes.
+Portable restore verifies the backup, applies pending migrations and clears
+discovery activation. Before reactivating a replacement or restored store,
+reconcile the retained candidate and receipt bindings against GitHub, including
+unconfirmed writes. The schema owner can then set the singleton
+`portcove_maintenance_meta.discovery_intake_activation.active` to true. An
+executor login has read-only access to that flag.
 
 ## Canonical identities
 
@@ -73,8 +90,10 @@ requires a known denominator equal to that count with no gaps. `partial`,
 | Scoped qualification                | `catalog.json` `source_catalog.qualification[]` and `evidence[]`                                     | Exact scope per record; no catalog-wide denominator           |
 | Upstream observations               | `configured-upstream-observer.yml` checkpoint recovery snapshot (`observer-checkpoint-artifact.mts`) | Per port: every serving source completed with its policy      |
 | Release health                      | `scripts/upstream-health-monitor.mts` report and `work/upstream-health/checkpoint.json`              | Fresh complete, partial, stale and unmonitored port IDs       |
+| Release content                     | `scripts/release-content-scan.mts` report from `release-content-scan.yml`                            | Every target scanned, reused or not scanned with a typed code |
 | Hosted intake receipts              | `node scripts/hosted-discovery-intake.mts status --all --json` over the receipt comments on #177     | Every marker-bearing owner request in one drift-checked read  |
-| Definition publication              | `portcove --json catalog inspect-definition-publication DIR`; published site readback                | Index digest and per-target digests                           |
+| Definition publication              | `portcove --json catalog inspect-definition-publication DIR`                                         | Index digest and per-target digests on `main`                 |
+| Definition delivery                 | `portcove --json catalog inspect-definition-delivery`                                                | Serving status; verified published identities and targets     |
 
 Known gaps stay explicit until an owner exports the fact: there is no persisted
 export of full issue rows or Project field values, no catalog-wide capability or
@@ -101,20 +120,100 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
   including against `TRUNCATE`. Observations join only an in-progress run, and a
   finished run is immutable. Identical subject, policy version and input digest
   resolve to one assessment, so full and incremental passes converge.
+- **Acquisition order.** Migration 0003 orders collection runs by a
+  database-issued acquisition ticket, never by runner clocks or Git SHA order.
+  A collector takes its ticket (`acquire_collection()`) before any external
+  read. A run is admitted only if its ticket was issued and no run of the same
+  source has an equal or newer ticket. An older collection that finishes after
+  a newer one is therefore refused whole. It replaces no current state, clears
+  no attention and creates no false A to B to A history. Under its source
+  locks, the collection also checks that each source's latest finished run is
+  still the baseline its changes-only diff was computed against
+  (`expect_baseline`). If not, the collector rereads the baseline and retries
+  without repeating its external reads. Network reads stay outside every
+  database transaction. A restored store keeps issuing newer tickets.
 - **Transitions.** A writer names the sequence it creates. The guard accepts only
   the next sequence, so a stale or restored worker cannot overwrite newer state.
   An unchanged result is not a transition. A return to an earlier result is a new
   transition marked `returns_to_earlier_result`.
+- **Current provenance.** Current state keeps three facts apart:
+  - the last material transition (`assessment_id`, `sequence`, `updated_at`);
+  - the latest applicable assessment (`applicable_assessment_id`, with its
+    policy and input digest);
+  - the latest accepted verification (`verified_run_id`, `verified_at`).
+
+  An assessment with the current result but new policy or inputs moves the
+  latter two through `verify_current`, quietly, without a transition or
+  notification. Assessment rows and their original timestamps stay immutable.
+  A verifying run must exist and must not have failed, and a run that has
+  verified state cannot later finish `failed`. A verification or
+  transition that names its verifying run (as every collector write does) never
+  moves to an older acquisition. A legacy writer that names none binds the
+  assessment's own run and is not freshness-checked; the same applies to a run
+  inserted without a ticket, which is admitted at insert time. The collection
+  transaction runs at `READ COMMITTED`, so its checks see every run committed
+  while it waited for its locks.
+
+- **Reassessment.** Every complete collection re-reads Core for every authored
+  port; with unchanged inputs that only re-verifies (`verified_run_id`,
+  `verified_at`). A new assessment is recorded only when the subject's catalog
+  fact changes (authored record, operational definition or scoped
+  qualification at the pinned revision), Core's output for the port changes
+  (embedded catalog and listings, Core code, catalog-wide hold policy, the
+  platform, or recommendation observations Core filters by the current time),
+  or the assessment policy changes (API schema or projection version). Only a
+  changed result records a transition. A rebuild with the same output, a failed
+  run, or a port Core could not read in a partial run records neither. The
+  report shows each subject's `reassessment`: what it depends on, when its
+  catalog fact and Core output last changed (their latest changes-only
+  observations from `--all` runs), since when its inputs are unchanged (the
+  latest of those and the assessment time, because assessments are deduplicated
+  by input and a return to earlier inputs reuses the older assessment) and when
+  it was last re-verified.
+  - **Selective reassessment (opt-in, migration 0004).** `collect --all
+    --targets --reassess changed` reuses a subject's stored Core result
+    without calling Core. Every condition must hold, otherwise the run is full
+    and `collect` reports why:
+    - The Core build's source binding is verified: its recorded source
+      revision is this checkout's, every keyed path is clean at collection
+      time, and it uses the compiled catalog with no features. The binding
+      trusts the build's recorded revision; the hosted workflow builds from the
+      checked-out commit. Build profile, flags and toolchain settings outside
+      the keyed files are assumed fixed.
+    - The reuse key matches the latest Core run of the source, which is
+      complete. The key is a digest of the Git object IDs of `crates`,
+      `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml` and `vendor`, the
+      producer's compiled catalog and listings digests and features, the API
+      schema, projection, platform and isolation; the binary digest is
+      excluded because every rebuild changes it.
+    - A full read under that key completed within 7 days (the latest full
+      read by store order, not by a runner's clock).
+    - No catalog `observed_at` falls between that full read and now: Core
+      shows clock-dated observations only once their time has passed.
+    - The subject's catalog fact and stored Core result are unchanged members
+      of the baselines the decision read; if another collection finishes in
+      between, the run is refused whole.
+  - A reused subject is an unchanged member: no observation, assessment,
+    transition or verification, so its `verified_at` stays at the last real
+    Core read. The run records `reassessment` (`full` or `selective`),
+    `reuse_key` and `reused_count`, all fixed when it starts; full runs record
+    their key too, as later anchors. The report's Sources table shows a
+    selective run's reused count. Because the key covers the whole `crates`
+    tree, reuse applies only while no Core code or catalog file changed; at
+    today's commit rate most runs are full. The daily workflow stays full.
 - **Reconsiderations.** Typed as `technical_hold`, `intentional_deferral`,
   `upstream_change` or `evidence_refresh`, each with the owner or policy reference
   required to revisit it. Conditions are immutable, and an intentional deferral is
   satisfied or withdrawn only by a resolution naming its recorded authority. The
   store records that reference; it does not authenticate who supplied it.
+  Collections derive them from their owners ([holds and deferrals](#holds-and-deferrals)).
 - **Notifications.** Each notification binds one recorded transition, so an
   unchanged observation cannot create one. Delivery requires a delivery receipt.
-- **Operations.** Deterministic operation IDs fenced to the subject sequence they
-  were planned against. Every update increments the revision by exactly one.
-  Dispatch revalidates that the subject has not advanced. An ambiguous operation
+- **Operations.** Deterministic operation IDs fenced to the subject sequence and
+  the applicable assessment they were planned against
+  (`fence_sequence`, `fence_assessment_id`). Every update increments the
+  revision by exactly one. Planning and dispatch revalidate both, so changed
+  inputs invalidate an old plan even when the displayed result is unchanged. An ambiguous operation
   resolves only with the original executor's receipt reference, which is
   immutable once recorded. Rows are never deleted.
 
@@ -126,7 +225,7 @@ migration and every restore. It defines three `NOLOGIN` group roles:
 | Role                             | May write                                                                            |
 | -------------------------------- | ------------------------------------------------------------------------------------ |
 | `portcove_maintenance_collector` | Runs, observations, assessments, transitions, reconsiderations and new notifications |
-| `portcove_maintenance_executor`  | Operations and notification delivery state                                           |
+| `portcove_maintenance_executor`  | Operations, intake checkpoints and notification delivery state                       |
 | `portcove_maintenance_report`    | Nothing; read-only                                                                   |
 
 All three can read. None owns or alters the schema. Operators grant membership
@@ -195,12 +294,22 @@ PORTCOVE_MAINTENANCE_DATABASE_URL="$RESTORE_TARGET_URL" node scripts/maintenance
   `PORTCOVE_POSTGRES_BIN` when `PATH` mixes versions). Restore renders the dump
   to a plain-text script in a private temporary directory that is removed when
   the restore finishes; an abruptly killed restore can leave it behind.
+- A restore target must run the backup's PostgreSQL major version or a newer
+  one, with client tools of that version: an older `pg_restore` refuses a newer
+  custom-format archive (PostgreSQL 16 refuses the 1.16 archives that
+  PostgreSQL 18 writes). The production backup records its server version in
+  the manifest (`server_version_num`); install that major (or a newer one),
+  client and server, from the PostgreSQL project repository on the restore
+  host.
 - Collectors finish runs under the default READ COMMITTED isolation, so the
   derived observed count includes every committed observation of the run.
 - `backup` writes to a temporary sibling directory and renames it only when
   complete, so a failed backup leaves nothing to clean up.
 - `digest` prints the same per-table counts and digests for an ad hoc
   comparison.
+- `server` prints the server version number, its major version and
+  `pg_database_size` of the current database, so an operator can pick a matching
+  client and measure storage against a provider's limits.
 
 Digests hash UTF-8 row text with SHA-256 under pinned `TimeZone`, `DateStyle`,
 `IntervalStyle` and float settings and `C` collation ordering, so they are
@@ -242,10 +351,15 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
 - Each source records a collection run. Its coverage is relative to the
   declared sample.
   The catalog observation is bound to the commit. The Core observation is bound
-  to the CLI binary SHA-256, the host platform and the isolation scope. The
-  binary's build source is not proven, so its binding is labelled `unverified`.
-  The assessment's policy version is the CLI API schema plus binary digest. Its
-  input digest covers both observations and the host platform. Everything is
+  to the CLI binary SHA-256, the host platform returned by that executable's
+  isolated `doctor` command and the isolation scope. Legacy keys derived from
+  the launcher's architecture are only reusable with matching producer evidence. Each
+  Core run's revision records the binary digest and, with `--targets`, the
+  build's recorded source and its `verified` or `unverified` binding ([Core
+  target routes](#core-target-routes)). Without `--targets` no source is
+  recorded and the binding stays `unverified`. The assessment's policy version
+  is `port-capabilities;api=<n>;projection=<n>`. Its input digest covers both
+  observations and the host platform. Everything is
   written in one transaction with the collector role, with
   `standard_conforming_strings` pinned for quoting. A repeated pass with
   identical inputs adds no transition. A Git failure stops the collection; only
@@ -257,6 +371,29 @@ node scripts/maintenance-inventory.mts report --output work/maintenance-report/2
   current Core assessment, history and latest observations, and whether the
   latest Core run assessed it, recorded a gap or did not include it. Unsupported sources
   and published delivery are shown as unknown with their reasons.
+  - The subjects table searches every column: each word must appear somewhere
+    in the row, including linked work, upstream, offering, qualification,
+    attention and next action. Filters narrow it by host platform, Core
+    assessment, last change within 1, 7 or 30 days of the report's own
+    generation time, and "needs attention or has a next action" (attention
+    conditions, this port's own health gap, a next action or a Core gap; a
+    source-wide failed read alone does not select every port). The page
+    shows how many subjects match. Filtering only selects rows; it never
+    changes a value. The filter is one plain-JavaScript function that the page
+    embeds and the tests run unchanged.
+  - Freshness: for each source the report records its latest attempt and its
+    latest complete or partial read (`freshness`). A failed read is an attempt,
+    never a refresh. The age of the last good read is measured against the
+    report's own generation time; over 36 hours (the schedule is daily) or never
+    read is flagged stale. `definition-delivery` counts only a verified read as
+    good and records anything else (such as nothing served yet) as a failed
+    run, so its freshness is its latest serving observation (verified, not
+    served, incomplete or expired); an outage or a failed tool does not count.
+    The page shows when it was last verified and last observed, and the
+    oldest data age excludes it; the Definition publication section shows what
+    was last verified. The page states the oldest data age, names stale
+    sources, and shows each source's age; stale facts stay current and visible,
+    never treated as absent.
 
 Listing-only records are marked `listing_only`. A listing establishes neither an
 install nor a launch route, and the report adds no support, admission or
@@ -277,15 +414,25 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
   - The report takes each subject's latest-run status and gaps from its own
     platform's latest Core run.
   - Collectors of the same source are serialized by a transaction-scoped
-    advisory lock.
-  - A truncated Project field page fails the issue collection rather than
-    dropping fields.
+    advisory lock, and freshness follows the acquisition ticket taken before
+    any external read ([storage contract](#storage-contract)).
+  - Each source is read as a typed outcome and fails alone. A failed issue and
+    Project, release-health or publication-bundle read records a `failed` run
+    with its gap. Prior facts stay current, and every other source still lands.
+    `collect` lists such sources in `failed_sources`.
+  - Issue blockers, Project memberships and Project item fields follow their
+    own continuation cursors. An incomplete page or a changed revision fails
+    the issue collection and retains the prior facts.
 - `--issues` adds the `issues-project` source.
   - It reads the maintained, completeness-verified issue inventory with
     issue-side Project memberships (`RoadmapClient.repositoryIssues`), through a
     read-only request scope.
   - Each issue keeps its state, title, Project placement and field values, archive
-    state, blockers and canonical port markers. Bodies are not stored.
+    state, blockers and canonical port markers. Bodies are not stored. When an
+    open issue's dependencies section records explicit, substantive `Blocker:`
+    and `Resume condition:` fields (the doctor's shared parser), the issue also
+    keeps them as `reconsideration`, truncated to 500 characters; other issues
+    are unchanged.
   - Port assessments stay Core-only, so issue activity never creates a false port
     transition. The report links each port to its work through the catalog's
     canonical `issue_number` and the issue's `portcove-catalog-id` marker.
@@ -311,6 +458,42 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
   - whether the latest Core run assessed it.
 - Search covers subject, name, game, target key and state. The page embeds only
   the fields it renders; `inventory.json` keeps every explanation.
+- **Games and implementations.** The report's universe (`universe` in
+  `inventory.json`, `scripts/maintenance-universe.mts`) lists every known
+  identity from facts the store already holds:
+  - `port:<id>` from authored records, with its canonical issue;
+  - `implementation:<key>` from each record's validated lineage history, using
+    the lineage contract's own keys (`lineageIdentityKeys`);
+  - `upstream:repository:<host>:<id>` for an immutable repository ID from
+    reviewed catalog lineage or a validated hosted intake request. Search for
+    this identity to find the listings it serves and journal requests that
+    observed it. Each listing keeps its own target and Core assessments;
+  - `issue:<n>` for issues named by a catalog record or hosted request, and
+    issues that name catalog IDs or port keys. Closed issues remain searchable;
+  - `intake:<request>` with its candidate port keys, candidate upstream URL and
+    repository identities, and linked work;
+  - `definition:<namespace>/<id>` from the publication source.
+
+  Canonical work, retained implementations, accepted fork, alternative and
+  independent decisions, and intake links are edges, never merges. Names and
+  titles only label entries. A record whose lineage does not validate, or that
+  records no lineage (legacy-unassessed), keeps its entry with an
+  `identity_gap`. Only entries sharing a validated lineage target group as one
+  game. An issue naming a catalog ID outside the observed catalog says
+  `names-uncataloged-port` only when the catalog run was complete; after a
+  sampled run it says `names-port-catalog-coverage-unknown`. The page searches entries by identity, name, game, port key or
+  relationship.
+
+- Each subject shows when it was last verified separately from when it last
+  materially changed. Its policy, input digest and explanation come from the
+  latest applicable assessment.
+- `inventory.json` records `generation`, the newest finished acquisition it
+  reflects. The report destination is always new, and a failed write leaves the
+  previous report in place. `report --previous DIR` refuses to supersede a
+  report of a greater generation. That check is the precondition for the later
+  static-publication stage, which must compare generations again at its own
+  guarded replacement. Hosted runs today keep each report as its own run
+  artifact, so no report replaces another.
 
 Observed cost (2026-11-11, cloud session, debug CLI, Linux x86-64, PostgreSQL 16):
 
@@ -342,7 +525,9 @@ Observed cost (2026-11-11, cloud session, debug CLI, Linux x86-64, PostgreSQL 16
 - **Report:** the "Needs attention" column applies the monitor's own maintained
   triage (`isRoutineProviderCondition`). Only accounted, routine
   `provider-reported-*` conditions are hidden. A port whose latest health run
-  recorded a gap is marked "health not fresh". A port the monitor permanently
+  that did not fail recorded a gap is marked "health not fresh". A failed
+  latest read is shown with that port's previous gap, so prior facts stay
+  visibly dated. A port the monitor permanently
   leaves unmonitored keeps every health run `partial`, which never records
   absences.
 - **Credentials:** downloading an artifact needs a credential with the GitHub
@@ -356,38 +541,143 @@ A digest-verified report from scheduled run 43066038874 (2026-11-11) covered
 - 3 ports have reviewed, accounted endpoint conditions that the triage keeps
   visible.
 
+### Release content
+
+`--release-content` (with `--all`) adds the `release-content` source
+([#5353](https://github.com/boburning/portcove/issues/5353)).
+
+- **Input:** the report from the latest successful scheduled `main` run of
+  [`release-content-scan.yml`](UPSTREAM-OBSERVATIONS.md#release-content-scan),
+  read like release health: through the maintained GitHub client and artifact
+  transfer, from the unexpired `release-content-scan-<run>-<attempt>` artifact
+  whose SHA-256 must match GitHub's recorded digest, with `report.json` read
+  through the bounded, CRC-checked ZIP reader. A dispatched scan never counts.
+  The run revision is
+  `release-content-scan-run:<run>-<attempt>@<head_sha>#sha256:<artifact digest>`.
+- **Report shape:** the scan report (format 3) declares its own target count
+  (one target per unheld listing and hinted platform) and a SHA-256 of the
+  target list. Every target is counted against that declared count: the
+  `scanned`, `reused_targets` and `unscanned` entries must partition exactly
+  that list, so an empty or truncated report can never pass as complete and
+  record absences. A report with no targets is unsupported.
+  - Every finding must belong to a scanned or reused target and name exactly
+    its package: the same key, tag, asset and SHA-256 (`reused_targets` carry
+    them). A target has at most one finding, and every scanned record with
+    signals has one.
+  - A finding keeps at most 20 signals (sorted) and the true `signal_count`; a
+    count above the kept signals requires the full cap.
+  - A finding may carry `accounted` (a reason and a reviewed
+    `boburning/portcove` issue or pull request URL).
+  - Any other shape is unsupported. Each not-scanned target carries a
+    stable `code`, and the consumer reads the scan's own code lists. Deferred
+    codes are retried by a later run: `time-budget`, `asset-budget`,
+    `time-cut`, `release-read-failed` and `scan-failed` (transient network,
+    provider or tool failures). Persistent codes are deterministic for the same release and
+    limits: `no-release` and `no-single-asset` (nothing to download),
+    `release-unavailable` (a redirect, 404 or 410), `asset-too-large`,
+    `digest-mismatch`, `encrypted-archive` and `unlistable`. The scan's
+    checkpoint remembers `asset-too-large`, `digest-mismatch` and
+    `encrypted-archive` for a downloaded asset and does not fetch it again for
+    the same release; `unlistable` is remembered as a retry and re-checked in
+    rotation under its own allowance, because a lister or environment fault can
+    cause it too. A retry outside this run's rotation is reported as
+    `unlistable` again, never deferred, so it never makes its port a gap
+    ([scan](UPSTREAM-OBSERVATIONS.md#release-content-scan)). A `release-unavailable`
+    entry also names its provider (`github` or `gitlab`), which decides its
+    route. Any other shape or
+    code is unsupported and fails the read.
+- **Stored facts:** a port is a `port:<id>` fact only when none of its targets
+  is deferred. The fact keeps each finding's platform, repository, tag, asset,
+  SHA-256, rules version, kept signals (path, kind and reason, sorted),
+  `signal_count` and any `accounted` review, plus each persistent not-scanned
+  target's platform and code. Entry counts, partial-read
+  counts, checkpoint keys and free-text reasons are dropped, so a package
+  reused from the scan's checkpoint stays quiet.
+- **Gaps:** a port with any deferred target is a `release-content-deferred` gap
+  that names each deferred platform and code, and makes the run `partial`. The
+  gap also carries the findings this report already has for the port. Runs
+  stay `partial` until the scan's checkpoint covers every target, which takes
+  several runs at its 160-asset budget (about 780 targets on 2026-11-14).
+- **Failures:** an unavailable, unbound or unsupported report makes the run
+  `failed` with one `unavailable` gap; the last known facts stay current.
+- **Report:** "Needs attention" and the "Release content findings" section list
+  each flagged package with its listing, package identity and signals. They
+  read the port's stored facts and, from the latest run that did not fail, the
+  findings on its deferral gap. A finding is therefore visible from a `partial`
+  run, marked as not yet covering every target of the listing. A failed latest
+  read is named while the stored findings stay visible. Signals the scan's cap
+  cut are counted as "and N more".
+  - An accounted finding is a confirmed false positive. The section shows it
+    as "accounted (reason, evidence)". It is never under "Needs attention" and
+    never in a handoff condition.
+  - The section's "Not scannable" list shows every persistent not-scanned
+    target (listing, platform and code), from the stored facts and the
+    deferral gap.
+  - `digest-mismatch` (which can also mean altered bytes), `encrypted-archive`,
+    `unlistable`, `asset-too-large` and `release-unavailable` leave a package
+    nobody has inspected. They are listed under "Needs attention" as
+    `release content not scannable: <platform> <code>`.
+  - `no-release` and `no-single-asset` mean there is no package. They are
+    coverage notes and are never attention.
+- **Authority:** a finding is review evidence and never writes a hold. A person
+  confirms it, and a reviewed catalog change sets the listing's
+  `download_block_reason` under the
+  [rights basis](CATALOG.md#rights-basis-for-upstream-hosted-packages). A held
+  listing leaves the scan targets, so the next `complete` run records its
+  absence. A confirmed false positive instead gets a reviewed entry in
+  `.github/release-content-accounting.json`, which the scan applies to that
+  exact package (port, platform, SHA-256 and rules version). A dismissal covers
+  those package bytes under that rules version, not a particular set of
+  signals. A new digest or rules version is not covered. The next `complete`
+  run clears a handoff that only the accounted finding held. When a gap from
+  a later run and a stored fact hold the same package, the gap's copy is
+  shown, so a dismissal applies during `partial` runs too.
+- **Credentials:** as for release health, the artifact download needs the
+  GitHub `actions` scope.
+
 ### Definition publication
 
-`--publication` (with `--all`) adds the `definition-publication` source. It
-compares what `main` holds with what is published.
+Two sources keep three facts apart: what `main` holds, the content last
+verified as published, and what the appointed location serves right now.
 
-- **Main side:** the bundle is exported from the pinned revision with
-  `git archive`, so working-tree edits are never recorded. Core's maintained
-  `catalog inspect-definition-publication` then inspects that copy.
+- **Main (`--publication`, `definition-publication`).** The bundle is exported
+  from the pinned revision with `git archive`, so working-tree edits are never
+  recorded. Core's maintained `catalog inspect-definition-publication` then
+  inspects that copy.
   - It reports the index digest and, for each validated
     `definition:<namespace>/<stable_id>`, the revision, content-addressed
     definition target, policy revision and launch revision.
-- **Published side:** one bounded HTTPS `HEAD` of `timestamp.json` at the
-  appointed official metadata location.
-  - The result is recorded as a site-level fact: `absent` for HTTP 404, or
-    `metadata-present-unverified` for HTTP 200.
-  - Per definition, the source records `not-published` only when the site is
-    absent. When the site is present, each definition is `unknown` until its
-    published index is read and verified.
-  - Any other result, such as another status or an unreachable host, makes the
-    run `failed` with a gap. The last known facts stay current, and the report
-    names the failed probe.
-  - Node's `fetch` does not use `HTTPS_PROXY`, so on proxy-only runners the probe
-    is always a gap.
-  - During a probe gap the main-side inspection is not recorded either, so a
-    bundle change made during an outage appears once the site can be classified
-    again. A complete run over an empty bundle is reported as observed, with no
-    committed definitions.
-- **Authority:** this source grants no publication authority.
+  - A failed export or inspection makes the run `failed`; the last main facts
+    stay current.
+- **Published (`--delivery`, `definition-delivery`).** Core's
+  `catalog inspect-definition-delivery` reads the appointed official location
+  through the client's own trust path: the compiled root, TUF metadata and the
+  signed definition index. It writes no trust, replay floor or selection.
+  - Only a `verified` read records facts: per definition, the published
+    revision, target, target digest and length. The run's revision carries the
+    authenticated index digest and timestamp version, so routine metadata
+    refreshes record nothing new.
+  - A verified read is complete: a definition it no longer indexes is recorded
+    as withdrawn.
+  - Every other serving status is the run's gap code and makes the run `failed`:
+    `not_served` (the timestamp metadata is absent: HTTP 404 or 410),
+    `incomplete` (metadata is served but a file it requires is absent),
+    `unreachable` (including HTTP 403), `expired`, `verification_failed` or
+    `not_configured`. An HTTP status alone is never a publication fact, and
+    neither a 404 nor an outage erases the last verified publication.
+- **Report.** Per definition, the report compares `main` with the last verified
+  publication by identity: `published-matches-main` (same revision and
+  content-addressed target), `published-differs-from-main`,
+  `never-verified-published`, `published-withdrawn` (a later verified read no
+  longer indexed it), `published-not-on-main`, or `main-unobserved`.
+  Separately, it shows the latest read's serving status and when the location
+  last verified. A main-only target comparison does not cover the policy and
+  launch targets, which the published index does not list per definition.
+- **Authority:** neither source grants publication authority.
 
-On 2026-11-11, `main` held `official/chameleon-twist-jp-recompiled` revision 1
-(index `fd4e8154…`). The appointed site returned HTTP 404, so the definition was
-not published.
+On 2026-11-13, `main` held `official/chameleon-twist-jp-recompiled` revision 1
+(index `fd4e8154…`), and Core read the appointed location as `not_served`. No
+publication has been verified.
 
 ### Upstream observations
 
@@ -401,7 +691,7 @@ not published.
   push runs and runs whose export did not retain a snapshot are passed over.
   - It is read through the maintained GitHub client (GET-only, at most 24
     candidate runs and 32 requests) and the in-memory artifact transfer, bounded
-    by the observer's eight-MiB streaming snapshot limit.
+    by the observer's sixteen-MiB streaming snapshot limit.
   - The configuration digest in the artifact name must equal the SHA-256 of
     `release/upstream-observer.json` at the run's head commit, which is how the
     workflow names its snapshot. The archive length and SHA-256 must match
@@ -429,8 +719,23 @@ not published.
     completed scope and are stored as no exception, so they cause no churn.
   - Per-observation clocks and progress (freshness, completion and due times,
     attempted sequence, retry state, provider progress and cursors), result
-    digests and policy bodies are never stored: Core and listing policies embed
-    observation clocks, so a routine re-observation stays quiet.
+    digests and full policy bodies are omitted so routine re-observation stays
+    quiet. For a hosted managed route, retain the offered platform and channel,
+    exact release identity, publication time, and Core's retained pending or
+    eligible result. A reviewed fallback leaves the current release pending.
+    Curated pins and descriptive listing observations are outside this measure.
+    The identity stays the same when integrity or an asset arrives under the
+    same release. This records upstream candidate evidence for history. Actual
+    client availability, repair publication and human interventions require
+    separate receipts. The JSON report's `managed_release_eligibility` uses
+    the last 30 days of retained complete and partial collection observations.
+    It counts each candidate published in that window once, using its latest
+    recorded state. A missing publication time is reported separately. Pending
+    age uses publication time. Publication-to-recorded-eligibility lag uses
+    the first retained eligible observation. Evidence can start partway through
+    the window. The report's existing source freshness and gaps still describe
+    coverage. Released-client availability, interventions, repairs, and cost
+    stay unknown until their receipts are available.
 - **Gaps:** a port is a fact only when every source serving it has completed
   with a policy for it. Otherwise the run is `partial` and the port is a gap:
   `held` (no observation source serves the port), `unobserved`
@@ -462,6 +767,68 @@ the previous 24 hours retained a snapshot. In scheduled runs 43058926577,
 records: compressed member exceeds reserved output envelope; checkpoints
 retained" (a 14.4 MB controller checkpoint, 27.3 MB decoded), so a live
 collection records a `failed` run until the producer retains a snapshot again.
+The owner-approved November 11 fresh baseline restored that chain on 2026-11-12:
+scheduled run 43152316761 initialized it and retained a checkpoint snapshot, so
+later collections read that snapshot.
+
+### Core target routes
+
+```bash
+node scripts/maintenance-inventory.mts collect --cli target/release/portcove --all --targets
+```
+
+- **Input:** Core's library-free `catalog inspect-targets` for exactly the
+  collected ports ([CLI](CLI.md#catalog-target-inspection)). It is bound to the
+  same Core binary digest as the host assessments (`cli-sha256:<digest>`).
+- **Stored facts:** each port's presence, declared platforms, reviewed
+  acquisition hold, download restriction, and per target platform whether the
+  managed install and the external registration are offered to a fresh library,
+  with Core's reason, and Core's `qualification` match of recorded evidence to
+  the catalog-offered artifact (format 2; it carries no observation clock). The
+  facts are stored changes-only as `port:<id>`; the first format-2 collection
+  records one change per operational port.
+- **Producer binding:** the inspection names the producing Core: the source
+  revision its build recorded, compiled features, the compiled catalog and
+  listings digests, and whether a qualification override replaced the catalog.
+  The Core run's revision records the binary, the source, a short producer
+  digest and the binding
+  (`cli-sha256:<digest>;source=<revision|unrecorded>;producer-sha256=<16>;binding=<verified|unverified>`).
+  The report shows it for each subject as `verified_by`.
+  Each subject's current verification names that run, so every assessment is
+  bound to the exact binary and build that last verified it. A recorded
+  revision that is not a Git object ID is stored as `unrecorded`.
+  - The assessment policy names only how a Core report becomes a state
+    (`port-capabilities;api=<n>;projection=<n>`). The assessment input is Core's
+    own output, so any change in Core behavior is a new input and a new
+    assessment. A rebuild with identical behavior writes no rows: the hosted
+    store measured 1,441 rows per rebuild when the binary digest was in the
+    policy.
+  - A host assessment's `cli_source_binding` is `verified` only when the
+    recorded revision is the collected checkout, that checkout's Core sources
+    (`crates`, `Cargo.toml`, `Cargo.lock`) are clean, no catalog override is
+    active, and no behavior-changing feature is compiled in. It records that the
+    build claims the clean checked-out source; it does not rebuild to prove it.
+    The `cli-sha256` digest still pins the exact binary.
+  - The hosted workflow builds Core with `PORTCOVE_SOURCE_REVISION` set to the
+    run's commit, in the same job and checkout that collects.
+  - A new binding with an unchanged result refreshes current provenance quietly.
+    If the target inspection fails, that run's policy carries no producer, and
+    provenance reads as unbound until the next successful read.
+- **Unknowns:** definition trust eligibility and readiness stay Core's
+  `unknown`. Collecting on one host never relabels that host's own assessment as
+  another platform's offering. Platforms Core does not represent, such as
+  Android, are not inspected.
+- **Failure:** a failed inspection is a `failed` run of its own, and the earlier
+  facts stay current.
+- **Report:** the subjects table adds "Offered for a fresh library", for
+  example "managed install on windows-x86-64, managed install on
+  linux-x86-64; trust eligibility and readiness not assessed", and
+  "Qualification for the offered artifact (Core)", worded from Core's state
+  only: for example "qualified for reviewed release v1.8.3 on windows-x86-64
+  only if the provider resolves it", "structural checks only", "historical
+  qualification only", a known failure, or legacy port-wide coverage marked as
+  not artifact-bound. A qualified statement always adds that the evidence does
+  not record which route it exercised.
 
 ### Hosted intake
 
@@ -532,6 +899,42 @@ marker-bearing owner requests (19 active and 10 withdrawn). The run was
 active request was `blocked` and is the only attention item. One active request
 was a routine `partial`, and 17 were `complete`.
 
+## Holds and deferrals
+
+Typed reconsideration conditions are derived from their canonical owners on
+each complete read of that owner, inside the same collection transaction. They
+are never edited in the store, and a partial or failed read creates and resolves
+nothing.
+
+| Kind                   | Owner and source                                                    | Revisit authority                         |
+| ---------------------- | ------------------------------------------------------------------- | ----------------------------------------- |
+| `intentional_deferral` | Open issue whose non-archived roadmap Project Status is `Deferred`  | The Project owner of that issue           |
+| `technical_hold`       | Open issue whose non-archived roadmap Project Status is `Blocked`   | The Project owner of that issue           |
+| `technical_hold`       | A port's reviewed catalog acquisition hold, from Core target routes | The catalog review that recorded the hold |
+
+- Only the configured roadmap Project (`.github/roadmap.json`) counts; the
+  collector resolves its identity read-only on each issue read. Another
+  Project's Status fields never record a hold or deferral, and without the
+  roadmap identity no issue condition changes.
+- The condition records the source, the Project status or hold reason, and the
+  issue's explicit blocker and resume condition when recorded (`null` otherwise).
+- A complete read that no longer records a pending condition resolves it under
+  its recorded authority, naming the observing run: `satisfied`
+  (`condition-lifted`) when the Status or hold is gone, or `withdrawn`
+  (`condition-changed`) when a changed condition replaces it. A closed issue's
+  conditions end `withdrawn` (`issue-closed`), never as lifted. The store
+  refuses any other authority for a deferral.
+- Technical viability never resolves a deferral. For each pending deferral, the
+  report lists the linked port assessments that changed after it was recorded,
+  for its authority to reconsider.
+- Episodes have their own IDs: a condition lifted and later recorded again
+  becomes `<id>.1`, so a return to an earlier state stays in history, while an
+  unchanged read writes nothing.
+- The report's "Holds and deferrals" section shows every pending condition and
+  the latest 200 resolutions.
+- `upstream_change` and `evidence_refresh` are not derived yet: upstream and
+  release-health attention stays with [executor handoffs](#executor-handoffs).
+
 ## Executor handoffs
 
 Handoffs connect an attention item to the existing executor that resolves it.
@@ -547,13 +950,14 @@ kind in code; it is never stored. Each entry names:
 - the original receipt that counts;
 - `dispatch: disabled` with the exact reason and the resume condition.
 
-| Kind                          | Existing action and invocation                                                                                                                                    | Authority  | Receipt that counts                                                 |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------- |
-| `release-health-relocation`   | `gh workflow run upstream-relocation-evidence.yml --ref main -f requests="<OWNER/NAME[@TAG]>"`, then a reviewed rename                                            | Owner only | The next scheduled main `upstream-health` report no longer shows it |
-| `release-health-condition`    | The monitor's recorded resume condition, then an accounting or fix PR; no dispatch is offered                                                                     | Routine    | The next scheduled main report                                      |
-| `upstream-observer-exception` | The observer's recorded rule and resume condition and a fix PR; `gh workflow run configured-upstream-observer.yml --ref main`                                     | Routine    | The next completed checkpoint snapshot                              |
-| `hosted-intake-blocked`       | `status --request <id> --json`; an owner reconciliation only when primary evidence changed, otherwise owner `process` dispatch ([route](DAILY-PORT-DISCOVERY.md)) | Owner only | A new bot receipt on #177                                           |
-| `hosted-intake-holds`         | `gh workflow run hosted-discovery-intake.yml --ref main -f mode=process`                                                                                          | Owner only | A new bot receipt on #177                                           |
+| Kind                          | Existing action and invocation                                                                                                                                                         | Authority  | Receipt that counts                                                 |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------- |
+| `release-health-relocation`   | `gh workflow run upstream-relocation-evidence.yml --ref main -f requests="<OWNER/NAME[@TAG]>"`, then a reviewed rename                                                                 | Owner only | The next scheduled main `upstream-health` report no longer shows it |
+| `release-health-condition`    | The monitor's recorded resume condition, then an accounting or fix PR; no dispatch is offered                                                                                          | Routine    | The next scheduled main report                                      |
+| `upstream-observer-exception` | The observer's recorded rule and resume condition and a fix PR; `gh workflow run configured-upstream-observer.yml --ref main`                                                          | Routine    | The next completed checkpoint snapshot                              |
+| `hosted-intake-blocked`       | `status --request <id> --json`; an owner reconciliation only when primary evidence changed, otherwise owner `process` dispatch ([route](DAILY-PORT-DISCOVERY.md))                      | Owner only | A new bot receipt on #177                                           |
+| `hosted-intake-holds`         | `gh workflow run hosted-discovery-intake.yml --ref main -f mode=process`                                                                                                               | Owner only | A new bot receipt on #177                                           |
+| `release-content-finding`     | By condition: confirm flagged files or inspect an unreadable package, then a reviewed hold or accounting entry; unavailable GitHub releases defer to the owner-only relocation handoff | Routine    | The next scheduled main release-content scan no longer reports it   |
 
 A test parses every referenced workflow and checks its name, trigger and input
 names against the registry.
@@ -578,6 +982,26 @@ names against the registry.
   action applies to the unaccounted ones and names the accounted ones with their
   recorded resume conditions. With none accounted, the registry entry is shown
   unchanged. The stored condition and its digest are unchanged.
+- **Release-content wording:** the action and receipt follow the condition.
+  - Flagged files are confirmed against the package.
+  - A package the scan could not read is downloaded and inspected by hand,
+    naming its codes.
+  - Either ends in a reviewed hold or, for a confirmed false positive, a
+    reviewed accounting entry.
+  - For a `release-unavailable` GitHub target, the routine part is only to
+    confirm that the release is unavailable. Relocation evidence
+    (`upstream-relocation-evidence.yml`) and any rename are owner-only. They
+    follow the port's `release-health-relocation` handoff and its authority.
+  - The relocation route reads GitHub repositories only. A GitLab target is
+    fixed by a reviewed change to the listing's upstream location, and then the
+    next scan reads the release.
+  - A condition stored before the provider was recorded gets neutral wording:
+    confirm, then fix the location in a reviewed change, through the owner-only
+    relocation handoff for a GitHub repository.
+  - In both cases the receipt is the next scan reading the release.
+  - Adding `signal_count` and the provider to the condition records one changed
+    condition for an already-open handoff on the first `complete` run after
+    deploy.
 - **Scheduled receipt:** `readReleaseHealth` accepts only scheduled `main`
   reports, so the release-health entries offer no `upstream-health.yml`
   dispatch; a dispatched run would never count as the receipt.
@@ -588,8 +1012,8 @@ names against the registry.
 
 **Recording.** `collect --all` records handoffs in the collection transaction,
 and only after a `complete` run of the deciding source: the release-health,
-upstream-observation or hosted-intake run. While that run is `partial` or
-`failed`, no handoff of its kinds is recorded, changed or cleared, even for
+upstream-observation, hosted-intake or release-content run. While that run is
+`partial` or `failed`, no handoff of its kinds is recorded, changed or cleared, even for
 subjects it did observe.
 
 - Each attention subject gets an assessment `handoff:<kind>:<source subject>`
@@ -603,6 +1027,13 @@ subjects it did observe.
     Partial-progress stops are excluded.
   - Hosted intake: the receipt comment, reconciliation and blocker code, or each
     held candidate's index, port key, repository ID, HTTP status and resume.
+  - Release content: each stored finding's platform, repository, tag, asset,
+    SHA-256, rules version, kept signals and signal count, and the platform
+    and code of each not-scannable target that needs attention (coverage notes
+    excluded). Accounted findings are left out, so a port whose only findings
+    are accounted has no handoff. Only the stored facts of a `complete` run
+    decide it, so nothing opens a handoff while any target is deferred; a held
+    listing leaves the scan and its handoff clears.
 - The assessment, transition and notification statements are the store's
   ordinary ones, so the existing guards apply. An unchanged condition resolves to
   the same assessment and records nothing. A changed condition is a new
@@ -630,13 +1061,22 @@ node scripts/maintenance-inventory.mts handoffs --record
 - `handoffs` is read-only (report role). It lists each open handoff with its
   registry entry, condition and newest open operation.
 - `handoffs --record` runs with the executor role against the local store only.
-  - It plans one operation `handoff.<kind>.<source>.<fence>` of kind
-    `handoff.<kind>` per open handoff. The fence is the handoff's current
-    sequence, and a replay inserts nothing (`ON CONFLICT DO NOTHING`). Characters
-    the identity check refuses (such as `@`) map to `.`. An ID over 200
-    characters replaces the source with a SHA-256 prefix.
-  - It moves each planned handoff operation whose subject has moved on (cleared
-    or a newer condition) from `planned` to `abandoned` at revision + 1.
+  - It plans one operation `handoff.<kind>.<source>.<fence>.a<assessment>` of
+    kind `handoff.<kind>` per open handoff. The fence is the handoff's current
+    sequence and its applicable assessment. A later plan for the same fence
+    and assessment (after the assessment moved away and back) gets a `.<n>`
+    suffix, so it never collides with an abandoned one. A replay inserts
+    nothing, and an open plan from before migration 0003
+    (`handoff.<kind>.<source>.<fence>`, bound by the migration) still counts.
+    No plan is added while any operation of the handoff is `dispatched` or
+    `ambiguous`; that one resolves only through its original executor's
+    receipt. Characters
+    the identity check refuses (such as `@`) map to `.`. An ID that would
+    exceed 200 characters (190 when it names the assessment, leaving room for
+    the suffix) replaces the source with a SHA-256 prefix.
+  - It moves each planned handoff operation whose subject has moved on (cleared,
+    a newer condition, or a newer applicable assessment) from `planned` to
+    `abandoned` at revision + 1, and plans its replacement in the same pass.
   - It never dispatches or completes an operation, and receipt columns stay
     empty. The guard refuses a plan at a stale fence and any revival of an
     abandoned plan, so a restored or stale worker cannot replay side effects or
@@ -646,15 +1086,148 @@ node scripts/maintenance-inventory.mts handoffs --record
 **Report.** "Next action" columns in the subjects and hosted-intake tables show
 the action, invocation, authority, `dispatch disabled: <reason>; resume:
 <condition>`, the receipt, and the open operation with its fence (marked stale
-when it predates the current sequence). Handoffs are not listed as inventory
+when it predates the current sequence or applicable assessment). Handoffs are not listed as inventory
 subjects. The changes-only digest includes handoff transitions with their
 recorded condition (`handoff_condition`) and names the same action as the
 report.
 
 **Explicitly disabled:** executor dispatch (every executor is owner-only or needs
 a reviewed change no executor is authorized to deliver, and no delegated
-credential exists), digest posting, schedules and publication. A kind resumes
-only when its registry resume condition holds and a reviewed change enables it.
+credential exists), digest posting and publication. A kind resumes only when its
+registry resume condition holds and a reviewed change enables it. The
+[hosted operation](#hosted-operation) records handoffs daily and never
+dispatches them.
+
+## Hosted operation
+
+[`maintenance-inventory.yml`](../.github/workflows/maintenance-inventory.yml)
+runs the generic commands above unchanged on a GitHub-hosted runner. It follows
+owner decisions recorded on 2026-11-13. Unattended evidence belongs to #4129
+checkpoint 5 and is recorded there.
+
+- **Schedule.** Once daily at 04:47 UTC, plus `workflow_dispatch` without inputs.
+  Both jobs run only on `main` of this repository. One concurrency group
+  serializes store writers, and a queued run never cancels a running one.
+- **Database.** A standard PostgreSQL 16 or newer database; the owner chose
+  Neon (database `portcove`). Its URL is the repository secret
+  `PORTCOVE_DATABASE_URL`, passed to the store commands as
+  `PORTCOVE_MAINTENANCE_DATABASE_URL`.
+  - Use the direct (unpooled) connection string. Backup holds an exported
+    snapshot across two sessions, and migration and collection use advisory
+    locks. Transaction-mode poolers preserve neither.
+  - The URL reaches only the step environments of the store commands, which
+    translate it to libpq variables.
+  - The hosted store runs as the URL's own role, which owns the schema. The
+    limited roles stay available to operators who grant separate logins.
+- **Configuration errors.** The first step checks that
+  `PORTCOVE_DATABASE_URL` and `PORTCOVE_ROADMAP_TOKEN` are set.
+  - When either is empty, the job fails before checkout and nothing is read or
+    written.
+  - Its step summary and error annotation name only the missing secrets.
+  - A server older than PostgreSQL 16 fails the same way.
+- **Client version.** `maintenance-store.mts server` reports the server's major
+  version through the runner's default client. When the runner image has no
+  client of that major version, the job installs one from the PostgreSQL apt
+  repository and sets `PORTCOVE_POSTGRES_BIN`. Ubuntu's own `postgresql-common`
+  script configures that repository.
+- **Credentials.** The collect job has `contents: read`, `actions: read` and
+  `issues: read`.
+  - Release health, release content, upstream observer snapshots and hosted
+    intake read through that job's `GITHUB_TOKEN`, passed as `GH_TOKEN`.
+  - Only the issue and Project source reads the existing
+    `PORTCOVE_ROADMAP_TOKEN`, read-only, as the Roadmap health workflow does. The
+    token is passed as `PORTCOVE_ROADMAP_GH_TOKEN` and read through
+    `collect --issues-token-env`, which never falls back to another credential.
+  - The collector removes that variable from its own environment once read, so
+    Core, Git and `psql` do not inherit it.
+  - Definition publication and delivery need no credential.
+- **Collect job.** It runs these steps in order:
+  1. Build the debug Core CLI, sharing the observer's Rust cache.
+  2. `migrate`.
+  3. `collect --all` with `--issues`, `--release-health`, `--release-content`,
+     `--publication`, `--delivery`, `--upstream`, `--hosted-intake` and
+     `--targets`. The collection transaction reaches the
+     server as one batched query (psql `\;`), so a remote host costs one round
+     trip rather than one per statement. The isolation and quoting settings
+     run first as their own statements, because a batched query is parsed whole
+     before any setting inside it takes effect. That one call has a 15-minute
+     budget; other store calls keep two minutes.
+  4. `handoffs --record`, which plans and never dispatches.
+  5. `report`, `digest` and `backup`.
+- **Artifacts.** These are GitHub Actions artifacts kept for 30 days. Nothing is
+  published to GitHub Pages.
+  - `maintenance-report-<run>-<attempt>` holds the report (`report/index.html`,
+    `report/inventory.json`), the changes-only digest (`digest/digest.json`,
+    `digest/digest.md`) and `evidence.json`.
+  - `maintenance-backup-<run>-<attempt>` holds `maintenance.dump` and
+    `manifest.json`.
+  - `maintenance-restore-proof-<run>-<attempt>` holds the restore evidence.
+  - No executor acknowledges or posts the digest, so pending changes accumulate
+    until an authorized executor delivers them
+    ([changes-only digest](#changes-only-digest)).
+- **Restore proof.** A second job downloads the backup artifact and starts a
+  fresh PostgreSQL server of the same major version on its own runner, reachable
+  only through a private Unix socket. It then runs `restore`, which verifies the
+  dump digest and every table's count and digest in its own transaction. The job
+  also compares the restored digests with the manifest and fails on any
+  difference. Restore drops exactly the provider's own column-version
+  statements (`ALTER TABLE ONLY … ALTER COLUMN … SET (pg_attver=N)`), which
+  Neon adds to every column and standard PostgreSQL refuses. The store sets no
+  column options, so nothing of the store is lost, and `COPY` data is never
+  filtered.
+- **Evidence.** `evidence.json` (`portcove-maintenance-hosted-evidence`, format 1)
+  and the step summary record these fields:
+  - the run ID, attempt, event and head commit;
+  - the collect, report and backup step outcomes;
+  - the report's `generated_at`, so report age is observable;
+  - every source's latest run: ID, coverage, revision, counts and gap count;
+  - the pending change count;
+  - the server version and `pg_database_size`;
+  - the schema version, dump size and digest, and per-table row counts;
+  - the duration of each step;
+  - the size and SHA-256 of every report, digest and backup file.
+
+  The restore evidence records both server versions, the restore duration and
+  the verification result.
+
+**First hosted run (2026-11-13, run 43351437599, `workflow_dispatch` on
+f7d26628).** Neon PostgreSQL 18 was detected, and the matching client was
+installed and migrated. The first complete collection then exceeded the
+client's former two-minute limit (`psql ETIMEDOUT`), and its transaction
+committed nothing. Restoring the backup (schema and migration ledger only) onto standard PostgreSQL 18
+failed on Neon's `pg_attver` column options. Both failures are addressed by the batching, the collection budget and the restore filter above; a successful hosted rerun is recorded separately. The run was
+operationally useful: the store kept no partial state, and the independent
+restore found the portability gap before any history depended on it.
+
+**Interruption and provider failure.** Each mutation is atomic. A failed or
+interrupted run therefore leaves the last committed state, and the next
+scheduled run continues from it with no manual cleanup.
+
+- Each migration commits with its ledger row or not at all. A collection commits
+  in one transaction, or commits nothing.
+- A failed source within a collection is a `failed` or `partial` run, never an
+  absence.
+- When the collection step fails, the handoff, report and backup steps still run
+  against the last committed state, so the report and backup stay visibly dated.
+- A backup renames into place only when complete. A restore that fails
+  verification rolls back.
+- An unreachable or suspended database fails the run before anything is
+  written.
+- A run cancelled or timed out mid-collection leaves no in-progress run, because
+  the open transaction ends with the connection.
+
+**$0 activation.** GitHub charges nothing here because the repository is public,
+and standard hosted runners and artifact storage are free for public
+repositories. The database must stay inside the provider's free plan, and no
+paid fallback exists. At activation, compare each run's measured inputs with the
+provider's published free limits:
+
+- `database_size_bytes` for storage;
+- step durations for compute time;
+- dump and report sizes for data transfer.
+
+When the free plan cannot sustain them, an owner disables the workflow and the
+issue records the hold.
 
 ## Changes-only digest
 
@@ -687,7 +1260,8 @@ node scripts/maintenance-inventory.mts acknowledge --digest work/maintenance-dig
 `scripts/maintenance-store.test.mts` creates two disposable PostgreSQL clusters,
 migrates one, records representative A to B to A history, a pending deferral,
 delivered and pending notifications and an ambiguous operation, and exercises
-every guard and role boundary. It then backs up, restores to the second cluster,
+every guard and role boundary, including refusal of a plan whose applicable
+assessment has moved. It then backs up, restores to the second cluster,
 verifies identical digests and confirms that guards, identity sequences and roles
 work on the restored store. A separate case interrupts a migration and proves
 that no partial schema remains and that resume and drift detection work.
@@ -702,6 +1276,12 @@ retained snapshot.
 stub Core CLI, using the collector and report roles. It checks:
 
 - repeated-pass convergence and A to B to A history;
+- quiet provenance refresh for the same result under new inputs, a rebuilt Core
+  binary that adds no assessment rows, and a verifying run that states its own
+  source binding,
+  refusal of an older collection that finishes after a newer one, ticket rather
+  than clock order, replayed, unissued and baseline-changed refusals, and
+  failed issue and release-health reads that keep earlier facts;
 - host-failure gaps (`partial` and `failed` runs with no transition);
 - changes-only storage, verified membership and forged-membership refusal;
 - absence recorded only by complete runs, and a single in-progress run per source;
@@ -709,16 +1289,41 @@ stub Core CLI, using the collector and report roles. It checks:
 - full-versus-incremental parity;
 - per-call isolation and its removal, including under a symlinked `TMPDIR`;
 - coverage, listing and absence facts;
-- release-health, upstream-observation and hosted-intake coverage, quiet
-  recurrence, needs-attention and failed reads, with per-subject gaps from the
-  latest run that did not fail;
+- release-health, upstream-observation, hosted-intake and release-content
+  coverage, quiet recurrence, needs-attention and failed reads, with
+  per-subject gaps from the latest run that did not fail, including a
+  release-content finding shown from a `partial` run;
 - executor handoffs: one planned operation per appearance, quiet unchanged reruns
   and replays, no clearing by partial or failed runs, `clear` and
   `planned` to `abandoned` after a complete run, supersession and return
   detection, no handoff from Core changes, clearing of unregistered kinds,
   stale-fence refusal and role boundaries;
+- the hosted workflow's schedule, permissions, secret placement and artifact
+  retention, and the issue collector's own named credential;
 - report output and HTML escaping. The
   cases need non-root PostgreSQL 16+ server binaries and are a declared
   prerequisite skip elsewhere. These are fixture results. Hosted provider, backup
   destination and unattended operation evidence belong to the later #4129
   checkpoints.
+
+## Optional upstream research progress
+
+`maintenance-inventory.mts collect --all --cli PATH --progress
+scripts/upstream-progress/sources-v1.json` adds the reviewed research scope through
+the same collector, transaction and daily workflow. Each exact source has a
+`research-progress-<scope digest>` run with the existing acquisition fence,
+append-only observations and changes-only membership. Failed sources preserve
+last-good rows and checks; an unavailable provider never stalls unrelated
+sources or Core assessment.
+
+`report` includes dated progress, exact game/edition, metric meaning, evidence
+and last-attempt failure alongside last-good age. Stored optional rows are
+validated again before rendering. A missing or stale progress row has no effect
+on the offered-route assessment. Research conditions use the existing transition
+and notification tables; unchanged checks do not notify and repeated states
+retain distinct transition episodes. New progress dispatch is not enabled.
+Current project opt-outs suppress future report and pending-digest exposure of
+older research evidence, while private immutable recovery history remains.
+
+The owning adapter, scope, precision, failure and opt-out contract is
+[Optional research-progress observations](UPSTREAM-OBSERVATIONS.md#optional-research-progress-observations).

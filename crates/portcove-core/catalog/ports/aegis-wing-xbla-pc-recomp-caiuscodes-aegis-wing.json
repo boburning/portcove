@@ -28,6 +28,7 @@
     },
     "issue_number": 3284,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://ko-fi.com/caiuscodes"],
     "artwork": {
       "game_id": 2601,
       "cover_id": 310190,
@@ -35,6 +36,21 @@
       "image_sha256": "d46fe43b9724d682f0196ec35b4cb81a2e16663fce50e8e044fe40939617a814",
       "game_slug": "aegis-wing",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "aegis-wing",
+      "evidence_urls": ["https://github.com/CaiusCodes/Aegis-Wing-XBLA-PC-Recomp"],
+      "source_editions": [
+        {
+          "id": "aegis-wing-xbox-360",
+          "title": "Aegis Wing (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/CaiusCodes/Aegis-Wing-XBLA-PC-Recomp/blob/8b108ddfa7367d3caca699d3d0f466576ca45fa8/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

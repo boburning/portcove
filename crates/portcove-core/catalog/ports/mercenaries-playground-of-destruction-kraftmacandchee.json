@@ -18,6 +18,6 @@
       "game_slug": "mercenaries-playground-of-destruction",
       "match_kind": "underlying-game"
     },
-    "download_block_reason": "Fresh acquisition of the selected Mercenaries Recompiled Windows launcher/package is held while applicable app-bundling permission or an authorized-source basis for its embedded AgencyFB-Regular.ttf remains unresolved. Its Font Bureau copyright notice and the project MIT or inactive OFL font notices do not supply that grant. Resume with an attributable applicable basis or a reviewed supported package excluding or replacing that font. Independently permitted existing copies remain separate; this does not resolve the launcher lifetime hold."
+    "download_block_reason": "New downloads are unavailable because the prebuilt release package includes compiled game code, and the project's MIT license covers only its toolkit. Downloads can resume with permission covering that package, or with a reviewed route that builds from your own disc."
   }
 }

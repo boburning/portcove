@@ -1,11 +1,12 @@
 # Portcove CLI
 
-Use the standalone CLI to inspect and manage one explicitly selected library.
-This guide describes the maintained source contract. Published Alpha 2 contains
-API 34 and does not provide the later library-identity, reviewed-first-install,
-durable launch-request and activity-feed contracts. Select a [published package](DOWNLOADS.md) for its actual
-capabilities, or an [identified compatible candidate](INTEGRATION-AUTHOR.md#choose-a-cli-and-fixture-library)
-for current integration development. A local candidate is not a public release.
+Use the standalone CLI to inspect and manage one library. Choose the library
+before you run commands that open it. This guide describes the current source.
+The published Alpha 2 CLI uses API 34. Later versions add library identity,
+reviewed first installs, stored launch requests, and the activity feed.
+Check the capabilities of the [published package](DOWNLOADS.md) you choose.
+If you develop an integration against current source, choose an
+[identified compatible build](INTEGRATION-AUTHOR.md#choose-a-cli-and-fixture-library).
 
 ## Task guides
 
@@ -33,16 +34,16 @@ changes command names, serialized fields, IDs, timestamps or permission checks.
 
 Run `portcove --help` for four task groups: **Everyday commands**, **Game files
 and library**, **Updates and recovery**, and **Advanced and integration**.
-Use `portcove COMMAND --help` for the selected command's arguments, required
-review inputs and examples before a consequential action. Help is human
-discovery, not a stable parsing contract; machine clients use capabilities,
-schemas and JSON/JSONL.
-The commands below use `PORT_ID` from
-`catalog list`. For a source command, `portcove catalog show PORT_ID` displays the
-declared `Game-file profile ID` and `BIOS profile ID` when present; use the
-applicable one as `PROFILE_ID`. Substitute paths on your machine. Use `--library PATH` when working with a library other than
-the saved default. These examples are human-output commands; automation should
-use the [reference below](#automation-and-integration-reference).
+Before you run a command that changes data, run `portcove COMMAND --help`.
+Read its arguments, required review inputs, and examples. For software clients,
+use capabilities, schemas, and JSON/JSONL for stable responses.
+
+Get `PORT_ID` from `catalog list`. For source commands, run
+`portcove catalog show PORT_ID`. If it shows a `Game-file profile ID` or
+`BIOS profile ID`, use the applicable one as `PROFILE_ID`. Substitute paths on
+your machine. If you use a library other than the saved default, pass
+`--library PATH`. For scripts, use the
+[automation reference](#automation-and-integration-reference).
 
 1. Browse the full descriptive directory with `portcove catalog listings`.
    For managed definitions, use `portcove catalog list`, then read a port's game
@@ -73,6 +74,17 @@ use the [reference below](#automation-and-integration-reference).
    A backup is not a copy of the game files. Review backup and restore
    consequences in `portcove backup --help` before deleting or restoring one.
 
+After a managed version switch, `portcove status PORT_ID` includes the recorded
+file-preservation outcome when its target is still active. It distinguishes
+copied files, unchanged copies removed from the target, differing copies kept
+separately, unreadable files and files supplied by the new package. Complete
+counts and measured copy/space bytes are separate from bounded path examples;
+older records may lack those totals. This is a historical result, not a fresh
+file check or a new failure. An earlier version's missing recorded folder is
+reported without inventing its location. JSON exposes the same optional
+`carried_files` read model; malformed or future-format disclosure is omitted
+without breaking the rest of status. It grants no additional file operation.
+
 Human `backup delete` and `backup restore` show the selected archive folder,
 exact content and review hashes, UTC creation time, file count and size before
 confirmation. The review distinguishes current managed saved data from Core's
@@ -89,9 +101,12 @@ and working directory explicitly. For example, review
 `portcove external select-preview render96ex C:/Games/Render96/sm64.us.f3dex2e.exe --working-directory C:/Games/Render96 --arg=--savepath --arg=!`.
 Repeat the same details with `external select`, its `--expected-preview` and
 `--yes` to confirm execution intent. Use `--arg=VALUE` once per documented
-argument. `portcove exec render96ex` launches the saved selection; `external
-remove render96ex` removes only Portcove's reference and preserves every external
-file. You or the selected upstream launcher manage setup and updates. Selected
+argument. A runtime that uses fixed launch arguments can refuse additional
+arguments on `exec`. For a user-selected executable, review and save the
+new arguments with `external select-relink-preview` and `external select-relink`.
+`portcove exec render96ex` launches the saved selection.
+`external remove render96ex` removes Portcove's reference and preserves every
+external file. You or the selected upstream launcher manage setup and updates. Selected
 bytes are not certified as an authenticated official package, and this route
 offers no managed backup, repair, update, rollback or file deletion. A descriptive
 catalog listing is sufficient; a managed definition or declared platform is not
@@ -205,11 +220,14 @@ player data follows the retained persistence contract; outside data remains
 outside managed backups. Removing a setup reminder or external registration never
 transfers managed replacement/removal rights.
 
-`catalog inspect-listings --path FILE` validates an inert format-1 listing
+`catalog inspect-listings --path FILE` validates an inert versioned listing
 projection before opening a Library. Validation neither installs an integration
 nor signs, accepts or publishes that file. Machine consumers negotiate
 `catalog.listings`, `setup.*` and `external.select-relink` through capabilities and
 use the exported DTOs; these additions do not relax `PortDefinition`.
+An optional `--format-version N` exports that exact validated input through Core’s
+existing compatibility projection, without opening a library. The default keeps
+the input’s format; unsupported exports are refused.
 
 ### Exact-package registration
 
@@ -224,12 +242,12 @@ package files at registration and launch; game-owned output remains outside
 Portcove backup and restore. Source files, when required, are registered
 separately through the accepted source profile.
 
-For Wave Race 64: Recompiled on Windows, extract the official v1.0.2 ZIP and
-create an **empty `portable.txt`** beside `WaveRace64Recomp.exe` before
-`external preview`. The marker is a player-created preparation step, not a file
-in the upstream ZIP. It is part of the exact accepted tree; without it, review
-fails. Portable mode keeps game-owned settings, the copied source, and saves
-beside the executable. Portcove does not back up, remove, or restore those files.
+Wave Race 64: Recompiled offered this route on Windows until November 13, 2026;
+its catalog now installs the same v1.0.2 package through `portcove install`,
+and Core creates its `portable.txt`. A copy registered earlier keeps its
+retained exact-tree contract, including the player-created empty `portable.txt`
+beside `WaveRace64Recomp.exe`, and continues to launch in place. Portcove does
+not back up, remove, or restore that copy's files.
 
 Human results lead with the task and its actual outcome, followed by relevant
 review fingerprints, retained locations and the next supported action. Ports
@@ -381,7 +399,7 @@ The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
 current or retained listing. `capabilities` advertises `port_capability_schema`
-and `listing_formats` independently from API schema 88 and event schema 3.
+and `listing_formats` independently from the API and event schemas.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -400,15 +418,34 @@ use envelope version 3; older envelopes remain readable and older readers must
 refuse the new envelope rather than reinterpret its authority.
 
 Listing format 9 adds the optional inert `listed_at` date (UTC, `YYYY-MM-DD`) on which a
-listing was first added. `capabilities.listing_formats` advertises 5 through 9; an
-export without an explicit format is the current format 9 and carries the dates, while
+listing was first added. Exports at format 9 and later carry the dates, while
 an explicit export to formats 5 through 8 omits them. A reader that predates format 9
 must request a format it understands.
 
+Listing format 10 adds optional inert `funding_urls`: 1 to 12 distinct public HTTPS
+pages where the upstream developers accept funding (an empty list is refused). Exports at format 10 and later carry the links, while an explicit export to formats
+5 through 9 omits them.
+Retained user-selected listings never carry them. Desktop opens only those exact links.
+
+Listing format 11 adds optional inert `collection_covers`: one to four distinct,
+reviewed IGDB cover mappings for a multi-game project. It is exclusive with an
+individual `artwork` mapping. The field grants display only. Local artwork choices
+keep precedence. Exports to formats 5 through 10 omit the collection while retaining
+setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through
+12; an export without an explicit format carries the current directory format.
+Retained user-selected listings with collections use envelope version 4. Earlier
+retained envelopes remain readable; a collection in an earlier envelope is refused.
+
+Listing format 12 adds optional inert implementation-method and shared-dependency
+descriptions. Exports to formats 5 through 11 omit these explanations and preserve
+requirements and restrictions. Retained user-selected listings omit the field too,
+so an earlier strict retained reader can still open its established launch contract.
+
 The catalog listing document has its own format version. Readers accept formats
-1–9 with independent field gates: format 7 adds advice, format 8 adds GitLab
-descriptive observations using provider-qualified project/tag identities, and format 9
-adds the first-listed date. `catalog listings --format-version 8` preserves advice and
+1–12 with independent field gates: format 7 adds advice, format 8 adds GitLab
+descriptive observations using provider-qualified project/tag identities, format 9
+adds the first-listed date, format 10 adds funding links, format 11 adds cover collections
+and format 12 adds implementation descriptions. `catalog listings --format-version 8` preserves advice and
 GitLab observations and omits the date. Exports to 5/6 omit only
 inert advice; any GitLab-bearing export below 8 refuses. A reader that understands
 only format 6 cannot consume 7 or 8; failed refresh retains its previous accepted
@@ -486,7 +523,7 @@ The compiled-binary machine contract is exercised on both Windows and Linux CI. 
 ### Catalog proposal inspection
 
 Maintainer proposal checks use `portcove --json catalog inspect-proposal FILE`.
-This inert command reads at most 4 MiB and uses core's existing catalog/schema,
+This inert command reads at most 16 MiB, the signed-catalog bound, and uses core's existing catalog/schema,
 source-reference and declared path/contract validators. Its separate format-1
 receipt binds the exact input bytes and canonical typed per-port declaration
 hashes. It runs before host preferences or a library are opened. It does not
@@ -496,6 +533,92 @@ parsing semantics remain unchanged; the check is not signed-definition admission
 Legacy parsing tolerates unknown fields: raw input hashes bind them, but typed
 port hashes and declaration checks do not validate discarded fields.
 Malformed/duplicate-key inputs and unsupported or unsafe declarations fail.
+
+### Catalog target inspection
+
+`portcove --json catalog inspect-targets [--port ID]... [--platform P]...`
+reports, for each requested port and explicit target platform, whether the
+managed `install` and the `register_external` routes are offered to a fresh
+library, with the reason when not. It runs before host preferences or a library
+are opened and uses the embedded catalog; a library whose catalog was updated
+since can differ.
+
+- Omitted `--port` inspects every catalog listing and operational port. Every
+  request covers at most 4,096 ports; repeated IDs are inspected once.
+- Omitted `--platform` inspects every platform Core represents:
+  `windows-x86-64`, `linux-x86-64`, `macos-x86-64` and `macos-aarch64`. Any
+  other platform is a usage error, not a guess.
+- Route offering uses the same predicate as a library's action table, and a
+  reviewed acquisition hold withdraws `install` (`route_not_offered`) exactly as
+  it does there. Each port
+  also reports its catalog presence (`operational`, `listing_only` or
+  `not_found`), declared platforms, the reviewed acquisition hold, the download
+  restriction, and whether the managed route must resolve a provider release on
+  that target. A target where `install` is offered also reports
+  `listing_download_refusal: "managed-route"`: a fresh library offers Install
+  there instead of the upstream listing download. A library's own
+  registration, pending setup or definition hold can keep the download.
+- The report names its `producer`: the source revision the build recorded
+  (`PORTCOVE_SOURCE_REVISION`, or `null` when none was recorded), the compiled
+  Cargo features that can change catalog or archive behavior, the SHA-256 of the
+  compiled `catalog.json` and of the compiled `listings.json` merged into it,
+  and `catalog_override` when a qualification build replaced that catalog at
+  runtime. The revision is the build's own record, not a proof. Maintenance
+  binds results to the producer.
+- Each target also reports `qualification`: the recorded Portcove
+  qualification matched to the artifact the catalog offers there.
+  - `offered_artifact` is `fixed` (a direct-manifest pin or an accepted
+    external package, with its upstream ref and SHA-256), `provider_resolved`
+    (known only after provider resolution, which this command never performs),
+    `user_selected` or `none_offered`. `provider_resolution_required` above is a
+    narrower acquisition fact, not this.
+  - Each recorded scope (contract, source variant, upstream ref, artifact and
+    check version) carries Core's exact-scope `assessment`, its evidence IDs and
+    an `applicability`: `offered_artifact`, `other_artifact`,
+    `reviewed_release_binding` (the contract's reviewed binding names that
+    release), `unbound_release`, `no_catalog_artifact`, `route_not_offered` or
+    `source_scope_withdrawn`. A contract's release policy admits sources for any
+    release but never qualifies one.
+  - `state` is `offered_artifact_qualified` or `reviewed_binding_qualified`
+    (passed automated-lifecycle or hands-on evidence; the latter applies only
+    if the provider resolves exactly that release), `structural_only` (only
+    structural checks passed), `applicable_not_passed` (evidence applies to what
+    is offered but none passed, such as only a known failure), `historical_only`
+    (no evidence applies to what is offered) or `unqualified`.
+    `qualified_refs` names the releases that qualify, and `known_failure`
+    covers applicable scopes only. Check versions are reported side by side,
+    not ranked.
+  - `evidence_route` is `unrecorded`: recorded scopes do not name the route or
+    operation that produced them, so the check version is the only operation
+    discriminator and a qualified state never says that the offered route
+    itself was exercised.
+  - `legacy_coverage` repeats the port-wide historical platform arrays, which
+    are never artifact-bound.
+- Definition trust eligibility and readiness are always `unknown`: a library
+  and an installation decide them. Another host's result is never relabelled as
+  this target's. The format-2 report is maintenance evidence (#4129), not an
+  admission or execution decision; format 1 lacked `qualification`.
+
+### Definition delivery inspection
+
+`portcove --json catalog inspect-definition-delivery` reads the appointed
+official definition location exactly as a client verifies it: the compiled
+root, signed TUF metadata and the signed definition index. It runs before host
+preferences or a library are opened and writes no trust, replay floor or
+selection.
+
+- `serving` is `verified`, `not_served` (the timestamp metadata is absent: HTTP
+  404 or 410), `incomplete` (metadata is served but a file it requires is
+  absent), `unreachable` (including HTTP 403), `expired`, `verification_failed`
+  or `not_configured` (this build appoints no location; an invalid compiled
+  location is `verification_failed`), with a `reason` when it did not verify.
+- Only a `verified` report carries `provenance` (the authenticated metadata
+  versions, digests, earliest expiration and index digest) and `definitions`:
+  each indexed definition's namespace, stable ID, revision, target, and the
+  target's SHA-256 and length.
+- The serving status describes this request only. `not_served` or an outage is
+  never evidence that something published earlier was withdrawn. The format-1
+  report is maintenance evidence (#4129), not trust or admission.
 
 ### Reviewed package layout inspection
 
@@ -508,6 +631,33 @@ Unix host to preserve executable modes. The Unix ZIP and TAR.GZ path uses the
 managed profile for a declared executable, which unwraps a lone inner archive.
 The command runs before opening a library and does not execute the package or
 establish release authority.
+
+### Package shape inspection
+
+Run `portcove --json catalog inspect-package-shape ARCHIVE --port PORT_ID --platform PLATFORM --size BYTES --sha256 SHA256`
+with the publisher's independently obtained size and digest. It verifies and
+extracts the bytes like `inspect-package-layout`, prepares them as the managed
+installer does for the embedded catalog's route, and returns
+`catalog.inspect-package-shape` data: `port_id`, `platform`, `sha256`,
+`shape_version`, the derived `shape`, its `provenance`, the
+`derivation_inputs_sha256` of the embedded catalog facts it derived with
+(absent for a route outside the embedded catalog) and a comparison `verdict`
+against the embedded generated table or explicit fingerprint
+([CATALOG](CATALOG.md#generated-reviewed-package-shapes)). The verdict
+`status` is `compatible`, `drifted` (with `changes`) or `unknown` (with a
+`reason`). It runs before opening a library, executes nothing and establishes
+no review; `scripts/package-shape-baselines.mts --record` uses it.
+
+`portcove --library PATH --json installation package-shape PORT_ID` lists each
+registered installation of the port with `install_id`, `version`, `active`,
+`status` and, when `status` is `recorded`, the `record`: shape, derivation
+version, provenance and the verdict computed at install. `status` is
+`recorded`, `not_recorded` (installations from before #5359), `unrecognized`
+(a record from another derivation version or a newer Portcove) or
+`manifest_unverifiable`, with the verification error in `detail`. It is
+read-only and takes no port lock. Human output of both commands says
+`compatible (unreviewed baseline)` when the matching baseline was never
+reviewed.
 
 ### Standalone package and focused build
 
@@ -529,9 +679,9 @@ identities. It rejects a GitHub repository-ID argument; GitHub keeps its require
 provider report versioning and evidence boundaries are described in the
 [observation contract](UPSTREAM-OBSERVATIONS.md#additional-reviewed-providers).
 
-Alpha 1 and Alpha 2 retain their published unversioned CLI archive names.
-The next-release packaging contract uses `portcove-cli-<version>-<platform>`;
-see the [exact names and transition](RELEASING.md#standalone-cli-integration-artifact).
+Alpha 1 and Alpha 2 used unversioned CLI archive names. Later release assets
+include the version and platform. Check the [download guide](DOWNLOADS.md#published-previews)
+and the asset list for the chosen release.
 Each archive contains one executable named `portcove` (`portcove.exe` on Windows). The CLI runs without
 Portcove Desktop, and Desktop runs without a separately installed CLI. Download
 the archive matching the host operating system and processor from the exact
@@ -666,7 +816,7 @@ Authentication is optional. Anonymous operation remains supported, while a GitHu
 portcove auth login
 ```
 
-`auth login` uses GitHub's device authorization flow with Portcove's public GitHub App client ID. `PORTCOVE_GITHUB_CLIENT_ID` can override it at runtime or build time; an explicitly empty override disables device login. Its polling wait is asynchronous, follows GitHub's pending and slowdown intervals, reports expiry or denial as typed errors, and can be cancelled with Ctrl-C. Authentication calls fail after ten seconds without a connection, fifteen seconds without response progress, or sixty seconds overall; a retry starts a new intent, so an older delayed token or device completion cannot replace it or a later logout.
+`auth login` uses GitHub's device authorization flow with Portcove's public GitHub App client ID. Desktop can use this sign-in, or a configured token, to submit a reviewed bug report or feedback as an issue on `boburning/portcove` under the signed-in account, only when the player chooses Submit. `PORTCOVE_GITHUB_CLIENT_ID` can override it at runtime or build time; an explicitly empty override disables device login. Its polling wait is asynchronous, follows GitHub's pending and slowdown intervals, reports expiry or denial as typed errors, and can be cancelled with Ctrl-C. Authentication calls fail after ten seconds without a connection, fifteen seconds without response progress, or sixty seconds overall; a retry starts a new intent, so an older delayed token or device completion cannot replace it or a later logout.
 
 #### Supply a token
 
@@ -680,6 +830,23 @@ PowerShell:
 ```powershell
 Get-Content $tokenFile -Raw | portcove --non-interactive --json auth set-token --stdin
 ```
+
+#### When no secure credential store is available
+
+Saved GitHub credentials, the SteamGridDB key and the portability authority all use
+the operating-system secure credential store: Windows Credential Manager, the macOS
+Keychain, or a Secret Service provider such as GNOME Keyring or KWallet on Linux. If
+the host has no usable store, these commands fail with presentation key
+`credential_store_unavailable`; if the store is locked or refuses access, with
+`credential_store_locked`. `auth` and `artwork steamgriddb` commands reach the store
+before changing anything, so they report `mutation_state: no_changes` and offer no
+state review. `library import` and `library move` read the portability authority
+after copying files; there the state stays as their transfer journal records it, and
+the usual review of activity and resume or abort applies. `library export` may have
+prepared its lock before reaching the store, so it also keeps the review step. Unlock the store or allow
+access, or on Linux sign in to a desktop session that runs a keyring service, then
+try again. GitHub downloads can still use `PORTCOVE_GITHUB_TOKEN` for the current
+process.
 
 #### Inspect or remove credentials
 
@@ -772,18 +939,28 @@ the Library and installs it without another confirmation when it is ready.
 an authorization. Adding a folder or saving a game never chooses a mode for
 you, and choosing another mode withdraws standing setup.
 
+`games notices` shows whether ready notices are on; `games notices off` turns
+them off in one step and `games notices on` turns them back on. Notices are on
+by default, but only a game you chose `notify` for is ever reported. While they
+are off, `games intents` reports no game as newly ready and says so; no game's
+choice, readiness or acknowledgement changes, so turning notices on again
+reports ready games you were not yet told about, once each. Turning notices off
+never starts or stops automatic setup, which is withdrawn per game or per folder.
+
 A notify or set-up-when-ready choice remembers the game's release channel and
 the registered copy of its own files at the moment you choose. (Shared
 prerequisites such as a BIOS are checked by the ordinary install review.) If a
 different copy is registered later, the chosen copy is removed, or the game's
 channel changes, the game waits with that reason instead of being set up from something
-you didn't choose; choosing the mode again accepts the current files and
+you did not choose; choosing the mode again accepts the current files and
 channel. A choice made before any files were registered uses the first files
 that arrive.
 
-`games intents` reassesses every notify or set-up-when-ready choice with the
-ordinary first-install planner and changes nothing. New or changed files,
-catalog contracts and tools are reflected without selecting the files again.
+`games intents` uses the ordinary first-install planner to reassess up to 512
+notify or set-up-when-ready choices per call. When more remain, the next call
+continues from its saved position, including after a restart. Standing setup
+keeps its own position. The assessment leaves your saved choice intact and
+reflects changes to files, catalog contracts and tools on a later pass.
 Each game shows `installed`, `ready` with its plan digest, or `waiting` with the
 reason. `games intents-acknowledge --item PORT_ID=PLAN_SHA256` marks a ready
 game as seen. It is reported again only when its ready plan changes.
@@ -800,17 +977,26 @@ update, reinstall, rollback or channel change no longer counts, and a release
 that is already staged is shown as staged, not available. A notify-mode game is
 reported once per newly available release; acknowledge it
 with that release's SHA-256 as `PLAN_SHA256`. Assessing reads saved state only:
-it doesn't check for updates, download, stage or activate anything. The
+it does not check for updates, download, stage or activate anything. The
 existing update check and update policy own those, and standing setup never
 updates a game.
 
 `games setup-ready` runs one standing-setup pass. Each set-up-when-ready game
-that is ready gets its own one-game batch. Before the batch starts, Portcove
-checks the choice still stands; then the game is re-planned and freshly
-authorized. It is never launched, and an installed game is never reinstalled or
-updated. A failed or interrupted attempt is not retried with the same plan; it
-becomes eligible again when the plan changes. Uninstalling a game is
-remembered, so it is not set up or reported again until you choose a mode for it.
+that is ready gets its own one-game batch. If a required registered original
+is unavailable, its game waits without spending an attempt and can become
+ready again when the same file or folder returns. Before the batch starts,
+Portcove checks that the original is available and the choice still stands.
+The game is re-planned and freshly authorized for the batch. Play remains an
+explicit action. Standing setup leaves installed games in place. After
+uninstalling, choose a mode again before the game can be set up or reported.
+
+Portcove retries a failed setup on a later pass while the game is ready, up to
+three failed attempts for the same plan. A changed plan becomes eligible again.
+If an earlier Portcove version spent all three attempts while your registered
+original was offline, reconnect it and repeat
+`games intent PORT_ID set-up-when-ready`. Then run `games setup-ready`. The renewed
+choice reuses the same registration.
+
 Each pass first settles setup batches left mid-run by an interruption, against
 committed state, before starting anything: an install that was committed counts
 as ready, and a game with nothing committed and no unfinished install or update
@@ -818,9 +1004,8 @@ journal is marked interrupted. A game whose earlier work hasn't finished
 recovering stays in progress and waits with that reason; nothing new starts for
 it and nothing is counted. Only batches whose in-progress games are all
 set-up-when-ready games are settled this way; other interrupted batches stay in
-progress for you to continue with `games batch-resume`. For a set-up-when-ready
-game an interruption counts as a failed attempt with that plan, so it is set up afresh (re-planned and freshly authorized) on the next
-pass, and repeated interruptions stop at the same three-attempt limit. Batches
+progress for you to continue with `games batch-resume`. An interruption for a
+set-up-when-ready game counts as one failed attempt for that plan. Batches
 another process is still running, and games another operation holds, are left
 alone.
 The same pass also applies eligible mod updates for setups that allow them; see
@@ -844,13 +1029,13 @@ adding a folder never turns it on.
 `future-only` lists the folder when you choose it and remembers every file and
 subfolder there, whether or not Portcove recognizes it yet. A file is
 remembered by its path inside the folder and size, and also by its size and
-exact modification time, so renaming or moving it inside the folder doesn't
+exact modification time, so renaming or moving it inside the folder does not
 make it new. A game stored as a folder counts as already there if its folder
 or any file inside it was. Those files are never set up by this choice, so restarts,
 rescans, repeated events, catalog changes that recognize more files, and clock
 changes never enroll them. The folder must be available when you choose it.
 Relinking the folder to another location remembers the files already there
-too; if that location can't be listed, automatic setup for the folder is
+too; if that location cannot be listed, automatic setup for the folder is
 turned off. Choosing a mode again records a new boundary.
 
 `games setup-ready` handles these folders in the same pass as
@@ -863,20 +1048,59 @@ continue. For each matched file in the folder, Portcove:
   until you run `games folder-setup-choose ROOT_ID --files PROFILE_ID --game PORT_ID`.
   It never sets up every fork or switches implementations on its own;
 - registers a file that is not yet registered where it is, after checking its
-  current bytes, and only inside the folder. It never replaces a different copy
-  you already use;
+  current bytes, and only inside the folder. With `games folder-setup-copy
+  ROOT_ID on`, it instead copies only that game's required files (the exact
+  file, ZIP or file set the source contract admits) into Portcove's game-file
+  folder and registers the copy, so games that read their originals at launch
+  do not need this folder connected. Originals are never moved or deleted; the
+  choice is off by default, survives boundary changes and applies to later
+  registrations. It never replaces a different copy you already use;
 - then installs the game with an ordinary one-game batch that re-plans and
   freshly authorizes it. It never launches a game.
 
 Problems that can pass on their own, such as being offline or the game being
 busy with another task, are reported as waiting and are not counted. A game
-whose files can't be registered or whose install fails is tried again only up
+whose files cannot be registered or whose install fails is tried again only up
 to three times with the same plan or file; it becomes eligible again when that
-changes. Each pass checks or plans at most 32 folder files. Turning automatic
+changes. Each pass plans at most 32 folder files and looks up at most 4,096
+matches. Matches the library already settles, such as installed games or
+games waiting for the player's choice, cost no planning, so they do not hold
+back a new file elsewhere in the folder. Checking whether a file was already
+there reads at most about 8,192 files and folder entries per pass. Each available folder gets an equal share of
+these bounds, and each pass continues where that folder's last pass stopped. It
+starts over after the folder's last match, after a new scan, when automatic
+setup is turned on again or changes which files it includes, and after the
+folder is relinked, so every match is reached. Picking which game to set up
+keeps the position. Scans saved before format 13 have no stored matches and
+start from the first match each pass until the folders are scanned again.
+Turning automatic
 setup off takes effect before the next file is registered or installed, even
 during a pass. An unavailable folder waits and keeps its setting. Removing a folder ends its automatic setup.
+`source roots profiles --root ROOT_ID` lists the game-file profiles the last
+scan matched anywhere in that saved folder, including matches beyond the
+report preview, and marks the ones several games can use so you can choose one
+with `games folder-setup-choose`. It reads only.
 `games folder-setups` lists folders with automatic setup turned on, their
-implementation choices and recent failures, and changes nothing.
+implementation choices, local-copy choice and recent failures, and changes nothing.
+
+Automatic setup never writes to Steam or Playnite. Playnite shows a newly
+prepared game on its own next library refresh; adding it to Steam remains the
+separate per-game review described in
+[integrations](INTEGRATIONS.md#automatic-setup-and-frontend-handoff).
+
+A self-contained installation launches from its verified installed data
+without its registered original, which is then needed only to repair, rebuild
+or prepare again. Portcove decides this by what launch would still hand the
+game: an installation is never self-contained when launch exports the original
+(`source_environment`), copies it again (managed initialization, or a runtime
+source file or set that is not sealed or prepared) or passes it as an argument.
+In practice this covers sealed source-only preparations, prepared
+upstream/Libultraship installations with a prepared runtime input, managed PS1
+raw sets (the BIOS is still read at launch) and retained cartridge builds whose
+launch reads only installed files. Other games still need their original
+present and unchanged. When it is missing because its saved game-file folder
+is disconnected, readiness names that folder (`source_folder_unavailable`) and
+says to connect it.
 
 ### Register and inspect
 
@@ -940,6 +1164,7 @@ portcove --library <path> --json source roots relink <root-id> "E:\Games"
 portcove --library <path> --json source roots remove <root-id>
 portcove --library <path> --json source roots scan
 portcove --library <path> --json source roots snapshot
+portcove --library <path> --json source roots matches --kind exact --offset 0 --limit 64 --root <root-id> --scan-id <scan-id> --profile <profile-id>
 ```
 
 Adding requires an available directory and returns the existing stable identity
@@ -950,6 +1175,83 @@ folder; it does not modify files, source registrations, or managed installs.
 Scan uses the shared bounded discovery limits described below, records their exact
 values with the resulting candidates, and replaces the prior snapshot only after
 success. Snapshot reads that evidence without scanning or registering candidates.
+Matches reads the recorded matches in pages of 1 to 512 (default 64), exact
+candidates or preliminary selections, in stored order, optionally only inside one
+saved folder or for a specific `--profile`. The profile filter applies before
+paging, including beyond the snapshot preview. Each page names its
+`scan_id`, `total` and `next_offset`; passing
+`--scan-id` from an earlier page refuses with a conflict when a newer scan has
+replaced it, so pages never mix two scans. Older inline reports are paged from
+the report itself with a null `scan_id`.
+
+#### Games installed by Steam, GOG or Epic
+
+Engine remakes and source ports often need files from a PC original you
+installed through a game store. `source roots stores` lists the game folders
+those stores recorded on this computer so you can search one:
+
+```text
+portcove --library <path> --json source roots stores
+portcove --library <path> --json source roots stores --profile bstone-aliens-of-gold-originals
+portcove --library <path> --json source discover --root "<store game folder>" --profile <profile-id>
+portcove --library <path> --json source roots add "<store game folder>"
+```
+
+Each entry gives the `store` (`steam`, `gog` or `epic`), the store's `title`,
+the canonical existing folder `path` and `saved_root_id` when that exact folder
+is already a saved game-file folder. A known store product has an optional
+`product_id`. A reviewed product-to-profile mapping can add an
+`original_folder` with the source profile and candidate path. Desktop offers
+the reviewed Steam or Windows GOG original folder directly in compatible setup.
+Portcove ships the mappings in its reviewed `catalog/store-original-layouts.json`
+data. Each mapping binds a store product to an existing source profile and
+declares the relative original folder and any required child directories.
+Use `--profile <profile-id>` to request suggestions for one known source profile.
+For Blake Stone, this selects the Aliens of Gold or Planet Strike child folder
+inside the Steam anthology. Without a selected profile, the anthology has no
+`original_folder` suggestion. The individual Steam and GOG products can suggest
+their corresponding original folder without that context. A different selected
+profile gets no hint, and an unknown profile is refused before store metadata is read.
+The normal source check still validates the original file set.
+`checked_stores` names the stores whose
+metadata this system can read; a store missing from it was not checked, which
+is different from having no games installed. Steam libraries come from the Steam
+client's `steamapps/libraryfolders.vdf` and each library's
+`appmanifest_*.acf` (`appid`, `name`, `installdir`) on Windows (registry and Program
+Files locations), Linux (`~/.steam/steam`, `~/.local/share/Steam` and the
+Flatpak client) and macOS. A linked `steamapps` folder is read as the folder it
+resolves to. GOG installs come from the Windows `GOG.com\Games` registry
+entries and Epic installs from the Epic Games Launcher's `Manifests\*.item`
+files on Windows, so on Linux and macOS only Steam is checked. Heroic, Lutris
+and other launchers are not read.
+
+The list is a suggestion only: it never saves a folder, registers files,
+records setup intent or changes anything in a store's folder, and the store's
+title is a label, not an identity. Exact source checks decide whether any file
+matches. Store metadata files are read up to 1 MiB each, at most 64 Steam
+libraries and 4,096 games are listed, and these are skipped and counted in
+`skipped_entries`: an `installdir` that is not a single folder name, a library
+listed by Steam or a game location that is relative or missing, unreadable
+metadata, and a folder that is a filesystem root, your home folder or contains
+this Portcove library. `limited` reports a reached bound. A store that cannot be
+read leaves the list shorter rather than failing.
+
+Classic Steam DOOM 3 (9050) can suggest its install root when it contains
+`base`. Resurrection of Evil (9070) can suggest a root that contains both
+`base` and `d3xp`. The existing source check verifies the complete required
+PK4 set before registration. Use the file picker if the store provides no
+unambiguous compatible folder suggestion.
+
+Files inside a game a store installed can be copied into Portcove or used where
+they are, but not moved. A Move import is refused with a `conflict` error naming
+the store when its original is inside a listed game folder or a Steam library's
+`steamapps` folder, when it is a folder that contains one of those (a folder Move
+removes the whole folder at the end), or when any folder on its path is named
+`steamapps`, because the store's game would lose the files. Protection otherwise
+depends on the stores' metadata: a GOG or Epic game whose registry entry or
+manifest cannot be read, a Steam library beyond the 64-library bound outside a
+`steamapps` folder, or an unlisted folder that merely holds such a game, is not
+recognized, so choose Copy for files from a store's folder.
 
 ### Disc formats and optional tools
 
@@ -968,6 +1270,10 @@ portcove --library <path> --jsonl ensure mortal-kombat-4-recompiled --source "D:
 ```
 
 Portcove uses `chdman` only inside operation-specific staging to validate normalized disc content or perform a catalog-declared conversion. It checks `PORTCOVE_CHDMAN`, `PATH`, its own executable directory, `MAME_HOME`, launcher-provided `RETROBAT_ROOT` paths, EmuDeck's backend tool path, and the normal MAME/Batocera system paths. A missing tool fails with structured `searched_paths` and `setup_hint` details; Portcove never silently downloads an executable. A declared `--bios` is independently checked against its catalog source profile, registered for future updates, passed to the reviewed generator, and removed from staging after its generated backend is built. Managed PS1 runtimes mount the original registered CHD by default. A reviewed multi-disc entry may instead retain numbered raw tracks and deterministic cue sheets when the upstream runtime cannot read CHD; Portcove verifies the extracted aggregate against the registered source, marks every retained disc file critical in the immutable install manifest, and still rechecks the original CHDs before launch. The manifest-covered base config uses relocatable relative cue paths. Each launch derives an exact core-owned runtime config with absolute cue paths after immutable verification and explicitly directs memory cards to the port's persistent `saves` directory, leaving the installed discs and base config unchanged.
+
+On Windows x64, select the native 64-bit `chdman.exe` from your MAME installation.
+Automatic discovery skips incompatible images such as 32-bit shims. A saved
+or explicit tool path keeps its existing precedence and requires a valid selection.
 
 GameCube source profiles accept the catalog-declared ISO/GCM and compressed RVZ/CISO/GCZ/WIA formats. Portcove validates the normalized ISO hash and records the original container hash separately. When a port needs an ISO in its managed runtime, the same locally supplied DolphinTool performs a transactional conversion. Discovery checks `PORTCOVE_DOLPHIN_TOOL`, `PATH`, Portcove's executable directory, `DOLPHIN_HOME`, launcher-provided `RETROBAT_ROOT` paths, common Unix locations, and the standard macOS app bundle. Missing tooling fails with structured setup details and never triggers a download.
 
@@ -1032,6 +1338,14 @@ portcove --library <path> --json source verify <profile-id>
 portcove --library <path> --json source verify --all
 ```
 
+To name the dump you selected, add a local No-Intro or Redump DAT file with
+`dat add PATH`. `dat list` shows each saved DAT file, its ID and whether it
+still matches the fingerprint saved when it was added; `dat remove DAT_ID`
+forgets it without changing the file. `source inspect` then includes a
+`dump_identification` with the matching DAT entries. DAT files only name
+files: they never change which files a game accepts
+([original game-file requirements](CATALOG.md#original-game-file-requirements)).
+
 Verification reruns the source profile validation and compares the current content and storage identities with the baseline stored by `source add`. It never replaces that baseline, changes source bytes, or writes an activity row. A missing or changed file fails a single-profile command with the normal structured error and exit code. `--all` returns one failure-isolated outcome per registered profile; completing the batch returns exit code 0, so consumers inspect each outcome's `ok`, `result`, and `error` fields. An empty registry returns an empty successful batch.
 
 `source remove <profile-id>` first returns or prints a preview containing the exact registered source, every catalog port that shares it, the currently installed dependents, and a confirmation token. Removal requires interactive confirmation or `--yes`; core rejects the token if the source identity or installed-dependent set changes before deletion. Only the reference is removed. Original source bytes and managed installs are never deleted.
@@ -1064,11 +1378,13 @@ portcove --json source add <profile-id> <candidate-path> --expected-sha256 <cand
 
 Discovery requires explicit roots and source profiles. It never registers a match automatically. Like saved-folder scans, one-off discovery refuses roots inside the selected Portcove library or its registered managed output and visibly skips those owned subtrees within a broader root before charging scan budgets. Explicit manual inspection and reviewed source registration retain their own validation paths. Defaults are 10,000 examined entries, six nested directory levels, 2 GiB per file, 16 GiB of hashing per saved batch, and 64 combined exact matches and preliminary selections. The corresponding `--max-entries`, `--max-depth`, `--max-file-bytes`, `--max-hash-bytes`, and `--max-candidates` flags can narrow these limits; core also enforces hard ceilings. The report identifies searched scope, validated candidates, hashed bytes, reached limits, and bounded per-path issues. A partial search is not evidence that every file was considered.
 
-Exact-hash original-file, cartridge-ZIP and complete schema-2 directory/ZIP-file-set profiles participate automatically. Directory sets use the shared inspector: every required member must resolve uniquely within one completely examined directory and match one coherent variant. Member hash work shares the request-wide budget with ordinary files; raw observations are reused without sharing admission. File-set ZIPs use the same exact matcher with unique safe top-level members, bounded entry inventory and expanded member sizes, and budgeted/cancellable member plus container hashing. Their facts are shared across file-set profiles without sharing admission; missing or ambiguous member inventories consume no hashing budget. Exact schema-2 uncompressed GameCube ISO/GCM sources use the same disc matcher and bounded raw-file reader, sharing one byte observation across applicable profiles. Exact STFS LIVE compound sources, including extensionless packages, use a bounded four-byte eligibility probe, one raw hashing pass shared across applicable profiles, and the existing structural validator only after an exact compound digest match. Probe, hashing and validation use one open handle with location, object and metadata checks; structural validation adds bounded reads beyond reported hash bytes. Unrelated files are not hashed by this probe. Compressed GameCube and PSX CHD contracts participate through the shared schema-2 disc matcher. CISO uses a bounded sparse normalized stream. Tool-based GCZ/RVZ/WIA/CHD inspection requires an admitted decoder and verified process-tree closure; this route is available on Windows and on Linux kernels permitting the decoder-only user/PID namespace supervisor. Linux launch requires clone3 with an atomic namespace-init pidfd, private startup acknowledgement, and terminal waitid(P_PIDFD) closure; unavailable kernel capabilities fail inspection without falling back to a process-group proof. Other platforms report these inputs as uninspected and explain the required normalized/direct-selection route. Complete PSX sets require the full ordered directory inventory, every member and fresh original-byte verification; partial or mixed sets do not become exact candidates. Decoding uses private local snapshots and outputs, never writes to connected folders, and never registers a source. Missing tools, unsafe metadata, resource limits, changed bytes and unknown closure remain explicit failures, not known mismatches. ZIP-wrapped STFS is not accepted. Extract and select or scan the original LIVE package. Pinned-validator disc profiles also participate through read-only preliminary selection using the shared inspector. These results appear separately in optional `preliminary_selections` as full inspection records with structural admission and validator `not_run`; they are not exact matches or proof of compatibility. The `candidates` collection and progressive `source_candidate` events keep their exact-match meaning. Both result collections share the candidate allowance and byte observations. One-off discovery applies that allowance to the whole request; a saved-folder scan applies it to each batch, checked between files or folders (one file's several matches are kept together), so a full batch continues instead of ending the scan, and a scan-wide safety ceiling of 512 retained matches ends coverage as explicitly limited, never as finished. Desktop offers a deliberate current-location review that rechecks the selected bytes; discovery never invokes the pinned validator. Old reports omit the advisory collection and remain readable as an empty collection. Scan format 12 marks older coverage stale while retaining readable versions 1–11. Other source contracts still require manual selection. A reached processing limit remains partial coverage. One-off `source discover` starts anew. Saved `source roots scan` requests with the same recorded inputs and limits resume entry- or hash-limited work, including after process restart. Each batch replenishes the entry, hash and candidate allowances; reported hash bytes remain cumulative, including repeated inspection work. An unfinished file or directory file set is retried from fresh bytes in the existing bounded cursor. Previously emitted identical candidates are not repeated, and different source/profile/representation facts remain distinct. If one indivisible inspection cannot fit a fresh hash allowance, coverage remains explicitly limited with guidance rather than offering a no-progress retry. The scan-wide match ceiling, checkpoint-storage, metadata-work, depth, file-size and archive/path/symlink safety limits remain cumulative or unchanged. Cancellation preserves the last published checkpoint. Scan format 12 invalidates earlier continuation semantics without discarding readable historical reports.
+Exact-hash original-file, cartridge-ZIP and complete schema-2 directory/ZIP-file-set profiles participate automatically. Directory sets use the shared inspector: every required member must resolve uniquely within one completely examined directory and match one coherent variant. Member hash work shares the request-wide budget with ordinary files; raw observations are reused without sharing admission. File-set ZIPs use the same exact matcher with unique safe top-level members, bounded entry inventory and expanded member sizes, and budgeted/cancellable member plus container hashing. Their facts are shared across file-set profiles without sharing admission; missing or ambiguous member inventories consume no hashing budget. Exact schema-2 uncompressed GameCube ISO/GCM sources use the same disc matcher and bounded raw-file reader, sharing one byte observation across applicable profiles. Exact STFS LIVE compound sources, including extensionless packages, use a bounded four-byte eligibility probe, one raw hashing pass shared across applicable profiles, and the structural and hash-tree validator only after an exact compound digest match. Content-identified STFS profiles also probe PIRS packages and always run that validator, then match the verified header title ID, content type and member digests. Probe, hashing and validation use one open handle with location, object and metadata checks; structural validation adds bounded reads beyond reported hash bytes. Unrelated files are not hashed by this probe. Compressed GameCube and PSX CHD contracts participate through the shared schema-2 disc matcher. CISO uses a bounded sparse normalized stream. Tool-based GCZ/RVZ/WIA/CHD inspection requires an admitted decoder and verified process-tree closure; this route is available on Windows and on Linux kernels permitting the decoder-only user/PID namespace supervisor. Linux launch requires clone3 with an atomic namespace-init pidfd, private startup acknowledgement, and terminal waitid(P_PIDFD) closure; unavailable kernel capabilities fail inspection without falling back to a process-group proof. Other platforms report these inputs as uninspected and explain the required normalized/direct-selection route. Complete PSX sets require the full ordered directory inventory, every member and fresh original-byte verification; partial or mixed sets do not become exact candidates. Decoding uses private local snapshots and outputs, never writes to connected folders, and never registers a source. Missing tools, unsafe metadata, resource limits, changed bytes and unknown closure remain explicit failures, not known mismatches. ZIP-wrapped STFS is not accepted. Extract and select or scan the original LIVE package. Pinned-validator disc profiles also participate through read-only preliminary selection using the shared inspector. These results appear separately in optional `preliminary_selections` as full inspection records with structural admission and validator `not_run`; they are not exact matches or proof of compatibility. The `candidates` collection and progressive `source_candidate` events keep their exact-match meaning. Both result collections share the candidate allowance and byte observations. One-off discovery applies that allowance to the whole request; a saved-folder scan applies it to each batch, checked between files or folders (one file's several matches are kept together), so a full batch continues instead of ending the scan. A saved scan stores its matches as local, rebuildable rows in the library database (schema 54) written in the same transaction as each batch's snapshot; rows are evidence of what was found, never admission. The snapshot's `report.candidates` and `report.preliminary_selections` then hold only a preview: the first matches in stored order, exact matches first, at most 512 combined and 2 MiB. Its `matches` summary gives the `scan_id`, the `exact_matches` and `preliminary_selections` totals and whether the preview is complete; read every match with `source roots matches`. A scan-wide safety ceiling of 100,000 retained matches or 256 MiB of stored match records ends coverage as explicitly limited with the `candidates` limit, never as finished. A single match whose stored record would exceed 256 KiB is skipped and reported as an issue, and the scan goes on; select that file directly to use it. Desktop offers a deliberate current-location review that rechecks the selected bytes; discovery never invokes the pinned validator. Old reports omit the advisory collection and remain readable as an empty collection. Scan format 13 marks older coverage stale while retaining readable versions 1–12, whose matches stay inline in the report without a `matches` summary. Other source contracts still require manual selection. A reached processing limit remains partial coverage. One-off `source discover` starts anew. Saved `source roots scan` requests with the same recorded inputs and limits resume entry- or hash-limited work, including after process restart. Each batch replenishes the entry, hash and candidate allowances; reported hash bytes remain cumulative, including repeated inspection work. An unfinished file or directory file set is retried from fresh bytes in the existing bounded cursor. Previously emitted identical candidates are not repeated, and different source/profile/representation facts remain distinct. If one indivisible inspection cannot fit a fresh hash allowance, coverage remains explicitly limited with guidance rather than offering a no-progress retry. The scan-wide match ceiling, checkpoint-storage, metadata-work, depth, file-size and archive/path/symlink safety limits remain cumulative or unchanged. Cancellation preserves the last published checkpoint. Scan format 13 invalidates earlier continuation semantics without discarding readable historical reports.
 
-Saved scan snapshots add optional `coverage` and opaque, internally validated `continuation` fields without changing API schema 57, request fields or discovery-report fields. Coverage reports cumulative batches, this batch's examined entries, re-listed entries, metadata checks, prior-batch file-set member rehashes, pending directories and whether continuation is available. Remaining entries are unknown until a frontier is exhausted without limits or issues; zero never promises coverage for unavailable or omitted inputs. Re-listing and metadata checks have a separate 100,000-work ceiling per batch. Continuations retain at most 16,384 observed paths and a conservative 4 MiB construction charge within the existing 8 MiB snapshot ceiling. After each validated batch the cursor keeps metadata only for the unfinished directory frontier, its listed entries and the retained match paths. A batch also ends, resumably, after a finished folder once the cursor passes half of either bound, so a large tree continues across batches; a single folder whose own entries exceed the bound remains terminal partial coverage; Reaching a continuation storage or work bound publishes the current report as terminal partial coverage, discards the cursor, and requires narrower folders for further progress. Prior file-set hashes are never persisted as admission authority: prior-batch members are rehashed against the current batch hash allowance when their directory completes.
+Saved scan snapshots add optional `coverage` and opaque, internally validated `continuation` fields without changing API schema 57, request fields or discovery-report fields. Coverage reports cumulative batches, this batch's examined entries, re-listed entries, metadata checks, prior-batch file-set member rehashes, pending directories and whether continuation is available. Remaining entries are unknown until a frontier is exhausted without limits or issues; zero never promises coverage for unavailable or omitted inputs. Re-listing and metadata checks have a separate 100,000-work ceiling per batch. Continuations retain at most 16,384 observed paths and a conservative 4 MiB construction charge within the existing 8 MiB snapshot ceiling. After each validated batch the cursor keeps metadata only for the unfinished directory frontier and its listed entries; matches live in rows, so their number never counts against these bounds. The cursor also records the stored match count, bytes and a chained SHA-256 per match kind; resuming checks each kind's row count, contiguous order, batches and total bytes, and refuses the continuation (`restart_required`, prior report and rows preserved) when any row is missing, extra, out of order, resized or from another scan. A row edited without changing its size is not caught at resume; every match is re-verified from current bytes before it is used. A fresh scan replaces every earlier row; a continuation appends its batch after checking the earlier counts in the same transaction. A batch also ends, resumably, after a finished folder once the cursor passes half of either bound, so a large tree continues across batches; a single folder whose own entries exceed the bound remains terminal partial coverage; Reaching a continuation storage or work bound publishes the current report as terminal partial coverage, discards the cursor, and requires narrower folders for further progress. Prior file-set hashes are never persisted as admission authority: prior-batch members are rehashed against the current batch hash allowance when their directory completes.
 
-Saved-folder records, catalog, limits, platform, output ownership, or recorded filesystem metadata changes refuse the continuation and preserve the prior report with `restart_required`; the next explicit scan starts fresh. Invalid cursor data follows the same refusal path. Snapshot publication compares the previous raw checkpoint, saved-root records and managed-output registry in one transaction, so concurrent writers cannot overwrite each other's progress. Metadata checks detect recorded changes to the frontier and to each retained match's own path (not the members of a finished file set); a finished non-matching entry that changes later is seen by the next scan, as after a completed scan, but neither continuation nor snapshot readback proves current file bytes; accepting a candidate still revalidates it through the normal source path. Symlinks and entries outside the selected canonical roots are skipped. Equal profile contracts share hashing; both normalized ZIP payload and original container bytes count toward the budget. Accepting a candidate with `--expected-sha256` checks the current profile and reviewed content under the normal source locks before registration. Settings → Sources → Find source files exposes the same search, cancellation, and explicit acceptance.
+Saved-folder scans keep a local, rebuildable observation cache in the library database (schema 53). After hashing a regular file or ZIP selection, the scan records its identity facts under an exact metadata key: the representation (the profile extension group and the file-size limit), the identity inspector version, and the file's kind, size, modified and created times plus a platform change identity (device, inode and change time on Unix; volume serial, 128-bit file identifier and NTFS change time on Windows). It records only when that key did not change while the file was hashed, and never on a platform or filesystem without a change identity. A later saved scan reuses those facts instead of hashing only when every part of the key matches; any difference, an unreadable row or a newer inspector version inspects the file again. Reused facts only decide which candidates to show: matching still runs against the current catalog, so an unrelated catalog edit rehashes nothing, and every candidate is re-verified from current bytes before registration or setup. When that verification disagrees, the file's saved facts are forgotten so the next scan inspects it again. Files listed in the same batch, including complete file-set members, may use saved facts; prior-batch file-set members are still rehashed. Coverage reports `observations_reused`, one per reused file identity and representation. At the end of each scan, up to 20,000 saved files (oldest first) are checked: rows for files that no longer exist in an available saved folder are forgotten, an unavailable folder keeps its rows, and removing a saved folder forgets its rows. The cache is best effort: a full or unreadable store, or an oversized fact such as a very long ZIP member name, only means the file is hashed again, never a failed scan. One-off `source discover` neither reads nor writes the cache.
+
+Saved-folder records, catalog, limits, platform, output ownership, or recorded filesystem metadata changes refuse the continuation and preserve the prior report with `restart_required`; the next explicit scan starts fresh. Invalid cursor data follows the same refusal path. Snapshot publication compares the previous raw checkpoint, saved-root records and managed-output registry in one transaction, so concurrent writers cannot overwrite each other's progress. Metadata checks detect recorded changes to the unfinished frontier; a finished entry, matched or not, that changes later is seen by the next scan, as after a completed scan, and a recorded match from an earlier batch is not rechecked by the continuation. Neither continuation, recorded matches nor snapshot readback proves current file bytes; accepting a candidate still revalidates it through the normal source path. Symlinks and entries outside the selected canonical roots are skipped. Equal profile contracts share hashing; both normalized ZIP payload and original container bytes count toward the budget. Accepting a candidate with `--expected-sha256` checks the current profile and reviewed content under the normal source locks before registration. Settings → Sources → Find source files exposes the same search, cancellation, and explicit acceptance.
 
 ## Cancel work safely
 
@@ -1151,7 +1467,7 @@ portcove --json artwork unused
 portcove --json --non-interactive artwork remove-unused <asset-sha256> --yes
 ```
 
-Slots are `cover` (default) and `detail`; their selections are independent. Read the
+Slots are `cover` (default), `detail` and `landscape`; their selections are independent. `landscape` is a wide cover, separate from the detail image, that Steam uses as its library capsule; it has no catalog default. Read the
 current choice revision before changing it. Omitted `--expected-revision` captures
 the current revision at command execution; interactive clients should pass their
 reviewed revision so stale selections fail explicitly. Reset increments the
@@ -1177,16 +1493,124 @@ a client. A reviewed catalog cover can resolve
 as the default for a mapped cover slot through the fixed IGDB image CDN path.
 The CLI does not search IGDB through these local-choice commands.
 
-API 67 also advertises optional `artwork_handoff_schema` (currently 2),
+API 67 also advertises optional `artwork_handoff_schema` (currently 4),
 `artwork.handoff` and `artwork.handoff-bytes`. These read-only destination observations export
 semantic role, exact library/port/choice revision, accepted source provenance and
 availability; the bytes route additionally requires the observed library ID,
 revision and asset digest. Validated durable local Cover originals provide
-portrait bytes, and a Detail original displayed wider than tall provides hero-banner
-bytes. Catalog defaults, a non-wide Detail image and the unprovided landscape role
-remain explicitly unavailable, without provider requests or disposable-cache export.
+portrait bytes, a Detail original displayed wider than tall provides hero-banner
+bytes, and a Landscape original displayed wider than tall provides landscape-cover
+bytes. Catalog defaults and a non-wide Detail or Landscape image remain explicitly
+unavailable, without provider requests or disposable-cache export.
 See the [destination contract](INTEGRATION-AUTHOR.md#destination-artwork-handoff)
 for commands, strict schemas, byte validation and destination preview obligations.
+
+### SteamGridDB artwork suggestions
+
+```text
+portcove artwork steamgriddb set-key
+portcove --json --non-interactive artwork steamgriddb set-key --stdin
+portcove --json artwork steamgriddb status
+portcove --json artwork steamgriddb search "<game name>"
+portcove --json artwork steamgriddb candidates <game-id> --role portrait-cover
+portcove --json artwork steamgriddb choose <port-id> --slot cover --game <game-id> --candidate <image-id> --expected-revision <revision>
+portcove --json artwork steamgriddb check-listings
+portcove --json artwork steamgriddb clear-key
+```
+
+SteamGridDB lookups use only your own API key, created at
+steamgriddb.com/profile/preferences/api. Portcove ships no key. `set-key` prompts
+without echo, or reads standard input with `--stdin`. `--non-interactive` requires
+`--stdin`, and the key is never accepted as an argument or environment variable.
+Core keeps the key in this host's secure credential store and sends it only to the
+fixed SteamGridDB API origin. `status`, `set-key` and `clear-key` return only
+`configured`; the key is never shown.
+
+`search` returns up to 50 matching games. `candidates` returns up to 50 static PNG
+or JPEG images for `portrait-cover`, `landscape-cover` or `hero-banner`, each with
+its CDN URL, size, style and author attribution. Both are suggestions: they choose
+no artwork, establish no game identity, download no image bytes and write nothing
+to Steam. Results flagged as adult, humor or epilepsy-risk are excluded. A missing
+key or a rejected key is a usage error, and a missing game is not-found. Rate
+limiting reports `retry_after_seconds` when SteamGridDB provides it, and an
+unavailable service is a network error. Malformed responses fail verification.
+`choose` copies one listed image into your library for a port's `cover` (portrait
+images), `detail` (hero images) or `landscape` (wide grid images) slot and returns `artwork_state`. Core looks the image
+up again with your key, downloads it from SteamGridDB's image server without your key,
+and keeps it only if it decodes as a static PNG or JPEG matching its listed type and
+size. The artist credit is stored with the copy and shown in `artwork_state.attribution`
+and the destination handoff. An image no longer on the game's first listing page is
+not-found, and a changed choice revision is a conflict; in both cases the current
+artwork is kept. The copy is library artwork like a local import: `reset` returns to
+the default and `remove-unused` deletes it once nothing selects it. Library exports
+that contain chosen SteamGridDB images use metadata schema 8, and schema 10 once a
+check has confirmed a withdrawal.
+See [the provider client limits](ARCHITECTURE.md#local-artwork-ownership).
+
+`check-listings` checks, with your key, whether SteamGridDB still lists each
+SteamGridDB image in your library, records what it finds beside each image's credit,
+and returns `steamgriddb_listing_report`. A check can remove Portcove's copy of an
+image SteamGridDB no longer lists, but only after a second signal confirms the first
+absence (see below); every choice and credit is kept, nothing changes in Steam, and
+no artwork lock is held while it waits on the network. Each stored image is checked against its game's listing for the same
+role collection, stored size (when it is a size Portcove offers for the role) and
+format, with adult, humor and epilepsy flags set to `any`, so a re-tagged image or a
+later Portcove filter change never reads as missing. An image seen on any listing page
+that echoes the request is `listed`. It is `not_listed` only when every page echoes
+the requested `page` and `limit`, carries `data` and the same `total`, every entry has
+a readable ID, and the unique IDs seen equal `total`. A narrowed listing with no images
+at all is checked again without the size and format filters; when that listing is
+also empty the result is `unknown` with `empty_listing`. Anything else is `unknown`
+with a `reason`: `incomplete_listing`, `too_many_images` (more than 1,000),
+`game_not_found` (only a first-page 404; never read as a withdrawal), `empty_listing`,
+`request_limit`, `check_stopped`, `unavailable` or `invalid_response`. For
+`not_listed`, `game_not_found` and `empty_listing` images, `source` reports what the
+image server answers for the stored URL without your key: `served`, `gone` (404 or 410) or `unknown`; it is `not_checked` otherwise. `attempted` says whether this run
+reached a conclusion for the image's listing, and `listing_total` is the `total`
+SteamGridDB reported.
+
+One check makes at most 120 SteamGridDB API requests and 60 image-server requests,
+spaced 250 ms apart, and stops after three minutes. It starts with the images checked
+longest ago, so a large library is covered across runs. A rate limit, a rejected key,
+two unreachable listings in a row, the time limit or cancellation end the check,
+reported in `stopped` as `rate_limited`, `key_rejected`, `unavailable`, `time_limit` or
+`cancelled`; results already read are kept and the rest are `check_stopped`. Only one
+check runs at a time in a library.
+
+Results for attempted images are recorded in one transaction. A choice or removal
+made while the check ran always wins, and choosing an image again marks it listed.
+`not_listed_since` is the first time a verified listing lacked the image; it is kept
+across later absences and unknown results and cleared only when the image is seen
+listed again. `recorded` is false when the check was cancelled or recording failed,
+in which case the results are shown but not kept. `artwork_state.provider_listing`
+shows the recorded evidence for the selected image. Library moves keep this evidence;
+library exports and imports do not carry it. A library with no SteamGridDB images
+makes no request and needs no key.
+
+A `not_listed` result is confirmed as a withdrawal when the image server answers
+`gone` in the same check, or when a later check at least 24 hours after the first
+absence still finds it `not_listed`, by both Portcove's clock and SteamGridDB's own
+`Date`. An `unknown` result, a `gone` answer from an earlier check, or a missing date
+never confirms one, and an image seen listed again clears it. When every SteamGridDB
+credit behind an image is confirmed and you never imported the same image yourself,
+Portcove removes its copy: the original and thumbnail are deleted, the slot shows the
+generated fallback with a reason, and the choice, its revision and the credit stay.
+`artwork_state.evicted_at` says when, and each `provider_listing` entry shows
+`withdrawn_at` and `withdrawal_signal`. Choosing the image again downloads it again and
+restores the copy. A copy you imported yourself is kept and only marked withdrawn.
+
+Each image's `effect` is what this check changed: `none`, `withdrawn` (confirmed,
+copy kept), `removed` (confirmed and the copy is removed) or `listed_again`. Its
+`withdrawn_at` and `evicted_at` show the library's state after the check, so an image
+confirmed or removed earlier reads as such. A check never confirms a withdrawal while
+the computer's clock reads before 2020 or after 2199. `skipped` counts results that
+could not be written and stay unrecorded. One check deletes at most 32 copies:
+`removed` counts deletions that finished, `removal_deferred` those left for the next
+check, export or move, and `removal_failed` those another program kept open. A
+removed copy is never shown or handed to Steam, even while its file waits for
+deletion. Library export and move finish any pending removals first, and stop with
+a next step if a removed copy still cannot be deleted. Exports record withdrawals
+and removed copies under metadata schema 10 and do not carry removed originals.
 
 ## Export and restore a library
 
@@ -1205,9 +1629,28 @@ portcove --library <path> --json library export
 portcove --library <path> --json library export --output <new-file.json>
 ```
 
-Export reads one consistent SQLite snapshot. The versioned metadata document contains source references, managed version identities, active/previous/staged state, per-port preferences, and successful launch history. Application versions, user data, Source Inbox, backups, toolchains, and local artwork are identified as separate content roots; their contents and credentials are not embedded. The lazy `runtime-sources` cache is rebuildable from a registered source and is deliberately excluded from metadata, import, move, and backup content roots. Managed installation paths become relative to the original library root, while source references retain their original paths and identities. Format-1 Alpha 1 metadata without a Source Inbox root remains importable.
+Export reads one consistent SQLite snapshot. The metadata records source
+references, managed version identities, and which versions are active, previous,
+or staged. It also records per-port preferences and successful launches.
 
-Without `--output`, the document appears in the normal CLI response. With `--output`, core writes a raw metadata document to a new file and returns its path, byte size, and SHA-256. Publication does not replace an existing file. Settings → Library → Export metadata invokes the same operation through a native save dialog.
+The metadata lists separate folders for application versions, user data, Source
+Inbox, backups, toolchains, and local artwork. The file contains none of those
+folders' contents or any credentials. Portcove can rebuild the `runtime-sources`
+cache from a registered source. Metadata, import, move, and backup exclude it.
+
+Export stores installation paths relative to the library root. If a registered
+installation path is outside the root, export refuses. If you store managed
+folders on another drive, follow the
+[manual recovery copy instructions](UPGRADING.md#before-upgrading).
+Source references keep their original paths and identities. You can still
+import Alpha 1 format-1 metadata without a Source Inbox root.
+
+If you omit `--output`, the CLI returns the document in its normal response.
+If you pass `--output`, Core writes raw metadata to a new file. It returns
+the path, size in bytes, and SHA-256. An existing file prevents export to that
+path. In Desktop, use **Settings → Library and storage → Recovery copies and
+library location → Prepare a recovery copy → Export library information**.
+The native save dialog exports the same metadata.
 
 ### Library imports and recovery
 
@@ -1342,7 +1785,9 @@ reviews the exact game release and stage/activate action before execution, and
 allows exact staged activation without contacting upstream. A stale release,
 source registration, destination, definition, retained state or chosen action
 requires a new review. The exported `game_update_plan` schema describes this
-core-owned review contract. The desktop's Install action activates the requested
+core-owned review contract. Its optional `release_notes` field is informational
+upstream text read from cached release lists, outside the review digest; see
+[update review release notes](ARCHITECTURE.md#update-review-release-notes). The desktop's Install action activates the requested
 installation; a saved Stage preference cannot silently turn that action into
 staging. These are game-update operations, separate from the signed Portcove
 application updater.
@@ -1353,6 +1798,13 @@ Human task wording follows the [glossary](../GLOSSARY.md) and
 [content-design guidance](CONTENT-DESIGN.md). **Check installed files** (`verify`)
 compares the full recorded installation manifest; its report names that scope
 and the actual checked-file count. Launch-critical checks are separate.
+**Unrecognized files** are files the installation did not ship that are not
+programs, scripts, libraries or links. The report lists them apart from its
+findings; JSON reports them as `unknown_file_count` and up to 64
+`unknown_files` paths, and `valid` stays false while any remain
+([#5359](https://github.com/boburning/portcove/issues/5359)). The removal review lists them the
+same way before consent, and backup lists add them to the file count as
+`unrecognized`; JSON reports `unknown_file_count` on both.
 **Update saved for later** names a retained staged version, and `activate` applies
 that version. A **saved-data backup** covers its declared player files, which can
 include more than progress saves; it is separate from original game files,
@@ -1422,7 +1874,10 @@ carry the retained result. A `failed` session may also carry `exit_explanation`
 `exit_code` by a versioned Core table and never stored. Explanations say "most likely"
 and are not proof of cause; an unmapped non-zero code gets the generic key
 `unexplained_exit` with no invented cause, and succeeded, cancelled and unfinished
-sessions omit the field. `exec` itself stays a raw stream with no JSON result;
+sessions omit the field. When the key is `dll_not_found` or `dll_init_failed` and
+the session's installation is still current, `launch show` and `launch recover`
+also carry `runtime_prerequisites`, the
+[runtime report](#microsoft-runtimes-a-game-needs) for that installation. `exec` itself stays a raw stream with no JSON result;
 its process exit status is unchanged. `started_at` is request acceptance, not a precise game-start
 timestamp. `child_pid`/`child_identity` are recorded only after child
 creation; they are observations, never authorization for a client to signal a PID.
@@ -1435,7 +1890,13 @@ supported; game signals and post-exit save collection stay with the supervisor.
 
 Status objects include additive `readiness`, `last_launched_at`, `successful_launches`, and `last_update_check` fields. Readiness separates one-time upstream setup from the current game-source and BIOS states: `unregistered`, `current`, `missing`, `unreadable`, `changed`, or `not_checked`. Installed requirements are hashed against their registered storage baseline; uninstalled registrations use `not_checked` so catalog browsing does not imply a current-byte check. `current` means unchanged since registration, not that an informational or extension-only profile gained exact-revision evidence. Missing, unreadable, and changed requirements block launch and route Continue to setup. Install and launch still repeat the full catalog validation at their final use boundary. Launch history advances only after a child process exits successfully; a failed start, crash, or non-zero exit never becomes a Continue candidate. Both the CLI and desktop write the same SQLite record, so external frontends can use these fields without scraping GUI state.
 
+When a registered source is under an unavailable saved folder, readiness identifies
+that folder so the player can reconnect it. On Windows this works when the saved
+folder and source use equivalent ordinary and canonical path spellings.
+
 `last_update_check` contains the timestamped successful `UpdateCheck` most recently produced by `check`, `update`, or `reconcile`. It survives process and desktop restarts. Consumers should display it as current only when its channel equals the status channel and its `installed_version` equals the active version; Portcove's GUI applies both guards so activating a release or changing channels cannot leave a stale update badge. A failed network or release check does not overwrite the last successful snapshot, and its error remains available through the command result and applicable activity record.
+
+An additive optional `last_update_check.check.upstream_activity` carries the repository facts the GitHub provider reported while selecting that release: `repository` (the `owner/name` observed), `archived`, optional `last_change_at` (latest push, Unix seconds) and `observed_at`. Facts read before a later failure, such as an accepted release that is no longer published, stay with the preserved-location fallback. It is a maintenance observation, not a catalog declaration, and grants or revokes no update, install or catalog authority. A check that did not read the repository, such as applying a reviewed game update, keeps the previous observation and its original `observed_at` only while the port's catalog definition still names that GitHub repository; another repository or provider drops it, and Desktop applies the same rule. Absence means unknown, never active. Unlike the update badge, it describes the repository rather than the installed version, so it remains meaningful after the channel or active version changes. This additive output field keeps API schema 91.
 
 #### Read current and retained outcomes
 
@@ -1485,6 +1946,61 @@ portcove --library <path> --json plan <port-id> [--channel stable|preview|rollin
 ```
 
 The plan reports the resolved release and asset size, current platform and channel, registered game-source and BIOS requirements, containing-volume capacity, and one typed action: `already_active`, `use_staged`, `reuse_retained`, `blocked_unverified`, or `download`. These actions compare immutable artifact identity, not display version, so an upstream republish under the same tag is still an update. Planning may perform a normal conditional network lookup and update Portcove's HTTP response cache, but it does not download a release, change source registrations, switch versions, or create an activity record. `use_staged` does not imply activation: the following install's `--stage` choice still controls whether that verified release remains staged. Asset size is the upstream download size; callers must not present it as a guarantee of final extracted footprint.
+
+### Microsoft runtimes a game needs
+
+```bash
+portcove --library <path> --json installation runtimes <port-id>
+```
+
+This read reports which Microsoft runtimes the current managed installation's
+launch program, or the external registration's program, most likely needs, and
+whether this Windows host has them. It returns `null` when nothing is installed.
+Core reads the program's PE import table without running it, follows imports into
+DLLs shipped in the program's folder, and reads a framework-dependent
+`<program>.runtimeconfig.json`. Reads are bounded and never follow symlinks.
+
+A runtime DLL that the game ships satisfies its import. So does a symlink or
+junction in the program's folder, and any file in a folder between the program
+and the installation root, because a launch can use one of those as its working
+directory. Those files are not read, so the inspection becomes `partial`.
+
+`inspection` is `complete`, `partial` (something could not be read, an import
+name was unusable or a limit was reached, so the list may be incomplete),
+`not_windows_program` or `unreadable`. `host` is `checked` or `not_windows`.
+Each requirement names its `runtime` (`visual_cpp_2015_or_later`,
+`visual_cpp_2013`, `visual_cpp_2012`, `visual_cpp_2010`, `directx_june_2010` or
+`dotnet` with its `framework`), the program's `architecture`, `presence`, the
+runtime `files` the game imports but does not ship, any `missing_files`, and
+Microsoft's official `download_page`.
+
+`presence` is `missing` only when this Windows host reports the file or .NET
+framework absent and every searched folder was listed completely. Anything
+Portcove cannot tell is `unknown`; `unknown` is not a failure. That includes:
+
+- every requirement on another host, or on Windows that is not native x64 (such
+  as ARM64);
+- an architecture Portcove does not assess;
+- an unreadable .NET registration;
+- a framework whose runtime configuration uses `rollForwardOnNoCandidateFx`,
+  `applyPatches` or a per-framework `rollForward`.
+
+System DLLs are checked in the system folder Windows uses for the program's
+architecture. .NET frameworks are checked under the registered or default .NET
+location, using the program's top-level roll-forward policy.
+
+Not assessed:
+
+- whether an installed runtime is new enough;
+- side-by-side Visual C++ runtimes (2008 and earlier);
+- DLLs in the Windows folder or on `PATH`;
+- `DOTNET_ROLL_FORWARD` and `DOTNET_ROOT`;
+- delay-loaded and dynamically loaded DLLs.
+
+The report is advisory and leaves launch available. For a recognized Visual C++
+v14 architecture, `download_page` identifies Microsoft's matching installer.
+The player opens the link and runs the installer in Windows, then uses Recheck
+from the same installation in Desktop.
 
 ### Review and recover preparation
 
@@ -1585,6 +2101,14 @@ portcove --library <path> --json paths <port-id>
 
 The response contains `user_data_root` plus the active, previous, and staged install roots when those versions exist. Back up the complete user-data root: catalog persistence rules may include saves, configuration, controller bindings, mods, generated assets, or upstream-specific portable state. The path remains canonical even before the directory has been populated. Treat install roots as read-only implementation state and never modify SQLite directly.
 
+In human output, `paths` labels the canonical Portcove data folder and also
+shows the active installation's confirmed backup collection folder if known.
+Run `--json backup list <port-id>` for the file rules and backup history.
+An installation you maintain shows its registered folder and program. The game
+can keep saves in a different profile. Use `--json status <port-id>` for the machine-readable
+external registration coordinates and consult the project's setup instructions
+for its save location.
+
 Portcove can also create and enumerate its own immutable snapshots:
 
 ```bash
@@ -1599,6 +2123,22 @@ portcove --library <path> --json backup delete <port-id> <backup-id> --yes
 Before an update installs, a staged version is activated, or a rollback runs, Portcove snapshots the game's managed saved data through the same path as `backup create`, so the saves from just before the version changed can be restored. A game whose saves are `external-user-owned` is skipped, and so is a game with no saved data yet; that skip is recorded in Activity. Each snapshot carries an `automatic` label in `backup list` JSON (`operation` of `update`, `activation` or `rollback`, with `from_version` and `to_version`); manual snapshots omit it and the human listing shows a `KIND` column. If the snapshot fails, the version change stops before it modifies anything and reports the failure. Portcove keeps the newest five automatic snapshots per game and removes older automatic ones through the normal backup deletion recovery path; it never removes a manual snapshot. Staging a version without activating it, and an update that is already installed, take no snapshot. The per-library `automatic_snapshots` setting defaults to on and travels with the library. Desktop turns it off or on in Settings, under Library; the CLI has no command for it yet.
 
 `backup restore` is destructive to current persistent data and therefore requires confirmation, or `--yes` for an unattended caller. It copies the selected snapshot into an operation-private staging directory, recomputes and compares its file count, byte count, and tree SHA-256, then creates an automatic safety backup of current non-empty data before replacing the canonical user root with same-volume renames. Those renames and the lifecycle journal prevent another running process from observing a partial staged tree and allow unambiguous process-crash recovery; they are not a cross-platform sudden-power-loss guarantee. A missing, mismatched, symlinked, or tampered backup fails before live data or the backup list changes. The result includes both `restored_backup` and the new `safety_backup`; the latter is absent only when no current files existed. Restore does not modify application versions or original game sources, and the restored data is synchronized into the active release on its next Portcove launch.
+
+For games with a selected mod setup, a full restore requires the backup's exact
+enabled packages, native load order, and supported mod settings to match that
+setup. A mismatch, missing package, or unrecognized file in the mods folder
+holds the restore and preserves the backup and current data. Choose a matching
+backup or setup. Where supported, save-only import can recover progress. An
+interrupted full restore keeps its verified backup receipt with the operation
+and rechecks the setup before publication or synchronization. After commit, a
+restart can finish removing the private staging files without publishing the
+backup again. Library database schema 67 requires clients that enforce this
+restore and launch contract. Close older clients before opening the library
+again.
+
+Before a game launches, Portcove also checks that the selected setup's exact
+packages remain in the mods folder. Review changed, missing, or unexpected files
+in Setups and mods before playing.
 
 `backup delete` also requires confirmation or `--yes`. Declining an interactive backup restore or deletion is a successful neutral result that says no changes were made; unattended use still requires `--yes`. Deletion validates the selected snapshot and records a core-owned lifecycle operation with the exact original and private quarantine paths before moving that directory out of the visible backup set. The journal advances after quarantine, filesystem removal, and commit. On restart, Portcove completes an unambiguous authorized deletion, including a partially removed quarantine; it never treats both paths, neither pre-publication path, a reappeared visible backup, or out-of-root paths as successful deletion. Such state remains recovery-required in backup inventory and `doctor`. This is process-interruption recovery and visibility isolation, not a cross-platform sudden-power-loss claim. Current persistent data, application versions, original sources, and every other backup remain outside the deletion target.
 
@@ -1731,7 +2271,7 @@ Deleting slots on one device never deletes them elsewhere unless
 
 ### Concurrency and failure-isolated batches
 
-Mutating commands, verification, and `exec` use a cross-process lock for the selected port. A second frontend targeting that same port fails immediately with `error.code: "conflict"`, exit code 14, and `details.port_id`; it should retry later rather than run a competing operation. The launch lock remains held through game exit and post-exit mutable-data collection. An unfinished durable launch request continues to block the port even if its supervisor crashes. Desktop startup or `launch recover <request-id>` recovers only the exact recorded child/start identity/install before committing a failed terminal outcome. A live supervisor, PID/start mismatch, ambiguous spawning phase, legacy missing identity, or changed install fails closed for manual review. Recovery can wait for an exact still-running child and then collect from the recorded install; it cannot claim that hard termination allowed a game to flush data. Completed request rows remain reconnectable evidence without blocking a later launch. Commands for other ports continue independently. `capabilities.port_operation_locking` is `per_port_fail_fast` when this contract is available.
+Mutating commands, verification, and `exec` use a cross-process lock for the selected port. A second frontend targeting that same port fails immediately with `error.code: "conflict"`, exit code 14, and `details.port_id`; it should retry later rather than run a competing operation. The launch lock remains held through game exit and post-exit mutable-data collection. An unfinished durable launch request continues to block the port even if its supervisor crashes. Desktop startup or `launch recover <request-id>` recovers only the exact recorded child/start identity/install before committing a failed terminal outcome. For reviewed Windows tracked handoffs, Portcove keeps a separate member-query handle before starting the game. If the supervisor exits during play, the helper holds the session until exact job membership and the installed identity allow recovery. A live supervisor, PID/start mismatch, ambiguous spawning phase, legacy missing identity, or changed install fails closed for manual review. Recovery can wait for an exact still-running child and then collect from the recorded install; it cannot claim that hard termination allowed a game to flush data. Completed request rows remain reconnectable evidence without blocking a later launch. Commands for other ports continue independently. `capabilities.port_operation_locking` is `per_port_fail_fast` when this contract is available.
 
 An update also reuses a matching artifact already retained as a rollback or inactive installation. Before reuse, activation, rollback, or launch, Portcove checks the registered manifest identity and current critical executable/library/bootstrap bytes. `--stage` marks the checked local artifact for activation, while a normal update promotes it without another download. An install migrated from an older schema without immutable identity must be replaced or re-adopted; Portcove never fabricates its provenance.
 
@@ -1766,7 +2306,7 @@ For `exec`, a successfully started game returns its exit code when it fits the p
 - `PORTCOVE_GITHUB_CLIENT_ID`: public GitHub App client ID used by device login. It may be embedded at build time or provided at runtime; it is not a client secret.
 - `PORTCOVE_PORT_ID`: supplied to launched ports.
 - `PORTCOVE_USER_DATA`: stable per-port mutable-data directory.
-- `PORTCOVE_SOURCE`: registered source path when the port needs one.
+- `PORTCOVE_SOURCE`: registered source path when the port needs one; not supplied when a self-contained installation launches without its original.
 - `PORTCOVE_CACHE`: generated-cache location for applicable adapters.
 - `PORTCOVE_CHDMAN`: optional full path to `chdman`; an invalid explicit path fails closed instead of falling back to another copy.
 - `PORTCOVE_DOLPHIN_TOOL`: optional full path to `DolphinTool`; an invalid explicit path fails closed instead of falling back to another copy.
@@ -1838,7 +2378,7 @@ catalog operations report the resulting active catalog and fallback state;
 they do not install or update game files. Definition refresh keeps policy and
 launch-assessment changes separate from selection and eligibility.
 
-Local-file review does not write library domain state. Explicit HTTPS delivery is anonymous, bounded to 4 MiB and 20 seconds, and rejects redirects, userinfo, fragments, and non-HTTPS URLs. Catalog application supports cross-process cancellation and CLI Ctrl-C/SIGTERM until publication admission; SQLite activation, replay advancement, and the terminal activity outcome commit together. A service command uses the catalog snapshot it opened with; subsequent commands see the new selection. See [SIGNED-CATALOG.md](SIGNED-CATALOG.md) for the exact signing contract and offline publisher utility.
+Local-file review does not write library domain state. Explicit HTTPS delivery is anonymous, bounded to 16 MiB (4 MiB before library writer protocol 60) and 20 seconds, and rejects redirects, userinfo, fragments, and non-HTTPS URLs. Catalog application supports cross-process cancellation and CLI Ctrl-C/SIGTERM until publication admission; SQLite activation, replay advancement, and the terminal activity outcome commit together. A service command uses the catalog snapshot it opened with; subsequent commands see the new selection. See [SIGNED-CATALOG.md](SIGNED-CATALOG.md) for the exact signing contract and offline publisher utility.
 
 ## Local profiles and mod packages
 
@@ -1850,19 +2390,65 @@ loader contract, package closure, typed orderings, consequential settings and sa
 group. A retained-build reference keyed by the profile ID keeps every revision's
 build protected (see [earlier builds](#earlier-builds-stay-offered-for-recovery)).
 
+`profile list` and `profile setups` check the retained runtime's immutable files. Desktop's ordinary
+setup view instead reports `build_availability: "present"` after checking the
+registered installation identity, manifest, executable presence and current
+policy. That preview does not check all installed file contents. It leaves
+`verified` for full inspection; setup copies, launch and other consequential
+operations keep their existing checks before changing data or running a game.
+
 ```text
 portcove --library PATH --json profile list PORT_ID
+portcove --library PATH --json profile setups PORT_ID
 portcove --library PATH --json profile ensure-default PORT_ID
-portcove --library PATH --json profile copy PORT_ID PROFILE_ID NAME [--current-build]
+portcove --library PATH --json profile copy PORT_ID PROFILE_ID NAME [--current-build] [--progress-from-revision SHA256 --progress-target-install INSTALL_ID --progress-target-revision SHA256]
+portcove --library PATH --json profile create-clean PORT_ID SOURCE_PROFILE_ID NAME --expected-revision REVISION
 portcove --library PATH --json profile revisions PORT_ID PROFILE_ID
+portcove --library PATH --json profile original-instances PORT_ID PROFILE_ID REQUIREMENT_ID
+portcove --library PATH --json profile select-original PORT_ID PROFILE_ID REQUIREMENT_ID INSTANCE_ID --expected-revision N
+portcove --library PATH --json profile relink-original PORT_ID PROFILE_ID REQUIREMENT_ID SOURCE_PATH --expected-revision N
 portcove --library PATH --json profile policy PORT_ID PROFILE_ID keep-current|review-updates|automatic-eligible
 portcove --library PATH --json profile install-package PORT_ID PROFILE_ID FILE --expected-revision N [--allow-mod-code SHA256]
 portcove --library PATH --json profile set-package PORT_ID PROFILE_ID NATIVE_ID on|off --expected-revision N
 portcove --library PATH --json profile activate PORT_ID PROFILE_ID
 portcove --library PATH --json profile live PORT_ID
+portcove --library PATH --json profile inspect-mod-file PORT_ID FILE_NAME
+portcove --library PATH --json profile preserve-mod-file PORT_ID FILE_NAME --expected-plan SHA256
 portcove --library PATH --json profile setups PORT_ID
 portcove --library PATH --json profile revise PORT_ID PROFILE_ID REQUEST.json
+portcove --library PATH --json profile recover-plan PORT_ID PROFILE_ID REVISION
+portcove --library PATH --json profile recover PORT_ID PROFILE_ID REVISION --expected-plan SHA256 --yes
 ```
+
+Register each original through the existing source command. A customized setup
+can choose an admitted saved instance by ID, which stores a new revision. Default
+uses the game's current saved source. Relinking checks the original's content
+and storage representation before changing its saved location. All setups
+bound to that exact instance use the new location, including retained
+revisions. A runtime with prepared game data already holds its original input.
+Prepare another runtime to use a different original. The prepared runtime can
+still play when its saved input is missing. In Desktop, open **Review original
+game files** in the customized setup. Choose a registered original when the
+installation consumes that input, or use **Find the same original** to update
+the saved location. Portcove checks the file before saving either choice.
+
+Library schema 63 keeps admitted instances in addition to the existing source
+default. Re-registering another original changes the default and preserves the
+instances that customized setups already select. Removing the game's default
+source registration forgets that exact instance's saved path, including for
+customized setups that use it. Their saved identity can still be relinked.
+Other admitted original instances remain available.
+Use a Desktop or CLI version that supports schema 63 to open that library.
+A whole-library export with additional original instances or saved sources in
+the library inbox uses metadata schema 12. When copying that library, saved
+paths within its source inbox move with the inbox. Paths to external originals
+stay as saved.
+
+`profile remove-package PORT_ID PROFILE_ID NATIVE_ID --expected-revision REVISION`
+removes the mod from this setup and the live mod folder when the setup is selected.
+Earlier revisions keep its exact package bytes. An enabled mod that depends on it
+or a changed package file holds removal. In Desktop, choose Remove beside the mod
+and confirm.
 
 `setups` is read-only and reports in one result whether the game has reviewed mod
 support (`supported`), the package types it loads, its profiles, what is live now
@@ -1872,12 +2458,48 @@ same result.
 
 `ensure-default` gives an installed port its equivalent default profile and is safe
 to repeat; a player with one setup needs nothing else. `copy` starts a new profile
-from a profile's current revision with its **own save group**: progress is not
-copied. The default profile follows the game's current build; any other profile
-launches the exact build its revision names, so a game update never changes a
-customized setup. `copy --current-build` makes an upgraded copy on the current
+from a profile's current revision with its own save group and fresh progress by
+default. To copy supported saves, supply the current source revision digest,
+exact destination installation ID and destination revision digest. Without
+`--current-build`, the destination revision is the source revision. With
+`--current-build`, it is the current Default revision. Portcove
+checks both installed save contracts and copies only reviewed save slots into
+the new save group. Shipwright 9.3.1 is supported on the reviewed Windows and
+Linux save paths. Mods may affect whether copied saves load.
+When the active runtime changes, Default receives a new revision with
+that runtime in the same library transaction. Its save group and earlier
+recovery builds stay available. Run `ensure-default` to refresh a Default
+revision left behind by an older client before copying or exporting it. Desktop
+offers Refresh Default setup when the recorded installation differs. Library
+database schema 62 requires Desktop and CLI versions that coordinate this
+change. Other profiles launch the exact build their revisions name, so a game
+update never changes a customized setup. `copy --current-build` makes an upgraded copy on the current
 build instead, leaving the source profile, its build and its progress unchanged.
+When Default reaches its recovery-build limit, `installation reference-retire`
+can retire a superseded offer after review. Retirement keeps the recorded setup
+revision and progress. A build still used by the selected setup must stay retained.
 Stale `--expected-revision` values fail as `conflict`.
+
+Clients can offer `profile create-clean` when `capabilities.commands` includes
+`profile.create-clean`. It creates a named setup on the reviewed source
+revision's exact verified runtime and original bindings. It starts with fresh progress and
+the runtime's built-in features. It omits added mod packages and their saved
+options. The source remains selected and keeps its own
+mods and progress. In Desktop, Create clean setup appears when the selected
+runtime is verified and no verified setup is ready for clean play.
+
+`recover-plan` reviews an earlier revision from `profile revisions`. It lists
+the retained runtime, packages, enabled state, native order, settings,
+original availability, standing update policy and any holds. Applying the exact
+plan appends a new revision and keeps current progress. Recover an older save
+separately through the save recovery workflow. Default follows the active
+runtime, so use game rollback first when Default's earlier runtime is available
+there. If live setup recovery was interrupted, run `profile activate` for the
+selected setup to finish it before playing. In Desktop, open Setup history
+under Setups and mods to review an earlier revision. Use Finish using with the
+setup's name when a previous change still needs to finish. Library database
+schema 65 requires Desktop and CLI versions that honor interrupted recovery
+before launch.
 
 `install-package` inspects a local archive without extracting or executing it, stores
 its bytes by SHA-256, records a new revision and, for the selected profile, deploys
@@ -1889,12 +2511,16 @@ and [Zelda 64: Recompiled](#zelda-64-recompiled-mods) `.nrm`); others return
 `unsupported`. A computed digest establishes bytes, not publisher
 authenticity.
 
-Only files the selected revision installed are ever changed. Unknown files in `mods`
-and installed files edited outside Portcove hold the operation and are listed by
-`profile live`; nothing is overwritten or deleted. `activate` parks the departing
-profile's saves and settings, restores the arriving profile's, and reconciles mods
-from the exact revision. An interrupted switch resumes from its journal without
-merging or losing either profile's data. Until launch (or an immediate refresh of
+Only files the selected revision installed are ever changed. Ship of Harkinian's
+empty `mods/custom_mod_files_go_here.txt` stays in place when setups switch.
+Other unknown entries, a changed marker, and installed files edited outside
+Portcove hold the operation and are listed by `profile live`. `activate` parks
+the departing profile's saves and settings, restores the arriving profile's,
+and reconciles mods
+from the exact revision. On Windows, this includes Shipwright's checked
+working-directory save paths. The switch journal records the paths it parks.
+Older interrupted switches hold if the ownership of those paths is ambiguous.
+Until launch (or an immediate refresh of
 the installed build) has restored the new live data, collection is suspended so a
 stale build copy can never overwrite the selected profile or resurrect a disabled
 mod.
@@ -1919,17 +2545,39 @@ anything is authorized. A revision the game could not load unambiguously is refu
 when it is created, including a new profile from a recipe (whose plan holds it), and
 a switch to an older revision with such packages refuses before anything is parked.
 
+An unmanaged or edited file in the live mods folder can hold a setup change.
+Use `profile inspect-mod-file` to review a single regular file and its exact
+bytes. Then use `profile preserve-mod-file` with the reviewed digest. The
+file stays under `user/.portcove-profiles/<port>/preserved` in the library,
+outside the game's mods folder. For an edited managed file, Portcove also
+restores the exact recorded package that belongs to the selected setup. The
+review relates to one file. A changed file or an
+occupied destination stops the move. An interrupted move is reported by
+`profile live` and finishes through the normal setup lifecycle when its
+recorded locations still agree.
+
+Library schema 66 coordinates writers while a mod file move is pending.
+Use a compatible Desktop or CLI to resume the operation before changing
+the selected setup or restoring a backup.
+
+Use the returned location with ordinary local package review to adopt an
+eligible archive. Preservation by itself grants no execution consent. For
+directories, linked files or names the loader contract cannot manage, close
+the game and review the entry in the mods folder before moving it manually.
+
 `profile live` reports `native_list`: `in-sync`, `not-written`, `reordered`,
-`differs` (with `missing` and `unexpected` names) or `unreadable`. A reorder made in
-the game's mod menu (the same mods in another order) is kept as the profile's next
-revision when supervised play ends (or, if that cannot be recorded, at the next
-profile change or launch). A revision created this way changes only the order, so
-an install, a mod turned on or off, or a provider plan reviewed against the earlier
-revision still applies; any other newer revision makes it refuse. Any other difference among the profile's own entries, such as a mod
-disabled in the game's menu (which the game would re-enable at its next start), is
-reported and rewritten from the revision before the next launch. An unreadable or
-unexpectedly shaped configuration is never rewritten: the game itself discards a
-configuration it cannot parse.
+`differs` (with `missing` and `unexpected` names) or `unreadable`. Portcove
+records supported game-menu reorders after supervised play. For Recomp, an
+explicit enabled list can also turn off known managed mods. The disabled
+packages remain available in Portcove and their deployed files are removed
+from the next launch. A missing list is initialized from the setup. Ship's
+Clear List requests a rebuilt list and keeps the setup's enabled packages.
+Use Portcove to turn individual Ship mods on or off.
+
+An unexpected enabled entry or a disable that would break a dependency stays
+visible for review. Check your enabled mods and their dependencies in Setups
+and mods before playing. Other configuration keys and unmanaged list entries
+are preserved.
 
 These behaviors come from Shipwright 9.2.3 (`cb71e22a`) and 9.3.1 (`f0599f96`)
 and libultraship (`fdcaf633`) source; they have not yet been observed in a running
@@ -1946,6 +2594,8 @@ ID, not its file name: the package is stored and placed in `mods` as
 package with an installed mod's ID replaces it. An ID that some supported system
 cannot use as a file name (a device name such as `NUL`, or one too long) is refused
 before anything is stored. The manifest's version is recorded with the package.
+The top-level `description` may contain LF or CRLF line breaks within the
+4 KiB text limit. Display names and short descriptions remain single-line.
 
 A package that names another game is refused with nothing recorded. A package
 that carries recompiled game code (`mod_binary.bin`/`mod_syms.bin`, which the
@@ -1961,12 +2611,12 @@ is refused as `conflict` with nothing changed, and installing the same file agai
 with `--allow-mod-code` lets it continue. Portcove therefore never records,
 enables or places mod code without consent. Files a player puts in `mods`
 themselves are not Portcove's: they are reported as files the setup did not add,
-never adopted into a setup that would run them. Provider installs refuse mods that
-run code. Consent records the
-player's choice; it does not establish that the code is safe, who wrote it, or
-that it works with the installed build. Packages that load code from outside
-themselves (`native_libraries` host libraries, `*.offline.nrm`) or contain files an
-operating system runs directly stay refused, even with consent.
+never adopted into a setup that would run them. A reviewed provider install can
+add an eligible RecompiledCode mod with explicit permission for its exact bytes.
+An automatic update waits for review when the new package runs code. Permission
+covers execution of the reviewed bytes. Packages that load code from outside themselves
+(`native_libraries` host libraries, `*.offline.nrm`) or contain files an operating
+system runs directly stay refused, even with consent.
 
 Desktop asks the same question: after a package is chosen it reads what the
 package would run, and a package whose code was not allowed before shows the mod's
@@ -1978,28 +2628,41 @@ Required dependencies become package requirements. A mod needing a mod that is n
 installed is refused until that mod is installed, and a mod that is on cannot be
 left on while a mod it needs is turned off; turn the dependent mod off first.
 Dependencies on mods built into the runtime (`mm_recomp_dpad_builtin`) and the
-special `.` (the mod itself) and `*` (the runtime) entries need no package. Minimum
-dependency and runtime versions are left to the runtime, which reports them when
-the game starts; Portcove does not check them yet.
+special `.` (the mod itself) and `*` (the runtime) entries need no separate package.
+Portcove checks the installed runtime and the minimum versions of required mods
+before applying or launching the setup. A positive minimum for a built-in mod
+needs version evidence for that runtime. Zelda64Recomp 1.2.2 supplies D-Pad 1.0.0.
+The native loader handles optional dependencies and their ordering effects.
 
 The runtime keeps enabled mods and their load order in `mods.json`
-(`enabled_mods` and `mod_order`, by mod ID). Portcove writes the profile's enabled
-mods and order there after every change, switch and before each launch, keeping
+(`enabled_mods` and `mod_order`, by mod ID). Portcove projects the profile's
+enabled mods and order when needed, keeping
 other keys and entries the player owns, such as the built-in mod or their own
 mods, in place with their state. `mods.json` is one of the port's persistent
-paths, so each profile keeps its own. `profile live` reports `native_list` as for
-Ship of Harkinian: a reorder in the runtime's menu is kept as the profile's next
-revision, and a profile mod turned off in the menu is reported and turned on again
-before the next launch. Turning a mod off in Portcove removes its file. The order
-is kept, but which of two mods changing the same asset wins is not established, so
+paths, so each profile keeps its own. `profile live` reports `native_list`.
+Portcove records supported menu reorders and disables as the next setup revision
+after supervised play. Disabled packages remain in the setup, but their
+deployed files stay out of the next launch. An unrecognized enable or a change
+that would break a required dependency stays visible for review. The order is
+kept, but which of two mods changing the same asset wins is not established, so
 `profile setups` reports `later_mods_take_priority: false` and Desktop says only
 that mods load in this order.
 
-These behaviors come from Zelda64Recomp `54950a10`, N64ModernRuntime `df7e820d`
-and N64Recomp `c1a6dc93` source; they have not been observed in a running game.
-Whether the runtime falls back to `mods.json.bak` when `mods.json` is missing or
-unreadable is not established; Portcove reads and writes only `mods.json`, and both
-files are kept with each profile.
+A Windows run of Zelda64Recomp 1.2.2 exercised exact code consent, native menus,
+configuration changes, setup switching and restart. The newer minimum-version
+checks and recovery still need native qualification.
+[Windows trial evidence](https://github.com/boburning/portcove/issues/1457#issuecomment-6890575275)
+
+The runtime behavior was reviewed in Zelda64Recomp `54950a10`, N64ModernRuntime
+`df7e820d` and N64Recomp `c1a6dc93`. Portcove reads and writes `mods.json` and
+retains `mods.json.bak` with each setup.
+
+The pinned runtime reads `mods.json` first and tries `mods.json.bak` if it cannot
+open or parse the primary. When the primary is absent, Portcove checks the
+backup's enabled entries and recorded order. A matching backup can stay in use
+as-is. A malformed primary holds for review with both files preserved. If both
+files are absent, the selected setup supplies the initial list. These fallback rules are verified in the pinned source and
+Core fixtures. [Runtime list reader](https://github.com/N64Recomp/N64ModernRuntime/blob/df7e820d8c55e4fcb4616c210cbb2c01b25cd48c/librecomp/src/mods.cpp#L24-L36)
 
 ### Installing from GameBanana and Thunderstore
 
@@ -2019,7 +2682,7 @@ the only byte identity, and a version Thunderstore no longer offers cannot be
 installed. Thunderstore listings are read once per community, conditionally and
 cached, and shown in Thunderstore's order. Desktop browses either provider the same
 way; when a reviewed file contains mods that run code, it names them, says Portcove
-can't tell whether the code is safe, and installs only through **Allow their code and
+cannot tell whether the code is safe, and installs only through **Allow their code and
 install** (or **Allow its code and install** for one mod), which consents to exactly
 that reviewed plan.
 
@@ -2029,15 +2692,19 @@ shown before anything changes) and install it only after an explicit Install;
 Cancel discards the review. Stale data offers no review.
 
 `provider-browse` and `provider-project` only read. `provider-browse` lists one page
-(20 mods, pages 1–50; GameBanana's most downloaded first) of the bound game's mods
-and says when more pages exist; `provider-project` shows one mod's files or versions
+(20 mods; GameBanana's most downloaded first) of the bound game's mods and says
+when more pages exist. Thunderstore's whole-community index has download and
+package-count bounds; an oversized community response provides the provider's
+browse URL. `provider-project` shows one mod's files or versions
 with the IDs `provider-plan` takes, refusing a mod from another game. Provider text is
 sanitized presentation data: names, popularity and version labels never establish
 compatibility, and a `stale` result is earlier data from an outage.
 
 `provider-plan` needs a reviewed binding and a current provider observation; cached
-data from an outage never produces a plan. It refuses another game's project, an
-obsolete or archived file and a file the provider's scan reports as infected, and it
+data from an outage never produces a plan. Missing, null, or malformed eligibility
+flags leave the provider status unknown. Inspect the provider's project page and
+refresh the listing before reviewing that package or update. The plan refuses
+another game's project, an obsolete or archived file and a file the provider's scan reports as infected, and it
 checks a GameBanana file's type before downloading (a Thunderstore version is always
 a zip). It downloads privately (following only the
 provider's own hosts, enforcing the declared size), unwraps only the loader's package
@@ -2050,6 +2717,34 @@ two Recomp mods wins is not established. The plan binds the
 computed SHA-256 of the actual bytes. The provider's MD5 and scan results are shown
 as unverified claims. A displayed version label does not identify bytes; the file ID
 and computed digest do.
+
+For Thunderstore, the selected version and its exact declared provider
+dependencies form one reviewed installation. Each wrapper's bounded root
+manifest must agree with the exact listing. The plan lists each wrapper's
+coordinate, computed digest and complete native member set. It refuses missing
+or ambiguous versions, incompatible version requests, cycles and wrappers with
+no supported packages. A native filename, installed label or bundled mod cannot
+stand in for an exact provider wrapper. The plan bounds the aggregate downloads
+and extraction, and the combined closure receives one confirmation. Any newly
+reviewed mod code in that closure requires explicit permission.
+
+A Thunderstore `provider-plan` now includes the complete `wrappers` review,
+including a single-wrapper plan. Keep the whole plan for `provider-apply`.
+Dropping its wrapper or file-observation fields changes the plan digest. A
+Thunderstore plan prepared without wrapper review needs a fresh review before
+it can install. The encoding of GameBanana plans still omits
+Thunderstore-specific fields.
+
+An enabled dependant requires every recorded member of its exact provider
+dependencies to stay enabled. Disable the dependant before disabling or removing
+a required member. An automatic update reuses an unchanged dependency set only
+when every previously reviewed member is still exact and enabled. It stages the
+new root file privately. A changed dependency graph, missing member, or new
+code waits for review.
+
+Library database schema 63 requires Desktop and CLI versions that preserve exact
+provider dependencies. Close older clients before the first open by a newer
+client. The upgrade preserves existing revisions and player files.
 
 `portcove --library PATH --json profile provider-updates PORT_ID PROFILE_ID` is
 read-only. For each installed provider package it reports `current`, `newer_files`
@@ -2073,16 +2768,33 @@ when the game's setups are read, and Desktop discards a review it leaves.
 portcove --library PATH --json profile recipe-export PORT_ID PROFILE_ID [--revision N] > recipe.json
 portcove --library PATH --json profile recipe-inspect recipe.json
 portcove --library PATH --json profile recipe-plan recipe.json
-portcove --library PATH --json profile recipe-apply recipe.json --name NAME --expected-plan SHA256 --yes
+portcove --library PATH --json profile recipe-acquire recipe.json REVIEW_PROFILE NATIVE_ID > acquisition.json
+portcove --library PATH --json profile recipe-plan recipe.json --acquisition acquisition.json
+portcove --library PATH --json profile recipe-apply recipe.json --name NAME --expected-plan SHA256 --acquisition acquisition.json --yes
+portcove --library PATH --json profile recipe-discard acquisition.json
 ```
 
-A recipe (`format` 1) records a profile revision's identity: runtime artifact,
-runtime and definition identities, original inputs by content digest, packages with
+A recipe records a profile revision's runtime artifact, runtime and definition
+identities, original inputs, and packages with
 their provider coordinates, enabled state, dependency requirements and typed
 orderings. It never contains original game files, credentials, private machine
-paths, local profile or install IDs, saves or settings, and always lists what it
+paths, local profile or install IDs, saves or arbitrary settings, and always lists what it
 cannot reproduce. A recipe is untrusted data and grants no URL, path, script,
-acquisition or execution authority.
+acquisition or execution authority. Format 2 carries exact provider dependencies and supported settings. Format 3
+also records each original's content and
+stored representation by SHA-256 and size, including its observed identity
+when the setup recorded one. Formats 1 and 2 remain readable and identify
+originals by content. When multiple saved instances match a recipe without
+enough identity to distinguish them, ask for a new recipe that names the exact
+original.
+
+On reviewed Zelda64Recomp builds, supervised play captures exact declared numeric
+ranges and choices for enabled, managed packages. Profile recovery restores
+those recorded values using the same package’s declaration and keeps newer
+progress. Recomp recipes can share these typed values. Free-form text, unknown
+keys and files, unrelated built-ins, and ordinary preferences stay in the
+profile’s mutable native data. For a supported option a malformed live value
+holds reconciliation and lists the affected setting for review.
 
 `recipe-inspect` is local: no provider account, no network, bounded to 256 KiB. It
 refuses unknown fields at any depth, duplicate keys, an unsupported future format, a
@@ -2090,32 +2802,72 @@ forged identity digest, unsafe package names, missing dependencies and dependenc
 cycles. Export applies the same rules, so a profile with, for example, an enabled
 package whose requirement is disabled must be fixed before it can be shared; the
 refusal names the reason.
-`recipe-plan` reports each input as `available`, `acquirable` or `unavailable`.
-`acquirable` means a complete file reference to the provider this game has a
-reviewed binding for; its detail names the project and file to review with
-`provider-plan`. Any
-other provider reference is `unavailable`. The plan holds for a different platform, a missing
-runtime, an original requirement the game does not use, an
-unregistered or different original, or package bytes not in the store.
-`recipe-apply` works only when every input is already present, requires the reviewed
-`plan_sha256`, asks for confirmation, recomputes the plan under the port lock and
-creates a new profile with its own save group. A recipe's provider labels are
-unverified claims: the new profile keeps a label only when this library recorded
-exactly that label for the same bytes and file name, so update checks never follow
-a label the recipe supplied. The plan says when a label is not kept; dropping one
-changes the identity of a later export. Otherwise a round trip reproduces the
-recipe's identity exactly; that is not evidence of gameplay or save compatibility.
+`recipe-plan` checks local inputs offline. Exact verified inputs are `available`.
+A missing runtime or package is `unavailable` in this local review. When a
+missing package names a complete file reference for a reviewed provider, the
+detail gives the exact project and file. Choose Check provider in Desktop or run
+`recipe-acquire` against the named package and an existing setup for the same game.
+The private review checks the exact downloaded package name, size, digest and
+loader identity. Supply the resulting JSON to `recipe-plan` and `recipe-apply` using
+a repeatable `--acquisition`. Earlier results can also be supplied to
+`recipe-acquire` to reuse a previously checked wrapper. Close the Desktop review
+or run `recipe-discard` to release private staging. For originals, register the
+lawful local input in the game's existing setup workflow and inspect again.
+The plan also holds for a different platform, an original requirement the game
+does not use, or an unregistered, unreadable or changed original. The plan
+checks registered originals against the matched installation's retained rules.
+In Desktop, open Setups and mods to export or open a recipe. The review lists
+the exact inputs already present and those still needed. A ready review creates
+a named setup with its own fresh progress. Desktop preserves the exact native
+plan through review and import, including numeric settings, and shows supported
+setting values without JavaScript rounding.
+The imported setup starts with Review updates. Enable automatic updates
+separately in the destination library.
+
+`recipe-apply` checks every exact input in local storage or private staging, asks
+for confirmation, and recomputes the reviewed plan under the source and port
+locks. For the exact packages shown as needing permission, use the separate
+Desktop choice or `--allow-mod-code`. Portcove keeps provider provenance backed
+by a matching acquisition or prior evidence for the same file name and bytes.
+Re-exporting an earlier recipe with an original adds verified storage identity in
+format 3. Same-format round trips with all exact, supported inputs preserve
+resolved identity. Gameplay and save compatibility require separate evidence.
+
+#### Review a local mod file
+
+Use Add mod file in Desktop to review an exact archive before installing it.
+The review shows its native filename, replacements, shared assets when that
+comparison is supported, required packages, and any exact code permission.
+The setup list shows the game version and marks a held runtime. To return
+to an empty Default setup, choose Switch to clean play, then start the game
+from its regular Play action. Find mods can filter the current listing page
+by project, version or submitter. The project shows provider attribution and
+separates archived files from current variants.
+
+The versioned CLI offers the same exact local package review:
+
+```text
+portcove --library PATH --json profile package-plan PORT_ID PROFILE_ID FILE --expected-revision NUMBER
+portcove --library PATH --json profile package-apply PORT_ID PROFILE_ID FILE --expected-plan SHA256 --yes
+```
+
+Apply checks the file again under the port lock. If the review requests
+permission for the exact package's code, apply also requires
+`--allow-mod-code`. A reviewed replacement preserves its previous enabled
+state. Package store contents remain available to setup history.
 
 #### Unattended updates
 
 `profile policy PORT_ID PROFILE_ID automatic-eligible` lets the standing pass
 (`games setup-ready`) install a newer provider file for that setup without asking
-again. Desktop runs the same pass only while at least one game is set to install
-when ready or a folder has automatic setup; otherwise run `games setup-ready`. Setups with the other policies
-(`review-updates`, the default, and `keep-current`) are never contacted. The policy
-is consent, not authorization: each pass checks for updates again, plans the newer
-file with the same checks as `provider-plan`, and authorizes and applies that exact
-plan at once.
+again. While Desktop is open, the shared pass runs after the library opens,
+when the library changes (including a supervised game exit), after a mod setup
+change or a current provider project refresh, and every 15 minutes. A deferred
+update gets one earlier retry after 30 seconds. The CLI can run the pass with
+`games setup-ready`. Setups with the other policies (`review-updates`, the default,
+and `keep-current`) are never contacted. Each pass checks for updates again, plans
+the newer file with the same checks as `provider-plan`, and verifies the policy
+and exact setup revision under the port lock before applying the plan.
 
 Updates are decided per installed provider file. One is applied only when the
 observation is current, the provider offers exactly one newer file (for Thunderstore,
@@ -2133,8 +2885,9 @@ Results are reported in `mod_updates`, one per installed file:
   mod, changes which mod wins an asset, or contains a mod that runs code, which
   always waits for the player's consent); nothing changed and its staging is
   discarded. A hold found by comparing the newer file with the setup is remembered
-  for that setup revision and candidate file, so it is not downloaded again until
-  either changes.
+  for that setup revision and the candidate's observed file details. A change to
+  the revision, the candidate ID, or reported file details such as size causes
+  a new check. Exact byte inspection still governs any update.
 - `deferred`: something temporary, such as the game running, another change in
   progress, or files in the live `mods` folder the setup did not add, prevented it;
   this is checked before downloading, and the next pass tries again.
@@ -2146,15 +2899,31 @@ or by Portcove (UNKNOWN). `profile setups` reports `held_updates`: the remembere
 holds for each setup's current revision, only while its policy is
 `automatic-eligible`, with the setup's affected mods, the candidate file and the
 reason. A new revision of the setup, another outcome for that installed file (other than
-a deferral or an outage), or a newer candidate replaces or ends a hold, and the remembered holds are cleared
-entirely if they ever exceed 256. Desktop's Setups and mods panel shows the held
-updates for the setup in use and refreshes after an applied one; it does not show
-deferred or unavailable updates or holds for other setups, which
-`games setup-ready` lists.
+a deferral or an outage), or changed provider file details replace or end a hold.
+Portcove clears the remembered holds if their count reaches 256.
 
-Library metadata schema 6 carries profiles, revisions and the selected profile; it is
-emitted only when profiles exist and import validates each profile against its
-retained reference before writing. Precedence between packages that provide the same
+`profile setups` also reports the last automatic check for each setup with automatic
+updates. It records the time, affected mods and the result, including a current
+provider response that offered no newer file. These results remain available when
+reopening the library. An outage or a deferral is never shown as current. If the
+game setup queue cannot be read, `games setup-ready` returns a partial success
+with `game_setup_unavailable` and still checks automatic mods. Consumers must
+check that field before treating empty game work as a completed game assessment.
+Earlier clients returned an error for that queue failure before checking mods. The
+`profile setups` field `last_automatic_checks` may be absent when there is no
+receipt to show. It provides status for review and grants no update permission.
+
+In Desktop, use **Setups and mods** to choose the current setup's mod update
+policy or check for a newer file. An explicit check reads provider metadata and
+lets you open the project's files for review. An automatic update that needs a
+decision stays held until an eligible plan can be applied or you review the
+provider's exact files.
+
+Library metadata schema 6 carries profiles, revisions and the selected profile.
+Schema 11 also carries historical profile revisions whose runtime offers were
+retired, while requiring the current and selected revisions to stay retained.
+Export uses schema 11 when a profile has a retired recovery build. Import checks
+each profile against its retained reference before writing. Precedence between packages that provide the same
 asset path (`asset-override` ordering) follows the supplied order, last wins (see
 [the game's own mod list](#the-games-own-mod-list)).
 
@@ -2233,8 +3002,10 @@ portcove --library PATH --json installation reference-retire PORT_ID SETUP_ID RE
 `installation.reference` reports each offered revision's current availability
 under `history`. Retirement uses the same review-and-consent model as reference
 removal and is bound to the reviewed revision and the setup's current binding
-revision. It removes only the metadata hold; build files and player data stay in
-place for ordinary cleanup to evaluate.
+revision. It removes one offer for that setup. The runtime files and player data
+stay on disk, and other setups keep their references. Desktop offers the same
+review under Retained game versions in Setups and mods. The confirmation
+identifies the exact recovery offer and changes only retention metadata.
 
 ### Review and remove a setup reference
 
@@ -2253,20 +3024,22 @@ existing protections. Missing or held build bytes do not erase the reference or
 prevent its explicit removal when the operation's locking and lifecycle checks
 permit it.
 
-The four inspection/review commands use read-only Core startup and do not advance
-pending recovery. Binding and removal use ordinary recovering startup and accept
-CLI cancellation signals before durable publication. After interruption or lost
-output, read `installation reference` or `installation retained` to establish
-the saved outcome before obtaining another review; do not assume an interrupted
-caller means the reference change was rolled back.
+Inspection and review commands use read-only Core startup. Binding, removal
+and retirement use ordinary recovering startup and accept CLI cancellation
+signals before durable publication. After interruption or lost output, read
+`installation reference` or `installation retained` to establish the saved
+outcome before obtaining another review.
 
 JSON command names are `installation.retained`, `installation.reference`,
 `installation.reference-plan`, `installation.reference-bind`,
-`installation.reference-removal-plan`, and `installation.reference-remove`.
+`installation.reference-removal-plan`, `installation.reference-remove`,
+`installation.reference-retire-plan`, and `installation.reference-retire`.
 Each command also supports JSONL's terminal result envelope. `schema export`
 includes `retained_build_inventory`, `retained_build_reference`,
-`retained_build_resolution`, `retained_build_binding_preview`, and
-`retained_build_removal_preview` in both input and output directions. Check the
+`retained_build_resolution`, `retained_build_binding_preview`,
+`retained_build_removal_preview`, and `retained_build_retirement_preview` in both
+input and output directions. The retirement result has the same shape as the
+preview's `revision` member. Check the
 selected CLI's capabilities and schemas before using this maintained-source
 contract with a released binary.
 
@@ -2449,9 +3222,10 @@ its exact `--expected-plan` and `--acknowledge-shared-preferences` to
 [ownership and changed-account recovery](reference/managed-regaiden.md). Existing
 prepared registrations retain their non-owning contract. Local saves/settings
 remain managed; the resolved account-wide preferences file is never owned or
-included in backup/restore. The reference client accepts public API77 and requires
-explicit confirmation before transmitting acknowledgment. The current tested reference
-window extends through API87; unknown API88 and unknown consequential semantics are refused.
+included in backup/restore. For API 77, the reference client requires explicit
+confirmation before transmitting the acknowledgment. Check its
+[current compatibility table](../integrations/playnite/README.md#compatibility-and-use)
+before using the client with another CLI.
 
 ### Retired custom source creation
 

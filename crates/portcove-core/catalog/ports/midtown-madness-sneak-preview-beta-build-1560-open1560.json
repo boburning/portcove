@@ -6,6 +6,14 @@
     "summary": "Use a prepared Open1560 Windows x86 copy with your own Midtown Madness Sneak Preview Beta/build 1560 data. This partial native rewrite targets that preview, not the retail game. Preserve the complete game folder before playing: the game can remove replays and diagnostic files at exit.",
     "original_game_title": "Midtown Madness Sneak Preview Beta / Build 1560",
     "project_url": "https://github.com/0x1F9F1/Open1560",
+    "artwork": {
+      "game_id": 2348,
+      "cover_id": 433387,
+      "image_id": "co9aej",
+      "image_sha256": "0ed3580a93fd2114e56763429fc2c6289f30e0172306bc50e57ca23d21a7da76",
+      "game_slug": "midtown-madness",
+      "match_kind": "underlying-game"
+    },
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/0x1F9F1/Open1560",

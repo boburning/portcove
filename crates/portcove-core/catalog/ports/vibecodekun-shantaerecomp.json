@@ -3,11 +3,12 @@
   "listing": {
     "id": "vibecodekun-shantaerecomp",
     "name": "Shantae / shantaerecomp (vibecodekun)",
-    "summary": "Register an independently permitted Shantae Recomp Windows copy for your own exact USA ROM and retained portable state.",
+    "summary": "Play the Shantae recompilation with your own exact USA Game Boy Color ROM.",
+    "original_game_title": "Shantae",
     "project_url": "https://github.com/vibecodekun/shantaerecomp",
     "issue_number": 1881,
     "listed_at": "2026-10-23",
-    "platforms": ["windows-x86-64"],
+    "platforms": ["linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/vibecodekun/shantaerecomp",
     "artwork": {
@@ -22,38 +23,103 @@
       "help_url": "https://github.com/vibecodekun/shantaerecomp",
       "steps": [
         {
-          "title": "Complete supported preparation upstream",
-          "instruction": "Use an independently permitted complete shantae-recomp Windows copy and preserve the matching runtime DLLs, assets, shaders, notices and any selected patches. Normal players use shantae.exe and the supported first-run ROM chooser; upstream owns preparation and replacement. The title’s PolyForm Noncommercial grant does not replace separately named engine, UI, shader, font or original-game terms."
+          "title": "Choose your original ROM on first start",
+          "instruction": "Start the game and pick your own exact Shantae USA Game Boy Color ROM in its chooser: SHA-256 1b92e22d5510c51bab97d23074e4aad7464d93eb15f7596ef7da0a5efa27a19d, CRC32 E994B59B. World, Switch and Limited Run Games releases are different ROMs. The chooser enables Play only for the accepted original and remembers its path in rom.cfg, so keep the ROM where it is."
         },
         {
-          "title": "Keep your matching original",
-          "instruction": "Use your own exact Shantae USA Game Boy Color ROM, SHA-256 1b92e22d5510c51bab97d23074e4aad7464d93eb15f7596ef7da0a5efa27a19d, CRC32 E994B59B. Other releases including World, Switch and Limited Run Games are different ROMs. The chooser enables Play only for the accepted original or explicitly supported compiled patch variants; patch compatibility must be established for that actual build. No ROM is supplied or licensed by this registration."
-        },
-        {
-          "title": "Add the supported prepared player",
-          "instruction": "Select shantae.exe with its complete package directory as working directory and no arguments. The pinned native runtime runs the pre-boot launcher and game in-process for the normal session. Keep the supported public launcher entry and complete package; no private runner or per-title wrapper is introduced."
-        },
-        {
-          "title": "Start any additional game sessions separately",
-          "instruction": "Ordinary Quit ends the current process. Only explicitly choosing Return to Launcher schedules an atexit restart after saves close: on Windows that restart creates a new process without waiting. Treat that successor as upstream activity outside the attached session. Close every actual player and reopened launcher before maintenance or another attachment; registration status does not establish successor adoption or termination. This preserves the optional feature and does not disable it with arguments."
-        },
-        {
-          "title": "Review Play and retain external ownership",
-          "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Removing registration preserves external files. Upstream and you retain one runtime-replacement owner; Portcove provides no external update, backup, rollback, migration or deletion. Close actual players and companions before deliberate maintenance, keep the old working copy and all effective data, then review/relink changed selected bytes."
+          "title": "Use a copy you manage yourself",
+          "instruction": "Keep the complete package for your system together with its libraries, assets, shaders and notices, and start shantae.exe on Windows or shantae on Linux from its own folder with no arguments. Return to Launcher closes the game and starts the same program again."
         }
       ],
       "warnings": [
-        "Use only a copy and components you are independently permitted to use. No acquired-source-to-binary, gameplay, real-save, installed-client, Supported or protected acceptance is established. Preserve every original, runtime, save, setting, mod, cache, backup and custom root; another executable can share data.",
-        "Keep the whole creating package, original ROM and every effective external root.",
-        "Patch/native state compatibility is build-specific; do not infer save compatibility from another gbrecompiled game. Preserve per-shader licences and complete component notices."
+        "The project uses the PolyForm Noncommercial License 1.0.0; observe its noncommercial terms. The package includes recompiled game code without a licence grant, an unlicensed gbrecompiled engine fork, shaders under their own licences, and the Lato, Noto Sans Symbols 2 and OpenMoji fonts under the OFL and CC BY-SA licences. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+        "Save and save-state compatibility is specific to this build; do not assume another gbrecompiled game or version can read them. Portcove has not observed native setup, gameplay or saves."
       ],
       "references": [
         {
-          "title": "Preserve the whole copy and effective data",
-          "instruction": "Keep the whole creating package, original ROM and every effective external root. Windows defaults portable state beside the executable; GBRECOMP_STATE_DIR overrides state and GBRECOMP_ASSET_DIR overrides assets. Preserve rom.cfg, keybinds.ini, runtime_prefs.ini, imgui.ini, shantae.ini, .sav battery data, .rtc, .stateN, map/patch-specific data, mods, shader_presets, shader_cache, logs and backups. Patch/native state compatibility is build-specific; do not infer save compatibility from another gbrecompiled game. Preserve per-shader licences and complete component notices."
+          "title": "Keep the game folder's data",
+          "instruction": "By default the game keeps rom.cfg, keybinds.ini, runtime_prefs.ini, imgui.ini, shantae.ini, the shantae.sav battery save, shantae.state1 to shantae.state10, shader_presets and shader_cache beside the program; GBRECOMP_STATE_DIR moves them elsewhere. In a copy you manage yourself, back these up before replacing the program."
         }
       ]
     },
-    "download_block_reason": "Fresh acquisition of the selected bundled engine-fork scope remains held: THIRD-PARTY-LICENSES.md explicitly names the gbrecompiled fork as stating no licence of its own, separately from the parent gb-recompiled MIT and title PolyForm Noncommercial grants. The pinned build uses vibecodekun/gbrecompiled 314fce0895f66a3a7b41734a01040352e47a5b0b; do not inherit a grant for its separately authored changes. Use only an independently permitted existing copy. Resume with an attributable applicable grant for this exact fork scope or a reviewed compatible replacement package. Original game code/data and other named components retain their own rights."
+    "release_url": "https://github.com/vibecodekun/shantaerecomp/releases",
+    "download_asset_hints": {
+      "linux-x86-64": ["shantae-recomp-", "-linux-x86_64.tar.gz"]
+    },
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "shantae",
+      "evidence_urls": [
+        "https://github.com/vibecodekun/shantaerecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/vibecodekun-shantaerecomp.json"
+      ],
+      "source_editions": [
+        {
+          "id": "shantae-game-boy-color",
+          "title": "Shantae (Game Boy Color)",
+          "system": "game-boy-color",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/vibecodekun-shantaerecomp.json"
+          ]
+        }
+      ]
+    }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "vibecodekun/shantaerecomp",
+      "asset_hints": {
+        "windows-x86-64": ["shantae-recomp-", "-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["shantae.exe"]
+    },
+    "persistent_paths": [
+      "rom.cfg",
+      "runtime_prefs.ini",
+      "imgui.ini",
+      "keybinds.ini",
+      "shantae.ini",
+      "librashader_probe.txt",
+      "shantae.sav",
+      "shantae.rtc",
+      "shantae.state1",
+      "shantae.state2",
+      "shantae.state3",
+      "shantae.state4",
+      "shantae.state5",
+      "shantae.state6",
+      "shantae.state7",
+      "shantae.state8",
+      "shantae.state9",
+      "shantae.state10",
+      "shader_presets",
+      "shader_cache",
+      "borders",
+      "cheats",
+      "prints"
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "On first Play, pick your own exact Shantae USA Game Boy Color ROM in the game's chooser; it accepts only that ROM and remembers its path in rom.cfg, so keep the ROM where it is. The game keeps its settings (rom.cfg, keybinds.ini, runtime_prefs.ini, imgui.ini, shantae.ini), the shantae.sav battery save, save states shantae.state1 to shantae.state10, shader presets and the shader cache in the game folder, and Portcove keeps them, with any borders, cheats and prints folders you add, across updates, backups and rollback. Return to Launcher starts the same program again from the game folder, and Portcove keeps tracking it. The game finds its folder through a Windows API that cannot represent every character, so use a short library path with plain ASCII characters; Portcove refuses other install folders before download. Setting GBRECOMP_STATE_DIR or GBRECOMP_ASSET_DIR for your user account moves the game's data outside the managed copy. Portcove replaces the program; you own the ROM."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["assets", "shaders"],
+        "executables": ["shantae.exe"]
+      }
+    },
+    "windows_tracked_handoff": true,
+    "windows_runtime_path_policy": "printable-ascii-max-path"
   }
 }

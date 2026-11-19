@@ -9,14 +9,14 @@ use std::{
 };
 use tokio::sync::Semaphore;
 
-fn remote_thumbnail_workers() -> Arc<Semaphore> {
+pub(crate) fn remote_thumbnail_workers() -> Arc<Semaphore> {
     static WORKERS: OnceLock<Arc<Semaphore>> = OnceLock::new();
     Arc::clone(
         WORKERS.get_or_init(|| Arc::new(Semaphore::new(portcove_core::IGDB_ARTWORK_WORK_LIMIT))),
     )
 }
 
-async fn thumbnail_worker<T, F>(
+pub(crate) async fn thumbnail_worker<T, F>(
     workers: Arc<Semaphore>,
     remote: bool,
     operation: F,
@@ -263,6 +263,48 @@ pub(crate) async fn get_artwork_thumbnail(
         // Resolve the current generation again; Core checks the slot revision.
         service_at_generation(&state, generation)?
             .artwork_thumbnail(&port_id, slot, expected_revision)
+            .map(display_thumbnail)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn get_collection_cover_thumbnail(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    expected_sha256: String,
+    expected_revision: u64,
+    generation: u64,
+) -> DesktopResult<DesktopArtworkThumbnail> {
+    let state = state.inner().clone();
+    thumbnail_worker(remote_thumbnail_workers(), true, move || {
+        service_at_generation(&state, generation)?
+            .collection_cover_thumbnail(&port_id, &expected_sha256, expected_revision)
+            .map(display_thumbnail)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn get_companion_cover_thumbnail(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    expected_primary_cache_id: String,
+    expected_sha256: String,
+    expected_revision: u64,
+    generation: u64,
+) -> DesktopResult<DesktopArtworkThumbnail> {
+    let state = state.inner().clone();
+    thumbnail_worker(remote_thumbnail_workers(), true, move || {
+        service_at_generation(&state, generation)?
+            .companion_cover_thumbnail(
+                &port_id,
+                &expected_primary_cache_id,
+                &expected_sha256,
+                expected_revision,
+            )
             .map(display_thumbnail)
             .map_err(Into::into)
     })

@@ -49,6 +49,24 @@
           "instruction": "Use Back up saves in the Android launcher to export EEPROM and Controller Pak files. Keep the exported ZIP separately before changing signing identity, clearing app data or uninstalling."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "aerogauge",
+      "evidence_urls": [
+        "https://github.com/alondero/aerogauge-recomp#readme",
+        "https://github.com/alondero/aerogauge-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "aerogauge-nintendo-64",
+          "title": "AeroGauge (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/alondero/aerogauge-recomp/blob/38c9fc31101e27b1ef38d11923e42be779aa53ef/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {
@@ -90,7 +108,17 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Add your original in Portcove",
+            "instruction": "Choose your own AeroGauge US cartridge dump. Portcove checks the original and places it in the managed game folder. Select Play when setup is complete."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alondero/aerogauge-recomp#readme"
+      }
     }
   }
 }

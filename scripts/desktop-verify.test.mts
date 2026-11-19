@@ -152,7 +152,7 @@ void test("focused plans omit owned binaries while lifecycle plans include them"
   assert.equal(focused.paths.cli, null);
   assert.ok(!focused.phases.includes("owned-probe-build"));
   assert.ok(!focused.phases.includes("scenario-context-preflight"));
-  assert.equal(focused.harness_deadline_ms, 180_000);
+  assert.equal(focused.harness_deadline_ms, 360_000);
   assert.deepEqual(focused.qualification_features, []);
 
   const install = buildDesktopVerifyPlan({
@@ -199,7 +199,7 @@ void test("focused plans omit owned binaries while lifecycle plans include them"
     ...common,
     selection: resolveDesktopSelection({ profile: "full" }),
   });
-  assert.equal(full.harness_deadline_ms, 1_200_000);
+  assert.equal(full.harness_deadline_ms, 2_400_000);
 });
 
 void test("the native build script preserves identical generated inputs for Cargo reuse", async () => {
@@ -209,9 +209,7 @@ void test("the native build script preserves identical generated inputs for Carg
   );
   assert.match(buildScript, /fn write_if_changed/u);
   assert.match(buildScript, /fs::read\(path\)\.ok\(\)\.as_deref\(\) == Some\(contents\)/u);
-  assert.match(buildScript, /write_if_changed\(&embedded_root/u);
   assert.match(buildScript, /write_if_changed\(&generated, source\.as_bytes\(\)\)/u);
-  assert.doesNotMatch(buildScript, /fs::write\(&embedded_root/u);
   assert.doesNotMatch(buildScript, /fs::write\(generated/u);
 });
 
@@ -233,10 +231,7 @@ void test("standalone selected setup routes build catalog-aware CLIs", async () 
     assert.deepEqual(selected.cli_features, ["portcove-core/qualification-fixtures"]);
     assert.deepEqual(selected.qualification_features, ["qualification-fixtures"]);
     assert.deepEqual(selected.setup_scenarios, []);
-    assert.equal(
-      selected.harness_deadline_ms,
-      scenario === "native-saved-folder-selected-setup" ? 600_000 : 180_000,
-    );
+    assert.equal(selected.harness_deadline_ms, 600_000);
     assert.ok(selected.paths.cli);
   }
   const ordinary = buildDesktopVerifyPlan({

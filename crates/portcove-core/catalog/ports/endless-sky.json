@@ -1,0 +1,94 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "endless-sky",
+    "name": "Endless Sky",
+    "original_game_title": "Endless Sky",
+    "artwork": {
+      "game_id": 34409,
+      "cover_id": 116295,
+      "image_id": "co2hqf",
+      "image_sha256": "7787ad2d0821574f248759b0e278ac23219dc86b4b2f800029668670f864b7bc",
+      "game_slug": "endless-sky",
+      "match_kind": "underlying-game"
+    },
+    "summary": "Captain a ship, trade cargo, and explore a galaxy of stories in an open-source space adventure.",
+    "project_url": "https://github.com/endless-sky/endless-sky",
+    "issue_number": 6495,
+    "listed_at": "2026-11-16",
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/endless-sky/endless-sky/releases/latest",
+    "setup_url": "https://github.com/endless-sky/endless-sky/wiki/PlayersManual",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install and play on Windows or Linux",
+          "instruction": "Portcove installs the publisher’s Windows x64 ZIP or Linux x64 AppImage. On Linux, the AppImage needs FUSE support. Select Play to use your normal Endless Sky profile."
+        },
+        {
+          "title": "Choose a desktop package",
+          "instruction": "On Windows, extract the whole ZIP for your system and open Endless Sky.exe. On Linux x86-64, allow the publisher AppImage to run as a program and open it, or use your distribution’s package. Flathub also offers Linux x86-64 and ARM64. On Mac, open the publisher disk image and copy Endless Sky.app to Applications."
+        },
+        {
+          "title": "Start a pilot",
+          "instruction": "Choose New Pilot, then select a starting scenario. The game saves progress while you are landed."
+        }
+      ],
+      "warnings": [
+        "Before updating or moving the game, close it and copy the whole player-data folder, including saves, pilots, preferences, and plugins."
+      ],
+      "references": [
+        {
+          "title": "Find your player data",
+          "instruction": "The default folder is %APPDATA%/endless-sky on Windows, ~/Library/Application Support/endless-sky on Mac, and ~/.local/share/endless-sky on Linux. Linux uses XDG_DATA_HOME if you set it. A Flatpak profile lives under ~/.var/app/io.github.endless_sky.endless_sky/data/endless-sky. If you start the game with --config, keep the folder you selected there."
+        },
+        {
+          "title": "Find the separate Android port",
+          "instruction": "F-Droid carries a separately maintained Android port. Its versions and profile handling follow that port."
+        }
+      ],
+      "help_url": "https://github.com/endless-sky/endless-sky/wiki/PlayersManual"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "endless-sky/endless-sky",
+      "asset_hints": {
+        "windows-x86-64": ["endlesssky-win64-", ".zip"],
+        "linux-x86-64": ["endless_sky-", "-x86_64.appimage"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["Endless Sky.exe"],
+      "linux-x86-64": ["EndlessSky.AppImage"]
+    },
+    "persistent_paths": [],
+    "external_profile_policy": "endless-sky-desktop-v1",
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Portcove manages the game files. Back up your pilot saves, preferences and plugins separately with the game closed. The normal profile is under the account’s roaming AppData folder on Windows and under XDG_DATA_HOME or ~/.local/share on Linux, in the endless-sky subfolder. For custom profile paths, use a separately prepared upstream copy. Linux requires FUSE support."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["data", "images", "shaders", "sounds"],
+        "executables": ["endless sky.exe"]
+      }
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "endless-sky",
+    "origin": {
+      "project_url": "https://github.com/endless-sky/endless-sky"
+    },
+    "decisions": []
+  }
+}

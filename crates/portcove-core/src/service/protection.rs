@@ -131,6 +131,19 @@ fn observed_path(path: PathBuf) -> ProtectionPath {
 }
 
 impl PortcoveService {
+    /// Read the active installation's protection without loading backup history.
+    pub fn active_installation_protection(
+        &self,
+        port_id: &str,
+    ) -> Result<Option<InstallationProtection>> {
+        let port = self.catalog.port(port_id)?;
+        let status = self.library.status(port_id, super::default_channel(port))?;
+        Ok(status
+            .active
+            .as_ref()
+            .map(|install| self.installation_protection(install, ProtectionInstallRole::Active)))
+    }
+
     pub(super) fn player_data_protection(
         &self,
         port: &PortDefinition,
@@ -171,7 +184,8 @@ impl PortcoveService {
             managed_data: observed_path(self.library.user_dir(&port.id)),
             installations,
             problem,
-            latest_completed_backup: backups.iter().filter(|backup| backup.port_id == port.id)
+            // A backup holding only unknown player-side files protects no saves.
+            latest_completed_backup: backups.iter().filter(|backup| backup.port_id == port.id && backup.file_count > 0)
                 .max_by(|a, b| a.created_at.cmp(&b.created_at).then_with(|| a.id.cmp(&b.id)))
                 .cloned(),
             exclusions: vec![
@@ -375,6 +389,13 @@ mod tests {
         let inventory = service.list_backups("zelda64-recomp").unwrap();
         let protection = inventory.protection.unwrap();
         let install = &protection.installations[0];
+        assert_eq!(
+            service
+                .active_installation_protection("zelda64-recomp")
+                .unwrap()
+                .as_ref(),
+            Some(install)
+        );
         assert_eq!(install.update_owner, InstallationUpdateOwner::Portcove);
         assert_eq!(install.role, ProtectionInstallRole::Active);
         assert_ne!(

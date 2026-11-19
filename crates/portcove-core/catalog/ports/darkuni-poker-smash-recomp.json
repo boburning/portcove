@@ -2,19 +2,26 @@
   "format_version": 1,
   "listing": {
     "id": "darkuni-poker-smash-recomp",
+    "artwork": {
+      "game_id": 21351,
+      "cover_id": 51143,
+      "image_id": "qao4hoonhugsw03xmifm",
+      "image_sha256": "ff66efc38bdde254be2944957a7dc48296c47a333e12b1c04ef29dd1df015aee",
+      "game_slug": "poker-smash",
+      "match_kind": "underlying-game"
+    },
     "name": "Poker Smash (darkuni Recomp)",
-    "summary": "Player-managed Windows setup for Poker Smash using its own Xbox 360 package.",
+    "summary": "Play Poker Smash with darkuni's Windows recompilation and your own purchased Xbox 360 package.",
     "project_url": "https://github.com/darkuni/poker-smash-recomp",
     "original_game_title": "Poker Smash",
     "issue_number": 4122,
     "listed_at": "2026-11-08",
-    "platforms": ["windows-x86-64"],
-    "availability": "unknown",
+    "availability": "packages",
     "manual_setup": {
       "steps": [
         {
-          "title": "Prepare your original in the upstream folder",
-          "instruction": "With an already permitted Windows x64 copy, keep its files together in a writable folder. Put your own Xbox 360 LIVE package for title 5841089C beside poker_smash.exe. The complete 5841089C/000D0000 console export also fits. The reviewed input uses TU 0.0.1.4."
+          "title": "Prepare your original beside the program",
+          "instruction": "Copy your own purchased full Poker Smash Xbox 360 LIVE package (title 5841089C, title update 0.0.1.4) beside poker_smash.exe as the complete 5841089C console export folder (5841089C/000D0000/<package>). Keep your original export separately."
         },
         {
           "title": "Use the documented Windows prerequisites",
@@ -22,19 +29,67 @@
         },
         {
           "title": "Complete first-run setup",
-          "instruction": "Start poker_smash.exe in that folder and let the upstream program prepare assets. Keep your original export separately."
+          "instruction": "Start poker_smash.exe and let the upstream program prepare assets from your package on first start."
         },
         {
-          "title": "Preserve the creating folder",
-          "instruction": "Keep the generated assets, poker_smash.toml and any game-created profile, saves or diagnostic files alongside the creating version."
+          "title": "Keep your settings and saves",
+          "instruction": "Keep the generated assets, poker_smash.toml and the 5841089C folder with the program. Saves and the shader cache stay in Documents\\poker_smash."
         }
       ],
       "warnings": [
-        "Use an already permitted copy. The published license for the upstream project has its own scope, and the package contains translated title code. Fresh acquisition needs attributable permission for that code or a separately reviewed preparation route.",
-        "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+        "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own purchased full game package; the program always runs as the full game and does not grant or change an entitlement.",
+        "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
       ],
       "help_url": "https://github.com/darkuni/poker-smash-recomp/blob/0465face8472373cac3283e13655206941310a62/README.md"
     },
-    "download_block_reason": "Fresh Portcove downloads are held because the selected Poker Smash executable contains translated title code and the published project license does not establish permission for that separate component. Resume with an attributable applicable grant or a reviewed package or preparation route that resolves it. Independently permitted copies retain their own setup route."
-  }
+    "release_url": "https://github.com/darkuni/poker-smash-recomp/releases",
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "poker-smash",
+      "evidence_urls": [
+        "https://github.com/darkuni/poker-smash-recomp/blob/0465face8472373cac3283e13655206941310a62/README.md",
+        "https://github.com/darkuni/poker-smash-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "poker-smash-xbox-360",
+          "title": "Poker Smash (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/darkuni/poker-smash-recomp/blob/90701cdbd465d1d3f3524822aeae9ac36637e66f/README.md"
+          ]
+        }
+      ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "darkuni/poker-smash-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["PokerSmash-", "-win64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["poker_smash.exe"]
+    },
+    "persistent_paths": ["5841089C", "assets", "poker_smash.toml"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Before first Play, copy your own purchased full Poker Smash Xbox 360 LIVE package (title 5841089C, title update 0.0.1.4) into the managed Poker Smash folder as the complete 5841089C console export folder (5841089C/000D0000/<package>), and keep your original separately. Poker Smash always runs as the full game; that does not grant or change an entitlement, so use only a full package you own. On first Play, Poker Smash finds the package and extracts the game into assets beside poker_smash.exe; without a package it explains what it needs and closes. This download is the recompiled program with its runtime and contains no game data; the project license does not cover the recompiled game code. Portcove preserves the 5841089C folder, assets and poker_smash.toml across updates and backups. Once the game has started, you can delete the copied 5841089C folder so it is not kept in backups; assets is all the game needs. Logs and crash reports beside the program are diagnostics. Saves and the shader cache are in Documents\\poker_smash, outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if Poker Smash does not start. Portcove replaces the program; upstream owns package import and save formats."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["licenses"],
+        "executables": ["poker_smash.exe"]
+      }
+    }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

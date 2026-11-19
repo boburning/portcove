@@ -29,7 +29,11 @@
         },
         {
           "title": "Keep upstream update ownership and platform handoffs",
-          "instruction": "On Windows, Portcove replaces the managed runtime and preserves its declared data. A separate existing Windows copy stays yours: registering it preserves every external file and Portcove does not manage its Update, Backup or Rollback, and the normal-profile settings described below are not imported into a managed install. Elsewhere, you and upstream replace this external player. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+          "instruction": "On Windows, Portcove replaces the managed runtime and preserves its declared data. A separate existing Windows copy stays yours: registering it preserves every external file and Portcove does not manage its Update, Backup or Rollback, and the normal-profile settings described below are not imported into a managed install. Elsewhere, you and upstream replace this external player. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. A native Linux build outside Flatpak uses its own profile, usually ~/.config/raze. Preserve that profile and any older ~/.raze directory before launching a replacement."
+        },
+        {
+          "title": "Use Raze from Flathub on Linux",
+          "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Make sure ~/.config exists in your home directory. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game if a picker appears. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
         }
       ],
       "warnings": [
@@ -50,6 +54,26 @@
       "image_sha256": "8c04ef5da0d94761f148f784e5887ad8fe314a7dbea0a03320bd5d5cac971abb",
       "game_slug": "duke-nukem-3d",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "duke-nukem-3d",
+      "evidence_urls": [
+        "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/README.md",
+        "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt",
+        "https://github.com/ZDoom/Raze"
+      ],
+      "source_editions": [
+        {
+          "id": "duke-nukem-3d-pc",
+          "title": "Duke Nukem 3D (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/duke-nukem-3d-raze.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -87,6 +111,12 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Choose Install, then Play. In Raze, choose the detected game and edition, or add the folder holding your own original game files. Keep your originals where they are. The managed Windows player keeps its configuration (raze_portable.ini), saves, screenshots and demos beside it; its normal-profile settings are not imported. Raze keeps some caches under your Windows local application data folder outside Portcove."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["soundfonts"],
+        "executables": ["raze.exe"]
+      }
     }
   }
 }

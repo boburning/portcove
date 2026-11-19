@@ -1,4 +1,5 @@
 import { captureParityState } from "../../test/parity-capture";
+import { expectDisclosureAlignment } from "../../test/disclosure-alignment";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -12,6 +13,363 @@ import type { PortOutputLocation, ReadinessBlocker, SourceHealth } from "../type
 import "../styles/index.css";
 
 afterEach(cleanup);
+
+it.each([
+  { theme: "dark", savedArguments: ["--fullscreen"] },
+  { theme: "light", savedArguments: ["--profile", "", "first\nsecond"] },
+])(
+  "preserves external Manage launch facts and their edit identity in compact RTL $theme",
+  async ({ theme, savedArguments }) => {
+    const oldTheme = document.documentElement.dataset.theme;
+    const oldViewport = { width: innerWidth, height: innerHeight };
+    const port = portDefinition();
+    const executable = String.raw`\\?\C:\Player\External runtime installations\نسخة محفوظة\Original game folder\game.exe`;
+    const directory = String.raw`\\مخدم\ألعاب\External runtime installations\Original game folder`;
+    const record = {
+      id: "manage-selected-runtime",
+      port_id: port.id,
+      path: directory,
+      executable,
+      version: "user-managed",
+      platform: "windows-x86-64" as const,
+      archive_sha256: "",
+      immutable_tree_sha256: "",
+      registered_at: 1,
+      user_selected: { arguments: savedArguments },
+    };
+    const preview = vi
+      .spyOn(desktopApi, "previewUserSelectedRuntimeRelink")
+      .mockRejectedValue(new Error("Read-only consumer fixture: review reached"));
+    const mutations = [
+      vi
+        .spyOn(desktopApi, "registerUserSelectedRuntime")
+        .mockRejectedValue(new Error("Unexpected mutation")),
+      vi
+        .spyOn(desktopApi, "relinkUserSelectedRuntime")
+        .mockRejectedValue(new Error("Unexpected mutation")),
+      vi
+        .spyOn(desktopApi, "removeExternalRuntime")
+        .mockRejectedValue(new Error("Unexpected mutation")),
+      vi.spyOn(desktopApi, "launch").mockRejectedValue(new Error("Unexpected launch")),
+    ];
+    const launch = vi.fn();
+    await page.viewport(430, 896);
+    document.documentElement.dataset.theme = theme;
+    try {
+      await render(
+        <div dir="rtl" style={{ padding: 16 }}>
+          <DetailPanel
+            port={port}
+            status={{ ...portStatus(), external_runtime: record }}
+            sourcePath=""
+            setSourcePath={vi.fn()}
+            actions={{ ...detailActions, launch }}
+            libraryGeneration={19}
+          />
+        </div>,
+      );
+      await page.getByRole("tab", { name: "Manage", exact: true }).click();
+      const heading = page.getByRole("heading", { name: "External installation", exact: true });
+      await expect.element(heading).toBeVisible();
+      const facts = heading.element().closest("section")!.querySelector("dl")!;
+      expect(getComputedStyle(facts).direction).toBe("rtl");
+      expect([...facts.querySelectorAll("dt")].map((label) => label.textContent)).toEqual([
+        "Game program",
+        "Start in folder",
+        "Launch options (advanced)",
+      ]);
+      const paths = [...facts.querySelectorAll<HTMLElement>("dd.path-value")];
+      expect(paths.map((value) => value.textContent)).toEqual([executable, directory]);
+      expect([...facts.querySelectorAll("code")].map((value) => value.textContent)).toEqual(
+        savedArguments.filter(Boolean),
+      );
+      expect(facts.textContent?.includes("Empty argument")).toBe(savedArguments.includes(""));
+      for (const argument of facts.querySelectorAll("code")) {
+        expect(getComputedStyle(argument).whiteSpace).toBe("pre-wrap");
+      }
+      facts.scrollIntoView({ block: "center" });
+      await document.fonts.ready;
+      for (const value of [...paths, ...facts.querySelectorAll("code")]) {
+        expect(value.getAttribute("dir")).toBe("ltr");
+        expect(getComputedStyle(value).direction).toBe("ltr");
+        expect(getComputedStyle(value).unicodeBidi).not.toContain("override");
+        const bounds = value.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(value);
+        for (const rect of [...range.getClientRects()].filter((rect) => rect.width > 0)) {
+          expect(rect.left).toBeGreaterThanOrEqual(0);
+          expect(rect.right).toBeLessThanOrEqual(innerWidth);
+          expect(rect.top).toBeGreaterThanOrEqual(0);
+          expect(rect.bottom).toBeLessThanOrEqual(innerHeight);
+          expect(rect.left).toBeGreaterThanOrEqual(bounds.left - 1);
+          expect(rect.right).toBeLessThanOrEqual(bounds.right + 1);
+        }
+      }
+      const prefix = document.createRange();
+      prefix.setStart(paths[0]!.firstChild!, 0);
+      prefix.setEnd(paths[0]!.firstChild!, 7);
+      expect(prefix.toString()).toBe("\\\\?\\C:\\");
+      expect(prefix.getClientRects()).toHaveLength(1);
+      const serverPrefix = [0, 1, 2].map((index) => {
+        const glyph = document.createRange();
+        glyph.setStart(paths[1]!.firstChild!, index);
+        glyph.setEnd(paths[1]!.firstChild!, index + 1);
+        return glyph.getBoundingClientRect().top;
+      });
+      expect(directory.slice(0, 3)).toBe("\\\\م");
+      expect(Math.max(...serverPrefix) - Math.min(...serverPrefix)).toBeLessThanOrEqual(1);
+      expect(preview).not.toHaveBeenCalled();
+      await captureParityState("detail-manage-selected-launch-facts");
+      await page.getByRole("button", { name: "Edit external launch details", exact: true }).click();
+      await expect
+        .element(page.getByRole("tab", { name: "Game files", exact: true }))
+        .toHaveAttribute("aria-selected", "true");
+      expect(
+        document.querySelector("[data-detail-workspace]")?.getAttribute("data-detail-port-id"),
+      ).toBe(port.id);
+      await page.getByRole("button", { name: "Edit launch details…", exact: true }).click();
+      await expect
+        .element(page.getByRole("textbox", { name: "Start in folder", exact: true }))
+        .toHaveValue(directory);
+      await page.getByRole("button", { name: "Review launch details", exact: true }).click();
+      await expect
+        .poll(() => preview.mock.calls)
+        .toEqual([[port.id, executable, directory, savedArguments, 19]]);
+      for (const mutation of mutations) expect(mutation).not.toHaveBeenCalled();
+      expect(launch).not.toHaveBeenCalled();
+    } finally {
+      preview.mockRestore();
+      for (const mutation of mutations) mutation.mockRestore();
+      if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = oldTheme;
+      await page.viewport(oldViewport.width, oldViewport.height);
+    }
+  },
+);
+
+it.each(["dark", "light"] as const)(
+  "aligns all padded disclosure markers to the first wrapped line in %s",
+  async (theme) => {
+    const oldTheme = document.documentElement.dataset.theme;
+    const oldFontSize = document.documentElement.style.fontSize;
+    const oldViewport = { width: innerWidth, height: innerHeight };
+    await page.viewport(430, 780);
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.fontSize = "16px";
+    try {
+      await render(
+        <div style={{ inlineSize: 260, padding: 16 }}>
+          {["ltr", "rtl"].map((direction) => (
+            <section key={direction} dir={direction}>
+              {[1, 2, 3].map((spacing) => (
+                <details key={spacing}>
+                  <summary className={`disclosure-pad-${spacing}`}>
+                    {direction === "rtl"
+                      ? "تفاصيل التثبيت ونتائج الفحص والملفات المحفوظة"
+                      : "Installation details, recorded checks and preserved game files"}
+                  </summary>
+                  <p>Recorded details remain separate from current checks.</p>
+                </details>
+              ))}
+            </section>
+          ))}
+        </div>,
+      );
+      await document.fonts.ready;
+      const summaries = [...document.querySelectorAll<HTMLElement>("summary")];
+      expect(summaries).toHaveLength(6);
+      for (const [index, summary] of summaries.entries()) {
+        // Retain the existing 4/8/12 px hit-area padding as well as the drawn alignment.
+        const padding = [4, 8, 12][index % 3];
+        expect(parseFloat(getComputedStyle(summary).paddingBlockStart)).toBe(padding);
+        expect(parseFloat(getComputedStyle(summary).paddingBlockEnd)).toBe(padding);
+        const text = document.createRange();
+        text.selectNodeContents(summary);
+        expect(text.getClientRects().length).toBeGreaterThan(1);
+        expectDisclosureAlignment(summary);
+        expect(summary.scrollWidth).toBeLessThanOrEqual(summary.clientWidth + 1);
+        summary.focus();
+        await userEvent.keyboard("{Enter}");
+        expect(summary.closest("details")!.open).toBe(true);
+        expectDisclosureAlignment(summary);
+        await userEvent.keyboard("{Enter}");
+        expect(summary.closest("details")!.open).toBe(false);
+      }
+      await captureParityState("disclosure-spacing-wrapped-ltr-rtl");
+    } finally {
+      document.documentElement.style.fontSize = oldFontSize;
+      if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = oldTheme;
+      await page.viewport(oldViewport.width, oldViewport.height);
+    }
+  },
+);
+
+it.each(["dark", "light"] as const)(
+  "aligns the actual Versions future-preferences disclosure in %s",
+  async (theme) => {
+    const oldTheme = document.documentElement.dataset.theme;
+    const oldViewport = { width: innerWidth, height: innerHeight };
+    await page.viewport(430, 780);
+    document.documentElement.dataset.theme = theme;
+    try {
+      const props = installedSourceDetail("road-rash-64-recompiled", "not_checked");
+      props.actions.check = vi.fn();
+      await render(<DetailPanel {...props} />);
+      await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
+      const summary = page.getByText("Future update preferences", { exact: true });
+      await expect.element(summary).toBeVisible();
+      summary.element().scrollIntoView({ block: "center" });
+      await document.fonts.ready;
+      expectDisclosureAlignment(summary.element());
+      summary.element().focus();
+      await userEvent.keyboard("{Enter}");
+      expect(summary.element().closest("details")!.open).toBe(true);
+      expectDisclosureAlignment(summary.element());
+      await expect.element(page.getByText(/Saving them does not run an update/)).toBeVisible();
+      await userEvent.keyboard("{Enter}");
+      expect(summary.element().closest("details")!.open).toBe(false);
+      expect(document.activeElement).toBe(summary.element());
+      const bounds = summary.element().getBoundingClientRect();
+      expect(bounds.top).toBeGreaterThanOrEqual(0);
+      expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+      await captureParityState("versions-future-preferences-disclosure-aligned");
+      expect(props.actions.check).not.toHaveBeenCalled();
+      expect(props.actions.launch).not.toHaveBeenCalled();
+    } finally {
+      if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = oldTheme;
+      await page.viewport(oldViewport.width, oldViewport.height);
+    }
+  },
+);
+
+function expectManualSummaryGeometry(label: Element, direction: "ltr" | "rtl") {
+  const summary = fixtureValue(label.closest("summary"), "manual summary");
+  const text = fixtureValue(summary.querySelector<HTMLElement>(":scope > span"), "summary text");
+  const icon = fixtureValue(summary.querySelector<SVGSVGElement>(":scope > svg"), "manual chevron");
+  summary.scrollIntoView({ block: "center", behavior: "instant" });
+  const bounds = summary.getBoundingClientRect();
+  const textBounds = text.getBoundingClientRect();
+  const iconBounds = icon.getBoundingClientRect();
+  const style = getComputedStyle(summary);
+  const titleRange = document.createRange();
+  titleRange.selectNodeContents(label);
+  const firstLine = fixtureValue([...titleRange.getClientRects()][0], "first title line");
+  const trailingDistance =
+    direction === "rtl"
+      ? Math.abs(iconBounds.left - bounds.left - parseFloat(style.paddingLeft))
+      : Math.abs(bounds.right - parseFloat(style.paddingRight) - iconBounds.right);
+  expect(trailingDistance).toBeLessThanOrEqual(1);
+  expect(
+    Math.abs((iconBounds.top + iconBounds.bottom) / 2 - (firstLine.top + firstLine.bottom) / 2),
+  ).toBeLessThanOrEqual(2);
+  expect(iconBounds.width).toBeGreaterThan(0);
+  expect(iconBounds.height).toBeGreaterThan(0);
+  expect(iconBounds.left).toBeGreaterThanOrEqual(bounds.left);
+  expect(iconBounds.right).toBeLessThanOrEqual(bounds.right);
+  expect(iconBounds.top).toBeGreaterThanOrEqual(bounds.top);
+  expect(iconBounds.bottom).toBeLessThanOrEqual(bounds.bottom);
+  const textRange = document.createRange();
+  textRange.selectNodeContents(text);
+  for (const line of textRange.getClientRects()) {
+    expect(line.left).toBeGreaterThanOrEqual(textBounds.left - 1);
+    expect(line.right).toBeLessThanOrEqual(textBounds.right + 1);
+  }
+  expect(summary.scrollWidth).toBeLessThanOrEqual(summary.clientWidth + 1);
+  expect(bounds.top).toBeGreaterThanOrEqual(0);
+  expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+}
+
+it.each(
+  ([430, 960] as const).flatMap((width) =>
+    (["dark", "light"] as const).flatMap((theme) =>
+      (["ltr", "rtl"] as const).map((direction) => ({ width, theme, direction })),
+    ),
+  ),
+)(
+  "keeps actual manual summaries attached to their first text row in $theme $direction at $width",
+  async ({ width, theme, direction }) => {
+    const oldTheme = document.documentElement.dataset.theme;
+    const oldViewport = { width: innerWidth, height: innerHeight };
+    const folderError = "Owned manual-summary folder read unavailable";
+    const read = vi.spyOn(desktopApi, "outputLocation").mockRejectedValue(new Error(folderError));
+    const relocation = vi.spyOn(desktopApi, "outputRelocationStatus").mockResolvedValue(null);
+    const apply = vi
+      .spyOn(desktopApi, "setOutputLocation")
+      .mockRejectedValue(new Error("No apply expected"));
+    const reset = vi
+      .spyOn(desktopApi, "resetOutputLocation")
+      .mockRejectedValue(new Error("No reset expected"));
+    const props = {
+      ...installedSourceDetail("opengoal-jak1", "not_checked", ["preparation_required"]),
+      source: undefined,
+      sourcePath: "",
+    };
+    props.status.readiness.pending_setup = true;
+    props.actions.install = vi.fn();
+    props.actions.reviewInstall = vi.fn();
+    try {
+      await page.viewport(width, 780);
+      document.documentElement.dataset.theme = theme;
+      await render(
+        <div dir={direction} style={{ inlineSize: width === 430 ? 260 : 704 }}>
+          <DetailPanel {...props} busy="Owned operation still pending" />
+        </div>,
+      );
+      await document.fonts.ready;
+      await page.getByRole("tab", { name: "Game files", exact: true }).click();
+      const requirements = page.getByText("Current game-file requirements", { exact: true });
+      await expect.element(requirements).toBeVisible();
+      expect(requirements.element().closest("details")).toBeNull();
+      requirements.element().scrollIntoView({ block: "center", behavior: "instant" });
+      const requirementsBounds = requirements.element().getBoundingClientRect();
+      expect(requirementsBounds.top).toBeGreaterThanOrEqual(0);
+      expect(requirementsBounds.bottom).toBeLessThanOrEqual(innerHeight);
+      expect(requirementsBounds.left).toBeGreaterThanOrEqual(0);
+      expect(requirementsBounds.right).toBeLessThanOrEqual(innerWidth);
+      if (direction === "ltr") await captureParityState("detail-current-game-file-requirements");
+      await page.getByRole("tab", { name: "Manage", exact: true }).click();
+      for (const title of ["Folder for a future install", "Technical details"]) {
+        const control = page.getByText(title, { exact: true });
+        await expect.element(control).toBeVisible();
+        const label = control.element();
+        const summary = fixtureValue(label.closest("summary"), "manual summary");
+        const details = fixtureValue(summary.closest("details"), "manual details");
+        const originalOpen = details.open;
+        expectManualSummaryGeometry(label, direction);
+        summary.focus();
+        await userEvent.keyboard("{Enter}");
+        expect(details.open).toBe(!originalOpen);
+        expect(document.activeElement).toBe(summary);
+        expectManualSummaryGeometry(label, direction);
+        await userEvent.keyboard("{Enter}");
+        expect(details.open).toBe(originalOpen);
+        expect(document.activeElement).toBe(summary);
+        expectManualSummaryGeometry(label, direction);
+      }
+      await page.getByText("Folder for a future install", { exact: true }).click();
+      await expect.element(page.getByText(folderError, { exact: false })).toBeVisible();
+      const technical = page.getByText("Technical details", { exact: true }).element();
+      expectManualSummaryGeometry(technical, direction);
+      if (direction === "ltr") await captureParityState("detail-manual-summary-trailing-chevron");
+      expect(apply).not.toHaveBeenCalled();
+      expect(reset).not.toHaveBeenCalled();
+      expect(props.actions.install).not.toHaveBeenCalled();
+      expect(props.actions.reviewInstall).not.toHaveBeenCalled();
+      expect(props.actions.launch).not.toHaveBeenCalled();
+      expect(props.inspectSource).not.toHaveBeenCalled();
+    } finally {
+      read.mockRestore();
+      relocation.mockRestore();
+      apply.mockRestore();
+      reset.mockRestore();
+      if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = oldTheme;
+      await page.viewport(oldViewport.width, oldViewport.height);
+    }
+  },
+);
 
 function installedSourceDetail(
   id: string,
@@ -89,7 +447,7 @@ it("shows why the last launch failed on an installed game's details page, with O
       key: "dll_not_found",
       raw_code: "0xC0000135",
       explanation: "A required DLL or runtime is most likely missing.",
-      next_action: "Install the runtime the game's page lists, then try again.",
+      next_action: "Check the game's page for a Microsoft runtime to install, then try again.",
     },
   } as never);
   const openActivity = vi.fn();
@@ -100,6 +458,38 @@ it("shows why the last launch failed on an installed game's details page, with O
   expect(desktopApi.launchFailure).toHaveBeenCalledWith(props.port.id, 3);
   await page.getByRole("button", { name: "Open Activity", exact: true }).first().click();
   expect(openActivity).toHaveBeenCalled();
+});
+
+it("refreshes the explanation when a launch finishes on the open details page", async () => {
+  const props = installedSourceDetail("road-rash-64-recompiled", "not_checked");
+  const load = vi.spyOn(desktopApi, "launchFailure").mockResolvedValue(null);
+  const view = await render(<DetailPanel {...props} libraryGeneration={3} />);
+  await expect.poll(() => load.mock.calls.length).toBeGreaterThan(0);
+  expect(document.querySelector("[data-launch-failure]")).toBeNull();
+
+  load.mockResolvedValue({
+    id: "launch-7",
+    install_id: props.status.active.id,
+    exit_code: 7,
+    outcome: "failed",
+    exit_explanation: {
+      table_version: 1,
+      key: "unexplained_exit",
+      raw_code: "7",
+      explanation: "The game closed with an error.",
+      next_action: "Try launching again.",
+    },
+  } as never);
+  await view.rerender(
+    <DetailPanel {...props} libraryGeneration={3} finishedLaunchActivityId="activity-7" />,
+  );
+  await expect.element(page.getByText("The game closed with an error.")).toBeVisible();
+
+  load.mockResolvedValue(null);
+  await view.rerender(
+    <DetailPanel {...props} libraryGeneration={3} finishedLaunchActivityId="activity-8" />,
+  );
+  await expect.element(page.getByText("The game closed with an error.")).not.toBeInTheDocument();
 });
 
 it("keeps the saved disc by default and starts an explicitly chosen disc", async () => {
@@ -408,7 +798,15 @@ it("keeps an unknown external installation's folder and maintenance facts distin
     .element(facts.getByText(status.external_runtime.path, { exact: true }))
     .toBeVisible();
   await expect
-    .element(facts.getByText("You maintain this folder and its updates.", { exact: true }))
+    .element(facts.getByText(status.external_runtime.executable, { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      facts.getByText(
+        "You maintain this folder and its updates. Review Saves & backups for any data Portcove can protect.",
+        { exact: true },
+      ),
+    )
     .toBeVisible();
   expect(
     document.querySelector('[data-confirmed-play]:not(:disabled):not([aria-disabled="true"])'),
@@ -757,4 +1155,29 @@ it("opens actual Overview evidence and future-folder controls in a renderer fixt
     relocation.mockRestore();
     preview.mockRestore();
   }
+});
+
+it("keeps a setup-needed game's file details inside a 400% interface-size column", async () => {
+  // At 400% a 960 px window leaves the details column about 164 CSS px wide (#4879).
+  await page.viewport(240, 640);
+  const port = currentCatalogPort("opengoal-jak1");
+  const props = {
+    ...installedSourceDetail("opengoal-jak1", "not_checked", ["preparation_required"]),
+    source: undefined,
+    sourcePath: "",
+  };
+  props.status = {
+    ...props.status,
+    port_id: port.id,
+    readiness: { ...props.status.readiness, pending_setup: true },
+  };
+  await render(
+    <div data-testid="narrow-details-column" style={{ inlineSize: 164 }}>
+      <DetailPanel {...props} />
+    </div>,
+  );
+  await userEvent.click(page.getByRole("tab", { name: "Game files" }));
+  const column = page.getByTestId("narrow-details-column").element();
+  await expect.poll(() => column.querySelector(".requirements-body") !== null).toBe(true);
+  expect(column.scrollWidth).toBeLessThanOrEqual(column.clientWidth);
 });

@@ -3,10 +3,10 @@
   "listing": {
     "id": "james2doyle-ffta-recomp",
     "name": "Final Fantasy Tactics Advance (FFTA Recomp)",
-    "summary": "Register an independently permitted prepared FFTA Recomp Windows copy for your own supported USA GBA ROM. Fresh package acquisition remains held for its disclosed box-art component.",
+    "summary": "Final Fantasy Tactics Advance recompiled for Windows and Linux, using your own USA GBA ROM.",
     "original_game_title": "Final Fantasy Tactics Advance",
     "project_url": "https://github.com/james2doyle/ffta-recomp",
-    "platforms": ["windows-x86-64"],
+    "platforms": ["linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/james2doyle/ffta-recomp",
     "artwork": {
@@ -21,39 +21,44 @@
     "listed_at": "2026-10-25",
     "release_url": "https://github.com/james2doyle/ffta-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["FFTARecomp-", "windows-x64.zip"]
+      "linux-x86-64": ["FFTARecomp-", "-linux-x86_64.AppImage"]
     },
-    "download_block_reason": "Fresh acquisition of the selected FFTA Recomp bundled player remains held for its launch-screen box art: packaged THIRD_PARTY_ATTRIBUTION.md explicitly says the image has unknown provenance and no assertable license. Resume with applicable permission for that exact image or a reviewed compatible upstream package/route resolving its inclusion. Independently permitted completed-copy registration does not clear this acquisition hold.",
     "manual_setup": {
       "help_url": "https://github.com/james2doyle/ffta-recomp",
       "steps": [
         {
-          "title": "Start with an independently permitted completed copy",
-          "instruction": "Attach only a complete existing Windows player and components you are independently permitted to use. The selected package discloses unlicensed-provenance retail box art; the project’s PolyForm Noncommercial grant does not grant that image’s rights. Fresh acquisition remains held for that named component. Observe the project’s applicable noncommercial terms."
-        },
-        {
           "title": "Use your own supported USA original",
-          "instruction": "Keep your own Final Fantasy Tactics Advance USA GBA ROM (AFXE), expected SHA-1 4ac05441f4de70a4ec3dd932116346c61b8783d9. The inspected source performs a final runtime hash rejection after the permissive file picker. The package includes the separately licensed clean-room emibios replacement; no Nintendo BIOS dump is required. Complete the normal upstream first selection/setup outside Portcove and keep game.toml, bios/, resources and existing original paths together."
+          "instruction": "On first Play, choose your own Final Fantasy Tactics Advance USA GBA ROM (AFXE, SHA-1 4ac05441f4de70a4ec3dd932116346c61b8783d9) in the player's file picker. The player rejects other files after selection and remembers the path in rom.cfg, so keep the ROM where it is. Save-state slots are written beside that ROM with .stateN names. The package includes the clean-room emibios replacement, so no Nintendo BIOS dump is needed."
         },
         {
-          "title": "Attach the actual native player",
-          "instruction": "Select FFTARecomp.exe with its complete creating package directory as working directory and no extra arguments for the normal in-process launch screen. The inspected title runs that screen and game in the same process; it does not hand the game to a detached launcher. Retain only the supported literal arguments your working setup actually requires, including existing --save/--save-path and --state-dir choices. Do not select a tool or start a separate compiler/helper."
-        },
-        {
-          "title": "Review launch details, then choose Play",
-          "instruction": "Review and consent to this exact native executable, working directory and literal arguments, then choose Play separately. Upstream and you own preparation, replacement and recovery of external files. Removing registration preserves every external file. Close the actual player before upstream maintenance; retain old runtime/data and review/relink changed selected bytes."
+          "title": "Run a copy you manage yourself",
+          "instruction": "Keep the complete package for your system together. Start FFTARecomp.exe on Windows, or the FFTARecomp AppImage on Linux, from its own folder; the launch screen and game run in one process. To add that copy to Portcove, select the player and its folder with no extra arguments, then choose Play."
         }
       ],
       "warnings": [
-        "Use only components and original inputs you are permitted to use; keep every effective external file and custom root with its creating runtime. Portcove offers no external update, backup, rollback, migration or deletion.",
-        "This upstream preview is experimental. Source and package descriptions and static checks do not confirm that the package matches the source or that gameplay, normal shutdown, saves or installed Desktop behavior work. Other platforms have separate requirements.",
-        "Do not assume all states live beside the player or in states/.",
-        "No cross-version state/save compatibility or managed backup is claimed."
+        "The project uses the PolyForm Noncommercial License 1.0.0; observe its noncommercial terms. The package also includes retail box art that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+        "This upstream preview is experimental. Portcove has not observed native setup, gameplay or saves, and no compatibility of saves or save states across versions is claimed."
       ],
       "references": [
         {
-          "title": "Preserve saves and all effective external roots",
-          "instruction": "The inspected game.toml uses saves/ffta_us.sav relative to its own directory for the 64KiB battery save. Existing --save or --save-path overrides can point elsewhere. Save-state slots normally live beside the actual selected ROM with .stateN names; --state-dir moves those basenames to the chosen directory. Do not assume all states live beside the player or in states/. Preserve your ROM directory and its state/sidecar files, actual custom save/state directories, the complete creating runtime, saves/, rom.cfg, bios.cfg, skip_launcher_on_boot, config.ini, keybinds.ini, game.toml, config overlays, mods, screenshots, logs, backups and temporary files. No cross-version state/save compatibility or managed backup is claimed."
+          "title": "Keep saves, settings and external states",
+          "instruction": "The battery save is saves/ffta_us.sav beside the player unless --save or --save-path points elsewhere. rom.cfg, bios.cfg, skip_launcher_on_boot, config.ini and keybinds.ini also sit beside the player, and imported mods go to mods/packages with mods/state.toml. Save-state slots live beside your ROM, or in the --state-dir folder. Back up all of these before replacing a copy you manage yourself."
+        }
+      ]
+    },
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-tactics-advance",
+      "evidence_urls": ["https://github.com/james2doyle/ffta-recomp"],
+      "source_editions": [
+        {
+          "id": "final-fantasy-tactics-advance-game-boy-advance",
+          "title": "Final Fantasy Tactics Advance (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/james2doyle/ffta-recomp/blob/c2d618208098d14a4afa1a87f888cd6310bbd476/README.md"
+          ]
         }
       ]
     }
@@ -69,5 +74,52 @@
       }
     },
     "decisions": []
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "james2doyle/ffta-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["FFTARecomp-", "-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["FFTARecomp.exe"]
+    },
+    "launch_environment": {
+      "GBARECOMP_SELFHEAL_RECOMPILE": "0"
+    },
+    "persistent_paths": [
+      "saves",
+      "rom.cfg",
+      "bios.cfg",
+      "skip_launcher_on_boot",
+      "config.ini",
+      "keybinds.ini",
+      "mods/packages",
+      "mods/state.toml",
+      "hang_dump.log",
+      "hang_fp_tail.csv",
+      "hang_trace.csv",
+      "recomp_coverage_AFXE.json",
+      "recomp_master_misses_AFXE.toml.frag"
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "On first Play, choose your own Final Fantasy Tactics Advance USA GBA ROM in the player's file picker; the player rejects other files and remembers the path in rom.cfg, so keep the ROM where it is. Portcove keeps the battery save in saves, the launcher and input settings (rom.cfg, bios.cfg, skip_launcher_on_boot, config.ini, keybinds.ini), imported mods in mods/packages with mods/state.toml, and the diagnostic files it writes beside itself (hang_dump.log, hang_fp_tail.csv, hang_trace.csv and its recompilation coverage reports) across updates, backups and rollback. Save-state slots are written beside your ROM, outside the managed copy, and are not backed up or rewound by Portcove. Portcove starts the player with its runtime self-heal compiler turned off, so it never compiles or loads extra code inside the managed copy; the game falls back to its built-in interpreter for any uncompiled code. The package includes the clean-room emibios replacement, so no Nintendo BIOS dump is needed."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["assets", "bios", "licenses", "mods"],
+        "executables": ["fftarecomp.exe"]
+      }
+    }
   }
 }

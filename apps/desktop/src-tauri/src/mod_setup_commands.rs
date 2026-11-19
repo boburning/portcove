@@ -6,10 +6,41 @@
 use std::path::PathBuf;
 
 use crate::{
-    DesktopResult, DesktopState, blocking_worker, game_settings_commands::at_generation,
-    service_at_generation,
+    DesktopResult, DesktopState, blocking_worker, desktop_contract::RecipeImportReview,
+    game_settings_commands::read_at_generation, service_at_generation,
 };
-use portcove_core::{ModSetupsView, Profile, ProfileRevision};
+use portcove_core::{
+    ModSetupsView, PortcoveError, Profile, ProfileProgressCopy, ProfileRecipe, ProfileRecoveryPlan,
+    ProfileRevision, ProfileUpdatePolicy, ProviderUpdateObservation,
+};
+
+impl RecipeImportReview {
+    pub(crate) fn new(plan: portcove_core::RecipeImportPlan) -> portcove_core::Result<Self> {
+        let serialized_plan = serde_json::to_string(&plan)?;
+        let setting_values = plan
+            .recipe
+            .settings
+            .iter()
+            .map(|setting| match &setting.value {
+                portcove_core::RecipeModSettingValue::Number(value) => value.to_string(),
+                portcove_core::RecipeModSettingValue::Choice(value) => value.clone(),
+            })
+            .collect();
+        Ok(Self {
+            plan,
+            serialized_plan,
+            setting_values,
+        })
+    }
+
+    /// Decoding is transport only. The command still performs the ordinary
+    /// generation, port, plan-digest, consent and current-input checks in Core.
+    pub(crate) fn decode(
+        serialized_plan: &str,
+    ) -> portcove_core::Result<portcove_core::RecipeImportPlan> {
+        serde_json::from_str(serialized_plan).map_err(Into::into)
+    }
+}
 
 #[tauri::command]
 pub(crate) async fn get_mod_setups(
@@ -19,7 +50,9 @@ pub(crate) async fn get_mod_setups(
 ) -> DesktopResult<ModSetupsView> {
     let state = state.inner().clone();
     blocking_worker(move || {
-        at_generation(&state, generation, |service| service.mod_setups(&port_id))
+        read_at_generation(&state, generation, |service| {
+            service.preview_mod_setups(&port_id)
+        })
     })
     .await
 }
@@ -47,16 +80,154 @@ pub(crate) async fn copy_mod_setup(
     profile_id: String,
     display_name: String,
     current_build: bool,
+    progress: Option<ProfileProgressCopy>,
 ) -> DesktopResult<Profile> {
     let state = state.inner().clone();
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
-        if current_build {
+        if let Some(progress) = progress {
+            service.copy_profile_with_progress(
+                &port_id,
+                &profile_id,
+                &display_name,
+                current_build,
+                &progress,
+            )
+        } else if current_build {
             service.copy_profile_onto_current_build(&port_id, &profile_id, &display_name)
         } else {
             service.copy_profile(&port_id, &profile_id, &display_name)
         }
         .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn create_clean_mod_setup(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    display_name: String,
+    expected_revision: u64,
+) -> DesktopResult<Profile> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .create_clean_profile(&port_id, &profile_id, &display_name, expected_revision)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn list_mod_setup_revisions(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+) -> DesktopResult<Vec<ProfileRevision>> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        read_at_generation(&state, generation, |service| {
+            service.profile_revisions(&port_id, &profile_id)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn plan_profile_recovery(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    revision: u64,
+) -> DesktopResult<ProfileRecoveryPlan> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        read_at_generation(&state, generation, |service| {
+            service.plan_profile_recovery(&port_id, &profile_id, revision)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn apply_profile_recovery(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    revision: u64,
+    expected_plan_sha256: String,
+) -> DesktopResult<ProfileRevision> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .apply_profile_recovery(&port_id, &profile_id, revision, &expected_plan_sha256)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn list_mod_setup_recovery_builds(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+) -> DesktopResult<Vec<portcove_core::RetainedBuildHistoryResolution>> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        read_at_generation(&state, generation, |service| {
+            service
+                .resolve_retained_build(&port_id, &profile_id)
+                .map(|setup| setup.history)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn preview_mod_setup_retirement(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    revision: u64,
+) -> DesktopResult<portcove_core::RetainedBuildRetirementPreview> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        read_at_generation(&state, generation, |service| {
+            service.preview_retained_build_revision_retirement(&port_id, &profile_id, revision)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn retire_mod_setup_recovery_build(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    revision: u64,
+    expected_preview_sha256: String,
+) -> DesktopResult<portcove_core::RetainedBuildRevision> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        let approval = service.authorize_retained_build_revision_retirement(
+            &port_id,
+            &profile_id,
+            revision,
+            &expected_preview_sha256,
+        )?;
+        service
+            .retire_retained_build_revision(&port_id, &profile_id, revision, &approval.token)
+            .map_err(Into::into)
     })
     .await
 }
@@ -74,6 +245,199 @@ pub(crate) async fn use_mod_setup(
             .activate_profile(&port_id, &profile_id)
             .map_err(Into::into)
     })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn export_mod_recipe(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    path: PathBuf,
+) -> DesktopResult<()> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .write_profile_recipe(&port_id, &profile_id, &path)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn inspect_mod_recipe(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    path: PathBuf,
+) -> DesktopResult<RecipeImportReview> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        read_at_generation(&state, generation, |service| {
+            let recipe = ProfileRecipe::read_file(&path)?;
+            require_recipe_port(&port_id, &recipe)?;
+            RecipeImportReview::new(service.plan_recipe_import(&recipe)?)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn acquire_mod_recipe_package(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    native_id: String,
+    serialized_plan: String,
+) -> DesktopResult<RecipeImportReview> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            let plan = RecipeImportReview::decode(&serialized_plan)?;
+            require_recipe_port(&port_id, &plan.recipe)?;
+            let current =
+                service.plan_recipe_import_with_acquisitions(&plan.recipe, &plan.acquisitions)?;
+            if current.plan_sha256 != plan.plan_sha256
+                || !current.provider_checks.contains(&native_id)
+            {
+                return Err(PortcoveError::conflict(
+                    "recipe inputs changed; inspect the recipe again",
+                )
+                .into());
+            }
+            let acquisition = service
+                .plan_recipe_acquisition(&plan.recipe, &profile_id, &native_id, &plan.acquisitions)
+                .await?;
+            let mut acquisitions = plan.acquisitions;
+            acquisitions.push(acquisition);
+            match service
+                .plan_recipe_import_with_acquisitions(&plan.recipe, &acquisitions)
+                .and_then(RecipeImportReview::new)
+            {
+                Ok(review) => Ok(review),
+                Err(error) => {
+                    if let Some((acquisition, earlier)) = acquisitions.split_last()
+                        && !earlier.iter().any(|item| {
+                            item.provider_plan.plan_sha256 == acquisition.provider_plan.plan_sha256
+                        })
+                    {
+                        let _ = service.discard_recipe_acquisition(acquisition);
+                    }
+                    Err(error.into())
+                }
+            }
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn discard_mod_recipe_review(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    serialized_plan: String,
+) -> DesktopResult<()> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        let plan = RecipeImportReview::decode(&serialized_plan)?;
+        require_recipe_port(&port_id, &plan.recipe)?;
+        for acquisition in &plan.acquisitions {
+            if acquisition.provider_plan.port_id != port_id
+                || acquisition.recipe_identity_sha256 != plan.recipe.identity_sha256
+            {
+                return Err(PortcoveError::conflict(
+                    "staging belongs to a different recipe review",
+                )
+                .into());
+            }
+        }
+        for acquisition in &plan.acquisitions {
+            service.discard_recipe_acquisition(acquisition)?;
+        }
+        Ok(())
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn apply_mod_recipe(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    display_name: String,
+    serialized_plan: String,
+    allow_code: bool,
+) -> DesktopResult<Profile> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        let plan = RecipeImportReview::decode(&serialized_plan)?;
+        require_recipe_port(&port_id, &plan.recipe)?;
+        if !plan.can_apply {
+            return Err(PortcoveError::conflict("this recipe still needs exact inputs").into());
+        }
+        let authorization = if allow_code {
+            service.authorize_recipe_import_allowing_code(&plan, &display_name)?
+        } else {
+            service.authorize_recipe_import(&plan, &display_name)?
+        };
+        service
+            .apply_recipe_import(&plan, &display_name, &authorization.token)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+fn require_recipe_port(port_id: &str, recipe: &ProfileRecipe) -> portcove_core::Result<()> {
+    if recipe.port_id == port_id {
+        Ok(())
+    } else {
+        Err(PortcoveError::conflict(
+            "this recipe is for a different game. Open that game's setups to review it",
+        )
+        .detail("recipe_game", &recipe.port_id))
+    }
+}
+
+#[tauri::command]
+pub(crate) async fn set_mod_update_policy(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    policy: ProfileUpdatePolicy,
+) -> DesktopResult<Profile> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .set_profile_update_policy(&port_id, &profile_id, policy)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn check_provider_mod_updates(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+) -> DesktopResult<Vec<ProviderUpdateObservation>> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .check_provider_updates(&port_id, &profile_id)
+                .await
+                .map_err(Into::into)
+        },
+    )
     .await
 }
 
@@ -97,6 +461,24 @@ pub(crate) async fn set_mod_package_enabled(
                 enabled,
                 expected_revision,
             )
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn remove_mod_package(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    native_id: String,
+    expected_revision: u64,
+) -> DesktopResult<ProfileRevision> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .remove_mod_package(&port_id, &profile_id, &native_id, expected_revision)
             .map_err(Into::into)
     })
     .await
@@ -130,6 +512,49 @@ pub(crate) async fn add_mod_package(
     .await
 }
 
+#[tauri::command]
+pub(crate) async fn plan_local_mod_package(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    path: PathBuf,
+    expected_revision: u64,
+) -> DesktopResult<portcove_core::LocalModPackagePlan> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        read_at_generation(&state, generation, |service| {
+            service.plan_local_mod_package(&port_id, &profile_id, &path, expected_revision)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn apply_local_mod_package(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    path: PathBuf,
+    expected_plan_sha256: String,
+    allow_code: bool,
+) -> DesktopResult<ProfileRevision> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .apply_local_mod_package(
+                &port_id,
+                &profile_id,
+                &path,
+                &expected_plan_sha256,
+                allow_code,
+            )
+            .map_err(Into::into)
+    })
+    .await
+}
+
 /// Read-only: what a chosen package would run, shown before the player allows it.
 #[tauri::command]
 pub(crate) async fn review_mod_package_code(
@@ -147,6 +572,28 @@ pub(crate) async fn review_mod_package_code(
     .await
 }
 
+/// Opens the canonical URL of a project admitted for this game's provider.
+#[tauri::command]
+pub(crate) async fn open_provider_mod_project(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    project_id: String,
+    provider: Option<String>,
+) -> DesktopResult<()> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            let reviewed = service
+                .provider_project_for_provider(&port_id, &project_id, provider.as_deref())
+                .await?;
+            crate::open_host_target(std::ffi::OsStr::new(&reviewed.project.profile_url))
+        },
+    )
+    .await
+}
+
 /// One page of a bound game's GameBanana mods. Reads only.
 #[tauri::command]
 pub(crate) async fn browse_provider_mods(
@@ -154,13 +601,14 @@ pub(crate) async fn browse_provider_mods(
     generation: u64,
     port_id: String,
     page: u32,
+    provider: Option<String>,
 ) -> DesktopResult<portcove_core::ProviderBrowsePage> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
             service
-                .browse_provider_mods(&port_id, page)
+                .browse_provider_mods_for_provider(&port_id, page, provider.as_deref())
                 .await
                 .map_err(Into::into)
         },
@@ -175,13 +623,14 @@ pub(crate) async fn get_provider_project(
     generation: u64,
     port_id: String,
     project_id: String,
+    provider: Option<String>,
 ) -> DesktopResult<portcove_core::ProviderProjectView> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
             service
-                .provider_project(&port_id, &project_id)
+                .provider_project_for_provider(&port_id, &project_id, provider.as_deref())
                 .await
                 .map_err(Into::into)
         },
@@ -199,13 +648,20 @@ pub(crate) async fn plan_provider_install(
     profile_id: String,
     project_id: String,
     file_id: String,
+    provider: Option<String>,
 ) -> DesktopResult<portcove_core::ProviderInstallPlan> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
             service
-                .plan_provider_install(&port_id, &profile_id, &project_id, &file_id)
+                .plan_provider_install_for_provider(
+                    &port_id,
+                    &profile_id,
+                    &project_id,
+                    &file_id,
+                    provider.as_deref(),
+                )
                 .await
                 .map_err(Into::into)
         },
@@ -308,3 +764,7 @@ mod tests {
         assert!(require_displayed_plan(&plan, "shipwright", "a", "e").is_err());
     }
 }
+
+#[cfg(test)]
+#[path = "mod_recipe_review_tests.rs"]
+mod mod_recipe_review_tests;

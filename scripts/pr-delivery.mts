@@ -25,6 +25,7 @@ import {
   validateMergeReadiness,
   validateMergedCommit,
   validateCommitComposition,
+  localComposition,
   prepareMergeSnapshot,
   verifyMergeSnapshotReadback,
   readDeliverySnapshot,
@@ -104,6 +105,7 @@ export interface DeliveryJob {
   conclusion?: string | null;
   check_run_url?: string;
   completed_at?: string | null;
+  started_at?: string | null;
 }
 interface CheckObservation {
   source: "check-run" | "commit-status";
@@ -236,6 +238,7 @@ export interface WatchOptions {
   sleep?: (milliseconds: number) => Promise<unknown>;
   now?: () => number;
   observe?: (observation: WatchObservation) => void;
+  sample?: boolean;
 }
 
 const timestamp = (value: string | null | undefined) => Date.parse(value ?? "");
@@ -431,7 +434,15 @@ export class PullRequestDeliveryClient {
       url: `https://api.github.com/${endpoint}`,
       deadline: Math.min(this.scope.deadline, this.observationDeadline),
       prepareRequest: async (url) => {
-        if (new URL(url).pathname.startsWith("/repositories/")) await this.bindRepositoryId();
+        const parsed = new URL(url);
+        if (!parsed.pathname.startsWith("/repositories/")) return;
+        const prefix = `/repositories/${await this.bindRepositoryId()}/`;
+        // Another id stays unchanged, so admission refuses it.
+        if (!parsed.pathname.startsWith(prefix)) return;
+        // Some GitHub proxies refuse numeric-id paths; this bound id names this
+        // repository, so the same page is requested through its owner/name path.
+        parsed.pathname = `/repos/${repository}/${parsed.pathname.slice(prefix.length)}`;
+        return parsed.toString();
       },
     })) {
       const body: unknown = response.data;
@@ -665,13 +676,17 @@ export class PullRequestDeliveryClient {
     mergeMessage?: unknown,
     binding?: { run: number; attempt: number },
     composition?: { target: string; tree: string },
+    localCheckout?: string,
   ) {
+    if (localCheckout !== undefined && !composition)
+      throw new Error("Merge --verify-local-composition requires --target and --tree");
     if (
       composition &&
       ![composition.target, composition.tree].every((sha) => /^[0-9a-f]{40}$/u.test(sha))
     )
       throw new Error("Merge --target and --tree must be 40-character SHAs");
     const expected = composition && { head, ...composition };
+    let verifiedComposition: ReturnType<typeof localComposition> | undefined;
     const verifyWorkflow = async () => {
       if (!binding) return;
       if (
@@ -694,6 +709,12 @@ export class PullRequestDeliveryClient {
     await verifyWorkflow();
     const state = await this.requiredCheckState(number, head, requiredContexts, binding);
     validateMergeReadiness(number, head, state.pull, state.contexts);
+    // A bound merge requires every required context to be a successful job of the
+    // identified run attempt, not merely a successful check of the same name.
+    if (binding) {
+      if (!state.jobs) throw new Error("Bound merge job inventory is unavailable");
+      assertSuccessfulWorkflowJobs(state.jobs, state.contexts, { head, ...binding });
+    }
     const targetRef = state.pull.base.ref;
     if (expected) {
       if (!targetRef) throw new Error("Merge target branch is unavailable");
@@ -729,7 +750,18 @@ export class PullRequestDeliveryClient {
       if (fresh.body !== state.pull.body)
         throw new Error("PR body changed before merge; refresh delivery review");
       const preview = await this.request("GET", `repos/${repository}/git/commits/${previewSha}`);
-      validateCommitComposition(preview.data, expected, previewSha, false);
+      // GitHub rebuilds its preview lazily, so it can lag a frequently advancing
+      // target. With a local checkout of the reviewed head, verify the historical
+      // preview object and the current composition independently instead.
+      if (localCheckout !== undefined)
+        verifiedComposition = localComposition(
+          preview.data,
+          previewSha,
+          expected,
+          localCheckout,
+          60_000,
+        );
+      else validateCommitComposition(preview.data, expected, previewSha, false);
       if ((await this.branch(ref)).commit.sha !== expected.target)
         throw new Error("Merge target advanced before mutation; refresh the reviewed composition");
     }
@@ -848,6 +880,7 @@ export class PullRequestDeliveryClient {
       contexts: state.contexts,
       closing,
       ...(expected ? { expected_composition: expected } : {}),
+      ...(verifiedComposition ? { verified_composition: verifiedComposition } : {}),
       closure_readback: closureReadback,
     };
   }
@@ -974,6 +1007,7 @@ export async function watchRequiredChecks(
     sleep,
     now = Date.now,
     observe = () => {},
+    sample = false,
   }: WatchOptions,
 ) {
   if (!Number.isSafeInteger(run) || run < 1 || !Number.isSafeInteger(attempt) || attempt < 1)
@@ -991,7 +1025,8 @@ export async function watchRequiredChecks(
   let observed: DeliveryWorkflow | null = null;
   let state: WatchState | null = null;
   let publicationRecheckUsed = false;
-  const evidence = () => ({
+  const evidence = (watch_condition?: string) => ({
+    ...(watch_condition ? { watch_condition } : {}),
     pull_request: number,
     head,
     run,
@@ -1008,6 +1043,17 @@ export async function watchRequiredChecks(
       run_started_at: observed.run_started_at,
     },
     contexts: state?.contexts ?? [],
+    ...(sample && {
+      job_started_at: state?.jobs
+        ?.filter(
+          (job) =>
+            job.run_attempt === attempt &&
+            job.status !== "queued" &&
+            Number.isFinite(timestamp(job.started_at)),
+        )
+        .flatMap((job) => job.started_at ?? [])
+        .sort()[0],
+    }),
     next_action:
       "Inspect this run's jobs, logs and available artifacts; preserve the candidate and failure before choosing a repair. Do not redispatch automatically.",
   });
@@ -1015,6 +1061,12 @@ export async function watchRequiredChecks(
     try {
       client.beginObservation?.();
       observed = await client.workflowRun(run);
+      if (sample && (observed.head_sha !== head || observed.run_attempt !== attempt))
+        throw deliveryOutcomeError(
+          "failed",
+          "watch run/source/attempt changed; reconcile the identified run before resuming",
+          evidence("superseded"),
+        );
       state = await client.requiredCheckState(number, head, requiredContexts, {
         run,
         attempt,
@@ -1031,6 +1083,7 @@ export async function watchRequiredChecks(
         /* Diagnostics cannot change monitoring. */
       }
     } catch (error) {
+      if (error instanceof DeliveryOutcomeError) throw error;
       throw deliveryOutcomeError(
         "failed",
         `watch monitoring failed: ${sanitizeOperationError(error).message}`,
@@ -1074,7 +1127,7 @@ export async function watchRequiredChecks(
         `required checks failed: ${failures
           .map((context) => `${context.context}=${context.conclusion}`)
           .join(", ")}`,
-        evidence(),
+        evidence("checks-failed"),
       );
     const publicationPending = state.contexts.some(
       (context) => context.conclusion === checkPublicationPending,
@@ -1084,7 +1137,7 @@ export async function watchRequiredChecks(
         throw deliveryOutcomeError(
           "failed",
           `identified workflow run completed with ${observed.conclusion ?? "no conclusion"}`,
-          evidence(),
+          evidence("workflow-failed"),
         );
       if (state.contexts.every((context) => context.outcome === "success")) {
         let jobs;
@@ -1129,7 +1182,7 @@ export async function watchRequiredChecks(
           throw deliveryOutcomeError(
             "failed",
             "watch run changed during job collection",
-            evidence(),
+            evidence("superseded"),
           );
         return {
           ...state,
@@ -1148,6 +1201,7 @@ export async function watchRequiredChecks(
         };
       }
       if (
+        !sample &&
         state.contexts.some(
           (context) =>
             context.outcome !== "success" && context.conclusion !== checkPublicationPending,
@@ -1166,9 +1220,14 @@ export async function watchRequiredChecks(
           .filter((context) => context.outcome !== "success")
           .map((context) => `${context.context}=${context.conclusion}`)
           .join(", ")}`,
-        evidence(),
+        evidence("deadline"),
       );
     const interval = publicationPending && !publicationRecheckUsed ? 2_000 : 180_000;
+    if (sample)
+      throw deliveryOutcomeError("planned", "Required check evidence is pending", {
+        ...evidence("pending"),
+        next_sample_ms: interval,
+      });
     publicationRecheckUsed ||= publicationPending;
     await pause(Math.min(interval, Math.max(0, deadlineMs - now())));
   }
@@ -1653,7 +1712,7 @@ export function renderDeliveryInspection(
 
 const deliveryFlags: Readonly<Record<string, readonly string[]>> = {
   inspect: ["--pr", "--head", "--evidence-file", "--json", "--summary"],
-  watch: ["--pr", "--head", "--run", "--attempt", "--deadline", "--json", "--progress"],
+  watch: ["--pr", "--head", "--run", "--attempt", "--deadline", "--json", "--progress", "--sample"],
   "renovate-check": ["--pr", "--head", "--queue", "--json", "--summary"],
   merge: [
     "--pr",
@@ -1664,6 +1723,7 @@ const deliveryFlags: Readonly<Record<string, readonly string[]>> = {
     "--attempt",
     "--closure-intent-file",
     "--merge-message-file",
+    "--verify-local-composition",
     "--json",
   ],
   "prepare-merge": [
@@ -1753,6 +1813,10 @@ export function deliveryHelp(command: string | null | undefined = null) {
       ),
     );
   }
+  if (!command || command === "merge")
+    lines.push(
+      "  Merge --verify-local-composition, run from a checkout of the reviewed head, checks a historical provider preview and the reviewed --target/--tree composition with local Git objects instead of requiring the preview on the live target tip.",
+    );
   if (!command || ["prepare-merge", "verify-merge"].includes(command))
     lines.push(
       "  Snapshot commands perform no network, remote mutation, retry, review or acceptance. Prepare requires fresh bracketed collection within 60 seconds and complete source-bound check/job/closure inventories. --verify-local-composition independently checks stored Git objects and current composition when the provider preview is historical. Verify requires actual squash parent/tree/message and closure readback. See docs/CONTRIBUTION-CONVENTIONS.md for the snapshot contract.",
@@ -1781,6 +1845,7 @@ export function parseArguments(argv: string[]) {
         "--help",
         "--summary",
         "--progress",
+        "--sample",
         "--verify-local-composition",
       ].includes(name)
     ) {
@@ -1795,6 +1860,8 @@ export function parseArguments(argv: string[]) {
   }
   if (command === "merge" && Boolean(options["--target"]) !== Boolean(options["--tree"]))
     throw new Error("Merge --target and --tree must be supplied together");
+  if (options["--sample"] && (!options["--json"] || options["--progress"]))
+    throw new Error("watch --sample requires --json and excludes --progress");
   return { command, options };
 }
 
@@ -1936,7 +2003,9 @@ async function main(argv: string[]) {
       ? await createWatchClient({
           deadline:
             command === "watch"
-              ? performance.now() + Date.parse(optionText(options, "--deadline")) - Date.now()
+              ? options["--sample"]
+                ? performance.now() + 60_000
+                : performance.now() + Date.parse(optionText(options, "--deadline")) - Date.now()
               : performance.now() + 60000,
         })
       : await PullRequestDeliveryClient.connect();
@@ -2063,8 +2132,9 @@ async function main(argv: string[]) {
       run: Number(options["--run"]),
       attempt: Number(options["--attempt"]),
       deadline: optionText(options, "--deadline"),
+      sample: Boolean(options["--sample"]),
       observe: (observation) => {
-        retain(observation);
+        if (!options["--sample"]) retain(observation);
         progress(observation);
       },
     });
@@ -2117,6 +2187,7 @@ async function main(argv: string[]) {
       options["--target"]
         ? { target: optionText(options, "--target"), tree: optionText(options, "--tree") }
         : undefined,
+      options["--verify-local-composition"] ? process.cwd() : undefined,
     );
     const directory = path.join(projectRoot, "work/pr-delivery");
     const closureReceipt = retainMergeReceipt(directory, { number, head, ...merged });
@@ -2198,6 +2269,13 @@ async function settleDirectCli() {
           ),
         );
       }
+      if (
+        process.argv[2] === "watch" &&
+        process.argv.includes("--sample") &&
+        error instanceof DeliveryOutcomeError &&
+        error.operationStatus === "planned"
+      )
+        return;
       let reference = null;
       try {
         const directory = path.join(projectRoot, "work/pr-delivery");

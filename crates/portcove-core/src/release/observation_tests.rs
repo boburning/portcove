@@ -12,7 +12,15 @@ fn cvlod_facts() -> Result<Value> {
 }
 
 fn inspect_cvlod(facts: Value) -> Result<UpstreamObservationReport> {
+    inspect_cvlod_with_hold(facts, None)
+}
+
+fn inspect_cvlod_with_hold(
+    facts: Value,
+    hold: Option<crate::ManagedAcquisitionHold>,
+) -> Result<UpstreamObservationReport> {
     let mut port = crate::Catalog::embedded()?.port("cvlod-recomp")?.clone();
+    port.managed_acquisition_hold = hold;
     // This proposal covers Windows metadata, not other-platform qualification.
     port.platforms = vec![Platform::WindowsX86_64];
     let repository_id = facts["repository"]["id"].as_u64().unwrap();
@@ -23,6 +31,56 @@ fn inspect_cvlod(facts: Value) -> Result<UpstreamObservationReport> {
     let path = directory.path().join("cvlod-observation.json");
     std::fs::write(&path, serde_json::to_vec(&document)?)?;
     inspect_upstream_observation(&port, repository_id, &path)
+}
+
+#[test]
+fn observation_keeps_the_excluded_candidate_distinct_from_the_reviewed_fallback() -> Result<()> {
+    let facts = cvlod_facts()?;
+    let artifact = |index: usize| {
+        let release = &facts["releases"][index];
+        let asset = release["assets"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|asset| {
+                asset["name"]
+                    .as_str()
+                    .unwrap()
+                    .ends_with("-windows-x64.zip")
+            })
+            .unwrap();
+        crate::ReviewedHoldArtifact {
+            version: release["tag_name"].as_str().unwrap().into(),
+            sha256: parse_digest(asset["digest"].as_str().unwrap()).unwrap(),
+        }
+    };
+    let excluded = artifact(0);
+    let reviewed = artifact(1);
+    let mut hold = crate::ManagedAcquisitionHold {
+        reason: "Excluded exact artifact".into(),
+        activation_reason: "Excluded staged artifact".into(),
+        excluded_artifacts: vec![excluded.clone()],
+        reviewed_artifacts: vec![reviewed.clone()],
+    };
+    let report = inspect_cvlod_with_hold(facts.clone(), Some(hold.clone()))?;
+    let projection = &report.projections[0];
+    assert_eq!(
+        projection.channel_candidate.as_ref().unwrap().tag,
+        excluded.version
+    );
+    let selected = &projection.latest_eligible.as_ref().unwrap().release;
+    assert_eq!(selected.version, reviewed.version);
+    assert_eq!(selected.asset.sha256, reviewed.sha256);
+    assert_eq!(projection.hold_reasons, ["reviewed-artifact-excluded"]);
+
+    hold.reviewed_artifacts.clear();
+    let report = inspect_cvlod_with_hold(facts, Some(hold))?;
+    assert!(report.projections[0].latest_eligible.is_none());
+    assert_eq!(
+        report.projections[0].hold_reasons,
+        ["reviewed-artifact-excluded", "no-reviewed-fallback"]
+    );
+    Ok(())
 }
 
 #[test]
@@ -401,6 +459,73 @@ fn checksum_observation_requests_exact_sources_and_resolves_without_authoring_ch
     document["facts"]["checksum_sidecars"][0]["asset_id"] = json!(99);
     document["facts_sha256"] = json_digest(&document["facts"])?.into();
     assert!(inspect(&port, &document).is_err());
+    Ok(())
+}
+
+#[test]
+fn same_release_late_linux_checksum_changes_only_its_platform_projection() -> Result<()> {
+    let mut port = crate::Catalog::embedded()?.port("shipwright")?.clone();
+    let windows = Platform::WindowsX86_64;
+    let linux = Platform::LinuxX86_64;
+    port.platforms = vec![windows, linux];
+    port.channels = vec![ReleaseChannel::Stable];
+    port.release
+        .asset_hints
+        .insert(linux, vec!["game-linux-x64".into()]);
+    let mut release = release(1, "v1");
+    for (id, name) in [
+        (11, "game-linux-x64.tar.gz"),
+        (12, "game-linux-x64.tar.gz.sha256"),
+    ] {
+        let mut asset = release["assets"][0].clone();
+        asset["id"] = json!(id);
+        asset["name"] = json!(name);
+        asset["digest"] = Value::Null;
+        asset["browser_download_url"] = json!(format!(
+            "https://github.com/HarbourMasters/Shipwright/releases/download/v1/{name}"
+        ));
+        release["assets"].as_array_mut().unwrap().push(asset);
+    }
+    let mut document = envelope(vec![release])?;
+    let pending = inspect(&port, &document)?;
+    let projection = |report: &UpstreamObservationReport, platform| {
+        report
+            .projections
+            .iter()
+            .position(|entry| entry.platform == platform && entry.channel == ReleaseChannel::Stable)
+            .unwrap()
+    };
+    let win = projection(&pending, windows);
+    let lx = projection(&pending, linux);
+    assert_eq!(
+        pending.projections[lx].hold_reasons,
+        ["checksum-observation-incomplete"]
+    );
+    assert_eq!(pending.projections[lx].checksum_sources[0].asset_id, 12);
+    let windows_before = pending.projections[win].latest_eligible.as_ref().unwrap();
+
+    let digest = "b".repeat(64);
+    document["facts"]["checksum_sidecars"] = json!([{ "release_id":1, "asset_id":12, "text":format!("{digest}  game-linux-x64.tar.gz\n") }]);
+    document["facts_sha256"] = json_digest(&document["facts"])?.into();
+    let complete = inspect(&port, &document)?;
+    assert_ne!(pending.facts_sha256, complete.facts_sha256);
+    assert_eq!(
+        pending.catalog_definition_sha256,
+        complete.catalog_definition_sha256
+    );
+    assert!(complete.projections[lx].hold_reasons.is_empty());
+    let linux_after = complete.projections[lx].latest_eligible.as_ref().unwrap();
+    assert_eq!((linux_after.release_id, linux_after.asset_id), (1, 11));
+    assert_eq!(linux_after.release.version, "v1");
+    assert_eq!(linux_after.release.asset.sha256, digest);
+    let windows_after = complete.projections[win].latest_eligible.as_ref().unwrap();
+    assert_eq!(windows_before.release_id, windows_after.release_id);
+    assert_eq!(windows_before.asset_id, windows_after.asset_id);
+    assert_eq!(windows_before.release.asset, windows_after.release.asset);
+    assert_eq!(
+        serde_json::to_string(&complete)?,
+        serde_json::to_string(&inspect(&port, &document)?)?
+    );
     Ok(())
 }
 
@@ -903,6 +1028,8 @@ fn dk64_windows_selector_covers_both_release_name_forms() -> Result<()> {
             browser_download_url: format!("https://example.test/{name}"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         })
         .collect();
         assert_eq!(

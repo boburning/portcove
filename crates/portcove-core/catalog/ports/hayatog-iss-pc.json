@@ -5,12 +5,21 @@
     "name": "inFAMOUS Second Son (iss_pc)",
     "summary": "Attach an independently permitted, prepared inFAMOUS Second Son Windows installation through its waiting saved-settings play route. Upstream owns game preparation and runtime replacement; keep the actual configurable save root and separate launcher preferences.",
     "original_game_title": "inFAMOUS Second Son",
+    "artwork": {
+      "game_id": 1941,
+      "cover_id": 71278,
+      "image_id": "co1izy",
+      "image_sha256": "61e1b28aa91bdb4f9871be95f4afba789f3bf0016cb810c78331775dafd99a6f",
+      "game_slug": "infamous-second-son",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/HayatoG/iss_pc",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/HayatoG/iss_pc",
     "issue_number": 2788,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://github.com/sponsors/HayatoG", "https://buymeacoffee.com/hayatog"],
     "manual_setup": {
       "help_url": "https://github.com/HayatoG/iss_pc/blob/372273780e2239b2e654229a3566d8f6bc642dcf/README.md",
       "steps": [

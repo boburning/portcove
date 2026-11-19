@@ -6,8 +6,16 @@
     "original_game_title": "Dance Dance Revolution 1st Mix",
     "summary": "The project reports startup, animation, synchronized music and arrows, and fixes for specific freezes. Complete tracks and a full playthrough are unconfirmed; Portcove has not confirmed gameplay. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/bmbelo87/ddr-1st-recomp",
+    "artwork": {
+      "game_id": 3679,
+      "cover_id": 126807,
+      "image_id": "co2puf",
+      "image_sha256": "171ce8d10382072005d90b14de3e4f6e78f2d9bf1067d2b8b8cf18454e88f7a8",
+      "game_slug": "dance-dance-revolution",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/bmbelo87/ddr-1st-recomp",
     "manual_setup": {

@@ -2,17 +2,25 @@
   "format_version": 1,
   "listing": {
     "id": "mdomangue26-thebigs2",
+    "artwork": {
+      "game_id": 4716,
+      "cover_id": 280042,
+      "image_id": "co602y",
+      "image_sha256": "fa5b03274ab0a31993a02f5bc6bce86d3ef64984f1fc9e26057a2883e66669a2",
+      "game_slug": "the-bigs-2",
+      "match_kind": "underlying-game"
+    },
     "name": "The Bigs 2 (The Bigs 2 ReXGlue)",
     "summary": "Attach an independently permitted, prepared The Bigs 2 ReXGlue Windows player with your own Xbox 360 disc data already extracted upstream. Preserve its writable-package or existing per-user data layout; the published Windows package was only Wine-tested upstream.",
     "original_game_title": "The Bigs 2",
-    "project_url": "https://github.com/mdomangue26/thebigs2",
+    "project_url": "https://github.com/mdomangue26/The-Bigs-2-Recompiled",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/mdomangue26/thebigs2",
+    "setup_url": "https://github.com/mdomangue26/The-Bigs-2-Recompiled",
     "issue_number": 2802,
     "listed_at": "2026-10-25",
     "manual_setup": {
-      "help_url": "https://github.com/mdomangue26/thebigs2/blob/4947e569b3d86cc11ead1ee485e88fc9a6ed9ac9/README.md",
+      "help_url": "https://github.com/mdomangue26/The-Bigs-2-Recompiled/blob/4947e569b3d86cc11ead1ee485e88fc9a6ed9ac9/README.md",
       "steps": [
         {
           "title": "Prepare your own Xbox 360 game upstream",
@@ -42,6 +50,24 @@
       "warnings": [
         "Preserve the active portable saves/configuration or external runtime paths. Wine-only upstream package testing is not Windows or complete-game qualification."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-bigs-2",
+      "evidence_urls": [
+        "https://github.com/mdomangue26/The-Bigs-2-Recompiled",
+        "https://github.com/mdomangue26/The-Bigs-2-Recompiled/blob/4947e569b3d86cc11ead1ee485e88fc9a6ed9ac9/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-bigs-2-xbox-360",
+          "title": "The Bigs 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/mdomangue26/The-Bigs-2-Recompiled/blob/2162b8da19ff3eabf785432ad7832f0332222fd3/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -54,6 +80,43 @@
         "id": "1422535554"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/mdomangue26/thebigs2",
+          "repository": {
+            "host": "github.com",
+            "id": "1422535554"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/mdomangue26/The-Bigs-2-Recompiled",
+          "repository": {
+            "host": "github.com",
+            "id": "1422535554"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The owner mdomangue26 renamed the repository it listed; the same repository answers at mdomangue26/The-Bigs-2-Recompiled. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1422535554",
+            "note": "Repository ID 1422535554, recorded when this port was listed, resolves to mdomangue26/The-Bigs-2-Recompiled."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/mdomangue26/thebigs2",
+            "note": "The listed path resolves to mdomangue26/The-Bigs-2-Recompiled, repository ID 1422535554."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "572e63e8bd42c0f97bf771944ea0f00fe668593462a04d2d871348625207a9d3"
+        }
+      }
+    ]
   }
 }

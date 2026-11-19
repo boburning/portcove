@@ -51,6 +51,28 @@
         {
           "title": "Reviewed BStone package",
           "instruction": "The reviewed Linux x64 and Intel Mac ZIPs are documented at https://github.com/bibendovsky/bstone/releases/tag/v1.3.4."
+        },
+        {
+          "title": "Change the Linux renderer",
+          "instruction": "If the external player’s menus or game view are clipped with Vulkan, add --vid_renderer and software as two separate arguments in its launch details. Keep your existing data and profile paths."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "blake-stone-planet-strike",
+      "evidence_urls": [
+        "https://github.com/bibendovsky/bstone#readme",
+        "https://github.com/bibendovsky/bstone"
+      ],
+      "source_editions": [
+        {
+          "id": "blake-stone-planet-strike-pc",
+          "title": "Blake Stone: Planet Strike (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/blake-stone-planet-strike-bstone.json"
+          ]
         }
       ]
     }

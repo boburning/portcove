@@ -6,6 +6,7 @@ import {
   observeDesktopHarnessInputs,
 } from "./native-helper-dependencies.mts";
 import assert from "node:assert/strict";
+import { isRecord } from "./runtime-values.mts";
 import { runDesktopModuleFixture } from "./fixtures/desktop-module-fixture.mts";
 import { readFile, mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
 import { verifyConsumedInputs } from "./retained-evidence.mts";
@@ -23,6 +24,11 @@ import {
   nativeTransportReceiptSources,
 } from "./desktop-execution-plan.mts";
 import { resolveDesktopSelection, desktopHarnessDeadlineMs } from "./desktop-scenarios.mts";
+import {
+  installStandingPassObserver,
+  readStandingPassObservations,
+  restoreStandingPassObserver,
+} from "../apps/desktop/scripts/desktop-standing-pass-observer.mts";
 import { buildDesktopVerifyPlan } from "./desktop-verify.mts";
 import { runOwnedFixtureJourneys } from "../apps/desktop/scripts/desktop-owned-fixture-journeys.mts";
 import { retainNativeCustody as retainOwnedNativeCustody } from "../apps/desktop/scripts/desktop-owned-native-session.mts";
@@ -134,6 +140,38 @@ void test("native interface enlargement retains its exact assertion source witho
       !resolveDesktopSelection({ profile, platform: "win32" }).selected_scenarios.includes(id),
     );
   assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }));
+});
+
+void test("actual collection artwork stays standalone with normal builds and native review custody", () => {
+  const id = "native-collection-artwork-presentation";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
+  assert.equal(plan.session.reviewedWorkflowSession, true);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.fixtures.owned, false);
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  for (const file of ["desktop-collection-artwork-test.mts", "desktop-review-controls.mts"])
+    assert.equal(
+      plan.receiptInputs.filter(
+        (input) => input.kind === "file" && input.path === `apps/desktop/scripts/${file}`,
+      ).length,
+      1,
+    );
+  for (const profile of ["smoke", "presentation", "artwork", "full"])
+    assert.ok(
+      !resolveDesktopSelection({ profile, platform: "win32" }).selected_scenarios.includes(id),
+    );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/u,
+  );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform }), /standalone/u);
 });
 
 void test("real prepared runtimes use production builds and positive owned closure", () => {
@@ -336,11 +374,8 @@ void test("execution planning preserves the independently reviewed pre-change or
         assert.deepEqual(selection.selected_scenarios, row.options.scenarios);
         assert.deepEqual(selection.setup_scenarios, []);
         // Saved-folder intake adds three picker reviews and two library handoffs.
-        // Keep the original oracle immutable and the ordinary completion budget intact.
-        assert.equal(
-          desktopHarnessDeadlineMs(selection),
-          row.options.scenarios[0] === "native-saved-folder-selected-setup" ? 600_000 : 180_000,
-        );
+        // Completion was calibrated from 180 s on hosted debug-build evidence (#4879).
+        assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
         const plan = planDesktopExecution(selection, { platform: baselinePlatform(row.platform) });
         assert.ok(plan.build.cliFeatures.includes("portcove-core/qualification-fixtures"));
         continue;
@@ -379,6 +414,9 @@ void test("execution planning preserves the independently reviewed pre-change or
         (id) =>
           ![
             "native-controller-api-fallback",
+            "native-reviewed-discovery-setup-batch",
+            "native-standing-setup-source-return",
+            "native-large-discovery-setup-review",
             "native-linux-webview-origin-boundary",
             "native-preliminary-source-review",
             "native-saved-folder-hash-resume",
@@ -393,6 +431,8 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-rejected-listener-registration",
             "native-interface-size",
             "native-library-layout",
+            "native-secondary-panel-presentation",
+            "native-collection-artwork-presentation",
             "native-update-acquisition-lifecycle",
             "native-library-organization-restart",
             "native-game-first-choice-and-restart",
@@ -411,13 +451,38 @@ void test("execution planning preserves the independently reviewed pre-change or
     assert.ok(selection.excluded_scenarios.includes("native-registered-source-reuse"));
     assert.ok(!selection.selected_scenarios.includes("native-game-first-choice-and-restart"));
     assert.ok(selection.excluded_scenarios.includes("native-game-first-choice-and-restart"));
+    assert.ok(!selection.selected_scenarios.includes("native-secondary-panel-presentation"));
+    assert.ok(selection.excluded_scenarios.includes("native-secondary-panel-presentation"));
+    assert.ok(!selection.selected_scenarios.includes("native-collection-artwork-presentation"));
+    assert.ok(selection.excluded_scenarios.includes("native-collection-artwork-presentation"));
     // Keep the frozen oracle bytes. Local artwork now explicitly receives the
     // private fixture its running-app catalog lookup has always required.
     const artworkFixtureAdded =
       selection.selected_scenarios.includes("native-local-artwork-picker-and-recovery") &&
       !row.selection.prerequisites.includes("install-fixture");
+    // The game update review now serves its offered release from the same
+    // owned install fixture instead of the live provider API (#4879).
+    const updateReviewSelected = [
+      ...selection.selected_scenarios,
+      ...selection.setup_scenarios,
+    ].includes("native-game-update-review");
+    const updateReviewFixtureAdded =
+      updateReviewSelected && !row.selection.prerequisites.includes("install-fixture");
+    const installFixtureAdded = artworkFixtureAdded || updateReviewFixtureAdded;
+    // Prerequisites keep first-declaration order, and the update review declares
+    // install-fixture straight after owned-fixture.
+    const withInstallFixture = (prerequisites: string[]) => {
+      if (!installFixtureAdded) return prerequisites;
+      const owned = prerequisites.indexOf("owned-fixture");
+      if (!updateReviewFixtureAdded || owned < 0) return [...prerequisites, "install-fixture"];
+      return [
+        ...prerequisites.slice(0, owned + 1),
+        "install-fixture",
+        ...prerequisites.slice(owned + 1),
+      ];
+    };
     const expectedSelection = structuredClone(row.selection);
-    if (artworkFixtureAdded) expectedSelection.prerequisites.push("install-fixture");
+    expectedSelection.prerequisites = withInstallFixture(expectedSelection.prerequisites);
     assert.deepEqual(historicalSelection(selection), expectedSelection);
     const plan = planDesktopExecution(selection, { platform: baselinePlatform(row.platform) });
     assert.deepEqual(historicalSelection(plan.selection), expectedSelection);
@@ -446,9 +511,15 @@ void test("execution planning preserves the independently reviewed pre-change or
           added === "scripts/native-readiness.mts" ||
           added === "scripts/acceptance-packet.mts" ||
           added === "apps/desktop/scripts/desktop-listener-lifetime-test.mts" ||
+          (selection.prerequisites.includes("owned-fixture") &&
+            [
+              "apps/desktop/scripts/desktop-secondary-panels-test.mts",
+              "apps/desktop/scripts/desktop-secondary-panels-probe.mts",
+              "apps/desktop/scripts/desktop-secondary-panels-fixture.mts",
+            ].includes(added)) ||
           (added === "apps/desktop/scripts/desktop-listener-lifetime-probe.mts" &&
             actualInputs.includes("apps/desktop/scripts/desktop-listener-lifetime-test.mts")) ||
-          (artworkFixtureAdded &&
+          (installFixtureAdded &&
             [
               "apps/desktop/scripts/desktop-install-fixture.mts",
               "apps/desktop/scripts/desktop-install-test.mts",
@@ -587,10 +658,14 @@ void test("execution planning preserves the independently reviewed pre-change or
       }
       assert.deepEqual(plan.session, expectedSession);
     }
-    assert.deepEqual(plan.build.cliFeatures, row.serialized_verify_plan.cli_features);
+    const expectedCliFeatures =
+      updateReviewSelected && row.serialized_verify_plan.cli_features.length === 0
+        ? ["portcove-core/qualification-fixtures"]
+        : row.serialized_verify_plan.cli_features;
+    assert.deepEqual(plan.build.cliFeatures, expectedCliFeatures);
     assert.deepEqual(
       plan.build.qualificationFeatures,
-      artworkFixtureAdded
+      installFixtureAdded
         ? ["qualification-fixtures"]
         : row.serialized_verify_plan.qualification_features,
     );
@@ -615,10 +690,11 @@ void test("execution planning preserves the independently reviewed pre-change or
         ...structuredClone(row.serialized_verify_plan),
         harness_deadline_ms: desktopHarnessDeadlineMs(selection),
       }; // Deliberately retained pre-change deadline owner.
-      if (artworkFixtureAdded) {
-        expected.prerequisites.push("install-fixture");
+      if (installFixtureAdded) {
+        expected.prerequisites = withInstallFixture(expected.prerequisites);
         expected.qualification_features = ["qualification-fixtures"];
       }
+      expected.cli_features = expectedCliFeatures;
       // This prerequisite now runs before lease/build; preserve the old oracle.
       Reflect.deleteProperty(actual, "frontend_command");
       // Admission metadata is independently checked by the current runner tests.
@@ -700,7 +776,7 @@ void test("selected setup completion requires identity-bound positive exit evide
   );
   assert.equal(completion.session.identityBoundSession, true);
   assert.equal(completion.session.cleanupName, "selected-setup-completion");
-  assert.equal(desktopHarnessDeadlineMs(completion.selection), 180000);
+  assert.equal(desktopHarnessDeadlineMs(completion.selection), 600000);
   const discovery = planDesktopExecution(
     resolveDesktopSelection({
       scenarios: ["native-saved-folder-selected-setup"],
@@ -745,7 +821,70 @@ void test("preliminary review is isolated and retains positive cleanup without s
   assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }), /Windows/);
 });
 
-void test("game-update review binds Windows cleanup without first-play or wider deadlines", () => {
+void test("owned-ready keeps its 20-minute allowance without the update review", () => {
+  // The hosted owned-ready group (#4879) runs seven scenarios plus the preparation
+  // journey; branch run 43781898959 stopped it at the 180 s default.
+  const selection = resolveDesktopSelection({
+    scenarios: [
+      "native-external-cli-reconciliation",
+      "native-ready-detail-composition",
+      "native-game-return-continuity",
+      "native-missing-readiness-recovery",
+      "native-retained-contract-repair-state",
+      "native-update-settings-save-without-execution",
+      "native-release-channel-selection-and-restart",
+    ],
+    platform: "win32",
+  });
+  assert.equal(selection.selected_scenarios.length + selection.setup_scenarios.length, 8);
+  assert.equal(desktopHarnessDeadlineMs(selection), 1_200_000);
+  // Alone, the release-channel journey keeps the ordinary allowance.
+  assert.equal(
+    desktopHarnessDeadlineMs(
+      resolveDesktopSelection({
+        scenarios: ["native-release-channel-selection-and-restart"],
+        platform: "win32",
+      }),
+    ),
+    180_000,
+  );
+});
+
+void test("combined ordinary owned workflows allow settlement and cleanup after the retained 20-minute timeout", () => {
+  const selection = resolveDesktopSelection({
+    scenarios: [
+      "native-library-browsing-context",
+      "native-ready-detail-composition",
+      "native-game-return-continuity",
+      "native-missing-readiness-recovery",
+      "native-retained-contract-repair-state",
+      "native-preparation-cancellation",
+      "native-interrupted-preparation-recovery",
+      "native-update-settings-save-without-execution",
+      "native-release-channel-selection-and-restart",
+      "native-reviewed-backup-restore-and-delete",
+      "native-source-intake-and-discovery-dialogs",
+      "native-reviewed-installed-game-removal",
+      "native-reviewed-source-reference-removal",
+      "native-reviewed-existing-install-copy",
+      "native-library-move-invalidates-prior-reviews",
+      "native-contextual-cli-handoff",
+    ],
+    platform: "win32",
+  });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.equal(selection.selected_scenarios.length + selection.setup_scenarios.length, 17);
+  assert.deepEqual(selection.setup_scenarios, ["native-preparation-review-and-play"]);
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  assert.equal(desktopHarnessDeadlineMs(selection), 2_400_000);
+  for (const id of ["native-preparation-cancellation", "native-game-return-continuity"]) {
+    const isolated = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+    assert.equal(desktopHarnessDeadlineMs(isolated), 180_000);
+  }
+});
+
+void test("game-update review binds Windows cleanup and its own finite deadline", () => {
   for (const platform of ["win32", "linux"] as const) {
     const selection = resolveDesktopSelection({
       scenarios: ["native-game-update-review"],
@@ -758,7 +897,9 @@ void test("game-update review binds Windows cleanup without first-play or wider 
       platform === "win32" ? "game-update-review" : "backup-focus",
     );
     assert.deepEqual(selection.setup_scenarios, []);
-    assert.equal(desktopHarnessDeadlineMs(selection), 180000);
+    // Its own hosted group (#4879): review, dispositions and three 60 s-bounded
+    // supplied outcomes after seeding an adopted installation.
+    assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
   }
 });
 
@@ -896,7 +1037,8 @@ void test("Steam batch adds Windows custody without changing builds, setup or cl
       "keyboard-pointer",
       "native-dialog",
     ]);
-    assert.equal(desktopHarnessDeadlineMs(selection), 180000);
+    // Calibrated for hosted Steam review/apply operations (#4879).
+    assert.equal(desktopHarnessDeadlineMs(selection), 600000);
   }
   for (const [other, cleanupName] of [
     ["native-reviewed-backup-restore-and-delete", "backup-review"],
@@ -1149,6 +1291,272 @@ function receiptFilePath(input: import("./native-helper-dependencies.mts").Recei
   return input.path;
 }
 
+void test("standing source-return fixture is isolated and retains both observer sources", () => {
+  const id = "native-standing-setup-source-return";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(plan.fixtures.sourceJourney, true);
+  assert.equal(plan.fixtures.completionJourney, false);
+  assert.equal(plan.fixtures.holdFirstDownload, false);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.ok(plan.build.cliFeatures.includes("portcove-core/qualification-fixtures"));
+  const verification = buildDesktopVerifyPlan({
+    selection,
+    paths: { output_root: path.resolve("out"), target_directory: path.resolve("target") },
+    drivers: null,
+    source: { revision: "a".repeat(40), clean: true },
+    packages: { ready: false },
+  });
+  assert.ok(verification.paths.cli, "Prelaunch standing registration needs the built CLI");
+  assert.ok(verification.paths.owned_probe);
+  for (const phase of ["scenario-context-preflight", "cli-build", "owned-probe-build"])
+    assert.ok(verification.phases.includes(phase));
+  for (const name of ["preparation-cli", "preparation-tool"])
+    assert.ok(
+      plan.receiptInputs.some((input) => input.kind === "executable" && input.name === name),
+    );
+  assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
+  for (const name of ["desktop-standing-setup-test.mts", "desktop-standing-pass-observer.mts"])
+    assert.equal(
+      plan.receiptInputs.filter((input) => input.kind === "file" && input.path.endsWith(name))
+        .length,
+      1,
+    );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform }), /Windows/);
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/,
+  );
+  for (const profile of ["smoke", "full"])
+    assert.ok(
+      !resolveDesktopSelection({ profile, platform: "win32" }).selected_scenarios.includes(id),
+    );
+});
+
+void test("standing fixture restoration permits only its exact stopped-session restart", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("function requiresReadOnlyRestart(");
+  const end = source.indexOf("async function restartApplication(", start);
+  assert.ok(start >= 0 && end > start);
+  const check = (platform: string, ids: string[], name: string) =>
+    runInNewContext(
+      `${source.slice(start, end)}; requiresReadOnlyRestart(${JSON.stringify(name)}, false)`,
+      {
+        process: { platform },
+        selection: { selected_scenarios: ids },
+        preferencesRecoverySession: false,
+        hostPublicationSession: false,
+        reviewedWorkflowSession: false,
+        interruptedPreparationSession: false,
+      },
+    );
+  const id = "native-standing-setup-source-return";
+  assert.equal(check("win32", [id], "standing-original-return"), false);
+  assert.equal(check("win32", [id], "standing-retained"), true);
+  assert.equal(check("linux", [id], "standing-original-return"), true);
+  assert.equal(check("win32", [id, "empty-library"], "standing-original-return"), true);
+  assert.equal(
+    check("win32", ["native-reviewed-discovery-setup-batch"], "standing-original-return"),
+    true,
+  );
+});
+
+function standingObserverSnapshot(value: unknown) {
+  assert.ok(isRecord(value) && Array.isArray(value.samples));
+  const raw: unknown[] = value.samples;
+  const samples = raw.map((sample) => {
+    assert.ok(isRecord(sample));
+    assert.equal(typeof sample.complete, "boolean");
+    return sample;
+  });
+  assert.equal(typeof value.omitted, "number");
+  return { samples, omitted: value.omitted };
+}
+
+void test("standing observer preserves actual fetch Promise, receiver, arguments and Response", async () => {
+  const target = "http://ipc.localhost/run_standing_setup";
+  const payload = { already_running: false, assessments: [], batches: [], failures: [] };
+  const response = new Response(JSON.stringify(payload));
+  const returned = Promise.resolve(response);
+  const calls: { receiver: unknown; args: unknown[] }[] = [];
+  const original = function (this: unknown, ...args: unknown[]) {
+    calls.push({ receiver: this, args });
+    return returned;
+  };
+  const runtime = { fetch: original, __TAURI_INTERNALS__: { convertFileSrc: () => target } };
+  const execute = (fn: () => unknown) =>
+    runInNewContext(`(${fn.toString()})()`, { window: runtime, URL });
+  execute(installStandingPassObserver);
+  const input = new URL(target);
+  const init = { method: "POST", body: "original args" };
+  assert.equal(runtime.fetch(input, init), returned);
+  assert.equal(calls[0]?.receiver, runtime);
+  assert.equal(calls[0]?.args[0], input);
+  assert.equal(calls[0]?.args[1], init);
+  assert.equal(await returned, response);
+  assert.deepEqual(JSON.parse(await response.text()), payload);
+  const deadline = Date.now() + 5_000;
+  let observed = standingObserverSnapshot(execute(readStandingPassObservations));
+  while (!observed.samples[0]?.complete) {
+    assert.ok(Date.now() < deadline, "Cloned response observation must finish");
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    observed = standingObserverSnapshot(execute(readStandingPassObservations));
+  }
+  assert.deepEqual(JSON.parse(JSON.stringify(observed)), {
+    samples: [{ complete: true, value: payload }],
+    omitted: 0,
+  });
+  assert.equal(execute(restoreStandingPassObserver), true);
+  assert.equal(runtime.fetch, original);
+});
+
+void test("standing observer forwards rejection and bounds samples without dropping native calls", async () => {
+  const target = "http://ipc.localhost/run_standing_setup";
+  const failure = new Error("Native refusal");
+  let count = 0;
+  const original = (...args: unknown[]) => {
+    assert.ok(args.length >= 1);
+    count++;
+    return Promise.reject(failure);
+  };
+  const runtime = { fetch: original, __TAURI_INTERNALS__: { convertFileSrc: () => target } };
+  const execute = (fn: () => unknown) =>
+    runInNewContext(`(${fn.toString()})()`, { window: runtime, URL });
+  execute(installStandingPassObserver);
+  for (let index = 0; index < 17; index++)
+    await assert.rejects(runtime.fetch(target), (error) => error === failure);
+  await assert.rejects(
+    runtime.fetch("http://ipc.localhost/get_statuses"),
+    (error) => error === failure,
+  );
+  assert.equal(count, 18);
+  const observed = standingObserverSnapshot(execute(readStandingPassObservations));
+  assert.equal(observed.samples.length, 16);
+  assert.equal(observed.omitted, 1);
+  assert.ok(observed.samples.every((sample) => sample.complete && sample.error));
+  const replacement = () => Promise.reject(failure);
+  runtime.fetch = replacement;
+  assert.throws(() => execute(restoreStandingPassObserver), /lost fetch ownership/);
+  assert.equal(runtime.fetch, replacement);
+});
+
+void test("native large review retains source/CLI custody on both supported desktop platforms", () => {
+  const id = "native-large-discovery-setup-review";
+  for (const platform of ["win32", "linux"] as const) {
+    const selection = resolveDesktopSelection({ scenarios: [id], platform });
+    const plan = planDesktopExecution(selection, { platform });
+    assert.deepEqual(selection.setup_scenarios, []);
+    assert.equal(plan.fixtures.sourceJourney, true);
+    assert.equal(plan.fixtures.owned, true);
+    assert.equal(plan.session.identityBoundSession, true);
+    assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
+    assert.deepEqual(
+      plan.fixtureFamilies
+        .filter((entry) => entry.family && entry.members.length)
+        .map((entry) => entry.family),
+      ["selected-setup"],
+    );
+    for (const name of ["preparation-cli", "preparation-tool"])
+      assert.ok(
+        plan.receiptInputs.some((input) => input.kind === "executable" && input.name === name),
+      );
+    const verification = buildDesktopVerifyPlan({
+      selection,
+      paths: { output_root: path.resolve("out"), target_directory: path.resolve("target") },
+      drivers: null,
+      source: { revision: "a".repeat(40), clean: true },
+      packages: { ready: false },
+    });
+    assert.ok(verification.paths.cli);
+    assert.ok(verification.phases.includes("cli-build"));
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform }),
+      /standalone/,
+    );
+    for (const profile of ["smoke", "full"])
+      assert.ok(!resolveDesktopSelection({ profile, platform }).selected_scenarios.includes(id));
+  }
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id], platform: "darwin" }),
+    /Windows\/Linux/,
+  );
+});
+
+void test("large review enters the actual ordinary Linux session route without an optional binding", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("const linuxSelectedSession =");
+  const end = source.indexOf("const linuxPublication =", start);
+  assert.ok(start >= 0 && end > start);
+  const selected = (platform: string, scenarios: string[], linuxBinding: unknown = null) =>
+    runInNewContext(`${source.slice(start, end)}; linuxSelectedSession`, {
+      process: { platform },
+      selection: { selected_scenarios: scenarios },
+      linuxBinding,
+    });
+  assert.equal(selected("linux", ["native-large-discovery-setup-review"]), true);
+  assert.equal(selected("win32", ["native-large-discovery-setup-review"]), false);
+  assert.equal(selected("linux", ["empty-library"]), false);
+  assert.equal(selected("linux", ["native-reviewed-discovery-setup-batch"]), false);
+  assert.equal(selected("linux", ["native-saved-folder-selected-setup"]), true);
+});
+
+void test("reviewed discovery batch is standalone, fixture-scoped and positively supervised", () => {
+  const id = "native-reviewed-discovery-setup-batch";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(plan.fixtures.sourceJourney, true);
+  assert.equal(plan.fixtures.completionJourney, false);
+  assert.equal(plan.fixtures.holdFirstDownload, false);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.ok(plan.build.cliFeatures.includes("portcove-core/qualification-fixtures"));
+  const verification = buildDesktopVerifyPlan({
+    selection,
+    paths: { output_root: path.resolve("out"), target_directory: path.resolve("target") },
+    drivers: null,
+    source: { revision: "a".repeat(40), clean: true },
+    packages: { ready: false },
+  });
+  assert.ok(verification.paths.cli, "Prelaunch source registration needs the built CLI");
+  assert.ok(verification.paths.owned_probe);
+  for (const phase of ["scenario-context-preflight", "cli-build", "owned-probe-build"])
+    assert.ok(verification.phases.includes(phase));
+  for (const name of ["preparation-cli", "preparation-tool"])
+    assert.ok(
+      plan.receiptInputs.some((input) => input.kind === "executable" && input.name === name),
+    );
+  assert.equal(
+    plan.receiptInputs.filter(
+      (input) => input.kind === "file" && input.path.endsWith("desktop-setup-batch-test.mts"),
+    ).length,
+    1,
+  );
+  assert.deepEqual(
+    plan.fixtureFamilies
+      .filter((entry) => entry.family && entry.members.length)
+      .map((entry) => entry.family),
+    ["selected-setup"],
+  );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform }), /Windows/);
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/,
+  );
+  for (const profile of ["smoke", "full"])
+    assert.ok(
+      !resolveDesktopSelection({ profile, platform: "win32" }).selected_scenarios.includes(id),
+    );
+});
+
 void test("main journey dispatch permits smoke without setup inputs but rejects selected missing inputs", async () => {
   const source = await readFile(
     new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
@@ -1167,6 +1575,7 @@ void test("main journey dispatch permits smoke without setup inputs but rejects 
     await runInNewContext(`(async()=>{${source.slice(start, end)}})()`, {
       runOwnedFixtureJourneys,
       executionPlan,
+      selection,
       driverBrowser: () => ({}),
       invoke: noop,
       scenario: noop,
@@ -1387,7 +1796,7 @@ void test("acquisition qualification is isolated, builds the owned probe and pas
   assert.equal(plan.fixtures.owned, true);
   assert.equal(plan.fixtures.completionJourney, false);
   assert.equal(plan.session.identityBoundSession, true);
-  assert.equal(desktopHarnessDeadlineMs(selection), 720_000);
+  assert.equal(desktopHarnessDeadlineMs(selection), 1_200_000);
   assert.ok(
     plan.receiptInputs.some(
       (input) =>
@@ -1780,4 +2189,311 @@ void test("MM selection binds only its normal CLI and exact private inputs", () 
     () => resolve(["--scenario", "empty-library", "--game-first-mm-source", "/source"]),
     /exact standalone/u,
   );
+});
+
+void test("standing setup keeps both restart inventories separate from final cleanup", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("function requiresReadOnlyRestart(");
+  const end = source.indexOf("// Interrupt only this harness", start);
+  assert.ok(start >= 0 && end > start);
+  const names: string[] = [];
+  const restoreOriginal = async () => {};
+  const context = {
+    assert,
+    process: { platform: "win32" },
+    selection: { selected_scenarios: ["native-standing-setup-source-return"] },
+    linuxSelectedSession: false,
+    historySession: false,
+    preferencesRecoverySession: false,
+    savedLibraryRecoverySession: false,
+    hostPublicationSession: false,
+    identityBoundSession: true,
+    interruptedPreparationSession: false,
+    reviewedWorkflowSession: false,
+    executionPlan: { fixtures: { acquisitionJourney: false } },
+    cleanupName: "backup-focus",
+    captureBackupFocusCleanup: (name: string) => {
+      names.push(name);
+      return "owned-inventory";
+    },
+    readFile: async () => "{}",
+    readNativeProcessSnapshot: (value: unknown) => value,
+    validateBackupFocusInventory: () => {},
+    stopBackupFocusDriver: () => {},
+    connect: () => {},
+    driverBrowser: () => {},
+    ownedSession: {
+      restart: async ({ capture, prepare }: { capture: () => Promise<void>; prepare: unknown }) => {
+        assert.equal(prepare, names.length === 0 ? restoreOriginal : undefined);
+        await capture();
+        return "restarted";
+      },
+    },
+  };
+  runInNewContext(`${source.slice(start, end)}\nglobalThis.restart = restartApplication;`, context);
+  const restart: unknown = Reflect.get(context, "restart");
+  assert.ok(typeof restart === "function");
+  assert.equal(
+    await Reflect.apply(restart, undefined, ["standing-original-return", restoreOriginal]),
+    "restarted",
+  );
+  assert.equal(await Reflect.apply(restart, undefined, ["standing-retained"]), "restarted");
+  await assert.rejects(async () => {
+    await Reflect.apply(restart, undefined, ["standing-retained", restoreOriginal]);
+  }, /Identity-bound restart cannot rewrite fixture state/u);
+  context.captureBackupFocusCleanup(context.cleanupName);
+  assert.deepEqual(names, ["standing-original-return", "standing-retained", "backup-focus"]);
+  assert.equal(new Set(names).size, 3, "All session inventories must remain exclusive");
+});
+
+void test("batch restart preserves its inventory separately from final session cleanup", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function restartApplication(");
+  const end = source.indexOf("// Interrupt only this harness", start);
+  assert.ok(start >= 0 && end > start);
+  for (const scenario of ["native-reviewed-discovery-setup-batch", "native-backup-delete-focus"]) {
+    const names: string[] = [];
+    const context = {
+      assert,
+      process: { platform: "win32" },
+      selection: { selected_scenarios: [scenario] },
+      linuxSelectedSession: false,
+      historySession: false,
+      savedLibraryRecoverySession: false,
+      hostPublicationSession: false,
+      identityBoundSession: true,
+      interruptedPreparationSession: false,
+      reviewedWorkflowSession: false,
+      executionPlan: { fixtures: { acquisitionJourney: false } },
+      cleanupName: "backup-focus",
+      requiresReadOnlyRestart: () => true,
+      captureBackupFocusCleanup: (name: string) => {
+        names.push(name);
+        return "owned-inventory";
+      },
+      readFile: async () => "{}",
+      readNativeProcessSnapshot: (value: unknown) => value,
+      validateBackupFocusInventory: () => {},
+      stopBackupFocusDriver: () => {},
+      connect: () => {},
+      driverBrowser: () => {},
+      ownedSession: {
+        restart: async ({
+          capture,
+          prepare,
+        }: {
+          capture: () => Promise<void>;
+          prepare: unknown;
+        }) => {
+          assert.equal(prepare, undefined);
+          await capture();
+          return "restarted";
+        },
+      },
+    };
+    runInNewContext(
+      `${source.slice(start, end)}\nglobalThis.restart = restartApplication;`,
+      context,
+    );
+    const restart: unknown = Reflect.get(context, "restart");
+    assert.ok(typeof restart === "function");
+    assert.equal(await Reflect.apply(restart, undefined, ["native-batch-retained"]), "restarted");
+    assert.deepEqual(names, [
+      scenario === "native-reviewed-discovery-setup-batch"
+        ? "native-batch-retained"
+        : "backup-focus",
+    ]);
+    if (scenario === "native-reviewed-discovery-setup-batch") {
+      context.captureBackupFocusCleanup(context.cleanupName);
+      assert.equal(
+        new Set(names).size,
+        2,
+        "restart and final inventory paths must remain distinct",
+      );
+    }
+  }
+});
+
+void test("secondary panel presentation keeps isolated Windows custody and complete inputs", () => {
+  const id = "native-secondary-panel-presentation";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, ["native-preparation-review-and-play"]);
+  assert.ok(selection.prerequisites.includes("native-dialog"));
+  assert.ok(selection.host_resources.includes("native-dialog"));
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "native-review");
+  assert.equal(plan.fixtures.owned, true);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
+  const preparation = plan.fixtureFamilies.find((family) => family.family === "preparation");
+  assert.ok(preparation?.members?.some((member) => member.id === id && member.role === "selected"));
+  for (const file of [
+    "desktop-secondary-panels-test.mts",
+    "desktop-secondary-panels-probe.mts",
+    "desktop-secondary-panels-fixture.mts",
+  ])
+    assert.ok(plan.receiptInputs.some((input) => input.path === `apps/desktop/scripts/${file}`));
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/,
+  );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform }), /Windows/);
+  assert.deepEqual(
+    resolveDesktopSelection({ scenarios: [id, id], platform: "win32" }).selected_scenarios,
+    [id],
+  );
+});
+
+void test("keyboard layout follows the actual native viewport after a minimum-width clamp", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("    // Native window minimums may clamp this request.");
+  const end = source.indexOf('    await selectPrimaryNavigation(browser, "Settings");', start);
+  assert.ok(start > 0 && end > start);
+  const journey = source.slice(start, end);
+  const run = async (width: number, triggerVisible: boolean) => {
+    const calls: string[] = [];
+    let receipt = "";
+    const browser = {
+      manage: () => ({
+        window: () => ({
+          setRect: async () => calls.push("resize"),
+          getRect: async () => ({ width, height: 640 }),
+        }),
+      }),
+      findElement: () => ({ click: async () => calls.push("open drawer") }),
+      wait: async (value: unknown) => value,
+    };
+    await runInNewContext(`(async () => {${journey}})()`, {
+      browser,
+      assert,
+      path,
+      output: "/owned-output",
+      artifacts: [],
+      desktopNavigation: "desktop",
+      drawerNavigation: "drawer",
+      verifySidebarLabels: async (scope: string) => calls.push(scope),
+      writeFile: async (_file: string, value: string) => {
+        receipt = value;
+      },
+      By: { css: (value: string) => value },
+      until: {
+        elementLocated: (value: unknown) => value,
+        elementIsVisible: (value: unknown) => value,
+      },
+      executeBrowserScript: async (_browser: unknown, observe: () => unknown) =>
+        runInNewContext(`(${observe.toString()})()`, {
+          window: {
+            innerWidth: width,
+            innerHeight: 640,
+            matchMedia: () => ({ matches: width < 672 }),
+          },
+          document: {
+            querySelector: () => ({ getClientRects: () => (triggerVisible ? [{}] : []) }),
+          },
+        }),
+    });
+    const parsed: unknown = JSON.parse(receipt);
+    assert.ok(isRecord(parsed));
+    assert.ok(isRecord(parsed.actual_window) && isRecord(parsed.requested_window));
+    assert.equal(typeof parsed.compact_navigation, "string");
+    return {
+      calls,
+      actualWidth: parsed.actual_window.width,
+      requestedWidth: parsed.requested_window.width,
+      compactNavigation: String(parsed.compact_navigation),
+    };
+  };
+  const clamped = await run(960, false);
+  assert.deepEqual(clamped.calls, ["resize", "desktop"]);
+  assert.equal(clamped.actualWidth, 960);
+  assert.equal(clamped.requestedWidth, 640);
+  assert.match(clamped.compactNavigation, /^not-exercised:/u);
+  const compact = await run(640, true);
+  assert.deepEqual(compact.calls, ["resize", "open drawer", "drawer", "desktop"]);
+  assert.equal(compact.compactNavigation, "required");
+  await assert.rejects(run(640, false), /actual responsive breakpoint/u);
+  await assert.rejects(run(960, true), /actual responsive breakpoint/u);
+});
+
+void test("native keyboard replacement releases modifiers before separate text delivery", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-review-controls.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("export async function replaceKeyboardText(");
+  const end = source.indexOf("\n}\n", start);
+  assert.ok(start >= 0 && end > start);
+  const run = async (platform: string, text: string, failRelease = false) => {
+    const calls: unknown[] = [];
+    let modifierHeld = false;
+    const actions = {
+      keyDown: (key: string) => {
+        calls.push(["down", key]);
+        modifierHeld = true;
+        return actions;
+      },
+      sendKeys: (key: string) => {
+        calls.push(["action-key", key]);
+        return actions;
+      },
+      keyUp: (key: string) => {
+        calls.push(["up", key]);
+        return actions;
+      },
+      perform: async () => {
+        if (failRelease) throw new Error("modifier release failed");
+        modifierHeld = false;
+        calls.push("released");
+      },
+    };
+    await runInNewContext(
+      `${source.slice(start, end + 2).replace("export ", "")}
+replaceKeyboardText(browser, element, text)`,
+      {
+        browser: { actions: () => actions },
+        element: {
+          sendKeys: async (...keys: string[]) => {
+            assert.equal(modifierHeld, false, "text must not be sent with a held modifier");
+            assert.equal(keys.length, 1, "Backspace and plain text require separate commands");
+            calls.push(["element-key", ...keys]);
+          },
+        },
+        text,
+        process: { platform },
+        Key: { COMMAND: "command", CONTROL: "control", BACK_SPACE: "backspace" },
+        clickVisible: async () => calls.push("visible-click"),
+      },
+    );
+    return calls;
+  };
+  for (const platform of ["linux", "win32", "darwin"]) {
+    const modifier = platform === "darwin" ? "command" : "control";
+    const prefix = [
+      "visible-click",
+      ["down", modifier],
+      ["action-key", "a"],
+      ["up", modifier],
+      "released",
+      ["element-key", "backspace"],
+    ];
+    assert.deepEqual(await run(platform, "prior catalog query"), [
+      ...prefix,
+      ["element-key", "prior catalog query"],
+    ]);
+    assert.deepEqual(await run(platform, ""), prefix);
+  }
+  await assert.rejects(run("linux", "must not be typed", true), /modifier release failed/u);
 });

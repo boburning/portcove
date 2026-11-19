@@ -17,10 +17,10 @@
     },
     "issue_number": 1113,
     "listed_at": "2026-10-23",
-    "setup_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/a789926d38f17c9a683a7826d74536a1ff2200b5/docs/PLAYER_PACKAGE.md",
+    "setup_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/v1.5.0/docs/PLAYER_PACKAGE.md",
     "release_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases",
     "manual_setup": {
-      "help_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/a789926d38f17c9a683a7826d74536a1ff2200b5/docs/PLAYER_PACKAGE.md",
+      "help_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/v1.5.0/docs/PLAYER_PACKAGE.md",
       "warnings": [
         "Close the game and importer before replacing a runtime. Preserve the complete local race-packs folder, including import jobs and previous-pack backups; custom external course-pack folders require a separate backup.",
         "A historical managed v1.4.3 copy retains its accepted definition and data locations. Keep it usable while a supported transition is unavailable.",
@@ -33,7 +33,7 @@
         },
         {
           "title": "Run a permitted experimental Linux copy",
-          "instruction": "For an already permitted v1.4.9 Linux x64 copy, keep the official AppImage in a writable folder and make it executable. Use a Vulkan driver, glibc 2.35 or newer, and libstdc++ with GLIBCXX_3.4.30. Open the AppImage and choose Select Game ROM with your own Road Rash 64 USA v1.0 original, then Start Game. Follow the included Linux help if your system needs a FUSE fallback."
+          "instruction": "For a permitted v1.5.0 experimental Linux x64 copy, extract the complete ZIP to a writable folder and make the AppImage executable. Use an AVX-capable CPU, a Vulkan driver, glibc 2.35 or later and libstdc++ with GLIBCXX_3.4.30. Open the AppImage, choose Select Game ROM with your own Road Rash 64 USA v1.0 original, then Start Game."
         },
         {
           "title": "Keep optional setup with the game",
@@ -51,7 +51,7 @@
         },
         {
           "title": "Back up the Linux profile and adjacent files",
-          "instruction": "Close the game and importer. Keep ~/.config/RoadRash64Recompiled or the profile you selected through APP_FOLDER_PATH, plus music and race-packs beside the writable AppImage. For an already working normal AppImage launch, select the AppImage and its containing folder when adding it to Portcove."
+          "instruction": "Close the game and importer. Keep ~/.config/RoadRash64Recompiled or the profile you selected through APP_FOLDER_PATH, plus music and race-packs beside the writable AppImage. For an already working normal AppImage launch, select the AppImage and its containing folder when adding it to Portcove. If FUSE is unavailable, upstream provides APPIMAGE_EXTRACT_AND_RUN=1 for manual launch."
         },
         {
           "title": "Keep your current copy while changing routes",
@@ -60,6 +60,25 @@
         {
           "title": "Keep external Road Rash replacement and data ownership",
           "instruction": "Upstream or you provide that external copy’s runtime updates; Portcove registration removal leaves every external file untouched and does not grant managed Backup or Rollback."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "road-rash-64",
+      "evidence_urls": [
+        "https://github.com/linkssy2/RoadRash64Recompiled/blob/v1.5.0/docs/PLAYER_PACKAGE.md",
+        "https://github.com/linkssy2/RoadRash64Recompiled",
+        "https://github.com/linkssy2/RoadRash64Recompiled/blob/42bf10065362daf91a77089a9f5c8147dae60de0/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "road-rash-64-nintendo-64",
+          "title": "Road Rash 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/linkssy2/RoadRash64Recompiled/blob/42bf10065362daf91a77089a9f5c8147dae60de0/README.md"
+          ]
         }
       ]
     }

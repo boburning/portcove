@@ -2,6 +2,11 @@ import type { GameComparison, GameComparisonRequest } from "./types";
 import type {
   ArtworkSlot,
   ArtworkState,
+  DestinationArtworkRole,
+  SteamGridDbCandidate,
+  SteamGridDbGame,
+  SteamGridDbKeyStatus,
+  SteamGridDbListingReport,
   ArtworkThumbnail,
   CliCommandContext,
   BackupAction,
@@ -17,9 +22,11 @@ import type {
   BugReportField,
   BugReportLink,
   ReportKind,
+  SubmittedReport,
   InstallInput,
   LaunchResult,
   LaunchSessionView,
+  RuntimePrerequisiteReport,
 } from "./types";
 import type {
   GameUpdateAcquisition,
@@ -61,18 +68,8 @@ import type {
   AdoptionBatchResult,
   LauncherKind,
   LauncherLibraryInventory,
-  ApplicationUpdateChoice,
-  ApplicationUpdateCheckPhase,
-  ApplicationUpdateCheckResult,
-  ApplicationUpdateManualCheckRequest,
-  ApplicationUpdateManualCheckResult,
-  ApplicationUpdateDownloadRequest,
-  ApplicationUpdateNoticeSnapshot,
   ApplicationUpdatePreferences,
-  ApplicationUpdateProductionDecision,
-  ApplicationUpdateProductionTransition,
-  ApplicationUpdateProductionTransitionResult,
-  ApplicationUpdateRecoveryArea,
+  ApplicationUpdateProgress,
   ApplicationUpdateStatus,
   GhostshipRecoveryPlan,
   GhostshipRecoveryResult,
@@ -108,7 +105,12 @@ import type {
   LibraryMembershipRequest,
   GameFileQueryRefreshRequest,
   GameFileQuerySnapshot,
+  GameFileScanMatchPage,
+  GameFileScanRegisteredMatches,
+  StoreGameInstalls,
+  GameFileScanMatchQuery,
   GameFileScanSnapshot,
+  DatReferenceStatus,
   HostToolProbeResult,
   HostToolStatus,
   InstallPlan,
@@ -151,6 +153,12 @@ import type {
 export type DesktopArtworkThumbnail = Pick<ArtworkThumbnail, "asset_sha256" | "choice_revision"> & {
   png_base64: string;
 };
+
+/** Explicit player choices bound into a reviewed save import. */
+export interface PortableSaveChoices {
+  removeLocalOnlySaves: boolean;
+  replaceDivergedProgress: boolean;
+}
 
 export const desktopApi = {
   gameSettings: (portId: string, generation: number) =>
@@ -196,61 +204,21 @@ export const desktopApi = {
   localePreference: () => invoke<LocalePreferenceSnapshot>("get_locale_preference"),
   setLocalePreference: (locale: string | null) =>
     invoke<LocalePreferenceSnapshot>("set_locale_preference", { locale }),
-  applicationUpdateNotice: () =>
-    invoke<ApplicationUpdateNoticeSnapshot>("get_application_update_notice"),
-  dismissApplicationUpdateNotice: (expectedRevision: number) =>
-    invoke<ApplicationUpdateNoticeSnapshot>("dismiss_application_update_notice", {
-      expectedRevision,
-    }),
+  applicationUpdateStatus: () => invoke<ApplicationUpdateStatus>("get_application_update_status"),
+  checkApplicationUpdate: () => invoke<ApplicationUpdateStatus>("check_application_update"),
+  installApplicationUpdate: (
+    version: string,
+    generation: number,
+    onEvent: (event: ApplicationUpdateProgress) => void,
+  ) => {
+    const channel = new Channel<ApplicationUpdateProgress>();
+    channel.onmessage = onEvent;
+    return invoke<void>("install_application_update", { generation, version, onEvent: channel });
+  },
   applicationUpdatePreferences: () =>
     invoke<ApplicationUpdatePreferences>("get_application_update_preferences"),
-  applicationUpdateProductionTransition: () =>
-    invoke<ApplicationUpdateProductionTransition>("get_application_update_production_transition"),
-  completeApplicationUpdateProductionTransition: (
-    expectedRevision: number,
-    decision: ApplicationUpdateProductionDecision,
-  ) =>
-    invoke<ApplicationUpdateProductionTransitionResult>(
-      "complete_application_update_production_transition",
-      { expectedRevision, decision },
-    ),
-  setApplicationUpdatePreferences: (expectedRevision: number, choice: ApplicationUpdateChoice) =>
-    invoke<ApplicationUpdatePreferences>("set_application_update_preferences", {
-      expectedRevision,
-      choice,
-    }),
-  resetApplicationUpdatePreferences: () =>
-    invoke<ApplicationUpdatePreferences>("reset_application_update_preferences"),
-  recoverApplicationUpdatePreferences: () =>
-    invoke<ApplicationUpdatePreferences>("recover_application_update_preferences"),
-  applicationUpdateStatus: () => invoke<ApplicationUpdateStatus>("get_application_update_status"),
-  recoverApplicationUpdateState: (area: ApplicationUpdateRecoveryArea) =>
-    invoke<ApplicationUpdateStatus>("recover_application_update_state", { area }),
-  checkApplicationUpdate: (
-    onEvent: (event: ApplicationUpdateCheckPhase) => void,
-    request: ApplicationUpdateManualCheckRequest = {},
-  ) => {
-    const channel = new Channel<ApplicationUpdateCheckPhase>();
-    channel.onmessage = onEvent;
-    return invoke<ApplicationUpdateManualCheckResult>("check_application_update", {
-      request,
-      onEvent: channel,
-    });
-  },
-  downloadApplicationUpdate: (
-    request: ApplicationUpdateDownloadRequest,
-    onEvent: (event: ApplicationUpdateCheckPhase) => void,
-  ) => {
-    const channel = new Channel<ApplicationUpdateCheckPhase>();
-    channel.onmessage = onEvent;
-    return invoke<ApplicationUpdateCheckResult>("download_application_update", {
-      request,
-      onEvent: channel,
-    });
-  },
-  cancelApplicationUpdateCheck: () => invoke<boolean>("cancel_application_update_check"),
-  restartToApplyApplicationUpdate: (generation: number) =>
-    invoke<void>("restart_to_apply_application_update", { generation }),
+  setApplicationUpdatePreferences: (preferences: ApplicationUpdatePreferences) =>
+    invoke<ApplicationUpdatePreferences>("set_application_update_preferences", { preferences }),
   artwork: (portId: string, slot: ArtworkSlot, generation: number) =>
     invoke<ArtworkState>("get_artwork", { portId, slot, generation }),
   artworkThumbnail: (
@@ -265,6 +233,32 @@ export const desktopApi = {
       expectedRevision,
       generation,
     }),
+  collectionCoverThumbnail: (
+    portId: string,
+    expectedSha256: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<DesktopArtworkThumbnail>("get_collection_cover_thumbnail", {
+      portId,
+      expectedSha256,
+      expectedRevision,
+      generation,
+    }),
+  companionCoverThumbnail: (
+    portId: string,
+    expectedPrimaryCacheId: string,
+    expectedSha256: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<DesktopArtworkThumbnail>("get_companion_cover_thumbnail", {
+      portId,
+      expectedPrimaryCacheId,
+      expectedSha256,
+      expectedRevision,
+      generation,
+    }),
   catalogMediaThumbnail: (
     portId: string,
     mediaId: string,
@@ -275,6 +269,34 @@ export const desktopApi = {
       portId,
       mediaId,
       expectedSha256,
+      generation,
+    }),
+  steamGridDbKeyStatus: () => invoke<SteamGridDbKeyStatus>("get_steamgriddb_key_status"),
+  /** Saves the player's own key in the OS secure store; it is never read back. */
+  setSteamGridDbKey: (key: string) => invoke<SteamGridDbKeyStatus>("set_steamgriddb_key", { key }),
+  clearSteamGridDbKey: () => invoke<SteamGridDbKeyStatus>("clear_steamgriddb_key"),
+  searchSteamGridDbGames: (term: string) =>
+    invoke<SteamGridDbGame[]>("search_steamgriddb_games", { term }),
+  steamGridDbCandidates: (gameId: number, role: DestinationArtworkRole) =>
+    invoke<SteamGridDbCandidate[]>("get_steamgriddb_candidates", { gameId, role }),
+  steamGridDbPreview: (url: string) =>
+    invoke<{ png_base64: string }>("get_steamgriddb_preview", { url }),
+  checkSteamGridDbListings: (generation: number) =>
+    invoke<SteamGridDbListingReport>("check_steamgriddb_listings", { generation }),
+  chooseSteamGridDbArtwork: (
+    portId: string,
+    slot: ArtworkSlot,
+    gameId: number,
+    candidateId: number,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<ArtworkState>("choose_steamgriddb_artwork", {
+      portId,
+      slot,
+      gameId,
+      candidateId,
+      expectedRevision,
       generation,
     }),
   importArtwork: (
@@ -293,6 +315,25 @@ export const desktopApi = {
     }),
   modSetups: (portId: string, generation: number) =>
     invoke<import("./types").ModSetupsView>("get_mod_setups", { portId, generation }),
+  reviewModSetupOriginal: (target: import("./types").ModSetupOriginalTarget) =>
+    invoke<import("./types").ModSetupOriginalReview>("review_mod_setup_original", target),
+  selectModSetupOriginal: (target: import("./types").ModSetupOriginalTarget, instanceId: string) =>
+    invoke<void>("select_mod_setup_original", { ...target, instanceId }),
+  relinkModSetupOriginal: (target: import("./types").ModSetupOriginalTarget, path: string) =>
+    invoke<void>("relink_mod_setup_original", { ...target, path }),
+  inspectModFile: (portId: string, fileName: string, generation: number) =>
+    invoke<import("./types").ModFilePreservationPlan>("inspect_mod_file", {
+      portId,
+      fileName,
+      generation,
+    }),
+  preserveModFile: (portId: string, fileName: string, expectedPlan: string, generation: number) =>
+    invoke<import("./types").ModFilePreservationResult>("preserve_mod_file", {
+      portId,
+      fileName,
+      expectedPlan,
+      generation,
+    }),
   createDefaultModSetup: (portId: string, generation: number) =>
     invoke<import("./types").ModSetup>("create_default_mod_setup", { portId, generation }),
   copyModSetup: (
@@ -301,6 +342,11 @@ export const desktopApi = {
     displayName: string,
     generation: number,
     currentBuild = false,
+    progress?: {
+      source_revision_sha256: string;
+      target_install_id: string;
+      target_revision_sha256: string;
+    },
   ) =>
     invoke<import("./types").ModSetup>("copy_mod_setup", {
       portId,
@@ -308,11 +354,128 @@ export const desktopApi = {
       displayName,
       generation,
       currentBuild,
+      ...(progress && { progress }),
     }),
+  createCleanModSetup: (
+    portId: string,
+    profileId: string,
+    displayName: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetup>("create_clean_mod_setup", {
+      portId,
+      profileId,
+      displayName,
+      expectedRevision,
+      generation,
+    }),
+  modSetupRevisions: (portId: string, profileId: string, generation: number) =>
+    invoke<import("./types").ModSetupRevision[]>("list_mod_setup_revisions", {
+      portId,
+      profileId,
+      generation,
+    }),
+  planProfileRecovery: (portId: string, profileId: string, revision: number, generation: number) =>
+    invoke<import("./types").ModSetupRecoveryPlan>("plan_profile_recovery", {
+      portId,
+      profileId,
+      revision,
+      generation,
+    }),
+  applyProfileRecovery: (
+    portId: string,
+    profileId: string,
+    revision: number,
+    expectedPlanSha256: string,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("apply_profile_recovery", {
+      portId,
+      profileId,
+      revision,
+      expectedPlanSha256,
+      generation,
+    }),
+  modSetupRecoveryBuilds: (portId: string, profileId: string, generation: number) =>
+    invoke<import("./types").ModSetupRecoveryBuild[]>("list_mod_setup_recovery_builds", {
+      portId,
+      profileId,
+      generation,
+    }),
+  previewModSetupRetirement: (
+    portId: string,
+    profileId: string,
+    revision: number,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupRetirementPreview>("preview_mod_setup_retirement", {
+      portId,
+      profileId,
+      revision,
+      generation,
+    }),
+  retireModSetupRecoveryBuild: (
+    portId: string,
+    profileId: string,
+    revision: number,
+    expectedPreviewSha256: string,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupRetirementPreview["revision"]>(
+      "retire_mod_setup_recovery_build",
+      { portId, profileId, revision, expectedPreviewSha256, generation },
+    ),
   useModSetup: (portId: string, profileId: string, generation: number) =>
     invoke<import("./types").ModSetupRevision>("use_mod_setup", {
       portId,
       profileId,
+      generation,
+    }),
+  exportModRecipe: (portId: string, profileId: string, path: string, generation: number) =>
+    invoke<void>("export_mod_recipe", { portId, profileId, path, generation }),
+  inspectModRecipe: (portId: string, path: string, generation: number) =>
+    invoke<import("./transport-types.generated").OutputDesktopRecipeImportReview>(
+      "inspect_mod_recipe",
+      {
+        portId,
+        path,
+        generation,
+      },
+    ),
+  acquireModRecipePackage: (
+    portId: string,
+    profileId: string,
+    nativeId: string,
+    review: import("./transport-types.generated").OutputDesktopRecipeImportReview,
+    generation: number,
+  ) =>
+    invoke<import("./transport-types.generated").OutputDesktopRecipeImportReview>(
+      "acquire_mod_recipe_package",
+      { portId, profileId, nativeId, serializedPlan: review.serialized_plan, generation },
+    ),
+  discardModRecipeReview: (
+    portId: string,
+    review: import("./transport-types.generated").OutputDesktopRecipeImportReview,
+    generation: number,
+  ) =>
+    invoke<void>("discard_mod_recipe_review", {
+      portId,
+      serializedPlan: review.serialized_plan,
+      generation,
+    }),
+  applyModRecipe: (
+    portId: string,
+    displayName: string,
+    review: import("./transport-types.generated").OutputDesktopRecipeImportReview,
+    generation: number,
+    allowCode: boolean,
+  ) =>
+    invoke<import("./types").ModSetup>("apply_mod_recipe", {
+      portId,
+      allowCode,
+      displayName,
+      serializedPlan: review.serialized_plan,
       generation,
     }),
   setModPackageEnabled: (
@@ -331,17 +494,57 @@ export const desktopApi = {
       expectedRevision,
       generation,
     }),
-  browseProviderMods: (portId: string, page: number, generation: number) =>
+  removeModPackage: (
+    portId: string,
+    profileId: string,
+    nativeId: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("remove_mod_package", {
+      portId,
+      profileId,
+      nativeId,
+      expectedRevision,
+      generation,
+    }),
+  setModUpdatePolicy: (
+    portId: string,
+    profileId: string,
+    policy: import("./types").ModUpdatePolicy,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetup>("set_mod_update_policy", {
+      portId,
+      profileId,
+      policy,
+      generation,
+    }),
+  checkProviderModUpdates: (portId: string, profileId: string, generation: number) =>
+    invoke<import("./types").ProviderUpdateObservation[]>("check_provider_mod_updates", {
+      portId,
+      profileId,
+      generation,
+    }),
+  openProviderModProject: (
+    portId: string,
+    projectId: string,
+    generation: number,
+    provider?: string,
+  ) => invoke<void>("open_provider_mod_project", { portId, projectId, generation, provider }),
+  browseProviderMods: (portId: string, page: number, generation: number, provider?: string) =>
     invoke<import("./types").ProviderBrowsePage>("browse_provider_mods", {
       portId,
       page,
       generation,
+      provider,
     }),
-  providerProject: (portId: string, projectId: string, generation: number) =>
+  providerProject: (portId: string, projectId: string, generation: number, provider?: string) =>
     invoke<import("./types").ProviderProjectView>("get_provider_project", {
       portId,
       projectId,
       generation,
+      provider,
     }),
   planProviderInstall: (
     portId: string,
@@ -349,6 +552,7 @@ export const desktopApi = {
     projectId: string,
     fileId: string,
     generation: number,
+    provider?: string,
   ) =>
     invoke<import("./types").ProviderInstallPlan>("plan_provider_install", {
       portId,
@@ -356,6 +560,7 @@ export const desktopApi = {
       projectId,
       fileId,
       generation,
+      provider,
     }),
   applyProviderInstall: (
     portId: string,
@@ -394,6 +599,33 @@ export const desktopApi = {
       generation,
       allowCodeSha256,
     }),
+  planLocalModPackage: (
+    portId: string,
+    profileId: string,
+    path: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<import("./transport-types.generated").OutputLocalModPackagePlan>(
+      "plan_local_mod_package",
+      { portId, profileId, path, expectedRevision, generation },
+    ),
+  applyLocalModPackage: (
+    portId: string,
+    profileId: string,
+    path: string,
+    expectedPlanSha256: string,
+    generation: number,
+    allowCode: boolean,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("apply_local_mod_package", {
+      portId,
+      profileId,
+      path,
+      expectedPlanSha256,
+      generation,
+      allowCode,
+    }),
   reviewModPackageCode: (portId: string, path: string, generation: number) =>
     invoke<import("./types").ModCodeReview | null>("review_mod_package_code", {
       portId,
@@ -411,6 +643,8 @@ export const desktopApi = {
     invoke<CliCommandContext>("get_cli_command_context", { generation }),
   libraryIdentity: (generation: number) =>
     invoke<LibraryIdentity>("get_library_identity", { generation }),
+  discoverSteamClientRoots: (generation: number) =>
+    invoke<string[]>("discover_steam_client_roots", { generation }),
   listSteamProfiles: (steamRoot: string, generation: number) =>
     invoke<string[]>("list_steam_profiles", { steamRoot, generation }),
   previewSteamEntry: (
@@ -482,11 +716,20 @@ export const desktopApi = {
   listingDeliveryStatus: () => invoke<ListingDeliveryStatus>("get_listing_delivery_status"),
   officialCatalogReview: (generation: number) =>
     invoke<import("./types").OfficialCatalogReview>("get_official_catalog_review", { generation }),
-  enableOfficialCatalog: (expectedPlan: string, generation: number) =>
-    invoke<import("./types").OfficialCatalogSetup>("enable_official_catalog", {
-      expectedPlan,
-      generation,
-    }),
+  officialCatalogAutomaticUpdates: () => invoke<boolean>("get_official_catalog_automatic_updates"),
+  setOfficialCatalogAutomaticUpdates: (enabled: boolean) =>
+    invoke<boolean>("set_official_catalog_automatic_updates", { enabled }),
+  refreshOfficialCatalogAutomatically: (
+    generation: number,
+    onEvent: (event: OperationEvent) => void,
+  ) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<import("./types").OfficialCatalogAutomaticRefresh>(
+      "refresh_official_catalog_automatically",
+      { generation, onEvent: channel },
+    );
+  },
   refreshOfficialCatalog: (generation: number, onEvent: (event: OperationEvent) => void) => {
     const channel = new Channel<OperationEvent>();
     channel.onmessage = onEvent;
@@ -609,6 +852,22 @@ export const desktopApi = {
     invoke<void>("forget_pending_setup", { portId, pendingId, generation }),
   openPendingSetupFolder: (portId: string, pendingId: string, generation: number) =>
     invoke<void>("open_pending_setup_folder", { portId, pendingId, generation }),
+  openPendingSetupResource: (portId: string, pendingId: string, url: string, generation: number) =>
+    invoke<void>("open_pending_setup_resource", { portId, pendingId, url, generation }),
+  openCatalogDownloadReleaseNotes: (
+    portId: string,
+    releaseId: CatalogDownloadRequest["release_id"],
+    assetId: CatalogDownloadRequest["asset_id"],
+    url: string,
+    generation: number,
+  ) =>
+    invoke<void>("open_catalog_download_release_notes", {
+      portId,
+      releaseId,
+      assetId,
+      url,
+      generation,
+    }),
   discoverOrphanedOperations: (generation: number) =>
     invoke<void>("discover_orphaned_operations", { generation }),
   planPreparation: (portId: string, generation: number) =>
@@ -740,6 +999,49 @@ export const desktopApi = {
       expectedPreview,
       generation,
     }),
+  previewPortableSaveExport: (portId: string, generation: number) =>
+    invoke<import("./types").PortableSaveExportPreview>("preview_portable_save_export", {
+      portId,
+      generation,
+    }),
+  exportPortableSaves: (
+    portId: string,
+    path: string,
+    expectedContent: string,
+    generation: number,
+  ) =>
+    invoke<import("./types").PortableSaveExportResult>("export_portable_saves", {
+      portId,
+      path,
+      expectedContent,
+      generation,
+    }),
+  previewPortableSaveImport: (
+    portId: string,
+    path: string,
+    choices: PortableSaveChoices,
+    generation: number,
+  ) =>
+    invoke<import("./types").PortableSaveImportPreview>("preview_portable_save_import", {
+      portId,
+      path,
+      ...choices,
+      generation,
+    }),
+  importPortableSaves: (
+    portId: string,
+    path: string,
+    choices: PortableSaveChoices,
+    expectedPreview: string,
+    generation: number,
+  ) =>
+    invoke<import("./types").PortableSaveImportResult | null>("import_portable_saves", {
+      portId,
+      path,
+      ...choices,
+      expectedPreview,
+      generation,
+    }),
   planGhostshipLegacyRecovery: (backupId: string, generation: number) =>
     invoke<GhostshipRecoveryPlan>("plan_ghostship_legacy_recovery", { backupId, generation }),
   recoverGhostshipLegacyData: (backupId: string, expectedPlan: string, generation: number) =>
@@ -822,6 +1124,12 @@ export const desktopApi = {
       portId,
       generation,
     }),
+  setRootSetupLocalCopy: (rootId: string, keepLocalCopy: boolean, generation: number) =>
+    invoke<RootSetupConsent>("set_root_setup_local_copy", {
+      rootId,
+      keepLocalCopy,
+      generation,
+    }),
   rootSetupConsents: (generation: number) =>
     invoke<RootSetupConsent[]>("get_root_setup_consents", { generation }),
   cancelInstallBatch: (batchId: string, generation: number) =>
@@ -838,6 +1146,7 @@ export const desktopApi = {
     limits: SourceDiscoveryLimits,
     generation: number,
     onEvent?: (event: OperationEvent) => void,
+    finishScanId?: string,
   ) => {
     const channel = new Channel<OperationEvent>();
     channel.onmessage = (event) => onEvent?.(event);
@@ -845,10 +1154,28 @@ export const desktopApi = {
       limits,
       generation,
       onEvent: channel,
+      ...(finishScanId === undefined ? {} : { finishScanId }),
     });
   },
   gameFileScanSnapshot: (generation: number) =>
     invoke<GameFileScanSnapshot | null>("get_game_file_scan_snapshot", { generation }),
+  gameFileScanMatches: (query: GameFileScanMatchQuery, generation: number) =>
+    invoke<GameFileScanMatchPage>("get_game_file_scan_matches", { query, generation }),
+  gameFileScanRegisteredMatches: (
+    expected: NonNullable<GameFileScanSnapshot["matches"]>,
+    generation: number,
+  ) =>
+    invoke<GameFileScanRegisteredMatches>("get_game_file_scan_registered_matches", {
+      expected,
+      generation,
+    }),
+  gameFileRootMatchProfiles: (rootId: string, generation: number) =>
+    invoke<string[]>("get_game_file_root_match_profiles", { rootId, generation }),
+  storeGameInstalls: (generation: number, profileId?: string) =>
+    invoke<StoreGameInstalls>("get_store_game_installs", {
+      generation,
+      ...(profileId !== undefined ? { profileId } : {}),
+    }),
   refreshGameFileQuery: (
     request: GameFileQueryRefreshRequest,
     generation: number,
@@ -956,6 +1283,9 @@ export const desktopApi = {
       expectedPreview,
       generation,
     }),
+  datReferences: () => invoke<DatReferenceStatus[]>("get_dat_references"),
+  addDatReference: (path: string) => invoke<DatReferenceStatus>("add_dat_reference", { path }),
+  removeDatReference: (datId: string) => invoke<void>("remove_dat_reference", { datId }),
   setHostToolPath: (toolId: string, path: string) =>
     invoke<HostToolProbeResult>("set_host_tool_path", { toolId, path }),
   clearHostToolPath: (toolId: string) => invoke<HostToolStatus>("clear_host_tool_path", { toolId }),
@@ -1169,17 +1499,33 @@ export const desktopApi = {
       arguments: [],
       disc: disc ?? null,
     }),
+  /** The jump-list play request this process started with, returned only once. */
+  takeStartupPlayRequest: () => invoke<string | null>("take_startup_play_request"),
   automaticSnapshots: (generation: number) =>
     invoke<boolean>("get_automatic_snapshots", { generation }),
   setAutomaticSnapshots: (enabled: boolean, generation: number) =>
     invoke<boolean>("set_automatic_snapshots", { enabled, generation }),
+  readyNoticesEnabled: (generation: number) =>
+    invoke<boolean>("get_ready_notices_enabled", { generation }),
+  setReadyNoticesEnabled: (enabled: boolean, generation: number) =>
+    invoke<boolean>("set_ready_notices_enabled", { enabled, generation }),
   previewBugReport: (portId: string | undefined, generation: number, kind: ReportKind) =>
     invoke<BugReportDraft>("preview_bug_report", { portId: portId ?? null, generation, kind }),
   /** Opens the reviewed form, or only returns its text when `copyOnly` is set. */
   openBugReport: (fields: BugReportField[], kind: ReportKind, copyOnly: boolean) =>
     invoke<BugReportLink>("open_bug_report", { fields, kind, copyOnly }),
+  /** Files the reviewed text as an issue under the player's GitHub sign-in. */
+  submitReport: (fields: BugReportField[], kind: ReportKind) =>
+    invoke<SubmittedReport>("submit_report", { fields, kind }),
   launchFailure: (portId: string, generation: number) =>
     invoke<LaunchSessionView | null>("get_launch_failure", { portId, generation }),
+  /** Microsoft runtimes one current installation most likely needs; read on request. */
+  runtimePrerequisites: (portId: string, installId: string, generation: number) =>
+    invoke<RuntimePrerequisiteReport | null>("get_runtime_prerequisites", {
+      portId,
+      installId,
+      generation,
+    }),
   previewAdoption: (path: string, generation: number, portId?: string) =>
     invoke<AdoptionPreview>("preview_adoption", {
       path,

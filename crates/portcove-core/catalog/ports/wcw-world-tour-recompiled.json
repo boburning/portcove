@@ -16,7 +16,22 @@
       "game_slug": "wcw-vs-nwo-world-tour",
       "match_kind": "underlying-game"
     },
-    "issue_number": 90
+    "issue_number": 90,
+    "original_game": {
+      "format_version": 1,
+      "id": "wcw-vs-nwo-world-tour",
+      "evidence_urls": ["https://github.com/jessetbh/WCWvsNWOWorldTourRecomp"],
+      "source_editions": [
+        {
+          "id": "wcw-vs-nwo-world-tour-nintendo-64",
+          "title": "WCW vs. nWo: World Tour (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

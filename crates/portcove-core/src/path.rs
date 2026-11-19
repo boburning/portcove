@@ -6,6 +6,23 @@ use crate::{PortcoveError, Result};
 #[path = "path_property_tests.rs"]
 mod property_tests;
 
+/// Normalizes a Win32 path for a case-insensitive containment comparison:
+/// verbatim prefixes are removed, separators unified and trailing separators
+/// dropped. It never touches the filesystem.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn comparable_windows_path(path: &str) -> String {
+    let path = path.replace('/', "\\");
+    // `\\?\` verbatim prefix; `\\?\UNC\server\share` becomes `\\server\share`.
+    let path = match path.strip_prefix("\\\\?\\") {
+        Some(verbatim) => match verbatim.strip_prefix("UNC\\") {
+            Some(unc) => format!("\\\\{unc}"),
+            None => verbatim.to_owned(),
+        },
+        None => path,
+    };
+    path.trim_end_matches('\\').to_lowercase()
+}
+
 pub(crate) fn is_portcove_metadata(path: &Path) -> bool {
     path.to_str().is_some_and(|relative| {
         relative.split(['/', '\\']).any(|name| {
@@ -113,6 +130,29 @@ pub(crate) fn normalized_absolute(path: &Path, role: &str) -> Result<std::path::
     let resolved = resolve_existing_ancestor(&std::path::absolute(path)?)?;
     unicode(&resolved, role)?;
     Ok(resolved)
+}
+
+/// Compare saved Win32 disk and UNC spellings even when their volume is offline
+/// or the reader runs on another OS. Only the volume prefix and separators change.
+pub(crate) fn comparable_windows_absolute(path: &Path) -> Option<String> {
+    let separators = path.to_str()?.replace('\\', "/");
+    let mut ordinary = match separators.strip_prefix("//?/") {
+        Some(verbatim) => match verbatim.strip_prefix("UNC/") {
+            Some(unc) => format!("//{unc}"),
+            None => verbatim.to_owned(),
+        },
+        None => separators,
+    };
+    if matches!(ordinary.as_bytes(), [drive, b':', b'/', ..] if drive.is_ascii_alphabetic()) {
+        ordinary.get_mut(..1)?.make_ascii_uppercase();
+        return Some(ordinary);
+    }
+    let mut unc = ordinary.strip_prefix("//")?.split('/');
+    let (host, share) = (unc.next()?, unc.next()?);
+    (![host, share]
+        .iter()
+        .any(|name| matches!(*name, "" | "." | ".." | "?")))
+    .then_some(ordinary)
 }
 
 /// V1's durable and child-process contracts use Unicode strings on every host.

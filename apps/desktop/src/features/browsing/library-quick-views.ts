@@ -1,3 +1,4 @@
+import { gameGroupId } from "./original-game";
 import type { CatalogEntry } from "./catalog-entry";
 import { evaluateCatalogQuery, type CatalogQuery, type CatalogQueryContext } from "./catalog-query";
 import { queryFromFilter } from "./CatalogFilters";
@@ -13,7 +14,7 @@ import { isQuickViewUpdateSelection, quickViewUpdates } from "./quick-view-updat
  */
 export type LibraryQuickView = "all" | "favorites" | "attention" | "updates";
 
-export function isUpdatesQuickView(filter: Filter | CatalogQuery) {
+function isUpdatesQuickView(filter: Filter | CatalogQuery) {
   return isQuickViewUpdateSelection(queryFromFilter(filter).updates);
 }
 
@@ -72,7 +73,7 @@ export function libraryQuickViewCounts({
   base,
   filter,
   readiness,
-  favoriteIds,
+  favoriteGroupIds,
   statuses,
   context,
   scope,
@@ -82,7 +83,7 @@ export function libraryQuickViewCounts({
   filter: Filter | CatalogQuery;
   /** Ready narrows every view except Needs attention, which replaces it. */
   readiness: string;
-  favoriteIds: ReadonlySet<string> | undefined;
+  favoriteGroupIds: ReadonlySet<string> | undefined;
   statuses: Map<string, PortStatus>;
   context: CatalogQueryContext | undefined;
   /** Applies the selected collection or other non-view scope. */
@@ -106,8 +107,8 @@ export function libraryQuickViewCounts({
     : evaluateCatalogQuery(narrowed, withUpdatesQuickView(baseFilter), context);
   return {
     all: narrowed.length,
-    favorites: favoriteIds
-      ? narrowed.filter((port) => favoriteIds.has(port.id)).length
+    favorites: favoriteGroupIds
+      ? new Set(narrowed.map(gameGroupId).filter((id) => favoriteGroupIds.has(id))).size
       : "unavailable",
     attention: filterPorts(scoped, statuses, "library", "setup", "").length,
     updates: updates?.state === "matched" ? updates.ports.length : "unavailable",

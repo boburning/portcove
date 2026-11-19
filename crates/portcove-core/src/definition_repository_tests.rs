@@ -22,7 +22,7 @@ use crate::definition_eligibility::DefinitionOperationContext;
 use crate::{
     Catalog, CatalogOrigin, DefinitionEligibilityOutcome, DefinitionEligibilityReason,
     DefinitionOperation, DefinitionPublisherObservation, DefinitionPublisherStatus, ErrorCode,
-    Library, PortcoveService,
+    Library, PortcoveError, PortcoveService,
     test_fixture::{indexed_catalog_bundle, post_client_catalog},
 };
 
@@ -481,6 +481,69 @@ async fn acquire(
     .await
 }
 
+#[tokio::test]
+async fn provider_scope_floor_survives_expiry_revocation_and_reopen() {
+    use crate::provider_binding::default_binding;
+    let port_id = "shipwright";
+    let embedded = Catalog::embedded().unwrap();
+    let mut document = embedded.authoritative_document();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == port_id)
+        .unwrap();
+    let scope = crate::ModProviderBinding::Gamebanana { game_id: 32001 };
+    assert_ne!(default_binding(port).unwrap(), scope);
+    port.mod_provider_bindings = Some(vec![scope.clone()]);
+    let catalog = Catalog::from_document(document).unwrap();
+    let fixture = RepositoryFixture::new();
+    let targets = repository_targets_for(&catalog, port_id);
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let temporary = TempDir::new().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+    select_candidate(&library, &candidate, port_id);
+    let (active, active_provenance) = library.load_catalog().unwrap();
+    assert_eq!(default_binding(active.port(port_id).unwrap()), Some(scope));
+
+    let connection = library.connection().unwrap();
+    let expired = active_provenance.expires_at.unwrap() + 1;
+    let (baseline, provenance) = crate::catalog_store::CatalogState::read(&connection)
+        .unwrap()
+        .resolve(expired)
+        .unwrap();
+    let (fallback, _) =
+        crate::catalog_store::resolve_before_listings(&connection, baseline, provenance, expired)
+            .unwrap();
+    assert!(default_binding(fallback.port(port_id).unwrap()).is_none());
+    assert!(default_binding(fallback.port("zelda64-recomp").unwrap()).is_some());
+    assert_eq!(
+        serde_json::to_vec(fallback.port(port_id).unwrap()).unwrap(),
+        serde_json::to_vec(embedded.port(port_id).unwrap()).unwrap(),
+    );
+
+    connection
+        .execute(
+            "UPDATE definition_publisher_policy SET status='revoked' WHERE stable_id=?1",
+            [port_id],
+        )
+        .unwrap();
+    assert!(default_binding(library.load_catalog().unwrap().0.port(port_id).unwrap()).is_none());
+    connection
+        .execute(
+            "UPDATE definition_selection_state
+             SET active_json=NULL,replay_floor_json=NULL WHERE singleton=1",
+            [],
+        )
+        .unwrap();
+    drop(connection);
+    drop(library);
+    let reopened = Library::open(temporary.path()).unwrap();
+    assert!(default_binding(reopened.load_catalog().unwrap().0.port(port_id).unwrap()).is_none());
+}
+
 #[test]
 fn public_source_requires_credential_free_https_bases() {
     let source = DefinitionRepositorySource::new(
@@ -754,7 +817,12 @@ async fn composed_availability_binds_replay_without_consuming_or_repairing_the_f
 #[tokio::test]
 async fn library_selection_persists_the_exact_candidate_and_floor_together() {
     let fixture = RepositoryFixture::new();
-    let (port_id, targets) = repository_targets();
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    crate::test_fixture::grow_catalog_evidence(&mut document, 2 * 1024 * 1024);
+    let catalog = Catalog::from_document(document).unwrap();
+    let port_id = catalog.ports()[0].id.clone();
+    let targets = repository_targets_for(&catalog, &port_id);
+    assert!(targets.iter().any(|(_, raw)| raw.len() > 4 * 1024 * 1024));
     let root = fixture
         .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
         .await;
@@ -835,6 +903,13 @@ async fn library_selection_persists_the_exact_candidate_and_floor_together() {
         )
         .unwrap();
     let stored: Value = serde_json::from_str(&active_json).unwrap();
+    let exact_contract = stored["snapshot"]["contract_json"].as_str().unwrap();
+    assert!(exact_contract.len() > 4 * 1024 * 1024);
+    assert!(
+        targets
+            .iter()
+            .any(|(_, raw)| raw.as_slice() == exact_contract.as_bytes())
+    );
     assert!(
         stored["snapshot"]["index_json"]
             .as_str()
@@ -1800,6 +1875,43 @@ async fn delegation_scope_and_consistent_snapshots_are_mandatory() {
 }
 
 #[tokio::test]
+async fn nested_timestamp_signature_verification_reports_its_catalog_code() {
+    let fixture = RepositoryFixture::new();
+    let targets = metadata_targets();
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let timestamp = fixture
+        .metadata_url()
+        .to_file_path()
+        .unwrap()
+        .join("timestamp.json");
+    let mut metadata: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&timestamp).unwrap()).unwrap();
+    let signature = &mut metadata["signatures"][0]["sig"];
+    *signature = serde_json::Value::String("0".repeat(signature.as_str().unwrap().len()));
+    std::fs::write(timestamp, serde_json::to_vec(&metadata).unwrap()).unwrap();
+    let error = acquire(&fixture, &root).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::Verification);
+    assert_eq!(
+        error.catalog_fallback(),
+        Some(crate::CatalogFallbackCode::SignatureInvalid)
+    );
+    let report = error.report();
+    assert_eq!(
+        report
+            .details
+            .get("catalog_fallback_code")
+            .map(String::as_str),
+        Some("signature_invalid"),
+    );
+    assert_eq!(
+        report.message,
+        "definition repository authentication failed"
+    );
+}
+
+#[tokio::test]
 async fn expired_metadata_is_refused_as_verification_failure() {
     let fixture = RepositoryFixture::new();
     let targets = metadata_targets();
@@ -1809,6 +1921,100 @@ async fn expired_metadata_is_refused_as_verification_failure() {
     let error = acquire(&fixture, &root).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::Verification);
     assert!(error.message.contains("expired"));
+    // Delivery inspection reports expiry separately from a signature failure.
+    assert_eq!(
+        error.details.get("delivery").map(String::as_str),
+        Some("expired")
+    );
+}
+
+#[tokio::test]
+async fn metadata_that_is_not_served_is_distinguished_from_an_outage() {
+    let fixture = RepositoryFixture::new();
+    let targets = metadata_targets();
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let timestamp = fixture
+        .metadata_url()
+        .to_file_path()
+        .unwrap()
+        .join("timestamp.json");
+    std::fs::remove_file(timestamp).unwrap();
+    let error = acquire(&fixture, &root).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::Network);
+    assert_eq!(
+        error.details.get("delivery").map(String::as_str),
+        Some("not_served")
+    );
+}
+
+#[tokio::test]
+async fn a_partial_publication_is_incomplete_rather_than_not_served() {
+    let fixture = RepositoryFixture::new();
+    let targets = metadata_targets();
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let metadata = fixture.metadata_url().to_file_path().unwrap();
+    let mut removed = 0;
+    for entry in std::fs::read_dir(&metadata).unwrap() {
+        let path = entry.unwrap().path();
+        if path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.ends_with("snapshot.json"))
+        {
+            std::fs::remove_file(path).unwrap();
+            removed += 1;
+        }
+    }
+    assert!(removed > 0, "the fixture publishes snapshot metadata");
+    let error = acquire(&fixture, &root).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::Network);
+    assert_eq!(
+        error.details.get("delivery").map(String::as_str),
+        Some("incomplete")
+    );
+}
+
+#[test]
+fn delivery_serving_names_each_failure_without_guessing_publication() {
+    use super::publisher_policy::provisioning::official_catalog::{
+        DefinitionDeliveryServing as Serving, delivery_serving,
+    };
+    let network =
+        || PortcoveError::network("could not acquire authenticated definition repository");
+    for (error, expected) in [
+        (
+            network().detail("delivery", "not_served"),
+            Serving::NotServed,
+        ),
+        (
+            network().detail("delivery", "incomplete"),
+            Serving::Incomplete,
+        ),
+        (network(), Serving::Unreachable),
+        (
+            PortcoveError::verification("expired").detail("delivery", "expired"),
+            Serving::Expired,
+        ),
+        (
+            PortcoveError::verification("definition repository authentication failed"),
+            Serving::VerificationFailed,
+        ),
+        // A delivery detail never upgrades a verification failure into "not served".
+        (
+            PortcoveError::verification("x").detail("delivery", "not_served"),
+            Serving::VerificationFailed,
+        ),
+    ] {
+        assert_eq!(delivery_serving(&error), expected);
+        assert_eq!(
+            serde_json::to_value(expected).unwrap(),
+            serde_json::Value::String(expected.as_str().to_owned())
+        );
+    }
 }
 
 #[tokio::test]

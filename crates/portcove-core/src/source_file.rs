@@ -46,7 +46,14 @@ impl HashBudget<'_> {
     }
 }
 
-#[derive(Clone)]
+/// Version of the file and ZIP identity facts below. Bump it whenever hashing,
+/// ZIP member selection, ZIP validation or rejection policy, or canonical
+/// normalization changes, so saved observations from an older inspector are
+/// never reused to skip a check that would now refuse the file.
+pub(crate) const IDENTITY_INSPECTOR_VERSION: i64 = 2;
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct FileIdentity {
     pub sha256: String,
     pub sha1: String,
@@ -60,6 +67,12 @@ pub(crate) struct FileIdentity {
     pub canonical_n64_sha256: Option<String>,
     pub canonical_n64_sha1: Option<String>,
     pub canonical_n64_size: Option<u64>,
+    /// Digests of the bytes after a 512-byte SNES copier header, present only for
+    /// a raw file whose length is 512 more than a multiple of 1024.
+    #[serde(default)]
+    pub copier_headerless_sha256: Option<String>,
+    #[serde(default)]
+    pub copier_headerless_sha1: Option<String>,
 }
 
 impl FileIdentity {
@@ -151,6 +164,8 @@ pub(crate) fn read_raw_identity_from_reader(
         canonical_n64_sha256: identity.canonical_n64_sha256,
         canonical_n64_sha1: identity.canonical_n64_sha1,
         canonical_n64_size: identity.canonical_n64_size,
+        copier_headerless_sha256: identity.copier_headerless_sha256,
+        copier_headerless_sha1: identity.copier_headerless_sha1,
     })
 }
 
@@ -243,6 +258,9 @@ fn read_zip_identity_from_file(
         canonical_n64_sha256: identity.canonical_n64_sha256,
         canonical_n64_sha1: identity.canonical_n64_sha1,
         canonical_n64_size: identity.canonical_n64_size,
+        // Copier headers are recognized on raw files only.
+        copier_headerless_sha256: None,
+        copier_headerless_sha1: None,
     })
 }
 
@@ -254,6 +272,27 @@ struct HashedContent {
     canonical_n64_sha256: Option<String>,
     canonical_n64_sha1: Option<String>,
     canonical_n64_size: Option<u64>,
+    copier_headerless_sha256: Option<String>,
+    copier_headerless_sha1: Option<String>,
+}
+
+/// The one copier-header layout Portcove recognizes: 512 bytes in front of SNES
+/// content, so the whole file is 512 more than a multiple of 1024 bytes. The
+/// header's own bytes are never interpreted.
+pub(crate) const SNES_COPIER_HEADER_BYTES: u64 = 512;
+
+/// Cartridge-sized files only; larger files are never treated as headered.
+pub(crate) const MAX_SNES_COPIER_HEADERED_BYTES: u64 = 64 * 1024 * 1024;
+
+pub(crate) fn snes_copier_header_bytes(size: u64) -> u64 {
+    if size > SNES_COPIER_HEADER_BYTES
+        && size <= MAX_SNES_COPIER_HEADERED_BYTES
+        && size % 1024 == SNES_COPIER_HEADER_BYTES
+    {
+        SNES_COPIER_HEADER_BYTES
+    } else {
+        0
+    }
 }
 
 #[cfg(test)]
@@ -326,6 +365,8 @@ fn hash_reader(
     let mut sha1 = Sha1::new();
     let mut crc32 = crc32fast::Hasher::new();
     let mut n64 = N64CanonicalDigest::default();
+    let header = snes_copier_header_bytes(expected);
+    let mut headerless = (header > 0).then(|| (Sha256::new(), Sha1::new()));
     let mut size = 0_u64;
     let mut buffer = [0_u8; 128 * 1024];
     while size < expected {
@@ -346,6 +387,12 @@ fn hash_reader(
         sha256.update(&buffer[..read]);
         sha1.update(&buffer[..read]);
         crc32.update(&buffer[..read]);
+        if let Some((headerless_sha256, headerless_sha1)) = headerless.as_mut() {
+            let start = size - read as u64;
+            let skip = header.saturating_sub(start).min(read as u64) as usize;
+            headerless_sha256.update(&buffer[skip..read]);
+            headerless_sha1.update(&buffer[skip..read]);
+        }
         if canonical_n64 {
             n64.update(&buffer[..read])?;
         }
@@ -354,6 +401,14 @@ fn hash_reader(
         return Err(PortcoveError::source("source grew while hashing"));
     }
     let (canonical_n64_sha256, canonical_n64_sha1, canonical_n64_size) = n64.finish()?;
+    let (copier_headerless_sha256, copier_headerless_sha1) = headerless
+        .map(|(sha256, sha1)| {
+            (
+                Some(hex::encode(sha256.finalize())),
+                Some(hex::encode(sha1.finalize())),
+            )
+        })
+        .unwrap_or((None, None));
     Ok(HashedContent {
         sha256: hex::encode(sha256.finalize()),
         sha1: hex::encode(sha1.finalize()),
@@ -362,6 +417,8 @@ fn hash_reader(
         canonical_n64_sha256,
         canonical_n64_sha1,
         canonical_n64_size,
+        copier_headerless_sha256,
+        copier_headerless_sha1,
     })
 }
 
@@ -854,6 +911,52 @@ mod tests {
             N64ByteOrder::Invalid => Vec::new(),
         };
         (digest, canonical)
+    }
+
+    #[test]
+    fn copier_headerless_digests_cover_only_a_single_recognized_header() {
+        use sha2::Digest as _;
+        let content = (0..3072_u32)
+            .map(|index| (index % 251) as u8)
+            .collect::<Vec<_>>();
+        let hash = |bytes: &[u8]| {
+            hash_reader(
+                bytes,
+                bytes.len() as u64,
+                u64::MAX,
+                &mut HashBudget {
+                    checkpoint: None,
+                    operation: None,
+                    limit: u64::MAX,
+                    hashed: 0,
+                    max_zip_entries: 1,
+                },
+                false,
+            )
+            .unwrap()
+        };
+        let headered = [vec![0x11_u8; 512], content.clone()].concat();
+        let observed = hash(&headered);
+        assert_eq!(
+            observed.copier_headerless_sha256,
+            Some(hex::encode(Sha256::digest(&content)))
+        );
+        assert_eq!(
+            observed.copier_headerless_sha1,
+            Some(hex::encode(Sha1::digest(&content)))
+        );
+        assert_eq!(observed.sha256, hex::encode(Sha256::digest(&headered)));
+        for unheadered in [
+            content.clone(),
+            [vec![0_u8; 511], content.clone()].concat(),
+            vec![0_u8; 512],
+        ] {
+            assert_eq!(hash(&unheadered).copier_headerless_sha256, None);
+        }
+        assert_eq!(
+            snes_copier_header_bytes(MAX_SNES_COPIER_HEADERED_BYTES + 1024),
+            0
+        );
     }
 
     #[test]

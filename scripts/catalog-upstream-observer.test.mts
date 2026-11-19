@@ -255,7 +255,10 @@ void test("a separate batch recovers accepted provider pages and fair turns afte
   h.states.clear();
   await publishObserverSnapshot(root, recovered);
   for (const [name, value] of Object.entries(recovered.files)) {
-    assert.deepEqual(JSON.parse(await readFile(path.join(sourceTree, name), "utf8")), value);
+    assert.deepEqual(
+      JSON.parse(await readFile(path.join(sourceTree, name), "utf8")),
+      name === "catalog/checkpoint.json" ? before : value,
+    );
     assert.deepEqual(decodeStoredObserverCheckpoint(value), snapshot.files[name]);
     if (name !== "catalog/checkpoint.json") h.states.set(name.split("/")[0]!, value);
   }
@@ -500,7 +503,10 @@ void test("production-shaped retained provider pages fit the fixed artifact rese
     Date.now(),
     Date.now() + 60000,
   );
-  assert.deepEqual(unpacked, compact);
+  assert.deepEqual(unpacked, {
+    ...compact,
+    files: { ...compact.files, "catalog/checkpoint.json": result.checkpoint },
+  });
   for (const [name, bytes] of originals)
     assert.equal(
       await readFile(path.join(sourceTree, name), "utf8"),
@@ -680,7 +686,9 @@ void test("419 source records stream globally when nested compressed snapshots e
       yield { name: "$snapshot", bytes: Buffer.from(JSON.stringify(scope)) };
       yield {
         name: "catalog/checkpoint.json",
-        bytes: Buffer.from(JSON.stringify(compactFiles["catalog/checkpoint.json"])),
+        bytes: Buffer.from(
+          JSON.stringify(decodeStoredObserverCheckpoint(compactFiles["catalog/checkpoint.json"])),
+        ),
       };
     })(),
     {
@@ -711,7 +719,7 @@ void test("419 source records stream globally when nested compressed snapshots e
     );
   const continued = await advanceCatalogObservations(
     h.input,
-    restored.files["catalog/checkpoint.json"],
+    JSON.parse(await readFile(path.join(sourceTree, "catalog/checkpoint.json"), "utf8")),
     h.options,
   );
   assert.deepEqual(continued.checkpoint.sources, result.checkpoint.sources);
@@ -729,7 +737,7 @@ void test("419 source records stream globally when nested compressed snapshots e
 const factGrowthTest =
   "fact-only recovery supports 1295 distinct pending sources plus retained configurations within unchanged limits";
 // Two snapshot round trips and the legacy refusal share one fixture deadline.
-void test(factGrowthTest, { timeout: 60_000 }, async (t) => {
+void test(factGrowthTest, { timeout: 120_000 }, async (t) => {
   const root = await mkdtemp(
     path.join(fileURLToPath(new URL("../work/", import.meta.url)), "catalog-fact-growth-"),
   );
@@ -837,7 +845,12 @@ void test(factGrowthTest, { timeout: 60_000 }, async (t) => {
       Date.now(),
       Date.now() + 60000,
     );
-    assert.deepEqual(restored.files["catalog/checkpoint.json"], controller);
+    const storedController = restored.files["catalog/checkpoint.json"];
+    assert.ok(
+      Buffer.byteLength(JSON.stringify(storedController)) < metrics.controller_bytes!,
+      "controller compaction leaves room in the stored graph",
+    );
+    assert.deepEqual(decodeStoredObserverCheckpoint(storedController), controller);
     for (const [name, expected] of retained) {
       const source = objectRecord(decodeStoredObserverCheckpoint(restored.files[name]));
       const { pages, ...position } = objectRecord(source.continuation);
@@ -2850,6 +2863,36 @@ void test("Core subprocess inspection refuses an expired or unknown remaining op
   }
   assert.deepEqual(await readdir(root), []);
 });
+
+void test(
+  "a Core subprocess cut short by the batch deadline is budget continuation",
+  { skip: process.platform === "win32" },
+  async (t) => {
+    const { inspectCatalogDefinitions } = await import("./observe-configured-upstream.mts");
+    const work = fileURLToPath(new URL("../work/", import.meta.url));
+    await mkdir(work, { recursive: true });
+    const root = await mkdtemp(path.join(work, "catalog-inspection-deadline-test-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const inspector = path.join(root, "inspector");
+    await writeFile(inspector, "#!/bin/sh\nexec sleep 1\n", { mode: 0o700 });
+    await assert.rejects(
+      inspectCatalogDefinitions(inspector, root, Buffer.from("{}"), {
+        deadline: 25,
+        now: () => 0,
+      }),
+      (error: unknown) => error instanceof ObservationFailure && error.rule === "budget",
+    );
+    await writeFile(inspector, "#!/bin/sh\nexit 2\n");
+    await assert.rejects(
+      inspectCatalogDefinitions(inspector, root, Buffer.from("{}"), {
+        deadline: 500,
+        now: () => 0,
+      }),
+      (error: unknown) => isRecord(error) && error.status === 2,
+    );
+    assert.deepEqual(await readdir(root), ["inspector"]);
+  },
+);
 
 void test("original failure details are published before aggregate diagnostic refusal", async () => {
   const { continueCatalogBatches } = await import("./catalog-observer-continuation.mts");

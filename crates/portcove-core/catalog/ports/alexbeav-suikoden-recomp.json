@@ -3,7 +3,7 @@
   "listing": {
     "id": "alexbeav-suikoden-recomp",
     "name": "Suikoden / Alexbeav PSXRecomp",
-    "summary": "Build and play Suikoden on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
+    "summary": "Build and play Suikoden on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Suikoden",
     "project_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp",
     "issue_number": 481,
@@ -45,14 +45,31 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["suikoden-", "-windows-x64.zip"],
-      "linux-x86-64": ["suikoden-", "-linux-x64.zip"],
       "macos-x86-64": ["suikoden-", "-macos-x64.zip"],
       "macos-aarch64": ["suikoden-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "suikoden",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/suikoden-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/suikoden-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "suikoden-playstation",
+          "title": "Suikoden (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/blob/4db9b62cd773704928722aebae55b133588a102b/game.toml"
+          ]
+        }
+      ]
+    }
   },
-  "psx_managed_windows_v1": true,
+  "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -84,14 +101,27 @@
         },
         {
           "role": "bios",
-          "profile_id": "psx-scph-5552-bios",
-          "label": "PlayStation SCPH-5552 BIOS (Europe)",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
           "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching one-track USA CHD (SLUS-00292) and retail SCPH-5552 BIOS. Portcove verifies the data track and track count and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows and Linux package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved."
+      "manual_preparation": "Provide your own matching one-track USA CHD (SLUS-00292) and retail SCPH-1001 BIOS. A copy built with the SCPH-5552 BIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Portcove verifies the data track and track count and builds privately with the registered toolchain. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows and Linux package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "Native build, gameplay and save compatibility remain unobserved."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp#readme"
+      }
     },
-    "bios_source_profile": "psx-scph-5552-bios"
+    "bios_source_profile": "psx-scph-1001-bios"
   }
 }

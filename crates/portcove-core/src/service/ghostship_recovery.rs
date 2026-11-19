@@ -85,6 +85,7 @@ impl PortcoveService {
                 "legacy recovery requires active 3.0.0 and the exact qualified previous 2.0.0 installation",
             ));
         }
+        self.require_activation_uploader_continuity(&legacy, None)?;
         let staged_count: u64 = connection.query_row(
             "SELECT count(*) FROM installs WHERE port_id='ghostship' AND staged=1",
             [],

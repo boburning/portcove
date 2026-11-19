@@ -18,9 +18,16 @@ impl PortcoveService {
         {
             return Ok(false);
         }
+        if url == crate::STEAMGRIDDB_KEY_PREFERENCES_URL
+            || crate::is_official_download_page(url)
+            || self.is_stored_steamgriddb_credit(url)?
+        {
+            return Ok(true);
+        }
         // Retain strict project/artwork links even if a separate directory corrects its own display.
         if self.catalog.ports().iter().any(|port| {
             port.project_url == url
+                || release_page_url(port, url)
                 || repository_updates_url(&port.project_url).as_deref() == Some(url)
                 || crate::game_recommendations::normalize(port, u64::MAX)
                     .evidence
@@ -47,6 +54,27 @@ impl PortcoveService {
             .listings()
             .iter()
             .any(|listing| listing_resource_url(listing, url)))
+    }
+
+    /// A SteamGridDB credit link opens only when it is exactly the page Core
+    /// derives from an attribution stored in this library.
+    fn is_stored_steamgriddb_credit(&self, url: &str) -> Result<bool> {
+        let Some(id) = url
+            .strip_prefix("https://www.steamgriddb.com/grid/")
+            .or_else(|| url.strip_prefix("https://www.steamgriddb.com/hero/"))
+            .and_then(|id| id.parse::<u64>().ok())
+            .filter(|id| *id > 0)
+        else {
+            return Ok(false);
+        };
+        let connection = self.library.connection()?;
+        Ok(crate::artwork_store::provider_image_attributions(
+            &connection,
+            crate::ArtworkProvider::Steamgriddb,
+            id,
+        )?
+        .iter()
+        .any(|attribution| crate::steamgriddb_credit_url(attribution) == url))
     }
 
     pub fn listing_status(&self, port_id: &str) -> Result<crate::PortListingStatus> {
@@ -96,7 +124,8 @@ impl PortcoveService {
         connection: &rusqlite::Connection,
     ) -> Result<Catalog> {
         let mut document = catalog.listing_document().clone();
-        let mut budget = 8 * 1024 * 1024;
+        // Reading retired registrations is a request-wide aggregate.
+        let mut budget = crate::library::MAX_RETAINED_REGISTRATION_BYTES;
         for id in Library::external_runtime_port_ids_from(connection)? {
             if document.listings.iter().any(|listing| listing.id == id) {
                 continue;
@@ -296,6 +325,11 @@ impl PortcoveService {
 
 fn listing_resource_url(listing: &crate::PortListing, url: &str) -> bool {
     listing.project_url == url
+        || listing
+            .funding_urls
+            .iter()
+            .flatten()
+            .any(|reviewed| reviewed == url)
         || [
             Some(listing.project_url.as_str()),
             listing.release_url.as_deref(),
@@ -327,6 +361,26 @@ fn listing_resource_url(listing: &crate::PortListing, url: &str) -> bool {
         || listing.artwork.as_ref().is_some_and(|artwork| {
             url == format!("https://www.igdb.com/games/{}", artwork.game_slug)
         })
+}
+
+/// A single release page of the port's own GitHub or GitLab release repository on
+/// its public web host, named by a plain tag. Any other path, host, query,
+/// fragment or encoded tag is refused.
+pub(crate) fn release_page_url(port: &crate::PortDefinition, url: &str) -> bool {
+    let Some(segments) = crate::release_notes::repository_segments(&port.release.repository) else {
+        return false;
+    };
+    let prefix = match port.release.provider {
+        crate::ReleaseSource::Github => {
+            format!("https://github.com/{}/releases/tag/", segments.join("/"))
+        }
+        crate::ReleaseSource::Gitlab => {
+            format!("https://gitlab.com/{}/-/releases/", segments.join("/"))
+        }
+        _ => return false,
+    };
+    url.strip_prefix(&prefix)
+        .is_some_and(crate::release_notes::linkable_tag)
 }
 
 /// A single navigation destination derived from a reviewed repository identity.
@@ -392,6 +446,60 @@ fn repository_updates_url(value: &str) -> Option<String> {
 mod resource_url_tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn release_pages_follow_each_provider_layout_for_the_port_repository() {
+        let catalog = Catalog::embedded().unwrap();
+        let gitlab = catalog.port("extreme-g-recompiled").unwrap();
+        assert!(release_page_url(
+            gitlab,
+            "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/releases/v1.0.0"
+        ));
+        for refused in [
+            "https://github.com/sonicdcer/ExtremeGRecomp/releases/tag/v1.0.0",
+            "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/releases/v1.0.0/",
+            "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/releases/v1/../x",
+            "https://GITLAB.com/sonicdcer/ExtremeGRecomp/-/releases/v1.0.0",
+            "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/releases/v1\\x",
+            "https://gitlab.com/other/ExtremeGRecomp/-/releases/v1.0.0",
+        ] {
+            assert!(!release_page_url(gitlab, refused), "{refused}");
+        }
+    }
+
+    #[test]
+    fn reviewed_funding_links_open_only_exactly() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut service =
+            PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
+        let listing = serde_json::from_value(json!({
+            "id":"funded-project","name":"Funded project","summary":"Navigation fixture.",
+            "project_url":"https://example.org/project",
+            "funding_urls":["https://github.com/sponsors/owner","https://ko-fi.com/owner"]
+        }))
+        .unwrap();
+        service.catalog = Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+            .unwrap()
+            .with_listing_document(crate::CatalogListingDocument {
+                format_version: 10,
+                listings: vec![listing],
+            })
+            .unwrap();
+        for url in [
+            "https://github.com/sponsors/owner",
+            "https://ko-fi.com/owner",
+        ] {
+            assert!(service.is_reviewed_resource_url(url).unwrap(), "{url}");
+        }
+        for url in [
+            "https://github.com/sponsors/other",
+            "https://ko-fi.com/owner/",
+            "https://ko-fi.com/owner?from=elsewhere",
+            "http://ko-fi.com/owner",
+        ] {
+            assert!(!service.is_reviewed_resource_url(url).unwrap(), "{url}");
+        }
+    }
 
     #[test]
     fn repository_update_handoff_is_one_canonical_reviewed_destination() {

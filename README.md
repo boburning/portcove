@@ -1,414 +1,150 @@
-<p align="center">
-  <img src="apps/desktop/assets/brand/generated/v2/portcove-logo-v2-transparent.png" alt="Portcove logo" width="160">
-</p>
+<h1 align="center">
+  <img src="apps/desktop/assets/brand/generated/v2/portcove-logo-v2-transparent.png" alt="Portcove" width="240">
+</h1>
 
-<h1 align="center">Portcove</h1>
+Install, update, and play native game ports. A port is a separate implementation
+of an existing game. Portcove keeps community-made ports in one local
+library. These include decompilations, recompilations, and engine recreations.
+Find a project for a game you own. Check which edition it needs. Start the game
+from the desktop app or the standalone command-line tool (CLI).
 
-<p align="center">
-  Install, update, and play native game ports.
-</p>
+[Download Portcove](#download-portcove)
+· [Browse the catalog](https://boburning.github.io/portcove/catalog/browse/index.html)
+· [Set up your first game](#your-first-game)
 
-<p align="center">
-  <a href="#project-status">Project status</a> ·
-  <a href="https://github.com/boburning/portcove/releases">Download</a> ·
-  <a href="#build-from-source">Build from source</a> ·
-  <a href="docs/README.md">Documentation</a> ·
-  <a href="https://github.com/users/boburning/projects/1">Roadmap</a>
-</p>
+![Library Favorites showing six sample games, five ready to play and Orchard Quest with a Finish setup action](docs/media/readme/library.png)
 
-Portcove brings native game ports into one local library. Choose a port, add the
-game files it needs, and use the desktop app or command-line tool to manage
-supported installations, updates, and backups. Some ports use an existing
-installation rather than installing or updating files through Portcove.
+_Portcove’s desktop interface with a simulated library of fictional games and geometric covers._ [Capture details](docs/media/readme/README.md)
 
-![Portcove's actual catalog, with Ship of Harkinian ready to play](docs/media/first-play/catalog.png)
+<a id="project-status"></a>
 
-_Windows development build, October 1, 2026: an installed game, available ports,
-and real mixed artwork. This is the application, not a mockup; the pictured
-design and default covers are newer than the published Alpha 2 preview._
+## Download Portcove
 
-Existing Alpha 1 libraries can be carried forward with the documented
-[upgrade and recovery procedure](docs/UPGRADING.md).
+If a release is marked **Latest**, choose it from
+[Portcove releases](https://github.com/boburning/portcove/releases).
+If you want a preview or only previews are available, choose the newest
+**Pre-release** with a tag that starts with `v`. Use **Nightly** builds to test
+recent changes. Before you install, read the notes for your system. If you try
+a preview, use a new library or back up your existing library first.
 
-> [!NOTE]
-> Portcove does not include or download ROMs, disc images, BIOS files, or other
-> copyrighted game data. It checks game files locally and does not
-> upload them. You can use their current location, copy them into Portcove, or
-> explicitly move them after reviewing the consequences. A completed Move
-> removes the original only after a verified managed copy is registered.
+Under **Assets**, choose the package for your computer.
 
-## What Portcove does
+| What you want       | Look for                                                                      |
+| ------------------- | ----------------------------------------------------------------------------- |
+| Windows desktop app | The x64 installer ending in `-setup.exe`                                      |
+| Linux desktop app   | The `.AppImage` for your processor. Make it executable before opening.        |
+| macOS desktop app   | The `.dmg`. A universal build runs on both Intel and Apple silicon.           |
+| Command-line tool   | A `portcove-cli` archive for your operating system and processor, when listed |
 
-### For players
+Compare the download’s SHA-256 checksum with the entry for that filename in
+the same release’s checksum file. The desktop app runs on its own. You only
+need a CLI archive if you want to use Portcove from a terminal or another launcher.
+You can also [follow release notes and nightlies in a feed reader](https://github.com/boburning/portcove/releases.atom).
 
-- Browse a catalog of native ports and manage them as one library. Find ports that can use your game files, then check what each one needs.
-- Keep managed versions side by side so updates can be saved for later, installed,
-  checked, or rolled back.
-- Install supported downloads, keep older versions, and switch back when needed. Upstream software can handle its own first-launch setup;
-  installation review explains who updates the runtime and where player data lives.
-- Get a recommended upstream release, package and download folder for simpler
-  setup routes, or register an existing installation while keeping its files and
-  update workflow under your control.
-- Adopt an existing installation by copying it into Portcove without changing the original.
+<a id="download-the-technical-alpha"></a>
 
-### Library safety
-
-- Check game files locally. A saved location can point to the
-  current file; copying into Portcove leaves the original in place, while Move
-  requires separate authorization. Portcove checks known exact identities and
-  records a local baseline to detect later changes.
-- Check downloaded files against the expected checksum before installing them.
-  Catalog-curated acquisition is planned
-  under [#315](https://github.com/boburning/portcove/issues/315).
-- Keep the saved data declared for a port, such as its known save, settings, and
-  mod locations, separately from installed versions; back up and restore that
-  managed data. This does not establish save compatibility across game versions.
-
-### Launcher use
-
-- Launch an installed port through the desktop app or the standalone CLI, with
-  the selected library and Portcove's current launch checks.
-- Connect another launcher through the [public integration routes](docs/INTEGRATIONS.md).
-  Launch-only, library and lifecycle integrations have different capabilities;
-  a named launcher is not a claim that its complete plugin is supported.
-
-### Developer and integration support
-
-- Use the shared Core behavior through Desktop or the independent CLI.
-- Discover versioned JSON/JSONL, schemas, capabilities and stable error/exit
-  behavior through the [CLI guide](docs/CLI.md) and
-  [external-author workflow](docs/INTEGRATION-AUTHOR.md).
-
-Portcove keeps its library, saved game-file locations, and application state
-local. A GitHub account is optional and is used only to raise the API rate
-limit; startup and launching do not depend on an account or a Portcove-hosted
-service.
-
-## Project status
-
-> [!WARNING]
-> **Latest technical preview: Alpha 2 — onboarding and storage**
->
-> Portcove is under active development. It is intended for maintainers and technically comfortable testers using disposable or fully backed-up libraries—not general users or irreplaceable setups.
-
-[Portcove 0.1.0-alpha.2](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2)
-is released as an immutable prerelease. It adds first-play source onboarding,
-safe Copy and authorized Move intake, shared tool setup, library and per-game
-storage controls, recoverable relocation, and the documented Alpha 1 upgrade
-path. Alpha 1 remains available with its frozen release evidence.
-
-A port appearing in the catalog does **not** mean every platform has completed hands-on testing. Upstream availability, automated checks, and Portcove's own manual testing are tracked separately for each port and platform.
-
-Current priorities and blockers live in the public [Portcove Roadmap](https://github.com/users/boburning/projects/1). The meaning of Alpha, Beta, RC, and V1 lives in [docs/ROADMAP.md](docs/ROADMAP.md). The catalog can continue growing without turning every newly discovered port into a V1 blocker.
-
-The **first public beta application release targets Windows x86-64 only**, at the
-existing supported Windows/WebView2 baseline. Linux is planned for a subsequent
-beta; its implementation, support data and completed evidence remain retained.
-Shared correctness and security checks still apply wherever they run. This changes
-the application host commitment, not the original platforms of the games in the
-catalog. The [release boundary](docs/DELIVERY.md#first-public-beta-host-boundary)
-describes the remaining qualification and publication requirements. No public beta
-or new platform qualification is claimed here.
-
-## Download the technical alpha
-
-For the graphical app, choose a **Desktop** package for your operating system
-and processor from the [Alpha 2 release](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2).
-For terminal use, choose the separate **CLI** archive. The desktop app does not
-require that archive, and the CLI archive is not a graphical app. GitHub's
-generated **Source code** archives are for building Portcove yourself.
-
-| System                            | Desktop package                                                                                                                                                                                                                                                                                                                                                                                                                                          | Standalone CLI archive                                                                                                                |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Windows x64                       | [Portcove_0.1.0-alpha.2_x64-setup.exe](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove_0.1.0-alpha.2_x64-setup.exe)                                                                                                                                                                                                                                                                                                      | [portcove-windows-x86_64.zip](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/portcove-windows-x86_64.zip)     |
-| Linux x64, experimental           | [Portcove_0.1.0-alpha.2_amd64.AppImage](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove_0.1.0-alpha.2_amd64.AppImage), [Portcove_0.1.0-alpha.2_amd64.deb](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove_0.1.0-alpha.2_amd64.deb), or [Portcove-0.1.0-alpha.2-1.x86_64.rpm](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove-0.1.0-alpha.2-1.x86_64.rpm) | [portcove-linux-x86_64.tar.gz](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/portcove-linux-x86_64.tar.gz)   |
-| macOS Intel, experimental         | [Portcove_0.1.0-alpha.2_x64.dmg](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove_0.1.0-alpha.2_x64.dmg)                                                                                                                                                                                                                                                                                                                  | [portcove-macos-x86_64.tar.gz](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/portcove-macos-x86_64.tar.gz)   |
-| macOS Apple silicon, experimental | [Portcove_0.1.0-alpha.2_aarch64.dmg](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove_0.1.0-alpha.2_aarch64.dmg)                                                                                                                                                                                                                                                                                                          | [portcove-macos-aarch64.tar.gz](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/portcove-macos-aarch64.tar.gz) |
-
-These are the published Alpha 2 choices; check the selected release page for
-later versions and their limitations. Application upgrades are manual. Before
-opening an existing library, follow the [upgrade and recovery
-steps](docs/UPGRADING.md). Read the [Alpha 2 release
-notes](docs/releases/0.1.0-alpha.2-release-notes.md) for package scope and
-known limitations.
-
-Windows packages are unsigned; macOS packages are unsigned and not notarized.
-Keep operating-system security protections enabled. Linux and macOS remain
-experimental, with hosted build/test evidence and incomplete hands-on package
-qualification. [Verify the download and read the signing/SBOM limits](docs/DOWNLOADS.md)
-before opening it.
+Looking for an older build? The [Alpha 2 packages](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2)
+and the [Alpha 1 to Alpha 2 upgrade guide](docs/UPGRADING.md) are still available.
 
 ## Your first game
 
-Use a disposable or backed-up library for this technical preview.
+1. Open Portcove Desktop. In the empty Library, choose **Browse games**. Portcove selects a library folder when it opens. If you want a different folder, open **Settings → Library and storage → Choose another library**.
+2. In Discover, search for a game or project. Read the target operating systems, accepted game editions, and setup instructions.
+3. If the port needs original game files, select them from your own copy of the game. Portcove checks the files on your computer. You can save their location for reuse.
+4. If Portcove manages the port, review the version and destination before you confirm the install. If the project uses its own installer or needs an existing installation, follow the instructions in the port’s details.
+5. When the port is ready, choose **Play** in Library. Some ports prepare their game data the first time they run.
 
-The screenshots show the current development build. In the published Alpha 2
-app, **Review install** presents the plan inline, and the launch action is
-**Play now** or **Complete setup and play**. The newer build uses the labels
-below and a separate installation-review dialog.
-
-1. Open **Portcove Desktop** and choose the local library you intend to use.
-2. Open **Discover**, choose a game, and check which original files the port
-   needs and whether it has been tested on your system.
-3. Choose your own required game files, or enter their local path. Portcove
-   checks them locally when you continue installation. An unsupported or changed
-   input needs attention; do not substitute another edition blindly.
-4. Choose **Review installation**. Check the version, download size and install
-   folder, then confirm **Install**. Wait for verification and preparation to finish.
-5. When the game is **Ready to play**, choose **Play**. Some ports perform their
-   own first-launch preparation or ask a further question. Close the game normally
-   to return to Portcove.
-
-This [captured Windows development-build journey](docs/media/first-play/README.md)
-shows Ship of Harkinian installing from a verified package, recognizing an exact
-Ocarina of Time source, preparing its game data, and reaching the title screen.
-It is separate from Alpha 2 package qualification and does not establish gameplay,
-audio, save compatibility or physical-controller behavior.
-
-## Manage, check, update and recover
-
-Use the selected port's requirements and current state to choose the next action.
-These CLI examples describe the maintained development contract; check your
-selected package's `--help` and capabilities before using a newer command. The
-[CLI task guide](docs/CLI.md) separates current source behavior from published
-preview limitations.
-
-| Task                        | Start here                                                                                                      | What the result means                                                                                                                                                                                                                                     |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Inspect a library or port   | Open Library/game details, or run `portcove status PORT_ID`.                                                    | See which version is installed and which actions are available. This leaves your files as they are.                                                                                                                                                       |
-| Check installed files       | Run `portcove verify PORT_ID`.                                                                                  | Installed files are compared with their recorded identities. This does not test gameplay or save compatibility.                                                                                                                                           |
-| Check original game files   | Use Game files in Settings, or `portcove source inspect PROFILE_ID` and `portcove source verify PROFILE_ID`.    | Identify the files or check whether they changed. These checks leave the files as they are and do not test a game version.                                                                                                                                |
-| Check for a game update     | Run `portcove check PORT_ID`, or use the game's update check.                                                   | Checking for an update leaves your current version in use. Review the update before installing it.                                                                                                                                                        |
-| Protect managed saved data  | Use the port's backups, or `portcove backup create PORT_ID` followed by `portcove backup list PORT_ID`.         | Check which saves and settings are included. Portcove also snapshots them automatically before an update, activation or rollback, and keeps the newest five per game. Back up your original files separately. Review which files a restore would replace. |
-| Correct a moved game file   | Use Update file location in Game files, or the [reviewed relink route](docs/CLI.md#find-and-relink-game-files). | The new location must still match the registered content; relinking does not move files or accept changed bytes.                                                                                                                                          |
-| Recover an interrupted task | Read Activity and `portcove doctor`, then follow the operation's reported recovery action.                      | Diagnosis does not itself resume or clean up an operation. Retained files or an unknown outcome need the specific supported recovery.                                                                                                                     |
-| Report a problem            | Use Report a problem or send feedback in a game's details. You review the full text, then submit it on GitHub.  | Portcove sends nothing itself. Folder paths and your user name are replaced, and no saves or game files are attached. Long reports are copied instead.                                                                                                    |
-| Upgrade Portcove itself     | Follow [application upgrade and recovery](docs/UPGRADING.md).                                                   | Published Alpha 2 upgrades are manual. An application update is separate from a game update or catalog refresh.                                                                                                                                           |
-
-See [feedback and triage](docs/ROADMAP.md#feedback-and-triage) for reporting a
-problem or sending feedback from Portcove or directly on GitHub.
-
-Bulk `check --all`, `reconcile --all` and `update --all` continue after a
-per-port failure and report each outcome. A completed batch can contain failed
-ports; inspect every result. `reconcile` follows each saved update policy and
-can download or activate a release, while `check` only checks. Saving a policy
-does not execute it.
-
-Some steps can’t stop immediately. Wait for the task to finish cancelling and
-check any recovery instructions.
-See [safe cancellation](docs/CLI.md#cancel-work-safely) and
-[interrupted library transfers](docs/CLI.md#recover-an-interrupted-transfer).
-Desktop and CLI share library locks and recovery rules; close other clients
-before a whole-library transfer.
-
-### If a game won’t start
-
-When the last launch of an installed game closed with an error, its details page
-says what the failure most likely means, shows the exit code so you can copy it,
-and suggests one next step. The wording is a hint, not a diagnosis: Portcove
-explains only a short list of common Windows exit codes (a missing DLL or
-runtime, a wrong-architecture or damaged DLL, a crash, a game that stopped
-itself, a DLL that failed to start). Any other code is shown as “The game closed
-with an error.” with nothing guessed. Nothing appears after a normal exit or
-when you stop the game yourself. “Restore previous version” appears only when
-Portcove still keeps one. The same explanation is in `launch show --json` as
-`exit_explanation`; see the [CLI guide](docs/CLI.md).
-
-### Optional disc tools
-
-Some declared disc formats or preparation routes need a local `chdman` or
-`DolphinTool`. Other ports do not. `portcove tool list` reports each tool's purpose,
-resolution and official setup reference; `portcove doctor` reports missing or
-misconfigured prerequisites. Configure a trusted executable only when the
-selected route requires it. Portcove does not silently download these executables
-or modify the original disc image. See [disc-format requirements](docs/CLI.md#disc-formats-and-optional-tools).
-
-## GitHub access
-
-### Anonymous use
-
-An account is optional. Browsing public releases and ordinary local library use
-work without signing in; public GitHub requests remain subject to GitHub's
-request limits. Startup and launching do not require an account.
-
-### Personal access token
-
-Use `portcove auth set-token` to enter a token with hidden input, or the
-documented standard-input/environment route for automation. Tokens are not
-accepted as positional command arguments. Saved credentials use the operating
-system's credential store. See [GitHub authentication](docs/CLI.md#github-authentication).
-
-### Device sign-in
-
-`portcove auth login` starts the configured GitHub device flow. Follow the
-displayed instructions; the CLI follows the required polling interval and
-reports denial, expiry or cancellation. `portcove auth status` shows the active
-credential source without exposing the token; `portcove auth logout` removes a
-saved credential, but cannot remove an environment-provided token.
-
-Authentication raises the GitHub API allowance. It does not supply game files,
-bypass their checks or change a port's support evidence.
+Portcove does not supply ROMs, disc images, BIOS files, or commercial game data.
+Your original files stay on your computer. You can use the library and launch
+installed games without a Portcove or GitHub account.
 
 ## Catalog and support
 
-Browse the complete descriptive directory in Desktop's Discover or with:
+Different projects can maintain ports of the same game. When Discover groups
+these ports, compare their game editions, operating systems, and test results.
+A catalog entry can link to the project, help you add an existing installation,
+or offer an installation that Portcove can manage.
+For an example, [compare the ports for Majora’s Mask in the live catalog](https://boburning.github.io/portcove/catalog/browse/games/the-legend-of-zelda-majoras-mask/index.html).
 
-```text
-portcove catalog listings
+![Harbor Adventure game details with Play and the Game files, Saves & backups, Versions & updates, and Manage tabs](docs/media/readme/game-details.png)
+
+_Harbor Adventure in the same simulated library. Open a tab to find its game files, saves, or available updates._
+
+## Manage, check, update and recover
+
+- If Portcove manages the installation, review the available update. Keep the previous version so you can switch back. For other ports, follow the project's update instructions.
+- Find out which saves and settings the port lists. Portcove can back up and restore those files separately from the installed game. Back up the original game files separately. [Saved data and backups](docs/CLI.md#managed-saved-data-and-backups)
+- To check an installation, run `portcove verify` with the port ID. If a task stops before it finishes, open Activity or run `portcove doctor`.
+- On the development branch, ports with reviewed mod support can keep a setup without mods alongside a modded one. Each setup records its build and mods. [Local profiles and mod packages](docs/CLI.md#local-profiles-and-mod-packages)
+
+## Use the CLI
+
+Desktop and the CLI normally open the same library. Opening a library can create its
+database or upgrade it for this version. You can browse without writing local files
+in the [web catalog](https://boburning.github.io/portcove/catalog/browse/index.html).
+
+If a folder does not contain `portcove-demo`, you can try the CLI there. These
+commands create a separate library, list ports, and show Lighthouse. Lighthouse
+is a native port of Banjo-Kazooie.
+
+```sh
+portcove --library "$PWD/portcove-demo" catalog list
+portcove --library "$PWD/portcove-demo" catalog show lighthouse
 ```
 
-Listings include projects without managed definitions. Visibility does not imply
-managed installation, compatible originals, gameplay qualification or supported
-update/backup ownership. Inspect a managed definition's declared requirements and
-current evidence through the narrower operational commands:
-
-```text
-portcove catalog list
-portcove catalog show <port-id>
-portcove --json catalog export
-```
-
-Contributors author `crates/portcove-core/catalog/ports/<stable-id>.json` through
-the [per-ID authoring workflow](docs/CATALOG.md#adding-or-changing-a-port).
-Their descriptive `listing` and optional strict `integration` generate
-[`listings.json`](crates/portcove-core/catalog/listings.json) and
-[`catalog.json`](crates/portcove-core/catalog/catalog.json); edit the records rather
-than these aggregates. Operational definitions record platforms, channels,
-required local files, executable layout, user-data paths and qualification facts.
-
-Stable, Preview, and Rolling are game-port release channels—not quality ratings. Preview retains the `beta` command and serialized value. See [docs/CATALOG.md](docs/CATALOG.md) for the full policy.
-
-### Compare implementations of a game
-
-Discover groups projects only through reviewed game identities. Open a comparison
-or **Why this port?** to inspect source editions, platform requirements, evidence
-and limitations. A recommended starting point appears only when scoped evidence
-supports it; sparse and single-project cases do not imply “best.” Changing the
-comparison never changes an installed project, original files, saves or channels.
-
-Search by the original game's title or a project's name. For games with several
-implementations, **Use** saves your deliberate project choice in the current
-library. Discover and Library keep the other implementations available; each
-retains its own original-file requirements, releases and installation. Viewing an
-alternative does not change your choice. A single implementation or an entry
-without a reviewed game identity opens directly.
-
-Library offers the chosen implementation's existing actions, or the sole installed
-implementation when the choice is unambiguous. If several installed alternatives
-need a choice, select one deliberately. Filters match an actual implementation;
-a saved choice outside those filters stays saved. A removed choice asks you to
-choose again. Missing optional comparison information does not prevent an
-installed game's supported offline Play path. Choosing a project never transfers
-saves or replaces another installation.
-
-Explicitly follow independent projects for locally deduplicated release notices
-when refreshed; use the **Followed** filter to find them. There is no mandatory
-account, telemetry or background notification service. CLI users can run
-`portcove --json catalog compare PORT_ID` for the same Core result.
+If `portcove catalog --help` lists `listings`, run
+`portcove --library "$PWD/portcove-demo" catalog listings` to include projects
+you can explore upstream. `catalog list`
+shows projects with installation definitions. Use `--json` when your script
+needs structured output.
+[CLI guide](docs/CLI.md) · [Connect another launcher](docs/INTEGRATIONS.md)
 
 ## Build from source
 
 ### Prerequisites
 
-- Rust at the version specified in [`rust-toolchain.toml`](rust-toolchain.toml)
-- [Global Vite+](https://viteplus.dev/guide/global-cli) with environment management
-  enabled, to select Node from [`.node-version`](.node-version) and pnpm from
-  [`package.json`](package.json). An existing manager providing those exact versions
-  also works; there is no separate Portcove Node installation.
-- the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/)
+Install the [pinned Rust toolchain](rust-toolchain.toml) and its build prerequisites
+for your operating system.
 
-Development storage defaults are portable: a checkout may use the Windows system drive when its physical paths and free capacity pass preflight. Prefer an SSD for fixture-heavy work. A stricter machine-local policy can impose additional restrictions without changing repository defaults. See [docs/DEVELOPMENT-STORAGE.md](docs/DEVELOPMENT-STORAGE.md) for the storage checks and private-policy boundary.
+**Standalone CLI.** From the repository root, run:
 
-From the repository root, set up frontend dependencies and hooks, then run the
-desktop app. Repeat setup after pulling toolchain changes; it refreshes hooks
-even when dependencies are already installed.
+```sh
+cargo build --locked --release -p portcove-cli
+```
+
+The executable is in `target/release` unless you configured a different Cargo
+target directory. See the [CLI build requirements](docs/CLI.md).
+
+**Desktop.** Also install the pinned [Node](.node-version) and [pnpm](package.json)
+versions and the [Tauri prerequisites for your platform](https://v2.tauri.app/start/prerequisites/).
+Run `node scripts/dev-storage.mts preflight` from the repository root, then bootstrap
+the frontend tools.
 
 ```powershell
-node scripts/dev-storage.mts preflight
+# Windows
 ./scripts/bootstrap-quality-tools.ps1 -Profile frontend
+```
+
+```sh
+# Linux or macOS
+./scripts/bootstrap-quality-tools.sh --profile frontend
+```
+
+Start Desktop from the repository root.
+
+```sh
 node scripts/dev-storage.mts run -- pnpm --dir apps/desktop desktop:dev
 ```
 
-On Linux/macOS, use `./scripts/bootstrap-quality-tools.sh --profile frontend`
-for the setup step. `vp env install` explicitly provisions the checkout's Node
-and pnpm when needed; `vp env current` shows the selected versions. See
-[development setup](docs/DEVELOPMENT-TOOLS.md#frontend-workflow) for daily and
-Core-only profiles.
+[Development setup](docs/DEVELOPMENT-TOOLS.md#frontend-workflow) · [Documentation](docs/README.md)
 
-Build the CLI using the repository storage wrapper:
+## Contribute
 
-```powershell
-node scripts/dev-storage.mts run -- cargo build -p portcove-cli --release
-```
+To add or correct a port, start with the [catalog authoring guide](docs/CATALOG.md#adding-or-changing-a-port).
+For a bug, include the Portcove version, operating system, port name, and the step
+that failed. [Report an issue](https://github.com/boburning/portcove/issues/new/choose)
+· [Contributing](CONTRIBUTING.md) · [Roadmap](https://github.com/users/boburning/projects/1)
 
-The documented command requires Node.js to run the storage wrapper and preserve
-the repository storage checks and configured paths. The underlying Cargo build
-compiles `portcove-cli` and `portcove-core`; compilation itself does not require
-Node.js, pnpm, Tauri CLI, WebView, or frontend packages, and does not build the
-desktop UI. Keep the storage wrapper for repository development.
-
-Running a released CLI does not require Rust, Node.js, pnpm, Tauri CLI, WebView,
-or frontend packages. It is an operating-system-native program: use the archive
-matching Windows x64,
-GNU/Linux x64, Intel macOS, or Apple-silicon macOS. Linux hosts need their normal
-C runtime and D-Bus/secret-service support when saved credentials are used;
-macOS and Windows use their system credential facilities.
-
-For repository checks, packaging, and release work, see [CONTRIBUTING.md](CONTRIBUTING.md), [docs/QUALITY.md](docs/QUALITY.md), and [docs/RELEASING.md](docs/RELEASING.md).
-
-## CLI quick tour
-
-This example uses Lighthouse, the Banjo-Kazooie native port:
-
-```text
-portcove about
-portcove doctor
-portcove catalog show lighthouse
-portcove source add banjo-kazooie "/path/to/Banjo-Kazooie.z64"
-portcove plan lighthouse
-portcove install lighthouse
-portcove exec lighthouse
-```
-
-Use `--json` for one-result machine output and `--jsonl` for streaming operations:
-
-```text
-portcove --json check --all
-portcove --jsonl reconcile lighthouse
-```
-
-Set `PORTCOVE_LIBRARY` or pass `--library <path>` to use a specific library root. The CLI is designed for scripts and external frontends; it does not require the desktop app. Current machine behavior is documented in [docs/CLI.md](docs/CLI.md), and the capability, ownership, and frontend-support model is documented in [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md).
-
-## Documentation and contributing
-
-Start with the [documentation map](docs/README.md). Deeper references cover the [architecture](docs/ARCHITECTURE.md), [catalog policy](docs/CATALOG.md), [CLI contract](docs/CLI.md), [external frontend integration](docs/INTEGRATIONS.md), [release stages](docs/ROADMAP.md), and [security policy](SECURITY.md).
-
-Check the [live roadmap](https://github.com/users/boburning/projects/1) and
-existing issues before starting work. Prefer catalog data and shared core
-adapters; use small title-specific core code when it enables a bounded useful
-route without duplicating lifecycle authority. See
-[CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
-
-## Optional signed catalog updates
-
-A signed catalog changes eligible catalog metadata; applying it does not install
-game updates or update Portcove itself. No publisher key or scheduled fetch is
-configured by default. Trusting a publisher is a separate explicit decision and
-permits changes such as release download locations within the implemented
-format's limits. A signature does not replace release checksum checks, source
-requirements or platform qualification. Read the [format-1 trust, review and
-recovery contract](docs/SIGNED-CATALOG.md) before configuring this optional route.
-
-## License
-
-Portcove is available under either the [MIT License](LICENSE-MIT) or the [Apache License 2.0](LICENSE-APACHE), at your option.
-
-## Development and responsibility
-
-Portcove is maintained in [boburning's public repository](https://github.com/boburning/portcove)
-and uses AI-assisted development. The project owner is responsible for the
-changes and release decisions. Published test evidence describes its actual
-scope; it does not guarantee every port, platform or personal library.
-
-See the [contributor workflow](CONTRIBUTING.md), [quality checks](docs/QUALITY.md),
-[architecture](docs/ARCHITECTURE.md) and [documentation index](docs/README.md).
+Portcove uses AI-assisted development. The maintainer is responsible for changes
+and releases. Portcove itself is available under the [MIT License](LICENSE-MIT)
+or the [Apache License 2.0](LICENSE-APACHE), at your option.

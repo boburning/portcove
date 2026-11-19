@@ -1,0 +1,65 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "empire-earth-gold-apple-silicon",
+    "name": "Empire Earth for Apple Silicon",
+    "original_game_title": "Empire Earth Gold",
+    "artwork": {
+      "game_id": 53999,
+      "cover_id": 113510,
+      "image_id": "co2fl2",
+      "image_sha256": "787f7fca4e2c625f61798c9d7b544671de6e9f40ec4088169202aa9f699c966e",
+      "game_slug": "empire-earth-gold-edition",
+      "match_kind": "underlying-game"
+    },
+    "summary": "Play the base Empire Earth game on Apple Silicon using your own GOG Gold edition.",
+    "project_url": "https://github.com/maxgraf96/ee-macos",
+    "issue_number": 6117,
+    "listed_at": "2026-11-15",
+    "platforms": ["macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/maxgraf96/ee-macos/releases/tag/v0.8.2",
+    "setup_url": "https://github.com/maxgraf96/ee-macos/blob/v0.8.2/docs/INSTALL.md",
+    "download_block_reason": "Use the publisher’s DMG or ZIP with macOS tools so the app bundle’s toolchain links are preserved.",
+    "manual_setup": {
+      "help_url": "https://github.com/maxgraf96/ee-macos/blob/v0.8.2/docs/INSTALL.md",
+      "steps": [
+        {
+          "title": "Install the Apple Silicon player",
+          "instruction": "On an Apple Silicon Mac with macOS 15 or later, get the publisher’s v0.8.2 DMG or ZIP and compare its SHA-256 with the release checksums. Move the complete EmpireEarth.app to Applications and open it there. The game host and movie libraries declare macOS 15 even though the launcher reports macOS 13."
+        },
+        {
+          "title": "Supply your own GOG game files",
+          "instruction": "Choose your installed GOG Empire Earth Gold folder or its Windows English offline installer with all companion parts. The player checks the supplied base-game files and prepares an Apple Silicon build in your user profile. Keep your original installer or game folder separately."
+        }
+      ],
+      "warnings": [
+        "The publisher distributes the app without Apple notarization. Review the publisher and exact package before trusting it on your Mac."
+      ],
+      "references": [
+        {
+          "title": "Keep saved games and settings",
+          "instruction": "Before replacing the player, back up your active ~/Library/Application Support/EmpireEarth folder. It contains game saves and scenarios in Data, profiles in Users, and private settings and your game key in registry.json. The app prepares the game in your profile. Replace EmpireEarth.app yourself with a verified publisher release."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "empire-earth-gold",
+      "evidence_urls": [
+        "https://github.com/maxgraf96/ee-macos/blob/v0.8.2/docs/INSTALL.md",
+        "https://github.com/maxgraf96/ee-macos"
+      ],
+      "source_editions": [
+        {
+          "id": "empire-earth-gold-pc",
+          "title": "Empire Earth Gold (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/maxgraf96/ee-macos/blob/136d78fdf6608c869f0621942c7dfeba144a74e4/README.md"
+          ]
+        }
+      ]
+    }
+  }
+}

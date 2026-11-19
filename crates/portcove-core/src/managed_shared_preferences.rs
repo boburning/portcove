@@ -545,6 +545,7 @@ mod tests {
                         size: 33_085_815,
                         sha256: SHA.into(),
                     },
+                    uploader_continuity: None,
                 })
             }
         }

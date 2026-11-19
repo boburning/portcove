@@ -1,0 +1,64 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dungeon-siege-joshspeakman-macos",
+    "artwork": {
+      "game_id": 329,
+      "cover_id": 97352,
+      "image_id": "co2348",
+      "image_sha256": "916d34141868c80d9c7d178af505e52c6b11dfb42315484ce449310e98c08fd4",
+      "game_slug": "dungeon-siege",
+      "match_kind": "underlying-game"
+    },
+    "project_url": "https://github.com/Joshspeakman/dungeon-siege-macos",
+    "name": "Dungeon Siege / Dungeon Siege macOS",
+    "original_game_title": "Dungeon Siege",
+    "summary": "Prepare the upstream Apple Silicon player with your own Dungeon Siege 1.11.1 installation.",
+    "issue_number": 6104,
+    "listed_at": "2026-11-15",
+    "platforms": ["macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/Joshspeakman/dungeon-siege-macos/releases/tag/beta-3",
+    "setup_url": "https://github.com/Joshspeakman/dungeon-siege-macos/blob/beta-3/README.md",
+    "download_block_reason": "Open the publisher’s preview release for the DMG. It requires Apple Silicon and macOS 27.2 or later.",
+    "manual_setup": {
+      "help_url": "https://github.com/Joshspeakman/dungeon-siege-macos/blob/beta-3/README.md",
+      "steps": [
+        {
+          "title": "Open the Apple Silicon preview",
+          "instruction": "Use the upstream beta-3 DMG on macOS 27.2 or later. Drag Dungeon Siege.app into Applications. The upstream project also documents building from source with Apple’s Command Line Tools."
+        },
+        {
+          "title": "Prepare your installed game",
+          "instruction": "Give the preview your installed GOG or Steam 1.11.1 folder containing DungeonSiege.exe and the original game archives. The setup checks the executable against the expected edition hashes, then copies your files into ~/Games/Dungeon Siege/game-files and builds native code. Keep the original folder when setup offers to move it to the Trash. The GOG offline installer is a separate input for the source-build script."
+        },
+        {
+          "title": "Keep your saves and mods before updating",
+          "instruction": "For the downloaded app, back up the saves and game settings in ~/Games/Dungeon Siege/drive_c/Users/player/Documents/Dungeon Siege. Also keep mods and launcher.plist from ~/Games/Dungeon Siege. The app’s upstream updater owns replacement. A source build uses a different default folder, ~/Games/DungeonSiegeNative."
+        }
+      ],
+      "warnings": [
+        "The two downloaded preview packages both contain an Apple Silicon launcher built for macOS 27.2. Use a corrected package or verify the source-build route separately for earlier macOS versions.",
+        "This setup uses the base game executable. The publisher offers a separate owned Legends of Aranna archive route. Keep expansion files and saves separate from your base game."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dungeon-siege",
+      "evidence_urls": [
+        "https://github.com/Joshspeakman/dungeon-siege-macos/blob/beta-3/README.md",
+        "https://github.com/Joshspeakman/dungeon-siege-macos"
+      ],
+      "source_editions": [
+        {
+          "id": "dungeon-siege-pc",
+          "title": "Dungeon Siege (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Joshspeakman/dungeon-siege-macos/blob/8a2daa615cc5835c12e48f6b7a95537aa35e00ce/README.md"
+          ]
+        }
+      ]
+    }
+  }
+}

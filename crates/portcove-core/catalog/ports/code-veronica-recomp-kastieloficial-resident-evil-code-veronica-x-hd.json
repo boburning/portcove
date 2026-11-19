@@ -3,13 +3,21 @@
   "listing": {
     "id": "code-veronica-recomp-kastieloficial-resident-evil-code-veronica-x-hd",
     "name": "Resident Evil Code: Veronica X HD — Code Veronica Recomp (kastieloficial)",
-    "original_game_title": "Resident Evil Code: Veronica X HD",
+    "original_game_title": "Resident Evil Code: Veronica X",
+    "artwork": {
+      "game_id": 20622,
+      "cover_id": 93763,
+      "image_id": "co20cj",
+      "image_sha256": "aa1ba8e1b7b55e75b328c86408d6cc6768155ec9e2aeb9e4d93362a3328d3693",
+      "game_slug": "resident-evil-code-veronica-x-hd",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project describes native play, 60 FPS and a speedrun route. A complete playthrough is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
-    "project_url": "https://github.com/kastieloficial/RE-Code-Veronica-Recomp",
+    "project_url": "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC",
     "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/kastieloficial/RE-Code-Veronica-Recomp",
+    "setup_url": "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC",
     "manual_setup": {
       "steps": [
         {
@@ -25,9 +33,24 @@
         "The project describes native play, 60 FPS and a speedrun route. A complete playthrough is unconfirmed.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/kastieloficial/RE-Code-Veronica-Recomp"
+      "help_url": "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC"
     },
-    "issue_number": 3368
+    "issue_number": 3368,
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-code-veronica-x",
+      "evidence_urls": ["https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC"],
+      "source_editions": [
+        {
+          "id": "resident-evil-code-veronica-x-playstation-3",
+          "title": "Resident Evil Code: Veronica X (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC/blob/5d5e9013700914cf0042a8fb1c2ad62fb51b0e91/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -39,6 +62,43 @@
         "id": "1416413920"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/kastieloficial/RE-Code-Veronica-Recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1416413920"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC",
+          "repository": {
+            "host": "github.com",
+            "id": "1416413920"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The owner kastieloficial renamed the repository it listed; the same repository answers at kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1416413920",
+            "note": "Repository ID 1416413920, recorded when this port was listed, resolves to kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/kastieloficial/RE-Code-Veronica-Recomp",
+            "note": "The listed path resolves to kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC, repository ID 1416413920."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "209a87970bce6e947adaee7ff610c019bb4a8950a681e71095fd27f7b221c8d1"
+        }
+      }
+    ]
   }
 }

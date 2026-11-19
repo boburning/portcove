@@ -4,12 +4,12 @@
     "id": "kameo-repowered",
     "name": "Kameo RePowered",
     "summary": "Explore Kameo RePowered and follow the upstream project for requirements, downloads and setup.",
-    "project_url": "https://github.com/birabittoh/KameoRePowered",
+    "project_url": "https://github.com/MaxDeadBear/KameoRePowered",
     "issue_number": 129,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/birabittoh/KameoRePowered",
+    "setup_url": "https://github.com/MaxDeadBear/KameoRePowered",
     "artwork": {
       "game_id": 7029,
       "cover_id": 87149,
@@ -19,7 +19,7 @@
       "match_kind": "underlying-game"
     },
     "manual_setup": {
-      "help_url": "https://github.com/birabittoh/KameoRePowered/blob/29ebaeb0e630b061e880953aa41ab70be386eb3e/README.md",
+      "help_url": "https://github.com/MaxDeadBear/KameoRePowered/blob/29ebaeb0e630b061e880953aa41ab70be386eb3e/README.md",
       "steps": [
         {
           "title": "Keep a lawful completed native copy",
@@ -48,6 +48,75 @@
         "Portcove has not run a new game package or original files, or tested save/load, gameplay or installed behavior. Earlier Windows title-update v0.2.1 file-integrity results apply only to that exact package, and do not cover vanilla or other builds."
       ]
     },
-    "download_block_reason": "New downloads are waiting for an applicable attributable permission covering the selected linked recompiled binary/package. Upstream expressly excludes redistribution of generated game code and built binaries that link it; host-side MIT and old matching package bytes do not override that condition. Reconsider a reviewed permitted or asset-clean package route; lawful existing private copies remain a separate use question."
+    "download_block_reason": "New downloads are waiting for an applicable attributable permission covering the selected linked recompiled binary/package. Upstream expressly excludes redistribution of generated game code and built binaries that link it; host-side MIT and old matching package bytes do not override that condition. Reconsider a reviewed permitted or asset-clean package route; lawful existing private copies remain a separate use question.",
+    "original_game": {
+      "format_version": 1,
+      "id": "kameo-elements-of-power",
+      "evidence_urls": [
+        "https://github.com/MaxDeadBear/KameoRePowered/blob/29ebaeb0e630b061e880953aa41ab70be386eb3e/README.md",
+        "https://github.com/MaxDeadBear/KameoRePowered",
+        "https://api.github.com/repos/MaxDeadBear/KameoRePowered/contributors",
+        "https://github.com/MaxDeadBear/KameoRePowered/commit/29ebaeb0e630b061e880953aa41ab70be386eb3e",
+        "https://api.github.com/repos/birabittoh/KameoRePowered"
+      ],
+      "source_editions": [
+        {
+          "id": "kameo-elements-of-power-xbox-360",
+          "title": "Kameo: Elements of Power (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/MaxDeadBear/KameoRePowered/blob/29ebaeb0e630b061e880953aa41ab70be386eb3e/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/kameo-repowered.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Kameo: Elements of Power"
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "kameo-elements-of-power-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/birabittoh/KameoRePowered"
+    },
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/birabittoh/KameoRePowered"
+        },
+        "to": {
+          "project_url": "https://github.com/MaxDeadBear/KameoRePowered",
+          "repository": {
+            "host": "github.com",
+            "id": "1219304688"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The repository moved from birabittoh to MaxDeadBear. GitHub only lets an administrator of the original repository transfer it, and birabittoh authored its history and remains a contributor. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repos/MaxDeadBear/KameoRePowered/contributors",
+            "note": "birabittoh is listed among the current repository's contributors."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/MaxDeadBear/KameoRePowered/commit/29ebaeb0e630b061e880953aa41ab70be386eb3e",
+            "note": "The commit this listing's setup guide pins is present in the current repository, authored by birabittoh."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/birabittoh/KameoRePowered",
+            "note": "The listed path resolves to MaxDeadBear/KameoRePowered, repository ID 1219304688."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "627d4174cd244d1b777d4a6fa9f6bc1e05823341326fe90d0af8e522da8cbd84"
+        }
+      }
+    ]
   }
 }

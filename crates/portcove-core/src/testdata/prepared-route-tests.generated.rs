@@ -4,11 +4,13 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "body-harvest-recompiled",
     "doom-3-classic-dhewm3",
     "dune-ii-dune-dynasty",
+    "ecwolf-wolfenstein3d",
     "elasota-aerofoil",
     "gamebreaker20xx-fullrumble-ps1-slus01068",
     "gothic-ii-night-of-the-raven-opengothic",
     "heroes-of-might-and-magic-ii-fheroes2",
     "jetforcegemini-recomp-vibintoast-jet-force-gemini",
+    "monster-hunter-portable-3rd-hd-yakumo",
     "mother-3-mother-3-recomp",
     "mstan-tetrisgbrecomp",
     "n64hub-rayman-2-recomp-n64-usa",
@@ -21,10 +23,12 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "rustmania-racing-ray-m-w-muppet-racemania",
     "scottjco-wetrix-n64-usa-rev0-recomp",
     "snprecomp-wootbeer-sin-and-punishment",
+    "teeworlds",
     "tekrantgaming-muppet-racemania-recompiled",
     "tomba-2-recompiled",
     "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
     "troyedwardsjr-z2rs",
+    "warioland4",
 ];
 
 #[test]
@@ -40,6 +44,11 @@ fn prepared_guide_adoption_declared_doom_3_classic_dhewm3() {
 #[test]
 fn prepared_guide_adoption_declared_dune_ii_dune_dynasty() {
     assert_declarative_prepared_player_route("dune-ii-dune-dynasty");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_ecwolf_wolfenstein3d() {
+    assert_declarative_prepared_player_route("ecwolf-wolfenstein3d");
 }
 
 #[test]
@@ -65,6 +74,11 @@ fn prepared_guide_adoption_declared_heroes_of_might_and_magic_ii_fheroes2() {
 #[test]
 fn prepared_guide_adoption_declared_jetforcegemini_recomp_vibintoast_jet_force_gemini() {
     assert_declarative_prepared_player_route("jetforcegemini-recomp-vibintoast-jet-force-gemini");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_monster_hunter_portable_3rd_hd_yakumo() {
+    assert_declarative_prepared_player_route("monster-hunter-portable-3rd-hd-yakumo");
 }
 
 #[test]
@@ -128,6 +142,11 @@ fn prepared_guide_adoption_declared_snprecomp_wootbeer_sin_and_punishment() {
 }
 
 #[test]
+fn prepared_guide_adoption_declared_teeworlds() {
+    assert_declarative_prepared_player_route("teeworlds");
+}
+
+#[test]
 fn prepared_guide_adoption_declared_tekrantgaming_muppet_racemania_recompiled() {
     assert_declarative_prepared_player_route("tekrantgaming-muppet-racemania-recompiled");
 }
@@ -145,4 +164,9 @@ fn prepared_guide_adoption_declared_toy_story_2_buzz_lightyear_to_the_rescue_n64
 #[test]
 fn prepared_guide_adoption_declared_troyedwardsjr_z2rs() {
     assert_declarative_prepared_player_route("troyedwardsjr-z2rs");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_warioland4() {
+    assert_declarative_prepared_player_route("warioland4");
 }

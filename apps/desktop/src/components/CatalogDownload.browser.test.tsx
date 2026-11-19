@@ -1,4 +1,7 @@
 import { openAdvancedFilters } from "../../test/filter-fields";
+import { captureParityState as captureRenderedState } from "../../test/parity-capture";
+import { prepareCaptureTarget } from "../../test/capture-target";
+import { observeVisibleTarget } from "../../scripts/browser-readiness.mts";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { cleanup, render, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
@@ -171,6 +174,8 @@ beforeEach(async () => {
   );
   vi.spyOn(desktopApi, "registerUserSelectedRuntime").mockResolvedValue(null);
   vi.spyOn(desktopApi, "openPendingSetupFolder").mockResolvedValue(undefined);
+  vi.spyOn(desktopApi, "openPendingSetupResource").mockResolvedValue(undefined);
+  vi.spyOn(desktopApi, "openCatalogDownloadReleaseNotes").mockResolvedValue(undefined);
   vi.spyOn(desktopApi, "forgetPendingSetup").mockResolvedValue(undefined);
   root = await render(
     <CatalogDownloadControl entry={entry} generation={9} busy={false} perform={perform} />,
@@ -179,8 +184,148 @@ beforeEach(async () => {
 afterEach(async () => {
   await cleanup();
   await page.viewport(1280, 800);
+  delete document.documentElement.dataset.theme;
   vi.restoreAllMocks();
 });
+
+it.each([
+  { theme: "dark", savedArguments: ["--fullscreen"] },
+  { theme: "light", savedArguments: ["--profile", "", "first\nsecond"] },
+])(
+  "preserves listing Manage launch facts and their edit identity in compact RTL $theme",
+  async ({ theme, savedArguments }) => {
+    await page.viewport(430, 896);
+    document.documentElement.dataset.theme = theme;
+    const executable = String.raw`\\?\C:\Player\External runtime installations\نسخة محفوظة\Original game folder\game.exe`;
+    const directory = String.raw`\\مخدم\ألعاب\External runtime installations\Original game folder`;
+    const registeredStatus: PortStatus = {
+      ...status,
+      external_runtime: {
+        id: "listing-manage-selected-runtime",
+        port_id: listing.id,
+        path: directory,
+        executable,
+        version: "user-managed",
+        platform: "windows-x86-64",
+        archive_sha256: "",
+        immutable_tree_sha256: "",
+        registered_at: 1,
+        user_selected: { arguments: savedArguments },
+      },
+    };
+    const [registeredEntry] = catalogEntries(
+      undefined,
+      { format_version: 1, listings: [listing] },
+      [
+        {
+          port_id: listing.id,
+          status: registeredStatus,
+          actions: [{ action: "relink-existing", allowed: true }],
+        },
+      ],
+      [],
+    );
+    const previewLaunch = vi
+      .spyOn(desktopApi, "previewUserSelectedRuntimeRelink")
+      .mockRejectedValue(new Error("Read-only consumer fixture: review reached"));
+    const mutations = [
+      vi
+        .spyOn(desktopApi, "relinkUserSelectedRuntime")
+        .mockRejectedValue(new Error("Unexpected mutation")),
+      vi
+        .spyOn(desktopApi, "removeExternalRuntime")
+        .mockRejectedValue(new Error("Unexpected mutation")),
+      vi.spyOn(desktopApi, "launch").mockRejectedValue(new Error("Unexpected launch")),
+    ];
+    await root.rerender(
+      <div dir="rtl" style={{ padding: 16 }}>
+        <ListingDetailPanel
+          entry={registeredEntry!}
+          status={registeredStatus}
+          generation={19}
+          perform={perform}
+          onChanged={changed}
+          close={vi.fn()}
+        />
+      </div>,
+    );
+    await page.getByRole("tab", { name: "Manage", exact: true }).click();
+    const heading = page.getByRole("heading", { name: "Installation", exact: true });
+    await expect.element(heading).toBeVisible();
+    const facts = heading.element().closest("section")!.querySelector("dl")!;
+    expect(getComputedStyle(facts).direction).toBe("rtl");
+    expect([...facts.querySelectorAll("dt")].map((label) => label.textContent)).toEqual([
+      "Game program",
+      "Start in folder",
+      "Launch options (advanced)",
+    ]);
+    const paths = [...facts.querySelectorAll<HTMLElement>("dd.path-value")];
+    expect(paths.map((value) => value.textContent)).toEqual([executable, directory]);
+    expect([...facts.querySelectorAll("code")].map((value) => value.textContent)).toEqual(
+      savedArguments.filter(Boolean),
+    );
+    expect(facts.textContent?.includes("Empty argument")).toBe(savedArguments.includes(""));
+    for (const argument of facts.querySelectorAll("code")) {
+      expect(getComputedStyle(argument).whiteSpace).toBe("pre-wrap");
+    }
+    facts.scrollIntoView({ block: "center" });
+    await document.fonts.ready;
+    for (const value of [...paths, ...facts.querySelectorAll("code")]) {
+      expect(value.getAttribute("dir")).toBe("ltr");
+      expect(getComputedStyle(value).direction).toBe("ltr");
+      expect(getComputedStyle(value).unicodeBidi).not.toContain("override");
+      const bounds = value.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(value);
+      for (const rect of [...range.getClientRects()].filter((rect) => rect.width > 0)) {
+        expect(rect.left).toBeGreaterThanOrEqual(0);
+        expect(rect.right).toBeLessThanOrEqual(innerWidth);
+        expect(rect.top).toBeGreaterThanOrEqual(0);
+        expect(rect.bottom).toBeLessThanOrEqual(innerHeight);
+        expect(rect.left).toBeGreaterThanOrEqual(bounds.left - 1);
+        expect(rect.right).toBeLessThanOrEqual(bounds.right + 1);
+      }
+    }
+    const prefix = document.createRange();
+    prefix.setStart(paths[0]!.firstChild!, 0);
+    prefix.setEnd(paths[0]!.firstChild!, 7);
+    expect(prefix.toString()).toBe("\\\\?\\C:\\");
+    expect(prefix.getClientRects()).toHaveLength(1);
+    const serverPrefix = [0, 1, 2].map((index) => {
+      const glyph = document.createRange();
+      glyph.setStart(paths[1]!.firstChild!, index);
+      glyph.setEnd(paths[1]!.firstChild!, index + 1);
+      return glyph.getBoundingClientRect().top;
+    });
+    expect(directory.slice(0, 3)).toBe("\\\\م");
+    expect(Math.max(...serverPrefix) - Math.min(...serverPrefix)).toBeLessThanOrEqual(1);
+    expect(previewLaunch).not.toHaveBeenCalled();
+    await captureRenderedState("listing-manage-selected-launch-facts");
+    await page.getByRole("button", { name: "Edit launch details", exact: true }).click();
+    await expect
+      .element(page.getByRole("tab", { name: "Game files", exact: true }))
+      .toHaveAttribute("aria-selected", "true");
+    expect(
+      document.querySelector("[data-detail-workspace]")?.getAttribute("data-detail-port-id"),
+    ).toBe(listing.id);
+    await page.getByRole("button", { name: "Edit launch details…", exact: true }).click();
+    await expect
+      .element(page.getByRole("textbox", { name: "Start in folder", exact: true }))
+      .toHaveValue(directory);
+    await page
+      .getByRole("region", { name: "Set up and launch", exact: true })
+      .getByRole("button", { name: "Review launch details", exact: true })
+      .click();
+    await expect
+      .poll(() => previewLaunch.mock.calls)
+      .toEqual([[listing.id, executable, directory, savedArguments, 19]]);
+    for (const mutation of mutations) expect(mutation).not.toHaveBeenCalled();
+    expect(desktopApi.registerUserSelectedRuntime).not.toHaveBeenCalled();
+    expect(desktopApi.catalogDownloadCandidates).not.toHaveBeenCalled();
+    expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+    expect(changed).not.toHaveBeenCalled();
+  },
+);
 
 it("shows Core's acquisition restriction without offering a download mutation", async () => {
   const reason =
@@ -204,6 +349,33 @@ it("shows Core's acquisition restriction without offering a download mutation", 
     .not.toBeInTheDocument();
   expect(desktopApi.previewCatalogDownload).not.toHaveBeenCalled();
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+});
+
+it("explains a managed-route refusal instead of offering another check", async () => {
+  const reason =
+    "Portcove installs and updates this game on your system. Use Install instead of downloading the upstream package.";
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
+    ...candidates,
+    allowed: false,
+    reason,
+    refusal: "managed-route",
+    candidates: [],
+    recommended_asset_id: null,
+    packages: [],
+    coverage: null,
+  });
+  await click("Check upstream downloads");
+  await expect.element(page.getByText(reason, { exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Check downloads again", exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: "Review download", exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("link", { name: "View upstream releases" }))
+    .not.toBeInTheDocument();
+  expect(desktopApi.previewCatalogDownload).not.toHaveBeenCalled();
 });
 
 it("accepts Core's recommended package and location together without a folder decision", async () => {
@@ -285,6 +457,7 @@ it("retains a deliberate older release and package across refresh", async () => 
     release_id: 41,
     asset_id: 8,
     release_tag: "v1.1",
+    release_url: `${listing.project_url}/releases/tag/v1.1`,
     name: "game-variant.zip",
   };
   const previous = {
@@ -303,6 +476,9 @@ it("retains a deliberate older release and package across refresh", async () => 
     })
     .mockResolvedValue(previous);
   await click("Check upstream downloads");
+  await expect
+    .element(page.getByRole("link", { name: "Release notes for v1.2" }))
+    .toHaveAttribute("href", artifact.release_url);
   await click("Change download options");
   await page.getByRole("combobox", { name: /^Release v/ }).click();
   await page.getByRole("option", { name: /v1.1/ }).click();
@@ -316,6 +492,18 @@ it("retains a deliberate older release and package across refresh", async () => 
     41,
     "stable",
   );
+  await expect
+    .element(page.getByRole("link", { name: "Release notes for v1.1" }))
+    .toHaveAttribute("href", older.release_url);
+  await page.getByRole("link", { name: "Release notes for v1.1" }).click();
+  expect(desktopApi.openCatalogDownloadReleaseNotes).toHaveBeenCalledExactlyOnceWith(
+    listing.id,
+    older.release_id,
+    older.asset_id,
+    older.release_url,
+    9,
+  );
+  expect(document.querySelector(`a[href="${artifact.release_url}"]`)).toBeNull();
   await click("Review download");
   expect(desktopApi.previewCatalogDownload).toHaveBeenCalledExactlyOnceWith(
     { ...selection, release_id: 41, asset_id: 8 },
@@ -480,6 +668,19 @@ it("suggests Core's native target and preserves a manual installation outside th
   ).toBe("C:/Games/Harbor");
   await click("Refresh launch suggestions");
   expect(document.body.textContent).toContain("Game program: C:/Games/Harbor/Harbor.exe");
+  const launchTarget = page.getByRole("combobox", {
+    name: "Launch target Selected game program",
+    exact: true,
+  });
+  await expect.element(launchTarget).toBeVisible();
+  await launchTarget.click();
+  await expect
+    .element(page.getByRole("option", { name: "Selected game program", exact: true }))
+    .toHaveAttribute("aria-selected", "true");
+  await expect.element(page.getByRole("option", { name: executable, exact: true })).toBeVisible();
+  await captureRenderedState("external-selected-manual-launch-target");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(launchTarget).toHaveFocus();
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
 });
 
@@ -958,7 +1159,9 @@ it("counts a pending listing under Needs attention beside a ready registration w
   await expect.element(readiness).toHaveAccessibleName("Readiness All (2)");
   await expect.element(page.getByRole("button", { name: /^Play: / })).toBeVisible();
   await readiness.click();
-  await expect.element(page.getByRole("option", { name: "Ready (1)", exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("option", { name: "Ready to play (1)", exact: true }))
+    .toBeVisible();
   await page.getByRole("option", { name: "Needs attention (1)", exact: true }).click();
   await expect.element(readiness).toHaveAccessibleName("Readiness Needs attention (1)");
   expect(document.body.textContent).toContain("Downloaded · setup needed");
@@ -967,6 +1170,90 @@ it("counts a pending listing under Needs attention beside a ready registration w
   await click("Continue setup");
   expect(select.mock.calls[0]?.[0]).toBe(listing.id);
   expect(launch).not.toHaveBeenCalled();
+  expect(desktopApi.catalogDownloadCandidates).not.toHaveBeenCalled();
+});
+
+it("uses the downloaded package’s release and retained setup guide when the directory changes", async () => {
+  const retained = {
+    ...listing,
+    setup_url: `${listing.project_url}/wiki/Original-setup`,
+    manual_setup: {
+      steps: [{ title: "Prepare the archive", instruction: "Use the companion data folder." }],
+      warnings: [],
+      help_url: `${listing.project_url}/blob/v1.2/guide.md`,
+    },
+  };
+  const current = {
+    ...listing,
+    setup_url: `${listing.project_url}/wiki/New-installer`,
+    manual_setup: {
+      steps: [{ title: "New installer", instruction: "Follow the new setup wizard." }],
+      warnings: [],
+    },
+  };
+  const [resumed] = catalogEntries(
+    undefined,
+    { format_version: 1, listings: [current] },
+    [listingStatus],
+    [{ ...saved, listing: retained }],
+  );
+  await root.rerender(
+    <ListingDetailPanel
+      entry={resumed!}
+      status={status}
+      close={vi.fn()}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+    />,
+  );
+  await page.getByRole("tab", { name: "Game files", exact: true }).click();
+  await expect
+    .element(page.getByRole("link", { name: "Release notes for v1.2" }))
+    .toHaveAttribute("href", artifact.release_url);
+  expect(document.body.textContent).toContain("Use the companion data folder.");
+  expect(document.body.textContent).not.toContain("Follow the new setup wizard.");
+  expect(document.querySelector(`a[href="${retained.setup_url}"]`)).toBeTruthy();
+  expect(document.querySelector(`a[href="${current.setup_url}"]`)).toBeNull();
+  await page.getByRole("link", { name: "Release notes for v1.2" }).click();
+  await page
+    .getByRole("region", { name: "Upstream setup instructions" })
+    .getByRole("link", { name: "Detailed preparation guide" })
+    .click();
+  await page
+    .getByRole("region", { name: "Your existing installation" })
+    .getByRole("link", { name: "Detailed preparation guide" })
+    .click();
+  await page.getByRole("link", { name: "Setup guide on the project’s website" }).click();
+  expect(desktopApi.openPendingSetupResource).toHaveBeenCalledTimes(4);
+  expect(desktopApi.openPendingSetupResource).toHaveBeenNthCalledWith(
+    1,
+    listing.id,
+    saved.id,
+    artifact.release_url,
+    9,
+  );
+  expect(desktopApi.openPendingSetupResource).toHaveBeenNthCalledWith(
+    2,
+    listing.id,
+    saved.id,
+    retained.manual_setup.help_url,
+    9,
+  );
+  expect(desktopApi.openPendingSetupResource).toHaveBeenNthCalledWith(
+    3,
+    listing.id,
+    saved.id,
+    retained.manual_setup.help_url,
+    9,
+  );
+  expect(desktopApi.openPendingSetupResource).toHaveBeenNthCalledWith(
+    4,
+    listing.id,
+    saved.id,
+    retained.setup_url,
+    9,
+  );
   expect(desktopApi.catalogDownloadCandidates).not.toHaveBeenCalled();
 });
 
@@ -1268,7 +1555,10 @@ it("retains a manually selected setup target and literal arguments across remoun
     .fill("C:/Upstream data");
   await page.getByText("Advanced launch options", { exact: true }).click();
   await page
-    .getByRole("textbox", { name: "Launch arguments", exact: true })
+    .getByRole("textbox", {
+      name: "Launch options (advanced) (one per line, optional)",
+      exact: true,
+    })
     .fill("--data\nC:/Original files");
   await root.rerender(
     <SelfServiceSetup
@@ -1291,10 +1581,15 @@ it("retains a manually selected setup target and literal arguments across remoun
     10,
   );
   expect(pickHostToolExecutable).toHaveBeenCalledOnce();
-  expect(document.body.textContent).toContain(executable);
+  const launchReview = page.getByText("Game program", { exact: true }).element().closest("dl")!;
+  for (const value of [executable, "C:/Upstream data", "--data", "C:/Original files"]) {
+    await expect
+      .element(page.elementLocator(launchReview).getByText(value, { exact: true }))
+      .toBeVisible();
+  }
 });
 
-it("keeps authored save warnings visible before reviewing a download", async () => {
+it("shows save warnings without promoting an unscoped guide step to a download instruction", async () => {
   const warned = catalogEntries(
     undefined,
     {
@@ -1303,7 +1598,7 @@ it("keeps authored save warnings visible before reviewing a download", async () 
         {
           ...listing,
           manual_setup: {
-            steps: [{ title: "Choose the player", instruction: "Extract the complete package." }],
+            steps: [{ title: "Set up macOS", instruction: "Open the macOS disk image." }],
             warnings: ["Back up the shared save folder separately."],
             references: [
               { title: "Inspected version", instruction: "Version one used profile/save.bin." },
@@ -1319,6 +1614,8 @@ it("keeps authored save warnings visible before reviewing a download", async () 
     <CatalogDownloadControl entry={warned} generation={9} busy={false} perform={perform} />,
   );
   await click("Check upstream downloads");
+  await expect.element(page.getByRole("button", { name: "Review download" })).toBeVisible();
+  expect(document.body.textContent).not.toContain("Open the macOS disk image.");
   const warning = page.getByText("Back up the shared save folder separately.", { exact: true });
   await expect.element(warning).toBeVisible();
   expect(warning.element().closest("details")).toBeNull();
@@ -1432,14 +1729,13 @@ it("separates stable update navigation, selected-package notes and historical se
     .element(page.getByRole("link", { name: "Upstream releases", exact: true }))
     .toHaveAttribute("href", `${listing.project_url}/releases`);
   await expect
-    .element(page.getByRole("link", { name: "Setup instructions", exact: true }))
+    .element(page.getByRole("link", { name: "Project setup guide", exact: true }))
     .toHaveAttribute("href", historical);
   await expect
     .element(page.getByRole("link", { name: "View upstream releases", exact: true }))
     .toHaveAttribute("href", `${listing.project_url}/releases`);
-  await click("Change download options");
   await expect
-    .element(page.getByRole("link", { name: "Release notes and requirements", exact: true }))
+    .element(page.getByRole("link", { name: "Release notes for v1.2", exact: true }))
     .toHaveAttribute("href", artifact.release_url);
 });
 
@@ -1509,7 +1805,143 @@ it("renders accepted GitLab listing observations through the shared descriptive 
     .toHaveAttribute("href", "https://gitlab.com/example/subgroup/game/-/releases/v1");
   await expect.element(evidence.getByText("game-windows-x64.zip", { exact: false })).toBeVisible();
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
-});
+
+  const observation = observedListing.upstream_observation!;
+  const variants: {
+    name: string;
+    theme: "dark" | "light";
+    width: number;
+    listing: PortListing;
+    label: string;
+    observedFirst: boolean;
+  }[] = [
+    {
+      name: "fresh-package",
+      theme: "dark",
+      width: 1280,
+      listing: observedListing,
+      label: "Package candidates observed",
+      observedFirst: true,
+    },
+    {
+      name: "no-package",
+      theme: "light",
+      width: 430,
+      listing: { ...observedListing, upstream_observation: { ...observation, releases: [] } },
+      label: "No package observed in checked releases",
+      observedFirst: false,
+    },
+    {
+      name: "stale-package",
+      theme: "dark",
+      width: 960,
+      listing: {
+        ...observedListing,
+        upstream_observation: {
+          ...observation,
+          attempted_at: new Date(Date.now() - 7200000).toISOString(),
+          observed_at: new Date(Date.now() - 7200000).toISOString(),
+          fresh_until: new Date(Date.now() - 3600000).toISOString(),
+        },
+      },
+      label: "Package candidates observed (stale observation)",
+      observedFirst: false,
+    },
+    {
+      name: "unavailable-poll",
+      theme: "light",
+      width: 430,
+      listing: {
+        ...observedListing,
+        upstream_observation: { ...observation, status: "unavailable" },
+      },
+      label: "Package candidates observed (check unavailable)",
+      observedFirst: false,
+    },
+    {
+      name: "reviewed-override",
+      theme: "light",
+      width: 960,
+      listing: {
+        ...observedListing,
+        availability: "source-only",
+        availability_override_reason:
+          "Reviewed distribution restriction: use the upstream source instructions for this project.",
+      },
+      label: "Source only (catalog setting)",
+      observedFirst: false,
+    },
+  ];
+  const peerListing: PortListing = { ...listing, id: "unobserved-peer", name: "Unobserved peer" };
+  const peer = catalogEntries(
+    undefined,
+    { format_version: 1, listings: [peerListing] },
+    [],
+    [],
+  )[0]!;
+  for (const variant of variants) {
+    await page.viewport(variant.width, 800);
+    document.documentElement.dataset.theme = variant.theme;
+    const selected = { ...entry, listing: variant.listing };
+    const statuses = new Map([[entry.id, status]]);
+    const ordered = filterPorts([peer, selected], statuses, "catalog", "all", "", "catalog", {
+      devicePlatform: "windows-x86-64",
+    });
+    expect(ordered[0]?.id).toBe(variant.observedFirst ? selected.id : peer.id);
+    await root.rerender(
+      <PortBrowser
+        view="catalog"
+        ports={ordered}
+        statuses={statuses}
+        overview={summarizeLibrary(ordered, statuses)}
+        filter="all"
+        setFilter={vi.fn()}
+        onSelect={vi.fn()}
+        loading={false}
+        queryContext={{ devicePlatform: "windows-x86-64" }}
+      />,
+    );
+    const cardSelector = `.discover-game:has([data-detail-game-id="${selected.id}"])`;
+    const cards = [...document.querySelectorAll<HTMLElement>("[data-detail-game-id]")];
+    expect(cards.map((card) => card.dataset.detailGameId)).toEqual(ordered.map((item) => item.id));
+    expect(document.querySelector(cardSelector)?.textContent).toContain(variant.label);
+    await prepareCaptureTarget({
+      target: cardSelector,
+      label: `availability ${variant.name} card`,
+      scroll: () => document.querySelector(cardSelector)?.scrollIntoView({ block: "center" }),
+      observe: () => observeVisibleTarget(cardSelector, "visual"),
+    });
+    await captureRenderedState(`availability-${variant.name}-discover`);
+    await root.rerender(
+      <ListingDetailPanel
+        entry={selected}
+        status={status}
+        generation={9}
+        perform={perform}
+        onChanged={changed}
+        close={vi.fn()}
+      />,
+    );
+    await page.getByRole("tab", { name: "Overview", exact: true }).click();
+    const currentEvidence = page.getByRole("region", {
+      name: "Project information and checks",
+      exact: true,
+    });
+    await currentEvidence
+      .getByText("Project status and compatibility qualifications", { exact: true })
+      .click();
+    await expect.element(currentEvidence.getByText(variant.label, { exact: true })).toBeVisible();
+    const facts = ".detail-evidence > details > .detail-facts";
+    await prepareCaptureTarget({
+      target: facts,
+      label: `availability ${variant.name} detail facts`,
+      scroll: () => document.querySelector(facts)?.scrollIntoView({ block: "center" }),
+      observe: () => observeVisibleTarget(facts, "visual"),
+    });
+    await captureRenderedState(`availability-${variant.name}-detail`);
+    expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+  }
+}, 30_000);
 
 it("shows the saved-download setup state in the current language with an exact path", async () => {
   const { initializeLocalization } = await import("../localization");

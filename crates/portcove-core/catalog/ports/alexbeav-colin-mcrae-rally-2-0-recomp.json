@@ -3,7 +3,7 @@
   "listing": {
     "id": "alexbeav-colin-mcrae-rally-2-0-recomp",
     "name": "Colin McRae Rally 2.0 / Alexbeav PSXRecomp",
-    "summary": "Play Colin McRae Rally 2.0 with a native player built from your matching original disc.",
+    "summary": "Play Colin McRae Rally 2.0 with a native player built from your matching original disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp",
     "issue_number": 433,
     "listed_at": "2026-10-23",
@@ -26,7 +26,7 @@
         },
         {
           "title": "Prepare the managed Windows or Linux player",
-          "instruction": "Select the complete matching disc as a CHD in Portcove. Portcove prepares and builds the player locally using the kit’s bundled OpenBIOS. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
+          "instruction": "Select the complete matching disc as a CHD and your own retail SCPH-1001 BIOS in Portcove. Portcove prepares and builds the player locally. On Linux, put your native C/C++ compiler, CMake, Ninja and Python 3 on PATH. The bundled emitters need glibc 2.14 and GLIBCXX 3.4.26. Choose Play after preparation."
         },
         {
           "title": "Prepare the Mac or a separate upstream-owned copy",
@@ -41,21 +41,38 @@
       "references": [
         {
           "title": "Keep the data and runtime you actually use",
-          "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
+          "instruction": "For Portcove-managed copies, compatible replacement preserves declared saves, settings, mods and overlay captures. Keep the original disc and BIOS separately. For an upstream-owned copy, retain the complete creating folder and back up your saves and settings before replacement."
         }
       ]
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp/releases",
     "download_asset_hints": {
-      "linux-x86-64": ["Colin-McRae-Rally-2-0-Recomp-", "-linux-x64.zip"],
       "macos-aarch64": ["Colin-McRae-Rally-2-0-Recomp-", "-macos-arm64.zip"],
-      "macos-x86-64": ["Colin-McRae-Rally-2-0-Recomp-", "-macos-x64.zip"],
-      "windows-x86-64": ["Colin-McRae-Rally-2-0-Recomp-", "-windows-x64.zip"]
+      "macos-x86-64": ["Colin-McRae-Rally-2-0-Recomp-", "-macos-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "Colin McRae Rally 2.0"
+    "original_game_title": "Colin McRae Rally 2.0",
+    "original_game": {
+      "format_version": 1,
+      "id": "colin-mcrae-rally-2-0",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "colin-mcrae-rally-2-0-playstation",
+          "title": "Colin McRae Rally 2.0 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp/blob/3aba2be4a6c6f54abfc8818a93891ed3131237d0/game.toml"
+          ]
+        }
+      ]
+    }
   },
-  "psx_managed_windows_v1": "bundled-openbios",
+  "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -84,10 +101,30 @@
           "profile_id": "alexbeav-colin-mcrae-rally-2-0-recomp-usa-psx",
           "label": "Colin McRae Rally 2.0 (USA) disc",
           "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
+          "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own USA Colin McRae Rally 2.0 CHD (SLUS-01222) containing all 2 tracks. Portcove runs the local kit build with bundled OpenBIOS and launches the completed player. Keep your original disc files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters."
-    }
+      "manual_preparation": "Provide your own USA Colin McRae Rally 2.0 CHD (SLUS-01222) containing all 2 tracks, plus your own retail SCPH-1001 BIOS. Portcove runs the local kit build with that BIOS and launches the completed player. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Keep your original disc and BIOS files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Supply the exact original disc",
+            "instruction": "Use your own USA Colin McRae Rally 2.0 disc, SLUS-01222, with all 2 tracks present. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "The source check uses first data-track identity and track count. Keep the full original disc intact."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp#readme"
+      }
+    },
+    "bios_source_profile": "psx-scph-1001-bios"
   }
 }

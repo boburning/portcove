@@ -28,6 +28,10 @@
     },
     "issue_number": 3622,
     "listed_at": "2026-10-25",
+    "funding_urls": [
+      "https://ko-fi.com/abd_dbh",
+      "https://github.com/AbdelmoumenDeghbouche/knack_pc#donate"
+    ],
     "artwork": {
       "game_id": 2957,
       "cover_id": 214354,

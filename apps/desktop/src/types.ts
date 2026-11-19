@@ -7,11 +7,13 @@ export type PortCapabilityReport = Generated.TransportOutputs["port_capability_r
 export type SourceReuseReview = Generated.TransportOutputs["source_reuse_review"];
 export type SourceRegistrationReference = SourceReuseReview["reference"];
 export type OfficialCatalogReview = Generated.TransportOutputs["official_catalog_review"];
-export type OfficialCatalogSetup = Generated.TransportOutputs["official_catalog_setup"];
+export type OfficialCatalogAutomaticRefresh =
+  Generated.TransportOutputs["official_catalog_automatic_refresh"];
 export type DefinitionRefresh = Generated.TransportOutputs["definition_refresh"];
 
 export type { ReleaseChannel } from "./transport-types.generated";
 export type { OriginalGameIdentity } from "./transport-types.generated";
+export type { IgdbArtwork } from "./transport-types.generated";
 export type { CatalogMediaAsset } from "./transport-types.generated";
 
 export type { UpdatePolicy } from "./transport-types.generated";
@@ -50,6 +52,12 @@ export type OrganizationChange = Requests.TransportInputs["desktop_organization_
 export type ArtworkState = Generated.TransportOutputs["artwork_state"];
 export type ArtworkThumbnail = Generated.TransportOutputs["artwork_thumbnail"];
 export type ArtworkSlot = ArtworkState["choice"]["slot"];
+export type ArtworkAttribution = ArtworkState["attribution"][number];
+export type SteamGridDbKeyStatus = Generated.TransportOutputs["steamgriddb_key_status"];
+export type SteamGridDbListingReport = Generated.TransportOutputs["steamgriddb_listing_report"];
+export type SteamGridDbGame = Generated.TransportOutputs["steamgriddb_games"][number];
+export type SteamGridDbCandidate = Generated.TransportOutputs["steamgriddb_candidates"][number];
+export type DestinationArtworkRole = SteamGridDbCandidate["role"];
 
 export type { InstallRecord } from "./transport-types.generated";
 
@@ -63,8 +71,26 @@ export type GameSettingChange = Requests.TransportInputs["game_setting_change"];
 export type GameUpdateAcquisition = Generated.TransportOutputs["game_update_acquisition"];
 export type ModSetupsView = Generated.TransportOutputs["mod_setups_view"];
 export type ModSetupView = NonNullable<ModSetupsView["inventory"]>["profiles"][number];
+export type ModSetupOriginalReview = Generated.TransportOutputs["profile_original_review"];
+export type ModSetupOriginalTarget = {
+  generation: number;
+  portId: string;
+  profileId: string;
+  expectedRevision: number;
+  requirementId: string;
+};
 export type ModSetup = ModSetupView["profile"];
+export type ModUpdatePolicy = ModSetup["intent"]["update_policy"];
+export type ModAutoUpdateCheck = NonNullable<ModSetupsView["last_automatic_checks"]>[number];
+export type ProviderUpdateObservation = Generated.TransportOutputs["provider_update_observation"];
 export type ModSetupRevision = Generated.TransportOutputs["profile_revision"];
+export type ModSetupRecoveryBuild =
+  Generated.TransportOutputs["retained_build_resolution"]["history"][number];
+export type ModSetupRetirementPreview =
+  Generated.TransportOutputs["retained_build_retirement_preview"];
+export type ModSetupRecoveryPlan = Generated.TransportOutputs["profile_recovery_plan"];
+export type ModFilePreservationPlan = Generated.TransportOutputs["mod_file_preservation_plan"];
+export type ModFilePreservationResult = Generated.TransportOutputs["mod_file_preservation_result"];
 export type LiveMods = Generated.TransportOutputs["live_mods"];
 export type ProviderBrowsePage = Generated.TransportOutputs["provider_browse_page"];
 export type ProviderProjectView = Generated.TransportOutputs["provider_project_view"];
@@ -91,6 +117,8 @@ export type { HostToolStatus } from "./transport-types.generated";
 
 export type HostToolProbeResult = Generated.TransportOutputs["host_tool_probe_result"];
 
+export type DatReferenceStatus = Generated.TransportOutputs["dat_reference_status"];
+
 export type DoctorReport = Generated.TransportOutputs["doctor"];
 
 /** The snapshot as it crosses IPC; the catalog may be omitted when unchanged. */
@@ -105,6 +133,10 @@ export type CatalogBrowsingContext = CatalogBrowsingSnapshot["contexts"][number]
 export type LocalePreferenceSnapshot = Generated.TransportOutputs["desktop_locale_preference"];
 
 export type BackupRecord = Generated.TransportOutputs["backup"];
+export type PortableSaveExportPreview = Generated.TransportOutputs["portable_save_export_preview"];
+export type PortableSaveExportResult = Generated.TransportOutputs["portable_save_export_result"];
+export type PortableSaveImportPreview = Generated.TransportOutputs["portable_save_import_preview"];
+export type PortableSaveImportResult = Generated.TransportOutputs["portable_save_import_result"];
 
 export type { BackupProblem } from "./transport-types.generated";
 
@@ -157,6 +189,11 @@ export type GameFileQuerySnapshot = Generated.TransportOutputs["game_file_query_
 export type GameFileScanSnapshot = NonNullable<
   Generated.TransportOutputs["game_file_scan_snapshot"]
 >;
+export type GameFileScanMatchPage = Generated.TransportOutputs["desktop_game_file_scan_match_page"];
+export type GameFileScanRegisteredMatches =
+  Generated.TransportOutputs["desktop_game_file_scan_registered_matches"];
+export type StoreGameInstalls = Generated.TransportOutputs["desktop_store_game_installs"];
+export type GameFileScanMatchQuery = Requests.TransportInputs["desktop_game_file_scan_match_query"];
 
 export type { ObservedSourceDigest } from "./transport-types.generated";
 
@@ -190,6 +227,7 @@ export type OutputRelocationStatus = Generated.TransportOutputs["output_relocati
 export type InstallPlan = Generated.TransportOutputs["install_plan"];
 
 export type { UpdateSnapshot } from "./transport-types.generated";
+export type { UpstreamActivity } from "./transport-types.generated";
 
 export type UpdateCheckOutcome = Generated.TransportOutputs["desktop_update_check_outcome"];
 
@@ -207,39 +245,13 @@ export type DesktopSupportBundleExport =
 export type ApplicationUpdatePreferences =
   Generated.TransportOutputs["desktop_application_update_preferences"];
 
-export type ApplicationUpdateChoice = Requests.TransportInputs["desktop_application_update_choice"];
-
-export type ApplicationUpdateProductionDecision =
-  Requests.TransportInputs["desktop_application_update_production_decision"];
-
-export type ApplicationUpdateProductionTransition =
-  Generated.TransportOutputs["desktop_application_update_production_transition"];
-
-export type ApplicationUpdateProductionTransitionResult =
-  Generated.TransportOutputs["desktop_application_update_production_transition_result"];
+export type ApplicationUpdateChannel = ApplicationUpdatePreferences["channel"];
 
 export type ApplicationUpdateStatus =
   Generated.TransportOutputs["desktop_application_update_status"];
 
-export type ApplicationUpdateRecoveryArea =
-  Requests.TransportInputs["desktop_application_update_recovery_area"];
-
-export type ApplicationUpdateCheckResult =
-  Generated.TransportOutputs["desktop_application_update_check_result"];
-
-export type ApplicationUpdateManualCheckRequest =
-  Requests.TransportInputs["desktop_application_update_manual_check_request"];
-export type ApplicationUpdateManualCheckResult =
-  Generated.TransportOutputs["desktop_application_update_manual_check_result"];
-
-export type ApplicationUpdateNoticeSnapshot =
-  Generated.TransportOutputs["desktop_application_update_notice"];
-
-export type ApplicationUpdateCheckPhase =
-  Generated.TransportOutputs["desktop_application_update_check_phase"];
-
-export type ApplicationUpdateDownloadRequest =
-  Requests.TransportInputs["desktop_application_update_download_request"];
+export type ApplicationUpdateProgress =
+  Generated.TransportOutputs["desktop_application_update_progress"];
 
 export type LibrarySelection = Generated.TransportOutputs["library_selection"];
 
@@ -288,6 +300,10 @@ export type CatalogUpdatePlan = Generated.TransportOutputs["catalog_update_plan"
 export type InstallInput = Requests.TransportInputs["desktop_install_input"];
 export type LaunchResult = Generated.TransportOutputs["desktop_launch_result"];
 export type LaunchSessionView = NonNullable<Generated.TransportOutputs["launch_request"]>;
+export type RuntimePrerequisiteReport = NonNullable<
+  Generated.TransportOutputs["runtime_prerequisite_report"]
+>;
+export type RuntimePrerequisite = RuntimePrerequisiteReport["requirements"][number];
 
 export type BackupReview = Generated.TransportOutputs["desktop_backup_review"];
 export type BackupAction = BackupReview["preview"]["action"];
@@ -313,4 +329,5 @@ export type BugReportDraft = Generated.TransportOutputs["desktop_bug_report_draf
 export type BugReportLink = Generated.TransportOutputs["desktop_bug_report_link"];
 export type BugReportField = Requests.TransportInputs["desktop_bug_report_field"];
 export type ReportKind = Requests.TransportInputs["desktop_report_kind"];
+export type SubmittedReport = Generated.TransportOutputs["desktop_submitted_report"];
 export type GameComparisonRequest = Requests.TransportInputs["desktop_game_comparison_request"];

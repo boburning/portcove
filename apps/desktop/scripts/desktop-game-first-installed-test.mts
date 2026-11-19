@@ -47,6 +47,7 @@ import {
   clickVisible,
   selectCatalogPort,
   selectGameFilesSettings,
+  openGameFileScan,
   selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
 import { gameIdentityLabel, gameTitle } from "../src/port-identity.ts";
@@ -339,6 +340,7 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
         );
         return value.some((root) => samePath(root.path, prepared.sourceDirectory));
       }, 15_000);
+      await openGameFileScan(browser);
       await click(button("Refresh folders"));
       // Refresh reads saved state; the scan starts through its separate action.
       await click(button("Scan saved folders"));
@@ -367,7 +369,7 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
       report.registered_source = registered;
       await selectPrimaryNavigation(browser, "Library");
       await click(button("Add games"));
-      await click(By.css('button[aria-label="Use an existing installation"]'));
+      await click(button("Use an existing installation"));
       await click(button("Copy an existing installation"));
       const dialog = By.css('[aria-labelledby="adopt-title"]');
       await browser.wait(until.elementLocated(dialog), 15_000);
@@ -412,7 +414,7 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
         executableIdentity,
       };
       onManagedGame({ executable, installation: installed });
-      await click(button("Back to library"));
+      await click(button("Back to Library"));
       const libraryCard = `[data-detail-origin="library:card:${portId}"]`;
       const libraryView = async () => {
         await selectPrimaryNavigation(browser, "Library");
@@ -425,10 +427,18 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
         );
       };
       await libraryView();
-      const favorite = By.css(`button[aria-label="Favorite ${gameIdentityLabel(port)}"]`);
+      const authoredGame = port.presentation?.original_game?.id;
+      const favoriteId = authoredGame ? `game-${authoredGame}` : `port-${portId}`;
+      const favoriteName = authoredGame ? gameTitle(port) : gameIdentityLabel(port);
+      const favorite = By.css(`button[aria-label="Favorite ${favoriteName}"]`);
       assert.equal((await favorites()).includes(portId), false);
+      assert.equal((await organization()).saved_game_ids.includes(favoriteId), false);
       await click(favorite);
-      await browser.wait(async () => (await favorites()).includes(portId), 15_000);
+      await browser.wait(
+        async () => (await organization()).saved_game_ids.includes(favoriteId),
+        15_000,
+      );
+      assert.equal((await favorites()).includes(portId), false);
       await click(By.css(libraryCard));
       await browser.wait(until.elementLocated(By.css(`[data-detail-port-id="${portId}"]`)), 15_000);
       await click(By.css(".detail-back"));

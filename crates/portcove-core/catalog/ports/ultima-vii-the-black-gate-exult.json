@@ -63,7 +63,22 @@
       ]
     },
     "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
-    "release_url": "https://exult.info/download.html"
+    "release_url": "https://exult.info/download.html",
+    "original_game": {
+      "format_version": 1,
+      "id": "ultima-vii-the-black-gate",
+      "evidence_urls": ["https://exult.info/docs.html", "https://github.com/exult/exult"],
+      "source_editions": [
+        {
+          "id": "ultima-vii-the-black-gate-pc",
+          "title": "Ultima VII: The Black Gate (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/exult/exult/blob/83332efc805bee5a5374dcd81255eac7a6ca25da/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

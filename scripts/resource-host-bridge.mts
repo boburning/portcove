@@ -1,5 +1,7 @@
 import type { ChildProcess } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
+import { PassThrough } from "node:stream";
+import { StringDecoder } from "node:string_decoder";
 import type { WindowsHostBridge } from "./resource-paths.mts";
 import type {
   ResourceCapacityOptions,
@@ -27,6 +29,8 @@ import {
 
 const delegationName = "PORTCOVE_HOST_RESOURCE";
 const wireLimit = 32 * 1024;
+// Passive status carries a queue inventory and counters in one response.
+const statusResponseLimit = 256 * 1024;
 // This small launcher validates every staged module before evaluating any of it.
 // Host and appointed Linux recovery use the same content-bound module closure.
 const verifiedLauncher = [
@@ -59,9 +63,12 @@ export async function* bridgeMessages(
   input: Readable,
 ): AsyncGenerator<Record<string, unknown>, void, unknown> {
   let buffered = "";
-  input.setEncoding("utf8");
+  // Decode locally so the transport's readableLength continues to count bytes.
+  const decoder = new StringDecoder("utf8");
   for await (const chunk of input) {
-    buffered += String(chunk);
+    if (typeof chunk !== "string" && !Buffer.isBuffer(chunk))
+      throw new Error("Invalid host bridge input bytes");
+    buffered += decoder.write(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
     if (Buffer.byteLength(buffered) > wireLimit)
       throw new Error("Host bridge message exceeds bound");
     let end: number;
@@ -73,6 +80,7 @@ export async function* bridgeMessages(
       yield value;
     }
   }
+  buffered += decoder.end();
   if (buffered) throw new Error("Truncated host bridge message");
 }
 
@@ -310,15 +318,38 @@ export async function serveHostBridge(
   dependencies: HostDependencies = {},
 ) {
   const cancellation = new AbortController();
+  // Keep consuming this connection while its message handler awaits admission.
+  // Otherwise buffered bytes can hide EOF and prevent acquisition cancellation.
+  const incoming = new PassThrough({ highWaterMark: wireLimit });
   const lost = () => cancellation.abort(new Error("WSL bridge connection closed"));
-  input.once("end", lost);
-  input.once("error", lost);
+  const ended = () => {
+    lost();
+    incoming.end();
+  };
+  const failed = (error: Error) => {
+    lost();
+    incoming.destroy(error);
+  };
+  const forward = (chunk: Buffer | string) => {
+    if (incoming.destroyed) return;
+    if (incoming.readableLength + incoming.writableLength + Buffer.byteLength(chunk) > wireLimit) {
+      const error = new Error("Host bridge message exceeds bound");
+      cancellation.abort(error);
+      incoming.destroy(error);
+      input.pause();
+    } else incoming.write(chunk);
+  };
+  const bufferFailed = (error: Error) => cancellation.abort(error);
+  incoming.once("error", bufferFailed);
+  input.once("end", ended);
+  input.once("error", failed);
+  input.on("data", forward);
   let lease: ResourceLease | undefined;
   let external: ExternalCustody | undefined;
   let binding: Custody | undefined;
   let released = false;
   try {
-    for await (const message of bridgeMessages(input)) {
+    for await (const message of bridgeMessages(incoming)) {
       if (message.action === "acquire" && !lease) {
         if (
           !validWindowsHostBridge(message.bridge) ||
@@ -393,8 +424,11 @@ export async function serveHostBridge(
     });
     throw error;
   } finally {
-    input.off("end", lost);
-    input.off("error", lost);
+    input.off("end", ended);
+    input.off("error", failed);
+    input.off("data", forward);
+    incoming.destroy();
+    input.destroy();
     // Never release on EOF/error: the original token and external record retain custody.
   }
 }
@@ -444,7 +478,7 @@ async function oneShot(config: WindowsHostBridge, action: string, value: unknown
     {
       encoding: "utf8",
       timeout: 30_000,
-      maxBuffer: wireLimit,
+      maxBuffer: action === "--status" ? statusResponseLimit : wireLimit,
       windowsHide: true,
     },
   );
@@ -613,7 +647,10 @@ async function main() {
   else if (action === "--status") {
     const { collectHostObservation } = await import("./resource-observations.mts");
     console.log(
-      JSON.stringify({ capacity: await observeCapacity(), host: collectHostObservation() }),
+      JSON.stringify({
+        capacity: await observeCapacity({ passive: true }),
+        host: collectHostObservation(),
+      }),
     );
   } else {
     if (!encoded || encoded.length > wireLimit) throw new Error("Bounded bridge request required");
@@ -627,22 +664,27 @@ async function main() {
         path.join(resourceDomainRoot(), reference.slots[0]!.name),
       );
       const external = parseExternal(owner.external);
-      const binding = await readFile(external.binding, "utf8").catch((error: unknown) => {
-        if (errorCode(error) !== "ENOENT") throw error;
-        return undefined;
-      });
-      if (binding === undefined) {
-        proveUnboundLinuxRecovery(
-          (phase, expected) => remoteProbe(external, phase, expected),
-          (owner) => requireRemoteOwnerStopped(external, owner),
-        );
-        const appeared = await lstat(external.binding).catch((error: unknown) => {
+      const journal = await reconcileExternalCapacity(reference, external, async () => {
+        await verifyHostReference(value);
+        const binding = await readFile(external.binding, "utf8").catch((error: unknown) => {
           if (errorCode(error) !== "ENOENT") throw error;
           return undefined;
         });
-        if (appeared) throw new Error("Host registration appeared during recovery; retain custody");
-      } else remoteProbe(external, "release", JSON.parse(binding));
-      console.log(await reconcileExternalCapacity(reference, external, () => true));
+        if (binding === undefined) {
+          proveUnboundLinuxRecovery(
+            (phase, expected) => remoteProbe(external, phase, expected),
+            (owner) => requireRemoteOwnerStopped(external, owner),
+          );
+          const appeared = await lstat(external.binding).catch((error: unknown) => {
+            if (errorCode(error) !== "ENOENT") throw error;
+            return undefined;
+          });
+          if (appeared)
+            throw new Error("Host registration appeared during recovery; retain custody");
+        } else remoteProbe(external, "release", JSON.parse(binding));
+        return true;
+      });
+      console.log(journal);
     } else throw new Error("Unknown host bridge action");
   }
 }

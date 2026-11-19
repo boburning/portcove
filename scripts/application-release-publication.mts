@@ -43,7 +43,10 @@ import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { compareApplicationVersionPrecedence } from "../apps/desktop/scripts/release-version-policy.mts";
 import { applicationPackageNames } from "./application-release-artifacts.mts";
-import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
+import {
+  inspectRemoteCommitObject,
+  inspectRemotePreparedCommit,
+} from "./release-coordinator-recovery.mts";
 
 export const bootstrapAssetNames = ["application-site.zip", "application-metadata.json"] as const;
 /** Only the caller's existing fixed Release writer is admitted to the upload origin. */
@@ -420,10 +423,16 @@ export async function prepareApplicationReleaseDraft(
   let assets = await remote.assets();
   compare(assets);
   await remote.inspectTag(initial.draft === true);
-  const commit = inspectRemoteCommitObject(
+  const source = inspectRemoteCommitObject(
+    (await remote.get(`repos/boburning/portcove/git/commits/${remote.custody.source}`)).body,
+    remote.custody.source,
+  );
+  assert.equal(source.tree, remote.custody.source_tree);
+  const commit = inspectRemotePreparedCommit(
     (await remote.get(`repos/boburning/portcove/git/commits/${remote.preparation.prepared_commit}`))
       .body,
     remote.preparation.prepared_commit,
+    source,
   );
   assert.equal(commit.tree, remote.preparation.prepared_tree);
   assert.deepEqual(commit.parents, [remote.custody.source]);
@@ -2282,7 +2291,7 @@ export function createApplicationDraftPreparationProvider(
     tag,
     undefined,
     deadline,
-    preparation.prepared_commit,
+    preparation,
   );
 }
 
@@ -2292,7 +2301,7 @@ async function createApplicationPublicationProvider(
   tag: string,
   assertWindow: (() => void) | undefined,
   deadline: number,
-  preparedCommit?: string,
+  preparation?: { prepared_commit: string; source_commit: string },
 ): Promise<PublicationMetadataProvider & ApplicationDraftPreparationProvider> {
   assert.ok(token && token.length <= 16384 && !/[\r\n\0]/u.test(token));
   assert.ok(Number.isSafeInteger(releaseId) && releaseId > 0);
@@ -2302,9 +2311,12 @@ async function createApplicationPublicationProvider(
     `${root}/assets?per_page=100&page=1`,
     `repos/boburning/portcove/git/ref/tags/${tag}`,
   ]);
-  if (preparedCommit !== undefined) {
-    assert.match(preparedCommit, /^[a-f0-9]{40}$/u);
-    readable.add(`repos/boburning/portcove/git/commits/${preparedCommit}`);
+  const preparedCommit = preparation?.prepared_commit;
+  if (preparation) {
+    for (const oid of [preparation.prepared_commit, preparation.source_commit]) {
+      assert.match(oid, /^[a-f0-9]{40}$/u);
+      readable.add(`repos/boburning/portcove/git/commits/${oid}`);
+    }
   }
   const tagCreationRoute = "repos/boburning/portcove/git/refs";
   const { createGitHubClient } = await import("./github-client.mts");

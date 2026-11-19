@@ -19,6 +19,8 @@ import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import {
   assembleCatalogRecords,
+  compactGbaArchive,
+  listingDownloadAssetHints,
   checkedAuthoredPort,
   readCatalogSource,
   reviewCompatibilityFixture,
@@ -26,6 +28,7 @@ import {
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
+import { compactPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
 import { collectPortFacts, githubRepository } from "./port-upstream-facts.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
 import {
@@ -49,6 +52,7 @@ import {
   assessUpstreamLineage,
   checkLineageChange,
   checkObservedRepository,
+  identityUrl,
 } from "./upstream-lineage.mts";
 
 interface PrepareOptions {
@@ -61,6 +65,7 @@ interface PrepareOptions {
   issue?: string | undefined;
   id?: string | undefined;
   name?: string | undefined;
+  originalGame?: unknown;
   summary?: string | undefined;
   route?: "listing" | "download";
   releaseTag?: string | undefined;
@@ -162,7 +167,7 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
     projections.push({
       field: "psx_managed_windows_v1",
       scope: "Managed Windows PSXRecomp generated-player launch and reviewed local data layout.",
-      next: "Check the exact kit and generated executable, owned disc, explicit BIOS choice, and the reviewed shared writer layout. Every retail form takes an explicit SCPH-1001 or SCPH-5552 profile; bundled OpenBIOS forms take none. Both split-mods layouts also require both x64 kit selectors. Reuse applicable PSX preparation and preservation evidence. Keep original-file identities, exact release-specific source evidence, external setup, and independent fixture expectations explicit.",
+      next: "Check the exact kit and generated executable, owned disc, explicit BIOS choice, and the reviewed shared writer layout. Every retail form takes an explicit SCPH-1001, SCPH-5552 or SCPH-5500 profile; bundled OpenBIOS forms take none. Both split-mods layouts also require both x64 kit selectors. Reuse applicable PSX preparation and preservation evidence. Keep original-file identities, exact release-specific source evidence, external setup, and independent fixture expectations explicit.",
     });
   }
   return {
@@ -217,7 +222,7 @@ export function canonicalPreparationFeedback(
 }
 
 export function downloadPreparationFeedback(record: AuthoredPort, facts: PackageFacts) {
-  const hints = record.listing.download_asset_hints;
+  const hints = listingDownloadAssetHints(record);
   if (!hints || !Object.keys(hints).length) return undefined;
   return {
     ...packageHintFeedback(hints, Object.keys(hints), facts),
@@ -339,22 +344,33 @@ function immutableJson(directory: string, name: string, value: unknown) {
 }
 function artworkCatalog(records: readonly AuthoredPort[]): ArtworkCatalog {
   return {
-    ports: records.map(({ listing, integration }) => ({
-      id: listing.id,
-      name: listing.name,
-      project_url: listing.project_url,
-      ...(listing.original_game_title
-        ? {
-            underlying_game: {
-              names: [listing.original_game_title],
-              project_url: listing.project_url,
-              evidence_url: listing.project_url,
-            },
-          }
-        : {}),
-      ...(integration?.source_profile ? { source_profile: integration.source_profile } : {}),
-      presentation: { ...(listing.artwork ? { artwork: listing.artwork } : {}) },
-    })),
+    ports: records.map(({ listing, integration, igdb_regional_cover }) => {
+      const presentation = integration?.presentation;
+      const companion = isRecord(presentation) ? presentation.companion_cover : undefined;
+      return {
+        id: listing.id,
+        name: listing.name,
+        project_url: listing.project_url,
+        ...(igdb_regional_cover ? { igdb_regional_cover } : {}),
+        ...(listing.original_game_title
+          ? {
+              underlying_game: {
+                names: [listing.original_game_title],
+                project_url: listing.project_url,
+                evidence_url: listing.project_url,
+              },
+            }
+          : {}),
+        ...(integration?.source_profile ? { source_profile: integration.source_profile } : {}),
+        presentation: {
+          ...(listing.artwork ? { artwork: listing.artwork } : {}),
+          ...(listing.collection_covers !== undefined
+            ? { collection_covers: listing.collection_covers }
+            : {}),
+          ...(companion !== undefined ? { companion_cover: companion } : {}),
+        },
+      };
+    }),
   };
 }
 function cachedValue(directory: string, key: string, input: string): unknown {
@@ -449,6 +465,15 @@ function preparedRecordOutputs(
     if (isRecord(presentation) && presentation.artwork !== undefined)
       copy.listing.artwork = presentation.artwork;
     else delete copy.listing.artwork;
+    if (isRecord(presentation) && presentation.collection_covers !== undefined)
+      copy.listing.collection_covers = presentation.collection_covers;
+    else delete copy.listing.collection_covers;
+    const integrationPresentation = copy.integration?.presentation;
+    if (isRecord(integrationPresentation)) {
+      if (isRecord(presentation) && presentation.companion_cover !== undefined)
+        integrationPresentation.companion_cover = presentation.companion_cover;
+      else delete integrationPresentation.companion_cover;
+    }
     return checkedAuthoredPort(copy);
   });
   const shared: Record<string, unknown> = structuredClone(authored.catalog);
@@ -560,6 +585,15 @@ export async function preparePort(options: PrepareOptions) {
   const root = resolve(options.outputDirectory);
   const authored = readCatalogSource(options.catalogRoot);
   const explicit = options.record === undefined ? undefined : checkedAuthoredPort(options.record);
+  const originalGame = options.originalGame;
+  if (originalGame !== undefined && (!options.projectUrl || explicit || options.issue))
+    throw new Error("An original-game input starts preparation with an official project URL.");
+  if (
+    originalGame !== undefined &&
+    (!isRecord(originalGame) || typeof originalGame.id !== "string")
+  )
+    throw new Error("An original-game input requires a stable game ID and reviewed evidence.");
+  const route = options.route ?? (originalGame === undefined ? "listing" : "download");
   const validatorIdentity = options.validatorCli
     ? createHash("sha256").update(readFileSync(options.validatorCli)).digest("hex")
     : null;
@@ -567,20 +601,49 @@ export async function preparePort(options: PrepareOptions) {
     throw new Error("Record and selected stable ID differ.");
   const selected = authored.records.find((record) => record.listing.id === options.id);
   const resolveIdentity = (projectUrl: string, issuePortId?: string) => {
-    const matching = authored.records.filter((record) => record.listing.project_url === projectUrl);
+    const sourceKey = originalGame === undefined ? projectUrl : identityUrl(projectUrl);
+    const sameProject = (url: string) =>
+      sourceKey === (originalGame === undefined ? url : identityUrl(url));
+    const matching = authored.records.filter((record) => sameProject(record.listing.project_url));
     if (!explicit && !options.id && !issuePortId && matching.length > 1)
       throw new Error("Several implementations share this upstream; select the stable ID.");
-    const suggested = githubRepository(projectUrl)
+    const repository = githubRepository(projectUrl);
+    const suggested = repository
       ?.split("/")[1]
       ?.toLowerCase()
       .replace(/[^a-z0-9]+/gu, "-")
       .replace(/^-|-$/gu, "");
+    let defaultId = suggested;
+    if (isRecord(originalGame) && typeof originalGame.id === "string") {
+      defaultId ??= originalGame.id;
+      if (
+        authored.records.some(
+          ({ listing }) => listing.id === defaultId && !sameProject(listing.project_url),
+        )
+      ) {
+        const suffix = observationHash([sourceKey, originalGame.id]).slice(0, 12);
+        defaultId = `${defaultId.slice(0, 115).replace(/-+$/u, "")}-${suffix}`;
+      }
+    }
     const id =
-      explicit?.listing.id ?? options.id ?? issuePortId ?? matching[0]?.listing.id ?? suggested;
+      explicit?.listing.id ?? options.id ?? issuePortId ?? matching[0]?.listing.id ?? defaultId;
     if (!id) throw new Error("Supply a stable --id for this project.");
     if (issuePortId && issuePortId !== id)
       throw new Error("Canonical issue and proposed stable ID differ.");
     const previous = authored.records.find((record) => record.listing.id === id);
+    if (originalGame !== undefined && previous) {
+      if (!sameProject(previous.listing.project_url))
+        throw new Error("The stable implementation ID already belongs to another project.");
+      if (!options.id && !previous.listing.original_game)
+        throw new Error("Supply the existing stable --id to bind its reviewed game identity.");
+      if (
+        previous.listing.original_game &&
+        observationHash(previous.listing.original_game) !== observationHash(originalGame)
+      )
+        throw new Error(
+          "Review a change to an existing game or edition identity as a record edit.",
+        );
+    }
     const base = explicit ?? previous;
     if (
       previous?.listing.download_block_reason !== undefined &&
@@ -601,7 +664,7 @@ export async function preparePort(options: PrepareOptions) {
       route:
         options.settingsNativeScope !== undefined && options.releaseTag !== undefined
           ? "download"
-          : (options.route ?? "listing"),
+          : route,
       releaseTag: options.releaseTag,
       resolveReleaseUrl: ({ projectUrl, issuePortId }) => {
         const { base } = resolveIdentity(projectUrl, issuePortId);
@@ -617,19 +680,78 @@ export async function preparePort(options: PrepareOptions) {
     });
     const { id, previous, base } = resolveIdentity(facts.project_url, facts.issue?.id);
     const metadata = isRecord(facts.project?.body) ? facts.project.body : {};
+    if (
+      originalGame !== undefined &&
+      facts.repository &&
+      typeof metadata.full_name === "string" &&
+      metadata.full_name.toLowerCase() !== facts.repository.toLowerCase()
+    )
+      throw new Error("The provider returned a different project name. Review its lineage move.");
+    const upstreamDescription =
+      typeof metadata.description === "string"
+        ? metadata.description.replace(/\p{Cc}+/gu, " ").trim()
+        : "";
+    const recordedRepositoryId =
+      facts.repository &&
+      Number.isSafeInteger(metadata.id) &&
+      Number(metadata.id) > 0 &&
+      typeof metadata.full_name === "string" &&
+      metadata.full_name.toLowerCase() === facts.repository.toLowerCase()
+        ? String(metadata.id)
+        : undefined;
+    if (
+      originalGame !== undefined &&
+      !previous &&
+      recordedRepositoryId &&
+      authored.records.some((entry) => {
+        const { current } = assessUpstreamLineage(entry);
+        return (
+          current.repository?.host === "github.com" &&
+          current.repository.id === recordedRepositoryId &&
+          identityUrl(current.project_url) !== identityUrl(facts.project_url)
+        );
+      })
+    )
+      throw new Error("This repository already has a retained origin. Review its lineage move.");
     const existingListedAt = base?.listing.listed_at ?? previous?.listing.listed_at;
     let record = checkedAuthoredPort({
       ...(base ?? { format_version: 1 }),
+      ...(originalGame !== undefined && !base && recordedRepositoryId
+        ? {
+            upstream_lineage: {
+              format_version: 1,
+              target_key: id,
+              origin: {
+                project_url: facts.project_url,
+                repository: { host: "github.com", id: recordedRepositoryId },
+              },
+              decisions: [],
+            },
+          }
+        : {}),
       listing: {
         ...base?.listing,
         id,
-        project_url: facts.project_url,
-        name: options.name ?? base?.listing.name ?? facts.issue?.name ?? metadata.name,
+        project_url:
+          (originalGame === undefined ? undefined : previous?.listing.project_url) ??
+          facts.project_url,
+        name:
+          options.name ??
+          base?.listing.name ??
+          facts.issue?.name ??
+          metadata.name ??
+          (isRecord(originalGame) &&
+          Array.isArray(originalGame.source_editions) &&
+          originalGame.source_editions.length === 1 &&
+          isRecord(originalGame.source_editions[0])
+            ? originalGame.source_editions[0].title
+            : undefined),
+        ...(originalGame === undefined ? {} : { original_game: originalGame }),
         summary:
           options.summary ??
           base?.listing.summary ??
-          (typeof metadata.description === "string" && metadata.description.trim()
-            ? metadata.description
+          (upstreamDescription && Buffer.byteLength(upstreamDescription) <= 4096
+            ? upstreamDescription
             : "Upstream project; setup requirements have not been reviewed."),
         ...(facts.issue ? { issue_number: facts.issue.number } : {}),
         // An existing date is always kept, even when the caller passes a record without it.
@@ -815,6 +937,8 @@ export async function preparePort(options: PrepareOptions) {
         };
       }
     }
+    const compact = compactGbaArchive(compactPsxManagedWindows(record));
+    if (compact !== record) record = checkedAuthoredPort(compact);
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
     const inspector = artworkInspector(options, root, validatorIdentity);
     const artwork = await prepareArtworkWorkset(artworkCatalog(records), {
@@ -840,7 +964,7 @@ export async function preparePort(options: PrepareOptions) {
     const report = {
       format_version: 1,
       port_id: id,
-      route: record.integration ? "existing-integration" : (options.route ?? "listing"),
+      route: record.integration ? "existing-integration" : route,
       lineage: assessUpstreamLineage(record),
       ...(packageObservation === undefined ? {} : { package_observation: packageObservation }),
       ...(settingsQualification === undefined
@@ -861,7 +985,7 @@ export async function preparePort(options: PrepareOptions) {
         isRecord(record.integration.release) &&
         record.integration.release.provider === "direct-manifest"
           ? "Review the exact declared archive pin and independent artifact/native evidence; no hosted-release hint selection or newer-version discovery is offered. Complete Core validation, capability version 3 negotiation (version 4 when the packaged-file Windows path policy is declared) and ordinary delivery checks."
-          : options.route === "download" && !facts.assets_complete
+          : route === "download" && !facts.assets_complete
             ? "Select an exact release or resolve the incomplete asset observation before package selection."
             : prepared.files.records.length === 0
               ? "No authored record changes were proposed. Review the observed evidence and any limits for the intended operation."
@@ -1116,6 +1240,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     "--issue",
     "--id",
     "--name",
+    "--original-game",
     "--summary",
     "--record",
     "--route",
@@ -1174,12 +1299,13 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   )
     throw new Error("Artwork-only batches cannot mix project, issue, record or release options.");
   if (refreshIds && !artworkIds) throw new Error("--refresh-artwork requires --artwork-ids.");
-  const route = values.get("--route") ?? "listing";
-  if (route !== "listing" && route !== "download")
+  const route = values.get("--route");
+  if (route !== undefined && route !== "listing" && route !== "download")
     throw new Error("--route must be listing or download.");
   if (values.has("--package-observation") !== values.has("--package-observation-reference"))
     throw new Error("Package observations require their exact retained receipt reference.");
   const input = values.get("--record");
+  const originalGame = values.get("--original-game");
   const identities = values.get("--identities");
   const common = {
     catalogRoot: join(
@@ -1214,6 +1340,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
           issue: values.get("--issue"),
           id: values.get("--id"),
           name: values.get("--name"),
+          ...(originalGame ? { originalGame: readArtworkJson(originalGame, 64 * 1024) } : {}),
           summary: values.get("--summary"),
           ...(input
             ? {
@@ -1244,7 +1371,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
                 ),
               }
             : {}),
-          route,
+          ...(route === undefined ? {} : { route }),
           releaseTag: values.get("--release-tag"),
           facts: { token: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN },
         });

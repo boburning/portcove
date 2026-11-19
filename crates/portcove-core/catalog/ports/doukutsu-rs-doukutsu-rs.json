@@ -22,11 +22,23 @@
       "steps": [
         {
           "title": "Prepare a separate Cave Story folder",
-          "instruction": "Keep your current game and store installation. For the original freeware edition, put the downloaded doukutsu-rs Windows executable beside a copy of your Doukutsu.exe and data folder; first launch extracts the additional original resources. For supported Cave Story+ editions, use your own data folder as described by upstream. The 2026 Steam remaster is not established by this guide, and remastered saves are incompatible with original-version saves. If an Epic copy contains the stray opengl32.dll described upstream, apply its fix only to your separate prepared copy."
+          "instruction": "Keep your current game and store installation. For the original freeware edition, put the official Windows or Linux player beside a copy of your Doukutsu.exe and data folder. First launch reads Doukutsu.exe to extract the additional original resources. For supported Cave Story+ editions, use your own data folder as described by upstream. Use Steam legacy-branch data in a separate copy. The 2026 Steam release uses incompatible data and saves. If an Epic copy contains the stray opengl32.dll described upstream, apply its fix only to your separate prepared copy."
         },
         {
-          "title": "Add the prepared player",
-          "instruction": "On Windows, select the downloaded x86_64 doukutsu-rs executable and its containing game folder as the working directory. Save launch details, then choose Play separately. Keep its matching data folder in place. Linux publishes a standalone x86_64 ELF, and the Mac downloads contain separate Intel or Apple Silicon app bundles; follow the linked platform instructions for those instead of treating the Windows download as an installer."
+          "title": "Register the prepared Windows player",
+          "instruction": "Select the x86_64 doukutsu-rs executable and its containing game folder as the working directory. Keep the matching data folder in place. Confirm the launch details and choose Play separately."
+        },
+        {
+          "title": "Start doukutsu-rs on Linux",
+          "instruction": "On x86-64, make the official Linux ELF executable and start it in your prepared game folder. The v1.0.0 ELF needs glibc 2.39 or newer and the ALSA library libasound.so.2. Flathub provides io.github.doukutsu_rs.doukutsu-rs for x86-64 and ARM64. Place your permitted prepared data folder under ~/.var/app/io.github.doukutsu_rs.doukutsu-rs/data/doukutsu-rs for the Flatpak. Open and update that copy through Flatpak."
+        },
+        {
+          "title": "Use the Intel or Apple Silicon Mac app",
+          "instruction": "Choose the official archive for your Mac’s processor and keep the full doukutsu-rs.app. Follow the upstream Mac guide to put your prepared data folder in Contents/Resources before opening the app. Back up the old app, data and profile before replacing it."
+        },
+        {
+          "title": "Set up the upstream Android app",
+          "instruction": "Install the official universal Android APK. Use Android Files to open the doukutsu-rs game-data location, then copy your permitted prepared Cave Story data folder there. Keep a separate copy of your game data and the app’s saved progress. Install newer releases through the same upstream channel."
         }
       ],
       "warnings": [
@@ -49,6 +61,26 @@
     },
     "original_game_title": "Cave Story",
     "release_url": "https://github.com/doukutsu-rs/doukutsu-rs/releases",
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "cave-story",
+      "evidence_urls": [
+        "https://github.com/doukutsu-rs/doukutsu-rs/blob/8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c/README.md",
+        "https://github.com/doukutsu-rs/doukutsu-rs",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/doukutsu-rs-doukutsu-rs.json"
+      ],
+      "source_editions": [
+        {
+          "id": "cave-story-pc",
+          "title": "Cave Story (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/doukutsu-rs/doukutsu-rs/blob/8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/doukutsu-rs-doukutsu-rs.json"
+          ]
+        }
+      ]
+    }
   }
 }

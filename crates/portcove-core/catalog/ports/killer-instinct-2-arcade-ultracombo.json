@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "killer-instinct-2-arcade-ultracombo",
+    "artwork": {
+      "game_id": 2930,
+      "cover_id": 227300,
+      "image_id": "co4vdw",
+      "image_sha256": "7a581f0456b54add4239e2b9ac0e24205636d1598d5db379aeae460365025c9c",
+      "game_slug": "killer-instinct-2",
+      "match_kind": "underlying-game"
+    },
     "name": "Killer Instinct 2 (arcade) (UltraCombo)",
     "summary": "Attach an independently permitted, prepared UltraCombo Windows player for Killer Instinct 2 arcade, with your own matching ROMs and CHD. Upstream owns first-use native-module preparation; preserve per-game/version settings sectors and states.",
     "original_game_title": "Killer Instinct 2 (arcade)",

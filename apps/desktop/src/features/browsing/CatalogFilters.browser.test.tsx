@@ -4,6 +4,8 @@ import {
   openFilterField as openField,
 } from "../../../test/filter-fields";
 import { controlledAct as act } from "../../../test/controlled-react-act";
+import { expectDisclosureAlignment } from "../../../test/disclosure-alignment";
+import { captureParityState } from "../../../test/parity-capture";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
@@ -153,6 +155,48 @@ afterEach(async () => {
   vi.unstubAllGlobals();
   delete document.documentElement.dataset.theme;
 });
+
+for (const view of ["catalog", "library"] as const) {
+  it.each(["dark", "light"] as const)(
+    `aligns the actual ${view} filter disclosures in %s without changing their controls`,
+    async (theme) => {
+      const oldTheme = document.documentElement.dataset.theme;
+      const oldViewport = { width: innerWidth, height: innerHeight };
+      await page.viewport(430, 780);
+      document.documentElement.dataset.theme = theme;
+      try {
+        await root.rerender(<Fixture view={view} />);
+        await click("Filters (0)");
+        const panel = document.querySelector<HTMLElement>(".catalog-filter-panel")!;
+        const summaries = [...panel.querySelectorAll<HTMLElement>("summary")];
+        expect(summaries).toHaveLength(2);
+        await document.fonts.ready;
+        for (const [index, summary] of summaries.entries()) {
+          expectDisclosureAlignment(summary);
+          summary.focus();
+          await userEvent.keyboard("{Enter}");
+          expect(summary.closest("details")!.open).toBe(true);
+          expectDisclosureAlignment(summary);
+          await userEvent.keyboard("{Enter}");
+          expect(summary.closest("details")!.open).toBe(false);
+          expect(document.activeElement).toBe(summary);
+          const bounds = summary.getBoundingClientRect();
+          expect(bounds.top).toBeGreaterThanOrEqual(0);
+          expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+          await captureParityState(
+            `${view}-filter-${index === 0 ? "explanation" : "advanced"}-disclosure-aligned`,
+          );
+        }
+        expect(panel.scrollWidth).toBeLessThanOrEqual(panel.clientWidth + 1);
+        expect(current).toBe("all");
+      } finally {
+        if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+        else document.documentElement.dataset.theme = oldTheme;
+        await page.viewport(oldViewport.width, oldViewport.height);
+      }
+    },
+  );
+}
 
 it("keeps three primary Library groups and reveals restored advanced selections without losing their chips", async () => {
   await root.rerender(<Fixture view="library" initial={{ version: 1, portOptions: ["single"] }} />);

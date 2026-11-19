@@ -1,0 +1,81 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "one-must-fall-2097-omf-remastered",
+    "name": "One Must Fall 2097 Remastered",
+    "original_game_title": "One Must Fall: 2097",
+    "summary": "Play the One Must Fall 2097 fan remaster with classic or updated graphics in the upstream desktop app or browser.",
+    "project_url": "https://github.com/Jared-woodruff/OMF-2097-Remastered",
+    "artwork": {
+      "game_id": 14429,
+      "cover_id": 128159,
+      "image_id": "co2qvz",
+      "image_sha256": "1bc40ce34e65abbf3e01125acc5f319a1e40d2664f19a3b860c214f834e13c51",
+      "game_slug": "one-must-fall-2097",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 5721,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/Jared-woodruff/OMF-2097-Remastered#play",
+    "release_url": "https://github.com/Jared-woodruff/OMF-2097-Remastered/releases/latest",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose the upstream game package",
+          "instruction": "Choose an OMF-2097-Remastered file for your system from the upstream release. The OMF-Studio files open the separate editor. The game includes its freeware resources and starts without importing a DOS installation."
+        },
+        {
+          "title": "Start the Windows or Linux player",
+          "instruction": "On Windows 10 or 11, run the matching upstream game EXE with WebView2 available. The release also offers Windows ARM64 and 32-bit Windows 10 builds. On Linux, choose the x86-64 or AArch64 AppImage, make it executable and launch it. Use your distribution’s FUSE 2 package if the AppImage requires it."
+        },
+        {
+          "title": "Open the Mac app",
+          "instruction": "Choose the separate Intel or Apple Silicon ZIP for your Mac. Extract it and keep the complete OMF 2097 Remastered.app bundle. Both packages require macOS 12 or later. The upstream release is unsigned on Windows and lacks Apple notarization on Mac."
+        },
+        {
+          "title": "Play in your browser",
+          "instruction": "Use the Play Online link on the upstream project on a computer, tablet or phone. Keep the site data in the browser profile you play in. Android uses this browser route."
+        }
+      ],
+      "warnings": [
+        "The upstream packages bundle the freeware original and remastered art used during play. Portcove Download is held for the bundled gameplay art. Use the publisher’s own game page and keep your desktop or browser copy under your control."
+      ],
+      "references": [
+        {
+          "title": "Preserve your player profile",
+          "instruction": "Keep the WebView profile with your controls, settings and replays before replacing an upstream desktop copy. On Linux it is under $XDG_DATA_HOME/com.omf2097.remastered, normally ~/.local/share/com.omf2097.remastered. Browser play uses that browser’s separate site data."
+        }
+      ]
+    },
+    "download_block_reason": "The upstream package bundles remastered gameplay art derived from the original game. Use the upstream game page for an external copy.",
+    "original_game": {
+      "format_version": 1,
+      "id": "one-must-fall-2097",
+      "evidence_urls": ["https://github.com/Jared-woodruff/OMF-2097-Remastered"],
+      "source_editions": [
+        {
+          "id": "one-must-fall-2097-pc",
+          "title": "One Must Fall: 2097 (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Jared-woodruff/OMF-2097-Remastered/blob/f99df7bd98d6bee2a842d3bea1514ba60395b995/README.md"
+          ]
+        }
+      ]
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "one-must-fall-2097-omf-remastered",
+    "origin": {
+      "project_url": "https://github.com/Jared-woodruff/OMF-2097-Remastered",
+      "repository": {
+        "host": "github.com",
+        "id": "1390653799"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -171,14 +171,9 @@ function validMetadata(): MetadataFixture {
     repositoryPackage: { packageManager: "pnpm@12.4.1" },
     desktopPackage: { version: "1.2.3-beta.1" },
     desktopCargoFeatures: {
-      names: [
-        "application-update-qualification",
-        "native-compatibility-qualification",
-        "qualification-fixtures",
-      ],
+      names: ["native-compatibility-qualification", "qualification-fixtures"],
       default: [],
       definitions: {
-        "application-update-qualification": [],
         "native-compatibility-qualification": ["dep:tauri-plugin-wdio-webdriver"],
         "qualification-fixtures": ["portcove-core/qualification-fixtures"],
       },
@@ -331,14 +326,14 @@ void test("Cargo metadata preserves comments and always-on dependency features",
   try {
     await writeFile(
       desktopCargoPath,
-      '[package]\nname = "portcove-desktop"\nversion = "0.0.0"\nedition = "2024"\n\n[features]\ndefault = [\n  # ] explanatory comment\n  "application-update-qualification",\n]\napplication-update-qualification = []\nqualification-fixtures = ["portcove-core/qualification-fixtures"]\n\n[dependencies]\nportcove-core = { path = "../core" }\n',
+      '[package]\nname = "portcove-desktop"\nversion = "0.0.0"\nedition = "2024"\n\n[features]\ndefault = [\n  # ] explanatory comment\n  "native-compatibility-qualification",\n]\nnative-compatibility-qualification = []\nqualification-fixtures = ["portcove-core/qualification-fixtures"]\n\n[dependencies]\nportcove-core = { path = "../core" }\n',
     );
     const commented = await loadDesktopCargoFeatures(desktopCargoPath, { locked: false });
-    assert.deepEqual(commented.default, ["application-update-qualification"]);
+    assert.deepEqual(commented.default, ["native-compatibility-qualification"]);
 
     await writeFile(
       desktopCargoPath,
-      '[package]\nname = "portcove-desktop"\nversion = "0.0.0"\nedition = "2024"\n\n[features]\napplication-update-qualification = []\nqualification-fixtures = ["portcove-core/qualification-fixtures"]\n\n[dependencies]\nportcove-core = { path = "../core", features = ["production-alias"] }\n',
+      '[package]\nname = "portcove-desktop"\nversion = "0.0.0"\nedition = "2024"\n\n[features]\nnative-compatibility-qualification = []\nqualification-fixtures = ["portcove-core/qualification-fixtures"]\n\n[dependencies]\nportcove-core = { path = "../core", features = ["production-alias"] }\n',
     );
     const dependencyEnabled = await loadDesktopCargoFeatures(desktopCargoPath, { locked: false });
     assert.deepEqual(
@@ -401,17 +396,16 @@ void test("rejects capabilities that disable the local application context", () 
 void test("rejects qualification-only features from default desktop builds", () => {
   const metadata = validMetadata();
   metadata.desktopCargoFeatures.default = [
-    "application-update-qualification",
     "native-compatibility-qualification",
     "qualification-fixtures",
   ];
   assert.match(
     validateReleaseMetadata(metadata).join("\n"),
-    /default features must exclude qualification-only features: application-update-qualification, native-compatibility-qualification, qualification-fixtures/,
+    /default features must exclude qualification-only features: native-compatibility-qualification, qualification-fixtures/,
   );
 
   metadata.desktopCargoFeatures.default = [];
-  metadata.desktopCargoFeatures.names = ["application-update-qualification"];
+  metadata.desktopCargoFeatures.names = ["native-compatibility-qualification"];
   assert.match(
     validateReleaseMetadata(metadata).join("\n"),
     /retain the qualification-only feature declarations/,
@@ -422,7 +416,7 @@ void test("rejects transitive aliases and dependency activation for qualificatio
   const metadata = validMetadata();
   metadata.desktopCargoFeatures.default = ["shipping"];
   metadata.desktopCargoFeatures.definitions.shipping = [
-    "application-update-qualification",
+    "native-compatibility-qualification",
     "fixture-alias",
   ];
   metadata.desktopCargoFeatures.definitions["fixture-alias"] = [
@@ -430,7 +424,7 @@ void test("rejects transitive aliases and dependency activation for qualificatio
   ];
   assert.match(
     validateReleaseMetadata(metadata).join("\n"),
-    /default features must exclude qualification-only features: application-update-qualification, portcove-core\/qualification-fixtures/,
+    /default features must exclude qualification-only features: native-compatibility-qualification, portcove-core\/qualification-fixtures/,
   );
 
   metadata.desktopCargoFeatures.default = [];
@@ -630,7 +624,9 @@ void test("own prototype-named feature aliases retain qualification edges", () =
   assert.equal(Object.hasOwn(features.definitions, "__proto__"), true);
   assert.equal(features.alwaysEnabledCoreFeatures.includes("qualification-fixtures"), true);
   const metadata = validMetadata();
-  const rawDefinitions: unknown = JSON.parse('{"__proto__":["application-update-qualification"]}');
+  const rawDefinitions: unknown = JSON.parse(
+    '{"__proto__":["native-compatibility-qualification"]}',
+  );
   const errors = validateReleaseMetadata({
     ...metadata,
     desktopCargoFeatures: {
@@ -641,6 +637,6 @@ void test("own prototype-named feature aliases retain qualification edges", () =
   });
   assert.match(
     errors.join("\n"),
-    /default features must exclude qualification-only features: application-update-qualification/,
+    /default features must exclude qualification-only features: native-compatibility-qualification/,
   );
 });

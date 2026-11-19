@@ -164,14 +164,21 @@ it("presents an installed optional game source as optional, and a mandatory one 
     "Game files are optional",
   );
   expect(gameFilesPresentation(optional, undefined).title).toBe("Game files are optional");
-  // Installed, optional, registered and changed or unreadable: still needs checking.
-  expect(gameFilesPresentation(optional, installed("changed", ["changed_source"])).title).toBe(
-    "Files need checking",
+  // The replacement is stated before the player chooses an image; mandatory ports never say it.
+  expect(gameFilesPresentation(optional, undefined).description).toContain(
+    "does not keep files you added to it by hand",
   );
-  expect(
-    gameFilesPresentation(optional, installed("unreadable", ["unreadable_source"])).title,
-  ).toBe("Files need checking");
-  expect(gameFilesPresentation(optional, installed("changed")).title).toBe("Files need checking");
+  expect(gameFilesPresentation(mandatory, undefined).description).not.toContain("by hand");
+  // Installed, optional, registered and changed or unreadable: Play continues, so this is a
+  // notice about the saved image rather than a review of the inputs.
+  expect(gameFilesPresentation(optional, installed("changed")).title).toBe(
+    "Saved disc image changed",
+  );
+  expect(gameFilesPresentation(optional, installed("unreadable")).title).toBe(
+    "Saved disc image changed",
+  );
+  // A mandatory source in the same state still needs checking.
+  expect(gameFilesPresentation(mandatory, installed("changed")).title).toBe("Files need checking");
   // Installed, optional, registered and current: connected, as for any source.
   expect(gameFilesPresentation(optional, installed("current")).title).toBe("Files connected");
   // Installed, mandatory, nothing registered: unchanged.

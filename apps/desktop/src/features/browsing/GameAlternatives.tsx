@@ -6,6 +6,7 @@ import { gameProjectLabel } from "../../port-identity";
 import { platformLabel } from "../../view-model";
 import type { PortStatus } from "../../types";
 import type { Organization } from "../organization/OrganizationControls";
+import { availablePlatforms } from "./catalog-entry";
 import type { CatalogEntry } from "./catalog-entry";
 import { ImplementationChoice, ownsChoiceFocus } from "./ImplementationChoice";
 import { originalGame } from "./original-game";
@@ -28,11 +29,13 @@ export function ImplementationFacts({
       <p>{port.summary}</p>
       {/* Lists, requirement labels, edition titles and versions are exact values. */}
       <p>
-        {port.platforms.length ? (
+        {availablePlatforms(port).length ? (
           <Trans
             t={t}
             i18nKey="alternatives.runsOn"
-            components={{ platforms: <>{port.platforms.map(platformLabel).join(", ")}</> }}
+            components={{
+              platforms: <>{availablePlatforms(port).map(platformLabel).join(", ")}</>,
+            }}
           />
         ) : (
           t("alternatives.runsOnUnknown")
@@ -110,7 +113,7 @@ export function GameAlternatives({
   if (ports.length < 2) return null;
   return (
     <details ref={root} className="min-w-0 basis-full text-sm">
-      <summary data-focusable className="cursor-pointer py-2">
+      <summary data-focusable className="disclosure-pad-2 cursor-pointer">
         {t("alternatives.heading", { total: ports.length })}
       </summary>
       <p className="mb-2 text-xs text-pc-muted-foreground">{t("alternatives.independence")}</p>

@@ -18,6 +18,12 @@
     },
     "issue_number": 2701,
     "listed_at": "2026-10-25",
+    "funding_urls": [
+      "https://www.patreon.com/nuclearmonster",
+      "https://ko-fi.com/mrnuclearmonster",
+      "https://www.patreon.com/icculus",
+      "https://www.patreon.com/SmileTheory"
+    ],
     "release_url": "https://github.com/ioquake/ioq3/actions/workflows/build.yml",
     "manual_setup": {
       "steps": [
@@ -58,7 +64,16 @@
         }
       ]
     },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "quake-iii-arena",
+      "evidence_urls": [
+        "https://ioquake3.org/help/players-guide/",
+        "https://github.com/ioquake/ioq3"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

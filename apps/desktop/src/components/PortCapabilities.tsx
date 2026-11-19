@@ -193,7 +193,7 @@ export function PortCapabilities({
       ? cached
       : undefined);
   return (
-    <section className="mt-4 grid gap-3" aria-label={t("capabilities.label")}>
+    <section className="mt-4 grid min-w-0 gap-3 wrap-anywhere" aria-label={t("capabilities.label")}>
       <h3>{t("capabilities.heading")}</h3>
       <Button
         data-focusable
@@ -268,6 +268,26 @@ export function PortCapabilities({
                     : t("capabilities.notice.exact"),
             })}
           </strong>
+          {notice.launch_behavior && (
+            <dl className="my-3 grid grid-cols-2 gap-4">
+              <div className="grid min-w-0 content-start gap-1">
+                <dt className="text-xs text-pc-muted-foreground">
+                  {t("capabilities.launch.first")}
+                </dt>
+                <dd className="font-medium">
+                  {t(`capabilities.launch.${notice.launch_behavior.first_launch}`)}
+                </dd>
+              </div>
+              <div className="grid min-w-0 content-start gap-1">
+                <dt className="text-xs text-pc-muted-foreground">
+                  {t("capabilities.launch.repeat")}
+                </dt>
+                <dd className="font-medium">
+                  {t(`capabilities.launch.${notice.launch_behavior.repeat_launch}`)}
+                </dd>
+              </div>
+            </dl>
+          )}
           <p>{notice.explanation}</p>
           <p>
             <Trans

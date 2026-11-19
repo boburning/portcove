@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "gamebreaker20xx-fullrumble-ps1-slus01068",
+    "artwork": {
+      "game_id": 44879,
+      "cover_id": 272958,
+      "image_id": "co5um6",
+      "image_sha256": "3cc64ee5ec218b9b3e56a1682e0c0039d40e35a848e46797bf781cd108908f86",
+      "game_slug": "nascar-rumble",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/GameBreaker20XX/FullRumble",
     "name": "NASCAR Rumble (Full Rumble)",
     "summary": "A Windows port of NASCAR Rumble. Set it up with your own original PlayStation disc image.",
@@ -9,7 +17,7 @@
     "listed_at": "2026-11-05",
     "original_game_title": "NASCAR Rumble",
     "availability": "unknown",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "setup_url": "https://github.com/GameBreaker20XX/FullRumble/blob/1089369f3a05916319524004977314af6a305703/README.md",
     "manual_setup": {
       "help_url": "https://github.com/GameBreaker20XX/FullRumble/blob/1089369f3a05916319524004977314af6a305703/README.md",

@@ -92,6 +92,30 @@ function person(value: unknown) {
  * proves that reconstruction is complete. Unsupported forms remain Unknown.
  * A signature is reconstructed for byte identity, never treated as authority.
  */
+/** The version preparation writer copies its source's committer time and
+ * offset. GitHub normalizes those dates in REST, so reconstruct only the
+ * deterministic prepared child from the already verified parent bytes. */
+export function inspectRemotePreparedCommit(
+  value: unknown,
+  expected: string,
+  source: ReturnType<typeof inspectRemoteCommitObject>,
+) {
+  if (!isRecord(value) || !isRecord(value.tree)) throw new Error("prepared commit unavailable");
+  oid(value.tree.sha);
+  const raw = Buffer.from(source.object.bytes).toString("utf8");
+  const time = /^committer .* ([0-9]+ [+-][0-9]{4})$/mu.exec(raw.split("\n\n", 1)[0]!)?.[1];
+  if (!time) throw new Error("verified source committer time unavailable");
+  const actor = `Portcove version preparation <version-preparation@portcove.invalid> ${time}`;
+  const message = utf8(value.message, 64 * 1024);
+  return inspectRemoteCommitObject(
+    value,
+    expected,
+    Buffer.from(
+      `tree ${value.tree.sha}\nparent ${source.object.oid}\nauthor ${actor}\ncommitter ${actor}\n\n${message.replace(/\n$/u, "")}\n`,
+    ),
+  );
+}
+
 export function inspectRemoteCommitObject(value: unknown, expected: string, exactBytes?: Buffer) {
   if (!isRecord(value) || value.sha !== expected || !isRecord(value.tree))
     throw new Error("remote commit identity differs");

@@ -176,20 +176,186 @@ impl Library {
     }
 }
 
+/// Installs this release's compiled anchor under the plan Core itself has just
+/// reviewed, so official catalog updates are on by default (owner decision on
+/// #534, 2026-11-15). The existing provisioning transaction rechecks that exact
+/// plan; an installed, different or advanced authority is never replaced.
+fn ensure_enabled(
+    library: &Library,
+    root: &[u8],
+    source: &[u8],
+    profile: InitialRootProfile,
+) -> Result<()> {
+    let authority = review(library, root, profile)?;
+    if !project_review(authority.clone(), source)?.configured {
+        return Err(PortcoveError::unsupported(
+            "this release has no configured official catalog",
+        ));
+    }
+    if authority.installed {
+        return Ok(());
+    }
+    match apply(library, root, &authority.expected_plan, profile) {
+        Ok(_) => Ok(()),
+        // A concurrent caller installed the same compiled anchor first.
+        Err(error)
+            if error.code == crate::ErrorCode::Conflict
+                && review(library, root, profile)?.installed =>
+        {
+            Ok(())
+        }
+        Err(error) => Err(error),
+    }
+}
+
+/// One official catalog refresh at a time in this process: a scheduled refresh
+/// skips while another runs, and a player's refresh waits for it.
+static REFRESH_GUARD: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum OfficialCatalogAutomaticOutcome {
+    /// The player turned automatic updates off; nothing was contacted or changed.
+    TurnedOff,
+    /// This build appoints no official catalog.
+    NotConfigured,
+    /// Another official catalog refresh is still running; this one was skipped.
+    AlreadyRunning,
+    /// The location served nothing that verified; nothing changed.
+    Unavailable,
+    /// The authenticated refresh completed through the existing listing delivery.
+    Refreshed,
+}
+
+/// The result of one scheduled official catalog refresh.
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct OfficialCatalogAutomaticRefresh {
+    pub outcome: OfficialCatalogAutomaticOutcome,
+    /// What the location served, when `outcome` is `unavailable`.
+    pub serving: Option<DefinitionDeliveryServing>,
+    /// The resulting selection, when `outcome` is `refreshed`.
+    pub status: Option<crate::ListingDeliveryStatus>,
+}
+
+impl OfficialCatalogAutomaticRefresh {
+    fn skipped(outcome: OfficialCatalogAutomaticOutcome) -> Self {
+        Self {
+            outcome,
+            serving: None,
+            status: None,
+        }
+    }
+}
+
+async fn refresh_automatically<T, F>(
+    service: &PortcoveService,
+    preferences: &crate::HostPreferenceStore,
+    root: &[u8],
+    source: &[u8],
+    profile: InitialRootProfile,
+    connect: F,
+    emit: impl FnMut(crate::OperationEvent),
+) -> Result<OfficialCatalogAutomaticRefresh>
+where
+    T: tough::Transport + Send + Sync + 'static,
+    F: Fn() -> Result<(DefinitionRepositorySource, T)>,
+{
+    use OfficialCatalogAutomaticOutcome::*;
+    if !preferences.official_catalog_automatic_updates()? {
+        return Ok(OfficialCatalogAutomaticRefresh::skipped(TurnedOff));
+    }
+    if !review_setup(service.library(), root, source, profile)?.configured {
+        return Ok(OfficialCatalogAutomaticRefresh::skipped(NotConfigured));
+    }
+    let Ok(_guard) = REFRESH_GUARD.try_lock() else {
+        return Ok(OfficialCatalogAutomaticRefresh::skipped(AlreadyRunning));
+    };
+    ensure_enabled(service.library(), root, source, profile)?;
+    super::require_installed(service.library(), root, profile)?;
+    // Acquire, authenticate and check admission before recording an activity.
+    // An outage, an absent, expired or tampered publication, a newer format this
+    // client cannot read or a replay then records nothing and changes nothing.
+    let (repository, transport) = connect()?;
+    let listings = super::super::listing_delivery::acquire_admissible(
+        service.library(),
+        &repository,
+        root,
+        transport,
+    )
+    .await;
+    let candidate = match listings {
+        Ok(candidate) => candidate,
+        Err(error) => {
+            let serving = delivery_serving(&error);
+            tracing::info!(
+                serving = serving.as_str(),
+                error = %error.message,
+                message = "automatic official catalog refresh found no verified update"
+            );
+            return Ok(OfficialCatalogAutomaticRefresh {
+                outcome: Unavailable,
+                serving: Some(serving),
+                status: None,
+            });
+        }
+    };
+    // Publication keeps the ordinary activity, cancellation and atomic admission.
+    let status = super::super::listing_delivery::publish_acquired(service, candidate, emit)?;
+    Ok(OfficialCatalogAutomaticRefresh {
+        outcome: Refreshed,
+        serving: None,
+        status: Some(status),
+    })
+}
+
 impl PortcoveService {
-    /// Refresh using only the separately appointed compiled source. The existing
-    /// refresh path still requires its matching installed anchor and authenticates TUF.
+    /// Refresh using only the separately appointed compiled source. Official
+    /// updates are on by default, so this installs the compiled anchor when the
+    /// library has none; the existing refresh path then authenticates TUF.
     pub async fn refresh_official_catalog(
         &self,
         emit: impl FnMut(crate::OperationEvent),
     ) -> Result<crate::ListingDeliveryStatus> {
         let source = official_repository_source()?;
+        ensure_enabled(
+            self.library(),
+            COMPILED_ROOT,
+            COMPILED_SOURCE,
+            compiled_profile()?,
+        )?;
+        let _guard = REFRESH_GUARD.lock().await;
         self.refresh_listings(&source, emit).await
+    }
+
+    /// The scheduled refresh: skipped without I/O while the player has turned
+    /// automatic updates off, and quiet when the location serves nothing that
+    /// verifies. Prior state is kept on every failure.
+    pub async fn refresh_official_catalog_automatically(
+        &self,
+        preferences: &crate::HostPreferenceStore,
+        emit: impl FnMut(crate::OperationEvent),
+    ) -> Result<OfficialCatalogAutomaticRefresh> {
+        refresh_automatically(
+            self,
+            preferences,
+            COMPILED_ROOT,
+            COMPILED_SOURCE,
+            compiled_profile()?,
+            || {
+                let source = official_repository_source()?;
+                let transport =
+                    crate::definition_repository::DefinitionHttpsTransport::new(&source)?;
+                Ok((source, transport))
+            },
+            emit,
+        )
+        .await
     }
 
     /// Check this known port's definition using the appointed fixed source.
     /// The existing refresh owns authority, policy, eligibility and atomic selection;
-    /// this does not install a game, provision trust or change runtime ownership.
+    /// this does not install a game or change runtime ownership. Like the catalog
+    /// refresh, it installs the compiled anchor when the library has none.
     pub async fn refresh_official_definition(
         &self,
         port_id: &str,
@@ -197,13 +363,43 @@ impl PortcoveService {
     ) -> Result<crate::DefinitionRefresh> {
         let stable_id = official_definition_id(self.catalog(), port_id)?;
         let source = official_repository_source()?;
-        if !self.library().review_official_catalog()?.enabled {
-            return Err(PortcoveError::conflict(
-                "Enable official catalog updates in Settings before checking setup availability.",
-            ));
-        }
+        ensure_enabled(
+            self.library(),
+            COMPILED_ROOT,
+            COMPILED_SOURCE,
+            compiled_profile()?,
+        )?;
         self.refresh_definition(&source, stable_id, emit).await
     }
+}
+
+#[cfg(test)]
+pub(crate) async fn automatic_refresh_fixture<T>(
+    service: &PortcoveService,
+    preferences: &crate::HostPreferenceStore,
+    root: &[u8],
+    source: &[u8],
+    repository: &DefinitionRepositorySource,
+    transport: T,
+) -> Result<OfficialCatalogAutomaticRefresh>
+where
+    T: tough::Transport + Clone + Send + Sync + 'static,
+{
+    refresh_automatically(
+        service,
+        preferences,
+        root,
+        source,
+        InitialRootProfile::SingleOwnerOneOfOneV1,
+        || Ok((repository.clone(), transport.clone())),
+        |_| {},
+    )
+    .await
+}
+
+#[cfg(test)]
+pub(crate) async fn hold_refresh_guard_fixture() -> tokio::sync::MutexGuard<'static, ()> {
+    REFRESH_GUARD.lock().await
 }
 
 #[cfg(test)]
@@ -234,4 +430,142 @@ pub(crate) fn enable_fixture(
         InitialRootProfile::SingleOwnerOneOfOneV1,
         expected,
     )
+}
+
+/// What the appointed official location serves, verified as a client would.
+///
+/// Read-only maintenance evidence (#4129): it uses only the compiled trust root
+/// and the compiled locations, fetches through the client's own TUF path, and
+/// writes nothing — no trust, replay floor or selection. "Not served" and an
+/// outage are this request's serving status, never evidence that something
+/// published earlier was withdrawn.
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct DefinitionDeliveryInspection {
+    pub format_version: u32,
+    pub scope: &'static str,
+    pub metadata_base_url: Option<String>,
+    pub targets_base_url: Option<String>,
+    pub serving: DefinitionDeliveryServing,
+    /// Why the request did not verify, when it did not.
+    pub reason: Option<String>,
+    /// Authenticated metadata identities; present only when verified.
+    pub provenance: Option<crate::AuthenticatedDefinitionProvenance>,
+    /// Every indexed definition with its exact target digest; empty unless verified.
+    pub definitions: Vec<PublishedDefinition>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum DefinitionDeliveryServing {
+    /// The appointed metadata and index verified against the compiled root.
+    Verified,
+    /// The appointed location serves no metadata: its timestamp is absent (HTTP 404 or 410).
+    NotServed,
+    /// Metadata is served, but a file it requires is absent: a partial publication.
+    Incomplete,
+    /// The location could not be reached, refused access (HTTP 403) or did not answer completely.
+    Unreachable,
+    /// Signed metadata was served but has expired.
+    Expired,
+    /// Something was served but did not authenticate.
+    VerificationFailed,
+    /// This build appoints no official catalog location.
+    NotConfigured,
+}
+
+impl DefinitionDeliveryServing {
+    /// The machine name, as serialized.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Verified => "verified",
+            Self::NotServed => "not_served",
+            Self::Incomplete => "incomplete",
+            Self::Unreachable => "unreachable",
+            Self::Expired => "expired",
+            Self::VerificationFailed => "verification_failed",
+            Self::NotConfigured => "not_configured",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct PublishedDefinition {
+    pub namespace: String,
+    pub stable_id: String,
+    pub revision: u64,
+    pub target: String,
+    pub sha256: Option<String>,
+    pub length: Option<u64>,
+}
+
+pub async fn inspect_official_definition_delivery() -> DefinitionDeliveryInspection {
+    let scope = "read-only client verification of the appointed official definition location against the compiled root; writes no trust, floor or selection";
+    let configured = configured_source(COMPILED_SOURCE).ok().flatten();
+    let mut report = DefinitionDeliveryInspection {
+        format_version: 1,
+        scope,
+        metadata_base_url: configured
+            .as_ref()
+            .map(|source| source.metadata_base_url.clone()),
+        targets_base_url: configured
+            .as_ref()
+            .map(|source| source.targets_base_url.clone()),
+        serving: DefinitionDeliveryServing::NotConfigured,
+        reason: None,
+        provenance: None,
+        definitions: Vec::new(),
+    };
+    let source = match official_repository_source() {
+        Ok(source) => source,
+        Err(error) => {
+            // Only a build without an appointed location is "not configured"; an
+            // invalid compiled location is a failure, never hidden as absent.
+            if configured.is_some() || error.code != crate::ErrorCode::Unsupported {
+                report.serving = DefinitionDeliveryServing::VerificationFailed;
+            }
+            report.reason = Some(error.message);
+            return report;
+        }
+    };
+    match crate::acquire_definition_candidate(&source, COMPILED_ROOT).await {
+        Ok(candidate) => {
+            report.serving = DefinitionDeliveryServing::Verified;
+            report.provenance = Some(candidate.provenance().clone());
+            let index = candidate.index();
+            report.definitions = index
+                .definitions()
+                .iter()
+                .map(|definition| {
+                    let digest = index.content_digest(definition.target());
+                    PublishedDefinition {
+                        namespace: definition.namespace().to_owned(),
+                        stable_id: definition.stable_id().to_owned(),
+                        revision: definition.revision(),
+                        target: definition.target().to_owned(),
+                        sha256: digest.map(|(sha256, _)| sha256.to_owned()),
+                        length: digest.map(|(_, length)| length),
+                    }
+                })
+                .collect();
+        }
+        Err(error) => {
+            report.serving = delivery_serving(&error);
+            report.reason = Some(error.message);
+        }
+    }
+    report
+}
+
+/// The serving status of a failed client acquisition.
+pub(crate) fn delivery_serving(error: &PortcoveError) -> DefinitionDeliveryServing {
+    match (
+        error.code,
+        error.details.get("delivery").map(String::as_str),
+    ) {
+        (_, Some("expired")) => DefinitionDeliveryServing::Expired,
+        (crate::ErrorCode::Network, Some("not_served")) => DefinitionDeliveryServing::NotServed,
+        (crate::ErrorCode::Network, Some("incomplete")) => DefinitionDeliveryServing::Incomplete,
+        (crate::ErrorCode::Network, _) => DefinitionDeliveryServing::Unreachable,
+        _ => DefinitionDeliveryServing::VerificationFailed,
+    }
 }

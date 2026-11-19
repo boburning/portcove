@@ -1,0 +1,125 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "chocolate-heretic",
+    "name": "Chocolate Heretic",
+    "original_game_title": "Heretic",
+    "summary": "Play Heretic with the original game files, or try its shareware episode.",
+    "project_url": "https://github.com/chocolate-doom/chocolate-doom",
+    "artwork": {
+      "game_id": 6362,
+      "cover_id": 76355,
+      "image_id": "co1mwz",
+      "image_sha256": "2e4af7089e82b680fb16c4f894c8c3ac09ccb469d296fd7322c2b0d67921fc04",
+      "game_slug": "heretic",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 8105,
+    "listed_at": "2026-11-18",
+    "availability": "packages",
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "setup_url": "https://www.chocolate-doom.org/wiki/index.php/Downloads",
+    "release_url": "https://github.com/chocolate-doom/chocolate-doom/releases/tag/chocolate-doom-3.1.1",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Set up Heretic on Windows",
+          "instruction": "Choose the matching original Heretic IWAD or one of the listed demo editions. Portcove keeps your original file and prepares a separate copy for Play. Saved games are separate for each exact IWAD. Keep the same original with its saves; select a separate setup to change editions."
+        }
+      ],
+      "references": [
+        {
+          "title": "Linux and Mac installations you maintain",
+          "instruction": "Install the chocolate-doom package through your Linux distribution or Homebrew on Mac, then select the chocolate-heretic player with its matching IWAD. The package manager owns runtime updates. Explicit registration keeps ownership of the player, originals and actual profile with you."
+        }
+      ],
+      "warnings": [
+        "Keep saves with their creating game and runtime. Changing engines or game editions does not convert saved games.",
+        "A profile that points outside its local autoload or music-pack folders must be preserved and corrected before Play. Portcove does not rewrite existing settings."
+      ]
+    },
+    "variant_label": "PC",
+    "original_game": {
+      "format_version": 1,
+      "id": "heretic",
+      "evidence_urls": [
+        "https://github.com/chocolate-doom/chocolate-doom/blob/chocolate-doom-3.1.1/src/heretic/d_main.c"
+      ],
+      "source_editions": [
+        {
+          "id": "heretic-pc",
+          "title": "Heretic (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/chocolate-doom/chocolate-doom/blob/410d96855b5df5410ff591a90efeafa889119224/src/heretic/d_main.c"
+          ]
+        }
+      ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "github",
+      "repository": "chocolate-doom/chocolate-doom",
+      "asset_hints": {
+        "windows-x86-64": ["chocolate-heretic", "win64.zip"]
+      }
+    },
+    "source_profile": "chocolate-heretic-pc-iwad",
+    "executable_hints": {
+      "windows-x86-64": ["chocolate-heretic.exe"]
+    },
+    "managed_initialization": "chocolate-family-portable-v1",
+    "windows_runtime_path_policy": "relative-file-max-path",
+    "runtime_source_filename": "game.wad",
+    "runtime_source_materialization": "copy",
+    "launch_from_install_root": true,
+    "launch_arguments": [
+      "-iwad",
+      "game.wad",
+      "-config",
+      "heretic.cfg",
+      "-extraconfig",
+      "chocolate-heretic.cfg",
+      "-savedir",
+      "savegames"
+    ],
+    "persistent_paths": [
+      "game.wad",
+      "heretic.cfg",
+      "chocolate-heretic.cfg",
+      "savegames",
+      "autoload",
+      "music-packs"
+    ],
+    "persistent_file_patterns": [
+      {
+        "prefix": "HTIC",
+        "suffix": ".pcx"
+      },
+      {
+        "prefix": "HTIC",
+        "suffix": ".png"
+      }
+    ],
+    "runtime_mutable_paths": ["stdout.txt", "stderr.txt"],
+    "presentation": {
+      "installation_method": "staged-game-files",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "chocolate-heretic-pc-iwad",
+          "label": "Heretic PC IWAD (selected original or demo editions)",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

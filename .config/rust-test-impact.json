@@ -19,7 +19,7 @@
             "crates/portcove-core/src/source_catalog.rs",
             "crates/portcove-core/src/source_catalog_tests.rs"
           ],
-          "filter": "test(/^catalog::tests::/) | test(/^catalog_update::tests::/) | test(/^source_catalog::tests::/) | test(/^definition_projection::tests::/) | test(/^definition_policy_tests::/) | test(/^artwork_tests::/)"
+          "filter": "test(/^catalog::tests::/) | test(/^catalog_update::tests::/) | test(/^source_catalog::tests::/) | test(/^definition_projection::tests::/) | test(/^definition_policy_tests::/) | test(/^artwork_tests::/) | test(/^installed_contract::tests::catalog_growth_stays_within_supported_capacity$/)"
         },
         {
           "id": "route-enrollment-fixtures",
@@ -218,14 +218,6 @@
   },
   "ignored_routes": [
     {
-      "source": "apps/desktop/src-tauri/tests/updater_trust_support/offline_online_qualification.rs",
-      "test": "qualification_host_consumes_offline_bootstrap_online_generations",
-      "reason": "explicit retained disposable offline/online producer packet",
-      "package": "portcove-desktop",
-      "platforms": ["linux", "darwin", "win32"],
-      "category": "explicit-acceptance"
-    },
-    {
       "source": "crates/portcove-cli/tests/desktop_host_diagnostics.rs",
       "test": "desktop_host_fixture_child",
       "reason": "invoked only as an owned child by the Desktop host qualification tests",
@@ -253,6 +245,22 @@
     {
       "source": "crates/portcove-core/src/artwork/steamgriddb_tests.rs",
       "test": "steamgriddb_live_search_and_candidates",
+      "reason": "live SteamGridDB call; requires an authorized key",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/artwork/steamgriddb_tests.rs",
+      "test": "steamgriddb_live_fetch_matches_listing",
+      "reason": "live SteamGridDB call; requires an authorized key",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/artwork/steamgriddb_check_tests.rs",
+      "test": "steamgriddb_live_listing_check",
       "reason": "live SteamGridDB call; requires an authorized key",
       "package": "portcove-core",
       "platforms": ["linux", "darwin", "win32"],

@@ -1,3 +1,4 @@
+import { retainedCatalogReviewRecoveryResources } from "./release-retained-catalog-review-resources.mts";
 import { parseControllerWitnessedTime } from "./github-controller-attestation.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -26,11 +27,15 @@ import {
   authenticateFixedJobCoordinatorHistory,
   matchesRetainedCatalogBootstrapHandoff,
   matchesRetainedCatalogAdoptionWithdrawal,
+  matchesRetainedChameleonWithdrawalHandoff,
+  retainedChameleonReviewClaim,
+  selectRetainedChameleonReviewClaim,
   matchesRetainedCatalogForwardAdoptionHandoff,
   matchesRetainedApplicationRenewalHandoff,
   matchesRetainedNativeAdoptionPredecessor,
   retainedCatalogForwardAdoptionClaim,
   matchesRetainedReviewWithdrawalHandoff,
+  matchesRetainedV13ReviewWithdrawalHandoff,
   retainedCatalogBootstrapClaim,
   retainedApplicationReviewClaim,
   isRetainedApplicationReviewClaimScope,
@@ -1057,6 +1062,126 @@ void test("appointed withdrawal authenticates only the exact retained r53 produc
   );
 });
 
+void test("v13 withdrawal authenticates only the appointed request and signed adoption producer", () => {
+  const checkpoint = {
+    checkpoint: "7b7388fe8eeb04fe11f4afd336f4ddb0359ef1b4",
+    previous: "d23b4f108b03ecd81c1696a407c740ca24e5d705",
+  };
+  const producer = {
+    controller_revision: "dc5aee2e8cb67c92e36f1507a09b2a2b6a391372",
+    controller_ref: "refs/tags/portcove-production-controller-catalog-adoption-v13-settle",
+    workflow_sha256: "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb",
+    run_id: "43388566615",
+    run_attempt: 1,
+    job_id: "131764663738",
+    check_run_id: "131764663738",
+  };
+  const source = {
+    execution_ref: "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57",
+    workflow_sha256: producer.workflow_sha256,
+  };
+  const withdrawal = {
+    schema_version: 1,
+    kind: "application-review-safety-withdrawal",
+    request_id: "87a32458456f8b24bfe545a89a98c93a2315af9e9e15f37e0c1e4b821f480176",
+    source_commit: "29f33f577dd08888daa308f6534e1ba2e0d10eaf",
+    source_tree: "e5f44b9f1c2b541fb2c932d6d203198c33ca2d57",
+    request_checkpoint: checkpoint.checkpoint,
+    approval_sha256: "a".repeat(64),
+    technical_stop_sha256: "73704d29b23be7aeffcddf2776ce1598dbf3a1d2c76efac0e11fbc10d36d4be0",
+  };
+  assert.ok(
+    matchesRetainedV13ReviewWithdrawalHandoff(
+      checkpoint,
+      producer,
+      source,
+      withdrawal,
+      "application",
+    ),
+  );
+  const retry = {
+    ...source,
+    execution_ref: "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57-r2",
+  };
+  assert.ok(
+    matchesRetainedV13ReviewWithdrawalHandoff(
+      checkpoint,
+      producer,
+      retry,
+      withdrawal,
+      "application",
+    ),
+  );
+  assert.ok(
+    matchesRetainedV13ReviewWithdrawalHandoff(
+      checkpoint,
+      producer,
+      { ...retry, execution_ref: retry.execution_ref.replace(/r2$/u, "r3") },
+      withdrawal,
+      "application",
+    ),
+  );
+  assert.ok(
+    !matchesRetainedV13ReviewWithdrawalHandoff(
+      checkpoint,
+      producer,
+      { ...retry, execution_ref: retry.execution_ref.replace(/r2$/u, "r4") },
+      withdrawal,
+      "application",
+    ),
+  );
+  for (const purpose of ["catalog-publication", undefined] as const)
+    assert.ok(
+      !matchesRetainedV13ReviewWithdrawalHandoff(checkpoint, producer, source, withdrawal, purpose),
+    );
+  assert.ok(
+    !matchesRetainedV13ReviewWithdrawalHandoff(checkpoint, producer, source, null, "application"),
+  );
+  for (const key of Object.keys(checkpoint))
+    assert.ok(
+      !matchesRetainedV13ReviewWithdrawalHandoff(
+        { ...checkpoint, [key]: "a".repeat(40) },
+        producer,
+        source,
+        withdrawal,
+        "application",
+      ),
+    );
+  for (const [key, value] of Object.entries(producer))
+    assert.ok(
+      !matchesRetainedV13ReviewWithdrawalHandoff(
+        checkpoint,
+        { ...producer, [key]: typeof value === "number" ? 2 : "wrong" },
+        source,
+        withdrawal,
+        "application",
+      ),
+    );
+  for (const key of Object.keys(source))
+    assert.ok(
+      !matchesRetainedV13ReviewWithdrawalHandoff(
+        checkpoint,
+        producer,
+        { ...source, [key]: "wrong" },
+        withdrawal,
+        "application",
+      ),
+    );
+  for (const [key, value] of Object.entries(withdrawal)) {
+    if (key === "kind" || key === "schema_version" || key === "approval_sha256") continue;
+    assert.equal(typeof value, "string");
+    assert.ok(
+      !matchesRetainedV13ReviewWithdrawalHandoff(
+        checkpoint,
+        producer,
+        source,
+        { ...withdrawal, [key]: "b".repeat(String(value).length) },
+        "application",
+      ),
+    );
+  }
+});
+
 void test("retained application claim admits only its exact successor and original child", () => {
   const claim = retainedApplicationReviewClaim;
   assert.equal(
@@ -1117,6 +1242,103 @@ void test("catalog adoption can authenticate only the exact settled r63 withdraw
       ),
       false,
     );
+});
+
+void test("the Chameleon coordinator can carry only the exact signed v13 withdrawal predecessor", () => {
+  const workflow = "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb";
+  const checkpoint = {
+    checkpoint: "9d687629c60fc85c9a150a38eaf1dd8081934a87",
+    previous: "7b7388fe8eeb04fe11f4afd336f4ddb0359ef1b4",
+  };
+  const producer = {
+    controller_revision: "4cd5a0d9f9e3f3184bb680a298489a9db5dc18ba",
+    controller_ref:
+      "refs/tags/portcove-production-controller-windows-20261113-withdraw-29f33f57-r3",
+    workflow_sha256: workflow,
+    run_id: "43441976472",
+    run_attempt: 1,
+    job_id: "131944380144",
+    check_run_id: "131944380144",
+  };
+  const source = {
+    execution_ref: "refs/tags/portcove-production-controller-catalog-chameleon-canary",
+    workflow_sha256: workflow,
+  };
+  const purpose = "catalog-publication";
+  assert.equal(
+    matchesRetainedChameleonWithdrawalHandoff(checkpoint, producer, source, purpose),
+    true,
+  );
+  for (const key of Object.keys(checkpoint))
+    assert.equal(
+      matchesRetainedChameleonWithdrawalHandoff(
+        { ...checkpoint, [key]: "0".repeat(40) },
+        producer,
+        source,
+        purpose,
+      ),
+      false,
+    );
+  for (const key of Object.keys(producer))
+    assert.equal(
+      matchesRetainedChameleonWithdrawalHandoff(
+        checkpoint,
+        { ...producer, [key]: "0" },
+        source,
+        purpose,
+      ),
+      false,
+    );
+  for (const key of Object.keys(source))
+    assert.equal(
+      matchesRetainedChameleonWithdrawalHandoff(
+        checkpoint,
+        producer,
+        { ...source, [key]: "0" },
+        purpose,
+      ),
+      false,
+    );
+  const recovery = retainedCatalogReviewRecoveryResources;
+  assert.equal(
+    matchesRetainedChameleonWithdrawalHandoff(checkpoint, producer, recovery, purpose),
+    true,
+  );
+  assert.equal(
+    matchesRetainedChameleonWithdrawalHandoff(
+      checkpoint,
+      producer,
+      { ...recovery, workflow_sha256: workflow },
+      purpose,
+    ),
+    false,
+  );
+  assert.equal(
+    matchesRetainedChameleonWithdrawalHandoff(
+      checkpoint,
+      producer,
+      { ...source, workflow_sha256: recovery.workflow_sha256 },
+      purpose,
+    ),
+    false,
+  );
+  for (const other of ["application", undefined] as const)
+    assert.equal(
+      matchesRetainedChameleonWithdrawalHandoff(checkpoint, producer, source, other),
+      false,
+    );
+});
+
+void test("Chameleon review settlement selects only the appointed refs and first attempts", () => {
+  const claim = retainedChameleonReviewClaim;
+  assert.equal(selectRetainedChameleonReviewClaim(claim.original_ref, 1), undefined);
+  assert.equal(selectRetainedChameleonReviewClaim(claim.recovery_ref, 1), claim);
+  assert.equal(selectRetainedChameleonReviewClaim(claim.early_recovery_ref, 1), claim);
+  const ref = retainedCatalogReviewRecoveryResources.execution_ref;
+  assert.equal(selectRetainedChameleonReviewClaim(ref, 1), claim);
+  assert.throws(() => selectRetainedChameleonReviewClaim(ref, 2));
+  assert.throws(() => selectRetainedChameleonReviewClaim(claim.recovery_ref, 2));
+  assert.throws(() => selectRetainedChameleonReviewClaim(claim.early_recovery_ref, 2));
 });
 
 void test("only the appointed successor and exact r66 adoption producer can carry the shared journal", () => {
@@ -1218,6 +1440,37 @@ void test("only the catalog coordinator can read the exact signed application re
       false,
       key,
     );
+});
+
+void test("catalog adoption authenticates the settled native predecessor's exact proof producer", () => {
+  const checkpoint = {
+    checkpoint: "d23b4f108b03ecd81c1696a407c740ca24e5d705",
+    previous: "006439a83c66cc3c1fa3fa142d7e4a6ed27f8553",
+  };
+  const source = {
+    workflow_sha256: "ae780affa5cff58dd88250b3575d6948ed6608a47b3175492cf56fff3a5d90fb",
+  };
+  const producer = {
+    controller_revision: "d7f5e10b7644e9d2b8c8823c39c6175a9b3efdb3",
+    controller_ref: "refs/tags/portcove-production-controller-catalog-adoption-settle-20261111",
+    workflow_sha256: source.workflow_sha256,
+    run_id: "43127719974",
+    run_attempt: 1,
+    job_id: "130886155058",
+    check_run_id: "130886155058",
+  };
+  assert.ok(
+    matchesRetainedNativeAdoptionPredecessor(checkpoint, producer, source, "catalog-publication"),
+  );
+  assert.ok(!matchesRetainedNativeAdoptionPredecessor(checkpoint, producer, source, "application"));
+  assert.ok(
+    !matchesRetainedNativeAdoptionPredecessor(
+      checkpoint,
+      { ...producer, run_id: "43069742240" },
+      source,
+      "catalog-publication",
+    ),
+  );
 });
 
 void test("r69 can resume only the signed r68 application renewal descriptor", () => {

@@ -33,6 +33,7 @@ mod profile;
 mod progress;
 mod retained_build_human;
 mod saves;
+mod steamgriddb;
 use progress::HumanProgress;
 mod schema;
 mod setup;
@@ -139,6 +140,31 @@ fn command_is_observation(command: &Commands) -> bool {
 #[tokio::main]
 async fn run() -> ExitCode {
     let raw_args = std::env::args_os().collect::<Vec<_>>();
+    #[cfg(windows)]
+    if let [_, mode, library, session, supervisor] = raw_args.as_slice()
+        && mode == portcove_core::LAUNCH_JOB_KEEPER_MODE
+    {
+        let (Some(session), Some(supervisor)) = (
+            session.to_str(),
+            supervisor
+                .to_str()
+                .and_then(|value| value.parse::<u32>().ok()),
+        ) else {
+            return ExitCode::FAILURE;
+        };
+        let result = (|| {
+            let _runtime = ApplicationRuntimeGuard::acquire(
+                &HostPreferenceStore::application_runtime_lock_path()?,
+            )?;
+            let library = portcove_core::Library::open(std::path::PathBuf::from(library))?;
+            portcove_core::run_launch_job_keeper(library, session, supervisor)
+        })();
+        return if result.is_ok() {
+            ExitCode::SUCCESS
+        } else {
+            ExitCode::FAILURE
+        };
+    }
     let requested_mode = requested_output_mode(&raw_args);
     // Parsing is in-memory only. Start the host session before handling its
     // result or opening preferences, the runtime lease, or any library.
@@ -325,8 +351,9 @@ async fn execute_with_qualification_environment(
 async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
     if let Commands::Catalog {
         command:
-            CatalogCommand::InspectPackageLayout {
+            CatalogCommand::InspectPackageShape {
                 archive,
+                port,
                 platform,
                 size,
                 sha256,
@@ -335,10 +362,56 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
     {
         let platform = serde_json::from_value(serde_json::Value::String(platform.clone()))
             .map_err(|_| portcove_core::PortcoveError::usage("unknown package platform"))?;
+        let catalog = portcove_core::Catalog::embedded()?;
+        render_read_success(
+            mode,
+            "catalog.inspect-package-shape",
+            portcove_core::inspect_package_shape_archive(
+                archive,
+                catalog.port(port)?,
+                platform,
+                *size,
+                sha256,
+            )?,
+            |inspection| {
+                format!(
+                    "Package shape for {}: {} programs, {} configuration files; shadow verdict {}.",
+                    inspection.port_id,
+                    inspection.shape.programs.as_ref().map_or(0, Vec::len),
+                    inspection.shape.config_files.as_ref().map_or(0, Vec::len),
+                    shape_verdict_text(&inspection.verdict, inspection.provenance)
+                )
+            },
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
+        command:
+            CatalogCommand::InspectPackageLayout {
+                archive,
+                platform,
+                size,
+                sha256,
+                ignore_verified_macos_libraries,
+                classify_linux_programs_by_format,
+            },
+    } = &cli.command
+    {
+        let platform = serde_json::from_value(serde_json::Value::String(platform.clone()))
+            .map_err(|_| portcove_core::PortcoveError::usage("unknown package platform"))?;
         render_read_success(
             mode,
             "catalog.inspect-package-layout",
-            portcove_core::inspect_package_archive(archive, platform, *size, sha256)?,
+            portcove_core::inspect_package_archive_with_program_filter(
+                archive,
+                platform,
+                *size,
+                sha256,
+                portcove_core::PackageProgramFilter {
+                    ignore_verified_macos_libraries: *ignore_verified_macos_libraries,
+                    classify_linux_programs_by_format: *classify_linux_programs_by_format,
+                },
+            )?,
             |layout| {
                 format!(
                     "Observed {} directories and {} program paths.",
@@ -350,23 +423,28 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         return Ok(ExitCode::SUCCESS);
     }
     if let Commands::Catalog {
-        command: CatalogCommand::InspectListings { path },
+        command:
+            CatalogCommand::InspectListings {
+                path,
+                format_version,
+            },
     } = &cli.command
     {
         let file = std::fs::File::open(path)?;
         let mut bytes = String::new();
         file.take(8 * 1024 * 1024 + 1).read_to_string(&mut bytes)?;
-        render_read_success(
-            mode,
-            "catalog.inspect-listings",
-            portcove_core::CatalogListingDocument::from_json(&bytes)?,
-            |document| {
-                format!(
-                    "Validated {} descriptive listings.",
-                    document.listings.len()
-                )
-            },
-        )?;
+        let document = portcove_core::CatalogListingDocument::from_json(&bytes)?;
+        let document = if let Some(version) = format_version {
+            document.export_format(*version)?
+        } else {
+            document
+        };
+        render_read_success(mode, "catalog.inspect-listings", document, |document| {
+            format!(
+                "Validated {} descriptive listings.",
+                document.listings.len()
+            )
+        })?;
         return Ok(ExitCode::SUCCESS);
     }
     if let Commands::Catalog {
@@ -378,6 +456,70 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             "catalog.inspect-definition-publication",
             portcove_core::inspect_definition_publication(directory)?,
             |report| catalog::publication_inspection(report, cli.technical_details),
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
+        command: CatalogCommand::InspectDefinitionDelivery,
+    } = &cli.command
+    {
+        render_read_success(
+            mode,
+            "catalog.inspect-definition-delivery",
+            portcove_core::inspect_official_definition_delivery().await,
+            |report| {
+                format!(
+                    "Official definition delivery: {}; {} verified definitions.{}",
+                    report.serving.as_str(),
+                    report.definitions.len(),
+                    report
+                        .reason
+                        .as_deref()
+                        .map(|reason| format!(" {reason}"))
+                        .unwrap_or_default()
+                )
+            },
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
+        command: CatalogCommand::InspectTargets { ports, platforms },
+    } = &cli.command
+    {
+        let platforms = platforms
+            .iter()
+            .map(|platform| {
+                serde_json::from_value::<portcove_core::Platform>(serde_json::Value::String(
+                    platform.clone(),
+                ))
+                .map_err(|_| {
+                    portcove_core::PortcoveError::usage(format!(
+                        "unknown target platform: {platform}"
+                    ))
+                })
+            })
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        render_read_success(
+            mode,
+            "catalog.inspect-targets",
+            portcove_core::inspect_targets(
+                &portcove_core::Catalog::embedded()?,
+                ports,
+                &platforms,
+            )?,
+            |report| {
+                let offered = report
+                    .ports
+                    .iter()
+                    .flat_map(|port| &port.targets)
+                    .filter(|target| target.routes.iter().any(|route| route.offered))
+                    .count();
+                format!(
+                    "Inspected {} ports on {} platforms; {offered} port-platform pairs offer a route for a fresh library. Trust eligibility, installed state and readiness are not assessed.",
+                    report.ports.len(),
+                    report.platforms.len()
+                )
+            },
         )?;
         return Ok(ExitCode::SUCCESS);
     }
@@ -446,12 +588,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         return Ok(ExitCode::SUCCESS);
     }
     if matches!(&cli.command, Commands::Capabilities) {
-        render_read_success(
-            mode,
-            "capabilities",
-            CapabilityDocument::current(),
-            human::capabilities,
-        )?;
+        let mut capabilities = CapabilityDocument::current();
+        capabilities.commands = registered_command_capabilities();
+        render_read_success(mode, "capabilities", capabilities, human::capabilities)?;
         return Ok(ExitCode::SUCCESS);
     }
     if let Commands::Schema {
@@ -527,6 +666,10 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         execute_tool(&preferences, command, mode)?;
         return Ok(ExitCode::SUCCESS);
     }
+    if let Commands::Dat { command } = &cli.command {
+        execute_dat(&preferences, command, mode)?;
+        return Ok(ExitCode::SUCCESS);
+    }
     let selection = startup::observe(
         startup::DiagnosticPhase::LibrarySelection,
         preferences.resolve(cli.library.as_deref(), &platform_default),
@@ -539,7 +682,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         command: LaunchCommand::Show { request_id },
     } = &cli.command
     {
-        let record = library.launch_request(&request_id.to_string())?;
+        let record = library
+            .launch_request(&request_id.to_string())?
+            .map(|record| {
+                portcove_core::LaunchSessionView::new(record).with_runtime_prerequisites(&library)
+            });
         // Observation must remain available even when current catalog/provider
         // initialization fails. This optional human lookup never advances recovery.
         let display_service = if mode == OutputMode::Human {
@@ -547,10 +694,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         } else {
             None
         };
-        let record = record.map(portcove_core::LaunchSessionView::new);
         render_read_success(mode, "launch.show", record, |record| {
             human_adapters::launch_record(
-                record.as_ref().map(|view| &view.record),
+                record.as_ref(),
                 &request_id.to_string(),
                 display_service.as_ref().map(PortcoveService::catalog),
                 cli.technical_details,
@@ -630,12 +776,55 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             setup::execute(command, &service, mode, cli.non_interactive).await?;
         }
         Commands::Installation {
+            command: InstallationCommand::Runtimes { port_id },
+        } => render_read_success(
+            mode,
+            "installation.runtimes",
+            service.library().runtime_prerequisites(&port_id)?,
+            |report| human_adapters::runtime_prerequisites(report.as_ref()),
+        )?,
+        Commands::Installation {
             command: InstallationCommand::Retained { port_id },
         } => render_read_success(
             mode,
             "installation.retained",
             service.retained_builds(&port_id)?,
             |value| retained_build_human::inventory(value, service.catalog()),
+        )?,
+        Commands::Installation {
+            command: InstallationCommand::PackageShape { port_id },
+        } => render_read_success(
+            mode,
+            "installation.package-shape",
+            service.installed_package_shapes(&port_id)?,
+            |installs| {
+                installs
+                    .iter()
+                    .map(|install| {
+                        use portcove_core::InstalledShapeStatus as Status;
+                        let state = match (install.status, &install.record) {
+                            (Status::Recorded, Some(record)) => {
+                                shape_verdict_text(&record.verdict, record.provenance)
+                            }
+                            (Status::Unrecognized, _) => {
+                                "package shape recorded in a format this version does not read"
+                                    .to_owned()
+                            }
+                            (Status::ManifestUnverifiable, _) => format!(
+                                "installation manifest could not be verified ({})",
+                                install.detail.as_deref().unwrap_or("no detail")
+                            ),
+                            _ => "no recorded package shape".to_owned(),
+                        };
+                        format!(
+                            "{}{}: {state}",
+                            install.version,
+                            if install.active { " (current)" } else { "" },
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            },
         )?,
         Commands::Installation {
             command: InstallationCommand::Reference { port_id, setup_id },
@@ -900,6 +1089,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 },
             )?;
         }
+        Commands::Artwork {
+            command: ArtworkCommand::Steamgriddb { command },
+        } => steamgriddb::execute(command, &service, mode, cli.non_interactive).await?,
         Commands::Artwork { command } => {
             execute_artwork(&service, command, mode, cli.non_interactive)?
         }
@@ -916,6 +1108,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         }
         Commands::Tool { .. } => {
             unreachable!("tool commands handle host preferences before opening a service")
+        }
+        Commands::Dat { .. } => {
+            unreachable!("DAT commands handle host preferences before opening a service")
         }
         Commands::Auth { command } => {
             let github = GithubReleaseProvider::for_library(service.library())?;
@@ -1253,6 +1448,27 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 service.game_file_scan_snapshot()?,
                 human::game_file_scan_snapshot,
             )?,
+            GameFileRootCommand::Matches(args) => render_read_success(
+                mode,
+                "source.roots.matches",
+                service.game_file_scan_matches(&args.query())?,
+                |page| human::game_file_scan_matches(page, service.catalog()),
+            )?,
+            GameFileRootCommand::Profiles { root_id } => render_read_success(
+                mode,
+                "source.roots.profiles",
+                service.game_file_root_match_profiles(&root_id)?,
+                |profiles| human::game_file_root_match_profiles(profiles, service.catalog()),
+            )?,
+            GameFileRootCommand::Stores { profile_id } => render_read_success(
+                mode,
+                "source.roots.stores",
+                match profile_id.as_deref() {
+                    Some(profile_id) => service.store_game_installs_for_profile(profile_id)?,
+                    None => service.store_game_installs()?,
+                },
+                human::store_game_installs,
+            )?,
             GameFileRootCommand::Add { path } => render_read_success(
                 mode,
                 "source.roots.add",
@@ -1323,12 +1539,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         Commands::Source {
             command: SourceCommand::Inspect { profile_id },
         } => {
-            render_read_success(
-                mode,
-                "source.inspect",
-                service.inspect_registered_source(&profile_id)?,
-                human::source_inspection,
-            )?;
+            let mut report = service.inspect_registered_source(&profile_id)?;
+            portcove_core::identify_source_report(&preferences, &mut report);
+            render_read_success(mode, "source.inspect", report, human::source_inspection)?;
         }
         Commands::Source {
             command: SourceCommand::Reuse { profile_id },
@@ -1546,10 +1759,13 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 service
                     .library()
                     .launch_request(&request_id.to_string())?
-                    .map(portcove_core::LaunchSessionView::new),
+                    .map(|record| {
+                        portcove_core::LaunchSessionView::new(record)
+                            .with_runtime_prerequisites(service.library())
+                    }),
                 |record| {
                     human_adapters::launch_record(
-                        record.as_ref().map(|view| &view.record),
+                        record.as_ref(),
                         &request_id.to_string(),
                         Some(service.catalog()),
                         cli.technical_details,
@@ -1661,6 +1877,18 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     human::port_intent_assessments(value)
                 })?;
             }
+            GamesCommand::Notices { state } => {
+                if let Some(state) = state {
+                    service.set_ready_notices_enabled(matches!(state, NoticeState::On))?;
+                }
+                let enabled = service.ready_notices_enabled()?;
+                render_read_success(
+                    mode,
+                    "games.notices",
+                    serde_json::json!({"ready_notices_enabled": enabled}),
+                    |_| human::ready_notices(enabled),
+                )?;
+            }
             GamesCommand::IntentsAcknowledge { items } => {
                 let acknowledgements = items
                     .iter()
@@ -1720,6 +1948,12 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 mode,
                 "games.folder-setup-choose",
                 Some(service.set_root_setup_implementation(&root_id, &profile_id, &port_id)?),
+                |value| human::root_setup_consent(value.as_ref()),
+            )?,
+            GamesCommand::FolderSetupCopy { root_id, copy } => render_read_success(
+                mode,
+                "games.folder-setup-copy",
+                Some(service.set_root_setup_local_copy(&root_id, copy == FolderSetupCopy::On)?),
                 |value| human::root_setup_consent(value.as_ref()),
             )?,
             GamesCommand::FolderSetups => render_read_success(
@@ -1864,9 +2098,36 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             )?;
         }
         Commands::Paths { port_id } => {
-            render_read_success(mode, "paths", service.port_paths(&port_id)?, |value| {
-                human::paths(value, service.catalog())
-            })?;
+            let paths = service.port_paths(&port_id);
+            if mode == OutputMode::Human {
+                let show_external = match &paths {
+                    Ok(paths) => paths.active_install_root.is_none(),
+                    Err(error) => error.code == portcove_core::ErrorCode::NotFound,
+                };
+                if show_external
+                    && let Ok(status) = service.status(&port_id)
+                    && status.active.is_none()
+                    && let Some(runtime) = status.external_runtime
+                {
+                    println!("{}", human::external_paths(&runtime, service.catalog()));
+                } else {
+                    let paths = paths?;
+                    let collection_root = paths.active_install_root.as_ref().and_then(|active| {
+                        service
+                            .active_installation_protection(&port_id)
+                            .ok()
+                            .flatten()
+                            .filter(|install| install.install_root == *active)?
+                            .collection_root
+                    });
+                    println!(
+                        "{}",
+                        human::paths(&paths, collection_root.as_deref(), service.catalog())
+                    );
+                }
+            } else {
+                render_success(mode, "paths", paths?)?;
+            }
         }
         Commands::Output { command } => match command {
             OutputCommand::Show { port_id } => render_read_success(
@@ -2824,6 +3085,36 @@ fn execute_tool(
     }
 }
 
+fn execute_dat(
+    preferences: &HostPreferenceStore,
+    command: &DatCommand,
+    mode: OutputMode,
+) -> Result<()> {
+    match command {
+        DatCommand::List => render_read_success(
+            mode,
+            "dat.list",
+            portcove_core::dat_reference_statuses(preferences)?,
+            |references| human::dat_references(references),
+        ),
+        DatCommand::Add { path } => render_read_success(
+            mode,
+            "dat.add",
+            portcove_core::add_dat_reference(preferences, path)?,
+            |reference| human::dat_references(std::slice::from_ref(reference)),
+        ),
+        DatCommand::Remove { dat_id } => {
+            portcove_core::remove_dat_reference(preferences, dat_id)?;
+            render_read_success(
+                mode,
+                "dat.remove",
+                portcove_core::dat_reference_statuses(preferences)?,
+                |references| human::dat_references(references),
+            )
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DeviceLoginWait {
     Poll,
@@ -3016,6 +3307,7 @@ fn execute_library(
                     human::library_metadata_file,
                 )?;
             } else {
+                service.finish_pending_artwork_removals()?;
                 render_read_success(
                     mode,
                     name,
@@ -3533,6 +3825,9 @@ fn execute_artwork(
                 )
             })
         }
+        ArtworkCommand::Steamgriddb { .. } => Err(PortcoveError::state(
+            "SteamGridDB commands are dispatched before local artwork commands",
+        )),
         ArtworkCommand::Unused => {
             render_read_success(mode, name, service.unused_local_artwork()?, |assets| {
                 human_adapters::unused_artwork(assets)
@@ -3608,6 +3903,21 @@ fn exit_code(error: &PortcoveError) -> u8 {
     }
 }
 
+/// Human shadow verdict; a compatible verdict against an unreviewed baseline
+/// says so, because it is not evidence of review.
+fn shape_verdict_text(
+    verdict: &portcove_core::ShapeVerdict,
+    provenance: portcove_core::ShapeProvenance,
+) -> String {
+    match (verdict, provenance) {
+        (
+            portcove_core::ShapeVerdict::Compatible { .. },
+            portcove_core::ShapeProvenance::Unreviewed,
+        ) => "compatible (unreviewed baseline)".to_owned(),
+        _ => verdict.label().to_owned(),
+    }
+}
+
 fn command_name(command: &Commands) -> &'static str {
     match command {
         Commands::Setup { command } => command.name(),
@@ -3642,6 +3952,9 @@ fn command_name(command: &Commands) -> &'static str {
                 GameFileRootCommand::List => "source.roots.list",
                 GameFileRootCommand::Scan(_) => "source.roots.scan",
                 GameFileRootCommand::Snapshot => "source.roots.snapshot",
+                GameFileRootCommand::Matches(_) => "source.roots.matches",
+                GameFileRootCommand::Profiles { .. } => "source.roots.profiles",
+                GameFileRootCommand::Stores { .. } => "source.roots.stores",
                 GameFileRootCommand::Add { .. } => "source.roots.add",
                 GameFileRootCommand::Relink { .. } => "source.roots.relink",
                 GameFileRootCommand::Remove { .. } => "source.roots.remove",
@@ -3659,6 +3972,11 @@ fn command_name(command: &Commands) -> &'static str {
             ToolCommand::List => "tool.list",
             ToolCommand::SetPath { .. } => "tool.set-path",
             ToolCommand::ClearPath { .. } => "tool.clear-path",
+        },
+        Commands::Dat { command } => match command {
+            DatCommand::List => "dat.list",
+            DatCommand::Add { .. } => "dat.add",
+            DatCommand::Remove { .. } => "dat.remove",
         },
         Commands::PortCapabilities { .. } => "port-capabilities",
         Commands::Status { .. } => "status",
@@ -3679,10 +3997,12 @@ fn command_name(command: &Commands) -> &'static str {
             GamesCommand::BatchShow { .. } => "games.batch-show",
             GamesCommand::Intent { .. } => "games.intent",
             GamesCommand::Intents => "games.intents",
+            GamesCommand::Notices { .. } => "games.notices",
             GamesCommand::IntentsAcknowledge { .. } => "games.intents-acknowledge",
             GamesCommand::SetupReady => "games.setup-ready",
             GamesCommand::FolderSetup { .. } => "games.folder-setup",
             GamesCommand::FolderSetupChoose { .. } => "games.folder-setup-choose",
+            GamesCommand::FolderSetupCopy { .. } => "games.folder-setup-copy",
             GamesCommand::FolderSetups => "games.folder-setups",
         },
         Commands::Launch { command } => match command {
@@ -3709,7 +4029,9 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::About => "about",
         Commands::Plan { .. } => "plan",
         Commands::Installation { command } => match command {
+            InstallationCommand::Runtimes { .. } => "installation.runtimes",
             InstallationCommand::Retained { .. } => "installation.retained",
+            InstallationCommand::PackageShape { .. } => "installation.package-shape",
             InstallationCommand::Reference { .. } => "installation.reference",
             InstallationCommand::ReferencePlan { .. } => "installation.reference-plan",
             InstallationCommand::ReferenceBind { .. } => "installation.reference-bind",
@@ -5104,6 +5426,12 @@ mod tests {
                 vec!["portcove", "tool", "clear-path", "chdman"],
                 "tool.clear-path",
             ),
+            (vec!["portcove", "dat", "list"], "dat.list"),
+            (vec!["portcove", "dat", "add", "example.dat"], "dat.add"),
+            (
+                vec!["portcove", "dat", "remove", "0123456789abcdef"],
+                "dat.remove",
+            ),
             (
                 vec!["portcove", "channel", "set", "lighthouse", "beta"],
                 "channel.set",
@@ -5125,7 +5453,7 @@ mod tests {
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
         assert_eq!(capabilities.port_capability_schema, Some(1));
-        assert_eq!(capabilities.listing_formats, [5, 6, 7, 8, 9]);
+        assert_eq!(capabilities.listing_formats, [5, 6, 7, 8, 9, 10, 11, 12]);
         assert!(
             capabilities
                 .commands
@@ -5135,12 +5463,15 @@ mod tests {
             capabilities.schema_version,
             portcove_core::API_SCHEMA_VERSION
         );
-        assert!(
-            capabilities
-                .commands
-                .iter()
-                .any(|command| command == "source.roots")
-        );
+        for name in [
+            "source.roots",
+            "source.roots.scan",
+            "source.roots.matches",
+            "source.roots.profiles",
+            "source.roots.stores",
+        ] {
+            assert!(capabilities.commands.iter().any(|command| command == name));
+        }
         assert_eq!(
             capabilities.operation_event_schema_version,
             portcove_core::OPERATION_EVENT_SCHEMA_VERSION
@@ -5154,6 +5485,13 @@ mod tests {
         assert!(capabilities.commands.contains(&"doctor".to_owned()));
         assert!(capabilities.commands.contains(&"backup".to_owned()));
         for name in [
+            "artwork.steamgriddb.status",
+            "artwork.steamgriddb.set-key",
+            "artwork.steamgriddb.clear-key",
+            "artwork.steamgriddb.search",
+            "artwork.steamgriddb.candidates",
+            "artwork.steamgriddb.choose",
+            "artwork.steamgriddb.check-listings",
             "saves",
             "saves.export-preview",
             "saves.export",
@@ -5178,10 +5516,12 @@ mod tests {
             "games.batch-show",
             "games.intent",
             "games.intents",
+            "games.notices",
             "games.intents-acknowledge",
             "games.setup-ready",
             "games.folder-setup",
             "games.folder-setup-choose",
+            "games.folder-setup-copy",
             "games.folder-setups",
         ] {
             assert!(capabilities.commands.iter().any(|command| command == name));

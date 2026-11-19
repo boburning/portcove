@@ -5,6 +5,14 @@
     "name": "ProjectR / San Francisco Rush: The Rock",
     "summary": "Arcade Rush: The Rock route using your own sfrushrk CHD/raw disk and four required audio ROMs. It uses an independently permitted Windows ProjectR installation and upstream import; Rush 2049 and console copies are different inputs. Ordinary keyboard driving is unsupported. The shared runtime/profile stays upstream-owned.",
     "project_url": "https://t3hd0gg.com/project-r/",
+    "artwork": {
+      "game_id": 122731,
+      "cover_id": 377989,
+      "image_id": "co83np",
+      "image_sha256": "e9a873207692cf5a9e9541bb2d81508e51344ef59e48f87544c5194163b490b9",
+      "game_slug": "san-francisco-rush-the-rock-alcatraz-edition",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 132,
     "listed_at": "2026-10-23",
     "platforms": [],
@@ -42,6 +50,18 @@
         }
       ],
       "help_url": "https://t3hd0gg.com/project-r/"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "san-francisco-rush-the-rock",
+      "evidence_urls": ["https://t3hd0gg.com/project-r/"],
+      "source_editions": []
+    },
+    "original_game_title": "San Francisco Rush: The Rock"
+  },
+  "original_game_review": {
+    "disposition": "separate",
+    "reason": "ProjectR is a shared runtime label; this record targets The Rock, not Rush2049. Do not merge different original racing games merely because they use one runtime.",
+    "evidence_urls": ["https://t3hd0gg.com/project-r/"]
   }
 }

@@ -235,6 +235,7 @@ mod linux {
     #[cfg(test)]
     mod tests {
         use super::*;
+        use crate::process::{ChildProcessClass, ChildProcessPolicy};
         use std::os::unix::fs::symlink;
 
         #[test]
@@ -244,7 +245,9 @@ mod linux {
             let data_root = temporary.path().join("data");
             let settings = temporary.path().join("settings");
             let shared_state = temporary.path().join("shared-state");
-            let mut command = Command::new("OpenOMF.AppImage");
+            let mut command =
+                ChildProcessPolicy::native_command(ChildProcessClass::Game, "OpenOMF.AppImage")
+                    .unwrap();
             command.env_clear().env("HOME", &home);
             let fallback = home.join(".local/share/OpenOMF");
             let (config, state, data) = preference_roots(&command).unwrap();

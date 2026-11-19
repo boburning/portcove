@@ -410,6 +410,7 @@ for (const [file, tests] of [
     ["scripts/capture-target.test.mts", "scripts/native-helper-dependencies.test.mts"],
   ],
   ["scripts/prepare-port.mts", catalogPreparationContractTests],
+  ["scripts/catalog-cover-mapping.mts", catalogPreparationContractTests],
   ["scripts/catalog-capacity.mts", ["scripts/sign-catalog.test.mts"]],
   [
     "scripts/artwork-preparation-progress.mts",
@@ -1362,6 +1363,14 @@ for (const [file, tests] of [
       "scripts/release-controller-catalog-routing.test.mts",
     ],
   ],
+  [
+    "scripts/release-opportunity.mts",
+    ["scripts/release-coordinator.test.mts", "scripts/release-controller-wake.test.mts"],
+  ],
+  [
+    "scripts/release-semantic-review-evidence.mts",
+    ["scripts/release-semantic-review.test.mts", "scripts/release-controller-wake.test.mts"],
+  ],
   ["scripts/release-publication-result.mts", ["scripts/release-publication-result.test.mts"]],
   [
     "scripts/release-publication-result-artifact.mts",
@@ -1732,6 +1741,12 @@ for (const [file, tests] of [
     ],
   ],
   [".config/nextest.toml", [...rustWorkflowContractTests, "scripts/nextest-equivalence.test.mts"]],
+  ...["scripts/check-retcomm-upstreams.mts", "scripts/retcomm-index.mts"].map(
+    (file): [string, string[]] => [
+      file,
+      ["scripts/check-retcomm-upstreams.test.mts", "scripts/development-cli-help.test.mts"],
+    ],
+  ),
   [
     "scripts/desktop-test-cli.mts",
     [
@@ -1846,7 +1861,15 @@ for (const [file, tests] of [
     ["scripts/hosted-native-continuity.test.mts", "scripts/updater-artifact-inventory.test.mts"],
   ],
   ["scripts/package-local.ps1", ["scripts/repository-skills.test.mts"]],
-  ["scripts/release-preflight.ps1", ["scripts/repository-skills.test.mts"]],
+  [
+    "scripts/release-preflight.ps1",
+    [
+      "scripts/repository-skills.test.mts",
+      // Both run the real preflight script under fixtures on Windows.
+      "scripts/dev-storage.test.mts",
+      "scripts/windows-helper-checks.test.mts",
+    ],
+  ],
   [
     "scripts/roadmap.mts",
     [
@@ -1956,7 +1979,13 @@ for (const [file, tests] of [
   ],
   [
     "crates/portcove-core/catalog/catalog.json",
-    [...catalogGeneratorContractTests, "scripts/repository-skills.test.mts"],
+    [
+      ...catalogGeneratorContractTests,
+      "scripts/repository-skills.test.mts",
+      // Runs the real catalog through the upstream health collector, so catalog
+      // growth that breaks it is caught on the pull request rather than on main.
+      "scripts/check-catalog-repositories.test.mts",
+    ],
   ],
   ["crates/portcove-core/src/catalog.rs", ["scripts/repository-skills.test.mts"]],
   [
@@ -2201,6 +2230,7 @@ for (const [file, tests] of [
   ].map((file): [string, string[]] => [file, roadmapContractTests]),
   [".github/pr-conventions.json", ["scripts/pr-conventions.test.mts"]],
   [".github/viteplus-problem-matcher.json", ["scripts/ci-baseline.test.mts"]],
+  [".github/release-content-accounting.json", ["scripts/release-content-scan.test.mts"]],
   [
     ".github/upstream-health-accounting.json",
     [
@@ -2388,13 +2418,21 @@ for (const file of [
     "scripts/application-release-budget.test.mts",
   ]);
 
+explicitNodeTests.set("scripts/release-controller-fixture-scope.mts", [
+  "scripts/ci-release-workflow.test.mts",
+]);
+
 const workflowTests = new Map([
   ["upstream-relocation-evidence.yml", ["scripts/check-catalog-repositories.test.mts"]],
+  ["hosted-installed-update.yml", ["scripts/hosted-installed-update.test.mts"]],
   [
     "hosted-native-continuity.yml",
     ["scripts/hosted-native-continuity.test.mts", "scripts/updater-artifact-inventory.test.mts"],
   ],
-  ["controller-tool-build-fixture.yml", ["scripts/release-controller-tools.test.mts"]],
+  [
+    "controller-tool-build-fixture.yml",
+    ["scripts/release-controller-tools.test.mts", "scripts/ci-release-workflow.test.mts"],
+  ],
   [
     "application-update-production.yml",
     [
@@ -2418,6 +2456,7 @@ const workflowTests = new Map([
   ["application-release-package.yml", applicationReleaseTests],
   ["application-release-private.yml", applicationReleaseTests],
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],
+  ["maintenance-inventory.yml", ["scripts/maintenance-inventory.test.mts"]],
   [
     "configured-upstream-observer.yml",
     [
@@ -2435,13 +2474,13 @@ const workflowTests = new Map([
     ["scripts/updater-artifact-inventory.test.mts", "scripts/release-payload-signing.test.mts"],
   ],
   ["pr-conventions.yml", ["scripts/pr-conventions.test.mts"]],
-  ["closing-inventory.yml", ["scripts/pr-delivery.test.mts"]],
-  ["ci-supersede.yml", ["scripts/ci-supersede.test.mts"]],
-  ["ci-required-status.yml", ["scripts/ci-supersede.test.mts"]],
+  ["closing-inventory.yml", ["scripts/pr-delivery.test.mts", "scripts/pr-conventions.test.mts"]],
+  ["ci-supersede.yml", ["scripts/ci-supersede.test.mts", "scripts/select-ci-plan.test.mts"]],
 ]);
 
 for (const file of [
   "scripts/generate-catalog.mts",
+  "scripts/catalog-cover-mapping.mts",
   "scripts/inspect-igdb-artwork.mts",
   "scripts/upstream-lineage.mts",
   "scripts/maintainer-config.mts",
@@ -3230,6 +3269,8 @@ function classifyOnePath(
     selection.actionsLint = true;
     addNodeTest(selection, "scripts/ci-workflow.test.mts");
     addNodeTest(selection, "scripts/dependency-automation.test.mts");
+    // This test scans every workflow for GitHub CLI API calls, so any workflow change selects it.
+    addNodeTest(selection, "scripts/github-client.test.mts");
     for (const testFile of workflowTests.get(path.posix.basename(file)) ?? [])
       addNodeTest(selection, testFile);
     recognized = true;
@@ -3240,6 +3281,7 @@ function classifyOnePath(
     selection.actionsLint = true;
     addNodeTest(selection, "scripts/ci-workflow.test.mts");
     addNodeTest(selection, "scripts/dependency-automation.test.mts");
+    addNodeTest(selection, "scripts/github-client.test.mts");
     recognized = true;
   }
 
@@ -3303,6 +3345,9 @@ function classifyOnePath(
     selection.scopes.add("tooling");
     for (const testFile of catalogGeneratorContractTests) addNodeTest(selection, testFile);
     addNodeTest(selection, "scripts/catalog-staged-check.test.mts");
+    // The release-content accounting is validated against the listings' port IDs.
+    if (file === "crates/portcove-core/catalog/listings.json")
+      addNodeTest(selection, "scripts/release-content-scan.test.mts");
     recognized = true;
   }
 

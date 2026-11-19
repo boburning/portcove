@@ -356,7 +356,15 @@ $previousTemp = $env:TEMP
 $previousStore = $env:pnpm_config_store_dir
 # Functions are invoked from release-preflight.ps1's script scope. This state is
 # deliberately global only inside the disposable fixture process.
-$global:PortcovePreflightUxFixture = @{root=$PSScriptRoot; phase='metadata'}
+$global:PortcovePreflightUxFixture = @{root=$PSScriptRoot; phase='metadata'; catalogToken=$null}
+Remove-Item Env:GH_TOKEN, Env:GITHUB_TOKEN -ErrorAction SilentlyContinue
+function gh {
+  # Only a github.com login is read, with prompts disabled.
+  if ($args -join ' ' -ne 'auth token --hostname github.com' -or $env:GH_HOST -ne 'github.com' -or $env:GH_PROMPT_DISABLED -ne '1') { throw 'gh was not pinned to github.com' }
+  if ($global:PortcovePreflightUxFixture.phase -eq 'token') { $global:LASTEXITCODE = 1; return }
+  $global:LASTEXITCODE = 0
+  'fixture-token'
+}
 function pnpm {
   $global:LASTEXITCODE = 0
   if ($args[0] -eq '--version') { '1.0.0' }
@@ -373,21 +381,29 @@ function node {
   elseif ($args[0] -like '*check-release-metadata.mts') {
     if ($state.phase -eq 'metadata') { $global:LASTEXITCODE = 23 }
   }
+  elseif ($args[0] -like '*check-catalog-repositories.mts' -and $state.phase -eq 'catalog') {
+    $state.catalogToken = $env:GITHUB_TOKEN
+    $global:LASTEXITCODE = 31
+  }
   else { throw 'A later command ran after the failed gate' }
 }
 function just {
-  if ($global:PortcovePreflightUxFixture.phase -ne 'audit') { throw 'Audit ran after a failed gate' }
+  $phase = $global:PortcovePreflightUxFixture.phase
+  if ($phase -eq 'catalog') { $global:LASTEXITCODE = 0; return }
+  if ($phase -ne 'audit') { throw 'Audit ran after a failed gate' }
   $global:LASTEXITCODE = 29
 }
-foreach ($phase in @('tests', 'metadata', 'audit')) {
+foreach ($phase in @('token', 'tests', 'metadata', 'audit', 'catalog')) {
   $global:PortcovePreflightUxFixture.phase = $phase
   $message = $null
   try { & (Join-Path $PSScriptRoot 'scripts/release-preflight.ps1') -Tag v0.1.0 }
   catch { $message = $_.Exception.Message }
   if (-not $message) { throw 'Failed gate was accepted' }
   if ($env:TEMP -ne $previousTemp -or $env:pnpm_config_store_dir -ne $previousStore) { throw 'Caller environment was not restored' }
+  if (Test-Path Env:GITHUB_TOKEN) { throw 'The catalog token leaked into the caller environment' }
   $message
 }
+if ($global:PortcovePreflightUxFixture.catalogToken -ne 'fixture-token') { throw 'The catalog check did not receive the resolved token' }
 `;
     const fixture = path.join(root, "fixture.ps1");
     await writeFile(fixture, script);
@@ -404,6 +420,12 @@ foreach ($phase in @('tests', 'metadata', 'audit')) {
       /check failed with exit code 23\. Command: node '[^\r\n]+' --tag 'v0\.1\.0'\./u,
     );
     assert.match(result.stdout, /audit failed with exit code 29\. Command: just audit --fresh\./u);
+    assert.match(
+      result.stdout,
+      /needs a GitHub token[^\r\n]+Nothing has been checked or built yet\./u,
+    );
+    assert.match(result.stdout, /Catalog repository check failed with exit code 31\./u);
+    assert.doesNotMatch(result.stdout + result.stderr, /fixture-token/u);
   },
 );
 
@@ -423,6 +445,7 @@ $functions = @($ast.FindAll({ param($node) $node -is [Management.Automation.Lang
 if ($functions.Count -ne 1) { throw 'Smoke function is absent or ambiguous' }
 Invoke-Expression $functions[0].Extent.Text
 $script:clock = 0
+$script:clockStep = 31
 $script:disposed = $false
 $script:stopped = $false
 $nativeAccount = $null
@@ -434,7 +457,7 @@ $script:process | Add-Member ScriptMethod Refresh {}
 $script:process | Add-Member ScriptMethod Dispose {$script:disposed=$true}
 function Start-JournaledProcess { @{process=$script:process; run=$script:run} }
 function Start-Sleep {}
-function Get-Date { $script:clock += 31; [datetime]::new(2026, 1, 1).AddSeconds($script:clock) }
+function Get-Date { $script:clock += $script:clockStep; [datetime]::new(2026, 1, 1).AddSeconds($script:clock) }
 function Stop-Process { $script:stopped=$true; $script:process.HasExited=$true }
 function Write-InstallerEvidence {}
 $message = $null
@@ -442,6 +465,36 @@ try { Invoke-ApplicationSmoke 'inert-application' 'candidate_smoke' }
 catch { $message = $_.Exception.Message }
 if (-not $script:stopped -or -not $script:disposed -or $script:run.status -cne 'forced_termination') { throw 'Owned cleanup failure state changed' }
 $message
+
+$script:clock = 0
+$script:clockStep = 1
+$script:polls = 0
+$script:run = @{}
+$script:databasePath = Join-Path ([IO.Path]::GetTempPath()) ('portcove-smoke-' + [guid]::NewGuid() + '.sqlite3')
+$script:process = [pscustomobject]@{
+  HasExited=$false; Responding=$true; MainWindowTitle='Portcove'; Id=123;
+  MainWindowHandle=[IntPtr]456; ExitCode=0
+}
+$script:process | Add-Member ScriptMethod Refresh {}
+$script:process | Add-Member ScriptMethod CloseMainWindow {
+  if (-not [IO.File]::Exists($script:databasePath)) { throw 'Window closed before the library database existed' }
+  $script:process.HasExited = $true
+  $true
+}
+$script:process | Add-Member ScriptMethod WaitForExit { $true }
+$script:process | Add-Member ScriptMethod Dispose {}
+function Start-Sleep {
+  $script:polls++
+  if ($script:polls -eq 2) { [IO.File]::WriteAllText($script:databasePath, 'fixture-db') }
+}
+function Complete-JournaledProcess {}
+try {
+  $result = Invoke-ApplicationSmoke 'inert-application' 'candidate_smoke' -ExpectedLibraryDatabase $script:databasePath
+  if ($result.exit_code -ne 0 -or $script:polls -ne 2) { throw 'Failed to verify the delayed library startup' }
+  'Delayed library startup verified'
+} finally {
+  [IO.File]::Delete($script:databasePath)
+}
 `;
     const output = execFileSync(
       "pwsh",
@@ -459,6 +512,7 @@ $message
     );
     assert.match(output, /The installed app did not open a responsive Portcove window\./u);
     assert.match(output, /retained-fixture-evidence before retrying/u);
+    assert.match(output, /Delayed library startup verified/u);
   },
 );
 

@@ -1,0 +1,77 @@
+# Tag-driven application release (owner decisions on #534, 2026-11-13 and 2026-11-14).
+# The owner pushes `vX.Y.Z` (Beta), `vX.Y.Z-preview.N` (Preview) or `v1.x.y` (Stable,
+# needs owner approval on the release-stable environment) with `just release X.Y.Z`.
+# Only the owner can create `v*` tags. Nightly previews are built from `main` by
+# nightly-preview.yml. Both call the jobs in app-release-build.yml.
+name: App release
+run-name: Release ${{ github.ref_name }}
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: app-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      channel: ${{ steps.plan.outputs.channel }}
+      prerelease: ${{ steps.plan.outputs.prerelease }}
+      environment: ${{ steps.plan.outputs.environment }}
+      feeds: ${{ steps.plan.outputs.feeds }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      # The GitHub client loads @octokit/core from the locked dependencies.
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Classify the release tag
+        id: plan
+        run: node scripts/app-release.mts plan --tag "$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+      - name: Require the tagged commit to be on protected main
+        run: |
+          git fetch --quiet origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - name: Require the Pages feed branch before anything is published
+        run: git ls-remote --exit-code --heads origin gh-pages
+      - name: Require successful CI on the tagged commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/app-release.mts ci-status --sha "$GITHUB_SHA"
+
+  release:
+    needs: plan
+    permissions:
+      contents: write
+    uses: ./.github/workflows/app-release-build.yml
+    # A called workflow sees its environment's secrets only when the caller passes
+    # them; the shared build references only the two signing secrets, in its signing step.
+    secrets: inherit
+    with:
+      version: ${{ needs.plan.outputs.version }}
+      tag: ${{ github.ref_name }}
+      prerelease: ${{ needs.plan.outputs.prerelease }}
+      feeds: ${{ needs.plan.outputs.feeds }}
+      environment: ${{ needs.plan.outputs.environment }}
+      commit: ${{ github.sha }}

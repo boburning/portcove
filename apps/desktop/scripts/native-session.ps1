@@ -26,7 +26,7 @@ if ($Mode -eq 'Snapshot' -or $Mode -eq 'SnapshotDriver' -or $Mode -eq 'SnapshotD
             elseif ($root.ParentProcessId -ne $ExpectedParentProcessId) { 'parent-id-mismatch' }
             elseif (-not $root.CreationDate) { 'application-creation-unavailable' }
             elseif ($parent.CreationDate -gt $root.CreationDate) { 'parent-newer-than-application' }
-            elseif (-not [string]::Equals($root.ExecutablePath, (Resolve-Path -LiteralPath $ApplicationPath).Path, [StringComparison]::OrdinalIgnoreCase)) { 'executable-path-mismatch' }
+            elseif (-not (Test-SameNativePath @($root.ExecutablePath, (Resolve-Path -LiteralPath $ApplicationPath).Path))) { 'executable-path-mismatch' }
             elseif ($ExpectedApplicationSha256 -notmatch '^[0-9a-f]{64}$') { 'invalid-expected-hash' }
             elseif ((Get-FileHash -LiteralPath $ApplicationPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedApplicationSha256) { 'executable-hash-mismatch' }
         if ($identityFailure) {
@@ -53,7 +53,7 @@ if ($Mode -eq 'Snapshot' -or $Mode -eq 'SnapshotDriver' -or $Mode -eq 'SnapshotD
         if ([string]::IsNullOrWhiteSpace($tree.driver.ExecutablePath) -or
             [string]::IsNullOrWhiteSpace($driverProcess.MainModule.FileName) -or
             [Math]::Abs(($driverProcess.StartTime.ToUniversalTime() - $tree.driver.CreationDate.ToUniversalTime()).TotalMilliseconds) -gt 1 -or
-            -not [string]::Equals($driverProcess.MainModule.FileName, $tree.driver.ExecutablePath, [StringComparison]::OrdinalIgnoreCase)) { throw 'Owned driver identity changed during snapshot.' }
+            -not (Test-SameNativePath @($driverProcess.MainModule.FileName, $tree.driver.ExecutablePath))) { throw 'Owned driver identity changed during snapshot.' }
         $driverRecord = [pscustomobject]@{ pid = $tree.driver.ProcessId; path = $tree.driver.ExecutablePath; started_filetime = $driverProcess.StartTime.ToFileTimeUtc().ToString([Globalization.CultureInfo]::InvariantCulture) }
     } finally { $driverProcess.Dispose() }
     $records = @($tree.processes | ForEach-Object {
@@ -65,7 +65,7 @@ if ($Mode -eq 'Snapshot' -or $Mode -eq 'SnapshotDriver' -or $Mode -eq 'SnapshotD
                 if ([string]::IsNullOrWhiteSpace($entry.ExecutablePath) -or
                     [string]::IsNullOrWhiteSpace($process.MainModule.FileName) -or
                     [Math]::Abs(($started - $entry.CreationDate.ToUniversalTime()).TotalMilliseconds) -gt 1 -or
-                    -not [string]::Equals($process.MainModule.FileName, $entry.ExecutablePath, [StringComparison]::OrdinalIgnoreCase)) { throw 'Native process identity changed during snapshot.' }
+                    -not (Test-SameNativePath @($process.MainModule.FileName, $entry.ExecutablePath))) { throw 'Native process identity changed during snapshot.' }
                 [pscustomobject]@{ pid = $entry.ProcessId; path = $entry.ExecutablePath; started_filetime = $process.StartTime.ToFileTimeUtc().ToString([Globalization.CultureInfo]::InvariantCulture) }
             } catch [InvalidOperationException] {
                 if (-not $process.HasExited) { throw }
@@ -94,7 +94,7 @@ if ($Mode -eq 'Observe') {
         if ($process) {
             try {
                 if ($process.StartTime.ToFileTimeUtc() -eq $record.started_filetime) {
-                    if (-not [string]::Equals($process.MainModule.FileName, $record.path, [StringComparison]::OrdinalIgnoreCase)) { throw 'Captured process path changed during observation.' }
+                    if (-not (Test-SameNativePath @($process.MainModule.FileName, $record.path))) { throw 'Captured process path changed during observation.' }
                     $state = 'running'
                 }
             } catch [InvalidOperationException] {
@@ -111,7 +111,7 @@ if ($Mode -eq 'RequestClose') {
     $directApplication = $snapshot.root_kind -eq 'direct-application'
     $applicationIsRoot = $snapshot.application_pid -eq $snapshot.driver.pid
     if ($records.Count -ne 1 -or $applicationIsRoot -ne $directApplication -or
-        -not [string]::Equals($records[0].path, (Resolve-Path -LiteralPath $ApplicationPath).Path, [StringComparison]::OrdinalIgnoreCase)) {
+        -not (Test-SameNativePath @($records[0].path, (Resolve-Path -LiteralPath $ApplicationPath).Path))) {
         throw 'Exactly one captured owned application is required for ordinary close.'
     }
     if ($directApplication -and
@@ -124,14 +124,14 @@ if ($Mode -eq 'RequestClose') {
     if (-not $driver) { throw 'Captured driver exited before ordinary close.' }
     try {
         if ($driver.StartTime.ToFileTimeUtc() -ne $snapshot.driver.started_filetime -or
-            -not [string]::Equals($driver.MainModule.FileName, $snapshot.driver.path, [StringComparison]::OrdinalIgnoreCase)) { throw 'Captured driver identity changed before ordinary close.' }
+            -not (Test-SameNativePath @($driver.MainModule.FileName, $snapshot.driver.path))) { throw 'Captured driver identity changed before ordinary close.' }
     } finally { $driver.Dispose() }
     $record = $records[0]
     $process = try { [Diagnostics.Process]::GetProcessById([int]$record.pid) } catch [ArgumentException] { $null }
     if (-not $process) { throw 'Captured application exited before ordinary close.' }
     try {
         if ($process.StartTime.ToFileTimeUtc() -ne $record.started_filetime -or
-            -not [string]::Equals($process.MainModule.FileName, $record.path, [StringComparison]::OrdinalIgnoreCase)) {
+            -not (Test-SameNativePath @($process.MainModule.FileName, $record.path))) {
             throw 'Captured application identity changed before ordinary close.'
         }
         $mainWindowHandle = $process.MainWindowHandle.ToInt64().ToString()
@@ -147,7 +147,7 @@ if ($Mode -eq 'ApplicationListener') {
     if ($snapshot.root_kind -ne 'direct-application' -or $Port -lt 1 -or $Port -gt 65535) { throw 'Invalid embedded listener identity request.' }
     $entry = Get-CimInstance Win32_Process -Filter "ProcessId = $([int]$snapshot.driver.pid)"
     if (-not $entry -or [Math]::Abs(($entry.CreationDate.ToUniversalTime() - [DateTime]::FromFileTimeUtc([long]$snapshot.driver.started_filetime)).TotalMilliseconds) -gt 1 -or
-        -not [string]::Equals($entry.ExecutablePath, $snapshot.driver.path, [StringComparison]::OrdinalIgnoreCase)) {
+        -not (Test-SameNativePath @($entry.ExecutablePath, $snapshot.driver.path))) {
         throw 'Embedded application identity changed before listener verification.'
     }
     $listeners = @(Get-NetTCPConnection -State Listen -ErrorAction Stop | Where-Object LocalPort -eq $Port)
@@ -170,7 +170,7 @@ if ($Mode -eq 'StopDriver' -or $Mode -eq 'StopApplication') {
                 # An exited root cannot confer authority over new descendants.
                 # Stop only individually captured, still identical survivors.
                 if ($owned.StartTime.ToFileTimeUtc() -ne $record.started_filetime) { continue }
-                if (-not [string]::Equals($owned.MainModule.FileName, $record.path, [StringComparison]::OrdinalIgnoreCase)) { throw 'Captured application descendant path changed.' }
+                if (-not (Test-SameNativePath @($owned.MainModule.FileName, $record.path))) { throw 'Captured application descendant path changed.' }
                 $owned.Kill()
                 $terminated += $owned.Id
             } catch [InvalidOperationException] {
@@ -183,7 +183,7 @@ if ($Mode -eq 'StopDriver' -or $Mode -eq 'StopApplication') {
     if (-not $process) { throw 'Captured driver exited before isolated tree termination.' }
     try {
         if ($process.StartTime.ToFileTimeUtc() -ne $snapshot.driver.started_filetime -or
-            -not [string]::Equals($process.MainModule.FileName, $snapshot.driver.path, [StringComparison]::OrdinalIgnoreCase)) { throw 'Captured driver identity changed before isolated tree termination.' }
+            -not (Test-SameNativePath @($process.MainModule.FileName, $snapshot.driver.path))) { throw 'Captured driver identity changed before isolated tree termination.' }
         $output = & taskkill.exe /PID ([string]$process.Id) /T /F 2>&1
         if ($LASTEXITCODE -ne 0) { throw "Could not terminate the captured isolated driver tree: $output" }
         $terminated = @()
@@ -194,7 +194,7 @@ if ($Mode -eq 'StopDriver' -or $Mode -eq 'StopApplication') {
                 # A reused PID belongs to a different process. The captured
                 # process has exited; never terminate its replacement.
                 if ($owned.StartTime.ToFileTimeUtc() -ne $record.started_filetime) { continue }
-                if (-not [string]::Equals($owned.MainModule.FileName, $record.path, [StringComparison]::OrdinalIgnoreCase)) { throw 'Captured isolated process path changed before termination.' }
+                if (-not (Test-SameNativePath @($owned.MainModule.FileName, $record.path))) { throw 'Captured isolated process path changed before termination.' }
                 $owned.Kill($true)
                 $terminated += $owned.Id
             } catch [InvalidOperationException] {

@@ -100,7 +100,8 @@ impl PortcoveService {
                 )
             })?;
         let qualification = self.installed_mutability_qualification(active)?;
-        Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
+        Installer::new(self.library.clone())?
+            .verify_critical_for_replacement(active, &qualification)?;
         Ok(())
     }
 

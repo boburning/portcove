@@ -41,6 +41,24 @@
       "image_sha256": "0d5d4199eba537b4cdafcc66ad790c2070a7c249996e1235fbb7cfea3f977c04",
       "game_slug": "super-mario-world",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-world",
+      "evidence_urls": [
+        "https://github.com/BTFighter/Super-Mario-World-Remastered-Plus/blob/91b704d088d81cbef96b9ebbd0f859fcd73e1a56/README.md",
+        "https://github.com/BTFighter/Super-Mario-World-Remastered-Plus"
+      ],
+      "source_editions": [
+        {
+          "id": "super-mario-world-super-nintendo",
+          "title": "Super Mario World (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/BTFighter/Super-Mario-World-Remastered-Plus/blob/91b704d088d81cbef96b9ebbd0f859fcd73e1a56/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

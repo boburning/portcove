@@ -11,7 +11,7 @@ use crate::{PortcoveError, Result, artwork_image};
 
 /// Maximum simultaneous IGDB original reads, fetches and image conversions.
 /// Hosts can wait asynchronously before dispatching this blocking Core work.
-pub const IGDB_ARTWORK_WORK_LIMIT: usize = 2;
+pub const IGDB_ARTWORK_WORK_LIMIT: usize = 6;
 
 const MAX_DERIVATIVE_BYTES: usize = 8 * 1024 * 1024;
 const MAX_DERIVATIVE_ENTRIES: usize = 256;
@@ -190,14 +190,15 @@ mod tests {
     #[test]
     fn work_budget_refuses_excess_without_waiting_and_releases_permits() {
         let budget = WorkBudget::new();
-        let first = budget.try_acquire().unwrap();
-        let second = budget.try_acquire().unwrap();
+        let mut held: Vec<_> = (0..IGDB_ARTWORK_WORK_LIMIT)
+            .map(|_| budget.try_acquire().unwrap())
+            .collect();
         assert!(
             matches!(budget.try_acquire(), Err(error) if error.code == crate::ErrorCode::Conflict)
         );
-        drop(first);
+        drop(held.pop());
         let replacement = budget.try_acquire().unwrap();
-        drop((second, replacement));
+        drop((held, replacement));
         assert_eq!(budget.0.load(Ordering::Acquire), 0);
     }
 

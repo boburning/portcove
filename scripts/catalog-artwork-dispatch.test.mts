@@ -28,6 +28,20 @@ import type { FixtureCatalog } from "./fixtures/catalog-generator-fixtures.mts";
 
 type EditExpected = { port_ids: string[]; source_profile_ids: string[]; approve?: boolean };
 
+// Each case must fail for its own reason, not an earlier unrelated refusal.
+const refusals: Record<string, RegExp> = {
+  "missing additive port": /Review independent compatibility fixture before generation/,
+  "missing frozen profile": /Review independent compatibility fixture before generation/,
+  "duplicate actual port": /Authored port filename and stable listing ID must agree/,
+  "duplicate actual profile": /source_catalog\.identities contains duplicate ids/,
+  "duplicate expected": /port_ids: nonempty unique IDs required/,
+  "legacy overlap": /port_ids: overlaps frozen legacy IDs/,
+  "unsorted expected": /port_ids: keep IDs in ascending order/,
+  "unknown fixture key": /expected only explicit identity lists/,
+  "empty expected": /source_profile_ids: nonempty unique IDs required/,
+  "invalid expected ID": /port_ids: nonempty unique IDs required/,
+};
+
 for (const [name, editInput, editExpected] of [
   [
     "missing additive port",
@@ -65,6 +79,14 @@ for (const [name, editInput, editExpected] of [
     null,
     (expected: EditExpected) => {
       expected.port_ids.push("shipwright");
+      expected.port_ids.sort();
+    },
+  ],
+  [
+    "unsorted expected",
+    null,
+    (expected: EditExpected) => {
+      expected.port_ids.reverse();
     },
   ],
   [
@@ -113,6 +135,7 @@ for (const [name, editInput, editExpected] of [
     for (const args of [[], ["--check"]]) {
       const result = fixture.run(...args);
       assert.notEqual(result.status, 0, name);
+      assert.match(String(result.stderr), refusals[name]!, name);
       assert.deepEqual(readFileSync(output), before);
     }
   });
@@ -183,7 +206,10 @@ void test("decoder initialization failure is retained by existing artwork handli
   assert.equal(fixture.factories.length, 1);
   assert.equal(fixture.processes.length, 3);
   const artwork = fixtureJson(readFileSync(join(fixture.output, "artwork-evidence.json")));
-  assert.deepEqual(artwork.records, [{ failure: true }, { failure: true }]);
+  assert.deepEqual(
+    records(artwork.records).map((item) => item.failure),
+    [true, true],
+  );
 });
 
 void test("artwork-only mode retains its eager selected-tool snapshot boundary", () => {

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "zdoom-gzdoom",
+    "artwork": {
+      "game_id": 673,
+      "cover_id": 268663,
+      "image_id": "co5rav",
+      "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+      "game_slug": "doom",
+      "match_kind": "underlying-game"
+    },
     "name": "Doom / GZDoom (ZDoom)",
     "summary": "Play compatible Doom-engine games with GZDoom’s modern display, audio and mod support using your own game files.",
     "project_url": "https://github.com/ZDoom/gzdoom",
@@ -24,7 +32,7 @@
         },
         {
           "title": "Choose your original game",
-          "instruction": "On first Play, choose a compatible game IWAD detected by GZDoom. Follow upstream’s IWAD instructions if your game is not detected; the engine and original game files are separate. For the Portcove-managed Windows player, add the folder that holds your own IWAD to GZDoom’s IWAD search paths in its settings instead of copying game files into the managed player folder."
+          "instruction": "Choose a compatible IWAD when GZDoom opens the game selector. If the managed Windows player cannot find your game, close it and open gzdoom_portable.ini in the managed player folder. Under [IWADSearch.Directories], add Path= followed by the full path to the folder holding your IWAD. If the file is empty, add the section heading first. Keep existing entries and choose Play again."
         }
       ],
       "warnings": [
@@ -34,7 +42,7 @@
       "references": [
         {
           "title": "Keep your profile and saved games",
-          "instruction": "A Portcove-managed Windows install keeps gzdoom_portable.ini, Save, Screenshots and Demos beside the managed player and does not share or import the normal-profile locations described next. GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable Windows mode uses gzdoom_portable.ini and Save beside the player instead. On Linux, preserve ~/.config/gzdoom. On Mac, preserve its Preferences and Documents data. Keep your actual data locations, original files and mods when updating the upstream runtime."
+          "instruction": "A Portcove-managed Windows install keeps gzdoom_portable.ini, Save, Screenshots and Demos beside the managed player and does not share or import the normal-profile locations described next. GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable Windows mode uses gzdoom_portable.ini and Save beside the player instead. On Linux, preserve ~/.config/gzdoom, including gzdoom.ini and savegames. On Mac, preserve ~/Library/Preferences/gzdoom.ini and ~/Documents/GZDoom, including Savegames and Screenshots. Keep any IWADs and add-ons you placed in ~/Library/Application Support/GZDoom. Keep your actual data locations, original files and mods when updating the upstream runtime."
         }
       ]
     },
@@ -65,6 +73,17 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Choose Install, then Play. In GZDoom, choose a detected game IWAD, or add the folder holding your own original game files to its IWAD search paths. Keep your originals where they are. The managed Windows player keeps its configuration (gzdoom_portable.ini), saves, screenshots and demos beside it; its normal-profile settings are not imported. GZDoom keeps some caches under your Windows local application data folder outside Portcove."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["fm_banks", "soundfonts"],
+        "executables": ["gzdoom.exe"]
+      }
     }
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The authored runtime/launcher accepts multiple Doom-family games and their distinct game data/mod choices. Preserve the broad engine scope rather than labeling it as one original.",
+    "evidence_urls": ["https://github.com/ZDoom/gzdoom#readme", "https://github.com/ZDoom/gzdoom"]
   }
 }

@@ -912,6 +912,7 @@ pub(crate) enum LifecycleFaultPoint {
     DeleteBackupDeleted,
     DeleteBackupMetadataCommitted,
     ActivationMetadataCommitted,
+    ArchiveDataAdopted,
     RelocationJournaled,
     RelocationCopyStarted,
     RelocationCopied,

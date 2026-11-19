@@ -25,6 +25,70 @@ fn release(tag: &str, assets: Vec<serde_json::Value>) -> serde_json::Value {
     })
 }
 
+#[tokio::test]
+async fn same_release_linux_asset_and_integrity_arrive_without_disturbing_windows() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("diablo-devilutionx").unwrap();
+    let channel = ReleaseChannel::Stable;
+    let windows = Platform::WindowsX86_64;
+    let linux = Platform::LinuxX86_64;
+    let tag = "v1.8.0";
+    let mut windows_asset = asset("devilutionx-windows-x86_64.zip", Some('a'));
+    windows_asset["id"] = 301.into();
+    let mut linux_asset = asset("devilutionx-linux-x86_64.appimage", None);
+    linux_asset["id"] = 302.into();
+    let snapshot = |assets| {
+        let mut release = release(tag, assets);
+        release["id"] = 300.into();
+        releases(&[release])
+    };
+    let repository = ok_json(r#"{"id":7,"archived":false}"#, "");
+    let partial = snapshot(vec![windows_asset.clone()]);
+    let missing_integrity = snapshot(vec![windows_asset.clone(), linux_asset.clone()]);
+    linux_asset["digest"] = format!("sha256:{}", "b".repeat(64)).into();
+    let complete = snapshot(vec![windows_asset, linux_asset]);
+    let (root, requests, server) = serve_http(vec![
+        repository.clone(),
+        partial.clone(),
+        repository.clone(),
+        partial,
+        repository.clone(),
+        missing_integrity,
+        repository.clone(),
+        complete,
+        repository,
+    ]);
+    let provider = GithubReleaseProvider::with_api_root(root).unwrap();
+    let initial = provider
+        .resolve_scoped(port, channel, windows, None)
+        .await
+        .unwrap();
+    assert_eq!(initial.github_identity.as_ref().unwrap().asset_id, 301);
+    for expected in [crate::ErrorCode::NotFound, crate::ErrorCode::Verification] {
+        let error = provider
+            .resolve_scoped(port, channel, linux, None)
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, expected);
+    }
+    let eligible = provider
+        .resolve_scoped(port, channel, linux, None)
+        .await
+        .unwrap();
+    let identity = eligible.github_identity.unwrap();
+    assert_eq!((identity.release_id, identity.asset_id), (300, 302));
+    assert_eq!(identity.tag, tag);
+    assert_eq!(eligible.release.asset.sha256, "b".repeat(64));
+    let retained = provider
+        .resolve_scoped(port, channel, windows, None)
+        .await
+        .unwrap();
+    assert_eq!(retained.github_identity, initial.github_identity);
+    assert_eq!(retained.release.asset, initial.release.asset);
+    server.join().unwrap();
+    assert_eq!(requests.try_iter().count(), 9);
+}
+
 fn observed_rollout_releases(id: &str) -> Vec<serde_json::Value> {
     let corpus: serde_json::Value = serde_json::from_str(include_str!(
         "../../testdata/rollout-release-selection-2026-10-26.json"
@@ -1303,6 +1367,14 @@ async fn unchanged_authored_rules_follow_versioned_packages_after_cache_expiry_a
             "BombermanRecomp-windows-x64-v0.1.1.zip",
             "v0.1.2",
             "BombermanRecomp-windows-x64-v0.1.2.zip",
+        ),
+        // v0.5.1 is a controlled successor, not a published-release claim.
+        (
+            "goldeneye-007-n64-pc-port",
+            "v0.5.0",
+            "goldeneye-pc-port-0.5.0-win64.zip",
+            "v0.5.1",
+            "goldeneye-pc-port-0.5.1-win64.zip",
         ),
     ] {
         // Use each adopted route’s actual shipped rules unchanged.
@@ -2766,6 +2838,11 @@ struct ManagedPsxArchiveExpectation {
     crash_diagnostic: bool,
     #[serde(default)]
     split_mod_paths: bool,
+    /// The observed release ran with the kit's bundled OpenBIOS. Its game
+    /// evidence stays exact, but the retail BIOS contract is bound only to
+    /// the later reviewed kits that require that BIOS.
+    #[serde(default)]
+    retail_bios_from_later_release: bool,
     #[serde(default)]
     extra_persistent_paths: Vec<String>,
 }
@@ -2786,6 +2863,10 @@ impl ManagedPsxArchiveExpectation {
             .bios_profile
             .as_deref()
             .or((!self.openbios).then_some("psx-scph-1001-bios"));
+        assert!(
+            !self.retail_bios_from_later_release || (self.bios_profile.is_some() && !self.openbios),
+            "{id}: a later retail BIOS binding needs an explicit retail profile"
+        );
         assert_eq!(port.adapter, crate::AdapterKind::PsxRecompManaged, "{id}");
         assert_eq!(port.bios_source_profile.as_deref(), bios_id, "{id}");
         let executable = match platform {
@@ -2858,6 +2939,7 @@ impl ManagedPsxArchiveExpectation {
                     "mods/packages",
                     "mods/state.toml",
                     "mods/state.toml.tmp",
+                    "mods/texture-packs",
                 ]),
                 "{id}: split player mod paths"
             );
@@ -2929,9 +3011,11 @@ impl ManagedPsxArchiveExpectation {
                 "{id}: {role:?}"
             );
             assert_eq!(contract.release_policy, None, "{id}: {role:?}");
+            let bound = observed_release
+                && !(role == crate::PortSourceRole::Bios && self.retail_bios_from_later_release);
             assert_eq!(
                 contract.applies_to_release(version, artifact_sha256),
-                observed_release,
+                bound,
                 "{id}: exact source evidence for {role:?} on {version}"
             );
         }
@@ -3220,3 +3304,6 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
         "unmatched other ZIPs: {other_zips:?}"
     );
 }
+
+#[path = "historical_selector_replay.rs"]
+mod historical_selector_replay;

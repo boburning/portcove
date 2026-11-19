@@ -1,0 +1,145 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "chocolate-doom-family",
+    "name": "Chocolate Doom",
+    "original_game_title": "Doom",
+    "summary": "Play Doom or Doom II with the original game files, or try Doom’s shareware episode.",
+    "project_url": "https://github.com/chocolate-doom/chocolate-doom",
+    "artwork": {
+      "game_id": 673,
+      "cover_id": 268663,
+      "image_id": "co5rav",
+      "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+      "game_slug": "doom",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 5663,
+    "listed_at": "2026-11-15",
+    "availability": "packages",
+    "setup_url": "https://www.chocolate-doom.org/wiki/index.php/Downloads",
+    "release_url": "https://github.com/chocolate-doom/chocolate-doom/releases/tag/chocolate-doom-3.1.1",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Set up Doom on Windows",
+          "instruction": "Choose the matching original Doom IWAD or one of the listed demo editions. Portcove keeps your original file and prepares a separate copy for Play. Saved games are separate for each exact IWAD. Keep the same original with its saves; select a separate setup to change editions."
+        }
+      ],
+      "warnings": [
+        "Keep saves with their creating game and runtime. Changing engines or game editions does not convert saved games.",
+        "A profile that points outside its local autoload or music-pack folders must be preserved and corrected before Play. Portcove does not rewrite existing settings."
+      ],
+      "help_url": "https://www.chocolate-doom.org/wiki/index.php/Downloads",
+      "references": [
+        {
+          "title": "Heretic and Strife on Windows",
+          "instruction": "The official release also offers separate chocolate-heretic and chocolate-strife Windows ZIPs. Keep each player, setup utility and DLLs together in an installation you maintain. Supply the matching Heretic IWAD, or the Strife IWAD and its accompanying voice data. These upstream alternatives retain their own setup, updates and data ownership; this managed Doom entry does not convert them into managed routes."
+        },
+        {
+          "title": "Install a distribution package on Linux or Mac",
+          "instruction": "Use your Linux distribution’s chocolate-doom package for all four players. Debian packages are available on x86-64 and ARM64. On Intel or Apple Silicon Mac, use brew install chocolate-doom on a supported Homebrew host. Run the matching chocolate-doom, chocolate-heretic, chocolate-hexen or chocolate-strife command. Your package manager owns updates."
+        },
+        {
+          "title": "Register an existing Chocolate Doom player on Linux",
+          "instruction": "Use portcove external select-preview for chocolate-doom-family with the absolute chocolate-doom executable path, --working-directory for its folder, --arg=-iwad and a separate --arg with the absolute path to your Doom or Freedoom IWAD. Repeat those details with portcove external select and pass the preview SHA-256 to --expected-preview. Start the game with portcove exec chocolate-doom-family. Removing the registration keeps the player, IWAD and profile."
+        },
+        {
+          "title": "Find settings and saves",
+          "instruction": "For a portable Windows copy, start the player in its own folder and keep the configuration and saves it writes there. On Linux the default profile is $XDG_DATA_HOME/chocolate-doom, normally ~/.local/share/chocolate-doom. On Mac it is normally ~/Library/Application Support/chocolate-doom. Preserve the actual paths if you use -config, -extraconfig or -savedir. The default per-game save folders can differ by IWAD."
+        },
+        {
+          "title": "Use a short save directory for Chocolate Hexen 3.1.1",
+          "instruction": "Chocolate Hexen 3.1.1 can fail to save when the path is long. Create a writable folder with a short absolute path and start Chocolate Hexen with -savedir followed by that path. Use a different folder for the demo and full game. Before moving either, close the game and copy its whole save folder so each slot stays with its map files."
+        }
+      ]
+    },
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "variant_label": "PC"
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "chocolate-doom-family",
+    "origin": {
+      "project_url": "https://github.com/chocolate-doom/chocolate-doom",
+      "repository": {
+        "host": "github.com",
+        "id": "230912"
+      }
+    },
+    "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "github",
+      "repository": "chocolate-doom/chocolate-doom",
+      "asset_hints": {
+        "windows-x86-64": ["chocolate-doom", "win64.zip"]
+      }
+    },
+    "source_profile": "chocolate-doom-pc-iwad",
+    "executable_hints": {
+      "windows-x86-64": ["chocolate-doom.exe"]
+    },
+    "managed_initialization": "chocolate-family-portable-v1",
+    "windows_runtime_path_policy": "relative-file-max-path",
+    "runtime_source_filename": "game.wad",
+    "runtime_source_materialization": "copy",
+    "launch_from_install_root": true,
+    "launch_arguments": [
+      "-iwad",
+      "game.wad",
+      "-config",
+      "default.cfg",
+      "-extraconfig",
+      "chocolate-doom.cfg",
+      "-savedir",
+      "savegames"
+    ],
+    "persistent_paths": [
+      "game.wad",
+      "default.cfg",
+      "chocolate-doom.cfg",
+      "savegames",
+      "autoload",
+      "music-packs"
+    ],
+    "persistent_file_patterns": [
+      {
+        "prefix": "DOOM",
+        "suffix": ".pcx"
+      },
+      {
+        "prefix": "DOOM",
+        "suffix": ".png"
+      }
+    ],
+    "runtime_mutable_paths": ["stdout.txt", "stderr.txt"],
+    "presentation": {
+      "installation_method": "staged-game-files",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "chocolate-doom-pc-iwad",
+          "label": "Doom PC IWAD (selected original or demo editions)",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The current record offers Doom or Doom II through the managed chocolate-doom player, and its external registration guide also accepts Doom/Freedoom IWADs. These are distinct original-game scopes. Heretic, Hexen and Strife are separate upstream players or separately cataloged routes; narrowing those references does not make this record a single Doom game. Preserve per-IWAD source/save requirements and do not assign one original_game.",
+    "evidence_urls": [
+      "https://github.com/chocolate-doom/chocolate-doom/blob/chocolate-doom-3.1.1/README.md",
+      "https://github.com/chocolate-doom/chocolate-doom/releases/tag/chocolate-doom-3.1.1"
+    ]
+  }
+}

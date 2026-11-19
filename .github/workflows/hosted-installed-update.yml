@@ -1,0 +1,211 @@
+name: Hosted installed update
+
+# Read-only acceptance (#52): install a published release on a fresh hosted
+# Windows VM, refuse an update while the release CLI holds the library, then let
+# the shipping updater install the production feed's newer version. Public HTTPS
+# only; no secrets, environments or write tokens. Manual dispatch only.
+on:
+  workflow_dispatch:
+    inputs:
+      from_version:
+        description: Installed (from) version, exactly as published, e.g. 0.1.0-preview.2
+        required: true
+        type: string
+      from_tag:
+        description: Release tag of the from version; empty means v<from_version>
+        required: false
+        default: ""
+        type: string
+      channel:
+        description: Update channel preference seeded before the first launch
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - beta
+      wait_minutes:
+        description: Minutes to wait for the feed to offer a strictly newer version (0-180)
+        required: true
+        default: "0"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hosted-installed-update-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  feed:
+    name: Feed offers a newer version
+    if: github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 190
+    outputs:
+      outcome: ${{ steps.gate.outputs.outcome }}
+      to_version: ${{ steps.gate.outputs.to_version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Compare the production feed with the installed version
+        id: gate
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          FROM_VERSION: ${{ inputs.from_version }}
+          FROM_TAG: ${{ inputs.from_tag }}
+          WAIT_MINUTES: ${{ inputs.wait_minutes }}
+        run: >-
+          node scripts/hosted-installed-update.mts feed-gate
+          --channel "$CHANNEL" --from-version "$FROM_VERSION" --from-tag "$FROM_TAG"
+          --wait-minutes "$WAIT_MINUTES" --output work/hosted-installed-update/feed
+      - name: Retain the feed observation
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hosted-installed-update-feed-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/hosted-installed-update/feed
+          retention-days: 30
+          if-no-files-found: error
+
+  windows:
+    name: Installed update on hosted Windows
+    needs: feed
+    if: needs.feed.outputs.outcome == 'offered'
+    runs-on: windows-2022
+    timeout-minutes: 120
+    env:
+      PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/hosted-installed-update/evidence
+      pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
+      # The shared tool cache defaults to %LOCALAPPDATA%\Portcove\tool-cache, a default
+      # Portcove location the scenario requires to be absent before it starts.
+      PORTCOVE_SHARED_TOOL_CACHE: ${{ github.workspace }}/work/tool-cache
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Record the hosted session before setup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path $env:PORTCOVE_OUTPUT_DIR | Out-Null
+          $identity = [ordered]@{
+            source = $env:GITHUB_SHA
+            workflow = $env:GITHUB_WORKFLOW_REF
+            run_id = $env:GITHUB_RUN_ID
+            run_attempt = $env:GITHUB_RUN_ATTEMPT
+            image_os = $env:ImageOS
+            image_version = $env:ImageVersion
+            os = [Runtime.InteropServices.RuntimeInformation]::OSDescription
+            session_id = [Diagnostics.Process]::GetCurrentProcess().SessionId
+            user_interactive = [Environment]::UserInteractive
+            started_at = [DateTime]::UtcNow.ToString('o')
+          }
+          $identity | ConvertTo-Json | Set-Content "$env:PORTCOVE_OUTPUT_DIR/host.json"
+          if (-not $identity.user_interactive -or $identity.session_id -le 0) {
+            throw 'Hosted interactive desktop is unavailable; the acceptance cannot observe the UI.'
+          }
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+          cache: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: ./.github/actions/setup-rust
+      # Shared reviewed runtime floor, debugging-port policy and exact driver readiness.
+      - uses: ./.github/actions/prepare-hosted-webview
+      - name: Install locked packages and the pinned WebDriver tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          pnpm install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { throw 'Locked package installation failed.' }
+          ./scripts/bootstrap-quality-tools.ps1 -Profile native-drivers
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned driver bootstrap failed.' }
+      - name: Install, refuse while held, update and verify
+        # Below the job limit so the summary and evidence upload still run.
+        timeout-minutes: 95
+        shell: pwsh
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          FROM_VERSION: ${{ inputs.from_version }}
+          FROM_TAG: ${{ inputs.from_tag }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          node apps/desktop/scripts/desktop-hosted-installed-update.mts `
+            "--from-version=$env:FROM_VERSION" "--from-tag=$env:FROM_TAG" "--channel=$env:CHANNEL" `
+            --work "$env:GITHUB_WORKSPACE/work/hosted-installed-update/run" `
+            --output $env:PORTCOVE_OUTPUT_DIR `
+            --tool-state "$env:GITHUB_WORKSPACE/work/tool-bin/tool-state.json"
+          if ($LASTEXITCODE -ne 0) { throw 'Installed update acceptance failed; see report.json in the evidence artifact.' }
+      - name: Summarize the outcome
+        if: always()
+        shell: pwsh
+        run: |
+          $report = Join-Path $env:PORTCOVE_OUTPUT_DIR 'report.json'
+          if (-not (Test-Path -LiteralPath $report)) { "### Installed update`n`nNo report was written." >> $env:GITHUB_STEP_SUMMARY; exit 0 }
+          $data = Get-Content -Raw -LiteralPath $report | ConvertFrom-Json
+          $outcome = if ($data.outcome -eq 'running') { 'interrupted (the scenario did not finish)' } else { $data.outcome }
+          $lines = @("### Installed update: **$outcome**", '', "From $($data.inputs.from_version) to $($data.feed_at_check.offer.version)", '')
+          $skipped = @($data.checks | Where-Object { $_.outcome -eq 'skipped' })
+          if ($skipped.Count) {
+            $lines += "> [!WARNING]"
+            $lines += "> $($skipped.Count) check(s) skipped; they are not acceptance:"
+            foreach ($entry in $skipped) { $lines += "> - **$($entry.name)**: $($entry.detail)" }
+            $lines += ''
+          }
+          $relaunch = if ($data.relaunch) { $data.relaunch.mode } else { 'not reached' }
+          $lines += "Relaunch: **$relaunch**"
+          foreach ($name in 'default_locations_appeared_after_relaunch', 'default_locations_appeared') {
+            if ($null -eq $data.$name) { $lines += "- ${name}: not reached" }
+            elseif (@($data.$name).Count -eq 0) { $lines += "- ${name}: none" }
+            else { $lines += "- ${name}: $(@($data.$name) -join ', ')" }
+          }
+          $lines += ''
+          foreach ($entry in $data.checks) { $lines += "- $($entry.outcome): $($entry.name)" }
+          if ($data.error) { $lines += ''; $lines += "Error: $($data.error)" }
+          $lines -join "`n" >> $env:GITHUB_STEP_SUMMARY
+      - name: Retain the acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hosted-installed-update-windows-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/hosted-installed-update/evidence
+          retention-days: 30
+          if-no-files-found: error
+
+  verdict:
+    name: Acceptance verdict
+    needs: [feed, windows]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Fail unless the installed update passed
+        env:
+          FEED: ${{ needs.feed.result }}
+          OUTCOME: ${{ needs.feed.outputs.outcome }}
+          TO_VERSION: ${{ needs.feed.outputs.to_version }}
+          WINDOWS: ${{ needs.windows.result }}
+        run: |
+          {
+            echo "### Verdict"
+            echo
+            echo "- Feed gate: $FEED ($OUTCOME, feed version ${TO_VERSION:-unknown})"
+            echo "- Windows installed update: $WINDOWS"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$WINDOWS" == success ]]; then exit 0; fi
+          if [[ "$OUTCOME" == not-newer ]]; then
+            echo "::error::Not accepted: the feed offers no version newer than the installed one, so no update was attempted."
+          else
+            echo "::error::Not accepted: the installed update did not pass."
+          fi
+          exit 1

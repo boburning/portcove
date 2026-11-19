@@ -1,6 +1,6 @@
 import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
 import { randomUUID } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { link, lstat, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -22,6 +22,7 @@ export type IdentityProbeRunner = (
 export interface ProcessIdentityOptions {
   platform?: string;
   spawnSync?: IdentityProbeRunner;
+  signalZero?: (pid: number, signal: 0) => unknown;
   readFileSync?: (file: string, encoding: "utf8") => string;
   processToken?: string | undefined;
 }
@@ -175,6 +176,21 @@ export function readProcessIdentity(
     }
   }
   if (platform === "win32") {
+    // Fixture platforms/runners must not probe unrelated PIDs on the test host.
+    const signalZero: ProcessIdentityOptions["signalZero"] =
+      options.signalZero ??
+      (process.platform === "win32" && options.spawnSync === undefined
+        ? (target) => process.kill(target, 0)
+        : undefined);
+    if (signalZero) {
+      try {
+        signalZero(pid, 0);
+      } catch (error) {
+        if (errorCode(error) === "ESRCH") return null;
+        // Permissions and other failures are uncertain: retain the CIM probe.
+      }
+    }
+    // Existence alone never establishes the recorded process creation identity.
     const inspected = runIdentityProbe(
       run,
       "pwsh.exe",
@@ -227,6 +243,66 @@ export function readProcessIdentity(
       : null;
   }
   throw new Error(`unsupported process-identity platform: ${platform}`);
+}
+
+type WindowsProcessQuery = (
+  executable: string,
+  args: readonly string[],
+  options: { encoding: "utf8"; timeout: number; maxBuffer: number; windowsHide: boolean },
+) => string;
+
+function readWindowsProcessIdentities(run: WindowsProcessQuery) {
+  const script = [
+    "$ErrorActionPreference = 'Stop'",
+    "Get-CimInstance Win32_Process -Filter 'ProcessId > 0' -Property ProcessId,CreationDate | ForEach-Object {",
+    "  $ticks = if ($null -eq $_.CreationDate) { '?' } else { $_.CreationDate.ToUniversalTime().Ticks }",
+    "  '{0}:{1}' -f $_.ProcessId,$ticks",
+    "}",
+  ].join("\n");
+  let raw: string;
+  try {
+    raw = run("pwsh.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script], {
+      encoding: "utf8",
+      timeout: 15_000,
+      maxBuffer: 256 * 1024,
+      windowsHide: true,
+    });
+  } catch (error) {
+    throw Object.assign(
+      new Error("Windows process identity snapshot query failed", { cause: error }),
+      {
+        code: "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE",
+      },
+    );
+  }
+  const identities = new Map<number, string | null>();
+  for (const line of raw.trim().split(/\r?\n/u)) {
+    const match = /^([1-9]\d{0,9}):([1-9]\d{0,18}|\?)$/u.exec(line);
+    const pid = Number(match?.[1]);
+    if (!match || pid > 0xffff_ffff || identities.has(pid)) {
+      throw new Error("Invalid Windows process identity snapshot");
+    }
+    identities.set(pid, match[2] === "?" ? null : `win32:${pid}:${match[2]}`);
+  }
+  return identities;
+}
+
+/** Snapshot identity once per passive observation. Admission uses live identity probes. */
+export function passiveProcessIdentityReader(
+  platform = process.platform,
+  run: WindowsProcessQuery = execFileSync,
+): typeof readProcessIdentity {
+  if (platform !== "win32") return readProcessIdentity;
+  let identities: ReturnType<typeof readWindowsProcessIdentities> | undefined;
+  return (pid) => {
+    identities ??= readWindowsProcessIdentities(run);
+    const identity = identities.get(pid);
+    if (identity === null)
+      throw Object.assign(new Error(`Windows process ${pid} has no observed creation identity`), {
+        code: "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE",
+      });
+    return identity ?? null;
+  };
 }
 
 function validProcess(record: unknown): record is HeavyProcessRecord {
@@ -345,6 +421,32 @@ function cleanupReceiptOutcome(
   }
 }
 
+function linuxBoot(record: HeavyProcessRecord) {
+  const match =
+    /^linux:([a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}):([1-9][0-9]*):([0-9]+)$/u.exec(
+      record.identity,
+    );
+  return match && Number(match[2]) === record.pid ? match[1] : null;
+}
+
+/** A previous kernel cannot retain local processes. Remote custody is separate. */
+function previousLinuxBoot(
+  owner: HeavyRustOwner,
+  inspectProcessIdentity: typeof readProcessIdentity,
+) {
+  if (process.platform !== "linux" || owner.external) return false;
+  if (
+    owner.child &&
+    (owner.child.containment !== "unix-watchdog" || owner.child.tree_platform !== undefined)
+  )
+    return false;
+  const previous = linuxBoot(owner.process);
+  if (!previous || (owner.child && linuxBoot(owner.child) !== previous)) return false;
+  const identity = inspectProcessIdentity(process.pid);
+  const current = identity ? linuxBoot({ pid: process.pid, identity }) : null;
+  return current !== null && current !== previous;
+}
+
 function activeRecord(
   owner: HeavyRustOwner,
   inspectProcessIdentity: typeof readProcessIdentity,
@@ -353,6 +455,7 @@ function activeRecord(
 ): ActiveRecord | null {
   if (owner.external)
     return { kind: "external work awaiting quiescence proof", record: owner.process };
+  if (previousLinuxBoot(owner, inspectProcessIdentity)) return null;
   for (const [kind, record] of [
     ["owner", owner.process],
     ["child", owner.child],

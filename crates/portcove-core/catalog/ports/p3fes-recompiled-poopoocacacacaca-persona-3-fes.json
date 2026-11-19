@@ -5,10 +5,10 @@
     "name": "Persona 3 FES — p3fes-recompiled (poopoocacacacaca)",
     "original_game_title": "Persona 3 FES",
     "summary": "Boot, menus and New Game are reported to work. Further gameplay is not established by this status. This implementation remains separate from the VirtualAK runtime. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-    "project_url": "https://github.com/poopoocacacacaca/p3fes-recompiled",
+    "project_url": "https://github.com/ppkkkkk/p3fes-recompiled",
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/poopoocacacacaca/p3fes-recompiled",
+    "setup_url": "https://github.com/ppkkkkk/p3fes-recompiled",
     "manual_setup": {
       "steps": [
         {
@@ -24,7 +24,7 @@
         "Boot, menus and New Game are reported to work. Further gameplay is not established by this status. This implementation remains separate from the VirtualAK runtime.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/poopoocacacacaca/p3fes-recompiled"
+      "help_url": "https://github.com/ppkkkkk/p3fes-recompiled"
     },
     "issue_number": 3059,
     "listed_at": "2026-10-25",
@@ -35,6 +35,26 @@
       "image_sha256": "c6b1e4a86df1788363949e077f35ca78f772d61e4e627971ccab3168ca911d0e",
       "game_slug": "persona-3-fes",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "persona-3-fes",
+      "evidence_urls": [
+        "https://github.com/ppkkkkk/p3fes-recompiled",
+        "https://api.github.com/repositories/1419286783",
+        "https://api.github.com/users/poopoocacacacaca",
+        "https://api.github.com/repos/poopoocacacacaca/p3fes-recompiled"
+      ],
+      "source_editions": [
+        {
+          "id": "persona-3-fes-playstation-2",
+          "title": "Persona 3 FES (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/ppkkkkk/p3fes-recompiled/blob/b53437748ded7e11a955ae79e94414d147a1ba17/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -47,6 +67,48 @@
         "id": "1419286783"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/poopoocacacacaca/p3fes-recompiled",
+          "repository": {
+            "host": "github.com",
+            "id": "1419286783"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/ppkkkkk/p3fes-recompiled",
+          "repository": {
+            "host": "github.com",
+            "id": "1419286783"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The account poopoocacacacaca no longer exists, and the repository's history and contributors continue under ppkkkkk, which is how a renamed owner account appears. A GitHub account rename keeps the repository, its ID and its history. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1419286783",
+            "note": "Repository ID 1419286783, recorded when this port was listed, resolves to ppkkkkk/p3fes-recompiled."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/users/poopoocacacacaca",
+            "note": "The former owner login poopoocacacacaca returns HTTP 404."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/poopoocacacacaca/p3fes-recompiled",
+            "note": "The listed path resolves to ppkkkkk/p3fes-recompiled, repository ID 1419286783."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "2c015a0749ce2bd0f8b68b6440c629573e70b3851afa7cd3a972947ddbdf91ab"
+        }
+      }
+    ]
   }
 }

@@ -6,6 +6,14 @@
     "original_game_title": "Scrabble (1999)",
     "summary": "The project describes a native playable board-and-word runtime with an enhanced frontend. Complete opponent and game-mode coverage have not been verified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Bitsandbreakpoints/scrabble-psx-pc-recomp",
+    "artwork": {
+      "game_id": 407938,
+      "cover_id": 574181,
+      "image_id": "cocb1h",
+      "image_sha256": "939f482b75aedcaa8b6b289a1bff04eec5489dc561fa1446c85f7fc84e517c99",
+      "game_slug": "scrabble--13",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",

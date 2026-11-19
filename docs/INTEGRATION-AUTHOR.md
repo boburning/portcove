@@ -1,9 +1,10 @@
 # Build an external Portcove client
 
-Build against the public CLI, its exported schemas and one explicitly selected
-library. Core owns admission, plans, consent-bound execution, lifecycle state and
-recovery. The client presents that authority; it does not read SQLite or infer
-permission from a catalog flag.
+Build against the public CLI and its exported schemas. Select one library.
+Core decides what the client can do, prepares plans, and runs them with the
+player's consent. Core also keeps installation state and handles recovery.
+Use the CLI to present those results. Do not read SQLite or treat a catalog flag
+as permission to act.
 
 | Stage                 | Use this recipe                                                   | Required observation or boundary                                                                                 |
 | --------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
@@ -23,13 +24,14 @@ consumer. Its protocol and process files are examples, not a general SDK or
 permission to copy core lifecycle rules. See [integration ownership](INTEGRATIONS.md)
 and the complete [CLI contract](CLI.md).
 
-Choose only the capability level the client needs. A launch-only client binds
-identity, readiness and supervised launch; library integration adds stable entry
-discovery/refresh; lifecycle integration adds explicit management, progress and
-recovery. A basic launcher is not required to implement every management command.
-Negotiate the operations and schemas actually used, and keep unsupported higher
-levels unavailable rather than accepting consequential data the client cannot
-interpret.
+Choose the capability level that the client needs. A launch-only client binds
+the selected library identity, checks readiness, and uses supervised launch.
+A library client also finds and refreshes entries. A lifecycle client adds
+management commands, progress, and recovery.
+
+Check which operations and schemas both the client and the CLI support. If
+either lacks support or the client cannot interpret a required field, keep the
+affected operation unavailable.
 
 ## Choose a CLI and fixture library
 
@@ -40,13 +42,11 @@ interpret.
    Published Alpha 2 exposes API 34. It cannot run this guide's schema-42 identity
    and launch-request path or later reviewed management. Do not silently substitute
    that preview for a compatible artifact.
-3. For current development, reuse an exactly identified compatible candidate
-   through the [maintained packaging route](RELEASING.md#standalone-cli-integration-artifact).
-   Retain source commit, package and extracted-executable SHA-256, host prerequisites
-   and the capabilities actually read. A local release-profile build can retain an
-   Alpha 2 product-version string while exposing newer APIs; it is still a local
-   candidate, not the historical published package. The final published-client
-   claim must identify an available compatible released artifact.
+3. When a published CLI meets your requirements, record its version, host,
+   checksum and reported capabilities. Otherwise use an identified source build
+   and record its revision and executable checksum. The
+   [published package inventory](DOWNLOADS.md#published-previews) lists which
+   platforms have standalone downloads for each named release.
 4. Select a disposable fixture directory or a library explicitly chosen by the
    player. Pass `--library` on every invocation, including readback and recovery.
    `library show` inspects selection without opening the library; `library identity`
@@ -74,7 +74,7 @@ trust values, required capabilities and future API versions remain refused.
 See [the CLI flow](CLI.md#using-the-cli) and
 [retained consumer commitments](reference/upstream-first-compatibility.md).
 
-Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+Use the [CLI game-channel contract](CLI.md#release-channels) to interpret stored values and choose arguments compatible with the client's CLI.
 
 Choose each engine-template requirement from the actual declared route and
 policy in [the owning definition contract](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation),
@@ -110,9 +110,10 @@ claim an unattended service. Record artifact, environment, scenario, observation
 limits and a bounded continuation state through the existing evidence workflow.
 
 Use the runtime's argument-array API with shell execution disabled. These are
-program/argument objects, not shell command strings:
+program/argument objects. Parse one JSON value per line and pass each argument
+array directly to the process API.
 
-```json
+```jsonl
 {"program":"H:/candidate/portcove.exe","args":["--library","H:/fixtures/library","--non-interactive","--json","capabilities"]}
 {"program":"H:/candidate/portcove.exe","args":["--library","H:/fixtures/library","--non-interactive","--json","library","identity"]}
 {"program":"H:/candidate/portcove.exe","args":["--library","H:/fixtures/library","--non-interactive","--json","catalog","list"]}
@@ -122,8 +123,8 @@ program/argument objects, not shell command strings:
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 only the required command names and formats: launch-only needs JSON plus raw
 `exec`, read-only library integration needs JSON, and lifecycle operations add
-JSONL. The reference supports API 42–57, 60–63 or 65–88/events 2–3; schema 50 advertises
-the event authority as `operation_event_schema_version`, while the historical
+JSONL. Check the [reference client's supported API and event schemas](../integrations/playnite/README.md#compatibility-and-use).
+Schema 50 advertises the event authority as `operation_event_schema_version`, while the historical
 42–49 window retains its documented event-2 contract. Schema 51 replaces the
 activity array with a feed whose protected ID sets and completeness fields must
 be consumed by lifecycle clients; absence from bounded terminal history is not
@@ -236,9 +237,9 @@ game updates, catalog/definition updates and plugin updates retain their
 ## Launch and reconnect
 
 Generate a new UUID for an explicit launch decision and retain it before starting
-the process. Invoke the same program with these argument arrays:
+the process. Each line below is a separate JSON argument array for the same executable.
 
-```json
+```jsonl
 ["--library","H:/fixtures/library","--non-interactive","exec","shipwright","--request-id","19c66cf0-656f-4a02-9c0b-dba89767ab4e"]
 ["--library","H:/fixtures/library","--non-interactive","--json","launch","show","19c66cf0-656f-4a02-9c0b-dba89767ab4e"]
 ["--library","H:/fixtures/library","--non-interactive","--json","launch","recover","19c66cf0-656f-4a02-9c0b-dba89767ab4e"]
@@ -279,11 +280,67 @@ builds or require clients to acquire compilers. See
 Clients display Core's complete current plan, acquisitions and capacity when
 offered, obtain its required consent and consume its action/readiness decisions.
 They must not execute catalog build instructions or derive eligibility from a
-historical recipe name. The maintained reference accepts API88 within its reviewed
-42–57, 60–63 or 65–88 membership and event schemas 2–3; unknown future APIs,
-unsupported required capabilities and unknown execution/ownership semantics
+historical recipe name. The [reference client](../integrations/playnite/README.md#compatibility-and-use)
+lists the schema bands it accepts. Unknown future APIs, unsupported required
+capabilities and unknown execution/ownership semantics
 remain refused. API or template negotiation alone grants no admission or operation
 authority.
+
+API 100 adds exact original and typed settings review for recipes, and commands
+to check or discard private acquisition. Use the fresh plan digest and applicable
+target-local permission to apply. Event schema remains 3.
+
+Desktop's ordinary mod-setup inventory can report retained-build availability
+`present`: registered runtime metadata, executable presence and current policy
+were checked, but immutable payload contents were not. Treat it as a preview,
+not execution permission or a full integrity result. The matching Desktop
+consumer explains the deferred check and still submits actions to Core. CLI
+`profile list`, `profile setups`, explicit retained-build inspection and consequential operations
+keep their existing full verification. This Desktop preview adds no CLI API or
+event version and does not widen a reference client's advertised version window.
+
+API 98 exposes `profile inspect-mod-file` and `profile preserve-mod-file`.
+Use the exact plan digest to preserve one unmanaged or edited mod file.
+Playnite continues using Core’s existing lifecycle commands.
+
+API 97 exposes `profile recover-plan` and `profile recover` with the exact
+review digest, and `profile copy` can copy supported progress when both source
+and destination identities match. Core checks native mod-list holds before
+starting play. Playnite still calls the existing supervised `exec` route and
+consumes Core's readiness and launch observations.
+
+API96 exposes saved original instances, explicit selection and byte-verified
+relinking for customized mod setups. Selection binds a new setup revision.
+Relinking retains the exact original's identity. The Playnite reference uses the
+same status, readiness and launch operations and delegates pinned-input checks
+to Core.
+
+API 95 adds reviewed Thunderstore dependency wrappers to `profile provider-plan`
+and `profile provider-apply`. Carry the whole exact plan forward for review.
+Playnite keeps its existing status, readiness and lifecycle commands.
+
+API 94 adds exact local mod package review and apply. Use Core’s plan digest
+when confirming installation. The Playnite reference keeps its existing commands.
+
+API93 lets that check confirm a withdrawal and remove Portcove's copy of a
+provider-only image (writer schema 59, library metadata schema 10), and adds
+`artwork_state.evicted_at`, withdrawal fields on `provider_listing`, and the
+report's `effect` and removal counts; the reference client consumes none of them.
+
+API92 makes `artwork steamgriddb check-listings` record listing evidence in the
+library (writer schema 58) and adds `artwork_state.provider_listing`; the reference
+client consumes neither.
+
+API91 adds the `artwork steamgriddb check-listings` command and its
+`steamgriddb_listing_report` result; the reference client does not use it.
+
+API90 adds the landscape artwork slot to `artwork_state` and the CLI `--slot`,
+and moves the destination handoff to schema 4; the reference client consumes
+neither.
+
+API89 adds provider attribution for chosen SteamGridDB images to
+`artwork_state` and the destination handoff (handoff schema 3); the reference
+client consumes neither.
 
 API88 adds provider-qualified GitLab release and registry-file references to
 self-service download selection. GitHub references remain numeric; GitLab
@@ -391,7 +448,7 @@ see [the managed contract and recovery path](reference/managed-regaiden.md).
 
 Current event records have **event schema 3 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's supported 42–57, 60–63 or 65–88 membership. Some
+schema from the [client's supported set](../integrations/playnite/README.md#compatibility-and-use). Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core
@@ -442,7 +499,7 @@ claim for the core result.
 
 API 67 introduced an optional, independently versioned `artwork_handoff_schema`
 capability and the `artwork.handoff` / `artwork.handoff-bytes` commands; current
-Core advertises and accepts only schema 2. A destination
+Core advertises and accepts only schema 4. A destination
 adapter such as #292 must negotiate all three before using them. API envelopes and
 operation events retain their existing versions; existing cover/detail clients
 and clients that ignore this optional capability remain compatible.
@@ -467,12 +524,25 @@ Schema 2 adds the hero role: it is bound to the Detail choice and offers the
 accepted Detail original only when that image is displayed wider than tall,
 including any embedded quarter-turn orientation; a selected
 Detail image that is not reports `selected_image_not_wide`, and no Detail import
-reports `no_local_original`. The landscape role explicitly reports
-`role_not_provided`. Catalog defaults report `no_local_original`, even if a
+reports `no_local_original`. Schema 4 binds the landscape role to the Landscape
+choice under the same wide rule and reasons as the hero role; `role_not_provided`
+is no longer produced, and readers of schema 4 refuse it. Catalog defaults report
+`no_local_original`, even if a
 disposable display thumbnail exists. Missing or invalid selected originals report
-`selected_original_unavailable` while retaining the choice and provenance.
+`selected_original_unavailable` while retaining the choice and provenance, as do
+originals Portcove removed after a confirmed SteamGridDB withdrawal (API 93),
+whether or not the file has been deleted yet. An external destination adapter
+learns of an eviction only through `artwork_state.evicted_at` for the current
+selection; it gets no lookup for images it copied earlier, and it never removes
+its own copies on that basis without the player's explicit review.
 Generated fallback also has no reusable original. Never stretch or destructively
 crop one role into another; originals are exported unmodified.
+
+Schema 3 adds a required `attribution` array. It lists provider credits for the
+selected local image (provider, provider image and game IDs, role, author name,
+optional author Steam ID, CDN source URL and fetch time) and is empty for a purely
+local import and for every other source. A destination that presents the image
+should show the author credit; the credit grants no redistribution permission.
 
 The bytes command requires the previously observed library ID, choice revision and
 asset digest, rechecks them under the artwork lock, and returns the complete handoff
@@ -482,7 +552,7 @@ original whose embedded orientation turns it a quarter turn. Stale bindings fail
 preview. Originals retain the existing 16 MiB limit; bound process output for JSON
 array expansion as well. Validate the handoff, byte count, digest and decode before
 storing a durable destination copy. Exported `destination_artwork_handoff` and
-`destination_artwork_bytes` schemas describe schema 2; the Core readers additionally reject
+`destination_artwork_bytes` schemas describe schema 4; the Core readers additionally reject
 contradictory identity/source/content combinations. Unknown versions, roles,
 provenance kinds or availability values require refusal, not inferred success.
 
@@ -627,9 +697,61 @@ and the existing owning issue. Link the exact public response and reproduction,
 state expected versus observed behavior, preserve failures, and identify the next
 capable action. [Architecture ownership](ARCHITECTURE.md#find-the-owning-boundary),
 [CLI schema history](reference/cli-schema-history.md) and
-[platform/package limits](RELEASING.md#standalone-cli-integration-artifact) provide
+[platform and package availability](DOWNLOADS.md#published-previews) provide
 the subsystem and migration routes. No private source bytes, credentials or
 unredacted personal library paths belong in a public report.
+
+## Make your port work with launchers
+
+Publish the game for each operating system and processor you support. Name
+both in the download and identify the game executable and working directory.
+Offer a native Linux tarball alongside the AppImage when the game can run from
+an extracted directory. Document its system dependencies and keep the installer,
+symbols, SDK and builder separate from the runnable package.
+
+1. Describe the original files the player needs, including supported regions,
+   revisions and disc numbers. Document which files are needed for the first
+   launch and how to add more later.
+2. Separate setup from Play. Keep the prepared files across restarts. Give
+   launchers a documented command to start the prepared game, and give players a
+   way to reopen settings or repair setup. Document the supported arguments,
+   including where a game path, data directory or fullscreen switch applies.
+3. List where the game actually writes saves and settings in its default and
+   portable modes. If it uses Linux XDG directories, name the variables and
+   defaults. Let a launcher-managed installation disable the game's updater
+   through a supported option, and document who updates an external installation.
+4. For headless setup, document the supported input and output arguments,
+   progress output, success and error exit codes, and how cancellation stops
+   child processes and handles partial output. Keep the user-facing setup route
+   available for players who launch the game themselves.
+
+### Walk through a working integration
+
+The [Ship of Harkinian descriptor](../examples/integrations/shipwright/portcove.json)
+uses the official Windows x86-64 portable package. Its source profile identifies
+supported Ocarina of Time originals. Portcove passes the verified original to
+Ship of Harkinian. The game creates its data archives, which Portcove preserves
+for later Play. The game retains its settings
+interface, and the descriptor also exposes reviewed JSON settings in Portcove.
+The descriptor declares the persistent `saves` directory and other data to carry
+through a managed update. Portcove owns package replacement for this route.
+
+For a released package, a format-2 compatibility record can describe
+`launch_behavior.first_launch` and `launch_behavior.repeat_launch`. Bind each
+record to the platform, route, release and SHA-256 of the package you checked.
+Use `upstream-reported` for published setup instructions and `observed` for a
+recorded native result. The [Lost Odyssey listing](../crates/portcove-core/catalog/ports/lost-odyssey-recomp.json)
+shows a Windows ZIP that opens an importer on first launch and can reuse
+imported data on later launches. These facts describe the selected package.
+Portcove continues to check access to each operation when the player uses it.
+
+Start with the [minimal example](../examples/integrations/shipwright/basic.portcove.json)
+and run the [descriptor validator](#game-author-descriptors). With a reviewed
+integration and a clean library, supply the originals once, play, save and quit, then reopen
+the launcher, play again, and load the save. Reopen settings and verify that a
+package update preserves both preferences and the save. For help with an existing
+port, use its [Portcove issue](https://github.com/boburning/portcove/issues).
+For general integration questions, use [Portcove Discussions](https://github.com/boburning/portcove/discussions).
 
 ## Game-author descriptors
 
@@ -829,6 +951,18 @@ is not converted implicitly or given precedence. Arbitrary preparation programs,
 expanded home/config paths, unconstrained arguments/environment, file clearing,
 account/cloud actions and executable fallbacks are not interoperability grants.
 
+Reuse the facts from a RecompLauncher descriptor when proposing a Portcove
+integration. Each fact still goes through the review for its Portcove field.
+
+| RecompLauncher concept                | Portcove review                                                                                                  |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Release repository and package layout | Listing and release source, target OS and processor, package selector and executable hints                       |
+| `game` and `game.dumps`               | Source profile with supported inputs and verified byte identities                                                |
+| `start`                               | Reviewed executable and working directory, with supported launch arguments where the route allows them           |
+| `config` and `settings`               | `game_settings` for a supported document format and each reviewed setting                                        |
+| `saves`                               | Managed persistent paths or the declared external data locations for the route                                   |
+| `prepare`                             | An existing preparation adapter or a separately reviewed capability for a supported upstream preparation command |
+
 The inspected repository's license is
 [GPL version 3](https://github.com/elripalda/RecompLauncher/blob/6ab3f113934baae14cb2c1f4348ca61d16897f49/LICENSE).
 This is an attribution/license observation, not permission to copy its
@@ -841,10 +975,10 @@ For fitting ordinary work, prefer authoring-only `route_facts_v1`: a Windows
 prepared player basename, executable-parent working directory, literal arguments
 and actual external data locations. Source-free here means no Core source binding,
 not that the game requires no originals. Preserve upstream original-file setup,
-bespoke actions and immediate warnings. Managed facts currently cover only the
-existing NativePortable GitHub shape without a Core source binding. Other shapes
-keep their working route and specific limitation; do not infer operational facts
-from prose or expand the schema to fit them.
+bespoke actions and immediate warnings. See the [managed-native authoring
+requirements](CATALOG.md#choose-a-reusable-authoring-route) for integrations with
+verified originals or with no Core source binding. Preserve the existing route
+for shapes that do not meet those conditions.
 
 Use the existing `prepare-port.mts` feedback and reviewed per-ID record, followed
 by `generate-catalog.mts`; shared explanations and distinct lifecycle entrypoints

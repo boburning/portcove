@@ -459,6 +459,7 @@ async fn assert_install_cancellation_boundary(point: LifecycleFaultPoint, accept
                         url: format!("http://{address}/synthetic.zip"),
                         ..asset
                     },
+                    uploader_continuity: None,
                 },
                 activate: true,
                 managed: None,
@@ -601,6 +602,7 @@ async fn archive_cancellation_waits_for_worker_quiescence_before_private_cleanup
                 size: bytes.len() as u64,
                 sha256: sha256.clone(),
             },
+            uploader_continuity: None,
         },
         activate: true,
         managed: None,

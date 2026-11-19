@@ -46,6 +46,24 @@
       "warnings": [
         "Select the 0.5.2 player, not a voice-mod release. Keep both system and existing user-data roots with sync-backups; explicit user-dir and normal-exit synchronization differ."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-robot-taisen-64",
+      "evidence_urls": [
+        "https://github.com/dyzz/srw64-recomp/blob/96507db6e1484c213c73dede8882541f7cd3e709/README.md",
+        "https://github.com/dyzz/srw64-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "super-robot-taisen-64-nintendo-64",
+          "title": "Super Robot Taisen 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/dyzz/srw64-recomp/blob/348a801bac25a57617d145d44b3f150c1d321d15/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

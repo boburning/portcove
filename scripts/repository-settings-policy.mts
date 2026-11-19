@@ -493,13 +493,14 @@ function releaseRuleset(
   include: readonly string[],
   types: readonly string[],
   actors: readonly object[] = [],
+  exclude: readonly string[] = [],
 ) {
   return {
     name,
     target,
     enforcement: "active",
     bypass_actors: actors,
-    conditions: { ref_name: { include, exclude: [] } },
+    conditions: { ref_name: { include, exclude } },
     rules: types.map((type) => ({ type })),
   };
 }
@@ -533,6 +534,27 @@ const releaseRulesets = {
     "tag",
     controllerTagPatterns,
     ["creation"],
+    [releaseOwner],
+  ),
+  // Owner decisions on #534 (2026-11-13, 2026-11-14): only the owner (and agents
+  // acting as the owner) may create any `v*` tag, previews included, because a
+  // `v*` tag run can reach the updater key. Nightly previews are signed from
+  // `main` and use `nightly-*` tags. Update and deletion stay forbidden for all.
+  versionCreator: releaseRuleset(
+    "Portcove release tag creation",
+    "tag",
+    ["refs/tags/v*"],
+    ["creation"],
+    [releaseOwner],
+  ),
+  // Nightly previews are published under `nightly-*` tags created by GitHub Actions,
+  // which cannot be a bypass actor on a user-owned repository, so creation stays
+  // open. Only the owner may move or delete one; a published release locks it too.
+  nightlyImmutable: releaseRuleset(
+    "Portcove nightly tag immutability",
+    "tag",
+    ["refs/tags/nightly-*"],
+    ["update", "deletion"],
     [releaseOwner],
   ),
 };
@@ -611,13 +633,26 @@ export function planReleaseRulesets(
       throw new Error(`Unexpected drift in ${desired.name}`);
     return matches[0];
   };
-  const { writer, retention, pause, immutable, creator } = releaseRulesets;
+  const { writer, retention, pause, immutable, creator, versionCreator, nightlyImmutable } =
+    releaseRulesets;
+  // The 2026-11-13 policy excluded preview tags; it is widened in place to every v* tag.
+  const versionRows = rows.filter((row) => row.name === versionCreator.name);
+  const narrowVersionCreator =
+    versionRows.length === 1 &&
+    sameReleaseRuleset(versionRows[0]!, {
+      ...versionCreator,
+      conditions: { ref_name: { include: ["refs/tags/v*"], exclude: ["refs/tags/v*-preview.*"] } },
+    })
+      ? versionRows[0]
+      : undefined;
   const stable = {
     writer: find(writer),
     retention: find(retention),
     pause: find(pause),
     immutable: find(immutable),
     creator: find(creator),
+    versionCreator: narrowVersionCreator ? undefined : find(versionCreator),
+    nightlyImmutable: find(nightlyImmutable),
   };
   const main = details.filter((row) => row.name === "Protect main");
   const versionTags = find(
@@ -635,6 +670,7 @@ export function planReleaseRulesets(
     main[0]!.id,
     versionTags.id,
     ...Object.values(stable).map((row) => row?.id),
+    narrowVersionCreator?.id,
   ]);
   const oldWriters: { id: number; refs: string[] }[] = [];
   const oldRetention: { id: number; refs: string[] }[] = [];
@@ -734,6 +770,10 @@ export function planReleaseRulesets(
       replacements: [stable.immutable.id, stable.creator.id],
     };
   }
+  if (narrowVersionCreator)
+    next ??= { action: "update", id: narrowVersionCreator.id, payload: versionCreator };
+  else if (!stable.versionCreator) next ??= { action: "create", payload: versionCreator };
+  if (!stable.nightlyImmutable) next ??= { action: "create", payload: nightlyImmutable };
   if (next?.action === "create" && rows.length >= 75)
     throw new Error("No ruleset slot available after branch consolidation");
   return {

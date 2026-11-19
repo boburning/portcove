@@ -1,0 +1,61 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wesnoth",
+    "name": "The Battle for Wesnoth",
+    "original_game_title": "The Battle for Wesnoth",
+    "artwork": {
+      "game_id": 2365,
+      "cover_id": 157394,
+      "image_id": "co3dg2",
+      "image_sha256": "900b1dd924665f160c4617f7e97651d3822384e32f99b7bce7962e4e880969f8",
+      "game_slug": "battle-for-wesnoth",
+      "match_kind": "underlying-game"
+    },
+    "summary": "Play turn-based fantasy campaigns, skirmishes, and multiplayer scenarios.",
+    "project_url": "https://github.com/wesnoth/wesnoth",
+    "issue_number": 6447,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://wiki.wesnoth.org/Download",
+    "setup_url": "https://wiki.wesnoth.org/Download",
+    "download_block_reason": "Choose the stable build on the official Downloads page and use its installer, application bundle, or Linux package manager.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install the stable desktop build",
+          "instruction": "On Windows x64, run the official installer. On Intel or Apple Silicon Mac, open the stable disk image and copy The Battle for Wesnoth.app into Applications. On Linux, use your distribution’s stable package or install org.wesnoth.Wesnoth from Flathub on x86-64 or ARM64. Use your package source for updates."
+        },
+        {
+          "title": "Start a campaign and save your game",
+          "instruction": "Open Wesnoth and choose Tutorial or Campaign. The stable desktop package includes its base game and campaigns. Save from the in-game menu before closing Wesnoth."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Keep the profile for your release series",
+          "instruction": "Open Game Version (i) from the main menu to find the active data and settings directories. Close Wesnoth before copying them. For 1.18, check Documents/My Games/Wesnoth1.18 on Windows. The sandboxed Mac app keeps its profile in ~/Library/Containers/org.wesnoth.Wesnoth/Data/Library/Application Support/Wesnoth_1.18. Older unsandboxed copies can use ~/Library/Application Support/Wesnoth_1.18. Linux normally keeps data in ~/.local/share/wesnoth/1.18 and configuration in ~/.config/wesnoth. Flatpak keeps them in data/wesnoth/1.18 and config/wesnoth inside ~/.var/app/org.wesnoth.Wesnoth/. Copy the actual locations the game shows if they differ."
+        },
+        {
+          "title": "Try the Android preview",
+          "instruction": "F-Droid offers the upstream development series for Android. Choose its package for your device and keep its progress and add-ons separate from stable desktop profiles. Get it at https://f-droid.org/en/packages/org.wesnoth.Wesnoth/."
+        }
+      ],
+      "help_url": "https://wiki.wesnoth.org/Download"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "wesnoth",
+    "origin": {
+      "project_url": "https://github.com/wesnoth/wesnoth",
+      "repository": {
+        "host": "github.com",
+        "id": "9432220"
+      }
+    },
+    "decisions": []
+  }
+}

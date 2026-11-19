@@ -23,12 +23,42 @@
         {
           "title": "Start the game",
           "instruction": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside the OpenJazz player. Keep the original source copy. The managed route selects this folder automatically. For external registration, use Change launch details to add game-data as a launch argument, or follow upstream instructions for your existing game folder. No compiler or installer is needed."
+        },
+        {
+          "title": "Keep your Linux settings",
+          "instruction": "Back up openjazz.cfg from XDG_CONFIG_HOME/openjazz, or ~/.config/openjazz when you use the default location. This profile is outside Portcove backups. Keep a separate copy of the original game files you put in game-data."
+        },
+        {
+          "title": "Set up OpenJazz on Android",
+          "instruction": "Unpack openjazz-android-debug.zip and install the enclosed APK on a compatible Android device. Copy the data files from your own Jazz Jackrabbit copy into OpenJazz’s app-specific external files folder. The package ID is eu.alister.openjazz. If your device does not give you access to that folder, this build has no verified folder picker or alternate import route. Keep a separate copy of your original game data."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/AlisterT/openjazz/blob/20260301/README.md"
+      "warnings": [
+        "In OpenJazz 20260301, choosing a slot in the Save Game menu leaves campaign progress unsaved.",
+        "On Android, use the upstream app. You manage its runtime updates and back up the game data it uses."
+      ],
+      "help_url": "https://github.com/AlisterT/openjazz#readme"
     },
-    "original_game_title": "Jazz Jackrabbit"
+    "original_game_title": "Jazz Jackrabbit",
+    "original_game": {
+      "format_version": 1,
+      "id": "jazz-jackrabbit",
+      "evidence_urls": [
+        "https://github.com/AlisterT/openjazz/blob/20260301/README.md",
+        "https://github.com/AlisterT/openjazz#readme",
+        "https://github.com/AlisterT/openjazz"
+      ],
+      "source_editions": [
+        {
+          "id": "jazz-jackrabbit-pc",
+          "title": "Jazz Jackrabbit (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/AlisterT/openjazz/blob/a1626f4edd4a7af72c54103021790c56d8ecfced/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -60,7 +90,17 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside OpenJazz.exe. The maintained launch arguments select that folder; no compiler or installer is needed. Keep the original source copy. Portcove retains game-data, openjazz.cfg, openjazz.log, the openjazz.tmp multiplayer transfer file and the reviewed scene diagnostics during compatible replacement. These are distinct from runtime files. Runtime rollback carries current declared data without rewinding progress. Custom launch paths or editions remain available through external registration. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The offered Linux ZIP is the upstream glibc2.35 x86-64 build and requires system SDL2/C++ libraries. It uses the same supported game-data argument and declared in-folder fallbacks; upstream user-profile storage, when used, remains external. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run."
+      "manual_preparation": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside the OpenJazz player. Portcove passes game-data to the player. Keep the original source copy. Portcove retains game-data, the in-folder openjazz.cfg and openjazz.log, the openjazz.tmp multiplayer transfer file and the reviewed scene diagnostics during compatible replacement. Use external registration for a custom launch path or separately maintained installation. The Linux x86-64 ZIP requires glibc 2.35 or newer and the system SDL2 and C++ libraries. On Linux, back up openjazz.cfg from XDG_CONFIG_HOME/openjazz or the default ~/.config/openjazz separately. This profile is outside Portcove backups. In the 20260301 release, choosing a slot in the Save Game menu leaves campaign progress unsaved."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["openjazz.exe"]
+      },
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["openjazz"]
+      }
     }
   }
 }

@@ -5,6 +5,15 @@ use std::{
 };
 
 #[cfg(test)]
+pub(crate) fn grow_catalog_evidence(document: &mut crate::CatalogDocument, bytes: usize) {
+    let evidence = &mut document.source_catalog.as_mut().unwrap().evidence;
+    let mut record = evidence.first().unwrap().clone();
+    record.id = "synthetic-catalog-capacity".into();
+    record.claim = "Synthetic capacity fixture. ".repeat(bytes.div_ceil(28));
+    evidence.push(record);
+}
+
+#[cfg(test)]
 pub(crate) fn gitlab_listing_observation() -> serde_json::Value {
     serde_json::json!({
         "provider":"gitlab", "repository":"example/game", "repository_id":7,
@@ -77,7 +86,7 @@ pub(crate) fn grant_declared_executable_capability(port: &crate::PortDefinition)
     match port.adapter {
         crate::AdapterKind::LibultrashipPortable => 4,
         crate::AdapterKind::GeneratedCache => 2,
-        _ => 22,
+        _ => crate::package_layout::native_executable_grant_capability(port),
     }
 }
 
@@ -90,6 +99,36 @@ pub(crate) fn archive_file_links_capability(port: &crate::PortDefinition) -> u32
     port.external_profile_policy
         .map(crate::native_external_profile::minimum_capability)
         .map_or(archive, |profile| profile.max(archive))
+}
+
+pub(crate) fn retained_manual_dhewm3_catalog(id: &str) -> crate::Catalog {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let snapshot: serde_json::Value = serde_json::from_str(include_str!(
+        "testdata/retained-dhewm3-manual-2026-11-16.json"
+    ))
+    .unwrap();
+    let Some(retained) = snapshot["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|port| port["id"] == id)
+    else {
+        return catalog;
+    };
+    let mut document = catalog.authoritative_document();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == id)
+        .unwrap();
+    *port = serde_json::from_value(retained.clone()).unwrap();
+    document
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .contracts
+        .retain(|contract| contract.port_id != id);
+    crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
 }
 
 pub(crate) fn definition_requirements(
@@ -108,9 +147,71 @@ pub(crate) fn definition_requirements(
             json!({"template":"staged-source-portable","minimum_version":11,"maximum_version":11}),
         ];
     }
-    vec![
+    // A Windows tracked handoff needs a native-portable reader that tracks
+    // successors whatever the adapter, listed beside the adapter's own floor.
+    let handoff = crate::launch::tracked_handoff_native_capability(port);
+    if port.windows_tracked_handoff && port.adapter == crate::AdapterKind::NativePortable {
+        let version = default_version.max(handoff);
+        return vec![
+            json!({"template":port.adapter,"minimum_version":version,"maximum_version":version}),
+        ];
+    }
+    let default_version = if crate::preparation::source::native_relative(port) {
+        default_version.max(crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY)
+    } else {
+        default_version
+    };
+    let default_version = if crate::persistence::requires_psx_retained_scope(port) {
+        default_version.max(crate::persistence::PSX_RETAINED_SCOPE_CAPABILITY)
+    } else {
+        default_version
+    };
+    // An STFS package binding needs staged-source capability 32 whatever chain matched.
+    let default_version = if port.runtime_stfs_package.is_some() {
+        default_version.max(crate::stfs::PACKAGE_BINDING_CAPABILITY)
+    } else {
+        default_version
+    };
+    // A headerless SNES runtime file needs staged-source capability 36.
+    let default_version = if port.runtime_source_materialization
+        == Some(crate::RuntimeSourceMaterialization::SnesHeaderless)
+    {
+        default_version.max(crate::adapter::SNES_COPIER_HEADER_CAPABILITY)
+    } else {
+        default_version
+    };
+    // ROM patching needs staged-source capability 33 whatever chain matched.
+    let default_version = if port.runtime_rom_patch.is_some()
+        || port.runtime_source_materialization
+            == Some(crate::RuntimeSourceMaterialization::RomPatch)
+    {
+        default_version.max(33)
+    } else {
+        default_version
+    };
+    // Track counts live in the embedded source profile, not on the port.
+    let default_version = if port.adapter == crate::AdapterKind::PsxRecompManaged
+        && crate::Catalog::embedded()
+            .is_ok_and(|catalog| catalog.requires_psx_multi_track_set(port))
+    {
+        default_version.max(crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY)
+    } else {
+        default_version
+    };
+    let default_version = if port.mod_provider_bindings.is_some() {
+        default_version.max(crate::provider_binding::capability(port).unwrap().1)
+    } else {
+        default_version
+    };
+    let mut requirements = vec![
         json!({"template":port.adapter,"minimum_version":default_version,"maximum_version":default_version}),
-    ]
+    ];
+    if port.windows_tracked_handoff {
+        requirements.push(
+            json!({"template":"native-portable","minimum_version":handoff,"maximum_version":handoff}),
+        );
+    }
+    requirements
 }
 
 /// Preserve the last entered test phase when nextest terminates a slow process.
@@ -299,7 +400,18 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = format!("sha256/{}.json", self.contract_sha256);
         let port = self.port.as_ref();
         let port_id = &port.id;
-        let capability_version = if port.optional_game_source {
+        let capability_version = if port.runtime_source_materialization
+            == Some(crate::RuntimeSourceMaterialization::SnesHeaderless)
+        {
+            // The newest staged-source requirement, so it stays first.
+            crate::adapter::SNES_COPIER_HEADER_CAPABILITY
+        } else if crate::managed_runtime_policy::has_exact_exclusions(port) {
+            crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY
+        } else if port.runtime_rom_patch.is_some() {
+            // ROM patching needs staged-source capability version 33; it is the newest
+            // staged-source requirement, so it stays first.
+            33
+        } else if port.optional_game_source {
             // An optional game source needs staged-source capability version 31. Keep this
             // branch first: a later capability chain that matched earlier would silently
             // skip the requirement.
@@ -309,6 +421,10 @@ impl<'a> IndexedCatalogFixture<'a> {
             // directly after the optional-source one (version 31) and before every other chain:
             // a later chain that matched first would silently skip the requirement.
             30
+        } else if crate::package_layout::layout_capability(port)
+            > crate::package_layout::NATIVE_CAPABILITY
+        {
+            crate::package_layout::layout_capability(port)
         } else if port.linux_portable_data_directory.is_some() {
             crate::native_portable_data::NATIVE_CAPABILITY
         } else if !port.release.tar_xz_platforms.is_empty() {
@@ -365,6 +481,8 @@ impl<'a> IndexedCatalogFixture<'a> {
             version
         } else if port.mod_package_policy.is_some() {
             24
+        } else if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::CAPABILITY
         } else if crate::persistence::ready_staged_archive(port) {
             23
         } else if crate::managed_runtime_policy::requires_provider_resolution(port) {
@@ -463,7 +581,7 @@ impl<'a> IndexedCatalogFixture<'a> {
 fn indexed_policy_fixtures_keep_delivered_reader_floors() {
     let catalog = crate::Catalog::embedded().unwrap();
     for (id, version) in [
-        ("re-rac-rerac", 2),
+        ("re-rac-rerac", crate::package_layout::NATIVE_CAPABILITY),
         ("resident-evil-gaiden-recomp", 21),
         ("wave-race-64-racewave46", 21),
         ("render96ex", 20),

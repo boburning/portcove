@@ -9,10 +9,16 @@ import {
   assembleCatalogRecords,
   checkedAuthoredPort,
   checkedCurrentCatalog,
+  compactGbaArchive,
   parseCatalogSource,
   projectAuthoredPort,
+  projectGbaArchive,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
+import {
+  compactPsxManagedWindows,
+  projectPsxManagedWindows,
+} from "./catalog-psx-managed-windows.mts";
 import { estimateHealthRequests } from "./check-catalog-repositories.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 
@@ -29,6 +35,30 @@ const schema2Fixture = fixtureJson(
   readFileSync(join(catalogRoot, "catalog-schema2-migration-fixture.json")),
 );
 const schema3Fixture = fixtureJson(readFileSync(join(catalogRoot, "catalog.json")));
+
+void test("managed platform warnings are checked and stay outside definition projections", () => {
+  const authored = checkedAuthoredPort(
+    fixtureJson(readFileSync(join(catalogRoot, "ports", "snap64-recomp.json"))),
+  );
+  const warnings = requiredFixture(authored.managed_setup_platform_warnings);
+  assert.equal(warnings["windows-x86-64"], undefined);
+  assert.match(requiredFixture(warnings["macos-aarch64"]?.[0]), /START HERE/u);
+  const withoutWarnings = structuredClone(authored);
+  delete withoutWarnings.managed_setup_platform_warnings;
+  assert.deepEqual(projectAuthoredPort(authored), projectAuthoredPort(withoutWarnings));
+  for (const managed_setup_platform_warnings of [
+    {},
+    { "android-aarch64": ["Wrong route."] },
+    { "linux-x86-64": [] },
+    { "linux-x86-64": ["Padded "] },
+    { "linux-x86-64": ["Line one\nLine two"] },
+  ]) {
+    assert.throws(
+      () => checkedAuthoredPort({ ...authored, managed_setup_platform_warnings }),
+      /managed_setup_platform_warnings/u,
+    );
+  }
+});
 
 void test("current catalog schema accepts numeric 2 without guide references", () => {
   assert.equal(schema2Fixture.schema_version, 2);
@@ -95,6 +125,41 @@ for (const [label, version] of [
     });
   });
 }
+
+void test("ordinary authoring rejects direct guides beyond Core's combined entry limit", () => {
+  const source = readCatalogSource(catalogRoot);
+  const record = structuredClone(
+    requiredFixture(
+      source.records.find(({ listing }) => listing.id === "openjkdf2-jedi-knight-dark-forces-ii"),
+    ),
+  );
+  const guide = fixtureRecord(record.listing.manual_setup);
+  const steps = fixtureRecords(guide.steps);
+  const references = fixtureRecords(guide.references).slice(0, 8 - steps.length);
+  guide.references = references;
+  assert.equal(steps.length + references.length, 8);
+  assert.doesNotThrow(() => checkedAuthoredPort(record));
+
+  const extra = { title: "Extra reference", instruction: "Keep the current profile." };
+  references.push(extra);
+  assert.throws(
+    () => checkedAuthoredPort(record),
+    /openjkdf2.*listing.manual_setup.*eight steps and references combined/,
+  );
+
+  const catalog = structuredClone(schema3Fixture);
+  const port = requiredFixture(
+    fixtureRecords(catalog.ports).find(({ id }) => id === record.listing.id),
+  );
+  const presentation = fixtureRecord(port.presentation);
+  presentation.manual_setup = { ...guide, references: references.slice(0, -1) };
+  assert.doesNotThrow(() => checkedCurrentCatalog(catalog));
+  presentation.manual_setup = { ...guide, references };
+  assert.throws(
+    () => checkedCurrentCatalog(catalog),
+    /openjkdf2.*presentation.manual_setup.*eight steps and references combined/,
+  );
+});
 
 void test("current authored operational routes remain valid read-only health inventory inputs", () => {
   // Core-readable prepared routes still need canonical explicit repository
@@ -265,6 +330,27 @@ void test("upstream package platforms extend only the descriptive listing", () =
   assert.throws(() => checkedAuthoredPort(duplicate), /platform must be declared once/);
 });
 
+void test("managed setup can use a guide distinct from the upstream listing", () => {
+  const { records, catalog, directory } = readCatalogSource(catalogRoot);
+  const id = "alexbeav-diablo-recomp";
+  const record = records.find((port) => port.listing.id === id)!;
+  const managed = catalog.ports.find((port) => port.id === id)?.presentation;
+  const listing = directory.listings.find((port) => port.id === id);
+  assert.match(JSON.stringify(managed?.manual_setup), /then builds the game on this computer/);
+  assert.match(JSON.stringify(listing?.manual_setup), /Choose the official Mac ZIP/);
+  const integration = { ...record.integration, presentation: {} };
+  const inherited = projectAuthoredPort(checkedAuthoredPort({ ...record, integration }));
+  assert.deepEqual(inherited?.presentation?.manual_setup, record.listing.manual_setup);
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...record,
+        integration: { ...integration, presentation: { manual_setup: { steps: [] } } },
+      }),
+    /integration\.presentation\.manual_setup requires steps and warnings arrays/,
+  );
+});
+
 void test("authored JSON refuses duplicate decoded keys while retaining nested data and native grammar", () => {
   assert.throws(() => parseCatalogSource('{"id":"first","id":"second"}'), /duplicate JSON key/);
   assert.throws(
@@ -302,9 +388,7 @@ void test("download restrictions project through the versioned directory without
     () => checkedAuthoredPort({ ...record, integration: { adapter: "native-portable" } }),
     /download restriction cannot coexist with a managed integration/,
   );
-  const prepared = source.records.find(
-    (candidate) => candidate.listing.id === "wave-race-64-recomp",
-  );
+  const prepared = source.records.find((candidate) => candidate.listing.id === "dkc2-recomp");
   assert.ok(prepared);
   const preparedWithHold = checkedAuthoredPort({
     ...prepared,
@@ -351,6 +435,53 @@ void test("authoring split preserves unknown metadata and ordered operational ar
   assert.deepEqual(projected.catalog.ports[0], port);
   assert.equal(Object.hasOwn(authored.integration ?? {}, "name"), false);
   assert.equal(Object.hasOwn(authored.integration?.presentation ?? {}, "artwork"), false);
+});
+
+void test("inherits only reviewed descriptive selectors for the same package scope", () => {
+  const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
+  const record = checkedAuthoredPort(
+    fixtureJson(readFileSync(join(catalogRoot, "ports", "alariq-mc2.json"))),
+  );
+  const platform = "windows-x86-64";
+  const integrated = assembleCatalogRecords(shared, [record]);
+  assert.deepEqual(integrated.directory.listings[0]?.download_asset_hints, {
+    [platform]: ["mc2-win64-", ".zip"],
+  });
+  const literal = structuredClone(record);
+  delete literal.listing_inherit_asset_hints;
+  literal.listing.download_asset_hints = { [platform]: ["mc2-win64-", ".zip"] };
+  assert.deepEqual(assembleCatalogRecords(shared, [literal]).directory, integrated.directory);
+  const override = structuredClone(record);
+  override.listing.download_asset_hints = { [platform]: ["other-reviewed.zip"] };
+  assert.deepEqual(
+    assembleCatalogRecords(shared, [override]).directory.listings[0]?.download_asset_hints,
+    {
+      [platform]: ["other-reviewed.zip"],
+    },
+  );
+  const suppressed = structuredClone(record);
+  suppressed.listing.download_asset_hints = {};
+  assert.deepEqual(
+    assembleCatalogRecords(shared, [suppressed]).directory.listings[0]?.download_asset_hints,
+    {},
+  );
+  const broader = structuredClone(record);
+  broader.listing.platforms = ["linux-x86-64"];
+  broader.listing.download_asset_hints = { "linux-x86-64": ["linux-package.tar.gz"] };
+  const projection = assembleCatalogRecords(shared, [broader]);
+  assert.deepEqual(projection.directory.listings[0]?.download_asset_hints, {
+    "linux-x86-64": ["linux-package.tar.gz"],
+    [platform]: ["mc2-win64-", ".zip"],
+  });
+  assert.deepEqual(projection.catalog, integrated.catalog);
+  const fork = structuredClone(record);
+  fork.listing.release_url = "https://github.com/fork/mc2/releases";
+  const differentTag = structuredClone(record);
+  differentTag.listing.release_url = "https://github.com/alariq/mc2/releases/tag/v1";
+  const wrongPlatform = structuredClone(record);
+  wrongPlatform.listing_inherit_asset_hints = ["linux-x86-64"];
+  for (const invalid of [fork, differentTag, wrongPlatform])
+    assert.throws(() => assembleCatalogRecords(shared, [invalid]), /same-project GitHub/);
 });
 
 void test("listing download hints remain advisory and reject ambiguous authoring shapes", () => {
@@ -435,8 +566,8 @@ void test("original game identity projects exact authored groups and multiple so
   };
   const record = checkedAuthoredPort(base);
   const projected = assembleCatalogRecords(shared, [...source.records, record]);
-  // The real source carries first-listed dates (format 9); the date-free record alone stays 3.
-  assert.equal(projected.directory.format_version, 9);
+  // The real source carries implementation descriptions (format 12); the date-free record alone stays 3.
+  assert.equal(projected.directory.format_version, 12);
   assert.equal(assembleCatalogRecords(shared, [record]).directory.format_version, 3);
   assert.deepEqual(projected.catalog, source.catalog);
   assert.deepEqual(
@@ -566,7 +697,7 @@ void test("optional recommendation observations round-trip as inert presentation
 void test("reference guides select strict new formats and retain actions and warnings", () => {
   const source = readCatalogSource(catalogRoot);
   assert.equal(source.catalog.schema_version, 3);
-  assert.equal(source.directory.format_version, 9);
+  assert.equal(source.directory.format_version, 12);
   const syphon = source.directory.listings.find(
     (listing) => listing.id === "syphon-filter-sf-pc-port",
   );
@@ -627,6 +758,42 @@ void test("reference guides select strict new formats and retain actions and war
     });
   });
 
+  await test("launch behavior requires a scoped format-2 package and both launch stages", () => {
+    const launch = {
+      ...record,
+      feature: "launch",
+      route: "upstream-setup",
+      evidence: "upstream-reported",
+      release: "v1",
+      artifact_sha256: "a".repeat(64),
+      launch_behavior: {
+        first_launch: "asks-for-game-files",
+        repeat_launch: "starts-game-directly",
+      },
+    };
+    const valid = { format_version: 2, records: [launch] };
+    checkCatalogAdvisories(valid, platforms, 2);
+    for (const unscoped of [
+      { ...valid, format_version: 1 },
+      { ...valid, records: [{ ...launch, artifact_sha256: null }] },
+      { ...valid, records: [{ ...launch, release: null }] },
+      { ...valid, records: [{ ...launch, launch_behavior: { first_launch: "unknown" } }] },
+      { ...valid, records: [{ ...launch, route: ["managed"] }] },
+      { ...valid, records: [{ ...launch, evidence: ["observed"] }] },
+      {
+        ...valid,
+        records: [
+          {
+            ...launch,
+            launch_behavior: { ...launch.launch_behavior, first_launch: ["unknown"] },
+          },
+        ],
+      },
+    ]) {
+      assert.throws(() => checkCatalogAdvisories(unscoped, platforms, 2));
+    }
+  });
+
   await test("authoring refuses future, malformed, duplicate, unsafe and unscoped advisory content", () => {
     for (const value of [
       { ...envelope, format_version: 2 },
@@ -668,8 +835,8 @@ void test("GitLab descriptive observations derive listing format8 without changi
   };
   const { ports: _ports, ...shared } = accepted.catalog;
   const assembled = assembleCatalogRecords(shared, records);
-  // GitLab observations need 8; the real source's first-listed dates lift the directory to 9.
-  assert.equal(assembled.directory.format_version, 9);
+  // GitLab observations need 8; implementation descriptions lift the real directory to 12.
+  assert.equal(assembled.directory.format_version, 12);
   assert.deepEqual(assembled.catalog, accepted.catalog);
   const compatibility = {
     format_version: 1,
@@ -688,7 +855,7 @@ void test("GitLab descriptive observations derive listing format8 without changi
   };
   record.listing.compatibility = compatibility;
   const combined = assembleCatalogRecords(shared, records);
-  assert.equal(combined.directory.format_version, 9);
+  assert.equal(combined.directory.format_version, 12);
   assert.deepEqual(
     combined.directory.listings.find((listing) => listing.id === record.listing.id)?.compatibility,
     compatibility,
@@ -746,8 +913,30 @@ void test("authored setup guides require the arrays consumed by Core", () => {
   });
   for (const guide of [{ steps }, { warnings: [] }, { steps, warnings: "" }])
     assert.throws(() => checkedAuthoredPort(authored(guide)), /requires steps and warnings arrays/);
-  const guide = { steps, warnings: [] };
+  const guide = { steps, warnings: [], help_url: "https://example.org/setup" };
   assert.deepEqual(checkedAuthoredPort(authored(guide)).listing.manual_setup, guide);
+  assert.throws(
+    () =>
+      checkedAuthoredPort(
+        authored({
+          ...guide,
+          references: [{ title: "Upstream reference", url: "https://example.org/unsupported" }],
+        }),
+      ),
+    /setup-fixture listing.manual_setup.references\[0\].*unknown field: "url"/,
+  );
+  assert.throws(
+    () => checkedAuthoredPort(authored({ ...guide, "": true })),
+    /setup-fixture listing.manual_setup.*unknown field: ""/,
+  );
+  assert.throws(
+    () => checkedAuthoredPort(authored({ ...guide, steps: [{ ...steps[0], "": true }] })),
+    /setup-fixture listing.manual_setup.steps\[0\].*unknown field: ""/,
+  );
+  assert.throws(
+    () => checkedAuthoredPort(authored({ ...guide, steps: [{ title: "Use the upstream guide" }] })),
+    /setup-fixture listing.manual_setup.steps\[0\].*requires a title and instruction/,
+  );
 });
 
 void test("Second Hunt keeps its version-scoped cleanup warning in the pre-action warnings", () => {
@@ -835,11 +1024,78 @@ void test("PSX managed Windows authoring preserves the embedded contracts", () =
   }
 });
 
+void test("PSX preparation compacts exact layouts and retains explicit writer differences", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  for (const record of records.filter((entry) => entry.psx_managed_windows_v1 !== undefined)) {
+    const explicit = projectPsxManagedWindows(record);
+    delete explicit.psx_managed_windows_v1;
+    const compact = compactPsxManagedWindows(explicit);
+    assert.deepEqual(compact, record, record.listing.id);
+    assert.equal(
+      JSON.stringify(projectAuthoredPort(compact)),
+      JSON.stringify(projectAuthoredPort(explicit)),
+    );
+
+    const custom = structuredClone(explicit);
+    custom.integration!.persistent_paths = ["custom-save"];
+    assert.equal(compactPsxManagedWindows(custom), custom);
+  }
+});
+
+void test("PSX retail split-mods preparation preserves the reviewed multidisc contract", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const source = records.find(
+    (record) => record.listing.id === "alexbeav-alone-in-the-dark-the-new-nightmare-recomp",
+  );
+  assert.ok(source);
+  const explicit = projectPsxManagedWindows(structuredClone(source));
+  delete explicit.psx_managed_windows_v1;
+  const compact = compactPsxManagedWindows(explicit);
+  assert.equal(compact.psx_managed_windows_v1, "split-mods");
+  assert.equal(compact.integration?.runtime_source_filename, "runtime-discs");
+  assert.equal(compact.integration?.runtime_source_materialization, "psx-raw-set");
+  assert.equal(compact.integration?.launch_disc_choice, "psx-settings-selected");
+  assert.equal(
+    JSON.stringify(projectAuthoredPort(compact)),
+    JSON.stringify(projectAuthoredPort(explicit)),
+  );
+
+  const incomplete = structuredClone(compact);
+  delete incomplete.integration!.launch_disc_choice;
+  assert.throws(() => projectPsxManagedWindows(incomplete), /multidisc/u);
+  const different = structuredClone(explicit);
+  different.integration!.runtime_source_filename = "other-discs";
+  assert.equal(compactPsxManagedWindows(different), different);
+});
+
+void test("GBA preparation compacts exact layouts and retains explicit writer differences", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const supported = records.filter((entry) => entry.gba_staged_archive_v1 !== undefined);
+  assert.ok(supported.length > 0);
+  for (const record of supported) {
+    const explicit = projectGbaArchive(record);
+    delete explicit.gba_staged_archive_v1;
+    const compact = compactGbaArchive(explicit);
+    assert.deepEqual(compact, record, record.listing.id);
+    assert.equal(
+      JSON.stringify(projectAuthoredPort(compact)),
+      JSON.stringify(projectAuthoredPort(explicit)),
+    );
+
+    const custom = structuredClone(explicit);
+    custom.integration!.runtime_mutable_paths = ["recomp_coverage_XXXX.json"];
+    assert.equal(compactGbaArchive(custom), custom);
+  }
+});
+
 void test("PSX split mods retain player data with explicit dual-platform and retail BIOS facts", () => {
   const { records } = readCatalogSource(catalogRoot);
   const consumers = records.filter((record) => record.psx_managed_windows_v1 === "split-mods");
   const biosProfiles = new Set(consumers.map((record) => record.integration!.bios_source_profile));
-  assert.deepEqual(biosProfiles, new Set(["psx-scph-1001-bios", "psx-scph-5552-bios"]));
+  assert.deepEqual(
+    biosProfiles,
+    new Set(["psx-scph-1001-bios", "psx-scph-5552-bios", "psx-scph-5500-bios"]),
+  );
   for (const record of consumers) {
     const projected = projectAuthoredPort(record);
     assert.ok(projected);
@@ -853,6 +1109,7 @@ void test("PSX split mods retain player data with explicit dual-platform and ret
         "mods/.staging",
         "mods/state.toml",
         "mods/state.toml.tmp",
+        "mods/texture-packs",
       ],
     );
   }
@@ -891,7 +1148,14 @@ void test("PSX split mods retain player data with explicit dual-platform and ret
     (projected.persistent_paths as string[]).filter(
       (path) => path === "mods" || path.startsWith("mods/"),
     ),
-    ["mods/installed", "mods/packages", "mods/.staging", "mods/state.toml", "mods/state.toml.tmp"],
+    [
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "mods/texture-packs",
+    ],
   );
   const openBiosWindowsOnly = structuredClone(openBios);
   openBiosWindowsOnly.integration!.platforms = ["windows-x86-64"];
@@ -937,4 +1201,116 @@ void test("the observation declaration hash ignores the first-listed date", () =
     listingDeclarationHash(listing),
     listingDeclarationHash({ ...listing, name: "A different declaration" }),
   );
+});
+
+void test("funding links are authored per listing, validated, and select listing format 10", () => {
+  const source = readCatalogSource(catalogRoot);
+  const { ports: _ports, ...shared } = source.catalog;
+  const fixture = (extra: Record<string, unknown>) =>
+    checkedAuthoredPort({
+      format_version: 1,
+      listing: {
+        id: "funded-fixture",
+        name: "Funded fixture",
+        summary: "Descriptive metadata only.",
+        project_url: "https://example.com/funded",
+        listed_at: "2026-11-09",
+        ...extra,
+      },
+    });
+  const urls = ["https://github.com/sponsors/example", "https://ko-fi.com/example"];
+  const funded = fixture({ funding_urls: urls });
+  assert.deepEqual(funded.listing.funding_urls, urls);
+  assert.equal(assembleCatalogRecords(shared, [funded]).directory.format_version, 10);
+  assert.equal(assembleCatalogRecords(shared, [fixture({})]).directory.format_version, 9);
+  const tooMany = Array.from({ length: 13 }, (_, index) => `https://example.com/${index}`);
+  for (const bad of [
+    [],
+    ["http://ko-fi.com/example"],
+    ["https://user:secret@example.com/support"],
+    ["https://ko-fi.com/example", "https://ko-fi.com/example"],
+    tooMany,
+    "https://ko-fi.com/example",
+  ])
+    assert.throws(() => fixture({ funding_urls: bad }), /funding_urls/u, JSON.stringify(bad));
+  // Adding or refreshing links must not invalidate retained observations.
+  const listing = { id: "hash-fixture", name: "Hash", summary: "Hash.", project_url: urls[0] };
+  assert.equal(
+    listingDeclarationHash(listing),
+    listingDeclarationHash({ ...listing, funding_urls: urls }),
+  );
+});
+
+void test("the reviewed legacy additions fixture must stay in ascending order", async () => {
+  const { reviewCompatibilityFixture } = await import("./catalog-authoring.mts");
+  const legacy = { source_profiles: [{ id: "frozen-profile" }], ports: [{ id: "frozen-port" }] };
+  const catalog = {
+    source_catalog: { identities: [{ id: "frozen-profile" }, { id: "added-profile" }] },
+    ports: [{ id: "frozen-port" }, { id: "alpha-port" }, { id: "beta-port" }],
+  } as unknown as Parameters<typeof reviewCompatibilityFixture>[0];
+  const fixture = (portIds: string[]) =>
+    Buffer.from(JSON.stringify({ source_profile_ids: ["added-profile"], port_ids: portIds }));
+  assert.equal(
+    reviewCompatibilityFixture(catalog, legacy, fixture(["alpha-port", "beta-port"])).status,
+    "matched",
+  );
+  assert.throws(
+    () => reviewCompatibilityFixture(catalog, legacy, fixture(["beta-port", "alpha-port"])),
+    /port_ids: keep IDs in ascending order/,
+  );
+});
+
+void test("implementation descriptions project without changing source, route or release authority", () => {
+  const source = readCatalogSource(catalogRoot);
+  const record = structuredClone(
+    source.records.find((record) => record.listing.id === "zelda64-recomp")!,
+  );
+  assert.equal(record.listing.implementation?.methods[0]?.kind, "static-recompilation");
+  const declarationWithoutExplanation = { ...record.listing };
+  delete declarationWithoutExplanation.implementation;
+  assert.equal(
+    listingDeclarationHash(record.listing),
+    listingDeclarationHash(declarationWithoutExplanation),
+  );
+  const projected = projectAuthoredPort(record)!;
+  const without = structuredClone(record);
+  delete without.listing.implementation;
+  const before = projectAuthoredPort(without)!;
+  assert.deepEqual(projected.release, before.release);
+  assert.deepEqual(projected.source_profile, before.source_profile);
+  assert.deepEqual(projected.adapter, before.adapter);
+  assert.deepEqual(projected.platforms, before.platforms);
+  assert.deepEqual(record.listing.original_game, without.listing.original_game);
+  assert.equal(source.directory.format_version, 12);
+  const dependency = record.listing.implementation.dependencies[0]!;
+  for (const invalid of [
+    { ...record.listing.implementation, format_version: 999 },
+    {
+      ...record.listing.implementation,
+      methods: [{ kind: "future-method", evidence_urls: ["https://example.com"] }],
+    },
+    { ...record.listing.implementation, dependencies: [{ ...dependency, confidence: "certain" }] },
+    { ...record.listing.implementation, dependencies: [{ ...dependency, evidence_urls: [] }] },
+    {
+      ...record.listing.implementation,
+      dependencies: [{ ...dependency, project_url: "javascript:alert(1)" }],
+    },
+  ])
+    assert.throws(() =>
+      checkedAuthoredPort({ ...record, listing: { ...record.listing, implementation: invalid } }),
+    );
+  for (const confidence of ["confirmed", "inferred", "contradicted"] as const) {
+    const varied = checkedAuthoredPort({
+      ...record,
+      listing: {
+        ...record.listing,
+        implementation: {
+          ...record.listing.implementation,
+          dependencies: [{ ...dependency, confidence }],
+        },
+      },
+    });
+    assert.deepEqual(projectAuthoredPort(varied)!.release, before.release);
+    assert.deepEqual(projectAuthoredPort(varied)!.source_profile, before.source_profile);
+  }
 });

@@ -16,7 +16,56 @@
       "game_slug": "dino-crisis",
       "match_kind": "underlying-game"
     },
-    "issue_number": 445
+    "issue_number": 445,
+    "availability": "packages",
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "download_asset_hints": {
+      "macos-x86-64": ["dino-crisis-", "-macos-x64.zip"],
+      "macos-aarch64": ["dino-crisis-", "-macos-arm64.zip"]
+    },
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose setup for your platform",
+          "instruction": "On Windows or Linux, use Portcove’s managed setup and select your matching CHD and retail SCPH-1001 BIOS. On a Mac, install a C/C++ compiler, CMake, Ninja and Python 3, then unpack the official ZIP for your Mac into a separate writable folder."
+        },
+        {
+          "title": "Supply your original files on Mac",
+          "instruction": "Use your own Dino Crisis (USA) (Rev 1) disc (SLUS-00922) with its CUE and both BIN tracks in order. The reviewed v0.1.3 Mac kit requires your own retail SCPH-1001 (USA) BIOS. Follow README-SETUP.txt for the requirements of the kit you downloaded."
+        },
+        {
+          "title": "Build and add the prepared Mac player",
+          "instruction": "Run Dino_Crisis_Recompiled from the unpacked folder and follow the Generate & rebuild wizard. In Portcove, select build-release/Dino_Crisis_Recompiled and use build-release as the start folder. Leave arguments empty and choose Play after you review the registration."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp#readme",
+      "references": [
+        {
+          "title": "Updates and backups",
+          "instruction": "For the upstream Mac route, keep the complete working copy, original disc files, BIOS, saves and settings. Follow upstream instructions for replacement and keep a copy of the runtime that created your saves. Removing the Portcove registration preserves the external files."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dino-crisis",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "dino-crisis-playstation",
+          "title": "Dino Crisis (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/blob/7fd9deaa0ef7f8b689b1092821c19ac6a0de87db/game.toml"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -47,7 +96,12 @@
       "config.ini",
       "disc.cfg",
       "bios.cfg",
-      "mods",
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "mods/texture-packs",
       "overlay-captures",
       "overlay_captures.json",
       "overlay_captures.json.d",
@@ -87,14 +141,24 @@
         },
         {
           "role": "bios",
-          "profile_id": "psx-scph-5552-bios",
-          "label": "PlayStation SCPH-5552 BIOS (Europe)",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
           "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis SLUS-00922 (USA Rev 1) and legally obtained retail SCPH-5552/5502 Europe BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested."
+      "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis SLUS-00922 (USA Rev 1) and legally obtained retail SCPH-1001 BIOS. A copy built with the SCPH-5552 BIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": ["Generation, runtime, audio, saves, lifecycle and gameplay are untested."],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp#readme"
+      }
     },
-    "bios_source_profile": "psx-scph-5552-bios"
+    "bios_source_profile": "psx-scph-1001-bios"
   }
 }

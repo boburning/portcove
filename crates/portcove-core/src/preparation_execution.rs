@@ -575,6 +575,7 @@ impl PortcoveService {
                     .as_ref()
                     .map(|_| &mut conversion_quiesced as &mut dyn FnMut() -> Result<()>),
             },
+            port.runtime_stfs_package.as_ref(),
         )
         .map_err(|error| error.during("preparation.extract"))?;
         let setup_tool = plan.inputs.setup_tool.as_ref().ok_or_else(|| {
@@ -745,6 +746,7 @@ impl PortcoveService {
                 home_permissions.as_ref().ok_or_else(|| {
                     PortcoveError::state("legacy setup has no input permission preimage")
                 })?,
+                false,
             )?;
             let generated = setup_home.join("sm64.o2r");
             crate::path::refuse_symlink_ancestors(&generated)?;
@@ -768,8 +770,19 @@ impl PortcoveService {
         if isolated_setup {
             copy_setup_outputs(&port, &setup_directory, payload)?;
         }
-        validate_outputs(&private_outputs, payload, &before, &permissions)
-            .map_err(|error| error.during("preparation.verify"))?;
+        // This exact Windows extractor creates a second, empty CWD tree while
+        // building the Jak 1 test actor. Its generated files live under data/out.
+        let discard_opengoal_scaffold = cfg!(windows)
+            && port.id == "opengoal-jak1"
+            && actual.sha256 == "bc2d0718894c48f63e6bfcfe2535cf96401542286b1572aa1dbf4a90ff8f5cc9";
+        validate_outputs(
+            &private_outputs,
+            payload,
+            &before,
+            &permissions,
+            discard_opengoal_scaffold,
+        )
+        .map_err(|error| error.during("preparation.verify"))?;
         let marker = port
             .setup_marker
             .as_deref()
@@ -885,13 +898,24 @@ pub(super) fn copy_setup_outputs(
     Ok(())
 }
 
+const OPENGOAL_COMPILER_SCAFFOLD: [&str; 3] = ["out", "out/jak1", "out/jak1/obj"];
+
 pub(super) fn validate_outputs(
     port: &PortDefinition,
     root: &Path,
     before: &AdoptionCopyPlan,
     permissions: &BTreeMap<std::path::PathBuf, bool>,
+    discard_opengoal_scaffold: bool,
 ) -> Result<()> {
-    let after = crate::library_transfer::reviewed_tree(root)?;
+    if discard_opengoal_scaffold {
+        for directory in OPENGOAL_COMPILER_SCAFFOLD {
+            crate::install::require_staged_path(root, &root.join(directory))?;
+        }
+    }
+    let mut after = crate::library_transfer::reviewed_tree(root)?;
+    if discard_opengoal_scaffold {
+        discard_empty_opengoal_scaffold(root, before, &mut after)?;
+    }
     let output_roots = port
         .setup_output_paths
         .iter()
@@ -955,6 +979,46 @@ pub(super) fn validate_outputs(
             "setup changed directory ownership outside its declared outputs",
         ));
     }
+    Ok(())
+}
+
+fn discard_empty_opengoal_scaffold(
+    root: &Path,
+    before: &AdoptionCopyPlan,
+    after: &mut AdoptionCopyPlan,
+) -> Result<()> {
+    let out = Path::new("out");
+    let existed = |path: &Path| path.as_os_str().eq_ignore_ascii_case(out.as_os_str());
+    if before.directories.iter().any(|path| existed(path))
+        || before.files.iter().any(|file| existed(&file.relative_path))
+    {
+        return Ok(());
+    }
+    let scaffold = OPENGOAL_COMPILER_SCAFFOLD.map(Path::new);
+    let count = after
+        .directories
+        .iter()
+        .filter(|path| path.starts_with(out))
+        .count();
+    if count != scaffold.len()
+        || !scaffold.iter().all(|expected| {
+            after
+                .directories
+                .iter()
+                .any(|path| path.as_path() == *expected)
+        })
+        || after
+            .files
+            .iter()
+            .any(|file| file.relative_path.starts_with(out))
+    {
+        return Ok(());
+    }
+    crate::install::require_staged_path(root, &root.join(scaffold[2]))?;
+    for directory in scaffold.iter().rev() {
+        fs::remove_dir(root.join(directory))?;
+    }
+    after.directories.retain(|path| !path.starts_with(out));
     Ok(())
 }
 
@@ -1471,8 +1535,11 @@ fn validate_cleanup_fingerprint(fingerprint: &str) -> Result<()> {
 
 #[cfg(test)]
 mod capacity_tests {
-    use super::{GAMECUBE_DISC_CAPACITY_BYTES, preparation_capacity_bytes};
+    use super::{
+        GAMECUBE_DISC_CAPACITY_BYTES, discard_empty_opengoal_scaffold, preparation_capacity_bytes,
+    };
     use crate::RuntimeSourceMaterialization;
+    use std::fs;
 
     #[test]
     fn compressed_gamecube_preparation_reserves_full_disc_and_generated_output() {
@@ -1494,6 +1561,37 @@ mod capacity_tests {
             .unwrap(),
             copied_install + 2 * GAMECUBE_DISC_CAPACITY_BYTES + 1
         );
+    }
+
+    #[test]
+    fn opengoal_discards_only_fresh_unpopulated_compiler_scaffolding() {
+        for preserve in ["", "file", "sibling", "preexisting"] {
+            let root = tempfile::tempdir().unwrap();
+            let out = root.path().join("out");
+            let leaf = out.join("jak1/obj");
+            if preserve == "preexisting" {
+                fs::create_dir(&out).unwrap();
+            }
+            let before = crate::library_transfer::reviewed_tree(root.path()).unwrap();
+            fs::create_dir_all(&leaf).unwrap();
+            let data = root.path().join("data/out/jak1");
+            fs::create_dir_all(&data).unwrap();
+            fs::write(data.join("compiled"), b"generated game data").unwrap();
+            if preserve == "file" {
+                fs::write(leaf.join("unreviewed"), b"keep").unwrap();
+            }
+            if preserve == "sibling" {
+                fs::create_dir(out.join("unreviewed")).unwrap();
+            }
+            let mut after = crate::library_transfer::reviewed_tree(root.path()).unwrap();
+            discard_empty_opengoal_scaffold(root.path(), &before, &mut after).unwrap();
+            assert_eq!(out.exists(), !preserve.is_empty(), "{preserve}");
+            assert_eq!(leaf.exists(), !preserve.is_empty(), "{preserve}");
+            assert_eq!(
+                fs::read(data.join("compiled")).unwrap(),
+                b"generated game data"
+            );
+        }
     }
 
     #[test]

@@ -212,7 +212,7 @@ export function discoverCiPlan(
   const windowsApplicationCaller =
     callerWorkflow === "application-release.yml" &&
     selectedProfile === "initial-beta-windows-x86_64-v1" &&
-    eventName === "workflow_dispatch";
+    ["workflow_dispatch", "schedule"].includes(eventName);
   if (
     selectedProfile !== "full" &&
     (!forceQualification ||

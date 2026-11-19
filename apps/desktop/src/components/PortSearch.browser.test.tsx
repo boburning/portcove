@@ -45,3 +45,23 @@ it("labels the search field for its scope in the current language", async () => 
   });
   expect(input()?.getAttribute("aria-label")).toBe("Search Discover");
 });
+
+it("announces each inline reset and does not replay it on a later programmatic reset", async () => {
+  const setQuery = vi.fn();
+  const liveRegion = () => container.querySelector('[aria-live="polite"]');
+  const render = (query: string) => root.rerender(<PortSearch query={query} setQuery={setQuery} />);
+
+  for (const query of ["Zelda", "Metroid"]) {
+    await act(async () => render(query));
+    expect(liveRegion()?.textContent).toBe("");
+    await act(async () => container.querySelector("button")?.click());
+    expect(setQuery).toHaveBeenLastCalledWith("");
+    await act(async () => render(""));
+    expect(liveRegion()?.textContent).toBe("Search cleared.");
+    expect(document.activeElement?.id).toBe("port-search");
+  }
+
+  await act(async () => render("Kirby"));
+  await act(async () => render(""));
+  expect(liveRegion()?.textContent).toBe("");
+});

@@ -127,6 +127,13 @@ pub enum SourceRepresentationKind {
     CanonicalN64 {
         identities: Vec<DigestIdentity>,
     },
+    /// A raw SNES cartridge dump that may carry one 512-byte copier header. A
+    /// file whose length is 512 more than a multiple of 1024 is identified by the
+    /// bytes after that header; any other length is identified whole. Identities
+    /// use the `snes-headerless-content` scope.
+    SnesCopierHeaderOptional {
+        identities: Vec<DigestIdentity>,
+    },
     ArchiveMember {
         member_extensions: Vec<String>,
         identities: Vec<DigestIdentity>,
@@ -158,6 +165,17 @@ pub enum SourceRepresentationKind {
         format: CompoundSourceFormat,
         identities: Vec<DigestIdentity>,
     },
+    /// Content-based identity for an Xbox 360 STFS package whose whole-file bytes differ
+    /// between owners (licence entries and signature). A package matches only when its
+    /// complete SHA-1 hash tree verifies, its header type, title ID and content type are
+    /// listed, and every member's extracted SHA-256 is equal. Declared explicitly beside,
+    /// never instead of, an existing whole-package identity.
+    StfsContent {
+        package_types: Vec<StfsPackageType>,
+        title_ids: Vec<String>,
+        content_types: Vec<String>,
+        members: Vec<StfsContentMember>,
+    },
     InformationalExtension {
         evidence_gap: String,
     },
@@ -167,6 +185,23 @@ pub enum SourceRepresentationKind {
 #[serde(rename_all = "kebab-case")]
 pub enum CompoundSourceFormat {
     StfsLive,
+}
+
+/// The STFS container magic: `LIVE` or `PIRS`. `CON` is not read yet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum StfsPackageType {
+    Live,
+    Pirs,
+}
+
+/// One extracted file of a content-identified STFS package.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct StfsContentMember {
+    /// Relative path inside the package, compared without regard to ASCII case.
+    pub path: String,
+    pub sha256: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -218,6 +253,8 @@ pub enum DigestScope {
     OriginalContainer,
     NormalizedContent,
     CanonicalN64BigEndian,
+    // A raw SNES dump's content without an optional 512-byte copier header.
+    SnesHeaderlessContent,
     ArchiveMember,
     GamecubeNormalizedIso,
     PsxNormalizedTrackSet,
@@ -288,13 +325,24 @@ impl PortSourceContract {
             && artifact_sha256.len() == 64
             && artifact_sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
             && (self.release_policy == Some(SourceReleasePolicy::IntegrationContractV1)
-                || self.applicability.iter().any(|binding| {
-                    binding.upstream_ref == upstream_ref
-                        && binding
-                            .artifact_sha256
-                            .as_ref()
-                            .is_none_or(|hash| hash.eq_ignore_ascii_case(artifact_sha256))
-                }))
+                || self.reviewed_binding_covers(upstream_ref, artifact_sha256))
+    }
+
+    /// Whether a reviewed release binding names this exact release. Unlike
+    /// source admission, this never widens through `release_policy`: a release
+    /// policy admits sources for any release, but qualifies none.
+    pub(crate) fn reviewed_binding_covers(
+        &self,
+        upstream_ref: &str,
+        artifact_sha256: &str,
+    ) -> bool {
+        self.applicability.iter().any(|binding| {
+            binding.upstream_ref == upstream_ref
+                && binding
+                    .artifact_sha256
+                    .as_ref()
+                    .is_none_or(|hash| hash.eq_ignore_ascii_case(artifact_sha256))
+        })
     }
 }
 
@@ -563,6 +611,36 @@ impl SourceCatalog {
             .ok_or_else(|| {
                 PortcoveError::not_found(format!("unknown source contract: {contract_id}"))
             })?;
+        let mut targets = 0usize;
+        for identity in self.current_source_identities(contract)? {
+            targets += 1;
+            let scope = SourceEvidenceScope {
+                port_id: contract.port_id.clone(),
+                platform,
+                artifact_sha256: Some(artifact_sha256.into()),
+                upstream_ref: Some(upstream_ref.into()),
+                contract_id: Some(contract.id.clone()),
+                variant: SourceVariantScope::Exact { identity },
+                check_version: Some(check_version.into()),
+            };
+            let passed = evidence_state(
+                self.qualification
+                    .iter()
+                    .filter(|record| record.kind == kind && record.applies_to(&scope)),
+            ) == QualificationEvidenceState::Passed;
+            if !passed {
+                return Ok(false);
+            }
+        }
+        Ok(targets > 0)
+    }
+
+    /// Every source identity a contract currently supports: its profile's
+    /// supported, non-legacy variants and each of their representations.
+    pub(crate) fn current_source_identities(
+        &self,
+        contract: &PortSourceContract,
+    ) -> Result<Vec<crate::SourceIdentity>> {
         let profile = self
             .identities
             .iter()
@@ -570,38 +648,24 @@ impl SourceCatalog {
             .ok_or_else(|| {
                 PortcoveError::not_found(format!("unknown source profile: {}", contract.profile_id))
             })?;
-        let mut targets = 0usize;
-        for variant in profile.variants.iter().filter(|variant| {
-            !variant.legacy_projection_only && contract.supported_variant_ids.contains(&variant.id)
-        }) {
-            for representation in &variant.representations {
-                targets += 1;
-                let scope = SourceEvidenceScope {
-                    port_id: contract.port_id.clone(),
-                    platform,
-                    artifact_sha256: Some(artifact_sha256.into()),
-                    upstream_ref: Some(upstream_ref.into()),
-                    contract_id: Some(contract.id.clone()),
-                    variant: SourceVariantScope::Exact {
-                        identity: crate::SourceIdentity {
-                            game_id: profile.id.clone(),
-                            variant_id: variant.id.clone(),
-                            representation_id: representation.id.clone(),
-                        },
-                    },
-                    check_version: Some(check_version.into()),
-                };
-                let passed = evidence_state(
-                    self.qualification
-                        .iter()
-                        .filter(|record| record.kind == kind && record.applies_to(&scope)),
-                ) == QualificationEvidenceState::Passed;
-                if !passed {
-                    return Ok(false);
-                }
-            }
-        }
-        Ok(targets > 0)
+        Ok(profile
+            .variants
+            .iter()
+            .filter(|variant| {
+                !variant.legacy_projection_only
+                    && contract.supported_variant_ids.contains(&variant.id)
+            })
+            .flat_map(|variant| {
+                variant
+                    .representations
+                    .iter()
+                    .map(|representation| crate::SourceIdentity {
+                        game_id: profile.id.clone(),
+                        variant_id: variant.id.clone(),
+                        representation_id: representation.id.clone(),
+                    })
+            })
+            .collect())
     }
 
     fn validate_qualification(
@@ -749,6 +813,7 @@ impl SourceIdentityProfile {
         )?;
 
         let mut deterministic_owners = HashMap::new();
+        let mut relative_directory_only = None;
         for variant in &self.variants {
             require_text(&variant.title, "source variant title")?;
             validate_text_values("source product code", &variant.product_codes)?;
@@ -771,6 +836,20 @@ impl SourceIdentityProfile {
                 )?;
                 representation.validate(validators)?;
                 if !variant.legacy_projection_only {
+                    if let SourceRepresentationKind::RelativeFileSet { members } =
+                        &representation.kind
+                    {
+                        let directory_only = crate::relative_file_set::requires_directory(members);
+                        if relative_directory_only
+                            .replace(directory_only)
+                            .is_some_and(|earlier| earlier != directory_only)
+                        {
+                            return Err(PortcoveError::usage(format!(
+                                "{} mixes ZIP-compatible and directory-only relative file sets",
+                                self.id
+                            )));
+                        }
+                    }
                     for key in representation.deterministic_match_keys()? {
                         if let Some(previous) =
                             deterministic_owners.insert(key, variant.id.as_str())
@@ -814,6 +893,7 @@ impl SourceIdentityProfile {
                 let kind = match &representation.kind {
                     SourceRepresentationKind::RawFile { identities }
                     | SourceRepresentationKind::CanonicalN64 { identities }
+                    | SourceRepresentationKind::SnesCopierHeaderOptional { identities }
                     | SourceRepresentationKind::ArchiveMember { identities, .. }
                     | SourceRepresentationKind::Compound { identities, .. } => {
                         append_digests(&mut legacy, identities);
@@ -918,7 +998,10 @@ impl SourceIdentityProfile {
                     SourceRepresentationKind::PinnedValidator { .. } => {
                         SourceKind::UpstreamValidatedDisc
                     }
-                    SourceRepresentationKind::InformationalExtension { .. } => SourceKind::File,
+                    // Content identity has no whole-file digest to project; only the
+                    // schema-2 inspector admits it, and never by structural checks.
+                    SourceRepresentationKind::StfsContent { .. }
+                    | SourceRepresentationKind::InformationalExtension { .. } => SourceKind::File,
                 };
                 if let Some(previous) = represented_kind
                     && previous != kind
@@ -989,6 +1072,7 @@ impl SourceRepresentation {
         let identities = match &self.kind {
             SourceRepresentationKind::RawFile { identities }
             | SourceRepresentationKind::CanonicalN64 { identities }
+            | SourceRepresentationKind::SnesCopierHeaderOptional { identities }
             | SourceRepresentationKind::ArchiveMember { identities, .. }
             | SourceRepresentationKind::GamecubeNormalizedIso { identities }
             | SourceRepresentationKind::OpticalTrackSet { identities, .. }
@@ -998,6 +1082,33 @@ impl SourceRepresentation {
             | SourceRepresentationKind::MultiDiscSet { .. }
             | SourceRepresentationKind::VolumeId { .. } => {
                 return Ok(vec![serde_json::to_string(&self.kind)?]);
+            }
+            // Two variants may not claim the same title, content type and members.
+            SourceRepresentationKind::StfsContent {
+                title_ids,
+                content_types,
+                members,
+                ..
+            } => {
+                let mut members = members
+                    .iter()
+                    .map(|member| {
+                        format!(
+                            "{}={}",
+                            member.path.to_ascii_lowercase(),
+                            member.sha256.to_ascii_lowercase()
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                members.sort();
+                let members = members.join(",");
+                let mut keys = Vec::new();
+                for title in title_ids {
+                    for kind in content_types {
+                        keys.push(format!("stfs-content:{title}:{kind}:{members}"));
+                    }
+                }
+                return Ok(keys);
             }
             SourceRepresentationKind::PinnedValidator { .. }
             | SourceRepresentationKind::InformationalExtension { .. } => return Ok(Vec::new()),
@@ -1026,6 +1137,19 @@ impl SourceRepresentation {
             | SourceRepresentationKind::OpticalTrackSet { identities, .. }
             | SourceRepresentationKind::Compound { identities, .. } => {
                 validate_identities(identities)?;
+            }
+            SourceRepresentationKind::SnesCopierHeaderOptional { identities } => {
+                validate_identities(identities)?;
+                // The kind is only meaningful for its own headerless scope; any
+                // other scope would silently identify whole files instead.
+                if identities
+                    .iter()
+                    .any(|identity| identity.scope != DigestScope::SnesHeaderlessContent)
+                {
+                    return Err(PortcoveError::verification(
+                        "an optional-copier-header source identifies its headerless content only",
+                    ));
+                }
             }
             SourceRepresentationKind::ArchiveMember {
                 member_extensions,
@@ -1101,9 +1225,70 @@ impl SourceRepresentation {
             SourceRepresentationKind::InformationalExtension { evidence_gap } => {
                 require_text(evidence_gap, "informational representation evidence gap")?;
             }
+            SourceRepresentationKind::StfsContent {
+                package_types,
+                title_ids,
+                content_types,
+                members,
+            } => validate_stfs_content(package_types, title_ids, content_types, members)?,
         }
         Ok(())
     }
+}
+
+/// Eight uppercase hexadecimal digits, as STFS header title IDs and content types are
+/// written in catalog data.
+pub(crate) fn is_stfs_header_value(value: &str) -> bool {
+    value.len() == 8
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'A'..=b'F').contains(&byte))
+}
+
+/// The STFS content types a content identity or port binding may name. Only an Xbox
+/// Live Arcade title is reviewed; title updates and downloadable content need their own
+/// decisions.
+pub(crate) const STFS_ACCEPTED_CONTENT_TYPES: [&str; 1] = ["000D0000"];
+
+fn validate_stfs_content(
+    package_types: &[StfsPackageType],
+    title_ids: &[String],
+    content_types: &[String],
+    members: &[StfsContentMember],
+) -> Result<()> {
+    let unique = |values: &[String]| values.iter().collect::<HashSet<_>>().len() == values.len();
+    if package_types.is_empty()
+        || package_types.iter().collect::<HashSet<_>>().len() != package_types.len()
+        || title_ids.is_empty()
+        || title_ids.len() > 16
+        || !unique(title_ids)
+        || !title_ids.iter().all(|value| is_stfs_header_value(value))
+        || content_types.is_empty()
+        || !unique(content_types)
+        || !content_types
+            .iter()
+            .all(|value| STFS_ACCEPTED_CONTENT_TYPES.contains(&value.as_str()))
+    {
+        return Err(PortcoveError::usage(
+            "STFS content identity needs package types, uppercase title IDs and the arcade content type",
+        ));
+    }
+    if members.is_empty() || members.len() > 16 {
+        return Err(PortcoveError::usage(
+            "STFS content identity needs 1 to 16 member digests",
+        ));
+    }
+    let mut keys = HashSet::new();
+    for member in members {
+        let (_, key) = crate::archive::validate_relative_path(&member.path, false)?;
+        if member.path.contains('\\') || !keys.insert(key) {
+            return Err(PortcoveError::usage(
+                "STFS content identity has an invalid or colliding member path",
+            ));
+        }
+        require_digest(&member.sha256, 64, "SHA-256")?;
+    }
+    Ok(())
 }
 
 fn validate_identities(identities: &[DigestIdentity]) -> Result<()> {

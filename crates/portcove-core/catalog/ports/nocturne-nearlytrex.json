@@ -1,0 +1,57 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nocturne-nearlytrex",
+    "project_url": "https://github.com/NearlyTRex/NocturneDecomp",
+    "artwork": {
+      "game_id": 4850,
+      "cover_id": 549033,
+      "image_id": "cobrmx",
+      "image_sha256": "9813bc82278130ad270ce89f2f17d87ed54c4964e4b58b66d01c41596b5582ea",
+      "game_slug": "nocturne",
+      "match_kind": "underlying-game"
+    },
+    "name": "Nocturne / NocturneDecomp",
+    "original_game_title": "Nocturne",
+    "summary": "Use NocturneDecomp with a complete installation from your own copy of Nocturne.",
+    "issue_number": 6002,
+    "listed_at": "2026-11-14",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/NearlyTRex/NocturneDecomp/releases/tag/v0.1.11",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose an engine and keep the original install",
+          "instruction": "Use the v0.1.11 engine for your system and keep the full original Nocturne installation, including its POD files. Choose Vanilla for the original settings and behavior or Enhanced for the added features. If you use the in-place setup from the release notes, make a separate working copy before unpacking the engine."
+        },
+        {
+          "title": "Set up Windows or Linux with separate saves",
+          "instruction": "Keep the executable and bundled libraries together. Open nocturne.exe on Windows or ./nocturne on Linux from a terminal with --data-dir pointing to the complete game installation and --user-dir pointing to a folder for that engine’s saves, settings and logs. Use separate user folders for Vanilla and Enhanced. Linux packages are available for x86-64 and ARM64."
+        },
+        {
+          "title": "Prepare the Mac app and its shared data folder",
+          "instruction": "Choose the Intel or Apple Silicon app that matches your Mac. Follow the upstream first-launch instructions, then copy the complete original installation into NocturneDecomp under ~/Library/Application Support. Both Mac apps use that folder and share its saves by default. Back up the folder before switching editions or replacing files."
+        },
+        {
+          "title": "Make the original movies available",
+          "instruction": "For cutscenes, use a working copy of the game files as your --data-dir on Windows or Linux, or as the Application Support copy on Mac. In that copy, create a video folder and copy the original .AVI files there from the AVI folder."
+        }
+      ],
+      "warnings": [
+        "Upstream reports limited testing on Macs and ARM64 Linux. The Mac apps lack a developer signature.",
+        "Upstream’s 0BSD license covers its original work. The release includes reconstructed game code that this license does not cover."
+      ],
+      "help_url": "https://github.com/NearlyTRex/NocturneDecomp/releases/tag/v0.1.11"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "nocturne",
+      "evidence_urls": [
+        "https://github.com/NearlyTRex/NocturneDecomp/releases/tag/v0.1.11",
+        "https://github.com/NearlyTRex/NocturneDecomp"
+      ],
+      "source_editions": []
+    }
+  }
+}

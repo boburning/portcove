@@ -3,7 +3,7 @@
   "listing": {
     "id": "alexbeav-mortal-kombat-trilogy-recomp",
     "name": "Mortal Kombat Trilogy / Alexbeav PSXRecomp",
-    "summary": "Build and play Mortal Kombat Trilogy on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
+    "summary": "Build and play Mortal Kombat Trilogy on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Mortal Kombat Trilogy",
     "project_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp",
     "issue_number": 468,
@@ -45,14 +45,31 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["mortal-kombat-trilogy-", "-windows-x64.zip"],
-      "linux-x86-64": ["mortal-kombat-trilogy-", "-linux-x64.zip"],
       "macos-x86-64": ["mortal-kombat-trilogy-", "-macos-x64.zip"],
       "macos-aarch64": ["mortal-kombat-trilogy-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "mortal-kombat-trilogy",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "mortal-kombat-trilogy-playstation",
+          "title": "Mortal Kombat Trilogy (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/blob/4bd910c238a9e24c574dcd4ef3dc8481c37c7ffd/game.toml"
+          ]
+        }
+      ]
+    }
   },
-  "psx_managed_windows_v1": true,
+  "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -84,14 +101,27 @@
         },
         {
           "role": "bios",
-          "profile_id": "psx-scph-5552-bios",
-          "label": "PlayStation SCPH-5552 BIOS (Europe)",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
           "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching 30-track USA CHD (SLUS-00330) and retail SCPH-5552 BIOS. Portcove verifies the data track and track count and builds privately with the registered toolchain. Provide all tracks; the remaining tracks are carried into preparation without authenticating their audio content. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows and Linux package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved."
+      "manual_preparation": "Provide your own matching 30-track USA CHD (SLUS-00330) and retail SCPH-1001 BIOS. A copy built with the SCPH-5552 BIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Portcove verifies the data track and track count and builds privately with the registered toolchain. Provide all tracks; the remaining tracks are carried into preparation without authenticating their audio content. Play starts the generated runtime. Keep your original disc and BIOS separately. Windows and Linux package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "Native build, gameplay and save compatibility remain unobserved."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp#readme"
+      }
     },
-    "bios_source_profile": "psx-scph-5552-bios"
+    "bios_source_profile": "psx-scph-1001-bios"
   }
 }
