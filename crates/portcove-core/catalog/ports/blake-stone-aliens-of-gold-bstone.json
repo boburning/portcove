@@ -65,7 +65,16 @@
         "https://github.com/bibendovsky/bstone#readme",
         "https://github.com/bibendovsky/bstone"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "blake-stone-aliens-of-gold-pc",
+          "title": "Blake Stone: Aliens of Gold (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/blake-stone-aliens-of-gold-bstone.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

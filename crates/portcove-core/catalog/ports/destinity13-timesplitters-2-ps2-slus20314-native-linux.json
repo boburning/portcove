@@ -61,7 +61,16 @@
         "https://api.github.com/repositories/1449120748",
         "https://api.github.com/repos/Destinity13/TimeSplitters-2-Native-Linux-Recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "timesplitters-2-playstation-2",
+          "title": "TimeSplitters 2 (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/blob/736af9d3b30fa8db64e3cf68402fe6393e7fa9f1/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

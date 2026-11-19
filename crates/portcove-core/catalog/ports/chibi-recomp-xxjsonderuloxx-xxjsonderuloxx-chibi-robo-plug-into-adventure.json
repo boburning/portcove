@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "chibi-robo-plug-into-adventure",
       "evidence_urls": ["https://github.com/xXJSONDeruloXx/chibi-recompo"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "chibi-robo-plug-into-adventure-nintendo-gamecube",
+          "title": "Chibi-Robo! Plug Into Adventure! (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/xXJSONDeruloXx/chibi-recompo/blob/7fceb58775822e9dffa72a0dcae1af4514a1f19e/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

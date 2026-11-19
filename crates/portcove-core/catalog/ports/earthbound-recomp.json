@@ -53,7 +53,16 @@
         "https://github.com/nickclyde/EarthBoundRecomp/blob/fe1155dc26ffc40df36a8003dd0e639e17af3349/README.md",
         "https://github.com/nickclyde/EarthBoundRecomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "earthbound-super-nintendo",
+          "title": "EarthBound (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/nickclyde/EarthBoundRecomp/blob/fe1155dc26ffc40df36a8003dd0e639e17af3349/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

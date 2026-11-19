@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "socom-ii-u-s-navy-seals",
       "evidence_urls": ["https://github.com/Scotho/socom-unzipped"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "socom-ii-u-s-navy-seals-playstation-2",
+          "title": "SOCOM II: U.S. Navy SEALs (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Scotho/socom-unzipped/blob/ef8b1bc285b17e40d1073a7254aa78733e334e6a/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

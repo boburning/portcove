@@ -7,7 +7,7 @@
     "project_url": "https://github.com/Hero88go/melee-unlocked",
     "issue_number": 814,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Hero88go/melee-unlocked",
     "artwork": {

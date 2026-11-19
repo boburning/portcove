@@ -59,7 +59,16 @@
         "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "fade-to-black-playstation",
+          "title": "Fade to Black (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/blob/25df871d2185eb45ec0e9253b96a2667e2feca6b/game.toml"
+          ]
+        }
+      ]
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

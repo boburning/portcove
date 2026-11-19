@@ -49,6 +49,8 @@ ScummVM target. ScummVM owns its profile and save locations, and the selected
 package route determines who updates the runtime.
 See [ScummVM's default save locations](https://docs.scummvm.org/en/latest/use_scummvm/save_load_games.html#location-of-saved-game-files)
 and [direct launch with a saved target](https://docs.scummvm.org/en/latest/advanced_topics/command_line.html#starting-a-game).
+The [shared player example](reference/scummvm.md) shows how to register two game
+targets against the same upstream installation.
 
 Descriptions require listing format 12. Formats 5 through 11 exported for older
 strict readers omit only this inert field; ordinary requirements and restrictions
@@ -2308,7 +2310,9 @@ one of the `reviewed_artifacts`.
 A hold with `excluded_artifacts` identifies excluded packages by version and
 SHA-256. If the selected platform's package matches an exclusion, Core looks for
 a `reviewed_artifacts` match on that platform and channel and includes the hold
-reason in the install plan. The fallback must match the reviewed digest using
+reason in the install plan. Release observations record `reviewed-artifact-excluded`
+for the candidate and retain the selected fallback as its own result. The fallback
+must match the reviewed digest using
 GitHub asset metadata or the publisher's checksum sidecar. Other releases go through ordinary selection and trust
 checks. An excluded package cannot be activated from staging or recovery.
 Installed copies retain their existing Play, backup and removal checks. A player
@@ -3549,6 +3553,8 @@ with the same title prefix and the platform-specific `-windows-x64.zip` and
 `-linux-x64.zip` suffixes. `"split-mods-openbios"` combines those split mod
 paths and selectors with the bundled OpenBIOS argument and refuses a retail
 BIOS profile, for reviewed dual-platform kits that ship and support OpenBIOS.
+For the reviewed retail multidisc split-mods kits, keep `runtime-discs`,
+`psx-settings-selected` and `psx-raw-set` explicit in the integration.
 
 A Linux sibling uses the same generated player basename without `.exe`, its
 own asset selector and artifact-bound source applicability.

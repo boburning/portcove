@@ -14,7 +14,7 @@
     "summary": "Saints Reborn is the renamed SaintsRowPC implementation, retaining its existing updates. The project claims start-to-finish story, side missions and free roam, with multiplayer issues remaining. SaintsReborn-Setup.exe downloads compiler/tools, imports your own 2006 Xbox 360 Saints Row disc and builds locally, creating play/update shortcuts. Setup or UpdateSaintsReborn manages replacement. Windows x86-64 is documented; Linux setup is explicitly planned rather than available. Exact accepted revision/hashes and BIOS/firmware needs are unconfirmed. Portcove has not qualified a release package or confirmed setup or gameplay.",
     "original_game_title": "Saints Row (2006)",
     "project_url": "https://github.com/whompay/SaintsReborn",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/whompay/SaintsReborn",
     "issue_number": 2778,

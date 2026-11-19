@@ -59,7 +59,16 @@
         "https://github.com/alexbeavs-ps1-ports/driver-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/driver-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "driver-playstation",
+          "title": "Driver (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/driver-recomp/blob/8dd843a427386d8d44aeaab4aca783774df95cd8/game.toml"
+          ]
+        }
+      ]
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

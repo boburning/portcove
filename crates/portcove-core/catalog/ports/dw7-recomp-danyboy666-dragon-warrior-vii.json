@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "dragon-warrior-vii",
       "evidence_urls": ["https://github.com/danyboy666/DW7-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dragon-warrior-vii-playstation",
+          "title": "Dragon Warrior VII (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/danyboy666/DW7-recomp/blob/5ee2f831362e33c882bcefb8daba80885b494aea/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

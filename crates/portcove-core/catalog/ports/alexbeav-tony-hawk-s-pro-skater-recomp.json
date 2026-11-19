@@ -56,7 +56,16 @@
         "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "tony-hawk-s-pro-skater-playstation",
+          "title": "Tony Hawk's Pro Skater (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp/blob/820fcda34cacc39b946cb20b05df221a77667e4a/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

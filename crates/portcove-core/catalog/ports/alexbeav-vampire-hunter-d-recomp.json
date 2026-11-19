@@ -59,7 +59,16 @@
         "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "vampire-hunter-d-playstation",
+          "title": "Vampire Hunter D (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp/blob/27791526474a76b056b3536238ac21d8052776b0/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/kartia-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/kartia-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "kartia-the-word-of-fate-playstation",
+          "title": "Kartia: The Word of Fate (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/kartia-recomp/blob/e4ad3814ce5d6a273b07a6d81e6ce43376a6f8f1/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

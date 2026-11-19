@@ -6,7 +6,7 @@
     "summary": "A WWE All Stars Windows x64 Vulkan port with project-reported matches, controls and shader preparation. The ZIP includes the player and initial setup launcher: import and check your own USA/Europe Xbox 360 ISO and supported TU2, prepare shaders/pipelines, then use game/wweallstars.exe. Release notifications check for new versions but do not download them. Source development separately uses VS2026/ReXGlue; framework portability does not establish other players. Complete-game, multiplayer, exact accepted input hashes and BIOS/firmware requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "WWE All Stars",
     "project_url": "https://github.com/shaneomac1337/WWE-AllStars-Recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/shaneomac1337/WWE-AllStars-Recomp",
     "artwork": {

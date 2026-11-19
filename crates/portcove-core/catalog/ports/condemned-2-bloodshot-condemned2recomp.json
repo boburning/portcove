@@ -60,6 +60,26 @@
         }
       ]
     },
-    "download_block_reason": "Portcove downloads are paused because the package includes a shader cache built from the game’s own shaders. They can resume when upstream publishes a package that builds the cache from your own game files."
+    "download_block_reason": "Portcove downloads are paused because the package includes a shader cache built from the game’s own shaders. They can resume when upstream publishes a package that builds the cache from your own game files.",
+    "original_game": {
+      "format_version": 1,
+      "id": "condemned-2-bloodshot",
+      "evidence_urls": [
+        "https://github.com/psxrestore/Condemned2Recomp",
+        "https://github.com/psxrestore/Condemned2Recomp/releases",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/condemned-2-bloodshot-condemned2recomp.json"
+      ],
+      "source_editions": [
+        {
+          "id": "condemned-2-bloodshot-xbox-360",
+          "title": "Condemned 2: Bloodshot (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/condemned-2-bloodshot-condemned2recomp.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Condemned 2: Bloodshot"
   }
 }

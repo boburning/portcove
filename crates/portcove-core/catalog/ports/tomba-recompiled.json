@@ -21,7 +21,16 @@
       "format_version": 1,
       "id": "tomba",
       "evidence_urls": ["https://github.com/mstan/TombaRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "tomba-playstation",
+          "title": "Tomba! (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+          ]
+        }
+      ]
     }
   },
   "integration": {

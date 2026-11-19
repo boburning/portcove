@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "digimon-world-2-playstation",
+          "title": "Digimon World 2 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/blob/d69bcf91b264687854b689408b45f4e999a0dfff/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

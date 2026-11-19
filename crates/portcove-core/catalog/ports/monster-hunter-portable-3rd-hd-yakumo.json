@@ -53,7 +53,16 @@
       "format_version": 1,
       "id": "monster-hunter-portable-3rd-hd-ver",
       "evidence_urls": ["https://github.com/TeamGDB/Yakumo"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "monster-hunter-portable-3rd-hd-ver-playstation-3",
+          "title": "Monster Hunter Portable 3rd HD Ver. (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/TeamGDB/Yakumo/blob/0a506b81af44f4c70a3a197e81795891f5567968/README.md"
+          ]
+        }
+      ]
     }
   },
   "route_facts_v1": {

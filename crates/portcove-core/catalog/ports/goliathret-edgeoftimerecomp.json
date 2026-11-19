@@ -7,7 +7,7 @@
     "project_url": "https://github.com/goliathret/EdgeOfTimeRecomp",
     "issue_number": 1818,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/goliathret/EdgeOfTimeRecomp",
     "artwork": {

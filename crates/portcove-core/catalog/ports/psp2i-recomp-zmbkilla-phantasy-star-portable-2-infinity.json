@@ -46,7 +46,16 @@
       "format_version": 1,
       "id": "phantasy-star-portable-2-infinity",
       "evidence_urls": ["https://github.com/zmbkilla/PSP2I_Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "phantasy-star-portable-2-infinity-playstation-portable",
+          "title": "Phantasy Star Portable 2 Infinity (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/zmbkilla/PSP2I_Recomp/blob/c3ed2f4b6ecf81037a52fe699af7c1dcfab8f9a9/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

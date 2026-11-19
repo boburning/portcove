@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "street-fighter-x-tekken-xbox-360",
       "evidence_urls": ["https://github.com/danny199012/StreetFighter-X-Tekken-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "street-fighter-x-tekken-xbox-360-xbox-360",
+          "title": "Street Fighter X Tekken (Xbox 360) (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/danny199012/StreetFighter-X-Tekken-Recomp/blob/996a731a3d58d7124164f78318f25aac6905281e/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

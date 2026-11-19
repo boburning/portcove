@@ -47,7 +47,16 @@
       "format_version": 1,
       "id": "sin-and-punishment",
       "evidence_urls": ["https://github.com/wootbeer/snprecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "sin-and-punishment-nintendo-64",
+          "title": "Sin and Punishment (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/wootbeer/snprecomp/blob/6e76c24c84e6fc65faeae89e8e75d7fac92aba1f/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -7,7 +7,7 @@
     "project_url": "https://github.com/HollywoodAkeem/SVR07-Recomp",
     "issue_number": 131,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/HollywoodAkeem/SVR07-Recomp",
     "artwork": {
@@ -47,6 +47,27 @@
         "The v1.0 package/old matching digest and BSD3 source grant retain their original scopes. The selected release source has no exact SDK-fork commit pin; current fork source is only an explicitly separate observation, not a certificate for that binary. No generic SDK/source/other-game support is inherited.",
         "No Core-managed acquisition/setup/Install/Update/Backup/Rollback/migration/deletion or new console-family framework. Actual game/original/package execution, state/mod compatibility, installed/human/other-platform/protected qualification and Supported promotion remain unestablished here."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wwe-smackdown-vs-raw-2007",
+      "evidence_urls": [
+        "https://github.com/HollywoodAkeem/SVR07-Recomp/blob/c10ecdc7e5fea9dd1aaa23dfbf0c89b153890abc/README.md",
+        "https://github.com/HollywoodAkeem/SVR07-Recomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/svr07-recomp-wwe-smackdown-vs-raw-2007.json"
+      ],
+      "source_editions": [
+        {
+          "id": "wwe-smackdown-vs-raw-2007-xbox-360",
+          "title": "WWE SmackDown vs. Raw 2007 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/HollywoodAkeem/SVR07-Recomp/blob/c10ecdc7e5fea9dd1aaa23dfbf0c89b153890abc/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/svr07-recomp-wwe-smackdown-vs-raw-2007.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "WWE SmackDown vs. Raw 2007"
   }
 }

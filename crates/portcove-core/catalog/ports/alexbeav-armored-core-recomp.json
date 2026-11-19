@@ -59,7 +59,16 @@
         "https://github.com/alexbeavs-ps1-ports/armored-core-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/armored-core-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "armored-core-playstation",
+          "title": "Armored Core (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/blob/80060c45a009ed8963e83fbb742eb3ef956cc9fc/game.toml"
+          ]
+        }
+      ]
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

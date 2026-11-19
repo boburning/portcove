@@ -40,7 +40,16 @@
         "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid/blob/v0.9.5/README.md",
         "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-the-wind-waker-wii-u",
+          "title": "The Legend of Zelda: The Wind Waker HD (Wii U)",
+          "system": "wii-u",
+          "evidence_urls": [
+            "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid/blob/b1993cf31b5ef146daa718ace570ea592150614d/README.md"
+          ]
+        }
+      ]
     },
     "original_game_title": "The Legend of Zelda: The Wind Waker"
   }

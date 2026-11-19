@@ -35,6 +35,24 @@
       "image_sha256": "c8c014783f8ccf74537503e808658d3d6e19f921b8909ebffadfd58cd9dbbfa1",
       "game_slug": "monster-high-new-ghoul-in-school",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "monster-high-new-ghoul-in-school",
+      "evidence_urls": [
+        "https://github.com/adumah/mhnwis-nx",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/mhnwis-nx-adumah-monster-high-new-ghoul-in-school.json"
+      ],
+      "source_editions": [
+        {
+          "id": "monster-high-new-ghoul-in-school-xbox-360",
+          "title": "Monster High: New Ghoul in School (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/mhnwis-nx-adumah-monster-high-new-ghoul-in-school.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

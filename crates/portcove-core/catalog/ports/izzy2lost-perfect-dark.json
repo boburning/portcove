@@ -40,7 +40,16 @@
         "https://github.com/izzy2lost/perfect_dark/blob/2.0.0/README.md",
         "https://github.com/izzy2lost/perfect_dark"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "perfect-dark-nintendo-64",
+          "title": "Perfect Dark (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/izzy2lost/perfect_dark/blob/0bc2e28d142bdfbf9b4aa7b19014ccb0e5202c80/README.md"
+          ]
+        }
+      ]
     },
     "original_game_title": "Perfect Dark"
   }

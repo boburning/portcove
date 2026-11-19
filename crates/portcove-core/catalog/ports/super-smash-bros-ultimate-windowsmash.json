@@ -7,7 +7,7 @@
     "original_game_title": "Super Smash Bros. Ultimate",
     "project_url": "https://github.com/OpenSmash-Ultimate/WindowSmash",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/OpenSmash-Ultimate/WindowSmash",
     "artwork": {
@@ -45,7 +45,16 @@
       "format_version": 1,
       "id": "super-smash-bros-ultimate",
       "evidence_urls": ["https://github.com/OpenSmash-Ultimate/WindowSmash"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "super-smash-bros-ultimate-nintendo-switch",
+          "title": "Super Smash Bros. Ultimate (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/OpenSmash-Ultimate/WindowSmash/blob/598d05240fc146f7184b3450653e2eec2ee97312/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

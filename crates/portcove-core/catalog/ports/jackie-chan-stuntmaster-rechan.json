@@ -68,7 +68,16 @@
         "https://github.com/SilverwireGames/ReChan/blob/ecd39935559d024992b2049576ea0ecc3b204b8c/README.md",
         "https://github.com/SilverwireGames/ReChan"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "jackie-chan-stuntmaster-playstation",
+          "title": "Jackie Chan Stuntmaster (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/SilverwireGames/ReChan/blob/ecd39935559d024992b2049576ea0ecc3b204b8c/README.md"
+          ]
+        }
+      ]
     }
   }
 }

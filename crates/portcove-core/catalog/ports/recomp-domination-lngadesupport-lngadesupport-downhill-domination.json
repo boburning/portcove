@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "downhill-domination",
       "evidence_urls": ["https://github.com/lngadesupport/Recomp-Domination"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "downhill-domination-playstation-2",
+          "title": "Downhill Domination (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/lngadesupport/Recomp-Domination/blob/dd095c7acf15d40bb139d7c08cd0de49af2aabdf/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -58,7 +58,16 @@
         "https://github.com/jkdansereau/goldeneye-pc-port/releases/tag/v0.5.0",
         "https://github.com/jkdansereau/goldeneye-pc-port"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "goldeneye-007-nintendo-64",
+          "title": "GoldenEye 007 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/jkdansereau/goldeneye-pc-port/blob/fda76b69837e6c5aae436e0d3e798989e49b06d2/README.md"
+          ]
+        }
+      ]
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64"],

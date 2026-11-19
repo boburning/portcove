@@ -8,7 +8,7 @@
     "project_url": "https://github.com/parkerallan/doa3-recomp",
     "issue_number": 2560,
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/parkerallan/doa3-recomp",
     "artwork": {
@@ -54,7 +54,16 @@
       "format_version": 1,
       "id": "dead-or-alive-3",
       "evidence_urls": ["https://github.com/parkerallan/doa3-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dead-or-alive-3-xbox",
+          "title": "Dead or Alive 3 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/parkerallan/doa3-recomp/blob/919c49f7f364fce67e85f13e75d4921e148422d9/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

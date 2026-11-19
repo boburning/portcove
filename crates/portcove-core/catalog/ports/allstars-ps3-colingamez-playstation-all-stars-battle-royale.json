@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "playstation-all-stars-battle-royale",
       "evidence_urls": ["https://github.com/ColinGamez/allstars-ps3"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "playstation-all-stars-battle-royale-playstation-3",
+          "title": "PlayStation All-Stars Battle Royale (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/ColinGamez/allstars-ps3/blob/cc615b50282b4ebf52876603d08e55aa952a6b7d/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

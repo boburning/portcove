@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "god-hand",
       "evidence_urls": ["https://github.com/LasVola/godhand-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "god-hand-playstation-2",
+          "title": "God Hand (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/LasVola/godhand-recomp/blob/14e956a1274332440273845fbab2c1f1e30c4a5a/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

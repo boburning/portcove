@@ -14,7 +14,7 @@
     "summary": "A skate (2007) Windows player/source route using your own Xbox 360 disc image. Drag it onto Setup.bat to import and build locally. Source examples use Skate. (USA).iso; preserve all extracted files, including default.xex. Exact Windows package architecture and accepted regional executable revision/hashes are unconfirmed. macOS ARM64 source instructions are explicitly untested, and Intel Mac is unsupported. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "skate (2007)",
     "project_url": "https://github.com/cookingwithsimon/Skate1Recompiled",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/cookingwithsimon/Skate1Recompiled",
     "issue_number": 2607,

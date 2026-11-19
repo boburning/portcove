@@ -64,7 +64,26 @@
         }
       ]
     },
-    "platforms": ["macos-x86-64", "macos-aarch64"]
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "diablo-hellfire",
+      "evidence_urls": [
+        "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md",
+        "https://github.com/diasurgical/DevilutionX",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/diablo-hellfire-devilutionx.json"
+      ],
+      "source_editions": [
+        {
+          "id": "diablo-hellfire-pc",
+          "title": "Diablo: Hellfire (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/diablo-hellfire-devilutionx.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "goldeneye-007-reloaded",
       "evidence_urls": ["https://github.com/nikolaygorb/GoldenEye007ReloadedRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "goldeneye-007-reloaded-xbox-360",
+          "title": "GoldenEye 007: Reloaded (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/nikolaygorb/GoldenEye007ReloadedRecomp/blob/f266e8492e40d62f2fac00a7717242f2b75f9f9b/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

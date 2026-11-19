@@ -40,7 +40,16 @@
         "https://github.com/ogdanimal/Goemon64Recomp-Android/blob/v1.0.8/README.md",
         "https://github.com/ogdanimal/Goemon64Recomp-Android"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "mystical-ninja-starring-goemon-nintendo-64",
+          "title": "Mystical Ninja Starring Goemon (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/ogdanimal/Goemon64Recomp-Android/blob/367b1017907d08867d70a4b2e9730b21d75577ff/README.md"
+          ]
+        }
+      ]
     },
     "original_game_title": "Mystical Ninja Starring Goemon"
   }

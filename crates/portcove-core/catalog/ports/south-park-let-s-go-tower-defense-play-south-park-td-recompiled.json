@@ -58,7 +58,17 @@
         "https://github.com/TekRantGaming/south-park-tower-defense-recompiled/blob/22175afc62acd3e420af355a42dd31c2018c2165/README.md",
         "https://github.com/TekRantGaming/south-park-tower-defense-recompiled"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "south-park-lets-go-tower-defense-play-xbox-360",
+          "title": "South Park: Let's Go Tower Defense Play! (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/TekRantGaming/south-park-tower-defense-recompiled/blob/22175afc62acd3e420af355a42dd31c2018c2165/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/south-park-let-s-go-tower-defense-play-south-park-td-recompiled.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

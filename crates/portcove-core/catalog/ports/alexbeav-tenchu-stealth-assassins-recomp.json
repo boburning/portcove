@@ -56,7 +56,16 @@
         "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "tenchu-stealth-assassins-playstation",
+          "title": "Tenchu: Stealth Assassins (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/blob/2d3ce1718f6e47e3be6d35d15a688f44e1034060/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

@@ -14,7 +14,7 @@
       "match_kind": "underlying-game"
     },
     "project_url": "https://github.com/catmidori/gogoackman1recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/catmidori/gogoackman1recomp",
     "issue_number": 2881,
@@ -65,7 +65,16 @@
         "https://github.com/catmidori/gogoackman1recomp",
         "https://github.com/catmidori/gogoackman1recomp/blob/9f12ba1e59185e6fbe70eb7822338c7709f0c86a/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "go-go-ackman-super-nintendo",
+          "title": "Go Go Ackman (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/catmidori/gogoackman1recomp/blob/db9f16b5ae51719f0ec81f3f4bae63a5ef84348c/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -7,7 +7,7 @@
     "project_url": "https://github.com/carl0srmz/arwing2",
     "issue_number": 1946,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/carl0srmz/arwing2",
     "artwork": {
@@ -46,7 +46,28 @@
         "This is a hybrid static 65816/SuperFX recompilation with interpreter/hardware fallback, not an emulation-free or full-equivalence qualification. Upstream sampled dispatch/hash, audio and HD claims retain their scoped limitations; no Portcove native game/gameplay/save/audio/hardware pass is made. Upstream documents no true widescreen and only partial HD sub-pixel recovery (approximately 66–90% of vertices); these are upstream limits, not a Portcove measurement.",
         "No Core-managed acquisition/installer/preparation/Update/Backup/Rollback/migration/deletion or protected/installed/human/other-platform acceptance. The selected rolling source is frozen here; later moving-tag packages need their own identity and review."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-fox-2",
+      "evidence_urls": [
+        "https://github.com/carl0srmz/arwing2/blob/f683ae57c05277aef1cd7e07ff30c3b6a4358a84/README.md",
+        "https://github.com/carl0srmz/arwing2",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/star-fox-2-arwing2.json"
+      ],
+      "source_editions": [
+        {
+          "id": "star-fox-2-super-nintendo",
+          "title": "Star Fox 2 (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/carl0srmz/arwing2/blob/f683ae57c05277aef1cd7e07ff30c3b6a4358a84/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/star-fox-2-arwing2.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Star Fox 2"
   },
   "upstream_lineage": {
     "format_version": 1,

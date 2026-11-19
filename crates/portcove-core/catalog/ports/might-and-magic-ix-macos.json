@@ -49,7 +49,16 @@
         "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/v1.3/README.md",
         "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "might-and-magic-ix-pc",
+          "title": "Might and Magic IX (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/00ff525d36ab4276901a4e9556e12cab5009461a/README.md"
+          ]
+        }
+      ]
     }
   }
 }

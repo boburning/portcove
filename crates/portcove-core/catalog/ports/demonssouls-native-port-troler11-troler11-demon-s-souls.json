@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "demon-s-souls",
       "evidence_urls": ["https://github.com/troler11/demons-souls-port-pc"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "demon-s-souls-playstation-3",
+          "title": "Demon's Souls (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/troler11/demons-souls-port-pc/blob/debad67441803fd38ece8a922493b3d9ac9e35d4/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
