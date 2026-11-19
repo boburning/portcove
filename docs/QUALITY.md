@@ -746,8 +746,15 @@ Main CI bounds metadata/aggregate jobs at 15 minutes, ordinary producers at
 (run 43352622836) and a root-manifest edit forces one until `main` saves the cache. Windows helpers have
 15 minutes: run 43296962076 attempt 1 reached the earlier 10-minute limit in its last
 step on a slow runner and passed its one re-run in 8 minutes. The macOS no-global frontend route allows
-25 minutes for cold provider setup, its full browser stages and evidence retention;
-other portability probes retain 15 minutes. These generous outer
+35 minutes for its full verification command inside a 45-minute job, leaving room
+for cold provider setup and diagnostic retention. Run `44490420055/2` reached its
+previous 25-minute job limit while cases were still completing. Two earlier
+adaptive-shell bounds failures remain separate from that timeout; additional time
+alone does not repair them. The route keeps every assertion and per-case deadline,
+and requests diagnostics after failure or cancellation. Adaptive-shell fixture
+changes select this existing macOS route. Whole-job termination still
+does not establish successful cleanup or guaranteed evidence retention. Other
+portability probes retain 15 minutes. These generous outer
 envelopes include cold setup and evidence upload above the audit's sampled
 ordinary jobs and failed qualification producers. They are hang
 limits, not latency targets or evidence that cleanup can survive a whole-job kill.

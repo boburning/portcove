@@ -11,9 +11,12 @@ import { THEME_STORAGE_KEY } from "../theme";
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
 let spacing: HTMLStyleElement | undefined;
+let appHost: HTMLDivElement | undefined;
 beforeEach(() => localStorage.clear());
 afterEach(async () => {
   await cleanup();
+  appHost?.remove();
+  appHost = undefined;
   transport?.dispose();
   transport = undefined;
   document.documentElement.removeAttribute("data-theme");
@@ -22,6 +25,19 @@ afterEach(async () => {
   spacing = undefined;
   await page.viewport(1280, 800);
 });
+
+async function renderApp() {
+  // Match main.tsx: desktop workspaces need a definite root height, while the
+  // existing compact media rule restores the root's document-flow height.
+  appHost = document.body.appendChild(document.createElement("div"));
+  appHost.id = "root";
+  await render(
+    <LocalizationProvider api={desktopApi}>
+      <App />
+    </LocalizationProvider>,
+    { container: appHost },
+  );
+}
 
 for (const theme of ["dark", "light"]) {
   it(`fits the full ${theme} brand and navigation at intermediate widths`, async () => {
@@ -32,11 +48,7 @@ for (const theme of ["dark", "light"]) {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
     document.documentElement.dataset.theme = theme;
     await page.viewport(768, 512);
-    await render(
-      <LocalizationProvider api={desktopApi}>
-        <App />
-      </LocalizationProvider>,
-    );
+    await renderApp();
     const sidebar = document.querySelector<HTMLElement>(".sidebar")!;
     const wordmark = sidebar.querySelector<HTMLElement>(".brand strong")!;
     await document.fonts.ready;
@@ -71,11 +83,7 @@ for (const theme of ["dark", "light"]) {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
     document.documentElement.dataset.theme = theme;
     await page.viewport(548, 366);
-    await render(
-      <LocalizationProvider api={desktopApi}>
-        <App />
-      </LocalizationProvider>,
-    );
+    await renderApp();
     await page.getByRole("button", { name: "Open navigation", exact: true }).click();
     const library = page.getByRole("button", { name: /^Library/ }).element();
     const label = [...library.querySelectorAll("span")].find(
@@ -114,11 +122,7 @@ for (const theme of ["dark", "light"]) {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
     document.documentElement.dataset.theme = theme;
     await page.viewport(320, 640);
-    await render(
-      <LocalizationProvider api={desktopApi}>
-        <App />
-      </LocalizationProvider>,
-    );
+    await renderApp();
     const origin = page.getByRole("button", {
       name: "View details for Orchard Quest",
       exact: true,
@@ -140,12 +144,27 @@ for (const theme of ["dark", "light"]) {
     expect(origin.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(innerHeight + 1);
     for (const width of Array.from({ length: 8 }, () => [1280, 320]).flat()) {
       await page.viewport(width, 640);
+      const main = page.getByRole("main").element();
+      expect(getComputedStyle(main).overflowY).toBe(width < 672 ? "visible" : "auto");
+      const viewportHeight =
+        width < 672 ? document.documentElement.clientHeight : main.clientHeight;
+      expect(viewportHeight).toBe(innerHeight);
       await expect.element(origin).toHaveFocus();
       await expect
         .poll(() => origin.element().getBoundingClientRect().top)
         .toBeGreaterThanOrEqual(0);
       await expect
-        .poll(() => origin.element().getBoundingClientRect().bottom)
+        .poll(() => origin.element().getBoundingClientRect().bottom, {
+          message: `Detail origin after ${width}px resize; poll-start geometry: ${JSON.stringify({
+            width: innerWidth,
+            height: innerHeight,
+            rootHeight: appHost?.clientHeight,
+            workspaceHeight: main.clientHeight,
+            overflowY: getComputedStyle(main).overflowY,
+            documentScroll: document.scrollingElement?.scrollTop,
+            workspaceScroll: main.scrollTop,
+          })}`,
+        })
         .toBeLessThanOrEqual(innerHeight + 1);
     }
   });
@@ -158,11 +177,7 @@ for (const theme of ["dark", "light"]) {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
     document.documentElement.dataset.theme = theme;
     await page.viewport(960, 640);
-    await render(
-      <LocalizationProvider api={desktopApi}>
-        <App />
-      </LocalizationProvider>,
-    );
+    await renderApp();
     const search = page.getByRole("textbox", { name: "Search your library" });
     await search.fill("a retained search draft");
     for (const [width, height] of [
@@ -212,11 +227,7 @@ for (const theme of ["dark", "light"]) {
       localStorage.setItem(THEME_STORAGE_KEY, theme);
       document.documentElement.dataset.theme = theme;
       await page.viewport(320, 800);
-      await render(
-        <LocalizationProvider api={desktopApi}>
-          <App />
-        </LocalizationProvider>,
-      );
+      await renderApp();
       await page.getByRole("button", { name: "Open navigation", exact: true }).click();
       await page.getByRole("button", { name: "Settings", exact: true }).click();
       await expect
