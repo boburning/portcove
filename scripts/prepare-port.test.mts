@@ -36,6 +36,7 @@ import { checkedAuthoredPort, readCatalogSource } from "./catalog-authoring.mts"
 import { observationHash } from "./upstream-observer.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createIgdbInspector } from "./inspect-igdb-artwork.mts";
+import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
 import { coreProposalInspector, type ListingReceipt } from "./catalog-authoring-inspector.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 
@@ -2288,6 +2289,7 @@ void test("preparation reports all declared route projections across the current
   );
   assert.ok(routeRecords.some((record) => record.integration === undefined));
   assert.ok(gbaRecords.length > 0);
+  assert.ok(records.some((record) => record.reflectionhle_portable_paths_v1));
   assert.ok(records.some((record) => record.psx_managed_windows_v1));
   assert.ok(records.some((record) => record.n64_recomp_persistence_v1));
   assert.ok(records.some((record) => record.raze_windows_profile_v1));
@@ -2297,6 +2299,7 @@ void test("preparation reports all declared route projections across the current
     const expected = [];
     if (record.route_facts_v1) expected.push("route_facts_v1");
     if (record.gba_staged_archive_v1) expected.push("gba_staged_archive_v1");
+    if (record.reflectionhle_portable_paths_v1) expected.push("reflectionhle_portable_paths_v1");
     if (record.psx_managed_windows_v1) expected.push("psx_managed_windows_v1");
     if (record.n64_recomp_persistence_v1) expected.push("n64_recomp_persistence_v1");
     if (record.raze_windows_profile_v1) expected.push("raze_windows_profile_v1");
@@ -2307,6 +2310,55 @@ void test("preparation reports all declared route projections across the current
     );
     assert.equal(feedback.status, expected.length > 0 ? "declared" : "undeclared", id);
     assert.match(feedback.original_files, /does not establish/, id);
+  }
+});
+
+void test("official URL preparation retains ReflectionHLE portability observations in its compact proposal", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const accepted = readCatalogSource(root);
+    const id = "catacomb-3-d-the-descent-reflectionhle";
+    const selected = accepted.records.find((record) => record.listing.id === id)!;
+    const explicit = projectReflectionHlePortablePaths(selected);
+    delete explicit.reflectionhle_portable_paths_v1;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const prepared = await preparePort({
+      id,
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: selected.listing.project_url,
+      originalGame: selected.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({
+                ...metadata,
+                id: 24228275,
+                full_name: "ReflectionHLE/ReflectionHLE",
+                archived: false,
+              }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    assert.deepEqual(prepared.report.changed_records, [id]);
+    assert.equal(prepared.report.operational_changed, false);
+    assert.deepEqual(
+      prepared.report.portable_preparation?.persistence,
+      explicit.integration?.persistent_paths,
+    );
+    const candidate = checkedAuthoredPort(
+      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
+    );
+    assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
+    assert.equal(candidate.reflectionhle_portable_paths_v1, true);
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
   }
 });
 

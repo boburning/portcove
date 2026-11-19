@@ -63858,15 +63858,17 @@
           "crawl.exe"
         ]
       },
-      "user_data_environment": "CRAWL_DIR",
       "persistent_paths": [
+        "init.txt",
+        "morgue",
+        "saves",
         "settings/macro.txt"
       ],
       "presentation": {
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "No original game files are required. Portcove stores ordinary saves in the private Crawl profile and preserves the default keyboard macro file across runtime updates. Keep custom settings in the private profile. A CRAWL_RC override continues to use its separate upstream configuration file.",
+        "manual_preparation": "No original game files are required. Portcove preserves saves, character dumps, the keyboard macro file and an optional init.txt in the game's user-data folder. Crawl handles a CRAWL_RC override or a custom data path outside that folder separately.",
         "original_game_title": "Linley's Dungeon Crawl",
         "original_game": {
           "format_version": 1,
@@ -63889,11 +63891,15 @@
             }
           ],
           "warnings": [
-            "A CRAWL_RC environment override keeps using its separate upstream configuration file."
+            "Crawl handles a CRAWL_RC override and any custom data paths outside the Portcove user-data folder. Back up those files separately."
           ],
           "help_url": "https://crawl.develz.org/wordpress/about"
         }
-      }
+      },
+      "launch_arguments": [
+        "-dir",
+        "."
+      ]
     },
     {
       "id": "eandis-sdoj-recomp",

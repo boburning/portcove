@@ -34919,7 +34919,7 @@
           }
         ],
         "warnings": [
-          "A CRAWL_RC environment override keeps using its separate upstream configuration file."
+          "Crawl handles a CRAWL_RC override and any custom data paths outside the Portcove user-data folder. Back up those files separately."
         ],
         "help_url": "https://crawl.develz.org/wordpress/about"
       },
